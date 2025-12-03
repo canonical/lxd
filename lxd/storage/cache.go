@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
@@ -46,14 +47,14 @@ func NewStorageCache(p Pool) *storageCache {
 }
 
 // GetPool returns the pool either by loading it from the DB or from the cache (preferred).
-func (s *storageCache) GetPool(name string) (Pool, error) {
+func (s *storageCache) GetPool(ctx context.Context, name string) (Pool, error) {
 	// Load the pool if it cannot be found.
 	_, ok := s.pools[name]
 	if !ok {
 		var err error
 
 		// Custom volume's pool is not yet in the cache, load it.
-		pool, err := LoadByName(s.state, name)
+		pool, err := LoadByName(ctx, s.state, name)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +68,7 @@ func (s *storageCache) GetPool(name string) (Pool, error) {
 
 // getVolume returns the volume's backup config either by loading it from the DB or from the cache (preferred).
 // If snapshots is true the volume's snapshots are included in the returned backup config.
-func (s *storageCache) getVolume(projectName string, poolName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Volume, error) {
+func (s *storageCache) getVolume(ctx context.Context, projectName string, poolName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Volume, error) {
 	// Create pool cache.
 	_, ok := s.volumes[poolName]
 	if !ok {
@@ -82,12 +83,12 @@ func (s *storageCache) getVolume(projectName string, poolName string, volName st
 
 	_, ok = s.volumes[poolName][projectName][volName]
 	if !ok {
-		pool, err := s.GetPool(poolName)
+		pool, err := s.GetPool(ctx, poolName)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to retrieve pool of volume %q in pool %q: %w", volName, poolName, err)
 		}
 
-		volConfig, err := pool.GenerateCustomVolumeBackupConfig(projectName, volName, snapshots, op)
+		volConfig, err := pool.GenerateCustomVolumeBackupConfig(ctx, projectName, volName, snapshots, op)
 		if err != nil {
 			return nil, fmt.Errorf("Failed generating backup config of volume %q in pool %q and project %q: %w", volName, poolName, projectName, err)
 		}

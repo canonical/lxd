@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -437,17 +438,17 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Mount the instance's root volume
-	pool, err := storage.LoadByInstance(s, inst)
+	pool, err := storage.LoadByInstance(r.Context(), s, inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = pool.MountInstance(inst, nil)
+	_, err = pool.MountInstance(r.Context(), inst, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = pool.UnmountInstance(inst, nil) }()
+	defer func() { _ = pool.UnmountInstance(context.Background(), inst, nil) }()
 
 	// Read exec record-output files
 	dents, err := os.ReadDir(inst.ExecOutputPath())
@@ -546,17 +547,17 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Mount the instance's root volume
-	pool, err := storage.LoadByInstance(s, inst)
+	pool, err := storage.LoadByInstance(r.Context(), s, inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = pool.MountInstance(inst, nil)
+	_, err = pool.MountInstance(r.Context(), inst, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	revert.Add(func() { _ = pool.UnmountInstance(inst, nil) })
+	revert.Add(func() { _ = pool.UnmountInstance(context.Background(), inst, nil) })
 	cleanup := revert.Clone()
 	revert.Success()
 
@@ -641,17 +642,17 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Mount the instance's root volume
-	pool, err := storage.LoadByInstance(s, inst)
+	pool, err := storage.LoadByInstance(r.Context(), s, inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = pool.MountInstance(inst, nil)
+	_, err = pool.MountInstance(r.Context(), inst, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = pool.UnmountInstance(inst, nil) }()
+	defer func() { _ = pool.UnmountInstance(context.Background(), inst, nil) }()
 
 	err = os.Remove(filepath.Join(inst.ExecOutputPath(), file))
 	if err != nil {

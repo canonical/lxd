@@ -228,7 +228,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -290,7 +290,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		buckets := make([]*api.StorageBucket, 0, len(filteredDBBuckets))
 		urlToStorageBucket := make(map[*api.URL]auth.EntitlementReporter, len(filteredDBBuckets))
 		for _, dbBucket := range filteredDBBuckets {
-			u := pool.GetBucketURL(dbBucket.Name)
+			u := pool.GetBucketURL(r.Context(), dbBucket.Name)
 			if u != nil {
 				dbBucket.S3URL = u.String()
 			}
@@ -397,7 +397,7 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	u := details.pool.GetBucketURL(bucket.Name)
+	u := details.pool.GetBucketURL(r.Context(), bucket.Name)
 	if u != nil {
 		bucket.S3URL = u.String()
 	}
@@ -470,7 +470,7 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -478,12 +478,12 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
-	err = pool.CreateBucket(bucketProjectName, req, nil)
+	err = pool.CreateBucket(r.Context(), bucketProjectName, req, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating storage bucket: %w", err))
 	}
 
-	revert.Add(func() { _ = pool.DeleteBucket(bucketProjectName, req.Name, nil) })
+	revert.Add(func() { _ = pool.DeleteBucket(context.Background(), bucketProjectName, req.Name, nil) })
 
 	// Create admin key for new bucket.
 	adminKeyReq := api.StorageBucketKeysPost{
@@ -494,7 +494,7 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 		Name: "admin",
 	}
 
-	adminKey, err := pool.CreateBucketKey(bucketProjectName, req.Name, adminKeyReq, nil)
+	adminKey, err := pool.CreateBucketKey(r.Context(), bucketProjectName, req.Name, adminKeyReq, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating storage bucket admin key: %w", err))
 	}
@@ -642,7 +642,7 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	err = details.pool.UpdateBucket(effectiveProjectName, details.bucketName, req, nil)
+	err = details.pool.UpdateBucket(r.Context(), effectiveProjectName, details.bucketName, req, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed updating storage bucket: %w", err))
 	}
@@ -712,7 +712,7 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 
 // doStorageBucketDelete deletes a storage bucket in the given project and pool.
 func doStorageBucketDelete(pool storagePools.Pool, projectName string, name string) error {
-	err := pool.DeleteBucket(projectName, name, nil)
+	err := pool.DeleteBucket(context.TODO(), projectName, name, nil)
 	if err != nil {
 		return fmt.Errorf("Failed deleting storage bucket %q: %w", name, err)
 	}
@@ -936,7 +936,7 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	key, err := details.pool.CreateBucketKey(effectiveProjectName, details.bucketName, req, nil)
+	key, err := details.pool.CreateBucketKey(r.Context(), effectiveProjectName, details.bucketName, req, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating storage bucket key: %w", err))
 	}
@@ -1000,7 +1000,7 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = details.pool.DeleteBucketKey(effectiveProjectName, details.bucketName, keyName, nil)
+	err = details.pool.DeleteBucketKey(r.Context(), effectiveProjectName, details.bucketName, keyName, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting storage bucket key: %w", err))
 	}
@@ -1172,7 +1172,7 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = details.pool.UpdateBucketKey(effectiveProjectName, details.bucketName, keyName, req, nil)
+	err = details.pool.UpdateBucketKey(r.Context(), effectiveProjectName, details.bucketName, keyName, req, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed updating storage bucket key: %w", err))
 	}
@@ -1220,7 +1220,7 @@ func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
 		return err
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return fmt.Errorf("Failed loading storage pool: %w", err)
 	}

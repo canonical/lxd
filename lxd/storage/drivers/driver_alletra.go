@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -41,13 +42,13 @@ type alletra struct {
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
-func (d *alletra) load() error {
+func (d *alletra) load(ctx context.Context) error {
 	// Done if previously loaded.
 	if alletraLoaded {
 		return nil
 	}
 
-	versions := connectors.GetSupportedVersions(alletraSupportedConnectors)
+	versions := connectors.GetSupportedVersions(ctx, alletraSupportedConnectors)
 	alletraVersion = strings.Join(versions, " / ")
 	alletraLoaded = true
 
@@ -117,7 +118,7 @@ func (d *alletra) Info() Info {
 }
 
 // FillConfig populates the driver's config with default values.
-func (d *alletra) FillConfig() error {
+func (d *alletra) FillConfig(context.Context) error {
 	// Use NVMe by default.
 	if d.config["alletra.mode"] == "" {
 		d.config["alletra.mode"] = connectors.TypeNVME
@@ -260,7 +261,7 @@ func (d *alletra) ValidateSource() error {
 
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *alletra) Create() error {
+func (d *alletra) Create(context.Context) error {
 	err := d.client().CreateVolumeSet(d.name)
 	if err != nil {
 		return err
@@ -270,7 +271,7 @@ func (d *alletra) Create() error {
 }
 
 // Delete removes a storage pool.
-func (d *alletra) Delete(op *operations.Operation) error {
+func (d *alletra) Delete(ctx context.Context, op *operations.Operation) error {
 	err := d.client().DeleteVolumeSet(d.name)
 	if err != nil {
 		return err
@@ -286,7 +287,7 @@ func (d *alletra) Delete(op *operations.Operation) error {
 }
 
 // Update applies any driver changes required from a configuration change.
-func (d *alletra) Update(changedConfig map[string]string) error {
+func (d *alletra) Update(ctx context.Context, changedConfig map[string]string) error {
 	// We don't need to do anything here, and just return success,
 	// because we have no driver-level config options we want to allow
 	// for an update.
@@ -294,17 +295,17 @@ func (d *alletra) Update(changedConfig map[string]string) error {
 }
 
 // Mount mounts the storage pool.
-func (d *alletra) Mount() (bool, error) {
+func (d *alletra) Mount(context.Context) (bool, error) {
 	return true, nil
 }
 
 // Unmount unmounts the storage pool.
-func (d *alletra) Unmount() (bool, error) {
+func (d *alletra) Unmount(context.Context) (bool, error) {
 	return true, nil
 }
 
 // GetResources returns the pool resource usage information.
-func (d *alletra) GetResources() (*api.ResourcesStoragePool, error) {
+func (d *alletra) GetResources(context.Context) (*api.ResourcesStoragePool, error) {
 	// We have to keep in mind, that CPG is a shared resource, and it can be
 	// that the same CPG is used by many other LXD storage pools or even for
 	// another workloads (unrelated to LXD). So this used/free information
@@ -321,14 +322,14 @@ func (d *alletra) GetResources() (*api.ResourcesStoragePool, error) {
 }
 
 // getNVMeTargetQN discovers the targetQN used for the given addresses.
-func (d *alletra) getNVMeTargetQN(targetAddresses ...string) (targetQN string, err error) {
+func (d *alletra) getNVMeTargetQN(ctx context.Context, targetAddresses ...string) (targetQN string, err error) {
 	connector, err := d.connector()
 	if err != nil {
 		return "", err
 	}
 
 	// The discovery log from the first reachable target address is returned.
-	discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+	discoveryLogRecords, err := connector.Discover(ctx, targetAddresses...)
 	if err != nil {
 		return "", fmt.Errorf("Failed to discover array NVMe subsystem NQN: %w", err)
 	}
@@ -352,14 +353,14 @@ func (d *alletra) getNVMeTargetQN(targetAddresses ...string) (targetQN string, e
 }
 
 // getISCSITargetQN discovers the targetQN used for the given addresses.
-func (d *alletra) getISCSITargetQN(targetAddresses ...string) (targetQN string, err error) {
+func (d *alletra) getISCSITargetQN(ctx context.Context, targetAddresses ...string) (targetQN string, err error) {
 	connector, err := d.connector()
 	if err != nil {
 		return "", err
 	}
 
 	// The discovery log from the first reachable target address is returned.
-	discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+	discoveryLogRecords, err := connector.Discover(ctx, targetAddresses...)
 	if err != nil {
 		return "", fmt.Errorf("Failed to discover array ISCSI subsystem IQN: %w", err)
 	}
@@ -376,7 +377,7 @@ func (d *alletra) getISCSITargetQN(targetAddresses ...string) (targetQN string, 
 }
 
 // getTargetQN discovers the targetQN used for the given addresses.
-func (d *alletra) getTargetQN(targetAddresses ...string) (string, error) {
+func (d *alletra) getTargetQN(ctx context.Context, targetAddresses ...string) (string, error) {
 	// The targetQN is unqiue per HPE Alletra storage pool.
 	// Cache the targetQN as it doesn't change throughout the lifetime of the storage pool,
 	// if there are volumes mapped and NVMe/TCP or ISCSI session is active.
@@ -394,13 +395,13 @@ func (d *alletra) getTargetQN(targetAddresses ...string) (string, error) {
 
 	switch mode {
 	case connectors.TypeISCSI:
-		targetQN, err = d.getISCSITargetQN(targetAddresses...)
+		targetQN, err = d.getISCSITargetQN(ctx, targetAddresses...)
 		if err != nil {
 			return "", err
 		}
 
 	case connectors.TypeNVME:
-		targetQN, err = d.getNVMeTargetQN(targetAddresses...)
+		targetQN, err = d.getNVMeTargetQN(ctx, targetAddresses...)
 		if err != nil {
 			return "", err
 		}
@@ -418,7 +419,7 @@ func (d *alletra) getTargetQN(targetAddresses ...string) (string, error) {
 }
 
 // getTarget discovers the targetQN and target's IP addresses list.
-func (d *alletra) getTarget() (targetQN string, targetAddrs []string, err error) {
+func (d *alletra) getTarget(ctx context.Context) (targetQN string, targetAddrs []string, err error) {
 	// First check if target addresses are configured, otherwise, use the discovered ones.
 	var configAddrs = shared.SplitNTrimSpace(d.config["alletra.target"], ",", -1, true)
 	if len(configAddrs) > 0 {
@@ -444,7 +445,7 @@ func (d *alletra) getTarget() (targetQN string, targetAddrs []string, err error)
 	}
 
 	// Discover the targetQN from any of the addresses.
-	targetQN, err = d.getTargetQN(targetAddrs...)
+	targetQN, err = d.getTargetQN(ctx, targetAddrs...)
 	if err != nil {
 		return "", nil, err
 	}

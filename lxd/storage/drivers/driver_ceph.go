@@ -29,9 +29,9 @@ type ceph struct {
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
-func (d *ceph) load() error {
+func (d *ceph) load(ctx context.Context) error {
 	// Register the patches.
-	d.patches = map[string]func() error{
+	d.patches = map[string]func(ctx context.Context) error{
 		"storage_lvm_skipactivation":                         nil,
 		"storage_missing_snapshot_records":                   nil,
 		"storage_delete_old_snapshot_records":                nil,
@@ -54,7 +54,7 @@ func (d *ceph) load() error {
 
 	// Detect and record the version.
 	if cephVersion == "" {
-		out, err := shared.RunCommandContext(d.state.ShutdownCtx, "rbd", "--version")
+		out, err := shared.RunCommandContext(ctx, "rbd", "--version")
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (d *ceph) getPlaceholderVolume() Volume {
 }
 
 // FillConfig populates the storage pool's configuration file with the default values.
-func (d *ceph) FillConfig() error {
+func (d *ceph) FillConfig(context.Context) error {
 	if d.config["ceph.cluster_name"] == "" {
 		d.config["ceph.cluster_name"] = CephDefaultCluster
 	}
@@ -171,7 +171,7 @@ func (d *ceph) ValidateSource() error {
 
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *ceph) Create() error {
+func (d *ceph) Create(ctx context.Context) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -184,7 +184,7 @@ func (d *ceph) Create() error {
 	}
 
 	placeholderVol := d.getPlaceholderVolume()
-	poolExists, err := d.osdPoolExists()
+	poolExists, err := d.osdPoolExists(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed checking the existence of the ceph %q osd pool while attempting to create it because of an internal error: %w", d.config["ceph.osd.pool_name"], err)
 	}
@@ -203,7 +203,7 @@ func (d *ceph) Create() error {
 			return err
 		}
 
-		revert.Add(func() { _ = d.osdDeletePool() })
+		revert.Add(func() { _ = d.osdDeletePool(context.Background()) })
 
 		// Fetch the default OSD pool size.
 		defaultSize, err := d.getOSDPoolDefaultSize()
@@ -241,14 +241,14 @@ func (d *ceph) Create() error {
 
 		// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
 		// pool is already in use by another LXD instance.
-		err = d.rbdCreateVolume(placeholderVol, "0")
+		err = d.rbdCreateVolume(ctx, placeholderVol, "0")
 		if err != nil {
 			return err
 		}
 
 		d.config["volatile.pool.pristine"] = "true"
 	} else {
-		volExists, err := d.HasVolume(placeholderVol)
+		volExists, err := d.HasVolume(ctx, placeholderVol)
 		if err != nil {
 			return err
 		}
@@ -264,7 +264,7 @@ func (d *ceph) Create() error {
 		} else {
 			// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
 			// pool is already in use by another LXD instance.
-			err := d.rbdCreateVolume(placeholderVol, "0")
+			err := d.rbdCreateVolume(ctx, placeholderVol, "0")
 			if err != nil {
 				return err
 			}
@@ -273,7 +273,7 @@ func (d *ceph) Create() error {
 		}
 
 		// Use existing OSD pool.
-		msg, err := shared.RunCommandContext(d.state.ShutdownCtx, "ceph",
+		msg, err := shared.RunCommandContext(ctx, "ceph",
 			"--name", "client."+d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
 			"osd",
@@ -306,9 +306,9 @@ func (d *ceph) Create() error {
 }
 
 // Delete removes the storage pool from the storage device.
-func (d *ceph) Delete(op *operations.Operation) error {
+func (d *ceph) Delete(ctx context.Context, op *operations.Operation) error {
 	// Test if the pool exists.
-	poolExists, err := d.osdPoolExists()
+	poolExists, err := d.osdPoolExists(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed checking the existence of the ceph %q osd pool while attempting to delete it because of an internal error: %w", d.config["ceph.osd.pool_name"], err)
 	}
@@ -321,7 +321,7 @@ func (d *ceph) Delete(op *operations.Operation) error {
 	if shared.IsTrue(d.config["volatile.pool.pristine"]) {
 		// Delete the osd pool.
 		if poolExists {
-			err := d.osdDeletePool()
+			err := d.osdDeletePool(ctx)
 			if err != nil {
 				return err
 			}
@@ -458,7 +458,7 @@ func (d *ceph) Validate(config map[string]string) error {
 }
 
 // Update applies any driver changes required from a configuration change.
-func (d *ceph) Update(changedConfig map[string]string) error {
+func (d *ceph) Update(ctx context.Context, changedConfig map[string]string) error {
 	// applyPool applies a OSD pool level setting.
 	applyPool := func(key string, value string) error {
 		_, err := shared.TryRunCommand("ceph",
@@ -495,9 +495,9 @@ func (d *ceph) Update(changedConfig map[string]string) error {
 }
 
 // Mount mounts the storage pool.
-func (d *ceph) Mount() (bool, error) {
+func (d *ceph) Mount(ctx context.Context) (bool, error) {
 	placeholderVol := d.getPlaceholderVolume()
-	volExists, err := d.HasVolume(placeholderVol)
+	volExists, err := d.HasVolume(ctx, placeholderVol)
 	if err != nil {
 		return false, err
 	}
@@ -510,16 +510,16 @@ func (d *ceph) Mount() (bool, error) {
 }
 
 // Unmount unmounts the storage pool.
-func (d *ceph) Unmount() (bool, error) {
+func (d *ceph) Unmount(context.Context) (bool, error) {
 	// Nothing to do here.
 	return true, nil
 }
 
 // GetResources returns the pool resource usage information.
-func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
+func (d *ceph) GetResources(ctx context.Context) (*api.ResourcesStoragePool, error) {
 	var stdout bytes.Buffer
 
-	err := shared.RunCommandWithFds(context.TODO(), nil, &stdout,
+	err := shared.RunCommandWithFds(ctx, nil, &stdout,
 		"ceph",
 		"--name", "client."+d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],

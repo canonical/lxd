@@ -179,12 +179,12 @@ func MemberState(ctx context.Context, s *state.State) (*api.ClusterMemberState, 
 	memberState.StoragePools = make(map[string]api.StoragePoolState, len(pools))
 
 	for poolID := range pools {
-		pool, err := storagePools.LoadByRecord(s, poolID, pools[poolID], poolMembers[poolID])
+		pool, err := storagePools.LoadByRecord(context.TODO(), s, poolID, pools[poolID], poolMembers[poolID])
 		if err != nil {
 			return nil, fmt.Errorf("Failed loading storage pool %q: %w", pools[poolID].Name, err)
 		}
 
-		res, err := pool.GetResources()
+		res, err := pool.GetResources(context.TODO())
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting storage pool resources %q: %w", pools[poolID].Name, err)
 		}

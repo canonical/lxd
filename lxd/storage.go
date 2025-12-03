@@ -81,7 +81,7 @@ func storageStartup(s *state.State) error {
 	initPool := func(poolName string) bool {
 		logger.Debug("Initializing storage pool", logger.Ctx{"pool": poolName})
 
-		pool, err := storagePools.LoadByName(s, poolName)
+		pool, err := storagePools.LoadByName(s.ShutdownCtx, s, poolName)
 		if err != nil {
 			if response.IsNotFoundError(err) {
 				return true // Nothing to activate as pool has been deleted.
@@ -92,7 +92,7 @@ func storageStartup(s *state.State) error {
 			return false
 		}
 
-		_, err = pool.Mount()
+		_, err = pool.Mount(s.ShutdownCtx)
 		if err != nil {
 			logger.Error("Failed mounting storage pool", logger.Ctx{"pool": poolName, "err": err})
 			_ = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -198,13 +198,13 @@ func storageStop(s *state.State) {
 	}
 
 	for _, poolName := range pools {
-		pool, err := storagePools.LoadByName(s, poolName)
+		pool, err := storagePools.LoadByName(s.ShutdownCtx, s, poolName)
 		if err != nil {
 			logger.Error("Failed to get storage pool", logger.Ctx{"pool": poolName, "err": err})
 			continue
 		}
 
-		_, err = pool.Unmount()
+		_, err = pool.Unmount(s.ShutdownCtx)
 		if err != nil {
 			logger.Error("Unable to unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
 			continue
@@ -239,7 +239,7 @@ func storagePoolDriversCacheUpdate(ctx context.Context, s *state.State) {
 	usedDrivers := map[string]string{}
 
 	// Get the driver info.
-	info := storageDrivers.SupportedDrivers(s)
+	info := storageDrivers.SupportedDrivers(context.TODO(), s)
 	supportedDrivers := make([]api.ServerStorageDriverInfo, 0, len(info))
 
 	for _, entry := range info {

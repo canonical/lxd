@@ -106,12 +106,12 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 		}
 
 		if req.Source.Server != "" {
-			img, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, p, imgAlias, req.Source, string(req.Type))
+			img, err = ensureDownloadedImageFitWithinBudget(op.Context(), s, op, p, imgAlias, req.Source, string(req.Type))
 			if err != nil {
 				return err
 			}
 		} else if img != nil {
-			err := ensureImageIsLocallyAvailable(ctx, s, img, args.Project)
+			err := ensureImageIsLocallyAvailable(op.Context(), s, img, args.Project)
 			if err != nil {
 				return err
 			}
@@ -272,7 +272,7 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
 
 	if inst == nil {
-		_, err := storagePools.LoadByName(s, storagePool)
+		_, err := storagePools.LoadByName(ctx, s, storagePool)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -408,7 +408,7 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 	revert := revert.New()
 	defer revert.Fail()
 
-	_, err = storagePools.LoadByName(s, storagePool)
+	_, err = storagePools.LoadByName(ctx, s, storagePool)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -821,11 +821,11 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	// Copy reverter so far so we can use it inside run after this function has finished.
 	runRevert := revert.Clone()
 
-	run := func(_ *operations.Operation) error {
+	run := func(op *operations.Operation) error {
 		defer func() { _ = backupFile.Close() }()
 		defer runRevert.Fail()
 
-		pool, err := storagePools.LoadByName(s, bInfo.Pool)
+		pool, err := storagePools.LoadByName(context.TODO(), s, bInfo.Pool)
 		if err != nil {
 			return err
 		}
@@ -840,14 +840,14 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		// a post hook that can be run once the instance has been created in the database to run any
 		// storage layer finalisations, and a revert hook that can be run if the instance database load
 		// process fails that will remove anything created thus far.
-		postHook, revertHook, err := pool.CreateInstanceFromBackup(*bInfo, backupFile, nil)
+		postHook, revertHook, err := pool.CreateInstanceFromBackup(context.TODO(), *bInfo, backupFile, nil)
 		if err != nil {
 			return fmt.Errorf("Create instance from backup: %w", err)
 		}
 
 		runRevert.Add(revertHook)
 
-		err = internalImportFromBackup(context.TODO(), s, bInfo.Project, bInfo.Name, instanceName != "", devices)
+		err = internalImportFromBackup(op.Context(), s, bInfo.Project, bInfo.Name, instanceName != "", devices)
 		if err != nil {
 			return fmt.Errorf("Failed importing backup: %w", err)
 		}

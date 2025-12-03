@@ -29,13 +29,13 @@ func unmountDaemonStorageVolume(s *state.State, daemonStorageVolume string) erro
 		return err
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(context.TODO(), s, poolName)
 	if err != nil {
 		return err
 	}
 
 	// Unmount volume.
-	_, err = pool.UnmountCustomVolume(api.ProjectDefaultName, volumeName, nil)
+	_, err = pool.UnmountCustomVolume(context.TODO(), api.ProjectDefaultName, volumeName, nil)
 	if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 		return fmt.Errorf("Failed to unmount storage volume %q: %w", daemonStorageVolume, err)
 	}
@@ -89,13 +89,13 @@ func mountDaemonStorageVolume(s *state.State, daemonStorageVolume string) error 
 		return err
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(context.TODO(), s, poolName)
 	if err != nil {
 		return err
 	}
 
 	// Mount volume.
-	_, err = pool.MountCustomVolume(api.ProjectDefaultName, volumeName, nil)
+	_, err = pool.MountCustomVolume(context.TODO(), api.ProjectDefaultName, volumeName, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to mount storage volume %q: %w", daemonStorageVolume, err)
 	}
@@ -237,7 +237,7 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 	}
 
 	// Validate pool exists.
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(context.TODO(), s, poolName)
 	if err != nil {
 		return "", fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
@@ -283,12 +283,12 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 	}
 
 	// Mount volume.
-	_, err = pool.MountCustomVolume(api.ProjectDefaultName, volumeName, nil)
+	_, err = pool.MountCustomVolume(context.TODO(), api.ProjectDefaultName, volumeName, nil)
 	if err != nil {
 		return "", fmt.Errorf("Failed to mount storage volume %q: %w", target, err)
 	}
 
-	defer func() { _, _ = pool.UnmountCustomVolume(api.ProjectDefaultName, volumeName, nil) }()
+	defer func() { _, _ = pool.UnmountCustomVolume(context.Background(), api.ProjectDefaultName, volumeName, nil) }()
 
 	// Validate volume is empty (ignore lost+found).
 	volStorageName := project.StorageVolume(api.ProjectDefaultName, volumeName)
@@ -385,14 +385,14 @@ func daemonStorageMove(s *state.State, storageType config.DaemonStorageType, old
 			return fmt.Errorf("Failed to move data over to directory %q: %w", destPath, err)
 		}
 
-		pool, err := storagePools.LoadByName(s, sourcePool)
+		pool, err := storagePools.LoadByName(context.TODO(), s, sourcePool)
 		if err != nil {
 			return err
 		}
 
 		// Unmount old volume if noone else is using it.
 		projectName, sourceVolumeName := project.StorageVolumeParts(sourceVolume)
-		_, err = pool.UnmountCustomVolume(projectName, sourceVolumeName, nil)
+		_, err = pool.UnmountCustomVolume(context.TODO(), projectName, sourceVolumeName, nil)
 		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return fmt.Errorf(`Failed to umount storage volume "%s/%s": %w`, sourcePool, sourceVolumeName, err)
 		}
@@ -406,13 +406,13 @@ func daemonStorageMove(s *state.State, storageType config.DaemonStorageType, old
 		return err
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(context.TODO(), s, poolName)
 	if err != nil {
 		return err
 	}
 
 	// Mount volume.
-	_, err = pool.MountCustomVolume(api.ProjectDefaultName, volumeName, nil)
+	_, err = pool.MountCustomVolume(context.TODO(), api.ProjectDefaultName, volumeName, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to mount storage volume %q: %w", newconfig, err)
 	}
@@ -443,14 +443,14 @@ func daemonStorageMove(s *state.State, storageType config.DaemonStorageType, old
 			return fmt.Errorf("Failed to move data over to directory %q: %w", destPath, err)
 		}
 
-		pool, err := storagePools.LoadByName(s, sourcePool)
+		pool, err := storagePools.LoadByName(context.TODO(), s, sourcePool)
 		if err != nil {
 			return err
 		}
 
 		// Unmount old volume.
 		projectName, sourceVolumeName := project.StorageVolumeParts(sourceVolume)
-		_, err = pool.UnmountCustomVolume(projectName, sourceVolumeName, nil)
+		_, err = pool.UnmountCustomVolume(context.TODO(), projectName, sourceVolumeName, nil)
 		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return fmt.Errorf(`Failed to umount storage volume "%s/%s": %w`, sourcePool, sourceVolumeName, err)
 		}

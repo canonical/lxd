@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -51,13 +52,13 @@ type powerflex struct {
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
-func (d *powerflex) load() error {
+func (d *powerflex) load(ctx context.Context) error {
 	// Done if previously loaded.
 	if powerFlexLoaded {
 		return nil
 	}
 
-	versions := connectors.GetSupportedVersions(powerflexSupportedConnectors)
+	versions := connectors.GetSupportedVersions(ctx, powerflexSupportedConnectors)
 	powerFlexVersion = strings.Join(versions, " / ")
 	powerFlexLoaded = true
 
@@ -115,7 +116,7 @@ func (d *powerflex) Info() Info {
 }
 
 // FillConfig populates the storage pool's configuration file with the default values.
-func (d *powerflex) FillConfig() error {
+func (d *powerflex) FillConfig(context.Context) error {
 	if d.config["powerflex.user.name"] == "" {
 		d.config["powerflex.user.name"] = powerFlexDefaultUser
 	}
@@ -204,12 +205,12 @@ func (d *powerflex) ValidateSource() error {
 
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *powerflex) Create() error {
+func (d *powerflex) Create(context.Context) error {
 	return nil
 }
 
 // Delete removes the storage pool from the storage device.
-func (d *powerflex) Delete(op *operations.Operation) error {
+func (d *powerflex) Delete(ctx context.Context, op *operations.Operation) error {
 	// If the user completely destroyed it, call it done.
 	if !shared.PathExists(GetPoolMountPath(d.name)) {
 		return nil
@@ -340,24 +341,24 @@ func (d *powerflex) Validate(config map[string]string) error {
 }
 
 // Update applies any driver changes required from a configuration change.
-func (d *powerflex) Update(changedConfig map[string]string) error {
+func (d *powerflex) Update(ctx context.Context, changedConfig map[string]string) error {
 	return nil
 }
 
 // Mount mounts the storage pool.
-func (d *powerflex) Mount() (bool, error) {
+func (d *powerflex) Mount(context.Context) (bool, error) {
 	// Nothing to do here.
 	return true, nil
 }
 
 // Unmount unmounts the storage pool.
-func (d *powerflex) Unmount() (bool, error) {
+func (d *powerflex) Unmount(context.Context) (bool, error) {
 	// Nothing to do here.
 	return true, nil
 }
 
 // GetResources returns the pool resource usage information.
-func (d *powerflex) GetResources() (*api.ResourcesStoragePool, error) {
+func (d *powerflex) GetResources(context.Context) (*api.ResourcesStoragePool, error) {
 	pool, err := d.resolvePool()
 	if err != nil {
 		return nil, err
@@ -425,6 +426,6 @@ func (d *powerflex) MigrationTypes(contentType ContentType, refresh bool, copySn
 
 // roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
 // multiple of 8 GiB, which is the minimum allocation unit on PowerFlex.
-func (d *powerflex) roundVolumeBlockSizeBytes(_ Volume, sizeBytes int64) int64 {
+func (d *powerflex) roundVolumeBlockSizeBytes(ctx context.Context, vol Volume, sizeBytes int64) int64 {
 	return roundAbove(powerFlexMinVolumeSizeBytes, sizeBytes)
 }

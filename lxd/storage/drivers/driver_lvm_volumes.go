@@ -29,7 +29,7 @@ import (
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
-func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *lvm) CreateVolume(ctx context.Context, vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -41,25 +41,25 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 	revert.Add(func() { _ = os.RemoveAll(volPath) })
 
-	err = d.createLogicalVolume(d.config["lvm.vg_name"], d.thinpoolName(), vol, d.usesThinpool())
+	err = d.createLogicalVolume(ctx, d.config["lvm.vg_name"], d.thinpoolName(), vol, d.usesThinpool())
 	if err != nil {
 		return fmt.Errorf("Error creating LVM logical volume: %w", err)
 	}
 
-	revert.Add(func() { _ = d.DeleteVolume(vol, op) })
+	revert.Add(func() { _ = d.DeleteVolume(context.Background(), vol, nil) })
 
 	// For VMs, also create the filesystem volume.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := d.CreateVolume(fsVol, nil, op)
+		err := d.CreateVolume(ctx, fsVol, nil, op)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = d.DeleteVolume(fsVol, op) })
+		revert.Add(func() { _ = d.DeleteVolume(context.Background(), fsVol, nil) })
 	}
 
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err = vol.MountTask(ctx, func(mountPath string, op *operations.Operation) error {
 		// Run the volume filler function if supplied.
 		if filler != nil && filler.Fill != nil {
 			var err error
@@ -67,7 +67,7 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 			if IsContentBlock(vol.contentType) {
 				// Get the device path.
-				devPath, err = d.GetVolumeDiskPath(vol)
+				devPath, err = d.GetVolumeDiskPath(ctx, vol)
 				if err != nil {
 					return err
 				}
@@ -89,14 +89,14 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			}
 
 			// Run the filler.
-			err = d.runFiller(vol, devPath, filler, allowUnsafeResize)
+			err = d.runFiller(ctx, vol, devPath, filler, allowUnsafeResize)
 			if err != nil {
 				return err
 			}
 
 			// Move the GPT alt header to end of disk if needed.
 			if vol.IsVMBlock() {
-				err = d.moveGPTAltHeader(devPath)
+				err = d.moveGPTAltHeader(ctx, devPath)
 				if err != nil {
 					return err
 				}
@@ -123,18 +123,18 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 }
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
-func (d *lvm) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
-	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
+func (d *lvm) CreateVolumeFromBackup(ctx context.Context, vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+	return genericVFSBackupUnpack(ctx, d, d.state, vol, srcBackup.Snapshots, srcData, op)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *lvm) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
+func (d *lvm) CreateVolumeFromCopy(ctx context.Context, vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
 	var err error
 	var srcSnapshots []string
 
 	if len(vol.Snapshots) > 0 && !srcVol.IsSnapshot() {
 		// Get the list of snapshots from the source.
-		allSrcSnapshots, err := srcVol.Volume.Snapshots(op)
+		allSrcSnapshots, err := srcVol.Volume.Snapshots(ctx, op)
 		if err != nil {
 			return err
 		}
@@ -147,7 +147,7 @@ func (d *lvm) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 	// We can use optimised copying when the pool is backed by an LVM thinpool.
 	if d.usesThinpool() {
-		err = d.copyThinpoolVolume(vol.Volume, srcVol.Volume, srcSnapshots, false)
+		err = d.copyThinpoolVolume(ctx, vol.Volume, srcVol.Volume, srcSnapshots, false)
 		if err != nil {
 			return err
 		}
@@ -156,39 +156,39 @@ func (d *lvm) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		if vol.IsVMBlock() {
 			srcFSVol := srcVol.NewVMBlockFilesystemVolume()
 			fsVol := vol.NewVMBlockFilesystemVolume()
-			return d.copyThinpoolVolume(fsVol, srcFSVol, srcSnapshots, false)
+			return d.copyThinpoolVolume(ctx, fsVol, srcFSVol, srcSnapshots, false)
 		}
 
 		return nil
 	}
 
 	// Otherwise run the generic copy.
-	_, err = genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, false, allowInconsistent, op)
+	_, err = genericVFSCopyVolume(ctx, d, nil, vol, srcVol, srcSnapshots, false, allowInconsistent, op)
 	return err
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *lvm) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+func (d *lvm) CreateVolumeFromMigration(ctx context.Context, vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+	_, err := genericVFSCreateVolumeFromMigration(ctx, d, nil, vol, conn, volTargetArgs, preFiller, op)
 	return err
 }
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
-func (d *lvm) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
+func (d *lvm) RefreshVolume(ctx context.Context, vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
 	// We can use optimised copying when the pool is backed by an LVM thinpool.
 	if d.usesThinpool() {
-		return d.copyThinpoolVolume(vol.Volume, srcVol.Volume, refreshSnapshots, true)
+		return d.copyThinpoolVolume(ctx, vol.Volume, srcVol.Volume, refreshSnapshots, true)
 	}
 
 	// Otherwise run the generic copy.
-	_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+	_, err := genericVFSCopyVolume(ctx, d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
 	return err
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then this function
 // will return an error.
-func (d *lvm) DeleteVolume(vol Volume, op *operations.Operation) error {
-	snapshots, err := d.VolumeSnapshots(vol, op)
+func (d *lvm) DeleteVolume(ctx context.Context, vol Volume, op *operations.Operation) error {
+	snapshots, err := d.VolumeSnapshots(ctx, vol, op)
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func (d *lvm) DeleteVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-	lvExists, err := d.logicalVolumeExists(volDevPath)
+	lvExists, err := d.logicalVolumeExists(ctx, volDevPath)
 	if err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func (d *lvm) DeleteVolume(vol Volume, op *operations.Operation) error {
 	if lvExists {
 		// Only call UnmountVolume if mounted to avoid breaking deactivaion ref counts.
 		if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(vol.MountPath()) {
-			_, err = d.UnmountVolume(vol, false, op)
+			_, err = d.UnmountVolume(ctx, vol, false, op)
 			if err != nil {
 				return fmt.Errorf("Error unmounting LVM logical volume: %w", err)
 			}
@@ -237,7 +237,7 @@ func (d *lvm) DeleteVolume(vol Volume, op *operations.Operation) error {
 	// For VMs, also delete the filesystem volume.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := d.DeleteVolume(fsVol, op)
+		err := d.DeleteVolume(ctx, fsVol, nil)
 		if err != nil {
 			return err
 		}
@@ -247,9 +247,9 @@ func (d *lvm) DeleteVolume(vol Volume, op *operations.Operation) error {
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *lvm) HasVolume(vol Volume) (bool, error) {
+func (d *lvm) HasVolume(ctx context.Context, vol Volume) (bool, error) {
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-	return d.logicalVolumeExists(volDevPath)
+	return d.logicalVolumeExists(ctx, volDevPath)
 }
 
 // FillVolumeConfig populate volume with default config.
@@ -332,7 +332,7 @@ func (d *lvm) commonVolumeRules() map[string]func(value string) error {
 }
 
 // ValidateVolume validates the supplied volume config.
-func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
+func (d *lvm) ValidateVolume(ctx context.Context, vol Volume, removeUnknownKeys bool) error {
 	commonRules := d.commonVolumeRules()
 
 	// Disallow block.* settings for regular custom block volumes. These settings only make sense
@@ -361,10 +361,10 @@ func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 }
 
 // UpdateVolume applies config changes to the volume.
-func (d *lvm) UpdateVolume(vol Volume, changedConfig map[string]string) error {
+func (d *lvm) UpdateVolume(ctx context.Context, vol Volume, changedConfig map[string]string) error {
 	newSize, sizeChanged := changedConfig["size"]
 	if sizeChanged {
-		err := d.SetVolumeQuota(vol, newSize, false, nil)
+		err := d.SetVolumeQuota(ctx, vol, newSize, false, nil)
 		if err != nil {
 			return err
 		}
@@ -384,7 +384,7 @@ func (d *lvm) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 }
 
 // GetVolumeUsage returns the disk space used by the volume (this is not currently supported).
-func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
+func (d *lvm) GetVolumeUsage(ctx context.Context, vol Volume) (int64, error) {
 	// Snapshot usage not supported for LVM.
 	if vol.IsSnapshot() {
 		return -1, ErrNotSupported
@@ -406,7 +406,7 @@ func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
 		// For non-snapshot thin pool block volumes we can calculate an approximate usage using the space
 		// allocated to the volume from the thin pool.
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-		_, usedSize, err := d.thinPoolVolumeUsage(volDevPath)
+		_, usedSize, err := d.thinPoolVolumeUsage(ctx, volDevPath)
 		if err != nil {
 			return -1, err
 		}
@@ -419,7 +419,7 @@ func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size.
-func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+func (d *lvm) SetVolumeQuota(ctx context.Context, vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Do nothing if size isn't specified.
 	if size == "" || size == "0" {
 		return nil
@@ -432,14 +432,14 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 
 	// Read actual size of current volume.
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-	oldSizeBytes, err := d.logicalVolumeSize(volDevPath)
+	oldSizeBytes, err := d.logicalVolumeSize(ctx, volDevPath)
 	if err != nil {
 		return err
 	}
 
 	// Get the volume group's physical extent size, as we use this to figure out if the new and old sizes are
 	// going to change beyond 1 extent size, otherwise there is no point in trying to resize as LVM do it.
-	vgExtentSize, err := d.volumeGroupExtentSize(d.config["lvm.vg_name"])
+	vgExtentSize, err := d.volumeGroupExtentSize(ctx, d.config["lvm.vg_name"])
 	if err != nil {
 		return err
 	}
@@ -472,14 +472,14 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			}
 
 			// Activate volume if needed.
-			activated, err := d.activateVolume(vol)
+			activated, err := d.activateVolume(ctx, vol)
 			if err != nil {
 				return err
 			}
 
 			if !activated {
 				defer func() {
-					_, _ = d.activateVolume(vol)
+					_, _ = d.activateVolume(context.Background(), vol)
 				}()
 			}
 
@@ -489,14 +489,14 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			// so that we can have more control over when we trigger unsafe filesystem resize mode,
 			// otherwise by passing -f to lvresize (required for other reasons) this would then pass
 			// -f onto resize2fs as well.
-			err = shrinkFileSystem(fsType, volDevPath, vol, sizeBytes, allowUnsafeResize)
+			err = shrinkFileSystem(ctx, fsType, volDevPath, vol, sizeBytes, allowUnsafeResize)
 			if err != nil {
-				_, _ = d.deactivateVolume(vol)
+				_, _ = d.deactivateVolume(ctx, vol)
 				return err
 			}
 
 			// Deactivate the volume for resizing.
-			_, err = d.deactivateVolume(vol)
+			_, err = d.deactivateVolume(ctx, vol)
 			if err != nil {
 				return err
 			}
@@ -516,19 +516,19 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			}
 
 			// Activate the volume for resizing.
-			activated, err := d.activateVolume(vol)
+			activated, err := d.activateVolume(ctx, vol)
 			if err != nil {
 				return err
 			}
 
 			if activated {
 				defer func() {
-					_, _ = d.deactivateVolume(vol)
+					_, _ = d.deactivateVolume(context.Background(), vol)
 				}()
 			}
 
 			// Grow the filesystem to fill block device.
-			err = growFileSystem(fsType, volDevPath, vol)
+			err = growFileSystem(ctx, fsType, volDevPath, vol)
 			if err != nil {
 				return err
 			}
@@ -564,14 +564,14 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 
 		if needsActivating {
 			// Activate the volume for clearing blocks and/or moving GPT header.
-			activated, err := d.activateVolume(vol)
+			activated, err := d.activateVolume(ctx, vol)
 			if err != nil {
 				return err
 			}
 
 			if activated {
 				defer func() {
-					_, _ = d.deactivateVolume(vol)
+					_, _ = d.deactivateVolume(context.Background(), vol)
 				}()
 			}
 		}
@@ -579,7 +579,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		// On thick pools, discard the blocks in the additional space when the volume is grown.
 		if needsClearing {
 			// Discard blocks from the end of the old volume's size.
-			err := block.ClearBlock(volDevPath, oldSizeBytes)
+			err := block.ClearBlock(ctx, volDevPath, oldSizeBytes)
 			if err != nil {
 				return err
 			}
@@ -589,7 +589,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		// expected the caller will do all necessary post resize actions themselves).
 		// Do this after the new blocks have been cleared.
 		if needsGPTHeaderMove {
-			err = d.moveGPTAltHeader(volDevPath)
+			err = d.moveGPTAltHeader(ctx, volDevPath)
 			if err != nil {
 				return err
 			}
@@ -600,7 +600,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 }
 
 // GetVolumeDiskPath returns the location of a disk volume.
-func (d *lvm) GetVolumeDiskPath(vol Volume) (string, error) {
+func (d *lvm) GetVolumeDiskPath(ctx context.Context, vol Volume) (string, error) {
 	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && IsContentBlock(vol.contentType)) {
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 		return volDevPath, nil
@@ -610,7 +610,7 @@ func (d *lvm) GetVolumeDiskPath(vol Volume) (string, error) {
 }
 
 // ListVolumes returns a list of LXD volumes in storage pool.
-func (d *lvm) ListVolumes() ([]Volume, error) {
+func (d *lvm) ListVolumes(context.Context) ([]Volume, error) {
 	vols := make(map[string]Volume)
 
 	cmd := exec.Command("lvs", "--noheadings", "-o", "lv_name", d.config["lvm.vg_name"])
@@ -713,8 +713,8 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 }
 
 // mountCommon includes the logic for mounting either a volume or a volume snapshot as they follow very similar procedures.
-func (d *lvm) mountCommon(vol Volume, op *operations.Operation) error {
-	unlock, err := vol.MountLock()
+func (d *lvm) mountCommon(ctx context.Context, vol Volume, op *operations.Operation) error {
+	unlock, err := vol.MountLock(ctx)
 	if err != nil {
 		return err
 	}
@@ -787,7 +787,7 @@ func (d *lvm) mountCommon(vol Volume, op *operations.Operation) error {
 				}
 			} else {
 				d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volDevPath, "fs": tmpVolFsType})
-				err = regenerateFilesystemUUID(mountVol.ConfigBlockFilesystem(), volDevPath)
+				err = regenerateFilesystemUUID(ctx, mountVol.ConfigBlockFilesystem(), volDevPath)
 				if err != nil {
 					return err
 				}
@@ -795,13 +795,13 @@ func (d *lvm) mountCommon(vol Volume, op *operations.Operation) error {
 		}
 
 		// Activate LVM volume if needed.
-		activated, err = d.activateVolume(mountVol)
+		activated, err = d.activateVolume(ctx, mountVol)
 		if err != nil {
 			return err
 		}
 
 		// Finally attempt to mount the volume that needs mounting.
-		err = TryMount(context.TODO(), volDevPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags, mountOptions)
+		err = TryMount(ctx, volDevPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags, mountOptions)
 		if err != nil {
 			return fmt.Errorf("Failed to mount LVM snapshot volume: %w", err)
 		}
@@ -809,20 +809,20 @@ func (d *lvm) mountCommon(vol Volume, op *operations.Operation) error {
 		d.logger.Debug("Mounted logical volume", logger.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
 	} else {
 		// Activate LVM volume if needed.
-		activated, err = d.activateVolume(vol)
+		activated, err = d.activateVolume(ctx, vol)
 		if err != nil {
 			return err
 		}
 	}
 
 	if activated {
-		revert.Add(func() { _, _ = d.deactivateVolume(vol) })
+		revert.Add(func() { _, _ = d.deactivateVolume(context.Background(), vol) })
 	}
 
 	if vol.IsVMBlock() {
 		// For VMs, mount the filesystem volume.
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err = d.MountVolumeSnapshot(fsVol, op)
+		err = d.MountVolumeSnapshot(ctx, fsVol, op)
 		if err != nil {
 			return err
 		}
@@ -834,13 +834,13 @@ func (d *lvm) mountCommon(vol Volume, op *operations.Operation) error {
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
-func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
-	return d.mountCommon(vol, op)
+func (d *lvm) MountVolume(ctx context.Context, vol Volume, op *operations.Operation) error {
+	return d.mountCommon(ctx, vol, op)
 }
 
 // unmountCommon includes the logic for unmounting either a volume or a volume snapshot as they follow very similar procedures.
-func (d *lvm) unmountCommon(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
-	unlock, err := vol.MountLock()
+func (d *lvm) unmountCommon(ctx context.Context, vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	unlock, err := vol.MountLock(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -855,7 +855,7 @@ func (d *lvm) unmountCommon(vol Volume, keepBlockDev bool, op *operations.Operat
 	// For VMs, unmount the filesystem volume.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		ourUnmount, err = d.UnmountVolume(fsVol, false, op)
+		ourUnmount, err = d.UnmountVolume(ctx, fsVol, false, op)
 
 		// If the VMBlockFilesystem volume is still in use, we use the refCount
 		// of the block volume instead.
@@ -880,7 +880,7 @@ func (d *lvm) unmountCommon(vol Volume, keepBlockDev bool, op *operations.Operat
 			// Check if a temporary snapshot exists, and if so remove it.
 			tmpVolName := vol.name + tmpVolSuffix
 			tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, tmpVolName)
-			exists, err := d.logicalVolumeExists(tmpVolDevPath)
+			exists, err := d.logicalVolumeExists(ctx, tmpVolDevPath)
 			if err != nil {
 				return true, fmt.Errorf("Failed to check existence of temporary LVM snapshot volume %q: %w", tmpVolDevPath, err)
 			}
@@ -909,7 +909,7 @@ func (d *lvm) unmountCommon(vol Volume, keepBlockDev bool, op *operations.Operat
 	// We only deactivate filesystem volumes if an unmount was needed to better align with our
 	// unmount return value indicator.
 	if ourUnmount && !keepBlockDev {
-		_, err = d.deactivateVolume(vol)
+		_, err = d.deactivateVolume(ctx, vol)
 		if err != nil {
 			return false, err
 		}
@@ -927,16 +927,16 @@ func (d *lvm) unmountCommon(vol Volume, keepBlockDev bool, op *operations.Operat
 
 // UnmountVolume unmounts volume if mounted and not in use. Returns true if this unmounted the volume.
 // keepBlockDev indicates if backing block device should not be deactivated when volume is unmounted.
-func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
-	return d.unmountCommon(vol, keepBlockDev, op)
+func (d *lvm) UnmountVolume(ctx context.Context, vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	return d.unmountCommon(ctx, vol, keepBlockDev, op)
 }
 
 // RenameVolume renames a volume and its snapshots.
-func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+func (d *lvm) RenameVolume(ctx context.Context, vol Volume, newVolName string, op *operations.Operation) error {
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 
-	return vol.UnmountTask(func(op *operations.Operation) error {
-		snapNames, err := d.VolumeSnapshots(vol, op)
+	return vol.UnmountTask(ctx, func(op *operations.Operation) error {
+		snapNames, err := d.VolumeSnapshots(ctx, vol, op)
 		if err != nil {
 			return err
 		}
@@ -996,7 +996,7 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 		// For VMs, also rename the filesystem volume.
 		if vol.IsVMBlock() {
 			fsVol := vol.NewVMBlockFilesystemVolume()
-			err = d.RenameVolume(fsVol, newVolName, op)
+			err = d.RenameVolume(ctx, fsVol, newVolName, op)
 			if err != nil {
 				return err
 			}
@@ -1008,18 +1008,18 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *lvm) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
+func (d *lvm) MigrateVolume(ctx context.Context, vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+	return genericVFSMigrateVolume(ctx, d, d.state, vol, conn, volSrcArgs, op)
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
-func (d *lvm) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, _ bool, snapshots []string, op *operations.Operation) error {
-	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
+func (d *lvm) BackupVolume(ctx context.Context, vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+	return genericVFSBackupVolume(ctx, d, vol, tarWriter, snapshots, op)
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
-func (d *lvm) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *lvm) CreateVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
 	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
 	parentVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, parentName, snapVol.config, snapVol.poolConfig)
 	snapPath := snapVol.MountPath()
@@ -1068,10 +1068,10 @@ func (d *lvm) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device. The volName and snapshotName
 // must be bare names and should not be in the format "volume/snapshot".
-func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *lvm) DeleteVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
 	// Remove the snapshot from the storage device.
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
-	lvExists, err := d.logicalVolumeExists(volDevPath)
+	lvExists, err := d.logicalVolumeExists(ctx, volDevPath)
 	if err != nil {
 		return err
 	}
@@ -1079,7 +1079,7 @@ func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	if lvExists {
 		// Only call UnmountVolumeSnapshot if mounted to avoid breaking deactivaion ref counts.
 		if snapVol.contentType == ContentTypeFS && filesystem.IsMountPoint(snapVol.MountPath()) {
-			_, err = d.UnmountVolumeSnapshot(snapVol, op)
+			_, err = d.UnmountVolumeSnapshot(ctx, snapVol, op)
 			if err != nil {
 				return fmt.Errorf("Error unmounting LVM logical volume: %w", err)
 			}
@@ -1094,7 +1094,7 @@ func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	// For VMs, also remove the snapshot filesystem volume.
 	if snapVol.IsVMBlock() {
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
-		err = d.DeleteVolumeSnapshot(fsVol, op)
+		err = d.DeleteVolumeSnapshot(ctx, fsVol, op)
 		if err != nil {
 			return err
 		}
@@ -1118,18 +1118,18 @@ func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 }
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
-func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
-	return d.mountCommon(snapVol, op)
+func (d *lvm) MountVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
+	return d.mountCommon(ctx, snapVol, op)
 }
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
 // If a temporary snapshot volume exists then it will attempt to remove it.
-func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
-	return d.unmountCommon(snapVol, false, op)
+func (d *lvm) UnmountVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) (bool, error) {
+	return d.unmountCommon(ctx, snapVol, false, op)
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
-func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *lvm) VolumeSnapshots(ctx context.Context, vol Volume, op *operations.Operation) ([]string, error) {
 	// We use the volume list rather than inspecting the logical volumes themselves because the origin
 	// property of an LVM snapshot can be removed/changed when restoring snapshots, such that they are no
 	// marked as origin of the parent volume. Instead we use prefix matching on the volume names to find the
@@ -1175,7 +1175,7 @@ func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, e
 }
 
 // RestoreVolume restores a volume from a snapshot.
-func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+func (d *lvm) RestoreVolume(ctx context.Context, vol Volume, snapVol Volume, op *operations.Operation) error {
 	_, snapshotName, _ := api.GetParentAndSnapshotName(snapVol.name)
 
 	restoreThinPoolVolume := func(restoreVol Volume) (revert.Hook, error) {
@@ -1185,7 +1185,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 			return nil, err
 		}
 
-		_, err = d.UnmountVolume(restoreVol, false, op)
+		_, err = d.UnmountVolume(ctx, restoreVol, false, op)
 		if err != nil {
 			return nil, fmt.Errorf("Error unmounting LVM logical volume: %w", err)
 		}
@@ -1222,13 +1222,13 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 
 		// If the volume's filesystem needs to have its UUID regenerated to allow mount then do so now.
 		if restoreVol.contentType == ContentTypeFS && renegerateFilesystemUUIDNeeded(restoreVol.ConfigBlockFilesystem()) {
-			_, err = d.activateVolume(restoreVol)
+			_, err = d.activateVolume(ctx, restoreVol)
 			if err != nil {
 				return nil, err
 			}
 
 			d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volDevPath, "fs": restoreVol.ConfigBlockFilesystem()})
-			err = regenerateFilesystemUUID(restoreVol.ConfigBlockFilesystem(), volDevPath)
+			err = regenerateFilesystemUUID(ctx, restoreVol.ConfigBlockFilesystem(), volDevPath)
 			if err != nil {
 				return nil, err
 			}
@@ -1320,9 +1320,9 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 	}
 
 	// Mount source and target, copy, then unmount.
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err = vol.MountTask(ctx, func(mountPath string, op *operations.Operation) error {
 		// Copy source to destination (mounting each volume if needed).
-		err = snapVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
+		err = snapVol.MountTask(ctx, func(srcMountPath string, op *operations.Operation) error {
 			if snapVol.IsVMBlock() || snapVol.contentType == ContentTypeFS {
 				bwlimit := d.config["rsync.bwlimit"]
 				d.Logger().Debug("Copying fileystem volume", logger.Ctx{"sourcePath": srcMountPath, "targetPath": mountPath, "bwlimit": bwlimit})
@@ -1333,18 +1333,18 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 			}
 
 			if snapVol.IsVMBlock() || (snapVol.contentType == ContentTypeBlock && snapVol.volType == VolumeTypeCustom) {
-				srcDevPath, err := d.GetVolumeDiskPath(snapVol)
+				srcDevPath, err := d.GetVolumeDiskPath(ctx, snapVol)
 				if err != nil {
 					return err
 				}
 
-				targetDevPath, err := d.GetVolumeDiskPath(vol)
+				targetDevPath, err := d.GetVolumeDiskPath(ctx, vol)
 				if err != nil {
 					return err
 				}
 
 				d.Logger().Debug("Copying block volume", logger.Ctx{"srcDevPath": srcDevPath, "targetPath": targetDevPath})
-				err = copyDevice(srcDevPath, targetDevPath)
+				err = copyDevice(srcDevPath, ctx, targetDevPath)
 				if err != nil {
 					return err
 				}
@@ -1374,7 +1374,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 }
 
 // RenameVolumeSnapshot renames a volume snapshot.
-func (d *lvm) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+func (d *lvm) RenameVolumeSnapshot(ctx context.Context, snapVol Volume, newSnapshotName string, op *operations.Operation) error {
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
 
 	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)

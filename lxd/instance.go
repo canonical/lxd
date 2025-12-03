@@ -44,12 +44,12 @@ func instanceCreateAsEmpty(s *state.State, args db.InstanceArgs) (instance.Insta
 	revert.Add(cleanup)
 	defer instOp.Done(err)
 
-	pool, err := storagePools.LoadByInstance(s, inst)
+	pool, err := storagePools.LoadByInstance(context.TODO(), s, inst)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
-	err = pool.CreateInstance(inst, nil)
+	err = pool.CreateInstance(context.TODO(), inst, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance: %w", err)
 	}
@@ -172,7 +172,7 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 		return err
 	}
 
-	pool, err := storagePools.LoadByInstance(s, inst)
+	pool, err := storagePools.LoadByInstance(context.TODO(), s, inst)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
@@ -186,7 +186,7 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 
 	defer unlock()
 
-	err = pool.CreateInstanceFromImage(inst, img.Fingerprint, op)
+	err = pool.CreateInstanceFromImage(context.TODO(), inst, img.Fingerprint, op)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance from image: %w", err)
 	}
@@ -423,18 +423,18 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	}
 
 	// Copy the storage volume.
-	pool, err := storagePools.LoadByInstance(s, inst)
+	pool, err := storagePools.LoadByInstance(context.TODO(), s, inst)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	if opts.refresh {
-		err = pool.RefreshInstance(inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
+		err = pool.RefreshInstance(context.TODO(), inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
 		if err != nil {
 			return nil, fmt.Errorf("Refresh instance: %w", err)
 		}
 	} else {
-		err = pool.CreateInstanceFromCopy(inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)
+		err = pool.CreateInstanceFromCopy(context.TODO(), inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)
 		if err != nil {
 			return nil, fmt.Errorf("Create instance from copy: %w", err)
 		}
@@ -668,10 +668,10 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 		// disk space.
 		if len(expiredSnapshotInstances) > 0 {
 			opRun := func(op *operations.Operation) error {
-				return pruneExpiredInstanceSnapshots(ctx, expiredSnapshotInstances)
+				return pruneExpiredInstanceSnapshots(op.Context(), expiredSnapshotInstances)
 			}
 
-			op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil)
+			op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil)
 			if err != nil {
 				logger.Error("Failed creating instance snapshots expiry operation", logger.Ctx{"err": err})
 			} else {
@@ -694,10 +694,10 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 		// Handle snapshot auto creation.
 		if len(instances) > 0 {
 			opRun := func(op *operations.Operation) error {
-				return autoCreateInstanceSnapshots(ctx, s, instances)
+				return autoCreateInstanceSnapshots(op.Context(), s, instances)
 			}
 
-			op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil)
+			op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil)
 			if err != nil {
 				logger.Error("Failed creating scheduled instance snapshot operation", logger.Ctx{"err": err})
 			} else {

@@ -45,7 +45,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	defer revert.Fail()
 
 	// Get storage pool.
-	pool, err := storagePools.LoadByInstance(s, sourceInst)
+	pool, err := storagePools.LoadByInstance(context.TODO(), s, sourceInst)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
@@ -192,7 +192,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		return fmt.Errorf("Error writing backup index file: %w", err)
 	}
 
-	err = pool.BackupInstance(sourceInst, tarWriter, b.OptimizedStorage(), !b.InstanceOnly(), version, nil)
+	err = pool.BackupInstance(context.TODO(), sourceInst, tarWriter, b.OptimizedStorage(), !b.InstanceOnly(), version, nil)
 	if err != nil {
 		return fmt.Errorf("Backup create: %w", err)
 	}
@@ -249,7 +249,7 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	}
 
 	// Do not include any custom storage volumes (and their pools) in the backup config.
-	config, err := pool.GenerateInstanceBackupConfig(sourceInst, snapshots, nil, nil)
+	config, err := pool.GenerateInstanceBackupConfig(context.TODO(), sourceInst, snapshots, nil, nil)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance backup config: %w", err)
 	}
@@ -306,12 +306,12 @@ func pruneExpiredBackupsTask(stateFunc func() *state.State) (task.Func, task.Sch
 		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
-			err := pruneExpiredInstanceBackups(ctx, s)
+			err := pruneExpiredInstanceBackups(op.Context(), s)
 			if err != nil {
 				return fmt.Errorf("Failed pruning expired instance backups: %w", err)
 			}
 
-			err = pruneExpiredStorageVolumeBackups(ctx, s)
+			err = pruneExpiredStorageVolumeBackups(op.Context(), s)
 			if err != nil {
 				return fmt.Errorf("Failed pruning expired storage volume backups: %w", err)
 			}
@@ -319,7 +319,7 @@ func pruneExpiredBackupsTask(stateFunc func() *state.State) (task.Func, task.Sch
 			return nil
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed creating expired backups operation", logger.Ctx{"err": err})
 			return
@@ -396,7 +396,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	defer revert.Fail()
 
 	// Get storage pool.
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(context.TODO(), s, poolName)
 	if err != nil {
 		return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
@@ -506,7 +506,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		return fmt.Errorf("Error writing backup index file: %w", err)
 	}
 
-	err = pool.BackupCustomVolume(projectName, volumeName, tarWriter, backupRow.OptimizedStorage, !backupRow.VolumeOnly, nil)
+	err = pool.BackupCustomVolume(context.TODO(), projectName, volumeName, tarWriter, backupRow.OptimizedStorage, !backupRow.VolumeOnly, nil)
 	if err != nil {
 		return fmt.Errorf("Backup create: %w", err)
 	}
@@ -545,7 +545,7 @@ func volumeBackupWriteIndex(projectName string, volumeName string, pool storageP
 		poolDriverOptimizedHeader = pool.Driver().Info().OptimizedBackupHeader
 	}
 
-	config, err := pool.GenerateCustomVolumeBackupConfig(projectName, volumeName, snapshots, nil)
+	config, err := pool.GenerateCustomVolumeBackupConfig(context.TODO(), projectName, volumeName, snapshots, nil)
 	if err != nil {
 		return fmt.Errorf("Failed generating backup config of volume %q in pool %q and project %q: %w", volumeName, pool.Name(), projectName, err)
 	}

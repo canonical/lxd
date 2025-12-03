@@ -786,7 +786,7 @@ func patchMoveBackupsInstances(name string, d *Daemon) error {
 }
 
 func patchGenericStorage(name string, d *Daemon) error {
-	return storagePools.Patch(d.State(), name)
+	return storagePools.Patch(d.shutdownCtx, d.State(), name)
 }
 
 func patchGenericNetwork(f func(name string, d *Daemon) error) func(name string, d *Daemon) error {
@@ -915,7 +915,7 @@ func patchZfsSetContentTypeUserProperty(name string, d *Daemon) error {
 
 	for poolName, volumes := range customPoolVolumes {
 		// Load storage pool.
-		p, err := storagePools.LoadByName(s, poolName)
+		p, err := storagePools.LoadByName(s.ShutdownCtx, s, poolName)
 		if err != nil {
 			return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
 		}
@@ -1269,7 +1269,7 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 
 	for poolName, volumes := range customPoolVolumes {
 		// Load storage pool.
-		p, err := storagePools.LoadByName(s, poolName)
+		p, err := storagePools.LoadByName(s.ShutdownCtx, s, poolName)
 		if err != nil {
 			return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
 		}
@@ -1295,7 +1295,7 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 			// The existing volume using the actual *.iso suffix has ContentTypeISO.
 			existingVol := storageDrivers.NewVolume(p.Driver(), p.Name(), storageDrivers.VolumeTypeCustom, storageDrivers.ContentTypeISO, project.StorageVolume(vol.Project, vol.Name), nil, nil)
 
-			hasVol, err := p.Driver().HasVolume(existingVol)
+			hasVol, err := p.Driver().HasVolume(context.TODO(), existingVol)
 			if err != nil {
 				return fmt.Errorf("Failed to check if volume %q exists in pool %q: %w", existingVol.Name(), p.Name(), err)
 			}
@@ -1309,7 +1309,7 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 			// We need to use ContentTypeBlock here in order for the driver to figure out the correct (old) location.
 			oldVol := storageDrivers.NewVolume(p.Driver(), p.Name(), storageDrivers.VolumeTypeCustom, storageDrivers.ContentTypeBlock, project.StorageVolume(vol.Project, vol.Name), nil, nil)
 
-			err = p.Driver().RenameVolume(oldVol, oldVol.Name()+".iso", nil)
+			err = p.Driver().RenameVolume(context.TODO(), oldVol, oldVol.Name()+".iso", nil)
 			if err != nil {
 				return fmt.Errorf("Failed to rename volume %q in pool %q: %w", oldVol.Name(), p.Name(), err)
 			}
@@ -1724,7 +1724,7 @@ func patchUpdatePowerFlexSnapshotPrefix(_ string, d *Daemon) error {
 
 	// Iterate over the pools, volumes and snapshots.
 	for poolName, volumesSnapshots := range poolVolumesSnapshots {
-		p, err := storagePools.LoadByName(s, poolName)
+		p, err := storagePools.LoadByName(s.ShutdownCtx, s, poolName)
 		if err != nil {
 			return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
 		}

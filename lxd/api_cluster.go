@@ -649,7 +649,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		pools := []api.StoragePool{}
 		networks := []api.InitNetworksProjectPost{}
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(op.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			poolNames, err := tx.GetStoragePoolNames(ctx)
 			if err != nil && !response.IsNotFoundError(err) {
 				return err
@@ -746,7 +746,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 				logger.Debugf("Adding certificate %q (%s) to local trust store", trustedCert.Name, trustedCert.Fingerprint)
 
-				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err = s.DB.Cluster.Transaction(op.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 					id, err := dbCluster.CreateCertificate(ctx, tx.Tx(), dbCert)
 					if err != nil {
 						return err
@@ -791,7 +791,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		revert.Add(func() { d.stopClusterTasks() })
 
 		// Handle optional service integration on cluster join
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(op.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Add the new node to the default cluster group.
 			err := tx.AddNodeToClusterGroup(ctx, "default", req.ServerName)
 			if err != nil {
@@ -805,7 +805,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		var nodeConfig *node.Config
-		err = s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		err = s.DB.Node.Transaction(op.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 			var err error
 			nodeConfig, err = node.ConfigLoad(ctx, tx)
 			return err
@@ -816,7 +816,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Get the current (updated) config.
 		var currentClusterConfig *clusterConfig.Config
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(op.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			currentClusterConfig, err = clusterConfig.Load(ctx, tx)
 			if err != nil {
 				return err
@@ -857,7 +857,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			logger.Errorf("Failed starting networks: %v", err)
 		}
 
-		client, err = cluster.Connect(r.Context(), req.ClusterAddress, s.Endpoints.NetworkCert(), serverCert, true)
+		client, err = cluster.Connect(op.Context(), req.ClusterAddress, s.Endpoints.NetworkCert(), serverCert, true)
 		if err != nil {
 			return err
 		}
@@ -877,7 +877,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Ensure all images are available after this node has joined.
-		err = autoSyncImages(s.ShutdownCtx, s)
+		err = autoSyncImages(op.Context(), s)
 		if err != nil {
 			logger.Warn("Failed syncing images")
 		}
@@ -3131,7 +3131,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 				Live: live,
 			}
 
-			err := migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, "", req, op)
+			err := migrateInstance(ctx, s, inst, targetMemberInfo.Name, "", req, op)
 			if err != nil {
 				return fmt.Errorf("Failed migrating instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 			}
@@ -3166,7 +3166,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		run := func(op *operations.Operation) error {
-			return evacuateClusterMember(context.Background(), s, d.gateway, op, name, req.Mode, stopFunc, migrateFunc)
+			return evacuateClusterMember(op.Context(), s, d.gateway, op, name, req.Mode, stopFunc, migrateFunc)
 		}
 
 		op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterMemberEvacuate, nil, nil, run, nil, nil)
@@ -3493,7 +3493,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 
 				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location())})
 
-				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err = s.DB.Cluster.Transaction(op.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 					sourceNode, err = tx.GetNodeByName(ctx, inst.Location())
 					if err != nil {
 						return fmt.Errorf("Failed getting node %q: %w", inst.Location(), err)
@@ -3505,7 +3505,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 					return fmt.Errorf("Failed getting node: %w", err)
 				}
 
-				source, err = cluster.Connect(r.Context(), sourceNode.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+				source, err = cluster.Connect(op.Context(), sourceNode.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 				if err != nil {
 					return fmt.Errorf("Failed connecting to source: %w", err)
 				}
@@ -4555,7 +4555,7 @@ func autoHealCluster(ctx context.Context, s *state.State, gateway *cluster.Gatew
 		return nil
 	}
 
-	op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil)
+	op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating cluster instances heal operation: %w", err)
 	}
@@ -4579,7 +4579,7 @@ func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.
 			return err
 		}
 
-		pool, err := storagePools.LoadByName(s, poolName)
+		pool, err := storagePools.LoadByName(ctx, s, poolName)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 		}

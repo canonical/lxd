@@ -184,13 +184,8 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			return coalesceErrors(local, failures)
 		}
 
-		requestor, err := request.GetRequestor(r.Context())
-		if err != nil {
-			return err
-		}
-
 		// Only return the local data if asked by cluster member.
-		if requestor.IsClusterNotification() {
+		if op.Requestor().IsClusterNotification() {
 			return localAction(false)
 		}
 
@@ -201,7 +196,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 
 		// Get all members in cluster.
 		var members []db.NodeInfo
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(op.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			members, err = tx.GetNodes(ctx)
@@ -242,7 +237,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 				}
 
 				// Connect to the remote server.
-				client, err := cluster.Connect(r.Context(), member.Address, networkCert, s.ServerCert(), true)
+				client, err := cluster.Connect(op.Context(), member.Address, networkCert, s.ServerCert(), true)
 				if err != nil {
 					failuresLock.Lock()
 					failures[member.Name] = err

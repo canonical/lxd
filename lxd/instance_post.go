@@ -362,7 +362,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			run := func(op *operations.Operation) error {
-				return migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, targetGroupName, req, op)
+				return migrateInstance(op.Context(), s, inst, targetMemberInfo.Name, targetGroupName, req, op)
 			}
 
 			resources := map[string][]api.URL{}
@@ -833,7 +833,7 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 
 		// Cleanup instance paths on source member if using remote shared storage.
 		if srcPool.Driver().Info().Remote {
-			err = srcPool.CleanupInstancePaths(srcInst, nil)
+			err = srcPool.CleanupInstancePaths(ctx, srcInst, nil)
 			if err != nil {
 				return fmt.Errorf("Failed cleaning up instance paths on source member: %w", err)
 			}
@@ -846,13 +846,13 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 				// Delete the snapshots in reverse order.
 				k = snapshotCount - 1 - k
 
-				err = srcPool.DeleteInstanceSnapshot(snapshots[k], nil)
+				err = srcPool.DeleteInstanceSnapshot(ctx, snapshots[k], nil)
 				if err != nil {
 					return fmt.Errorf("Failed delete instance snapshot %q on source member: %w", snapshots[k].Name(), err)
 				}
 			}
 
-			err = srcPool.DeleteInstance(srcInst, nil)
+			err = srcPool.DeleteInstance(ctx, srcInst, nil)
 			if err != nil {
 				return fmt.Errorf("Failed deleting instance on source member: %w", err)
 			}
@@ -935,7 +935,7 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool stor
 			srcInstName = srcInst.Name()
 		}
 
-		_, err = srcPool.ImportInstance(srcInst, nil, nil)
+		_, err = srcPool.ImportInstance(context.TODO(), srcInst, nil, nil)
 		if err != nil {
 			return fmt.Errorf("Failed creating mount point of instance on target node: %w", err)
 		}
@@ -965,7 +965,7 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 
 	// If the source member is online then get its address so we can connect to it and see if the
 	// instance is running later.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		srcMember, err = tx.GetNodeByName(ctx, inst.Location())
 		if err != nil {
 			return fmt.Errorf("Failed getting current cluster member of instance %q", inst.Name())
@@ -983,7 +983,7 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 	}
 
 	// Retrieve storage pool of the source instance.
-	srcPool, err := storagePools.LoadByInstance(s, inst)
+	srcPool, err := storagePools.LoadByInstance(ctx, s, inst)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}

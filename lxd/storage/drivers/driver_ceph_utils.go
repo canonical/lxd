@@ -49,9 +49,9 @@ var cephVolTypePrefixes = map[VolumeType]string{
 }
 
 // osdPoolExists checks whether a given OSD pool exists.
-func (d *ceph) osdPoolExists() (bool, error) {
+func (d *ceph) osdPoolExists(ctx context.Context) (bool, error) {
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"ceph",
 		"--name", "client."+d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -84,9 +84,9 @@ func (d *ceph) osdPoolExists() (bool, error) {
 //     command will still exit 0. This means that if the caller wants to be sure
 //     that this call actually deleted an OSD pool it needs to check for the
 //     existence of the pool first.
-func (d *ceph) osdDeletePool() error {
+func (d *ceph) osdDeletePool(ctx context.Context) error {
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"ceph",
 		"--name", "client."+d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -118,7 +118,7 @@ func (d *ceph) roundUpTo512(a int64) int64 {
 // the chances of a conflict between the features supported by the userspace
 // library and the kernel module are minimized. Otherwise random panics might
 // occur.
-func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
+func (d *ceph) rbdCreateVolume(ctx context.Context, vol Volume, size string) error {
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
 		return err
@@ -150,7 +150,7 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 		"create",
 		d.getRBDVolumeName(vol, "", false, false))
 
-	_, err = shared.RunCommandContext(context.TODO(), "rbd", cmd...)
+	_, err = shared.RunCommandContext(ctx, "rbd", cmd...)
 	return err
 }
 
@@ -159,9 +159,9 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 //     exist this command will still exit 0. This means that if the caller wants
 //     to be sure that this call actually deleted an RBD storage volume it needs
 //     to check for the existence of the pool first.
-func (d *ceph) rbdDeleteVolume(vol Volume) error {
+func (d *ceph) rbdDeleteVolume(ctx context.Context, vol Volume) error {
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -178,10 +178,10 @@ func (d *ceph) rbdDeleteVolume(vol Volume) error {
 // rbdMapVolume maps a given RBD storage volume.
 // This will ensure that the RBD storage volume is accessible as a block device
 // in the /dev directory and is therefore necessary in order to mount it.
-func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
+func (d *ceph) rbdMapVolume(ctx context.Context, vol Volume) (string, error) {
 	rbdName := d.getRBDVolumeName(vol, "", false, false)
 	devPath, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -205,7 +205,7 @@ func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
 
 // rbdUnmapVolume unmaps a given RBD storage volume.
 // This is a precondition in order to delete an RBD storage volume can.
-func (d *ceph) rbdUnmapVolume(vol Volume, unmapUntilEINVAL bool) error {
+func (d *ceph) rbdUnmapVolume(ctx context.Context, vol Volume, unmapUntilEINVAL bool) error {
 	busyCount := 0
 	rbdVol := d.getRBDVolumeName(vol, "", false, false)
 
@@ -213,7 +213,7 @@ func (d *ceph) rbdUnmapVolume(vol Volume, unmapUntilEINVAL bool) error {
 
 again:
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -263,10 +263,10 @@ again:
 
 // rbdUnmapVolumeSnapshot unmaps a given RBD snapshot.
 // This is a precondition in order to delete an RBD snapshot can.
-func (d *ceph) rbdUnmapVolumeSnapshot(vol Volume, snapshotName string, unmapUntilEINVAL bool) error {
+func (d *ceph) rbdUnmapVolumeSnapshot(ctx context.Context, vol Volume, snapshotName string, unmapUntilEINVAL bool) error {
 again:
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -296,9 +296,9 @@ again:
 }
 
 // rbdCreateVolumeSnapshot creates a read-write snapshot of a given RBD storage volume.
-func (d *ceph) rbdCreateVolumeSnapshot(vol Volume, snapshotName string) error {
+func (d *ceph) rbdCreateVolumeSnapshot(ctx context.Context, vol Volume, snapshotName string) error {
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -316,9 +316,9 @@ func (d *ceph) rbdCreateVolumeSnapshot(vol Volume, snapshotName string) error {
 
 // rbdProtectVolumeSnapshot protects a given snapshot from being deleted.
 // This is a precondition to be able to create RBD clones from a given snapshot.
-func (d *ceph) rbdProtectVolumeSnapshot(vol Volume, snapshotName string) error {
+func (d *ceph) rbdProtectVolumeSnapshot(ctx context.Context, vol Volume, snapshotName string) error {
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -348,9 +348,9 @@ func (d *ceph) rbdProtectVolumeSnapshot(vol Volume, snapshotName string) error {
 // rbdUnprotectVolumeSnapshot unprotects a given snapshot.
 // - This is a precondition to be able to delete an RBD snapshot.
 // - This command will only succeed if the snapshot does not have any clones.
-func (d *ceph) rbdUnprotectVolumeSnapshot(vol Volume, snapshotName string) error {
+func (d *ceph) rbdUnprotectVolumeSnapshot(ctx context.Context, vol Volume, snapshotName string) error {
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -378,7 +378,7 @@ func (d *ceph) rbdUnprotectVolumeSnapshot(vol Volume, snapshotName string) error
 }
 
 // rbdCreateClone creates a clone from a protected RBD snapshot.
-func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targetVol Volume) error {
+func (d *ceph) rbdCreateClone(ctx context.Context, sourceVol Volume, sourceSnapshotName string, targetVol Volume) error {
 	cmd := []string{
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -401,7 +401,7 @@ func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targe
 		d.getRBDVolumeName(sourceVol, sourceSnapshotName, false, true),
 		d.getRBDVolumeName(targetVol, "", false, true))
 
-	_, err := shared.RunCommandContext(context.TODO(), "rbd", cmd...)
+	_, err := shared.RunCommandContext(ctx, "rbd", cmd...)
 	if err != nil {
 		return err
 	}
@@ -410,9 +410,9 @@ func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targe
 }
 
 // rbdListSnapshotClones list all clones of an RBD snapshot.
-func (d *ceph) rbdListSnapshotClones(vol Volume, snapshotName string) ([]string, error) {
+func (d *ceph) rbdListSnapshotClones(ctx context.Context, vol Volume, snapshotName string) ([]string, error) {
 	msg, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -440,14 +440,14 @@ func (d *ceph) rbdListSnapshotClones(vol Volume, snapshotName string) ([]string,
 // RBD storage volume has protected snapshots; a scenario most common when
 // creating a sparse copy of a container or when LXD updated an image and the
 // image still has dependent container clones.
-func (d *ceph) rbdMarkVolumeDeleted(vol Volume, newVolumeName string) error {
+func (d *ceph) rbdMarkVolumeDeleted(ctx context.Context, vol Volume, newVolumeName string) error {
 	// Ensure that new volume contains the config from the source volume to maintain filesystem suffix on
 	// new volume name generated in getRBDVolumeName.
 	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolumeName, vol.config, vol.poolConfig)
 	deletedName := d.getRBDVolumeName(newVol, "", true, true)
 
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -467,13 +467,13 @@ func (d *ceph) rbdMarkVolumeDeleted(vol Volume, newVolumeName string) error {
 // name, then renamed, and finally will be remapped again. If it is not unmapped
 // under its original name and the callers maps it under its new name the image
 // will be mapped twice. This will prevent it from being deleted.
-func (d *ceph) rbdRenameVolume(vol Volume, newVolumeName string) error {
+func (d *ceph) rbdRenameVolume(ctx context.Context, vol Volume, newVolumeName string) error {
 	// Ensure that new volume contains the config from the source volume to maintain filesystem suffix on
 	// new volume name generated in getRBDVolumeName.
 	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolumeName, vol.config, vol.poolConfig)
 
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -494,9 +494,9 @@ func (d *ceph) rbdRenameVolume(vol Volume, newVolumeName string) error {
 // renamed, and finally will be remapped again. If it is not unmapped under its
 // original name and the caller maps it under its new name the snapshot will be
 // mapped twice. This will prevent it from being deleted.
-func (d *ceph) rbdRenameVolumeSnapshot(vol Volume, oldSnapshotName string, newSnapshotName string) error {
+func (d *ceph) rbdRenameVolumeSnapshot(ctx context.Context, vol Volume, oldSnapshotName string, newSnapshotName string) error {
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -518,9 +518,9 @@ func (d *ceph) rbdRenameVolumeSnapshot(vol Volume, oldSnapshotName string, newSn
 //     <osd-pool-name>/<rbd-volume-name>@<rbd-snapshot-name>
 //     The caller will usually want to parse this according to its needs. This
 //     helper library provides two small functions to do this but see below.
-func (d *ceph) rbdGetVolumeParent(vol Volume) (string, error) {
+func (d *ceph) rbdGetVolumeParent(ctx context.Context, vol Volume) (string, error) {
 	msg, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -553,9 +553,9 @@ func (d *ceph) rbdGetVolumeParent(vol Volume) (string, error) {
 // rbdDeleteVolumeSnapshot deletes an RBD snapshot.
 // This requires that the snapshot does not have any clones and is unmapped and
 // unprotected.
-func (d *ceph) rbdDeleteVolumeSnapshot(vol Volume, snapshotName string) error {
+func (d *ceph) rbdDeleteVolumeSnapshot(ctx context.Context, vol Volume, snapshotName string) error {
 	_, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -576,9 +576,9 @@ func (d *ceph) rbdDeleteVolumeSnapshot(vol Volume, snapshotName string) error {
 // <osd-pool-name>/<rbd-storage-volume>@<rbd-snapshot-name>
 // this will only return
 // <rbd-snapshot-name>.
-func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
+func (d *ceph) rbdListVolumeSnapshots(ctx context.Context, vol Volume) ([]string, error) {
 	msg, err := shared.RunCommandContext(
-		context.TODO(),
+		ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -715,12 +715,12 @@ func (d *ceph) copyVolumeDiff(sourceVolumeName string, targetVolumeName string, 
 //     recurses through an OSD storage pool to find and delete any storage
 //     entities that were kept around because of dependency relations but are not
 //     deletable.
-func (d *ceph) deleteVolume(vol Volume) (int, error) {
-	snaps, err := d.rbdListVolumeSnapshots(vol)
+func (d *ceph) deleteVolume(ctx context.Context, vol Volume) (int, error) {
+	snaps, err := d.rbdListVolumeSnapshots(ctx, vol)
 	if err == nil {
 		var zombies int
 		for _, snap := range snaps {
-			ret, err := d.deleteVolumeSnapshot(vol, snap)
+			ret, err := d.deleteVolumeSnapshot(ctx, vol, snap)
 			if ret < 0 {
 				return -1, err
 			} else if ret == 1 {
@@ -730,7 +730,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 
 		if zombies > 0 {
 			// Unmap.
-			err = d.rbdUnmapVolume(vol, true)
+			err = d.rbdUnmapVolume(ctx, vol, true)
 			if err != nil {
 				return -1, err
 			}
@@ -740,7 +740,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 			}
 
 			newVolumeName := fmt.Sprintf("%s_%s", vol.name, uuid.New().String())
-			err := d.rbdMarkVolumeDeleted(vol, newVolumeName)
+			err := d.rbdMarkVolumeDeleted(ctx, vol, newVolumeName)
 			if err != nil {
 				return -1, err
 			}
@@ -748,7 +748,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 			return 1, nil
 		} else if zombies == 0 {
 			// Delete.
-			err = d.rbdDeleteVolume(vol)
+			err = d.rbdDeleteVolume(ctx, vol)
 			if err != nil {
 				return -1, err
 			}
@@ -758,7 +758,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 			return -1, err
 		}
 
-		parent, err := d.rbdGetVolumeParent(vol)
+		parent, err := d.rbdGetVolumeParent(ctx, vol)
 		if err == nil {
 			parentVol, parentSnapshotName, err := d.parseParent(parent)
 			if err != nil {
@@ -766,13 +766,13 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 			}
 
 			// Unmap.
-			err = d.rbdUnmapVolume(vol, true)
+			err = d.rbdUnmapVolume(ctx, vol, true)
 			if err != nil {
 				return -1, err
 			}
 
 			// Delete.
-			err = d.rbdDeleteVolume(vol)
+			err = d.rbdDeleteVolume(ctx, vol)
 			if err != nil {
 				return -1, err
 			}
@@ -781,7 +781,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 			// This includes both if the parent volume itself is a zombie, or if the just the snapshot
 			// is a zombie. If it is not we know that LXD is still using it.
 			if strings.HasPrefix(string(parentVol.volType), "zombie_") || strings.HasPrefix(parentSnapshotName, "zombie_") {
-				ret, err := d.deleteVolumeSnapshot(parentVol, parentSnapshotName)
+				ret, err := d.deleteVolumeSnapshot(ctx, parentVol, parentSnapshotName)
 				if ret < 0 {
 					return -1, err
 				}
@@ -792,13 +792,13 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 			}
 
 			// Unmap.
-			err = d.rbdUnmapVolume(vol, true)
+			err = d.rbdUnmapVolume(ctx, vol, true)
 			if err != nil {
 				return -1, err
 			}
 
 			// Delete.
-			err = d.rbdDeleteVolume(vol)
+			err = d.rbdDeleteVolume(ctx, vol)
 			if err != nil {
 				return -1, err
 			}
@@ -825,34 +825,34 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 //     recurses through an OSD storage pool to find and delete any storage
 //     entities that were kept around because of dependency relations but are not
 //     deletable.
-func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error) {
-	clones, err := d.rbdListSnapshotClones(vol, snapshotName)
+func (d *ceph) deleteVolumeSnapshot(ctx context.Context, vol Volume, snapshotName string) (int, error) {
+	clones, err := d.rbdListSnapshotClones(ctx, vol, snapshotName)
 	if err != nil {
 		if !response.IsNotFoundError(err) {
 			return -1, err
 		}
 
 		// Unprotect.
-		err = d.rbdUnprotectVolumeSnapshot(vol, snapshotName)
+		err = d.rbdUnprotectVolumeSnapshot(ctx, vol, snapshotName)
 		if err != nil {
 			return -1, err
 		}
 
 		// Unmap.
-		err = d.rbdUnmapVolumeSnapshot(vol, snapshotName, true)
+		err = d.rbdUnmapVolumeSnapshot(ctx, vol, snapshotName, true)
 		if err != nil {
 			return -1, err
 		}
 
 		// Delete.
-		err = d.rbdDeleteVolumeSnapshot(vol, snapshotName)
+		err = d.rbdDeleteVolumeSnapshot(ctx, vol, snapshotName)
 		if err != nil {
 			return -1, err
 		}
 
 		// Only delete the parent image if it is a zombie. If it is not we know that LXD is still using it.
 		if strings.HasPrefix(string(vol.volType), "zombie_") {
-			ret, err := d.deleteVolume(vol)
+			ret, err := d.deleteVolume(ctx, vol)
 			if ret < 0 {
 				return -1, err
 			}
@@ -875,7 +875,7 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 
 		cloneVol := NewVolume(d, d.name, VolumeType(cloneType), vol.contentType, cloneName, nil, nil)
 
-		ret, err := d.deleteVolume(cloneVol)
+		ret, err := d.deleteVolume(ctx, cloneVol)
 		if ret < 0 {
 			return -1, err
 		} else if ret == 1 {
@@ -886,19 +886,19 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 
 	if canDelete {
 		// Unprotect.
-		err = d.rbdUnprotectVolumeSnapshot(vol, snapshotName)
+		err = d.rbdUnprotectVolumeSnapshot(ctx, vol, snapshotName)
 		if err != nil {
 			return -1, err
 		}
 
 		// Unmap.
-		err = d.rbdUnmapVolumeSnapshot(vol, snapshotName, true)
+		err = d.rbdUnmapVolumeSnapshot(ctx, vol, snapshotName, true)
 		if err != nil {
 			return -1, err
 		}
 
 		// Delete.
-		err = d.rbdDeleteVolumeSnapshot(vol, snapshotName)
+		err = d.rbdDeleteVolumeSnapshot(ctx, vol, snapshotName)
 		if err != nil {
 			return -1, err
 		}
@@ -906,7 +906,7 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 		// Only delete the parent image if it is a zombie. If it
 		// is not we know that LXD is still using it.
 		if strings.HasPrefix(string(vol.volType), "zombie_") {
-			ret, err := d.deleteVolume(vol)
+			ret, err := d.deleteVolume(ctx, vol)
 			if ret < 0 {
 				return -1, err
 			}
@@ -916,13 +916,13 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 			return 1, nil
 		}
 
-		err := d.rbdUnmapVolumeSnapshot(vol, snapshotName, true)
+		err := d.rbdUnmapVolumeSnapshot(ctx, vol, snapshotName, true)
 		if err != nil {
 			return -1, err
 		}
 
 		newSnapshotName := "zombie_snapshot_" + uuid.New().String()
-		err = d.rbdRenameVolumeSnapshot(vol, snapshotName, newSnapshotName)
+		err = d.rbdRenameVolumeSnapshot(ctx, vol, snapshotName, newSnapshotName)
 		if err != nil {
 			return -1, err
 		}
@@ -1052,7 +1052,7 @@ func (d *ceph) parseClone(clone string) (poolName string, volumeType string, vol
 
 // getRBDMappedDevPath looks at sysfs to retrieve the device path. If it doesn't find it it will map it if told to
 // do so. Returns bool indicating if map was needed and device path e.g. "/dev/rbd<idx>" for an RBD image.
-func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string, error) {
+func (d *ceph) getRBDMappedDevPath(ctx context.Context, vol Volume, mapIfMissing bool) (bool, string, error) {
 	// List all RBD devices.
 	files, err := os.ReadDir("/sys/devices/rbd")
 	if err != nil && !os.IsNotExist(err) {
@@ -1134,7 +1134,7 @@ func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string,
 
 	// No device could be found, map it ourselves.
 	if mapIfMissing {
-		devPath, err := d.rbdMapVolume(vol)
+		devPath, err := d.rbdMapVolume(ctx, vol)
 		if err != nil {
 			return false, "", err
 		}
@@ -1146,14 +1146,14 @@ func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string,
 }
 
 // generateUUID regenerates the XFS/btrfs UUID as needed.
-func (d *ceph) generateUUID(fsType string, devPath string) error {
+func (d *ceph) generateUUID(ctx context.Context, fsType string, devPath string) error {
 	if !renegerateFilesystemUUIDNeeded(fsType) {
 		return nil
 	}
 
 	// Update the UUID.
 	d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": devPath, "fs": fsType})
-	err := regenerateFilesystemUUID(fsType, devPath)
+	err := regenerateFilesystemUUID(ctx, fsType, devPath)
 	if err != nil {
 		return err
 	}

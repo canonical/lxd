@@ -1239,7 +1239,7 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 }
 
 // mapVolume maps the given volume onto this host.
-func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
+func (d *pure) mapVolume(ctx context.Context, vol Volume) (cleanup revert.Hook, err error) {
 	reverter := revert.New()
 	defer reverter.Fail()
 
@@ -1253,7 +1253,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		return nil, err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	unlock, err := remoteVolumeMapLock(ctx, connector.Type(), d.Info().Name)
 	if err != nil {
 		return nil, err
 	}
@@ -1285,7 +1285,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	}
 
 	// Connect to the array.
-	connReverter, err := connector.Connect(d.state.ShutdownCtx, targetQN, targetAddrs...)
+	connReverter, err := connector.Connect(ctx, targetQN, targetAddrs...)
 	if err != nil {
 		return nil, err
 	}
@@ -1299,7 +1299,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	// no other device is using it.
 	outerReverter := revert.New()
 	if connCreated {
-		outerReverter.Add(func() { _ = d.unmapVolume(vol) })
+		outerReverter.Add(func() { _ = d.unmapVolume(context.Background(), vol) })
 	}
 
 	// Add connReverter to the outer reverter, as it will immediately stop
@@ -1312,7 +1312,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 }
 
 // unmapVolume unmaps the given volume from this host.
-func (d *pure) unmapVolume(vol Volume) error {
+func (d *pure) unmapVolume(ctx context.Context, vol Volume) error {
 	connector, err := d.connector()
 	if err != nil {
 		return err
@@ -1323,7 +1323,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 		return err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	unlock, err := remoteVolumeMapLock(ctx, connector.Type(), d.Info().Name)
 	if err != nil {
 		return err
 	}
@@ -1336,7 +1336,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 	}
 
 	// Get a path of a block device we want to unmap.
-	volumePath, _, _ := d.getMappedDevPath(vol, false)
+	volumePath, _, _ := d.getMappedDevPath(ctx, vol, false)
 
 	// When iSCSI volume is disconnected from the host, the device will remain on the system.
 	//
@@ -1366,7 +1366,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 
 		devName := filepath.Base(volumePath)
 		if strings.HasPrefix(devName, "dm-") {
-			_, err := shared.RunCommandContext(d.state.ShutdownCtx, "multipath", "-f", volumePath)
+			_, err := shared.RunCommandContext(ctx, "multipath", "-f", volumePath)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap volume %q: Failed to remove multipath device %q: %w", vol.name, devName, err)
 			}
@@ -1379,7 +1379,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 		}
 
 		// Wait until the volume has disappeared.
-		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		if !block.WaitDiskDeviceGone(ctx, volumePath) {
@@ -1399,7 +1399,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 	// When NVMe/TCP volume is disconnected from the host, the device automatically disappears.
 	if volumePath != "" && connector.Type() == connectors.TypeNVME {
 		// Wait until the volume has disappeared.
-		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		if !block.WaitDiskDeviceGone(ctx, volumePath) {
@@ -1433,7 +1433,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 
 // getMappedDevPath returns the local device path for the given volume.
 // Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
-func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+func (d *pure) getMappedDevPath(ctx context.Context, vol Volume, mapVolume bool) (string, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1443,7 +1443,7 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 	}
 
 	if mapVolume {
-		cleanup, err := d.mapVolume(vol)
+		cleanup, err := d.mapVolume(ctx, vol)
 		if err != nil {
 			return "", nil, err
 		}
@@ -1498,7 +1498,7 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 	var devicePath string
 	if mapVolume {
 		// Wait until the disk device is mapped to the host.
-		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, diskPrefix, diskPathFilter)
+		devicePath, err = block.WaitDiskDevicePath(ctx, diskPrefix, diskPathFilter)
 	} else {
 		// Expect device to be already mapped.
 		devicePath, err = block.GetDiskDevicePath(diskPrefix, diskPathFilter)
