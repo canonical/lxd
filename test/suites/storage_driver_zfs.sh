@@ -3,7 +3,7 @@ test_storage_driver_zfs() {
 
   lxd_backend=$(storage_backend "$LXD_DIR")
   if [ "$lxd_backend" != "zfs" ]; then
-    echo "==> SKIP: test_storage_driver_zfs only supports 'zfs', not ${lxd_backend}"
+    export TEST_UNMET_REQUIREMENT="zfs specific test, not for ${lxd_backend}"
     return
   fi
 
@@ -95,7 +95,7 @@ do_zfs_cross_pool_copy() {
   lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.zfs.block_mode
 
   # Clean up
-  lxc rm -f c1 c2 c3 c4 c5 c6
+  lxc delete c1 c2 c3 c4 c5 c6
   lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-dir
   lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-zfs
 
@@ -143,8 +143,8 @@ do_storage_driver_zfs() {
   [ "$(zfs get -H -o value type lxdtest-"$(basename "${LXD_DIR}")/containers/c2")" = "volume" ]
 
   # Create container in block mode with smaller size override.
-  lxc init testimage c3 -d root,size=5GiB
-  lxc delete -f c3
+  lxc init testimage c3 -d root,size=1GiB
+  lxc delete c3
 
   # Delete image volume
   lxc storage volume rm lxdtest-"$(basename "${LXD_DIR}")" image/"${fingerprint}"
@@ -237,7 +237,7 @@ do_storage_driver_zfs() {
   lxc exec c4 -- test -f /root/foo
   ! lxc exec c4 -- test -f /root/bar || false
 
-  lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.size=5GiB
+  lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.size=1GiB
   lxc launch testimage c5
   lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.size
 
