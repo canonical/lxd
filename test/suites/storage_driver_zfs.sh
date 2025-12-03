@@ -3,7 +3,7 @@ test_storage_driver_zfs() {
 
   lxd_backend=$(storage_backend "$LXD_DIR")
   if [ "$lxd_backend" != "zfs" ]; then
-    echo "==> SKIP: test_storage_driver_zfs only supports 'zfs', not ${lxd_backend}"
+    export TEST_UNMET_REQUIREMENT="zfs specific test, not for ${lxd_backend}"
     return
   fi
 
