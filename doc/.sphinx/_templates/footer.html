@@ -120,11 +120,13 @@
     </div>
     {% endif %}
 
-    <div class="edit-github">
-      <a class="muted-link" href="{{ github_url }}/edit/{{ github_version }}{{ github_folder }}{{ pagename }}{{ page_source_suffix }}">Edit this page on GitHub</a>
-    </div>
+      {# Hide edit link for generated manpages under reference/manpages/ #}
+      {% if not pagename.startswith('reference/manpages/') %}
+        <div class="edit-github">
+          <a class="muted-link" href="{{ github_url }}/edit/{{ github_version }}{{ github_folder }}{{ pagename }}{{ page_source_suffix }}">Edit this page on GitHub</a>
+        </div>
+      {% endif %}
     {% endif %}
-
 
     </div>
   </div>
