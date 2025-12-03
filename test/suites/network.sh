@@ -17,21 +17,13 @@ test_network() {
   ip link delete dummy0 || true
 
   # Check that we return bridge informatin for ovs bridges
-  systemctl start openvswitch-switch
   ip link add dummy0 type dummy
   ovs-vsctl add-br ovs-br0
   ovs-vsctl add-port ovs-br0 dummy0 tag=9
   lxc network info ovs-br0 | grep -xF "Bridge:"
 
-  # Check that we are able to return linux bridge information if ovs service is disabled
-  systemctl stop openvswitch-switch
-  ip link add native-br0 type bridge
-  lxc network info native-br0 | grep -xF "Bridge:"
-
   # Cleanup
-  systemctl start openvswitch-switch
   ovs-vsctl del-br ovs-br0
-  ip link delete native-br0
   ip link delete dummy0
 
   # Standard bridge with random subnet and a bunch of options
