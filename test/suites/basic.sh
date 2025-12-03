@@ -753,6 +753,7 @@ EOF
   # Cleanup
   fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"
   lxc config trust remove "${fingerprint}"
+  lxc remote remove localhost
 }
 
 test_snap_basic_usage_vm() {
@@ -829,9 +830,10 @@ test_duplicate_detection() {
   lxc auth identity-provider-group delete foo
   lxc auth identity-provider-group delete bar
 
-  lxc auth identity create tls/foo
-  [ "$(! "${_LXC}" auth identity create tls/foo 2>&1 1>/dev/null)" = 'Error: An identity with name "foo" already exists' ]
-  lxc auth identity delete tls/foo
+  # Do not use tls/foo as it may clash with an existing cert injected by ensure_has_localhost_remote
+  lxc auth identity create tls/bar
+  [ "$(! "${_LXC}" auth identity create tls/bar 2>&1 1>/dev/null)" = 'Error: An identity with name "bar" already exists' ]
+  lxc auth identity delete tls/bar
 
   lxc project create foo
   [ "$(! "${_LXC}" project create foo 2>&1 1>/dev/null)" = 'Error: Project "foo" already exists' ]
