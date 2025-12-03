@@ -393,6 +393,7 @@ jobs:
       BRANCH_NAME: ${{ github.ref_name }}
       SNAP_RISK: ${{ inputs.snap-risk || 'edge' }}
       SNAP_TRACK: "latest"
+      SUDO_PRESERVE_ENV: "GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,OVN_SOURCE"
     name: Snap (${{ matrix.test }} - ${{ matrix.os }})
     runs-on: ubuntu-${{ matrix.os }}
     # avoid runaway test burning 6 hours of CI
@@ -629,7 +630,7 @@ jobs:
             fi
           fi
 
-          sudo --preserve-env=GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,OVN_SOURCE ./bin/local-run "tests/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./bin/local-run "tests/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
 
       # always update cache as we have our own logic of
       # cache invalidation and updates in addition to a date check
