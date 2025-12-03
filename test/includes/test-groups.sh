@@ -33,6 +33,7 @@ readonly test_group_cluster=(
     "clustering_evacuation"
     "clustering_evacuation_restore_operations"
     "clustering_move"
+    "clustering_live_migration"
     "clustering_remove_members"
     "clustering_autotarget"
     "clustering_upgrade"
