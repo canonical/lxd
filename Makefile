@@ -48,7 +48,7 @@ default: all
 build: lxd
 
 .PHONY: all
-all: client lxd lxd-agent lxd-benchmark lxd-metadata lxd-migrate lxd-user test-binaries
+all: client lxd lxd-agent lxd-benchmark lxd-migrate lxd-user test-binaries
 
 .PHONY: lxd
 lxd:
