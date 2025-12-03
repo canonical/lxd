@@ -3,7 +3,7 @@ test_storage_driver_pure() {
 
   lxd_backend=$(storage_backend "${LXD_DIR}")
   if [ "${lxd_backend}" != "pure" ]; then
-    echo "==> SKIP: test_storage_driver_pure only supports 'pure', not ${lxd_backend}"
+    export TEST_UNMET_REQUIREMENT="pure specific test, not for ${lxd_backend}"
     return
   fi
 
