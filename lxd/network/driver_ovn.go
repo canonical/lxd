@@ -154,7 +154,18 @@ func (n *ovn) State() (*api.NetworkState, error) {
 	if n.config[ovnVolatileUplinkIPv4] != "" || n.config[ovnVolatileUplinkIPv6] != "" {
 		routerExtPortName := n.getRouterExtPortName()
 
-		chassis, err = ovnnb.GetLogicalRouterPortActiveChassisHostname(routerExtPortName)
+		vswitch := ovs.NewOVS()
+		sbAddr, err := vswitch.OVNSouthboundDBRemoteAddress()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get OVN southbound connection string: %w", err)
+		}
+
+		ovnsb, err := networkOVN.NewSB(sbAddr, n.state.GlobalConfig.NetworkOVNSSL)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to connect to OVN Southbound database: %w", err)
+		}
+
+		chassis, err = ovnsb.GetLogicalRouterPortActiveChassisHostname(routerExtPortName)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get active chassis for logical router port %q: %w", routerExtPortName, err)
 		}
