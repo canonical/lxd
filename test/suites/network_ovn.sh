@@ -1,6 +1,6 @@
 test_network_ovn() {
   if ! ovn_enabled; then
-    echo "==> SKIP: OVN not configured. Skipping OVN tests..."
+    export TEST_UNMET_REQUIREMENT="OVN not configured"
     return
   fi
 
