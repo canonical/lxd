@@ -5,7 +5,7 @@ test_storage_driver_dir() {
 
   lxd_backend=$(storage_backend "${LXD_DIR}")
   if [ "${lxd_backend}" != "dir" ]; then
-    echo "==> SKIP: test_storage_driver_dir only supports 'dir', not ${lxd_backend}"
+    export TEST_UNMET_REQUIREMENT="dir specific test, not for ${lxd_backend}"
     return
   fi
 
