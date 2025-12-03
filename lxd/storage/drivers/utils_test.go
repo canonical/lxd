@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -108,4 +109,13 @@ func TestValidVolumeName(t *testing.T) {
 	assert.Error(t, ValidVolumeName(".."))
 	assert.Error(t, ValidVolumeName("invalid volume"))
 	assert.Error(t, ValidVolumeName("invalid/volume"))
+}
+
+// Test TryMount early exit.
+func TestTryMountEarlyExit(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Check that TryMount returns an error when being called with an already cancelled context.
+	assert.ErrorIs(t, TryMount(ctx, "", "", "", 0, ""), context.Canceled)
 }
