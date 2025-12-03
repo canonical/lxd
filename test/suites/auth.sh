@@ -375,12 +375,14 @@ fine_grained: true"
   # Cleanup
   lxc auth group delete test-group
   lxc auth identity-provider-group delete test-idp-group
+  lxc auth identity delete oidc/test-user@example.com
   lxc remote remove oidc
   rm -r "${LXD_CONF2}"
   rm -r "${LXD_CONF3}"
   rm "${TEST_DIR}"/unrestricted.{crt,key}
   rm "${TEST_DIR}"/user{4,5,6}.{crt,key}
   lxc config set core.remote_token_expiry="" oidc.issuer="" oidc.client.id=""
+  kill_oidc
 }
 
 events_filtering() {
