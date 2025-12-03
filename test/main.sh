@@ -245,19 +245,30 @@ cleanup() {
     rm -rf "${TEST_DIR}"
   fi
 
+  # build a markdown table with the duration of each test
+  (
+    echo "Test | Duration (s)"
+    echo ":--- | :---"
+    for t in "${!durations[@]}"; do
+        echo "${t} | ${durations[$t]}"
+    done | sort
+  ) > "${GITHUB_STEP_SUMMARY:-"/dev/stdout"}"
+
   echo ""
   echo ""
   if [ "${TEST_RESULT}" != "success" ]; then
-    echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
+    echo "==> FAILED TEST: ${TEST_CURRENT#test_}"
   fi
   echo "==> Test result: ${TEST_RESULT}"
 }
 
 # Must be set before cleanup()
 TEST_CURRENT=setup
-TEST_CURRENT_DESCRIPTION=setup
 # shellcheck disable=SC2034
 TEST_RESULT=failure
+
+# Record tests durations info
+declare -A durations
 
 trap cleanup EXIT HUP INT TERM
 
@@ -277,9 +288,31 @@ if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
     exit 1
 fi
 
+# Run all tests in a group
+run_test_group() {
+    local -n group_ref="test_group_${1}"
+    local SHUF='cat'
+    [ "${LXD_RANDOMIZE_TESTS:-0}" = "1" ] && SHUF='shuf'
+
+    for t in $(printf '%s\n' "${group_ref[@]}" | "${SHUF}"); do
+      run_test_n_times "${t}"
+    done
+}
+
+# Run a test multiple times
+run_test_n_times() {
+  local name="${1}"
+  local count=1
+  while [ "${count}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
+    run_test "test_${name}"
+    count=$((count + 1))
+  done
+}
+
+# Run a single test
 run_test() {
   TEST_CURRENT=${1}
-  TEST_CURRENT_DESCRIPTION=${2:-${1#test_}}
+  TEST_CURRENT_DESCRIPTION="${TEST_CURRENT#test_}"
   TEST_UNMET_REQUIREMENT=""
   cwd="${PWD}"
 
@@ -360,22 +393,12 @@ run_test() {
 
   END_TIME=$(date +%s)
   DURATION=$((END_TIME-START_TIME))
+  durations["${TEST_CURRENT#test_}"]="${DURATION}"
   cd "${cwd}"
 
   # output duration in blue
   echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION}s\033[0m)"
-
-  if [ -n "${GITHUB_ACTIONS:-}" ]; then
-      # strip the "test_" prefix to save the shorten test name along with its duration
-      echo "${TEST_CURRENT#test_}|${DURATION}" >> "${GITHUB_STEP_SUMMARY}"
-  fi
 }
-
-if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    # build a markdown table with the duration of each test
-    echo "Test | Duration (s)" > "${GITHUB_STEP_SUMMARY}"
-    echo ":--- | :---" >> "${GITHUB_STEP_SUMMARY}"
-fi
 
 # Preflight check
 if ldd "${_LXC}" | grep -F liblxc; then
@@ -423,7 +446,6 @@ export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_D
 if [ "${1:-"all"}" = "test-shell" ]; then
   bash --rcfile test-shell.bashrc || true
   TEST_CURRENT="test-shell"
-  TEST_CURRENT_DESCRIPTION="n/a"
   TEST_RESULT=success
   exit 0
 fi
@@ -432,12 +454,52 @@ if [ -n "${SHELL_TRACING:-}" ]; then
   set -x
 fi
 
-# allow for running a specific set of tests possibly multiple times
-if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "snap" ] && [ "$1" != "standalone" ]; then
-  for t in "${@}"; do
+# If no args, default to group:all
+if [ "$#" -eq 0 ]; then
+  set -- "group:all"
+fi
+
+for arg in "$@"; do
+  if [[ "${arg}" == group:* ]]; then
+    group_name="${arg#group:}"
+    case "${group_name}" in
+      cluster)
+        run_test_group cluster
+        ;;
+      cluster_storage)
+        run_test_group cluster_storage
+        ;;
+      instance)
+        run_test_group instance
+        ;;
+      image)
+        run_test_group image
+        ;;
+      network)
+        run_test_group network
+        ;;
+      snap)
+        run_test_group snap
+        ;;
+      standalone)
+        run_test_group standalone
+        ;;
+      standalone_storage)
+        run_test_group standalone_storage
+        ;;
+      all)
+        run_test_group all
+        ;;
+      *)
+        echo "Unknown group: ${group_name}" >&2
+        exit 1
+        ;;
+    esac
+  else
+    # allow for running a specific set of tests possibly multiple times
     RUN_COUNT=1
     while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
-      run_test "test_${t}"
+      run_test "test_${arg}"
       RUN_COUNT="$((RUN_COUNT+1))"
     done
     shift
@@ -493,12 +555,10 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_heal_networks_stop "clustering heal networks stop"
     run_test test_clustering_placement_groups "clustering placement groups"
     run_test test_clustering_force_removal "clustering force removal"
-    run_test test_clustering_recovery "clustering recovery"
 fi
 
 if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     #run_test test_concurrent "concurrent startup" # Disabled as flaky.
-    run_test test_alias "test alias commands"
     run_test test_concurrent_exec "concurrent exec"
     run_test test_database_restore "database restore"
     run_test test_database_no_disk_space "database out of disk space"
