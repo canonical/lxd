@@ -38,6 +38,12 @@ import (
 	"github.com/canonical/lxd/shared/validate"
 )
 
+// sortableEntry is a helper struct for efficient sorting.
+type sortableEntry struct {
+	Name  string
+	CTime time.Time
+}
+
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
 // filler function.
 func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
@@ -1932,7 +1938,7 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 	}
 
 	// Filter only the relevant ZFS entries.
-	zfsEntries := make([]os.DirEntry, 0, len(entries))
+	zfsEntries := make([]sortableEntry, 0, len(entries))
 	for _, entry := range entries {
 		entryName := entry.Name()
 
@@ -1946,45 +1952,42 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 			continue
 		}
 
-		zfsEntries = append(zfsEntries, entry)
+		// If there is an error getting ctime, use zero as a fallback to
+		// represent the oldest possible time (Unix epoch). This ensures such
+		// entries are sorted to the end (checked last) when sorting in reverse
+		// chronological order.
+		cTime := time.Time{} // Fallback zero time
+		info, err := entry.Info()
+		if err == nil {
+			// Get ctime from stat.
+			stat, ok := info.Sys().(*syscall.Stat_t)
+			if ok {
+				cTime = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
+			}
+		}
+
+		zfsEntries = append(zfsEntries, sortableEntry{
+			Name:  entryName,
+			CTime: cTime,
+		})
 	}
 
-	// Sort by reverse creation date.
-	slices.SortFunc(zfsEntries, func(a os.DirEntry, b os.DirEntry) int {
-		var (
-			aCreate time.Time
-			bCreate time.Time
-		)
-
-		aInfo, _ := a.Info()
-		if aInfo != nil {
-			stat, ok := aInfo.Sys().(*syscall.Stat_t)
-
-			if ok {
-				aCreate = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
-			}
+	// Sort by reverse ctime.
+	slices.SortFunc(zfsEntries, func(a, b sortableEntry) int {
+		if a.CTime.After(b.CTime) {
+			return -1
 		}
 
-		bInfo, _ := b.Info()
-		if bInfo != nil {
-			stat, ok := bInfo.Sys().(*syscall.Stat_t)
-
-			if ok {
-				bCreate = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
-			}
-		}
-
-		if aCreate.Equal(bCreate) {
-			return 0
-		}
-
-		if aCreate.Before(bCreate) {
+		if a.CTime.Before(b.CTime) {
 			return 1
 		}
 
-		return -1
+		return 0
 	})
 
+	// zfsDataset returns the ZFS dataset name for a given device path using the
+	// BLKZNAME ioctl. Returns an empty string if the device cannot be opened
+	// or is not a ZFS volume.
 	zfsDataset := func(devPath string) string {
 		// Open the device.
 		r, err := os.OpenFile(devPath, unix.O_RDONLY|unix.O_CLOEXEC, 0)
@@ -2007,7 +2010,7 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 	// Check each entry for a dataset match.
 	for _, entry := range zfsEntries {
 		// Check if it's our dataset.
-		zfsDev := "/dev/" + entry.Name()
+		zfsDev := "/dev/" + entry.Name
 
 		if zfsDataset(zfsDev) == dataset {
 			return zfsDev, nil
