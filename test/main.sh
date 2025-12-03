@@ -100,7 +100,7 @@ if ! check_dependencies minio mc; then
 fi
 
 echo "==> Checking test dependencies"
-if ! check_dependencies devlxd-client fuidshift mini-oidc sysinfo; then
+if ! check_dependencies devlxd-client lxd-client fuidshift mini-oidc sysinfo; then
   make -C "${MAIN_DIR}/.." test-binaries
 fi
 
