@@ -3,7 +3,7 @@ test_storage_driver_ceph() {
 
   lxd_backend=$(storage_backend "${LXD_DIR}")
   if [ "${lxd_backend}" != "ceph" ]; then
-    echo "==> SKIP: test_storage_driver_ceph only supports 'ceph', not ${lxd_backend}"
+    export TEST_UNMET_REQUIREMENT="ceph specific test, not for ${lxd_backend}"
     return
   fi
 
