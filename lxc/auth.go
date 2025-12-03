@@ -1001,7 +1001,7 @@ func (c *cmdIdentityCreate) createBearerIdentity(remoteName string, identityName
 	}
 
 	if !c.identity.global.flagQuiet {
-		fmt.Printf("%s identity %q created", identityType, identityName)
+		fmt.Printf("%s identity %q created\n", identityType, identityName)
 	}
 
 	return nil
