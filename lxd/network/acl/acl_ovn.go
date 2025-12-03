@@ -86,7 +86,7 @@ func OVNIntSwitchRouterPortName(networkID int64) ovn.OVNSwitchPort {
 // of the database and applied. For each network provided in aclNets, the network specific port group for each ACL
 // is checked for existence (it is created & applies network specific ACL rules if not).
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
-func OVNEnsureACLs(ctx context.Context, s *state.State, l logger.Logger, client *ovn.OVN, aclProjectName string, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage, aclNames []string, reapplyRules bool) (revert.Hook, error) {
+func OVNEnsureACLs(ctx context.Context, s *state.State, l logger.Logger, client *ovn.NB, aclProjectName string, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage, aclNames []string, reapplyRules bool) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -338,7 +338,7 @@ func ovnAddReferencedACLs(info *api.NetworkACL, referencedACLNames map[string]st
 }
 
 // ovnApplyToPortGroup applies the rules in the specified ACL to the specified port group.
-func ovnApplyToPortGroup(l logger.Logger, client *ovn.OVN, aclInfo *api.NetworkACL, portGroupName ovn.OVNPortGroup, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage, peerTargetNetIDs map[db.NetworkPeer]int64) error {
+func ovnApplyToPortGroup(l logger.Logger, client *ovn.NB, aclInfo *api.NetworkACL, portGroupName ovn.OVNPortGroup, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage, peerTargetNetIDs map[db.NetworkPeer]int64) error {
 	// Create slice for port group rules that has the capacity for ingress and egress rules, plus default rule.
 	portGroupRules := make([]ovn.OVNACLRule, 0, len(aclInfo.Ingress)+len(aclInfo.Egress)+1)
 	networkRules := make([]ovn.OVNACLRule, 0)
@@ -641,7 +641,7 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 }
 
 // OVNApplyNetworkBaselineRules applies preset baseline logical switch rules to a allow access to network services.
-func OVNApplyNetworkBaselineRules(client *ovn.OVN, switchName ovn.OVNSwitch, routerPortName ovn.OVNSwitchPort, intRouterIPs []*net.IPNet, dnsIPs []net.IP) error {
+func OVNApplyNetworkBaselineRules(client *ovn.NB, switchName ovn.OVNSwitch, routerPortName ovn.OVNSwitchPort, intRouterIPs []*net.IPNet, dnsIPs []net.IP) error {
 	//nolint:prealloc
 	rules := []ovn.OVNACLRule{
 		{
@@ -762,7 +762,7 @@ func OVNApplyNetworkBaselineRules(client *ovn.OVN, switchName ovn.OVNSwitch, rou
 // The combination of ignoring the specifified usage type and explicit keep ACLs allows the caller to ensure that
 // the desired ACLs are considered unused by the usage type even if the referring config has not yet been removed
 // from the database.
-func OVNPortGroupDeleteIfUnused(ctx context.Context, s *state.State, l logger.Logger, client *ovn.OVN, aclProjectName string, ignoreUsageType any, ignoreUsageNicName string, keepACLs ...string) error {
+func OVNPortGroupDeleteIfUnused(ctx context.Context, s *state.State, l logger.Logger, client *ovn.NB, aclProjectName string, ignoreUsageType any, ignoreUsageNicName string, keepACLs ...string) error {
 	var aclNameIDs map[string]int64
 	var aclNames []string
 	var projectID int64
@@ -998,7 +998,7 @@ func OVNPortGroupInstanceNICSchedule(portUUID ovn.OVNSwitchPortUUID, changeSet m
 }
 
 // OVNApplyInstanceNICDefaultRules applies instance NIC default rules to per-network port group.
-func OVNApplyInstanceNICDefaultRules(client *ovn.OVN, switchPortGroup ovn.OVNPortGroup, logPrefix string, nicPortName ovn.OVNSwitchPort, ingressAction string, ingressLogged bool, egressAction string, egressLogged bool) error {
+func OVNApplyInstanceNICDefaultRules(client *ovn.NB, switchPortGroup ovn.OVNPortGroup, logPrefix string, nicPortName ovn.OVNSwitchPort, ingressAction string, ingressLogged bool, egressAction string, egressLogged bool) error {
 	if !slices.Contains(ValidActions, ingressAction) {
 		return fmt.Errorf("Invalid ingress action %q", ingressAction)
 	}
