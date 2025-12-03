@@ -181,14 +181,21 @@ func TryMount(ctx context.Context, src string, dst string, fs string, flags uint
 		defer cancel()
 	}
 
+	var lastErr error
+
 mountLoop:
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("Failed to mount %q on %q using %q: %w", src, dst, fs, ctx.Err())
+			// Populate the context's error in case it got cancelled before we were able to try the mount for the first time.
+			if lastErr == nil {
+				lastErr = ctx.Err()
+			}
+
+			return fmt.Errorf("Failed to mount %q on %q using %q: %w", src, dst, fs, lastErr)
 		default:
-			err := unix.Mount(src, dst, fs, flags, options)
-			if err == nil {
+			lastErr = unix.Mount(src, dst, fs, flags, options)
+			if lastErr == nil {
 				break mountLoop
 			}
 		}
