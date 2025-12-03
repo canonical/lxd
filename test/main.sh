@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+
+export GOTOOLCHAIN=local # Avoid downloading toolchain
 if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
 fi
@@ -100,7 +102,7 @@ if ! check_dependencies minio mc; then
 fi
 
 echo "==> Checking test dependencies"
-if ! check_dependencies devlxd-client fuidshift mini-oidc sysinfo; then
+if ! check_dependencies devlxd-client lxd-client fuidshift mini-oidc sysinfo; then
   make -C "${MAIN_DIR}/.." test-binaries
 fi
 
