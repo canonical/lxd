@@ -621,6 +621,12 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		revert.Add(func() { _ = unfreezeFS() })
 	}
 
+	// Rebase mode is only used for instance copies when enabled.
+	rebase := d.config["zfs.clone_copy"] == "rebase" && (srcVol.volType == VolumeTypeContainer || srcVol.volType == VolumeTypeVM)
+
+	// Use full copy mode when zfs.clone_copy is false or rebase mode is enabled or source volume has snapshots.
+	fullCopy := shared.IsFalse(d.config["zfs.clone_copy"]) || rebase || len(snapshots) > 0
+
 	var srcSnapshot string
 	if srcVol.volType == VolumeTypeImage {
 		srcSnapshot = d.dataset(srcVol.Volume, false) + "@readonly"
@@ -635,9 +641,8 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 			return err
 		}
 
-		// If zfs.clone_copy is disabled delete the snapshot at the end.
-		if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
-			// Delete the snapshot at the end.
+		if fullCopy {
+			// Delete the snapshot at the end when doing full copy.
 			defer func() {
 				// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
 				_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", "-d", srcSnapshot)
@@ -646,7 +651,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 				}
 			}()
 		} else {
-			// Delete the snapshot on revert.
+			// Delete the snapshot on revert when doing a clone.
 			revert.Add(func() {
 				// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
 				_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", "-d", srcSnapshot)
@@ -665,8 +670,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 	// Delete the volume created on failure.
 	revert.Add(func() { _ = d.DeleteVolume(vol.Volume, op) })
 
-	// If zfs.clone_copy is disabled or source volume has snapshots, then use full copy mode.
-	if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
+	if fullCopy {
 		_, snapName, found := strings.Cut(srcSnapshot, "@")
 		if !found {
 			return fmt.Errorf("Failed to parse snapshot name from %q", srcSnapshot)
@@ -705,18 +709,18 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 				}
 			}
 
-			if d.config["zfs.clone_copy"] == "rebase" {
+			if rebase {
 				var err error
 				origin := d.dataset(srcVol.Volume, false)
 				for {
-					fields := strings.SplitN(origin, "@", 2)
+					originVolName, originSnapName, isSnap := strings.Cut(origin, "@")
 
 					// If the origin is a @readonly snapshot under a /images/ path (/images or deleted/images), we're done.
-					if len(fields) > 1 && strings.Contains(fields[0], "/images/") && fields[1] == "readonly" {
+					if isSnap && strings.Contains(originVolName, "/images/") && originSnapName == "readonly" {
 						break
 					}
 
-					origin, err = d.getDatasetProperty(origin, "origin")
+					origin, err = d.getDatasetProperty(originVolName, "origin")
 					if err != nil {
 						return err
 					}
