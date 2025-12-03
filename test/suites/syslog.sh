@@ -3,9 +3,9 @@ test_syslog_socket() {
   lxc monitor --type=ovn > "${TEST_DIR}/ovn.log" &
   monitorOVNPID=$!
 
-  sleep 1
+  sleep 0.1
   echo "<29> ovs|ovn-controller|00017|rconn|INFO|unix:/var/run/openvswitch/br-int.mgmt: connected" | socat - unix-sendto:"${LXD_DIR}/syslog.socket"
-  sleep 1
+  sleep 0.1
 
   kill -9 "${monitorOVNPID}"
   grep -qF "type: ovn" "${TEST_DIR}/ovn.log"
