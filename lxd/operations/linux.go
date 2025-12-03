@@ -62,6 +62,11 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			if err != nil {
 				return fmt.Errorf("Failed adding operation %s metadata to database: %w", op.id, err)
 			}
+
+			err = cluster.CreateOrInsertDurableOperationResources(ctx, tx.Tx(), opID, op.resources)
+			if err != nil {
+				return fmt.Errorf("Failed adding operation %s resources to database: %w", op.id, err)
+			}
 		}
 
 		return err
@@ -100,6 +105,7 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 	var err error
 	var dbOps []cluster.Operation
 	metadata := make(map[int64]map[string]string)
+	resources := make(map[int64]map[string][]api.URL)
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// See if there are any durable operations running on this node which need to be restarted.
@@ -114,6 +120,11 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 			metadata[dbOp.ID], err = cluster.GetDurableOperationMetadata(ctx, tx.Tx(), dbOp.ID)
 			if err != nil {
 				return fmt.Errorf("Failed loading durable operation metadata for operation %d: %w", dbOp.ID, err)
+			}
+
+			resources[dbOp.ID], err = cluster.GetDurableOperationResources(ctx, tx.Tx(), dbOp.ID)
+			if err != nil {
+				return fmt.Errorf("Failed loading durable operation resources for operation %d: %w", dbOp.ID, err)
 			}
 		}
 
@@ -141,7 +152,7 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 			}
 		}
 
-		op, err := CreateDurableOperation(ctx, s, dbOp.UUID, projectName, dbOp.Type, nil, metadata[dbOp.ID])
+		op, err := CreateDurableOperation(ctx, s, dbOp.UUID, projectName, dbOp.Type, resources[dbOp.ID], metadata[dbOp.ID])
 
 		if err != nil {
 			logger.Warn("Failed creating durable operation", logger.Ctx{"err": err})
