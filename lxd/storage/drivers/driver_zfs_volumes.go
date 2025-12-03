@@ -14,7 +14,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
@@ -23,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -34,6 +37,12 @@ import (
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
+
+// sortableEntry is a helper struct for efficient sorting.
+type sortableEntry struct {
+	Name  string
+	CTime time.Time
+}
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
 // filler function.
@@ -1922,63 +1931,89 @@ func (d *zfs) tryGetVolumeDiskPathFromDataset(ctx context.Context, dataset strin
 }
 
 func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
-	// Shortcut for udev.
-	// If the udev link exists, resolve it and confirm it's a block device
-	// before returning it. Chasing the symlink to the actual device node
-	// (`/dev/zdX`) ensures consistency with the "slow path" where `zvol_id` is
-	// invoked directly.
-	devPath, err := os.Readlink("/dev/zvol/" + dataset)
-	if err == nil {
-		// devPath is relative to /dev/zvol, so extract the last part
-		// it looks like `../../../zd0` and we need to turn that into `/dev/zd0`.
-		lastSlashIndex := strings.LastIndex(devPath, "/")
-		if lastSlashIndex != -1 {
-			devPath = "/dev" + devPath[lastSlashIndex:]
-
-			// If the udev link exists and is a block device, return it.
-			sb, err := os.Stat(devPath)
-			if err == nil && shared.IsBlockdev(sb.Mode()) {
-				return devPath, nil
-			}
-		}
-	}
-
-	// Locate zvol_id.
-	zvolid := "/lib/udev/zvol_id"
-	if !shared.PathExists(zvolid) {
-		zvolid, err = exec.LookPath("zvol_id")
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// List all the device nodes.
-	entries, err := os.ReadDir("/dev")
+	// Read all the top-level /dev entries.
+	entries, err := os.ReadDir("/dev/")
 	if err != nil {
-		return "", fmt.Errorf("Failed to read /dev: %w", err)
+		return "", err
 	}
 
+	// Filter only the relevant ZFS entries.
+	zfsEntries := make([]sortableEntry, 0, len(entries))
 	for _, entry := range entries {
 		entryName := entry.Name()
 
-		// Ignore non-zvol devices.
+		// Skip non-ZFS entries.
 		if !strings.HasPrefix(entryName, "zd") {
 			continue
 		}
 
+		// Skip partitions.
 		if strings.Contains(entryName, "p") {
 			continue
 		}
 
-		// Resolve the dataset path.
-		entryPath := "/dev/" + entryName
-		output, err := shared.RunCommandContext(context.TODO(), zvolid, entryPath)
-		if err != nil {
-			continue
+		// If there is an error getting ctime, use zero as a fallback to
+		// represent the oldest possible time (Unix epoch). This ensures such
+		// entries are sorted to the end (checked last) when sorting in reverse
+		// chronological order.
+		cTime := time.Time{} // Fallback zero time
+		info, err := entry.Info()
+		if err == nil {
+			// Get ctime from stat.
+			stat, ok := info.Sys().(*syscall.Stat_t)
+			if ok {
+				cTime = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
+			}
 		}
 
-		if strings.TrimSpace(output) == dataset && shared.IsBlockdevPath(entryPath) {
-			return entryPath, nil
+		zfsEntries = append(zfsEntries, sortableEntry{
+			Name:  entryName,
+			CTime: cTime,
+		})
+	}
+
+	// Sort by reverse ctime.
+	slices.SortFunc(zfsEntries, func(a, b sortableEntry) int {
+		if a.CTime.After(b.CTime) {
+			return -1
+		}
+
+		if a.CTime.Before(b.CTime) {
+			return 1
+		}
+
+		return 0
+	})
+
+	// zfsDataset returns the ZFS dataset name for a given device path using the
+	// BLKZNAME ioctl. Returns an empty string if the device cannot be opened
+	// or is not a ZFS volume.
+	zfsDataset := func(devPath string) string {
+		// Open the device.
+		r, err := os.OpenFile(devPath, unix.O_RDONLY|unix.O_CLOEXEC, 0)
+		if err != nil {
+			return ""
+		}
+
+		defer func() { _ = r.Close() }()
+
+		// Perform the BLKZNAME ioctl.
+		buf := [linux.ZFSMaxDatasetNameLen]byte{}
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(r.Fd()), linux.IoctlBlkZname, uintptr(unsafe.Pointer(&buf)))
+		if errno != 0 {
+			return ""
+		}
+
+		return string(bytes.TrimRight(buf[:], "\x00"))
+	}
+
+	// Check each entry for a dataset match.
+	for _, entry := range zfsEntries {
+		// Check if it's our dataset.
+		zfsDev := "/dev/" + entry.Name
+
+		if zfsDataset(zfsDev) == dataset {
+			return zfsDev, nil
 		}
 	}
 
@@ -2138,20 +2173,6 @@ func (d *zfs) activateVolume(vol Volume) (bool, string, error) {
 			return false, "", err
 		}
 
-		// Wait a second to give udev a chance to kick in.
-		// We've seen that on Linux kernel 6.9+ (ZFS 2.2.5+) with commit
-		// https://github.com/openzfs/zfs/commit/c24a039042ef846940adae8e1dd1fc33cbb1f147
-		// there is a significant delay between setting volmode=dev and the device
-		// actually appearing.
-		// The problem here is that single:
-		// zfs set volmode=dev <vol>
-		// operation produces several uevents, because it always removes an existing disk device
-		// and then creates a new one:
-		// https://github.com/openzfs/zfs/blob/ca960ce56ce1bfe207e4d80ba6e5ab67ea41b32f/module/zfs/zvol.c#L1470
-		// systemd-udevd processes that correctly, but it takes much more time until we get a stable
-		// state when block device symlinks are created and ready to use.
-		time.Sleep(1 * time.Second)
-
 		activated = true
 		d.logger.Debug("Activated ZFS volume", logger.Ctx{"volName": vol.Name(), "dev": dataset})
 	}
@@ -2208,7 +2229,7 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 			return false, fmt.Errorf("Failed to deactivate zvol after %v", waitDuration)
 		}
 
-		// Wait for ZFS a chance to flush and udev to remove the device path.
+		// Wait for ZFS to remove the device path.
 		d.logger.Debug("Waiting for ZFS volume to deactivate", logger.Ctx{"volName": vol.name, "dev": dataset, "path": devPath, "attempt": i})
 
 		if i <= 5 {
@@ -3111,9 +3132,6 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 				return nil, err
 			}
 
-			// Wait half a second to give udev a chance to kick in.
-			time.Sleep(500 * time.Millisecond)
-
 			d.logger.Debug("Activated ZFS snapshot volume", logger.Ctx{"dev": snapshotDataset})
 		}
 
@@ -3159,9 +3177,6 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 						d.logger.Warn("Failed setting volmode=none on ZFS volume snapshot", logger.Ctx{"dev": dataset, "err": err})
 					}
 				}()
-
-				// Wait a second to give udev a chance to kick in.
-				time.Sleep(1 * time.Second)
 
 				d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
 
