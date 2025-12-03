@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // Code generation directives.
@@ -95,6 +98,80 @@ func CreateOrInsertDurableOperationMetadata(ctx context.Context, tx *sql.Tx, opI
 		_, err := tx.ExecContext(ctx, stmt, opID, key, value)
 		if err != nil {
 			return fmt.Errorf("Failed writing operation metadata: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// GetDurableOperationResources retrieves resources associated with a durable operation from the cluster db.
+func GetDurableOperationResources(ctx context.Context, tx *sql.Tx, opID int64) (map[string][]api.URL, error) {
+	stmt := `SELECT resource, entity_type_code, entity_id FROM operations_resources WHERE operation_id = ?`
+
+	dbResources := make(map[string][]EntityRef)
+	dest := func(scan func(dest ...any) error) error {
+		entityRef := EntityRef{}
+		var resourceType string
+
+		err := scan(&resourceType, &entityRef.EntityType, &entityRef.EntityID)
+		if err != nil {
+			return err
+		}
+
+		_, ok := dbResources[resourceType]
+		if !ok {
+			dbResources[resourceType] = make([]EntityRef, 0)
+		}
+
+		dbResources[resourceType] = append(dbResources[resourceType], entityRef)
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, stmt, dest, opID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading operation resources: %w", err)
+	}
+
+	result := make(map[string][]api.URL)
+	for resourceType, entityRefs := range dbResources {
+		result[resourceType] = make([]api.URL, 0)
+		for _, entityRef := range entityRefs {
+			entityURL, err := GetEntityURL(ctx, tx, entity.Type(entityRef.EntityType), entityRef.EntityID)
+			if err != nil {
+				return nil, err
+			}
+
+			result[resourceType] = append(result[resourceType], *entityURL)
+		}
+	}
+
+	return result, nil
+}
+
+// CreateOrInsertDurableOperationResources inserts resources associated with a durable operation in the cluster db.
+func CreateOrInsertDurableOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resources map[string][]api.URL) error {
+	// No resources to register.
+	if len(resources) == 0 {
+		return nil
+	}
+
+	for resourceType, entityURLs := range resources {
+		entityReferences := make(map[*api.URL]*EntityRef, len(entityURLs))
+		for _, entityURL := range entityURLs {
+			entityReferences[&entityURL] = &EntityRef{}
+		}
+
+		err := PopulateEntityReferencesFromURLs(ctx, tx, entityReferences)
+		if err != nil {
+			return fmt.Errorf("Failed populating entity references from URLs: %w", err)
+		}
+
+		for _, entityRef := range entityReferences {
+			stmt := `INSERT OR REPLACE INTO operations_resources (operation_id, resource, entity_type_code, entity_id) VALUES (?, ?, ?, ?)`
+			_, err := tx.ExecContext(ctx, stmt, opID, resourceType, entityRef.EntityType, entityRef.EntityID)
+			if err != nil {
+				return fmt.Errorf("Failed writing operation resources: %w", err)
+			}
 		}
 	}
 
