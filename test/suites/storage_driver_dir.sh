@@ -1,5 +1,3 @@
-#!/bin/bash
-
 test_storage_driver_dir() {
   local lxd_backend
 
