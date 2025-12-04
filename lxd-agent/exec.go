@@ -134,7 +134,16 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]api.URL{}
 
-	op, err := operations.OperationCreate(r.Context(), nil, "", operations.OperationClassWebsocket, operationtype.CommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+	args := operations.OperationArgs{
+		Type:        operationtype.CommandExec,
+		Class:       operations.OperationClassWebsocket,
+		Resources:   resources,
+		Metadata:    ws.Metadata(),
+		RunHook:     ws.Do,
+		ConnectHook: ws.Connect,
+	}
+
+	op, err := operations.CreateServerOperation(nil, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -225,7 +234,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 }
 
 // Do executes the operation.
-func (s *execWs) Do(op *operations.Operation) error {
+func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
 	defer func() {
 		s.connsLock.Lock()
