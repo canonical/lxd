@@ -3,7 +3,7 @@ test_storage_driver_btrfs() {
 
   lxd_backend=$(storage_backend "${LXD_DIR}")
   if [ "${lxd_backend}" != "btrfs" ]; then
-    echo "==> SKIP: test_storage_driver_btrfs only supports 'btrfs', not ${lxd_backend}"
+    export TEST_UNMET_REQUIREMENT="btrfs specific test, not for ${lxd_backend}"
     return
   fi
 
