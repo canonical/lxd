@@ -161,14 +161,4 @@ runs:
             fi
           done
           sudo microceph.ceph status
-          sudo rm -f /snap/bin/rbd
 
-    - name: Install ceph-common package
-      shell: bash
-      run: |
-          set -eux
-
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y ceph-common
-          # reclaim some space
-          sudo apt-get clean
