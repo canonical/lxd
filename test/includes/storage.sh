@@ -61,8 +61,10 @@ available_storage_backends() {
 
     if [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
         echo "The ceph backend won't be available because LXD_CEPH_CLUSTER is not set" >&2
-    else
+    elif command -v ceph > /dev/null && command -v rbd >/dev/null; then
         storage_backends="${storage_backends} ceph"
+    else
+        echo "The ceph backend won't be available because 'ceph' and/or 'rbd' commands are missing" >&2
     fi
 
     for backend in $storage_backends; do
