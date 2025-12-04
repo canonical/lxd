@@ -13,6 +13,7 @@ test_storage_driver_zfs() {
 
   do_zfs_cross_pool_copy
   do_zfs_delegate
+  do_zfs_rebase
 }
 
 do_zfs_delegate() {
@@ -113,6 +114,81 @@ do_zfs_cross_pool_copy() {
 
   # shellcheck disable=SC2031
   kill_lxd "${LXD_STORAGE_DIR}"
+}
+
+do_zfs_rebase() {
+  # Test ZFS rebase clone_copy mode
+  local storage_pool
+
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  # Ensure image is imported
+  ensure_import_testimage
+
+  # Create a source instance from the image
+  lxc init testimage rebase-src
+  src_ds="${storage_pool}/containers/rebase-src"
+  src_origin="$(zfs get -H -o value origin "${src_ds}")"
+
+  # Clone copy before any snapshots taken (this should create a clone with origin set to source)
+  lxc storage set "${storage_pool}" zfs.clone_copy true
+  lxc copy rebase-src clone-dst
+
+  # The destination origin should be an "@copy-..." snapshot of the source.
+  zfs get -H -o value origin "${storage_pool}/containers/clone-dst" | grep -F "${storage_pool}/containers/rebase-src@copy-"
+
+  # Enable rebase mode on the pool
+  lxc storage set "${storage_pool}" zfs.clone_copy rebase
+
+  # Copy the cloned instance after enabling rebase mode
+  lxc copy clone-dst rebase-dst
+
+  # Read origin property
+  dst_origin="$(zfs get -H -o value origin "${storage_pool}/containers/rebase-dst")"
+
+  # The destination should have the same origin as the original source
+  [ "${dst_origin}" = "${src_origin}" ]
+
+  # Copy the src instance with rebase mode enabled
+  lxc delete clone-dst rebase-dst
+  lxc copy rebase-src rebase-dst
+
+  # Read origin property
+  dst_origin="$(zfs get -H -o value origin "${storage_pool}/containers/rebase-dst")"
+
+  # The destination should have the same origin as the source
+  [ "${dst_origin}" = "${src_origin}" ]
+
+  # With snapshot
+  lxc delete rebase-dst
+  lxc snapshot rebase-src
+  lxc copy rebase-src rebase-dst
+  dst_origin="$(zfs get -H -o value origin "${storage_pool}/containers/rebase-dst")"
+
+  # The destination should have the same origin as the source
+  [ "${dst_origin}" = "${src_origin}" ]
+
+  # Refresh with snapshots
+  lxc snapshot rebase-src
+  lxc copy rebase-src rebase-dst --refresh
+  dst_origin="$(zfs get -H -o value origin "${storage_pool}/containers/rebase-dst")"
+
+  # The destination should have the same origin as the source
+  [ "${dst_origin}" = "${src_origin}" ]
+
+  # Source snapshot copy
+  lxc delete rebase-dst
+  lxc copy rebase-src/snap0 rebase-dst
+  dst_origin="$(zfs get -H -o value origin "${storage_pool}/containers/rebase-dst")"
+
+  # The destination should have the same origin as the source
+  [ "${dst_origin}" = "${src_origin}" ]
+
+  # Cleanup
+  lxc delete rebase-src rebase-dst
+
+  # Unset the pool option
+  lxc storage unset "${storage_pool}" zfs.clone_copy
 }
 
 do_storage_driver_zfs() {
