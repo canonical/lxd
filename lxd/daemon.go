@@ -2600,9 +2600,8 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		maxVoters := s.GlobalConfig.MaxVoters()
 		maxStandBy := s.GlobalConfig.MaxStandBy()
 
-		// If there are offline members that have voter or stand-by database roles, let's see if we can
-		// replace them with spare ones. Also, if we don't have enough voters or standbys, let's see if we
-		// can upgrade some member.
+		// If there are offline members that have voter or stand-by database roles, let's see if we can replace them with spare ones.
+		// Also, if there are members assigned the "database-client" role that have raft roles other than "spare", we need to fix that too.
 		if isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy || hasNodeToAssignSpareRole {
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
@@ -2614,6 +2613,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			d.clusterMembershipMutex.Unlock()
 		}
 
+		// If we don't have enough voters or standby, try to upgrade any members that are not part of raft yet.
 		if hasNodesNotPartOfRaft {
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Upgrading members without raft role in heartbeat", logger.Ctx{"local": localClusterAddress})
