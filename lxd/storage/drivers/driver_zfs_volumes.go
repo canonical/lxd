@@ -3171,13 +3171,6 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 				// Delete on revert.
 				revert.Add(func() { _ = d.deleteDatasetRecursive(dataset) })
 
-				defer func() {
-					err = d.setDatasetProperties(dataset, "volmode=none")
-					if err != nil {
-						d.logger.Warn("Failed setting volmode=none on ZFS volume snapshot", logger.Ctx{"dev": dataset, "err": err})
-					}
-				}()
-
 				d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
 
 				// We are going to mount the temporary volume instead.
