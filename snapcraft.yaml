@@ -1145,7 +1145,7 @@ parts:
 
   zfs-2-2:
     source: https://github.com/openzfs/zfs
-    source-commit: 3e4a3e161c00273303cd9fa9e0dc09ead3499a8a # zfs-2.2.8
+    source-commit: 079ba86d71571bf997ff688da061d8c4aa2fd052 # zfs-2.2.9
     source-depth: 1
     source-type: git
     plugin: autotools
