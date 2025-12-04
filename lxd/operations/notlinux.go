@@ -8,6 +8,10 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+func updateDBNodeID(op *Operation) error {
+	return fmt.Errorf("updateDBOperationNodeIDOnRestart not supported on this platform")
+}
+
 func registerDBOperation(op *Operation) error {
 	if op.state != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
