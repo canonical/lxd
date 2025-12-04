@@ -931,7 +931,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 	// Check Security ACLs are supported and exist.
 	if config["security.acls"] != "" {
-		err = acl.Exists(n.state, n.Project(), shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
+		err = acl.Exists(context.TODO(), n.state, n.Project(), shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
 		if err != nil {
 			return err
 		}
@@ -1422,12 +1422,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
-			err := ovs.BridgeAdd(n.name, false, bridge.Address, bridge.MTU)
+			err := ovs.BridgeAdd(context.TODO(), n.name, false, bridge.Address, bridge.MTU)
 			if err != nil {
 				return err
 			}
 
-			revert.Add(func() { _ = ovs.BridgeDelete(n.name) })
+			revert.Add(func() { _ = ovs.BridgeDelete(context.TODO(), n.name) })
 		} else {
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
@@ -2268,7 +2268,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		n.logger.Debug("Applying up firewall ACLs")
-		err = acl.FirewallApplyACLRules(n.state, n.logger, n.Project(), aclNet)
+		err = acl.FirewallApplyACLRules(context.TODO(), n.state, n.Project(), aclNet)
 		if err != nil {
 			return err
 		}
@@ -2322,7 +2322,7 @@ func (n *bridge) Stop() error {
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
 		ovs := openvswitch.NewOVS()
-		err := ovs.BridgeDelete(n.name)
+		err := ovs.BridgeDelete(context.TODO(), n.name)
 		if err != nil {
 			return err
 		}
