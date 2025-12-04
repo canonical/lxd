@@ -199,7 +199,12 @@ func OperationCreate(ctx context.Context, s *state.State, opUUID string, project
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, opType)
+	if opUUID == "" {
+		err = registerDBOperation(&op, opType)
+	} else {
+		err = updateDBOperationNodeID(&op)
+	}
+
 	if err != nil {
 		return nil, err
 	}
