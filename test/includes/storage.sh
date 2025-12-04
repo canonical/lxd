@@ -15,14 +15,12 @@ storage_backend_available() {
     local backends
     backends="$(available_storage_backends)"
     if [ "${backends#*"$1"}" != "$backends" ]; then
-        true
-        return
+        return 0
     elif [ "${1}" = "cephfs" ] && [ "${backends#*"ceph"}" != "$backends" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
-        true
-        return
+        return 0
     fi
 
-    false
+    return 1
 }
 
 # Returns 0 if --optimized-storage works for backups (export/import)
@@ -93,7 +91,7 @@ configure_loop_device() {
     pvloopdev=$(losetup --show -f "${lv_loop_file}")
     if [ ! -e "${pvloopdev}" ]; then
         echo "failed to setup loop"
-        false
+        return 1
     fi
     # shellcheck disable=SC2153
     echo "${pvloopdev}" >> "${TEST_DIR}/loops"
