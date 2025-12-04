@@ -3177,7 +3177,9 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 				mountVol = tmpVol
 			}
 
-			volPath, err := d.getVolumeDiskPathFromDataset(dataset)
+			ctx, cancel := context.WithTimeout(context.TODO(), time.Second*30)
+			defer cancel()
+			volPath, err := d.tryGetVolumeDiskPathFromDataset(ctx, dataset)
 			if err != nil {
 				return nil, err
 			}
