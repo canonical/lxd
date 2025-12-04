@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -92,6 +93,20 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to add %q Operation %s to database: %w", opType.Description(), op.id, err)
+	}
+
+	return nil
+}
+
+func updateDBOperationNodeID(op *Operation) error {
+	op.updatedAt = time.Now()
+
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := cluster.UpdateOperationNodeID(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed updating Operation %s node ID in database: %w", op.id, err)
 	}
 
 	return nil
