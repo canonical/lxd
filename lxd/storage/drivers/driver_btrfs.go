@@ -445,7 +445,13 @@ func (d *btrfs) Mount() (bool, error) {
 		}
 	} else {
 		// Mount using UUID.
-		mntSrc = "/dev/disk/by-uuid/" + d.config["source"]
+		// We don't use the volatile.initial_source as it might change between system reboots.
+		mntSrcPath, err := d.getDiskPathFromFSUUID(d.config["source"])
+		if err != nil {
+			return false, fmt.Errorf("Failed to get disk path for filesystem UUID %q: %w", d.config["source"], err)
+		}
+
+		mntSrc = mntSrcPath
 	}
 
 	// Get the custom mount flags/options.
