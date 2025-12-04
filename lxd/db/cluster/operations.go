@@ -60,6 +60,27 @@ type OperationFilter struct {
 	Class  *int64
 }
 
+// UpdateOperationNodeID updates the node_id field of an existing operation in the cluster db.
+func UpdateOperationNodeID(ctx context.Context, tx *sql.Tx, opUUID string, newNodeID int64) error {
+	stmt := `UPDATE operations SET node_id = ? WHERE uuid = ?`
+
+	result, err := tx.ExecContext(ctx, stmt, newNodeID, opUUID)
+	if err != nil {
+		return fmt.Errorf("Failed to update operation node ID: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	return nil
+}
+
 // GetDurableOperationMetadata retrieves metadata key/value pairs for a durable operation from the cluster db.
 func GetDurableOperationMetadata(ctx context.Context, tx *sql.Tx, opID int64) (map[string]string, error) {
 	stmt := `SELECT key, value FROM operations_metadata WHERE operation_id = ?`
