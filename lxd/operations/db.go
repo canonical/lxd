@@ -348,3 +348,115 @@ func loadDurableOperationFromDB(op *Operation) (*Operation, error) {
 
 	return result, nil
 }
+
+// LoadDurableOperationsFromNode returns all durable operations from the db that exist on given node.
+func LoadDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID int64) ([]*Operation, error) {
+	opsMap := map[int64]struct {
+		op   *Operation
+		dbOp *cluster.Operation
+	}{}
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// See if there are any durable operations running on this node which need to be restarted.
+		durableClass := int64(operationtype.OperationClassDurable)
+		dbOps, err := cluster.GetOperationsByNodeIDAndClass(ctx, tx.Tx(), nodeID, durableClass)
+		if err != nil {
+			return fmt.Errorf("Failed loading durable operations for node ID %d: %w", nodeID, err)
+		}
+
+		// We'll put both the operations.Operations and the DB operations in a map keyed by their DB ID.
+		// This is needed to set the parent-child relationships between operations.
+		for _, dbOp := range dbOps {
+			// Update the operation nodeID to this node if needed.
+			if dbOp.Row.NodeID != tx.GetNodeID() {
+				dbOp.Row.NodeID = tx.GetNodeID()
+				dbOp.Row.UpdatedAt = time.Now()
+				err = query.UpdateByPrimaryKey(ctx, tx.Tx(), dbOp.Row)
+				if err != nil {
+					return fmt.Errorf("Failed updating existing operation %q node ID: %w", dbOp.Row.UUID, err)
+				}
+			}
+
+			// Create an Operation object for each DB entry.
+			op, err := ConstructOperationFromDB(ctx, tx.Tx(), s, &dbOp)
+			if err != nil {
+				return fmt.Errorf("Failed creating durable operation from DB entry: %w", err)
+			}
+
+			opsMap[dbOp.Row.ID] = struct {
+				op   *Operation
+				dbOp *cluster.Operation
+			}{op: op, dbOp: &dbOp}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Now that we have all operations created, we can set the parent-child relationships.
+	var result []*Operation
+	for _, opPair := range opsMap {
+		// If the operation has no parent, we'll return it as a top-level operation.
+		if opPair.dbOp.Row.Parent == nil {
+			result = append(result, opPair.op)
+			continue
+		}
+
+		// Otherwise find the parent operation.
+		parentOpPair, ok := opsMap[*opPair.dbOp.Row.Parent]
+		if !ok {
+			logger.Warn("Parent operation not found in the map of operations when setting parent-child relationships", logger.Ctx{"operationID": opPair.dbOp.Row.UUID, "parentID": *opPair.dbOp.Row.Parent})
+			continue
+		}
+
+		// And set the parent-child relationship.
+		parentOpPair.op.AddChildren(opPair.op)
+	}
+
+	// Clear run hooks for parent operations. These should not be set from the run hook table per operation type.
+	for _, op := range result {
+		if len(op.children) > 0 {
+			op.onRun = nil
+		}
+	}
+
+	// Return values of the operations map as a slice.
+	return result, nil
+}
+
+// RestartDurableOperation creates and starts a new durable operation based on the provided Operation object.
+// This is used to restart operations that were running on a node which failed to respond to heartbeats on other node.
+func RestartDurableOperation(s *state.State, op *Operation) {
+	// Don't restart operations which are already in a final state.
+	if !op.IsRunning() {
+		return
+	}
+
+	operationsLock.Lock()
+	operations[op.id] = op
+	for _, childOp := range op.children {
+		operations[childOp.id] = childOp
+	}
+
+	operationsLock.Unlock()
+
+	op.logger.Debug("Restarting durable operation", logger.Ctx{"id": op.id})
+	op.start()
+}
+
+// RestartDurableOperationsFromNode restarts all durable operations that were running on the node
+// which failed to respond to heartbeats.
+func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID int64) error {
+	operations, err := LoadDurableOperationsFromNode(ctx, s, nodeID)
+	if err != nil {
+		return err
+	}
+
+	for _, op := range operations {
+		RestartDurableOperation(s, op)
+	}
+
+	return nil
+}
