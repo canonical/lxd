@@ -21,6 +21,18 @@ do_zfs_delegate() {
     return
   fi
 
+  # XXX: Ensure that `/dev/zfs` has mode 0666 so that any user on the system
+  #      can interact with it. Setting those permissions is udev's job but the
+  #      needed rule ships in the `zfsutils-linux` which might be installed after
+  #      the kernel module is loaded and the device node created leaving it
+  #      with 0600 permissions. When those permissions are not tweaked by udev,
+  #      any interaction with zfs tools in the container will fail with:
+  #      > Permission denied the ZFS utilities must be run as root.
+  zfsPerm=$(stat -c '%a' /dev/zfs)
+  if [ $((zfsPerm & 7)) -eq 0 ]; then
+      chmod 0666 /dev/zfs
+  fi
+
   # Import image into default storage pool.
   ensure_import_testimage
 
