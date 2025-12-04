@@ -162,3 +162,7 @@ runs:
           done
           sudo microceph.ceph status
 
+          # XXX: workaround for https://github.com/canonical/microceph/issues/145
+          # Avoid permission error when using rbd
+          sudo snap connect microceph:dm-crypt
+
