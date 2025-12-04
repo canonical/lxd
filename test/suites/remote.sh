@@ -211,6 +211,9 @@ test_remote_admin() {
 }
 
 test_remote_usage() {
+  # Remove any leftover localhost remote from prior tests
+  lxc remote remove localhost || true
+
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
