@@ -207,6 +207,7 @@ cleanup() {
     if command -v ceph >/dev/null; then
       echo "::group::ceph status"
       ceph status --connect-timeout 5 || true
+      snap connections microceph || true
       echo "::endgroup::"
     fi
 
