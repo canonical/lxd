@@ -17,6 +17,14 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 	return nil
 }
 
+func updateDBOperationNodeID(op *Operation) error {
+	if op.state != nil {
+		return fmt.Errorf("updateDBOperationNodeID not supported on this platform")
+	}
+
+	return nil
+}
+
 func removeDBOperation(op *Operation) error {
 	if op.state != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")

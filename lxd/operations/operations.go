@@ -261,7 +261,14 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, args.Type)
+	if args.Reference == "" {
+		// New operation, register it in the database.
+		err = registerDBOperation(&op, args.Type)
+	} else {
+		// Existing operation, update its node_id in the database.
+		err = updateDBOperationNodeID(&op)
+	}
+
 	if err != nil {
 		return nil, err
 	}
