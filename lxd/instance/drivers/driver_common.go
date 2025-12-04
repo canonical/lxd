@@ -836,16 +836,16 @@ func (d *common) runHooks(hooks []func() error) error {
 	return nil
 }
 
-// getAttachedVolumeSnapshots returns storage volume snapshots matching the provided UUIDs.
+// getAttachedVolumeSnapshots returns storage volume snapshots matching the snapshot UUIDs stored in "volatile.attached_volumes".
 // Used for multi-volume instance snapshot restores and deletes.
-func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, attachedVolumeUUIDs map[string]string) ([]*db.StorageVolume, error) {
-	if len(attachedVolumeUUIDs) == 0 {
-		return nil, errors.New("No attached volume UUIDs provided")
+func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, volatileAttachedVolumes map[string]string) ([]*db.StorageVolume, error) {
+	if len(volatileAttachedVolumes) == 0 {
+		return nil, errors.New(`Empty "volatile.attached_volumes"`)
 	}
 
-	// Convert map values to slice for the database query
-	uuids := make([]string, 0, len(attachedVolumeUUIDs))
-	for _, uuid := range attachedVolumeUUIDs {
+	// Convert map values to slice of snapshot UUIDs for database query (filter storage volumes by snapshot UUID).
+	uuids := make([]string, 0, len(volatileAttachedVolumes))
+	for _, uuid := range volatileAttachedVolumes {
 		uuids = append(uuids, uuid)
 	}
 
