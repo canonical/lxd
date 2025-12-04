@@ -270,3 +270,24 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 
 	return nil
 }
+
+// UpdateOperationNodeID updates the node_id field of an existing operation in the cluster db.
+func UpdateOperationNodeID(ctx context.Context, tx *sql.Tx, opUUID string, newNodeID int64, updatedAt time.Time) error {
+	stmt := `UPDATE operations SET node_id = ?, updated_at = ? WHERE uuid = ?`
+
+	result, err := tx.ExecContext(ctx, stmt, newNodeID, updatedAt, opUUID)
+	if err != nil {
+		return fmt.Errorf("Failed updating operation node ID: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	return nil
+}
