@@ -108,15 +108,25 @@ slug = "lxd"
 # Sitemap configuration: https://sphinx-sitemap.readthedocs.io/
 #######################
 
-# Use RTD canonical URL to ensure duplicate pages have a single canonical URL 
+# Use RTD canonical URL to ensure duplicate pages have a single canonical URL
 # that includes the version (such as /latest/); helps SEO.
 # See: https://docs.readthedocs.com/platform/stable/canonical-urls.html and
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-html_baseurl
-# Second argument is for local builds where the READTHEDOCS variable is not available
+# Second argument is for local builds where READTHEDOCS_CANONICAL_URL is not available
 html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "/")
 
 # The sitemap extension uses html_baseurl to generate the full URL for each page
 sitemap_url_scheme = '{link}'
+
+# Include `lastmod` dates in the sitemap:
+sitemap_show_lastmod = True
+
+# Exclude generated pages from the sitemap:
+sitemap_excludes = [
+    '404/',
+    'genindex/',
+    'search/',
+]
 
 #############
 # Redirects #
