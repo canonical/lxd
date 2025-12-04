@@ -267,7 +267,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, args.Type)
+	err = registerDBOperation(&op, args.Reference != "")
 	if err != nil {
 		// Ensure failed DB registration doesn't leave a dangling local operation.
 		operationsLock.Lock()

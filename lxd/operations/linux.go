@@ -8,10 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -19,17 +19,63 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-func registerDBOperation(op *Operation, opType operationtype.Type) error {
+func registerDBOperation(op *Operation, explicitReferenceProvided bool) error {
 	if op.state == nil {
 		return nil
 	}
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// If explicit reference was provided to operationCreate(), it was either:
+		//  - to ensure only a single operation with the reference runs at the time, or
+		//  - we are re-starting a durable operation on a new node.
+		// We need to distinguish the two. Look at the database if this entry already exists.
+		if explicitReferenceProvided {
+			existingOpFilter := cluster.OperationFilter{Reference: &op.id}
+			existingOps, err := cluster.GetOperations(ctx, tx.Tx(), existingOpFilter)
+			if err != nil {
+				return fmt.Errorf("Failed checking for existing operation with reference %q: %w", op.id, err)
+			}
+
+			switch len(existingOps) {
+			case 0:
+				// No existing operation, proceed with creation.
+			case 1:
+				// Existing operation found.
+				existingOp := existingOps[0]
+				// If it's finalized operation, we'll just clear the entry.
+				if api.StatusCode(existingOp.Status).IsFinal() {
+					err = cluster.DeleteOperation(ctx, tx.Tx(), op.id)
+					if err != nil {
+						return fmt.Errorf("Failed deleting finalized operation %q: %w", op.id, err)
+					}
+
+					break
+				}
+
+				// If it's a running durable operation, we'll just update its node ID.
+				if existingOp.Class == int64(OperationClassDurable) &&
+					existingOp.Class == int64(op.class) &&
+					existingOp.Type == op.dbOpType {
+					err = cluster.UpdateOperationNodeID(ctx, tx.Tx(), op.id, tx.GetNodeID(), time.Now())
+					if err != nil {
+						return fmt.Errorf("Failed updating existing operation %q node ID: %w", op.id, err)
+					}
+
+					return nil
+				}
+
+				// Else it's an existing non-durable operation, we can't proceed.
+				return api.StatusErrorf(http.StatusConflict, "Another operation with reference %q already exists", op.id)
+			default:
+				return fmt.Errorf("Multiple existing operations found with reference %q", op.id)
+			}
+		}
+
 		// Fixed references use the unique DB constraint to enforce cluster-wide exclusivity.
 		nodeID := tx.GetNodeID()
 		opInfo := cluster.Operation{
 			Reference: op.id,
-			Type:      opType,
+			Type:      op.dbOpType,
 			NodeID:    &nodeID,
 			Class:     (int64)(op.class),
 			CreatedAt: op.createdAt,
@@ -66,7 +112,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 
 					// The EntityType of the resource must be the same as the EntityType of the required permission defined on the type of the operation.
 					// We don't store EntityType of the resource in the DB, instead, we just use the entityType as defined by the required permissions.
-					permissionEntityType, _ := opType.Permission()
+					permissionEntityType, _ := op.dbOpType.Permission()
 					if entityReference.EntityType != cluster.EntityType(permissionEntityType) {
 						return fmt.Errorf("Mismatched entity type %q for resource URL %q, expected %q", entityReference.EntityType, entityURLs[0].String(), permissionEntityType)
 					}
@@ -97,7 +143,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed creating %q operation record: %w", opType.Description(), err)
+		return fmt.Errorf("Failed creating %q operation record: %w", op.dbOpType.Description(), err)
 	}
 
 	return nil
