@@ -78,6 +78,18 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 	return nil
 }
 
+func updateDBOperationNodeID(op *Operation) error {
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := cluster.UpdateOperationNodeID(ctx, tx.Tx(), op.id, tx.GetNodeID())
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed updating Operation %s node ID in database: %w", op.id, err)
+	}
+
+	return nil
+}
+
 func removeDBOperation(op *Operation) error {
 	if op.state == nil {
 		return nil
