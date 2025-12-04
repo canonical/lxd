@@ -104,6 +104,13 @@ install_snap() {
         snap install "${snap}"
         snap refresh --hold=24h "${name}"
         snap switch "${name}" --channel="${channel}"
+
+        # microceph is special
+        if [ "${name}" = "microceph" ]; then
+            # XXX: workaround for https://github.com/canonical/microceph/issues/145
+            # Avoid permission error when using rbd
+            snap connect microceph:dm-crypt
+        fi
     )
 }
 
