@@ -12,7 +12,7 @@ import (
 // GetAppliedPatches returns the names of all patches currently applied on this node.
 func (n *Node) GetAppliedPatches() ([]string, error) {
 	var response []string
-	err := query.Transaction(context.TODO(), n.db, func(ctx context.Context, tx *sql.Tx) error {
+	err := query.Transaction(context.TODO(), n.db, false, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
 		response, err = query.SelectStrings(ctx, tx, "SELECT name FROM patches")
 		return err
