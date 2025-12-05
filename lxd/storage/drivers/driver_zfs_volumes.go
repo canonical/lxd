@@ -688,6 +688,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 		// Handle transferring snapshots.
 		if len(snapshots) > 0 {
+			// The `--replicate` mode will cause the destination to be based on the source's origin.
 			args = append(args, "--replicate")
 
 			// Use raw flag is supported, this is required to send/receive encrypted volumes (and enables compression).
