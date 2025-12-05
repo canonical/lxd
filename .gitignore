@@ -5,19 +5,7 @@ lxd-*.tar.gz
 tags
 **/*.bak
 
-# Potential binaries
-fuidshift/fuidshift
-lxc/lxc
-lxd-agent/lxd-agent
-lxd-benchmark/lxd-benchmark
-lxd-convert/lxd-convert
-lxd-user/lxd-user
 test/busybox.tar.xz.cache
-test/devlxd-client/devlxd-client
-test/lxd-client/lxd-client
-test/syscall/sysinfo/sysinfo
-test/mini-oidc/mini-oidc
-test/mini-oidc/user.data
 
 # Sphinx
 doc/html/
