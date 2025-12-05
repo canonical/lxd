@@ -320,6 +320,8 @@ run_test() {
     TEST_CURRENT_DESCRIPTION="${TEST_CURRENT_DESCRIPTION} (${RUN_COUNT}/${LXD_REPEAT_TESTS})"
   fi
 
+  spawn_initial_lxd
+
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
 
@@ -407,7 +409,9 @@ if ldd "${_LXC}" | grep -F liblxc; then
 fi
 
 # Only spawn a new LXD if not done yet.
-if [ -z "${LXD_DIR:-}" ]; then
+spawn_initial_lxd() {
+    [ -z "${LXD_DIR:-}" ] || return 0
+
     if [ "${LXD_TMPFS:-0}" = "1" ]; then
       mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=8G
     fi
@@ -425,7 +429,7 @@ if [ -z "${LXD_DIR:-}" ]; then
     spawn_lxd "${LXD_DIR}" true
     LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
     export LXD_ADDR
-fi
+}
 
 export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 
