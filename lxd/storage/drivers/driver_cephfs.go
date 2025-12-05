@@ -487,14 +487,6 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  shortdesc: Data OSD pool name
 		//  scope: global
 		"cephfs.data_pool": validate.IsAny,
-		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=volatile.pool.pristine)
-		//
-		// ---
-		//  type: string
-		//  defaultdesc: `true`
-		//  shortdesc: Whether the CephFS file system was empty on creation time
-		//  scope: global
-		"volatile.pool.pristine": validate.IsAny,
 	}
 
 	// This overrides the common driver rule for security.shared.
