@@ -264,8 +264,6 @@ cleanup() {
   else
     echo "==> Cleaning up"
 
-    [ -e "${LXD_TEST_IMAGE:-}" ] && rm "${LXD_TEST_IMAGE}"
-
     kill_oidc
     clear_ovn_nb_db
     mountpoint -q "${TEST_DIR}/dev" && umount -l "${TEST_DIR}/dev"
