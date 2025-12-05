@@ -334,7 +334,7 @@ Then proceed to the instructions below to actually build and install LXD.
 
 ### Start the build
 
-The actual building is done by two separate invocations of the Makefile: `make deps` -- which builds libraries required
+The actual building is done by two separate invocations of the {file}`Makefile`: `make deps` -- which builds libraries required
 by LXD -- and `make`, which builds LXD itself. At the end of `make deps`, a message will be displayed which will specify environment variables that should be set prior to invoking `make`. As new versions of LXD are released, these environment
 variable settings may change, so be sure to use the ones displayed at the end of the `make deps` process, as the ones
 below (shown for example purposes) may not exactly match what your version of LXD requires:
