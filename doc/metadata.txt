@@ -5801,14 +5801,6 @@ when creating an OSD pool.
 
 ```
 
-```{config:option} volatile.pool.pristine storage-cephfs-pool-conf
-:defaultdesc: "`true`"
-:scope: "global"
-:shortdesc: "Whether the CephFS file system was empty on creation time"
-:type: "string"
-
-```
-
 <!-- config group storage-cephfs-pool-conf end -->
 <!-- config group storage-cephfs-volume-conf start -->
 ```{config:option} security.shifted storage-cephfs-volume-conf
