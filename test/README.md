@@ -14,7 +14,7 @@ Name                           | Default                   | Description
 :--                            | :---                      | :----------
 `LXD_BACKEND`                  | dir                       | What backend to test against (btrfs, ceph, dir, lvm, zfs, or random)
 `LXD_CEPH_CLUSTER`             | ceph                      | The name of the ceph cluster to create osd pools in
-`LXD_CEPH_CEPHFS`              | ""                        | Enables the CephFS tests using the specified cephfs filesystem for `cephfs` pools
+`LXD_CEPH_CEPHFS`              | cephfs                    | Enables the CephFS tests using the specified cephfs filesystem for `cephfs` pools
 `LXD_CEPH_CEPHOBJECT_RADOSGW`  | ""                        | Enables the Ceph Object tests using the specified radosgw HTTP endpoint for `cephobject` pools
 `LXD_VERBOSE`                  | ""                        | Run lxd, lxc and the shell in verbose mode (used in CI; less verbose than `LXD_DEBUG`)
 `LXD_DEBUG`                    | ""                        | Run lxd, lxc and the shell in debug mode (very verbose)
