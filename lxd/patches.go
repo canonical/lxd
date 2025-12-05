@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -24,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/project"
@@ -111,6 +113,7 @@ var patches = []patch{
 	{name: "event_entitlement_rename", stage: patchPreLoadClusterConfig, run: patchEventEntitlementNames},
 	{name: "pool_fix_default_permissions", stage: patchPostDaemonStorage, run: patchDefaultStoragePermissions},
 	{name: "storage_unset_cephfs_pristine_setting", stage: patchPostDaemonStorage, run: patchUnsetCephFSPristineSetting},
+	{name: "update_volatile_attached_volumes_format", stage: patchPostDaemonStorage, run: patchUpdateVolatileAttachedVolumesFormat},
 }
 
 type patch struct {
@@ -1857,6 +1860,167 @@ func patchUnsetCephFSPristineSetting(_ string, d *Daemon) error {
 			)
 	`)
 	return err
+}
+
+// patchUpdateVolatileAttachedVolumesFormat updates "volatile.attached_volumes" from old format (map of volume UUID -> snapshot UUID) to new format (map of device_name -> snapshot_UUID).
+func patchUpdateVolatileAttachedVolumesFormat(_ string, d *Daemon) error {
+	s := d.State()
+
+	// Only run on a single cluster member to avoid concurrent updates.
+	isSelectedMember, err := selectedPatchClusterMember(s)
+	if err != nil {
+		return err
+	}
+
+	if !isSelectedMember {
+		return nil
+	}
+
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		type snapshotData struct {
+			snapshotID                   int
+			instanceID                   int
+			projectName                  string
+			volatileAttachedVolumesValue string
+		}
+
+		var snapshots []snapshotData
+
+		// Query to get all instance snapshots with "volatile.attached_volumes".
+		q := `
+SELECT 
+	instances_snapshots.id,
+	instances_snapshots.instance_id,
+	projects.name,
+	instances_snapshots_config.value
+FROM instances_snapshots_config
+JOIN instances_snapshots ON instances_snapshots.id = instances_snapshots_config.instance_snapshot_id
+JOIN instances ON instances.id = instances_snapshots.instance_id
+JOIN projects ON projects.id = instances.project_id
+WHERE instances_snapshots_config.key = "volatile.attached_volumes"
+`
+		err := query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
+			var snap snapshotData
+
+			err := scan(&snap.snapshotID, &snap.instanceID, &snap.projectName, &snap.volatileAttachedVolumesValue)
+			if err != nil {
+				return err
+			}
+
+			snapshots = append(snapshots, snap)
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, snap := range snapshots {
+			var volatileAttachedVolumes map[string]string
+			err = json.Unmarshal([]byte(snap.volatileAttachedVolumesValue), &volatileAttachedVolumes)
+			if err != nil || len(volatileAttachedVolumes) == 0 {
+				if err != nil {
+					logger.Warn(`Failed parsing "volatile.attached_volumes"`, logger.Ctx{"err": err})
+				}
+
+				continue
+			}
+
+			// Get instance snapshot devices.
+			devices, err := dbCluster.GetInstanceSnapshotDevices(ctx, tx.Tx(), snap.snapshotID)
+			if err != nil {
+				return fmt.Errorf("Failed getting instance snapshot devices: %w", err)
+			}
+
+			// Skip if already in new format (any key matches a device name).
+			isNewFormat := false
+			for key := range volatileAttachedVolumes {
+				_, ok := devices[key]
+				if ok {
+					isNewFormat = true
+					break
+				}
+			}
+
+			if isNewFormat {
+				continue
+			}
+
+			// Convert from old format (volume UUID -> snapshot UUID) to new format (device name -> snapshot UUID).
+
+			// Collect all volume UUIDs.
+			uuids := make([]string, 0, len(volatileAttachedVolumes))
+			for uuid := range volatileAttachedVolumes {
+				uuids = append(uuids, uuid)
+			}
+
+			customType := dbCluster.StoragePoolVolumeTypeCustom
+
+			filter := db.StorageVolumeFilter{
+				UUIDs: uuids,
+				Type:  &customType,
+			}
+
+			// Get all custom volumes with matching UUIDs.
+			volumes, err := tx.GetStorageVolumes(ctx, true, filter)
+			if err != nil {
+				return fmt.Errorf("Failed getting storage volumes: %w", err)
+			}
+
+			// Create a map of pool/volume -> UUID for matching devices.
+			volumeByPoolAndName := make(map[string]string)
+			for _, vol := range volumes {
+				volumeByPoolAndName[vol.Pool+"/"+vol.Name] = vol.Config["volatile.uuid"]
+			}
+
+			newVolatileAttachedVolumes := make(map[string]string, len(volatileAttachedVolumes))
+			for name, dev := range devices {
+				if !filters.IsCustomVolumeDisk(dev.Config) {
+					continue
+				}
+
+				// Look up the volume UUID by pool and name.
+				volumeUUID, ok := volumeByPoolAndName[dev.Config["pool"]+"/"+dev.Config["source"]]
+				if !ok {
+					continue
+				}
+
+				snapshotUUID, ok := volatileAttachedVolumes[volumeUUID]
+				if !ok {
+					continue
+				}
+
+				newVolatileAttachedVolumes[name] = snapshotUUID
+			}
+
+			// Skip if no volumes were converted.
+			if len(newVolatileAttachedVolumes) == 0 {
+				continue
+			}
+
+			marshalled, err := json.Marshal(newVolatileAttachedVolumes)
+			if err != nil {
+				logger.Warn(`Failed marshalling new "volatile.attached_volumes" format, skipping snapshot`, logger.Ctx{"err": err, "snapshotID": snap.snapshotID, "instanceID": snap.instanceID})
+				continue
+			}
+
+			_, err = tx.Tx().ExecContext(ctx, `
+UPDATE instances_snapshots_config 
+SET value = ? 
+WHERE instance_snapshot_id = ? AND key = "volatile.attached_volumes"
+`, string(marshalled), snap.snapshotID)
+			if err != nil {
+				return fmt.Errorf(`Failed updating instance snapshot "volatile.attached_volumes": %w`, err)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf(`Failed updating "volatile.attached_volumes" to new format: %w`, err)
+	}
+
+	return nil
 }
 
 // Patches end here

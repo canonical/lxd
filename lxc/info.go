@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -609,6 +610,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 		}
 	}
 
+	storageVolumeSnapshotsCache := make(map[string][]api.StorageVolumeSnapshot)
 	// List snapshots
 	firstSnapshot := true
 	if len(inst.Snapshots) > 0 {
@@ -642,6 +644,77 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 				row = append(row, "NO")
 			}
 
+			// Display attached volume snapshots
+			if snap.Config["volatile.attached_volumes"] != "" {
+				// Parse the JSON map (device name -> snapshot UUID).
+				var volatileAttachedVolumes map[string]string
+				err := json.Unmarshal([]byte(snap.Config["volatile.attached_volumes"]), &volatileAttachedVolumes)
+				if err != nil {
+					return fmt.Errorf(`Failed parsing "volatile.attached_volumes" from snapshot %q: %w`, snap.Name, err)
+				}
+
+				attachedVolumeSnapshotNames := make([]string, 0, len(volatileAttachedVolumes))
+				for deviceName, snapshotUUID := range volatileAttachedVolumes {
+					dev, ok := snap.Devices[deviceName]
+					if !ok {
+						// Handle old "volatile.attached_volumes" format (map of volume UUID -> snapshot UUID).
+						for volUUID, snapUUID := range volatileAttachedVolumes {
+							for _, dev := range snap.Devices {
+								volume, _, err := d.GetStoragePoolVolume(dev["pool"], "custom", dev["source"])
+								if err != nil {
+									return err
+								}
+
+								if volume.Config["volatile.uuid"] == volUUID {
+									snapshots, err := d.GetStoragePoolVolumeSnapshots(dev["pool"], "custom", dev["source"])
+									if err != nil {
+										return err
+									}
+
+									for _, volSnap := range snapshots {
+										if volSnap.Config["volatile.uuid"] == snapUUID {
+											attachedVolumeSnapshotNames = append(attachedVolumeSnapshotNames, volSnap.Name)
+											break
+										}
+									}
+
+									break
+								}
+							}
+						}
+					}
+
+					// Handle new "volatile.attached_volumes" format (map of device name -> snapshot UUID).
+
+					// Get storage volume snapshots, using cache if possible.
+					storageVolumeSnapshots, ok := storageVolumeSnapshotsCache[dev["pool"]+"/"+dev["source"]]
+					if !ok {
+						// Storage volume snapshots not in cache yet, fetch them.
+						storageVolumeSnapshots, err = d.GetStoragePoolVolumeSnapshots(dev["pool"], "custom", dev["source"])
+						if err != nil {
+							return err
+						}
+
+						// Cache the storage volume snapshots.
+						storageVolumeSnapshotsCache[dev["pool"]+"/"+dev["source"]] = storageVolumeSnapshots
+					}
+
+					// Find the snapshot with matching UUID
+					for _, volSnap := range storageVolumeSnapshots {
+						if volSnap.Config["volatile.uuid"] == snapshotUUID {
+							attachedVolumeSnapshotNames = append(attachedVolumeSnapshotNames, volSnap.Name)
+							break
+						}
+					}
+				}
+
+				if len(attachedVolumeSnapshotNames) != 0 {
+					row = append(row, strings.Join(attachedVolumeSnapshotNames, "\n"))
+				} else {
+					row = append(row, " ")
+				}
+			}
+
 			firstSnapshot = false
 			snapData = append(snapData, row)
 		}
@@ -651,6 +724,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 			i18n.G("Taken at"),
 			i18n.G("Expires at"),
 			i18n.G("Stateful"),
+			i18n.G("Attached volume snapshots"),
 		}
 
 		_ = cli.RenderTable(cli.TableFormatTable, snapHeader, snapData, inst.Snapshots)
