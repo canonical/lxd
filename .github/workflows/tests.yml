@@ -1143,13 +1143,12 @@ jobs:
       - name: Run spell checker
         run: |
           set -eux
-          make doc-spellcheck
+          make doc-spelling
 
       - name: Run inclusive naming checker
-        uses: get-woke/woke-action@b2ec032c4a2c912142b38a6a453ad62017813ed0 # v0
-        with:
-          fail-on-error: true
-          woke-args: "*.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml"
+        run: |
+          set -eux
+          make doc-woke
 
       - name: Upload documentation artifacts
         if: always()
