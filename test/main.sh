@@ -466,6 +466,10 @@ for arg in "$@"; do
     }
     run_test_group "${group_name}"
   else
+    declare -f "test_${arg}" >/dev/null 2>&1 || {
+      echo "Unknown test: test_${arg}" >&2
+      exit 1
+    }
     # allow for running a specific set of tests possibly multiple times
     RUN_COUNT=1
     while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
