@@ -11,9 +11,13 @@ BUILDDIR      = _build
 VENVDIR       = $(SPHINXDIR)/venv
 PA11Y         = $(SPHINXDIR)/node_modules/pa11y/bin/pa11y.js --config $(SPHINXDIR)/pa11y.json
 VENV          = $(VENVDIR)/bin/activate
-TARGET        = *
-ALLFILES      =  *.md **/*.md
+# Limit Vale inputs to markdown sources only (skip markdown inside .sphinx/, manpages)
+TARGET        = $(shell find . -type f -name '*.md' \
+	! -path './.sphinx/*' ! -path './reference/manpages/*')
 REQPDFPACKS   = latexmk fonts-freefont-otf texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-font-utils texlive-lang-cjk texlive-xetex plantuml xindy tex-gyre dvipng
+VALE_CONFIG     = $(SPHINXDIR)/vale.ini
+VALEDIR         = $(SPHINXDIR)/venv/lib/python*/site-packages/vale
+VOCAB_CANONICAL = $(SPHINXDIR)/styles/config/vocabularies/Canonical
 
 # Put it first so that "make" without argument is like "make help".
 help:
@@ -34,10 +38,10 @@ help:
         "* other possible targets:                    make <TAB twice> \n" \
         "------------------------------------------------------------- \n"
 
-.PHONY: full-help woke-install pa11y-install client install run html \
-        epub serve clean clean-doc spelling spellcheck linkcheck woke \
-        pa11y pdf-prep-force pdf-prep pdf vale lint lint-md pymarkdownlnt-install \
-        objects html-rtd
+.PHONY: full-help html epub pdf linkcheck spelling spellcheck woke \
+        vale pa11y run serve install pa11y-install html-rtd \
+        vale-install pdf-prep pdf-prep-force clean clean-doc \
+        update lint-md lint pymarkdownlnt-install client objects
 
 full-help: $(VENVDIR)
 	@. $(VENV); $(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
@@ -90,6 +94,7 @@ clean: clean-doc
 	rm -rf $(VENVDIR)
 	rm -rf $(SPHINXDIR)/node_modules/
 	rm -rf $(SPHINXDIR)/styles
+	rm -rf $(VALE_CONFIG)
 
 clean-doc:
 	find reference/manpages/ -name "*.md" -type f -delete
@@ -119,27 +124,36 @@ lint lint-md: pymarkdownlnt-install
 	&& echo "Passed" \
 	|| (echo "Failed"; exit 1)
 
-woke-install:
-	@type woke >/dev/null 2>&1 || \
-            { echo "Installing \"woke\" snap... \n"; sudo snap install woke; }
+vale-install: $(VENVDIR)
+	@. $(VENV); test -f $(VALE_CONFIG) || python3 $(SPHINXDIR)/get_vale_conf.py
+	@echo '.Name=="Canonical.400-Enforce-inclusive-terms"' > $(SPHINXDIR)/styles/woke.filter
+	@echo '.Level=="error" and .Name!="Canonical.500-Repeated-words" and .Name!="Canonical.000-US-spellcheck"' > $(SPHINXDIR)/styles/error.filter
+	@echo '.Name=="Canonical.000-US-spellcheck"' > $(SPHINXDIR)/styles/spelling.filter
+	@. $(VENV); find $(VALEDIR)/vale_bin -size 195c -exec vale --version \;
 
-woke: woke-install
-	woke $(ALLFILES) --exit-1-on-failure \
-	    -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml
+woke: vale-install
+	@cat $(VOCAB_CANONICAL)/accept.txt > $(VOCAB_CANONICAL)/accept_backup.txt
+	@cat $(SOURCEDIR)/.custom_wordlist.txt >> $(VOCAB_CANONICAL)/accept.txt
+	@echo "Running Vale acceptable term check. To change target set TARGET= with make command."
+	@. $(VENV); vale --config="$(VALE_CONFIG)" --filter='$(SPHINXDIR)/styles/woke.filter' $(TARGET) && \
+	cat $(VOCAB_CANONICAL)/accept_backup.txt > $(VOCAB_CANONICAL)/accept.txt && rm $(VOCAB_CANONICAL)/accept_backup.txt
 
-vale: install
-	@. $(VENV); test -d $(VENVDIR)/lib/python*/site-packages/vale || pip install vale
-	@. $(VENV); test -f $(SPHINXDIR)/vale.ini || python3 $(SPHINXDIR)/get_vale_conf.py
-	@. $(VENV); find $(VENVDIR)/lib/python*/site-packages/vale/vale_bin -size 195c -exec vale --config "$(SPHINXDIR)/vale.ini" $(TARGET) > /dev/null \;
-	@echo ""
-	@echo "Running Vale against $(TARGET). To change target set TARGET= with make command"
-	@echo ""
-	@. $(VENV); vale --config "$(SPHINXDIR)/vale.ini" --glob='*.{md,txt,rst}' $(TARGET)
+vale: vale-install
+	@cat $(VOCAB_CANONICAL)/accept.txt > $(VOCAB_CANONICAL)/accept_backup.txt
+	@cat $(SOURCEDIR)/.custom_wordlist.txt >> $(VOCAB_CANONICAL)/accept.txt
+	@echo "Running Vale. To change target set TARGET= with make command."
+	@. $(VENV); vale --config="$(VALE_CONFIG)" --filter='$(SPHINXDIR)/styles/error.filter' $(TARGET) && \
+	cat $(VOCAB_CANONICAL)/accept_backup.txt > $(VOCAB_CANONICAL)/accept.txt && rm $(VOCAB_CANONICAL)/accept_backup.txt
 
-spelling: html spellcheck
+spelling: vale-install
+	@cat $(VOCAB_CANONICAL)/accept.txt > $(VOCAB_CANONICAL)/accept_backup.txt
+	@cat $(SOURCEDIR)/.custom_wordlist.txt >> $(VOCAB_CANONICAL)/accept.txt
+	@echo "Running Vale spelling check. To change target set TARGET= with make command."
+	@. $(VENV); vale --config="$(VALE_CONFIG)" --filter='$(SPHINXDIR)/styles/spelling.filter' $(TARGET) && \
+	cat $(VOCAB_CANONICAL)/accept_backup.txt > $(VOCAB_CANONICAL)/accept.txt && rm $(VOCAB_CANONICAL)/accept_backup.txt
 
-spellcheck:
-	. $(VENV) ; python3 -m pyspelling -c $(SPHINXDIR)/spellingcheck.yaml -j $(shell nproc)
+spellcheck: spelling
+	@echo "Please note that the \`make spellcheck\` command is being deprecated in favor of \`make spelling\`"
 
 pdf-prep: install
 	@for packageName in $(REQPDFPACKS); do (dpkg-query -W -f='$${Status}' $$packageName 2>/dev/null | \
