@@ -677,13 +677,14 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		}
 
 		// Send/receive the snapshot.
-		var sender *exec.Cmd
 		var receiver *exec.Cmd
 		if vol.ContentType() == ContentTypeBlock || d.isBlockBacked(vol.Volume) {
 			receiver = exec.Command("zfs", "receive", d.dataset(vol.Volume, false))
 		} else {
 			receiver = exec.Command("zfs", "receive", "-x", "mountpoint", d.dataset(vol.Volume, false))
 		}
+
+		args := []string{"send"} // Use send mode when doing full copy.
 
 		// Handle transferring snapshots.
 		if len(snapshots) > 0 {
@@ -695,11 +696,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 			}
 
 			args = append(args, srcSnapshot)
-
-			sender = exec.Command("zfs", args...)
 		} else {
-			args := []string{"send"}
-
 			// Check if nesting is required.
 			if d.needsRecursion(d.dataset(srcVol.Volume, false)) {
 				args = append(args, "--replicate")
@@ -732,18 +729,17 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 				}
 
 				if origin != "" && origin != srcSnapshot {
-					args = append(args, "-i", origin)
-					args = append(args, srcSnapshot)
-					sender = exec.Command("zfs", args...)
+					// Base difference on rebase origin.
+					args = append(args, "-i", origin, srcSnapshot)
 				} else {
 					args = append(args, srcSnapshot)
-					sender = exec.Command("zfs", args...)
 				}
 			} else {
 				args = append(args, srcSnapshot)
-				sender = exec.Command("zfs", args...)
 			}
 		}
+
+		sender := exec.Command("zfs", args...)
 
 		// Configure the pipes.
 		receiver.Stdin, _ = sender.StdoutPipe()
