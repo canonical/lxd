@@ -205,8 +205,8 @@ deps: dqlite liblxc
 # suite.
 .PHONY: test-shell
 test-shell:
-	@eval "$(MAKE) -s env"
-	cd test && exec ./main.sh test-shell
+	@eval "$(MAKE) -s env" >/dev/null
+	@cd test && exec ./main.sh test-shell
 
 .PHONY: tics
 tics: deps
