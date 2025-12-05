@@ -33,12 +33,8 @@ fi
 ARCH="$(dpkg --print-architecture || echo "amd64")"
 export ARCH
 
-LXD_VM_TESTS="${LXD_VM_TESTS:-1}"
-export LXD_VM_TESTS
-
-export CLIENT_DEBUG=""
-export SERVER_DEBUG=""
-export SHELL_TRACING=""
+export LXD_VM_TESTS="${LXD_VM_TESTS:-1}"
+export CLIENT_DEBUG="" SERVER_DEBUG="" SHELL_TRACING=""
 if [ "${LXD_VERBOSE:-0}" != "0" ]; then
   if [ "${LXD_VERBOSE}" = "client" ]; then
       CLIENT_DEBUG="--verbose"
@@ -81,9 +77,10 @@ import_subdir_files() {
 if [ "${PWD}" != "$(dirname "${0}")" ]; then
     cd "$(dirname "${0}")"
 fi
-MAIN_DIR="${PWD}"
-readonly MAIN_DIR
+readonly MAIN_DIR="${PWD}"
 export MAIN_DIR
+export LXD_BACKEND="${LXD_BACKEND:-"dir"}"
+
 import_subdir_files includes
 
 # Install needed storage driver tools
