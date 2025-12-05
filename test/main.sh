@@ -460,39 +460,11 @@ fi
 for arg in "$@"; do
   if [[ "${arg}" == group:* ]]; then
     group_name="${arg#group:}"
-    case "${group_name}" in
-      cluster)
-        run_test_group cluster
-        ;;
-      cluster_storage)
-        run_test_group cluster_storage
-        ;;
-      instance)
-        run_test_group instance
-        ;;
-      image)
-        run_test_group image
-        ;;
-      network)
-        run_test_group network
-        ;;
-      snap)
-        run_test_group snap
-        ;;
-      standalone)
-        run_test_group standalone
-        ;;
-      standalone_storage)
-        run_test_group standalone_storage
-        ;;
-      all)
-        run_test_group all
-        ;;
-      *)
-        echo "Unknown group: ${group_name}" >&2
-        exit 1
-        ;;
-    esac
+    declare -p test_group_"${group_name}" >/dev/null 2>&1 || {
+      echo "Unknown test group: ${group_name}" >&2
+      exit 1
+    }
+    run_test_group "${group_name}"
   else
     # allow for running a specific set of tests possibly multiple times
     RUN_COUNT=1
