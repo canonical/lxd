@@ -111,6 +111,7 @@ var patches = []patch{
 	{name: "event_entitlement_rename", stage: patchPreLoadClusterConfig, run: patchEventEntitlementNames},
 	{name: "pool_fix_default_permissions", stage: patchPostDaemonStorage, run: patchDefaultStoragePermissions},
 	{name: "storage_unset_cephfs_pristine_setting", stage: patchPostDaemonStorage, run: patchUnsetCephFSPristineSetting},
+	{name: "storage_unset_ceph_force_reuse_setting", stage: patchPostDaemonStorage, run: patchUnsetCephForceReuseSetting},
 }
 
 type patch struct {
@@ -1855,6 +1856,15 @@ func patchUnsetCephFSPristineSetting(_ string, d *Daemon) error {
 				SELECT id FROM storage_pools
 					WHERE driver = "cephfs"
 			)
+	`)
+	return err
+}
+
+// patchUnsetCephForceReuseSetting unsets the ceph.osd.force_reuse setting from all storage pool's configs.
+// the "nvme connect" command has the exact same effect.
+func patchUnsetCephForceReuseSetting(_ string, d *Daemon) error {
+	_, err := d.State().DB.Cluster.DB().ExecContext(d.shutdownCtx, `
+DELETE FROM storage_pools_config WHERE key = "ceph.osd.force_reuse"
 	`)
 	return err
 }
