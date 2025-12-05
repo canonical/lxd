@@ -16,9 +16,10 @@ import (
 
 // Rebuild.
 type cmdRebuild struct {
-	global    *cmdGlobal
-	flagEmpty bool
-	flagForce bool
+	global            *cmdGlobal
+	flagEmpty         bool
+	flagForce         bool
+	flagTargetProject string
 }
 
 func (c *cmdRebuild) command() *cobra.Command {
@@ -31,6 +32,7 @@ func (c *cmdRebuild) command() *cobra.Command {
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Rebuild as an empty instance"))
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("If an instance is running, stop it and then rebuild it"))
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("The project containing the instance")+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 		if len(args) > 1 {
@@ -80,6 +82,11 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
+	}
+
+	// Set the target project if provided.
+	if c.flagTargetProject != "" {
+		d = d.UseProject(c.flagTargetProject)
 	}
 
 	// We are not rebuilding just a snapshot but an instance

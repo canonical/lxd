@@ -487,6 +487,7 @@ func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api
 
 	instSrc.Protocol = info.Protocol
 	instSrc.Certificate = info.Certificate
+	instSrc.Project = info.Project
 
 	// Generate secret token if needed
 	if !image.Public {
