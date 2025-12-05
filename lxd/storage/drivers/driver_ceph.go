@@ -245,8 +245,6 @@ func (d *ceph) Create() error {
 		if err != nil {
 			return err
 		}
-
-		d.config["volatile.pool.pristine"] = "true"
 	} else {
 		volExists, err := d.HasVolume(placeholderVol)
 		if err != nil {
@@ -263,8 +261,6 @@ func (d *ceph) Create() error {
 		if err != nil {
 			return err
 		}
-
-		d.config["volatile.pool.pristine"] = "true"
 
 		// Use existing OSD pool.
 		msg, err := shared.RunCommandContext(d.state.ShutdownCtx, "ceph",
@@ -293,6 +289,13 @@ func (d *ceph) Create() error {
 		// if so the db for it is updated.
 		d.config["ceph.osd.pg_num"] = msg
 	}
+
+	// After dropping the ceph.osd.force_reuse key, the volatile.pool.pristine
+	// config key can only be true.
+	// For backwards compatibility always set it to true when creating new pools.
+	// This ensures that when deleting the pool we also always delete the respective OSD pool
+	// but keep it for old storage pools which were created using ceph.osd.force_reuse=true.
+	d.config["volatile.pool.pristine"] = "true"
 
 	revert.Success()
 
