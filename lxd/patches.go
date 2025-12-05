@@ -110,6 +110,7 @@ var patches = []patch{
 	{name: "config_remove_instances_placement_scriptlet", stage: patchPreLoadClusterConfig, run: patchRemoveInstancesPlacementScriptlet},
 	{name: "event_entitlement_rename", stage: patchPreLoadClusterConfig, run: patchEventEntitlementNames},
 	{name: "pool_fix_default_permissions", stage: patchPostDaemonStorage, run: patchDefaultStoragePermissions},
+	{name: "storage_unset_cephfs_pristine_setting", stage: patchPostDaemonStorage, run: patchUnsetCephFSPristineSetting},
 }
 
 type patch struct {
@@ -1843,6 +1844,19 @@ func patchDefaultStoragePermissions(_ string, d *Daemon) error {
 	}
 
 	return nil
+}
+
+// patchUnsetCephFSPristineSetting unsets the volatile.pool.pristine setting from all CephFS storage pool's configs.
+func patchUnsetCephFSPristineSetting(_ string, d *Daemon) error {
+	_, err := d.State().DB.Cluster.DB().ExecContext(d.shutdownCtx, `
+		DELETE FROM storage_pools_config
+			WHERE key = "volatile.pool.pristine"
+			AND storage_pool_id IN (
+				SELECT id FROM storage_pools
+					WHERE driver = "cephfs"
+			)
+	`)
+	return err
 }
 
 // Patches end here
