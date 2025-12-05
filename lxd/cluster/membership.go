@@ -722,12 +722,14 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	wg.Wait()
 }
 
-// Rebalance the raft cluster, trying to see if we have a spare online node
-// that we can promote to voter node if we are below membershipMaxRaftVoters,
-// or to standby if we are below membershipMaxStandBys.
+// Rebalance adjusts raft node roles to maintain cluster membership limits according to the following rules:
+// - Cluster members with the "database-client" role are mapped to the raft "spare" role during rebalancing.
+// - If we are below membershipMaxRaftVoters, promote a cluster member to "voter".
+// - If we are below membershipMaxStandBys, promote a cluster member to "standby".
 //
-// If there's such spare node, return its address as well as the new list of
-// raft nodes.
+// Returns:
+// - The address of the node that was promoted or demoted (if any).
+// - The full list of raft nodes after rebalancing.
 func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
@@ -736,7 +738,49 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return "", nil, fmt.Errorf("Get current raft nodes: %w", err)
+		return "", nil, fmt.Errorf("Failed getting current raft nodes: %w", err)
+	}
+
+	var members []db.NodeInfo
+	err = state.DB.Cluster.Transaction(state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		members, err = tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Prepare a map that stores [db.NodeInfo] by address.
+	membersInfo := map[string]db.NodeInfo{}
+	for _, member := range members {
+		membersInfo[member.Address] = member
+	}
+
+	for i, n := range nodes {
+		// If no member has this address, continue searching. This should not happen.
+		member, ok := membersInfo[n.Address]
+		if !ok {
+			continue
+		}
+
+		// Check if the node has the "database-client" role.
+		if !slices.Contains(member.Roles, db.ClusterRoleDatabaseClient) {
+			continue
+		}
+
+		// If the node already has the "spare" role, do nothing.
+		if n.Role == db.RaftSpare {
+			continue
+		}
+
+		// Assign cluster member to Raft spare role.
+		nodes[i].Role = db.RaftSpare
+
+		return n.Address, nodes, nil
 	}
 
 	roles, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
@@ -747,15 +791,29 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 	role, candidates := roles.Adjust(gateway.info.ID)
 
 	if role == -1 {
-		// No node to promote
+		// No node to process.
 		return "", nodes, nil
 	}
 
 	localClusterAddress := state.LocalConfig.ClusterAddress()
 
 	// Check if we have a spare node that we can promote to the missing role.
-	candidateAddress := candidates[0].Address
-	logger.Info("Found cluster member whose role needs to be changed", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
+	candidateAddress := ""
+	for _, candidate := range candidates {
+		// If no member has this address, continue searching. This should not happen.
+		member, ok := membersInfo[candidate.Address]
+		if !ok {
+			continue
+		}
+
+		// Exclude nodes with the "database-client" role from candidates.
+		if slices.Contains(member.Roles, db.ClusterRoleDatabaseClient) {
+			continue
+		}
+
+		candidateAddress = candidate.Address
+		logger.Info("Found cluster member that requires role change", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
+	}
 
 	for i, node := range nodes {
 		if node.Address == candidateAddress {

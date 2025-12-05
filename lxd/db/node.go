@@ -37,6 +37,9 @@ const ClusterRoleDatabaseStandBy = ClusterRole("database-standby")
 // Assigned to the current Raft leader.
 const ClusterRoleDatabaseLeader = ClusterRole("database-leader")
 
+// ClusterRoleDatabaseClient represents the database client role in a cluster.
+const ClusterRoleDatabaseClient = ClusterRole("database-client")
+
 // ClusterRoleEventHub represents a cluster member who operates as an event hub.
 const ClusterRoleEventHub = ClusterRole("event-hub")
 
@@ -51,6 +54,7 @@ const ClusterRoleOVNChassis = ClusterRole("ovn-chassis")
 var ClusterRoles = map[int]ClusterRole{
 	1: ClusterRoleEventHub,
 	2: ClusterRoleOVNChassis,
+	3: ClusterRoleDatabaseClient,
 }
 
 // Numeric type codes identifying different cluster member states.
