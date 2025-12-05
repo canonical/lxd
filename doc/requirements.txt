@@ -20,3 +20,6 @@ sphinx-remove-toctrees
 watchfiles
 sphinxcontrib-svg2pdfconverter[CairoSVG]
 sphinx-sitemap
+
+# Vale dependencies
+vale
