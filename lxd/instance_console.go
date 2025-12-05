@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -84,7 +85,7 @@ func (s *consoleWs) Metadata() any {
 }
 
 // Connect connects to the websocket.
-func (s *consoleWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+func (s *consoleWs) Connect(ctx context.Context, op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	err := op.CheckRequestor(r)
 	if err != nil {
 		return err
@@ -216,7 +217,7 @@ func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
 }
 
 // Do connects to the websocket and executes the operation.
-func (s *consoleWs) Do(_ *operations.Operation) error {
+func (s *consoleWs) Do(ctx context.Context, _ *operations.Operation) error {
 	switch s.protocol {
 	case instance.ConsoleTypeConsole:
 		return s.doConsole()
@@ -439,6 +440,10 @@ func (s *consoleWs) doVGA() error {
 //	    $ref: "#/responses/InternalServerError"
 func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -541,7 +546,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.ConsoleShow, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+	op, err := operations.CreateUserOperation(s, projectName, requestor, operations.OperationClassWebsocket, operationtype.ConsoleShow, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}

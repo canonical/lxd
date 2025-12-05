@@ -621,11 +621,11 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		run := func(op *operations.Operation) error {
-			return doProfileUpdateCluster(s.ShutdownCtx, s, details.effectiveProject.Name, details.profileName, old)
+		run := func(ctx context.Context, op *operations.Operation) error {
+			return doProfileUpdateCluster(ctx, s, details.effectiveProject.Name, details.profileName, old)
 		}
 
-		op, err := operations.OperationCreate(r.Context(), s, requestProjectName, operations.OperationClassTask, operationtype.ProfileUpdate, nil, nil, run, nil, nil)
+		op, err := operations.CreateUserOperation(s, requestProjectName, requestor, operations.OperationClassTask, operationtype.ProfileUpdate, nil, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -665,8 +665,8 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	run := func(op *operations.Operation) error {
-		err = doProfileUpdate(s.ShutdownCtx, s, details.effectiveProject, details.profileName, profile, req)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = doProfileUpdate(ctx, s, details.effectiveProject, details.profileName, profile, req)
 
 		if err == nil && !clusterNotification {
 			// Notify all other nodes. If a node is down, it will be ignored.
@@ -676,12 +676,12 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			}
 
 			err = notifier(func(_ db.NodeInfo, client lxd.InstanceServer) error {
-				op, err := client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
+				notifyOp, err := client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
 				if err != nil {
 					return err
 				}
 
-				return op.WaitContext(s.ShutdownCtx)
+				return notifyOp.WaitContext(ctx)
 			})
 			if err != nil {
 				return err
@@ -700,7 +700,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]api.URL{}
 	resources["profiles"] = []api.URL{*api.NewURL().Path(version.APIVersion, "profiles", details.profileName)}
 
-	op, err := operations.OperationCreate(r.Context(), s, requestProjectName, operations.OperationClassTask, operationtype.ProfileUpdate, resources, nil, run, nil, nil)
+	op, err := operations.CreateUserOperation(s, requestProjectName, requestor, operations.OperationClassTask, operationtype.ProfileUpdate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -744,6 +744,10 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func profilePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
@@ -826,8 +830,8 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	run := func(op *operations.Operation) error {
-		requestor := request.CreateRequestor(r.Context())
+	run := func(ctx context.Context, op *operations.Operation) error {
+		requestor := request.CreateRequestor(ctx)
 		s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
 		return doProfileUpdate(s.ShutdownCtx, s, details.effectiveProject, details.profileName, profile, req)
 	}
@@ -835,7 +839,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]api.URL{}
 	resources["profiles"] = []api.URL{*api.NewURL().Path(version.APIVersion, "profiles", details.profileName)}
 
-	op, err := operations.OperationCreate(r.Context(), s, request.ProjectParam(r), operations.OperationClassTask, operationtype.ProfileUpdate, resources, nil, run, nil, nil)
+	op, err := operations.CreateUserOperation(s, request.ProjectParam(r), requestor, operations.OperationClassTask, operationtype.ProfileUpdate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}

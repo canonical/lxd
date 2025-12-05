@@ -102,10 +102,10 @@ type Operation struct {
 	logger      logger.Logger
 
 	// Those functions are called at various points in the Operation lifecycle
-	onRun     func(*Operation) error
-	onCancel  func(*Operation) error
-	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
-	onDone    func(*Operation)
+	onRun     RunFunc
+	onCancel  CancelFunc
+	onConnect ConnectFunc
+	onDone    DoneFunc
 
 	// Indicates if operation has finished.
 	finished cancel.Canceller
@@ -117,9 +117,34 @@ type Operation struct {
 	events *events.Server
 }
 
-// OperationCreate creates a new operation and returns it. If it cannot be
-// created, it returns an error.
-func OperationCreate(ctx context.Context, s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+// RunFunc is the signature of the function than an [Operation] calls when started (if set).
+type RunFunc func(ctx context.Context, op *Operation) error
+
+// CancelFunc is the signature of the function that an [Operation] calls when cancelled (if set).
+type CancelFunc func(ctx context.Context, op *Operation) error
+
+// DoneFunc is the signature of the function that an [Operation] calls when it is completed, errored, or cancelled (if set).
+type DoneFunc func(op *Operation)
+
+// ConnectFunc is the signature of the function that an [OperationClassWebsocket] [Operation] calls when a client connects to the operation websocket.
+type ConnectFunc func(ctx context.Context, op *Operation, r *http.Request, w http.ResponseWriter) error
+
+// CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
+func CreateUserOperation(s *state.State, projectName string, requestor *request.Requestor, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun RunFunc, onCancel CancelFunc, onConnect ConnectFunc) (*Operation, error) {
+	if requestor == nil || requestor.OriginAddress() == "" {
+		return nil, errors.New("Cannot create user operation, the requestor must be set")
+	}
+
+	return operationCreate(s, projectName, requestor, opClass, opType, opResources, opMetadata, onRun, onCancel, onConnect)
+}
+
+// CreateServerOperation creates a new [Operation] that runs as a server background task.
+func CreateServerOperation(s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun RunFunc, onCancel CancelFunc, onConnect ConnectFunc) (*Operation, error) {
+	return operationCreate(s, projectName, nil, opClass, opType, opResources, opMetadata, onRun, onCancel, onConnect)
+}
+
+// operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
+func operationCreate(s *state.State, projectName string, requestor *request.Requestor, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun RunFunc, onCancel CancelFunc, onConnect ConnectFunc) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -140,6 +165,7 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	op.resources = opResources
 	op.finished = cancel.New()
 	op.state = s
+	op.requestor = requestor
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	if s != nil {
@@ -175,12 +201,6 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 		return nil, errors.New("Token operations can't have a Cancel hook")
 	}
 
-	// Set requestor if the request context is provided.
-	_, err = request.GetRequestor(ctx)
-	if err == nil {
-		op.SetRequestor(ctx)
-	}
-
 	operationsLock.Lock()
 	operations[op.id] = &op
 	operationsLock.Unlock()
@@ -205,11 +225,6 @@ func (op *Operation) SetEventServer(events *events.Server) {
 	op.events = events
 }
 
-// SetRequestor sets a requestor for this operation from an http.Request.
-func (op *Operation) SetRequestor(ctx context.Context) {
-	op.requestor, _ = request.GetRequestor(ctx)
-}
-
 // CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
 func (op *Operation) CheckRequestor(r *http.Request) error {
 	opRequestor := op.Requestor()
@@ -230,7 +245,7 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 }
 
 // SetOnDone sets the operation onDone function that is called after the operation completes.
-func (op *Operation) SetOnDone(f func(*Operation)) {
+func (op *Operation) SetOnDone(f DoneFunc) {
 	op.onDone = f
 }
 
@@ -313,8 +328,17 @@ func (op *Operation) Start() error {
 	op.status = api.Running
 
 	if op.onRun != nil {
-		go func(op *Operation) {
-			err := op.onRun(op)
+		// The operation context will be a background context plus the requestor.
+		// The requestor is available directly on the operation, but we should still put it in the context.
+		// This is so that, if an operation queries another cluster member, the requestor information will be set
+		// in the request headers.
+		runCtx := context.Background()
+		if op.requestor != nil {
+			runCtx = request.WithRequestor(context.Background(), op.requestor)
+		}
+
+		go func(ctx context.Context, op *Operation) {
+			err := op.onRun(ctx, op)
 			if err != nil {
 				op.lock.Lock()
 				op.status = api.Failure
@@ -343,7 +367,7 @@ func (op *Operation) Start() error {
 			op.lock.Lock()
 			op.sendEvent(md)
 			op.lock.Unlock()
-		}(op)
+		}(runCtx, op)
 	}
 
 	op.lock.Unlock()
@@ -381,8 +405,14 @@ func (op *Operation) Cancel() (chan error, error) {
 	hasOnCancel := op.onCancel != nil
 
 	if hasOnCancel {
-		go func(op *Operation, oldStatus api.StatusCode, chanCancel chan error) {
-			err := op.onCancel(op)
+		// As with the context in the run func, we copy the requestor to ensure it is sent if any internal calls are made.
+		cancelCtx := context.Background()
+		if op.requestor != nil {
+			cancelCtx = request.WithRequestor(context.Background(), op.requestor)
+		}
+
+		go func(ctx context.Context, op *Operation, oldStatus api.StatusCode, chanCancel chan error) {
+			err := op.onCancel(ctx, op)
 			if err != nil {
 				op.lock.Lock()
 				op.status = oldStatus
@@ -411,7 +441,7 @@ func (op *Operation) Cancel() (chan error, error) {
 			op.lock.Lock()
 			op.sendEvent(md)
 			op.lock.Unlock()
-		}(op, oldStatus, chanCancel)
+		}(cancelCtx, op, oldStatus, chanCancel)
 	}
 
 	op.logger.Debug("Cancelling operation")
@@ -459,8 +489,14 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 
 	chanConnect := make(chan error, 1)
 
-	go func(op *Operation, chanConnect chan error) {
-		err := op.onConnect(op, r, w)
+	// As with the context in the run func, we copy the requestor to ensure it is sent if any internal calls are made.
+	connectCtx := context.Background()
+	if op.requestor != nil {
+		connectCtx = request.WithRequestor(context.Background(), op.requestor)
+	}
+
+	go func(ctx context.Context, op *Operation, chanConnect chan error) {
+		err := op.onConnect(ctx, op, r, w)
 		if err != nil {
 			chanConnect <- err
 
@@ -471,7 +507,7 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 		chanConnect <- nil
 
 		op.logger.Debug("Connected to operation")
-	}(op, chanConnect)
+	}(connectCtx, op, chanConnect)
 	op.lock.Unlock()
 
 	op.logger.Debug("Connecting to operation")

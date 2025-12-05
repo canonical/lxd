@@ -71,11 +71,11 @@ func instanceRefreshTypesTask(stateFunc func() *state.State) (task.Func, task.Sc
 	f := func(ctx context.Context) {
 		s := stateFunc()
 
-		opRun := func(op *operations.Operation) error {
+		opRun := func(ctx context.Context, op *operations.Operation) error {
 			return instanceRefreshTypes(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.InstanceTypesUpdate, nil, nil, opRun, nil, nil)
+		op, err := operations.CreateServerOperation(s, "", operations.OperationClassTask, operationtype.InstanceTypesUpdate, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed creating instance types update operation", logger.Ctx{"err": err})
 			return

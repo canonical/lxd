@@ -105,7 +105,7 @@ func (s *conversionSink) Do(state *state.State, instOp *operationlock.InstanceOp
 }
 
 // Connect connects to the conversion source.
-func (s *conversionSink) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+func (s *conversionSink) Connect(ctx context.Context, op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	incomingSecret := r.FormValue("secret")
 	if incomingSecret == "" {
 		return api.StatusErrorf(http.StatusBadRequest, "Missing conversion sink secret")

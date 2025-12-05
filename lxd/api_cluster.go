@@ -390,10 +390,14 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 
 func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	logger.Info("Bootstrapping cluster", logger.Ctx{"serverName": req.ServerName})
 
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		// Update server name.
 		d.globalConfigMu.Lock()
 		d.serverName = req.ServerName
@@ -430,7 +434,6 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 
 	// If there's no cluster.https_address set, but core.https_address is,
 	// let's default to it.
-	var err error
 	var config *node.Config
 	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err = node.ConfigLoad(ctx, tx)
@@ -467,7 +470,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	d.localConfig = config
 	d.globalConfigMu.Unlock()
 
-	op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterBootstrap, resources, nil, run, nil, nil)
+	op, err := operations.CreateUserOperation(s, "", requestor, operations.OperationClassTask, operationtype.ClusterBootstrap, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -484,6 +487,10 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 
 func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	logger.Info("Joining cluster", logger.Ctx{"serverName": req.ServerName})
 
@@ -586,7 +593,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 	}
 
 	// Asynchronously join the cluster.
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		logger.Debug("Running cluster join operation")
 
 		// If the user has provided a join token, setup the trust
@@ -649,7 +656,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		pools := []api.StoragePool{}
 		networks := []api.InitNetworksProjectPost{}
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			poolNames, err := tx.GetStoragePoolNames(ctx)
 			if err != nil && !response.IsNotFoundError(err) {
 				return err
@@ -746,7 +753,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 				logger.Debugf("Adding certificate %q (%s) to local trust store", trustedCert.Name, trustedCert.Fingerprint)
 
-				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 					id, err := dbCluster.CreateCertificate(ctx, tx.Tx(), dbCert)
 					if err != nil {
 						return err
@@ -791,7 +798,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		revert.Add(func() { d.stopClusterTasks() })
 
 		// Handle optional service integration on cluster join
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Add the new node to the default cluster group.
 			err := tx.AddNodeToClusterGroup(ctx, "default", req.ServerName)
 			if err != nil {
@@ -805,7 +812,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		var nodeConfig *node.Config
-		err = s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		err = s.DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
 			var err error
 			nodeConfig, err = node.ConfigLoad(ctx, tx)
 			return err
@@ -816,7 +823,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Get the current (updated) config.
 		var currentClusterConfig *clusterConfig.Config
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			currentClusterConfig, err = clusterConfig.Load(ctx, tx)
 			if err != nil {
 				return err
@@ -857,7 +864,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			logger.Errorf("Failed starting networks: %v", err)
 		}
 
-		client, err = cluster.Connect(r.Context(), req.ClusterAddress, s.Endpoints.NetworkCert(), serverCert, true)
+		client, err = cluster.Connect(ctx, req.ClusterAddress, s.Endpoints.NetworkCert(), serverCert, true)
 		if err != nil {
 			return err
 		}
@@ -877,7 +884,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Ensure all images are available after this node has joined.
-		err = autoSyncImages(s.ShutdownCtx, s)
+		err = autoSyncImages(ctx, s)
 		if err != nil {
 			logger.Warn("Failed syncing images")
 		}
@@ -894,7 +901,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 	resources := map[string][]api.URL{}
 	resources["cluster"] = []api.URL{}
 
-	op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterJoin, resources, nil, run, nil, nil)
+	op, err := operations.CreateUserOperation(s, "", requestor, operations.OperationClassTask, operationtype.ClusterJoin, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1347,11 +1354,15 @@ var clusterNodesPostMu sync.Mutex // Used to prevent races when creating cluster
 //	    $ref: "#/responses/InternalServerError"
 func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	req := api.ClusterMembersPost{}
 
 	// Parse the request.
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1461,7 +1472,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]api.URL{}
 	resources["cluster"] = []api.URL{}
 
-	op, err := operations.OperationCreate(r.Context(), s, api.ProjectDefaultName, operations.OperationClassToken, operationtype.ClusterJoinToken, resources, meta, nil, nil, nil)
+	op, err := operations.CreateUserOperation(s, api.ProjectDefaultName, requestor, operations.OperationClassToken, operationtype.ClusterJoinToken, resources, meta, nil, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3058,6 +3069,10 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Forward request
 	resp := forwardedResponseToNode(r.Context(), s, name)
@@ -3131,7 +3146,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 				Live: live,
 			}
 
-			err := migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, "", req, op)
+			err := migrateInstance(ctx, s, inst, targetMemberInfo.Name, "", req, op)
 			if err != nil {
 				return fmt.Errorf("Failed migrating instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 			}
@@ -3165,11 +3180,11 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		run := func(op *operations.Operation) error {
-			return evacuateClusterMember(context.Background(), s, d.gateway, op, name, req.Mode, stopFunc, migrateFunc)
+		run := func(ctx context.Context, op *operations.Operation) error {
+			return evacuateClusterMember(ctx, s, d.gateway, op, name, req.Mode, stopFunc, migrateFunc)
 		}
 
-		op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterMemberEvacuate, nil, nil, run, nil, nil)
+		op, err := operations.CreateUserOperation(s, "", requestor, operations.OperationClassTask, operationtype.ClusterMemberEvacuate, nil, nil, run, nil, nil)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3383,6 +3398,10 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 
 func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	originName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -3437,7 +3456,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		}
 	}
 
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		// Setup a reverter.
 		revert := revert.New()
 		defer revert.Fail()
@@ -3493,7 +3512,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 
 				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location())})
 
-				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 					sourceNode, err = tx.GetNodeByName(ctx, inst.Location())
 					if err != nil {
 						return fmt.Errorf("Failed getting node %q: %w", inst.Location(), err)
@@ -3505,7 +3524,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 					return fmt.Errorf("Failed getting node: %w", err)
 				}
 
-				source, err = cluster.Connect(r.Context(), sourceNode.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+				source, err = cluster.Connect(ctx, sourceNode.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 				if err != nil {
 					return fmt.Errorf("Failed connecting to source: %w", err)
 				}
@@ -3618,7 +3637,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		return nil
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterMemberRestore, nil, nil, run, nil, nil)
+	op, err := operations.CreateUserOperation(s, "", requestor, operations.OperationClassTask, operationtype.ClusterMemberRestore, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4543,7 +4562,7 @@ func autoHealCluster(ctx context.Context, s *state.State, gateway *cluster.Gatew
 		return nil, errors.New("Skipping healing cluster instances as there are no cluster members to evacuate")
 	}
 
-	opRun := func(op *operations.Operation) error {
+	opRun := func(ctx context.Context, op *operations.Operation) error {
 		for _, member := range offlineMembers {
 			err := healClusterMember(s, gateway, op, member.Name)
 			if err != nil {
@@ -4555,7 +4574,7 @@ func autoHealCluster(ctx context.Context, s *state.State, gateway *cluster.Gatew
 		return nil
 	}
 
-	op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil)
+	op, err := operations.CreateServerOperation(s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating cluster instances heal operation: %w", err)
 	}

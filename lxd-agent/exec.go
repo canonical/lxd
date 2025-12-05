@@ -134,7 +134,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]api.URL{}
 
-	op, err := operations.OperationCreate(r.Context(), nil, "", operations.OperationClassWebsocket, operationtype.CommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+	op, err := operations.CreateServerOperation(nil, "", operations.OperationClassWebsocket, operationtype.CommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -181,7 +181,7 @@ func (s *execWs) Metadata() any {
 }
 
 // Connect establishes the websocket connections.
-func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+func (s *execWs) Connect(ctx context.Context, op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return errors.New("missing secret")
@@ -225,7 +225,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 }
 
 // Do executes the operation.
-func (s *execWs) Do(op *operations.Operation) error {
+func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
 	defer func() {
 		s.connsLock.Lock()

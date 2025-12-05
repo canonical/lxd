@@ -157,7 +157,7 @@ func (s *migrationSourceWs) Metadata() any {
 // Connect handles an incoming HTTP request to establish a websocket connection for migration.
 // It verifies the provided secret and matches it to the appropriate connection. If the secret
 // is valid, it accepts the incoming connection. Otherwise, it returns an error.
-func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+func (s *migrationSourceWs) Connect(ctx context.Context, op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	incomingSecret := r.FormValue("secret")
 	if incomingSecret == "" {
 		return api.StatusErrorf(http.StatusBadRequest, "Missing migration source secret")
@@ -224,7 +224,7 @@ func (s *migrationSink) Metadata() any {
 }
 
 // Connect connects to the migration source.
-func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+func (s *migrationSink) Connect(ctx context.Context, op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	incomingSecret := r.FormValue("secret")
 	if incomingSecret == "" {
 		return api.StatusErrorf(http.StatusBadRequest, "Missing migration sink secret")
