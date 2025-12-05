@@ -359,18 +359,6 @@ EOF
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool26" lvm volume.block.filesystem=btrfs
     fi
 
-    if [ "$lxd_backend" = "ceph" ]; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" ceph
-
-      # Ensure that ceph.osd.force_reuse allows the existing pool to be reused.
-      # The name of the pool is the same as the pool created in the step before.
-      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1-reuse" ceph source="lxdtest-$(basename "${LXD_DIR}")-pool1" || false
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1-reuse" ceph source="lxdtest-$(basename "${LXD_DIR}")-pool1" ceph.osd.force_reuse=true
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1-reuse"
-
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
-    fi
-
     # Set default storage pool for image import.
     lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool5"
 

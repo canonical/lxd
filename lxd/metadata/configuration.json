@@ -5989,6 +5989,15 @@
 						}
 					},
 					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to recover an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
 						"source.wipe": {
 							"defaultdesc": "`false`",
 							"longdesc": "Set this option to `true` to wipe the block device specified in `source`\nprior to creating the storage pool.",
@@ -6129,15 +6138,6 @@
 						}
 					},
 					{
-						"ceph.osd.force_reuse": {
-							"defaultdesc": "`false`",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "Whether to allow reuse of an existing OSD storage pool already used by LXD",
-							"type": "bool"
-						}
-					},
-					{
 						"ceph.osd.pg_num": {
 							"defaultdesc": "`32`",
 							"longdesc": "",
@@ -6205,6 +6205,15 @@
 							"scope": "local",
 							"shortdesc": "Existing OSD storage pool to use",
 							"type": "string"
+						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to recover an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
 						}
 					},
 					{
@@ -6434,6 +6443,15 @@
 							"shortdesc": "Existing CephFS file system or file system path to use",
 							"type": "string"
 						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to recover an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
+						}
 					}
 				]
 			},
@@ -6631,6 +6649,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing directory",
 							"type": "string"
+						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to recover an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
 						}
 					}
 				]
@@ -6839,6 +6866,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or LVM volume group",
 							"type": "string"
+						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to recover an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
 						}
 					},
 					{
@@ -7470,6 +7506,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or ZFS dataset/pool",
 							"type": "string"
+						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to recover an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
 						}
 					},
 					{
