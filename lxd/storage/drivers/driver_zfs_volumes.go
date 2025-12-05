@@ -687,11 +687,11 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 		// Handle transferring snapshots.
 		if len(snapshots) > 0 {
-			args := []string{"send", "-R"}
+			args = append(args, "--replicate")
 
 			// Use raw flag is supported, this is required to send/receive encrypted volumes (and enables compression).
 			if zfsRaw {
-				args = append(args, "-w")
+				args = append(args, "--raw")
 			}
 
 			args = append(args, srcSnapshot)
@@ -702,10 +702,10 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 			// Check if nesting is required.
 			if d.needsRecursion(d.dataset(srcVol.Volume, false)) {
-				args = append(args, "-R")
+				args = append(args, "--replicate")
 
 				if zfsRaw {
-					args = append(args, "-w")
+					args = append(args, "--raw")
 				}
 			}
 
@@ -1269,10 +1269,10 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 
 		// Check if nesting is required.
 		if d.needsRecursion(d.dataset(src, false)) {
-			args = append(args, "-R")
+			args = append(args, "--replicate")
 
 			if zfsRaw {
-				args = append(args, "-w")
+				args = append(args, "--raw")
 			}
 		}
 
@@ -2845,10 +2845,10 @@ func (d *zfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instan
 
 		// Check if nesting is required.
 		if d.needsRecursion(path) {
-			args = append(args, "-R")
+			args = append(args, "--replicate")
 
 			if zfsRaw {
-				args = append(args, "-w")
+				args = append(args, "--raw")
 			}
 		}
 
