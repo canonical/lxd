@@ -6434,15 +6434,6 @@
 							"shortdesc": "Existing CephFS file system or file system path to use",
 							"type": "string"
 						}
-					},
-					{
-						"volatile.pool.pristine": {
-							"defaultdesc": "`true`",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "Whether the CephFS file system was empty on creation time",
-							"type": "string"
-						}
 					}
 				]
 			},
