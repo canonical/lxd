@@ -8,16 +8,35 @@
 #   echo 'source ~/git/lxd/test/main.sh.bash-completion' >> ~/.bashrc
 
 _lxd_test_completion() {
+    # Treat ':' as part of the word so "group:..." stays intact.
+    local _wb="${COMP_WORDBREAKS//:/}"
+    COMP_WORDBREAKS="$_wb"
+
     local cur="${COMP_WORDS[COMP_CWORD]}"
+    local script_dir
+    if [ -n "${MAIN_DIR:-}" ]; then
+        script_dir="${MAIN_DIR}"
+    else
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    fi
 
     # Special keywords
-    local keywords="all cluster standalone test-shell"
+    local keywords="group:all group:cluster group:cluster_storage group:instance group:image group:network group:snap group:standalone group:standalone_storage"
 
     # Extract all test function names from main.sh
     # Remove 'test_' prefix and 'run_test test_' wrapper
     local script_dir="${MAIN_DIR:-}"
     if [ -z "${script_dir:-}" ]; then
         script_dir="$(dirname "${BASH_SOURCE[0]}")"
+    fi
+
+    # Source test-groups.sh only once to avoid readonly redefinitions.
+    # shellcheck disable=SC2154
+    if ! declare -p test_group_all >/dev/null 2>&1; then
+        if [ -f "${script_dir}/includes/test-groups.sh" ]; then
+            # shellcheck disable=SC1091
+            . "${script_dir}/includes/test-groups.sh"
+        fi
     fi
 
     local tests
@@ -30,4 +49,4 @@ _lxd_test_completion() {
 }
 
 # Register completion
-complete -F _lxd_test_completion ./main.sh
+complete -o nospace -F _lxd_test_completion ./main.sh

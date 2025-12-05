@@ -128,11 +128,8 @@ install_tools() {
 
 
 install_storage_driver_tools() {
-    # Default to dir backend if none is specified
     # If the requested backend is specified but the needed tooling is missing, try to install it.
-    if [ -z "${LXD_BACKEND:-}" ]; then
-        LXD_BACKEND="dir"
-    elif ! is_backend_available "${LXD_BACKEND}"; then
+    if ! is_backend_available "${LXD_BACKEND}"; then
         pkg=""
         case "${LXD_BACKEND}" in
           ceph)
