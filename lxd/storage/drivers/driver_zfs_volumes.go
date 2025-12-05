@@ -621,6 +621,12 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		revert.Add(func() { _ = unfreezeFS() })
 	}
 
+	// Rebase mode is only used for instance copies when enabled.
+	rebase := d.config["zfs.clone_copy"] == "rebase" && (srcVol.volType == VolumeTypeContainer || srcVol.volType == VolumeTypeVM)
+
+	// Use full copy mode when zfs.clone_copy is false or rebase mode is enabled or source volume has snapshots.
+	fullCopy := shared.IsFalse(d.config["zfs.clone_copy"]) || rebase || len(snapshots) > 0
+
 	var srcSnapshot string
 	if srcVol.volType == VolumeTypeImage {
 		srcSnapshot = d.dataset(srcVol.Volume, false) + "@readonly"
@@ -635,9 +641,8 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 			return err
 		}
 
-		// If zfs.clone_copy is disabled delete the snapshot at the end.
-		if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
-			// Delete the snapshot at the end.
+		if fullCopy {
+			// Delete the snapshot at the end when doing full copy.
 			defer func() {
 				// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
 				_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", "-d", srcSnapshot)
@@ -646,7 +651,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 				}
 			}()
 		} else {
-			// Delete the snapshot on revert.
+			// Delete the snapshot on revert when doing a clone.
 			revert.Add(func() {
 				// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
 				_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", "-d", srcSnapshot)
@@ -665,15 +670,13 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 	// Delete the volume created on failure.
 	revert.Add(func() { _ = d.DeleteVolume(vol.Volume, op) })
 
-	// If zfs.clone_copy is disabled or source volume has snapshots, then use full copy mode.
-	if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
+	if fullCopy {
 		_, snapName, found := strings.Cut(srcSnapshot, "@")
 		if !found {
 			return fmt.Errorf("Failed to parse snapshot name from %q", srcSnapshot)
 		}
 
 		// Send/receive the snapshot.
-		var sender *exec.Cmd
 		var receiver *exec.Cmd
 		if vol.ContentType() == ContentTypeBlock || d.isBlockBacked(vol.Volume) {
 			receiver = exec.Command("zfs", "receive", d.dataset(vol.Volume, false))
@@ -681,42 +684,41 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 			receiver = exec.Command("zfs", "receive", "-x", "mountpoint", d.dataset(vol.Volume, false))
 		}
 
+		args := []string{"send"} // Use send mode when doing full copy.
+
 		// Handle transferring snapshots.
 		if len(snapshots) > 0 {
-			args := []string{"send", "-R"}
+			// The `--replicate` mode will cause the destination to be based on the source's origin.
+			args = append(args, "--replicate")
 
 			// Use raw flag is supported, this is required to send/receive encrypted volumes (and enables compression).
 			if zfsRaw {
-				args = append(args, "-w")
+				args = append(args, "--raw")
 			}
 
 			args = append(args, srcSnapshot)
-
-			sender = exec.Command("zfs", args...)
 		} else {
-			args := []string{"send"}
-
 			// Check if nesting is required.
 			if d.needsRecursion(d.dataset(srcVol.Volume, false)) {
-				args = append(args, "-R")
+				args = append(args, "--replicate")
 
 				if zfsRaw {
-					args = append(args, "-w")
+					args = append(args, "--raw")
 				}
 			}
 
-			if d.config["zfs.clone_copy"] == "rebase" {
+			if rebase {
 				var err error
 				origin := d.dataset(srcVol.Volume, false)
 				for {
-					fields := strings.SplitN(origin, "@", 2)
+					originVolName, originSnapName, isSnap := strings.Cut(origin, "@")
 
 					// If the origin is a @readonly snapshot under a /images/ path (/images or deleted/images), we're done.
-					if len(fields) > 1 && strings.Contains(fields[0], "/images/") && fields[1] == "readonly" {
+					if isSnap && strings.Contains(originVolName, "/images/") && originSnapName == "readonly" {
 						break
 					}
 
-					origin, err = d.getDatasetProperty(origin, "origin")
+					origin, err = d.getDatasetProperty(originVolName, "origin")
 					if err != nil {
 						return err
 					}
@@ -728,18 +730,17 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 				}
 
 				if origin != "" && origin != srcSnapshot {
-					args = append(args, "-i", origin)
-					args = append(args, srcSnapshot)
-					sender = exec.Command("zfs", args...)
+					// Base difference on rebase origin.
+					args = append(args, "-i", origin, srcSnapshot)
 				} else {
 					args = append(args, srcSnapshot)
-					sender = exec.Command("zfs", args...)
 				}
 			} else {
 				args = append(args, srcSnapshot)
-				sender = exec.Command("zfs", args...)
 			}
 		}
+
+		sender := exec.Command("zfs", args...)
 
 		// Configure the pipes.
 		receiver.Stdin, _ = sender.StdoutPipe()
@@ -1265,10 +1266,10 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 
 		// Check if nesting is required.
 		if d.needsRecursion(d.dataset(src, false)) {
-			args = append(args, "-R")
+			args = append(args, "--replicate")
 
 			if zfsRaw {
-				args = append(args, "-w")
+				args = append(args, "--raw")
 			}
 		}
 
@@ -2841,10 +2842,10 @@ func (d *zfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instan
 
 		// Check if nesting is required.
 		if d.needsRecursion(path) {
-			args = append(args, "-R")
+			args = append(args, "--replicate")
 
 			if zfsRaw {
-				args = append(args, "-w")
+				args = append(args, "--raw")
 			}
 		}
 
