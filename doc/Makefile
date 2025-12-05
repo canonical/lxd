@@ -8,12 +8,16 @@ SPHINXOPTS    ?= -c . -d $(SPHINXDIR)/.doctrees -j auto
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = _build
+MANPAGEDIR    = reference/manpages
 VENVDIR       = $(SPHINXDIR)/venv
 PA11Y         = $(SPHINXDIR)/node_modules/pa11y/bin/pa11y.js --config $(SPHINXDIR)/pa11y.json
 VENV          = $(VENVDIR)/bin/activate
-TARGET        = *
-ALLFILES      =  *.md **/*.md
+TARGET        = .
 REQPDFPACKS   = latexmk fonts-freefont-otf texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-font-utils texlive-lang-cjk texlive-xetex plantuml xindy tex-gyre dvipng
+VALE_CONFIG     = $(SPHINXDIR)/vale.ini
+VALEDIR         = $(SPHINXDIR)/venv/lib/python*/site-packages/vale
+VOCAB_CANONICAL = $(SPHINXDIR)/styles/config/vocabularies/Canonical
+VALE_GLOB       := --glob='!{.sphinx/**,reference/manpages/**}'
 
 # Put it first so that "make" without argument is like "make help".
 help:
@@ -34,10 +38,10 @@ help:
         "* other possible targets:                    make <TAB twice> \n" \
         "------------------------------------------------------------- \n"
 
-.PHONY: full-help woke-install pa11y-install client install run html \
-        epub serve clean clean-doc spelling spellcheck linkcheck woke \
-        pa11y pdf-prep-force pdf-prep pdf vale lint lint-md pymarkdownlnt-install \
-        objects html-rtd
+.PHONY: full-help html epub pdf linkcheck spelling spellcheck woke \
+        vale pa11y run serve install pa11y-install html-rtd \
+        vale-install pdf-prep pdf-prep-force clean clean-doc \
+        update lint-md lint pymarkdownlnt-install client objects
 
 full-help: $(VENVDIR)
 	@. $(VENV); $(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
@@ -72,7 +76,7 @@ client:
 install: $(VENVDIR) client
 
 run: install
-	export LOCAL_SPHINX_BUILD=True && . $(VENV) && sphinx-autobuild -b dirhtml "$(SOURCEDIR)" "$(BUILDDIR)" --ignore '.sphinx/deps/manpages/*' $(SPHINXOPTS)
+	export LOCAL_SPHINX_BUILD=True && . $(VENV) && sphinx-autobuild -b dirhtml "$(SOURCEDIR)" "$(BUILDDIR)" --ignore '$(SPHINXDIR)/deps/manpages/*' $(SPHINXOPTS)
 
 # Doesn't depend on $(BUILDDIR) to rebuild properly at every run.
 # If the target is html-rtd, uses LOCAL_SPHINX_BUILD=False; True otherwise (for target html)
@@ -90,6 +94,7 @@ clean: clean-doc
 	rm -rf $(VENVDIR)
 	rm -rf $(SPHINXDIR)/node_modules/
 	rm -rf $(SPHINXDIR)/styles
+	rm -rf $(VALE_CONFIG)
 
 clean-doc:
 	find reference/manpages/ -name "*.md" -type f -delete
@@ -110,36 +115,45 @@ objects:
 lint lint-md: pymarkdownlnt-install
 	@echo "Running Markdown linting..."
 	@. $(VENV); \
-	pymarkdownlnt --config .sphinx/.pymarkdown.json scan \
+	pymarkdownlnt --config $(SPHINXDIR)/.pymarkdown.json scan \
 		--recurse \
-		--exclude=./.sphinx \
-		--exclude=./_build \
-		--exclude=./reference/manpages/lxc \
+		--exclude=./$(SPHINXDIR) \
+		--exclude=./$(BUILDDIR) \
+		--exclude=./$(MANPAGEDIR)/lxc \
 		. \
 	&& echo "Passed" \
 	|| (echo "Failed"; exit 1)
 
-woke-install:
-	@type woke >/dev/null 2>&1 || \
-            { echo "Installing \"woke\" snap... \n"; sudo snap install woke; }
+vale-install: $(VENVDIR)
+	@. $(VENV); test -f $(VALE_CONFIG) || python3 $(SPHINXDIR)/get_vale_conf.py
+	@echo '.Name=="Canonical.400-Enforce-inclusive-terms"' > $(SPHINXDIR)/styles/woke.filter
+	@echo '.Level=="error" and .Name!="Canonical.500-Repeated-words" and .Name!="Canonical.000-US-spellcheck"' > $(SPHINXDIR)/styles/error.filter
+	@echo '.Name=="Canonical.000-US-spellcheck"' > $(SPHINXDIR)/styles/spelling.filter
+	@. $(VENV); find $(VALEDIR)/vale_bin -size 195c -exec vale --version \;
 
-woke: woke-install
-	woke $(ALLFILES) --exit-1-on-failure \
-	    -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml
+woke: vale-install
+	@trap 'cat $(VOCAB_CANONICAL)/accept_backup.txt > $(VOCAB_CANONICAL)/accept.txt && rm $(VOCAB_CANONICAL)/accept_backup.txt' EXIT; \
+	cat $(VOCAB_CANONICAL)/accept.txt > $(VOCAB_CANONICAL)/accept_backup.txt; \
+	cat $(SOURCEDIR)/.custom_wordlist.txt >> $(VOCAB_CANONICAL)/accept.txt; \
+	echo "Running Vale acceptable term check. To change target, set TARGET= with make command."; \
+	. $(VENV); vale --config="$(VALE_CONFIG)" --filter='$(SPHINXDIR)/styles/woke.filter' $(VALE_GLOB) $(TARGET)
 
-vale: install
-	@. $(VENV); test -d $(VENVDIR)/lib/python*/site-packages/vale || pip install vale
-	@. $(VENV); test -f $(SPHINXDIR)/vale.ini || python3 $(SPHINXDIR)/get_vale_conf.py
-	@. $(VENV); find $(VENVDIR)/lib/python*/site-packages/vale/vale_bin -size 195c -exec vale --config "$(SPHINXDIR)/vale.ini" $(TARGET) > /dev/null \;
-	@echo ""
-	@echo "Running Vale against $(TARGET). To change target set TARGET= with make command"
-	@echo ""
-	@. $(VENV); vale --config "$(SPHINXDIR)/vale.ini" --glob='*.{md,txt,rst}' $(TARGET)
+vale: vale-install
+	@trap 'cat $(VOCAB_CANONICAL)/accept_backup.txt > $(VOCAB_CANONICAL)/accept.txt && rm $(VOCAB_CANONICAL)/accept_backup.txt' EXIT; \
+	cat $(VOCAB_CANONICAL)/accept.txt > $(VOCAB_CANONICAL)/accept_backup.txt; \
+	cat $(SOURCEDIR)/.custom_wordlist.txt >> $(VOCAB_CANONICAL)/accept.txt; \
+	echo "Running Vale. To change target, set TARGET= with make command."; \
+	. $(VENV); vale --config="$(VALE_CONFIG)" --filter='$(SPHINXDIR)/styles/error.filter' $(VALE_GLOB) $(TARGET)
 
-spelling: html spellcheck
+spelling: vale-install
+	@trap 'cat $(VOCAB_CANONICAL)/accept_backup.txt > $(VOCAB_CANONICAL)/accept.txt && rm $(VOCAB_CANONICAL)/accept_backup.txt' EXIT; \
+	cat $(VOCAB_CANONICAL)/accept.txt > $(VOCAB_CANONICAL)/accept_backup.txt; \
+	cat $(SOURCEDIR)/.custom_wordlist.txt >> $(VOCAB_CANONICAL)/accept.txt; \
+	echo "Running Vale spelling check. To change target, set TARGET= with make command."; \
+	. $(VENV); vale --config="$(VALE_CONFIG)" --filter='$(SPHINXDIR)/styles/spelling.filter' $(VALE_GLOB) $(TARGET)
 
-spellcheck:
-	. $(VENV) ; python3 -m pyspelling -c $(SPHINXDIR)/spellingcheck.yaml -j $(shell nproc)
+spellcheck: spelling
+	@echo "Please note that the \`make spellcheck\` command is being deprecated in favor of \`make spelling\`"
 
 pdf-prep: install
 	@for packageName in $(REQPDFPACKS); do (dpkg-query -W -f='$${Status}' $$packageName 2>/dev/null | \
@@ -154,7 +168,7 @@ pdf-prep-force:
 	apt-get install --no-install-recommends -y $(REQPDFPACKS)
 
 pdf: pdf-prep
-	@. $(VENV); sphinx-build -M latexpdf "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
+	@. $(VENV); $(SPHINXBUILD) -M latexpdf "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 	@rm ./$(BUILDDIR)/latex/front-page-light.pdf || true
 	@rm ./$(BUILDDIR)/latex/normal-page-footer.pdf || true
 	@find ./$(BUILDDIR)/latex -name "*.pdf" -exec mv -t ./$(BUILDDIR) {} +
