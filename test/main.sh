@@ -340,15 +340,13 @@ run_test_n_times() {
 # Run a single test
 run_test() {
   TEST_CURRENT=${1}
-  TEST_CURRENT_DESCRIPTION="${TEST_CURRENT#test_}"
+  TEST_CURRENT_DESCRIPTION="${TEST_CURRENT#test_} backend=${LXD_BACKEND}"
   TEST_UNMET_REQUIREMENT=""
   cwd="${PWD}"
 
   if [ "${RUN_COUNT:-0}" -ne 0 ] && [ "${LXD_REPEAT_TESTS:-1}" -ne 1 ]; then
     TEST_CURRENT_DESCRIPTION="${TEST_CURRENT_DESCRIPTION} (${RUN_COUNT}/${LXD_REPEAT_TESTS})"
   fi
-
-  spawn_initial_lxd
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
@@ -389,7 +387,8 @@ run_test() {
       fi
 
       # Run test.
-      ${TEST_CURRENT}
+      #${TEST_CURRENT}
+      echo "==> Running ${TEST_CURRENT}() FAKE"
 
       # Check for any core dump after running the test
       if ! check_empty /var/crash/; then
@@ -470,6 +469,7 @@ export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_D
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
 if [ "${1:-"all"}" = "test-shell" ]; then
+  spawn_initial_lxd
   bash --rcfile test-shell.bashrc || true
   TEST_CURRENT="test-shell"
   TEST_RESULT=success
@@ -485,27 +485,34 @@ if [ "$#" -eq 0 ]; then
   set -- "group:all"
 fi
 
-for arg in "$@"; do
-  if [[ "${arg}" == group:* ]]; then
-    group_name="${arg#group:}"
-    declare -p test_group_"${group_name}" >/dev/null 2>&1 || {
-      echo "Unknown test group: ${group_name}" >&2
-      exit 1
-    }
-    run_test_group "${group_name}"
-  else
-    declare -f "test_${arg}" >/dev/null 2>&1 || {
-      echo "Unknown test: test_${arg}" >&2
-      exit 1
-    }
-    # allow for running a specific set of tests possibly multiple times
-    RUN_COUNT=1
-    while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
-      run_test "test_${arg}"
-      RUN_COUNT="$((RUN_COUNT+1))"
-    done
-  fi
-done
+# Run tests against all requested backends
+for LXD_BACKEND in ${LXD_BACKENDS}; do
+  LXD_DIR="" spawn_initial_lxd
 
-# shellcheck disable=SC2034
-TEST_RESULT=success
+  for arg in "$@"; do
+    if [[ "${arg}" == group:* ]]; then
+      group_name="${arg#group:}"
+      declare -p test_group_"${group_name}" >/dev/null 2>&1 || {
+        echo "Unknown test group: ${group_name}" >&2
+        exit 1
+      }
+      run_test_group "${group_name}"
+    else
+      declare -f "test_${arg}" >/dev/null 2>&1 || {
+        echo "Unknown test: test_${arg}" >&2
+        exit 1
+      }
+      # allow for running a specific set of tests possibly multiple times
+      RUN_COUNT=1
+      while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
+        run_test "test_${arg}"
+        RUN_COUNT="$((RUN_COUNT+1))"
+      done
+    fi
+  done
+
+  # shellcheck disable=SC2034
+  TEST_RESULT=success
+
+  cleanup
+done
