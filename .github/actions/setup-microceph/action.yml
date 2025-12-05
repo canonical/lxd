@@ -161,14 +161,8 @@ runs:
             fi
           done
           sudo microceph.ceph status
-          sudo rm -f /snap/bin/rbd
 
-    - name: Install ceph-common package
-      shell: bash
-      run: |
-          set -eux
+          # XXX: workaround for https://github.com/canonical/microceph/issues/145
+          # Avoid permission error when using rbd
+          sudo snap connect microceph:dm-crypt
 
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y ceph-common
-          # reclaim some space
-          sudo apt-get clean

@@ -2,6 +2,8 @@
 set -eu
 set -o pipefail
 
+export TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
+
 export GOTOOLCHAIN=local # Avoid downloading toolchain
 if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
@@ -207,6 +209,7 @@ cleanup() {
     if command -v ceph >/dev/null; then
       echo "::group::ceph status"
       ceph status --connect-timeout 5 || true
+      snap connections microceph || true
       echo "::endgroup::"
     fi
 
