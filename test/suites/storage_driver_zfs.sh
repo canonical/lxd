@@ -237,12 +237,51 @@ do_storage_driver_zfs() {
   lxc exec c4 -- test -f /root/foo
   ! lxc exec c4 -- test -f /root/bar || false
 
+  # Snapshot restore after cloning
+  # Create container with multiple snapshots
+  lxc launch testimage c8
+  lxc exec c8 -- touch /root/file1
+  lxc snapshot c8 snap1
+  lxc exec c8 -- touch /root/file2
+  lxc snapshot c8 snap2
+  lxc exec c8 -- touch /root/file3
+  lxc snapshot c8 snap3
+
+  # Clone from the middle snapshot
+  lxc copy c8/snap2 c9
+
+  # Verify c9 has file2 but not file3
+  lxc exec c9 -- test -f /root/file2
+  ! lxc exec c9 -- test -f /root/file3 || false
+
+  # Try to restore c8 to snap1 (should fail due to subsequent snapshots)
+  ! lxc restore c8 snap1 2>/dev/null || false
+
+  # Try to restore c8 to snap2 (should work - snap3 is after but we're restoring to snap2)
+  lxc restore c8 snap2
+
+  # Verify c8 has file2 but not file3 after restore
+  lxc exec c8 -- test -f /root/file2
+  ! lxc exec c8 -- test -f /root/file3 || false
+
+  # Verify c9 still exists and has file2
+  lxc exec c9 -- test -f /root/file2
+
+  # Now try to restore c8 to snap3 (should work - it's the latest)
+  lxc exec c8 -- touch /root/file2_modified  # Modify to differentiate
+  lxc snapshot c8 snap2_modified
+  lxc restore c8 snap3
+
+  # Verify c8 has the original snap3 state (file3, no file2_modified)
+  lxc exec c8 -- test -f /root/file3
+  ! lxc exec c8 -- test -f /root/file2_modified || false
+
   lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.size=5GiB
   lxc launch testimage c5
   lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.size
 
   # Clean up
-  lxc rm -f c1 c3 c11 c21 c4 c5 c6 c7
+  lxc rm -f c1 c3 c11 c21 c4 c5 c6 c7 c8 c9
   lxc storage volume rm lxdtest-"$(basename "${LXD_DIR}")" vol1
   lxc storage volume rm lxdtest-"$(basename "${LXD_DIR}")" vol2
 
