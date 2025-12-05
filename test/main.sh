@@ -102,6 +102,22 @@ readonly MAIN_DIR="${PWD}"
 export MAIN_DIR
 export LXD_BACKEND="${LXD_BACKEND:-"dir"}"
 
+# Support multiple backends selection
+LXD_BACKENDS="${LXD_BACKENDS:-"${LXD_BACKEND}"}"
+if [ "${LXD_BACKENDS}" = "all" ]; then
+  LXD_BACKENDS="btrfs ceph dir lvm zfs random"
+elif [ "${LXD_BACKENDS}" = "fasts" ]; then
+  LXD_BACKENDS="btrfs dir"
+elif [ "${LXD_BACKENDS}" = "fast" ]; then
+  # Pick on of btrfs or dir
+  LXD_BACKENDS="btrfs"
+  if [ $(( "${GITHUB_RUN_ID:-"${RANDOM}"}" % 2 )) -eq 0 ]; then
+    LXD_BACKENDS="dir"
+  fi
+  echo "::notice::fast backend=${LXD_BACKENDS}"
+fi
+readonly LXD_BACKENDS
+
 import_subdir_files includes
 
 # Install needed storage driver tools
