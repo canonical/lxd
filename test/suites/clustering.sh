@@ -657,6 +657,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data webbaz
   fi
 
+  # Ensure cleanup of the cluster's data pool to not leave any traces behind when we are using a different driver besides dir.
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_TWO_DIR}" lxc storage delete data
 
@@ -1078,6 +1079,7 @@ test_clustering_storage_single_node() {
   # Delete the storage pool
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
 
+  # Ensure cleanup of the cluster's data pool to not leave any traces behind when we are using a different driver besides dir.
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -3635,6 +3637,8 @@ test_clustering_image_refresh() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete bar
+
+  # Ensure cleanup of the cluster's data pool to not leave any traces behind when we are using a different driver besides dir.
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
 
@@ -4008,6 +4012,7 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-evac-spread-permissive
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-evac-spread-strict
 
+  # Ensure cleanup of the cluster's data pool to not leave any traces behind when we are using a different driver besides dir.
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
 
@@ -4099,6 +4104,8 @@ test_clustering_evacuation_restore_operations() {
   echo "Clean up"
   lxc delete c{1..3} --force
   lxc network delete "${bridge}"
+
+  # Ensure cleanup of the cluster's data pool to not leave any traces behind when we are using a different driver besides dir.
   printf 'config: {}\ndevices: {}' | lxc profile edit default
   lxc storage delete data
 
