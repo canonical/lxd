@@ -18,6 +18,10 @@ if [ -d "/snap/microovn/current/commands" ]; then
     fi
 fi
 
+# Ceph
+export LXD_CEPH_CLUSTER="${LXD_CEPH_CLUSTER:-"ceph"}"
+export LXD_CEPH_CEPHFS="${LXD_CEPH_CEPHFS:-"cephfs"}"
+
 export GOTOOLCHAIN=local # Avoid downloading toolchain
 if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
@@ -167,10 +171,6 @@ export DEFAULT_POOL_SIZE="3GiB"
 
 echo "==> Available storage backends: $(available_storage_backends | sort)"
 if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
-  if [ "${LXD_BACKEND}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
-    echo "Ceph storage backend requires that \"LXD_CEPH_CLUSTER\" be set."
-    exit 1
-  fi
   echo "Storage backend \"$LXD_BACKEND\" is not available"
   exit 1
 fi
