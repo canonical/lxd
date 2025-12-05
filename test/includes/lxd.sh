@@ -128,6 +128,10 @@ spawn_lxd() {
         set -x
     fi
 
+    if [ -n "${LXD_OVS_CONNECTION}" ]; then
+        lxc config set network.ovs.connection "${LXD_OVS_CONNECTION}"
+    fi
+
     if [ "${LXD_NETNS}" = "" ]; then
         echo "==> Setting up networking"
         lxc profile device add default eth0 nic nictype=p2p name=eth0

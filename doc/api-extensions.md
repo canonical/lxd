@@ -2875,3 +2875,8 @@ Endpoints converted to asynchronous behavior:
 * `PATCH /storage-pools/{pool}/volumes/{type}/{vol}/snapshots/{snap}` - Patch storage volume snapshot
 * `PUT /1.0/profiles/{name}` - Update profile
 * `PATCH /1.0/profiles/{name}` - Patch profile
+
+(extension-network-ovs-connection)=
+## `network_ovs_connection`
+
+Introduces a new global configuration key {config:option}`server-miscellaneous:network.ovs.connection` which can be used to override the Open vSwitch database connection string.

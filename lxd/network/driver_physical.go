@@ -596,10 +596,10 @@ func (n *physical) DHCPv6Subnet() *net.IPNet {
 // State returns the api.NetworkState for the network.
 func (n *physical) State() (*api.NetworkState, error) {
 	if !n.IsManaged() {
-		return resources.GetNetworkState(n.name)
+		return resources.GetNetworkState(n.state, n.name)
 	}
 
-	state, err := resources.GetNetworkState(GetHostDevice(n.config["parent"], n.config["vlan"]))
+	state, err := resources.GetNetworkState(n.state, GetHostDevice(n.config["parent"], n.config["vlan"]))
 	if err != nil {
 		// If the parent is not found, return a response indicating the network is unavailable.
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
