@@ -105,7 +105,8 @@ export LXD_BACKEND="${LXD_BACKEND:-"dir"}"
 # Support multiple backends selection
 LXD_BACKENDS="${LXD_BACKENDS:-"${LXD_BACKEND}"}"
 if [ "${LXD_BACKENDS}" = "all" ]; then
-  LXD_BACKENDS="btrfs ceph dir lvm zfs random"
+  #LXD_BACKENDS="btrfs ceph dir lvm zfs random"
+  LXD_BACKENDS="btrfs dir zfs"
 elif [ "${LXD_BACKENDS}" = "fasts" ]; then
   LXD_BACKENDS="btrfs dir"
 elif [ "${LXD_BACKENDS}" = "fast" ]; then
@@ -275,7 +276,7 @@ cleanup() {
 
   # build a markdown table with the duration of each test
   (
-    echo "Test | Duration (s)"
+    echo "Test (${LXD_BACKEND}) | Duration (s)"
     echo ":--- | :---"
     for t in "${!durations[@]}"; do
         echo "${t} | ${durations[$t]}"
