@@ -221,14 +221,33 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 			var op lxd.Operation
 
 			if isSnapshot {
+				// For snapshots, we need to parse and validate the input
 				newdata := api.InstanceSnapshotPut{}
-
 				err = yaml.Unmarshal(contents, &newdata)
 				if err != nil {
 					return err
 				}
 
-				op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1], newdata, "")
+				// Get the current snapshot data for validation
+				snapshotInstance, etag, err := resource.server.GetInstanceSnapshot(fields[0], fields[1])
+				if err != nil {
+					return err
+				}
+
+				// Create a temporary snapshot to validate the changes
+				var check api.InstanceSnapshot
+				err = yaml.Unmarshal(contents, &check)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Failed to parse edited content: %w"), err)
+				}
+
+				// Validate that only editable fields are modified
+				err = c.validateSnapshotEdit(snapshotInstance, &check)
+				if err != nil {
+					return fmt.Errorf("%s", i18n.G("Only 'expires_at' field can be modified for instance snapshots"))
+				}
+
+				op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1], newdata, etag)
 				if err != nil {
 					return err
 				}
@@ -250,37 +269,35 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 
 		var data []byte
 		var etag string
+		var snapshotInstance *api.InstanceSnapshot
+		var instance *api.Instance
 
 		// Extract the current value
 		if isSnapshot {
-			var inst *api.InstanceSnapshot
-
-			inst, etag, err = resource.server.GetInstanceSnapshot(fields[0], fields[1])
+			snapshotInstance, etag, err = resource.server.GetInstanceSnapshot(fields[0], fields[1])
 			if err != nil {
 				return err
 			}
 
 			// Empty expanded config so it isn't shown in edit screen (relies on omitempty tag).
-			inst.ExpandedConfig = nil
-			inst.ExpandedDevices = nil
+			snapshotInstance.ExpandedConfig = nil
+			snapshotInstance.ExpandedDevices = nil
 
-			data, err = yaml.Marshal(&inst)
+			data, err = yaml.Marshal(&snapshotInstance)
 			if err != nil {
 				return err
 			}
 		} else {
-			var inst *api.Instance
-
-			inst, etag, err = resource.server.GetInstance(resource.name)
+			instance, etag, err = resource.server.GetInstance(resource.name)
 			if err != nil {
 				return err
 			}
 
 			// Empty expanded config so it isn't shown in edit screen (relies on omitempty tag).
-			inst.ExpandedConfig = nil
-			inst.ExpandedDevices = nil
+			instance.ExpandedConfig = nil
+			instance.ExpandedDevices = nil
 
-			data, err = yaml.Marshal(&inst)
+			data, err = yaml.Marshal(&instance)
 			if err != nil {
 				return err
 			}
@@ -298,11 +315,55 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 				newdata := api.InstanceSnapshotPut{}
 				err = yaml.Unmarshal(content, &newdata)
 				if err == nil {
+					// Check if user tried to modify read-only fields for snapshots
+					var check api.InstanceSnapshot
+					err = yaml.Unmarshal(content, &check)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, i18n.G("Failed to parse edited content: %s")+"\n", err)
+						fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+						_, err := os.Stdin.Read(make([]byte, 1))
+						if err != nil {
+							return err
+						}
+
+						content, err = shared.TextEditor("", content)
+						if err != nil {
+							return err
+						}
+
+						continue
+					}
+
+					// Get the current snapshot data for validation
+					snapshotInstance, etag, err := resource.server.GetInstanceSnapshot(fields[0], fields[1])
+					if err != nil {
+						return err
+					}
+
+					// Validate that only editable fields are modified
+					err = c.validateSnapshotEdit(snapshotInstance, &check)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, i18n.G("Error: %s")+"\n", err)
+						fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+
+						_, err := os.Stdin.Read(make([]byte, 1))
+						if err != nil {
+							return err
+						}
+
+						content, err = shared.TextEditor("", content)
+						if err != nil {
+							return err
+						}
+
+						continue
+					}
+
 					var op lxd.Operation
 					op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1],
 						newdata, etag)
 					if err == nil {
-						err = op.Wait()
+						return op.Wait()
 					}
 				}
 			} else {
@@ -312,7 +373,7 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 					var op lxd.Operation
 					op, err = resource.server.UpdateInstance(resource.name, newdata, etag)
 					if err == nil {
-						err = op.Wait()
+						return op.Wait()
 					}
 				}
 			}
@@ -414,6 +475,150 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// validateSnapshotEdit validates that only editable fields are modified.
+func (c *cmdConfigEdit) validateSnapshotEdit(current *api.InstanceSnapshot, edited *api.InstanceSnapshot) error {
+	// For snapshots, only ExpiresAt is writable. All other fields must remain unchanged.
+
+	// Create expected by copying current and applying writable changes
+	expected := *current
+	expected.SetWritable(edited.Writable())
+
+	// Now compare field by field, being careful with nil maps
+	if expected.Architecture != edited.Architecture {
+		return errors.New("field 'architecture' cannot be modified")
+	}
+
+	// For maps, use our updated mapsEqual that handles nil
+	if !mapsEqual(expected.Config, edited.Config) {
+		return errors.New("field 'config' cannot be modified")
+	}
+
+	if !expected.CreatedAt.Equal(edited.CreatedAt) {
+		return errors.New("field 'created_at' cannot be modified")
+	}
+
+	if !devicesEqual(expected.Devices, edited.Devices) {
+		return errors.New("field 'devices' cannot be modified")
+	}
+
+	if expected.Ephemeral != edited.Ephemeral {
+		return errors.New("field 'ephemeral' cannot be modified")
+	}
+
+	// Special handling for ExpandedConfig/ExpandedDevices since they're omitempty and might be nil in current but present in edited
+	if edited.ExpandedConfig != nil && !mapsEqual(expected.ExpandedConfig, edited.ExpandedConfig) {
+		return errors.New("field 'expanded_config' cannot be modified")
+	}
+
+	if edited.ExpandedDevices != nil && !devicesEqual(expected.ExpandedDevices, edited.ExpandedDevices) {
+		return errors.New("field 'expanded_devices' cannot be modified")
+	}
+
+	if !expected.LastUsedAt.Equal(edited.LastUsedAt) {
+		return errors.New("field 'last_used_at' cannot be modified")
+	}
+
+	if expected.Name != edited.Name {
+		return errors.New("field 'name' cannot be modified")
+	}
+
+	if !sliceEqual(expected.Profiles, edited.Profiles) {
+		return errors.New("field 'profiles' cannot be modified")
+	}
+
+	if expected.Stateful != edited.Stateful {
+		return errors.New("field 'stateful' cannot be modified")
+	}
+
+	if expected.Size != edited.Size {
+		return errors.New("field 'size' cannot be modified")
+	}
+
+	return nil
+}
+
+// Helper functions for validateSnapshotEdit.
+func mapsEqual(a, b map[string]string) bool {
+	// Handle nil cases
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil {
+		return len(b) == 0
+	}
+
+	if b == nil {
+		return len(a) == 0
+	}
+
+	// Length check
+	if len(a) != len(b) {
+		return false
+	}
+
+	// Compare each key-value pair
+	for key, valueA := range a {
+		valueB, exists := b[key]
+		if !exists || valueA != valueB {
+			return false
+		}
+	}
+
+	return true
+}
+
+func devicesEqual(a, b map[string]map[string]string) bool {
+	// Handle nil cases
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil {
+		return len(b) == 0
+	}
+
+	if b == nil {
+		return len(a) == 0
+	}
+
+	// Length check
+	if len(a) != len(b) {
+		return false
+	}
+
+	// Compare each device
+	for deviceName, deviceA := range a {
+		deviceB, exists := b[deviceName]
+		if !exists || !mapsEqual(deviceA, deviceB) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func sliceEqual(a, b []string) bool {
+	// Both nil or both empty
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+
+	// Length check
+	if len(a) != len(b) {
+		return false
+	}
+
+	// Compare each element
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Get.

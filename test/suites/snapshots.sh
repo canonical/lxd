@@ -55,6 +55,39 @@ snapshots() {
   # Check if the snapshot's UUID can be modified
   ! lxc storage volume set "${pool}" container/foo/snap0 volatile.uuid "2d94c537-5eff-4751-95b1-6a1b7d11f849" || false
 
+  # Check snapshot configuration editing
+  # name property editing should fail
+  ! lxc config show foo/snap0 | sed 's/^name:.*/name: invalid-name/' | lxc config edit foo/snap0 || false
+
+  # architecture property editing should fail
+  ! lxc config show foo/snap0 | sed 's/^architecture:.*/architecture: arm64/' | lxc config edit foo/snap0 || false
+
+  # config property editing should fail
+  ! lxc config show foo/snap0 | sed 's/^config:.*/config: {}/' | lxc config edit foo/snap0 || false
+
+  # devices property editing should fail
+  ! lxc config show foo/snap0 | sed 's/^devices:.*/devices: {}/' | lxc config edit foo/snap0 || false
+
+  # ephemeral property editing should fail
+  ! lxc config show foo/snap0 | sed 's/^ephemeral:.*/ephemeral: true/' | lxc config edit foo/snap0 || false
+
+  # profiles property editing should fail
+  ! lxc config show foo/snap0 | sed 's/^profiles:.*/profiles: [\"new-profile\"]/' | lxc config edit foo/snap0 || false
+
+  # stateful property editing should fail
+  ! lxc config show foo/snap0 | sed 's/^stateful:.*/stateful: true/' | lxc config edit foo/snap0 || false
+
+  # created_at property editing should fail
+  ! lxc config show foo/snap0 | sed 's/^created_at:.*/created_at: 2024-01-01T00:00:00Z/' | lxc config edit foo/snap0 || false
+
+  # last_used_at property editing should fail
+  ! lxc config show foo/snap0 | sed 's/^last_used_at:.*/last_used_at: 2024-01-01T00:00:00Z/' | lxc config edit foo/snap0 || false
+
+  # expires_at property editing should succeed
+  expiry_date=$(date -u -d '+1 day' '+%Y-%m-%dT%H:%M:%SZ')
+  lxc config show foo/snap0 | sed "s/^expires_at:.*/expires_at: ${expiry_date}/" | lxc config edit foo/snap0
+  lxc config show foo/snap0 | grep "expires_at: ${expiry_date}"
+
   lxc snapshot foo
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" = "dir" ]; then
