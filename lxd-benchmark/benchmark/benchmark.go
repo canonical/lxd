@@ -46,7 +46,8 @@ func LaunchContainers(c lxd.ContainerServer, count int, parallel int, image stri
 
 	fingerprint, err := ensureImage(c, image)
 	if err != nil {
-		return duration, fmt.Errorf("Failed ensuring image: %w", err)
+		logf("Failed to ensure image: %s", err)
+		return duration, err
 	}
 
 	batchStart := func(index int, wg *sync.WaitGroup) {
@@ -56,21 +57,21 @@ func LaunchContainers(c lxd.ContainerServer, count int, parallel int, image stri
 
 		err := createContainer(c, fingerprint, name, privileged)
 		if err != nil {
-			logf("Failed to launch container '%s': %s", name, err)
+			logf("Failed to launch container %q: %s", name, err)
 			return
 		}
 
 		if start {
 			err := startContainer(c, name)
 			if err != nil {
-				logf("Failed to start container '%s': %s", name, err)
+				logf("Failed to start container %q: %s", name, err)
 				return
 			}
 
 			if freeze {
 				err := freezeContainer(c, name)
 				if err != nil {
-					logf("Failed to freeze container '%s': %s", name, err)
+					logf("Failed to freeze container %q: %s", name, err)
 					return
 				}
 			}
@@ -115,7 +116,7 @@ func StartContainers(c lxd.ContainerServer, containers []api.Container, parallel
 		if !container.IsActive() {
 			err := startContainer(c, container.Name)
 			if err != nil {
-				logf("Failed to start container '%s': %s", container.Name, err)
+				logf("Failed to start container %q: %s", container.Name, err)
 				return
 			}
 		}
@@ -141,7 +142,7 @@ func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel 
 		if container.IsActive() {
 			err := stopContainer(c, container.Name)
 			if err != nil {
-				logf("Failed to stop container '%s': %s", container.Name, err)
+				logf("Failed to stop container %q: %s", container.Name, err)
 				return
 			}
 		}
@@ -168,14 +169,14 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 		if container.IsActive() {
 			err := stopContainer(c, name)
 			if err != nil {
-				logf("Failed to stop container '%s': %s", name, err)
+				logf("Failed to stop container %q: %s", name, err)
 				return
 			}
 		}
 
 		err := deleteContainer(c, name)
 		if err != nil {
-			logf("Failed to delete container: %s", name)
+			logf("Failed to delete container %q: %s", name, err)
 			return
 		}
 	}
@@ -214,7 +215,7 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 
 		_, _, err = c.GetImage(fingerprint)
 		if err != nil {
-			logf("Importing image into local store: %s", fingerprint)
+			logf("Importing image into local store: %q", fingerprint)
 			image, _, err := imageServer.GetImage(fingerprint)
 			if err != nil {
 				logf("Failed to import image: %s", err)
@@ -237,11 +238,11 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 		}
 
 		if err != nil {
-			logf("Image not found in local store: %s", image)
+			logf("Image not found in local store: %q", image)
 			return "", err
 		}
 	}
 
-	logf("Found image in local store: %s", fingerprint)
+	logf("Found image in local store: %q", fingerprint)
 	return fingerprint, nil
 }
