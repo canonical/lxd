@@ -34,8 +34,8 @@ Windows   | 11 23H2 [^4]       | Supported  | ➖                      | ✅    
 [^2]: Support for 9P or `virtiofs` not available. Note: CentOS 7 has a `kernel-plus` kernel with 9P support allowing LXD agent to work (with `selinux=0`).
 [^3]: NVMe disks are visible but the installer lists all 255 namespaces slowing down the initialization.
 [^4]: A virtual TPM is required.
-[^5]: The OS installer hangs when booting in CSM/BIOS mode.
-[^6]: The OS installer hangs when booting with VirtIO-BLK despite having VirtIO-BLK supported by the kernel.
+[^5]: The OS installer stalls when booting in CSM/BIOS mode.
+[^6]: The OS installer stalls when booting with VirtIO-BLK despite having VirtIO-BLK supported by the kernel.
 [^7]: This Linux version does not use `systemd` which the LXD agent requires.
 [^8]: Requires the HWE kernel (`4.15`) for proper `vsock` support which is required by the LXD agent.
 [^9]: The `lxd-agent-installer` package is not available so `lxd-agent` has to be manually setup (see {ref}`lxd-agent-manual-install`) or through `cloud-init` (see {ref}`vm-cloud-init-config`).

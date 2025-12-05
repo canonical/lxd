@@ -225,6 +225,7 @@ PDU
 passthrough
 passthroughs
 peerings
+performant
 PersistentVolume
 PersistentVolumes
 PersistentVolumeClaim
@@ -301,6 +302,7 @@ SLAAC
 SLES
 SMTP
 Snapcraft
+snapshotter
 SoC
 Solaris
 SPAs
