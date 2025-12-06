@@ -9,7 +9,9 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 func registerDBOperation(op *Operation, opType operationtype.Type) error {
@@ -19,9 +21,12 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		opInfo := cluster.Operation{
-			UUID:   op.id,
-			Type:   opType,
-			NodeID: tx.GetNodeID(),
+			UUID:        op.id,
+			Type:        opType,
+			NodeID:      tx.GetNodeID(),
+			Description: op.description,
+			Class:       (int64)(op.class),
+			CreatedAt:   op.createdAt,
 		}
 
 		if op.projectName != "" {
@@ -33,11 +38,53 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			opInfo.ProjectID = &projectID
 		}
 
-		_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		if op.requestor != nil {
+			opInfo.RequestorProtocol = op.requestor.CallerProtocol()
+			callerIdentity := op.requestor.CallerIdentity()
+			if callerIdentity != nil {
+				identityID, err := cluster.GetIdentityID(ctx, tx.Tx(), cluster.AuthMethod(callerIdentity.AuthenticationMethod), callerIdentity.Identifier)
+				if err != nil {
+					return fmt.Errorf("failed to add %q Operation %s to database: %w", opType.Description(), op.id, err)
+				}
+
+				opInfo.IdentityID = &identityID
+			}
+		}
+
+		opID, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		if err != nil {
+			return err
+		}
+
+		// For durable operations we need to register metadata and resources in the database.
+		if op.class == OperationClassDurable {
+			err = cluster.CreateOrInsertDurableOperationMetadata(ctx, tx.Tx(), opID, op.metadata)
+			if err != nil {
+				return fmt.Errorf("failed to add operation %s metadata to database: %w", op.id, err)
+			}
+
+			err = cluster.CreateOrInsertDurableOperationResources(ctx, tx.Tx(), opID, op.resources)
+			if err != nil {
+				return fmt.Errorf("failed to add operation %s resources to database: %w", op.id, err)
+			}
+		}
+
 		return err
 	})
 	if err != nil {
 		return fmt.Errorf("failed to add %q Operation %s to database: %w", opType.Description(), op.id, err)
+	}
+
+	return nil
+}
+
+func updateDBOperationNodeID(op *Operation) error {
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := cluster.UpdateOperationNodeID(ctx, tx.Tx(), op.id, tx.GetNodeID())
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update Operation %s node ID in database: %w", op.id, err)
 	}
 
 	return nil
@@ -61,4 +108,75 @@ func (op *Operation) sendEvent(eventMessage any) {
 	}
 
 	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
+}
+
+// RestartDurableOperationsFromNode restarts all durable operations that were running on node,
+// which failed to respond to heartbeats.
+func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID int64) error {
+	var projects map[int64]string
+	var err error
+	var dbOps []cluster.Operation
+	metadata := make(map[int64]map[string]string)
+	resources := make(map[int64]map[string][]api.URL)
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// See if there are any durable operations running on this node which need to be restarted.
+		durableClass := (int64)(OperationClassDurable)
+		filter := cluster.OperationFilter{NodeID: &nodeID, Class: &durableClass}
+		dbOps, err = cluster.GetOperations(ctx, tx.Tx(), filter)
+		if err != nil {
+			return fmt.Errorf("Failed to load durable operations for the node %d: %w", nodeID, err)
+		}
+
+		for _, dbOp := range dbOps {
+			metadata[dbOp.ID], err = cluster.GetDurableOperationMetadata(ctx, tx.Tx(), dbOp.ID)
+			if err != nil {
+				return fmt.Errorf("Failed to load durable operation metadata for operation %d: %w", dbOp.ID, err)
+			}
+
+			resources[dbOp.ID], err = cluster.GetDurableOperationResources(ctx, tx.Tx(), dbOp.ID)
+			if err != nil {
+				return fmt.Errorf("Failed to load durable operation resources for operation %d: %w", dbOp.ID, err)
+			}
+		}
+
+		projects, err = cluster.GetProjectIDsToNames(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed to load project IDs to names: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, dbOp := range dbOps {
+		var projectName string
+
+		// Load the project name if provided.
+		if dbOp.ProjectID != nil {
+			var ok bool
+			projectName, ok = projects[*dbOp.ProjectID]
+			if !ok {
+				logger.Warn("Project ID not found in the map of projects", logger.Ctx{"projectID": *dbOp.ProjectID})
+				continue
+			}
+		}
+
+		op, err := CreateDurableOperation(ctx, s, dbOp.UUID, projectName, dbOp.Type, resources[dbOp.ID], metadata[dbOp.ID])
+
+		if err != nil {
+			logger.Warn("Failed to create durable operation", logger.Ctx{"err": err})
+		}
+
+		// TODO insert the onDone() function to update metrics
+
+		err = op.Start()
+		if err != nil {
+			logger.Warn("Failed to start durable operation", logger.Ctx{"err": err})
+		}
+	}
+
+	return nil
 }

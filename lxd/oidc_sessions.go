@@ -356,7 +356,7 @@ func pruneExpiredOIDCSessionsTask(stateFunc func() *state.State) (task.Func, tas
 			})
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RemoveExpiredOIDCSessions, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(context.Background(), s, "", "", operations.OperationClassTask, operationtype.RemoveExpiredOIDCSessions, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed creating remove expired OIDC sessions operation", logger.Ctx{"err": err})
 			return

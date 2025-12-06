@@ -442,12 +442,33 @@ CREATE TABLE oidc_sessions (
 CREATE TABLE "operations" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     uuid TEXT NOT NULL,
-    node_id TEXT NOT NULL,
+    node_id INTEGER NOT NULL,
     type INTEGER NOT NULL DEFAULT 0,
     project_id INTEGER,
+    description TEXT,
+    requestor_protocol TEXT,
+    identity_id INTEGER,
+    class INTEGER NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT 0,
+    status INTEGER,
     UNIQUE (uuid),
-    FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
-    FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+    FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
+);
+CREATE TABLE operations_metadata (
+	operation_id INTEGER PRIMARY KEY NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+    FOREIGN KEY (operation_id) REFERENCES operations (id) ON DELETE CASCADE
+);
+CREATE TABLE operations_resources (
+	operation_id INTEGER PRIMARY KEY NOT NULL,
+	resource TEXT NOT NULL,
+    entity_type INTEGER NOT NULL,
+    entity_id INTEGER NOT NULL,
+    FOREIGN KEY (operation_id) REFERENCES operations (id) ON DELETE CASCADE,
+    UNIQUE (resource)
 );
 CREATE TABLE placement_groups (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -708,5 +729,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (78, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (79, strftime("%s"))
 `

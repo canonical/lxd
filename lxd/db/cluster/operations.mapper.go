@@ -19,22 +19,30 @@ import (
 var _ = api.ServerEnvironment{}
 
 var operationObjects = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.identity_id, operations.class, operations.created_at, operations.status
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByNodeID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.identity_id, operations.class, operations.created_at, operations.status
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.node_id = ? )
   ORDER BY operations.id, operations.uuid
 `)
 
+var operationObjectsByNodeIDAndClass = RegisterStmt(`
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.identity_id, operations.class, operations.created_at, operations.status
+  FROM operations
+  JOIN nodes ON operations.node_id = nodes.id
+  WHERE ( operations.node_id = ? AND operations.class = ? )
+  ORDER BY operations.id, operations.uuid
+`)
+
 var operationObjectsByID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.identity_id, operations.class, operations.created_at, operations.status
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.id = ? )
@@ -42,7 +50,7 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
 `)
 
 var operationObjectsByUUID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.identity_id, operations.class, operations.created_at, operations.status
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.uuid = ? )
@@ -50,8 +58,8 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
 `)
 
 var operationCreateOrReplace = RegisterStmt(`
-INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type)
- VALUES (?, ?, ?, ?)
+INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type, description, requestor_protocol, identity_id, class, created_at, status)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
 var operationDeleteByUUID = RegisterStmt(`
@@ -68,7 +76,7 @@ func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operatio
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.Description, &o.RequestorProtocol, &o.IdentityID, &o.Class, &o.CreatedAt, &o.Status)
 		if err != nil {
 			return err
 		}
@@ -92,7 +100,7 @@ func getOperationsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) 
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.Description, &o.RequestorProtocol, &o.IdentityID, &o.Class, &o.CreatedAt, &o.Status)
 		if err != nil {
 			return err
 		}
@@ -131,7 +139,31 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 	}
 
 	for i, filter := range filters {
-		if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
+		if filter.NodeID != nil && filter.Class != nil && filter.ID == nil && filter.UUID == nil {
+			args = append(args, []any{filter.NodeID, filter.Class}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, operationObjectsByNodeIDAndClass)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"operationObjectsByNodeIDAndClass\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(operationObjectsByNodeIDAndClass)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil && filter.Class == nil {
 			args = append(args, []any{filter.UUID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByUUID)
@@ -155,7 +187,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
+		} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil && filter.Class == nil {
 			args = append(args, []any{filter.NodeID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByNodeID)
@@ -179,7 +211,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
+		} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil && filter.Class == nil {
 			args = append(args, []any{filter.ID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByID)
@@ -203,7 +235,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
+		} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil && filter.Class == nil {
 			return nil, errors.New("Cannot filter on empty OperationFilter")
 		} else {
 			return nil, errors.New("No statement exists for the given Filter")
@@ -228,13 +260,19 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 // CreateOrReplaceOperation adds a new operation to the database.
 // generator: operation CreateOrReplace
 func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
-	args := make([]any, 4)
+	args := make([]any, 10)
 
 	// Populate the statement arguments.
 	args[0] = object.UUID
 	args[1] = object.ProjectID
 	args[2] = object.NodeID
 	args[3] = object.Type
+	args[4] = object.Description
+	args[5] = object.RequestorProtocol
+	args[6] = object.IdentityID
+	args[7] = object.Class
+	args[8] = object.CreatedAt
+	args[9] = object.Status
 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreateOrReplace)

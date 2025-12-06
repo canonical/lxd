@@ -15,6 +15,9 @@ const OperationClassWebsocket = "websocket"
 // OperationClassToken represents the Token OperationClass.
 const OperationClassToken = "token"
 
+// OperationClassDurable represents the Durable OperationClass.
+const OperationClassDurable = "durable"
+
 // Operation represents a LXD background operation
 //
 // swagger:model

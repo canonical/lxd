@@ -121,7 +121,7 @@ func doInstanceDelete(ctx context.Context, s *state.State, name string, projectN
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil)
+	op, err := operations.OperationCreate(ctx, s, "", projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil)
 	if err != nil {
 		return nil, err
 	}
