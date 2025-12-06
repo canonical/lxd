@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: Compatibility matrix for guest operating systems in LXD virtual machines and containers.
+---
+
 (guest-os-compatibility)=
 # Guest OS compatibility
 
