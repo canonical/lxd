@@ -1,5 +1,8 @@
 ---
 discourse: "[Discourse&#x3a&#32;Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loading&#32;into&#32;an&#32;existing&#32;snap&#32;installation](37327)"
+myst:
+  html_meta:
+    description: Install the LXD server and client on Linux using snap or other package managers, build from source, or install the client only on macOS and Windows.
 ---
 
 (installing)=
