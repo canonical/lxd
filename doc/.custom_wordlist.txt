@@ -224,6 +224,7 @@ PDU
 passthrough
 passthroughs
 peerings
+performant
 PersistentVolume
 PersistentVolumes
 PersistentVolumeClaim
