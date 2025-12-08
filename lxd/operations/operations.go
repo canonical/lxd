@@ -378,6 +378,18 @@ func (op *Operation) done() {
 	}()
 }
 
+func updateStatusWithWarning(op *Operation, newStatus api.StatusCode) {
+	oldStatus := op.status
+	err := op.updateStatus(newStatus)
+	if err != nil {
+		op.logger.Warn("Failed updating operation status", logger.Ctx{
+			"err":       err,
+			"oldStatus": oldStatus,
+			"newStatus": newStatus,
+		})
+	}
+}
+
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
@@ -386,7 +398,11 @@ func (op *Operation) Start() error {
 		return errors.New("Only pending operations can be started")
 	}
 
-	op.status = api.Running
+	err := op.updateStatus(api.Running)
+	if err != nil {
+		op.lock.Unlock()
+		return fmt.Errorf("Failed updating Operation %s status: %w", op.id, err)
+	}
 
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
@@ -405,9 +421,9 @@ func (op *Operation) Start() error {
 
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
-					op.status = api.Cancelled
+					updateStatusWithWarning(op, api.Cancelled)
 				} else {
-					op.status = api.Failure
+					updateStatusWithWarning(op, api.Failure)
 				}
 
 				// Always call cancel. This is a no-op if already cancelled.
@@ -428,7 +444,7 @@ func (op *Operation) Start() error {
 			}
 
 			op.lock.Lock()
-			op.status = api.Success
+			updateStatusWithWarning(op, api.Success)
 			op.running.Cancel()
 			op.lock.Unlock()
 			op.done()
@@ -478,9 +494,9 @@ func (op *Operation) Cancel() {
 	//
 	// If the operation does not have a run hook, immediately set the status to cancelled because there is nothing to clean up.
 	if op.onRun != nil {
-		op.status = api.Cancelling
+		updateStatusWithWarning(op, api.Cancelling)
 	} else {
-		op.status = api.Cancelled
+		updateStatusWithWarning(op, api.Cancelled)
 	}
 
 	op.lock.Unlock()
@@ -602,6 +618,15 @@ func (op *Operation) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func (op *Operation) updateStatus(newStatus api.StatusCode) error {
+	op.status = newStatus
+	if op.class != OperationClassDurable {
+		return nil
+	}
+
+	return updateDBOperationStatus(op)
 }
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
