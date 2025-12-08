@@ -28,7 +28,7 @@ const nftablesContentTemplate = "nftablesContent"
 // to contain underscores (where as instance name is not).
 const nftablesChainSeparator = "."
 
-// Nftables is an implmentation of LXD firewall using nftables.
+// Nftables is an implementation of LXD firewall using nftables.
 type Nftables struct{}
 
 // String returns the driver name.
