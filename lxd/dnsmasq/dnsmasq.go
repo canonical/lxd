@@ -13,7 +13,6 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/version"
 )
 
 const staticAllocationDeviceSeparator = "."
@@ -102,21 +101,6 @@ func Kill(name string, reload bool) error {
 	time.Sleep(100 * time.Millisecond) // Give OS time to release sockets.
 
 	return nil
-}
-
-// GetVersion returns the version of dnsmasq.
-func GetVersion() (*version.DottedVersion, error) {
-	output, err := shared.RunCommandCLocale("dnsmasq", "--version")
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check dnsmasq version: %w", err)
-	}
-
-	fields := strings.SplitN(string(output), " ", 4)
-	if len(fields) < 3 {
-		return nil, fmt.Errorf("Unexpected dnsmasq version output: %q", output)
-	}
-
-	return version.Parse(fields[2])
 }
 
 // DHCPStaticAllocationPath returns the path to the DHCP static allocation file.
