@@ -126,7 +126,7 @@ const clusterEditPrompt = `You should run this command only if:
  - You are *absolutely* sure all LXD daemons are stopped
  - This instance has the most up to date database
 
-See https://documentation.ubuntu.com/lxd/latest/howto/cluster_recover/#reconfigure-the-cluster for more info.`
+See https://documentation.ubuntu.com/lxd/stable-5.21/howto/cluster_recover/#reconfigure-the-cluster for more info.`
 
 const clusterEditComment = `# Member roles can be modified. Unrecoverable nodes should be given the role "spare".
 #
@@ -441,7 +441,7 @@ database, so you can possibly inspect it for further recovery.
 You'll be able to permanently delete from the database all information about
 former cluster members by running "lxc cluster remove <member-name> --force".
 
-See https://documentation.ubuntu.com/lxd/latest/howto/cluster_recover/#recover-from-quorum-loss for more
+See https://documentation.ubuntu.com/lxd/stable-5.21/howto/cluster_recover/#recover-from-quorum-loss for more
 info.`
 
 type cmdClusterRecoverFromQuorumLoss struct {

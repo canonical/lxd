@@ -69,7 +69,7 @@ func restServer(d *Daemon) *http.Server {
 	mux.SkipClean(true)
 	mux.UseEncodedPath() // Allow encoded values in path segments.
 
-	const errorMessage = `<html><title>The UI is not enabled</title><body><p>The UI is not enabled. For instructions to enable it check: <a href="https://documentation.ubuntu.com/lxd/latest/howto/access_ui/">How to access the LXD web UI</a></p></body></html>`
+	const errorMessage = `<html><title>The UI is not enabled</title><body><p>The UI is not enabled. For instructions to enable it check: <a href="https://documentation.ubuntu.com/lxd/stable-5.21/howto/access_ui/">How to access the LXD web UI</a></p></body></html>`
 
 	uiPath := os.Getenv("LXD_UI")
 	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
