@@ -127,11 +127,6 @@ func ServerEventMode() EventMode {
 	return eventMode
 }
 
-// RoleInSlice returns whether or not the rule is within the roles list.
-func RoleInSlice(role db.ClusterRole, roles []db.ClusterRole) bool {
-	return slices.Contains(roles, role)
-}
-
 // EventListenerWait waits for there to be listener connected to the specified address, or one of the event hubs
 // if operating in event hub mode.
 func EventListenerWait(ctx context.Context, address string) error {
@@ -188,7 +183,7 @@ func hubAddresses(localAddress string, members map[int64]APIHeartbeatMember) ([]
 
 	// Do a first pass of members to count the members with event-hub role, and whether we are a hub server.
 	for _, member := range members {
-		if RoleInSlice(db.ClusterRoleEventHub, member.Roles) {
+		if slices.Contains(member.Roles, db.ClusterRoleEventHub) {
 			hubAddresses = append(hubAddresses, member.Address)
 
 			if member.Address == localAddress {
@@ -262,7 +257,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			continue
 		}
 
-		if localEventMode != EventModeFullMesh && !RoleInSlice(db.ClusterRoleEventHub, hbMember.Roles) {
+		if localEventMode != EventModeFullMesh && !slices.Contains(hbMember.Roles, db.ClusterRoleEventHub) {
 			continue // Skip non-event-hub members if we are operating in event-hub mode.
 		}
 
