@@ -48,7 +48,7 @@ require (
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/zitadel/oidc/v3 v3.45.0
+	github.com/zitadel/oidc/v3 v3.45.1
 	go.starlark.net v0.0.0-20251109183026-be02852a5e1f
 	go.uber.org/zap v1.27.1
 	go.yaml.in/yaml/v2 v2.4.3
