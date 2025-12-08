@@ -1841,31 +1841,27 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 
 // clusterRolesChanged checks whether the non-internal roles have changed between oldRoles and newRoles.
 func clusterRolesChanged(oldRoles []db.ClusterRole, newRoles []db.ClusterRole) bool {
-	// Build list of external-only roles from the newRoles list (excludes internal roles added by raft).
+	// Filter roles to only known external (user-assignable) roles (excludes internal roles added by raft).
 	newExternalRoles := make([]db.ClusterRole, 0, len(newRoles))
-	for _, r := range newRoles {
-		// Check list of known external roles.
-		for _, externalRole := range db.ClusterRoles {
-			if r == externalRole {
-				newExternalRoles = append(newExternalRoles, r) // Found external role.
-				break
-			}
+	oldExternalRoles := make([]db.ClusterRole, 0, len(oldRoles))
+
+	for _, role := range newRoles {
+		if db.ClusterRoleSet[role] {
+			newExternalRoles = append(newExternalRoles, role)
 		}
 	}
 
-	for _, r := range oldRoles {
-		if !cluster.RoleInSlice(r, newExternalRoles) {
-			return true
+	for _, role := range oldRoles {
+		if db.ClusterRoleSet[role] {
+			oldExternalRoles = append(oldExternalRoles, role)
 		}
 	}
 
-	for _, r := range newExternalRoles {
-		if !cluster.RoleInSlice(r, oldRoles) {
-			return true
-		}
-	}
+	// Sort old and new roles for comparison.
+	sortedOld := slices.Sorted(slices.Values(oldExternalRoles))
+	sortedNew := slices.Sorted(slices.Values(newExternalRoles))
 
-	return false
+	return !slices.Equal(sortedOld, sortedNew)
 }
 
 // clusterValidateConfig validates the configuration keys/values for cluster members.
