@@ -94,7 +94,7 @@
       "targetBlank": true,
       "title": "Documentation",
       "type": "link",
-      "url": "https://documentation.ubuntu.com/lxd/latest/"
+      "url": "https://documentation.ubuntu.com/lxd/stable-5.21/"
     }
   ],
   "liveNow": false,
