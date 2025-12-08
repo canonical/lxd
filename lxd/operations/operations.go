@@ -315,6 +315,20 @@ func (op *Operation) done() {
 	}()
 }
 
+func updateStatus(op *Operation, newStatus api.StatusCode) {
+	oldStatus := op.status
+	// We cannot really use operation context as it was already cancelled.
+	err := op.updateStatus(context.TODO(), newStatus)
+	if err != nil {
+		op.logger.Warn("Failed updating operation status", logger.Ctx{
+			"operation": op.id,
+			"err":       err,
+			"oldStatus": oldStatus,
+			"newStatus": newStatus,
+		})
+	}
+}
+
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
@@ -323,14 +337,18 @@ func (op *Operation) Start() error {
 		return errors.New("Only pending operations can be started")
 	}
 
-	op.status = api.Running
+	runCtx := context.Context(op.running)
+	err := op.updateStatus(runCtx, api.Running)
+	if err != nil {
+		op.lock.Unlock()
+		return fmt.Errorf("Failed updating Operation %q (%q) status: %w", op.id, op.description, err)
+	}
 
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
 		// The requestor is available directly on the operation, but we should still put it in the context.
 		// This is so that, if an operation queries another cluster member, the requestor information will be set
 		// in the request headers.
-		runCtx := context.Context(op.running)
 		if op.requestor != nil {
 			runCtx = request.WithRequestor(runCtx, op.requestor)
 		}
@@ -340,16 +358,17 @@ func (op *Operation) Start() error {
 			if err != nil {
 				op.lock.Lock()
 
+				op.err = err
+
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
-					op.status = api.Cancelled
+					updateStatus(op, api.Cancelled)
 				} else {
-					op.status = api.Failure
+					updateStatus(op, api.Failure)
 				}
 
 				// Always call cancel. This is a no-op if already cancelled.
 				op.running.Cancel()
-				op.err = err
 
 				op.lock.Unlock()
 				op.done()
@@ -365,7 +384,7 @@ func (op *Operation) Start() error {
 			}
 
 			op.lock.Lock()
-			op.status = api.Success
+			updateStatus(op, api.Success)
 			op.running.Cancel()
 			op.lock.Unlock()
 			op.done()
@@ -414,10 +433,11 @@ func (op *Operation) Cancel() {
 	// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
 	//
 	// If the operation does not have a run hook, immediately set the status to cancelled because there is nothing to clean up.
+	// We cannot use the operation context here because it has already been cancelled above.
 	if op.onRun != nil {
-		op.status = api.Cancelling
+		updateStatus(op, api.Cancelling)
 	} else {
-		op.status = api.Cancelled
+		updateStatus(op, api.Cancelled)
 	}
 
 	op.lock.Unlock()
@@ -539,6 +559,12 @@ func (op *Operation) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func (op *Operation) updateStatus(ctx context.Context, newStatus api.StatusCode) error {
+	op.status = newStatus
+	op.updatedAt = time.Now()
+	return updateDBOperation(ctx, op)
 }
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
