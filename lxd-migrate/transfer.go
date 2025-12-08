@@ -14,7 +14,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ws"
@@ -81,6 +80,8 @@ func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instance
 		"--numeric-ids",
 		"--partial",
 		"--sparse",
+		"--ignore-missing-args",
+		"--filter=-x security.selinux",
 	}
 
 	if instanceType == api.InstanceTypeContainer {
@@ -89,12 +90,6 @@ func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instance
 
 	if instanceType == api.InstanceTypeVM {
 		args = append(args, "--exclude", "root.img")
-	}
-
-	if rsync.AtLeast("3.1.3") {
-		args = append(args, "--ignore-missing-args", "--filter=-x security.selinux")
-	} else if rsync.AtLeast("3.1.0") {
-		args = append(args, "--ignore-missing-args")
 	}
 
 	if rsyncArgs != "" {
