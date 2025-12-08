@@ -47,7 +47,6 @@ runs:
           jq \
           make \
           nftables \
-          openvswitch-switch \
           quota \
           rsync \
           s3cmd \

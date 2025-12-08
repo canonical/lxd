@@ -33,6 +33,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -873,7 +874,8 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 
 	defer func() {
 		err := pool.UnmountInstance(inst, d.op)
-		if err != nil {
+		// Unmounting volumes while an instance is running is expected to return [storageDrivers.ErrInUse].
+		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			d.logger.Warn("Failed unmounting instance after snapshot", logger.Ctx{"err": err})
 		}
 	}()

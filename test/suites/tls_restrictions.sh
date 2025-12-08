@@ -82,9 +82,8 @@ test_tls_restrictions() {
   lxd_websocket_operation foo 1s &
   lxd_websocket_operation bar 1s blah &
   sleep 0.1
-  [ "$(lxc operation list --all-projects -f csv | grep -Fc 'Executing command')" = 2 ] # Two exec operations exist
-  sleep 0.1
-  [ "$(lxc_remote operation list localhost: --all-projects -f csv | wc -l)" = 1 ] # Restricted caller can only view the one in project blah
+  [ "$(lxc operation list --all-projects -f csv | grep -Ec ',WEBSOCKET,Executing command,(PENDING|RUNNING),')" = 2 ] # Two exec operations exist
+  [ "$(lxc_remote operation list localhost: --all-projects -f csv | grep -Ec ',WEBSOCKET,Executing command,(PENDING|RUNNING),')" = 1 ] # Restricted caller can only view the one in project blah
 
   # Validate restricted view
   ! lxc_remote project list localhost: | grep -wF default || false
@@ -315,12 +314,16 @@ test_tls_restrictions() {
 
   # The restricted client can view allocations for the blah project. Since blah doesn't have networks enabled, the client
   # should see allocations for the default project, but they can't see the foo instance
-  [ "$(lxc network list-allocations localhost: --project blah --format csv | wc -l)" = 3 ]
+  # The allocations for the default lxdbr0 are ignored due to being visible by
+  # all users and this network often being present due to other tests.
+  # shellcheck disable=SC2126
+  [ "$(lxc network list-allocations localhost: --project blah --format csv | grep -vF '/1.0/networks/lxdbr0,' | wc -l)" = 3 ]
   ! lxc network list-allocations localhost: --project blah --format csv | grep 'instances/foo' || false
 
   # Check restrictions when using blah as current project.
   lxc project switch localhost:blah
-  [ "$(lxc network list-allocations localhost: --format csv | wc -l)" = 3 ]
+  # shellcheck disable=SC2126
+  [ "$(lxc network list-allocations localhost: --format csv | grep -vF '/1.0/networks/lxdbr0,' | wc -l)" = 3 ]
   ! lxc network list-allocations localhost: --format csv | grep 'instances/foo' || false
 
   # Can't switch back to default while restricted to blah, so we need to modify the config file.
@@ -466,6 +469,9 @@ test_certificate_edit() {
   gen_cert_and_key "client-new"
 
   FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
+
+  # Ensure the old certificate is in place
+  [ -n "${FINGERPRINT}" ]
 
   # Try replacing the old certificate with a new one.
   # This should succeed as the user is listed as an admin.

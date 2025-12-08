@@ -3,7 +3,7 @@ test_storage_driver_zfs() {
 
   lxd_backend=$(storage_backend "$LXD_DIR")
   if [ "$lxd_backend" != "zfs" ]; then
-    echo "==> SKIP: test_storage_driver_zfs only supports 'zfs', not ${lxd_backend}"
+    export TEST_UNMET_REQUIREMENT="zfs specific test, not for ${lxd_backend}"
     return
   fi
 
@@ -13,12 +13,25 @@ test_storage_driver_zfs() {
 
   do_zfs_cross_pool_copy
   do_zfs_delegate
+  do_zfs_rebase
 }
 
 do_zfs_delegate() {
   if ! zfs --help | grep -wF "zone" >/dev/null; then
     echo "==> SKIP: Skipping ZFS delegation tests due as installed version doesn't support it"
     return
+  fi
+
+  # XXX: Ensure that `/dev/zfs` has mode 0666 so that any user on the system
+  #      can interact with it. Setting those permissions is udev's job but the
+  #      needed rule ships in the `zfsutils-linux` which might be installed after
+  #      the kernel module is loaded and the device node created leaving it
+  #      with 0600 permissions. When those permissions are not tweaked by udev,
+  #      any interaction with zfs tools in the container will fail with:
+  #      > Permission denied the ZFS utilities must be run as root.
+  zfsPerm=$(stat -c '%a' /dev/zfs)
+  if [ $((zfsPerm & 7)) -eq 0 ]; then
+      chmod 0666 /dev/zfs
   fi
 
   # Import image into default storage pool.
@@ -95,12 +108,87 @@ do_zfs_cross_pool_copy() {
   lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.zfs.block_mode
 
   # Clean up
-  lxc rm -f c1 c2 c3 c4 c5 c6
+  lxc delete c1 c2 c3 c4 c5 c6
   lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-dir
   lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-zfs
 
   # shellcheck disable=SC2031
   kill_lxd "${LXD_STORAGE_DIR}"
+}
+
+do_zfs_rebase() {
+  # Test ZFS rebase clone_copy mode
+  local storage_pool
+
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  # Ensure image is imported
+  ensure_import_testimage
+
+  # Create a source instance from the image
+  lxc init testimage rebase-src
+  src_ds="${storage_pool}/containers/rebase-src"
+  src_origin="$(zfs get -H -o value origin "${src_ds}")"
+
+  # Clone copy before any snapshots taken (this should create a clone with origin set to source)
+  lxc storage set "${storage_pool}" zfs.clone_copy true
+  lxc copy rebase-src clone-dst
+
+  # The destination origin should be an "@copy-..." snapshot of the source.
+  zfs get -H -o value origin "${storage_pool}/containers/clone-dst" | grep -F "${storage_pool}/containers/rebase-src@copy-"
+
+  # Enable rebase mode on the pool
+  lxc storage set "${storage_pool}" zfs.clone_copy rebase
+
+  # Copy the cloned instance after enabling rebase mode
+  lxc copy clone-dst rebase-dst
+
+  # Read origin property
+  dst_origin="$(zfs get -H -o value origin "${storage_pool}/containers/rebase-dst")"
+
+  # The destination should have the same origin as the original source
+  [ "${dst_origin}" = "${src_origin}" ]
+
+  # Copy the src instance with rebase mode enabled
+  lxc delete clone-dst rebase-dst
+  lxc copy rebase-src rebase-dst
+
+  # Read origin property
+  dst_origin="$(zfs get -H -o value origin "${storage_pool}/containers/rebase-dst")"
+
+  # The destination should have the same origin as the source
+  [ "${dst_origin}" = "${src_origin}" ]
+
+  # With snapshot
+  lxc delete rebase-dst
+  lxc snapshot rebase-src
+  lxc copy rebase-src rebase-dst
+  dst_origin="$(zfs get -H -o value origin "${storage_pool}/containers/rebase-dst")"
+
+  # The destination should have the same origin as the source
+  [ "${dst_origin}" = "${src_origin}" ]
+
+  # Refresh with snapshots
+  lxc snapshot rebase-src
+  lxc copy rebase-src rebase-dst --refresh
+  dst_origin="$(zfs get -H -o value origin "${storage_pool}/containers/rebase-dst")"
+
+  # The destination should have the same origin as the source
+  [ "${dst_origin}" = "${src_origin}" ]
+
+  # Source snapshot copy
+  lxc delete rebase-dst
+  lxc copy rebase-src/snap0 rebase-dst
+  dst_origin="$(zfs get -H -o value origin "${storage_pool}/containers/rebase-dst")"
+
+  # The destination should have the same origin as the source
+  [ "${dst_origin}" = "${src_origin}" ]
+
+  # Cleanup
+  lxc delete rebase-src rebase-dst
+
+  # Unset the pool option
+  lxc storage unset "${storage_pool}" zfs.clone_copy
 }
 
 do_storage_driver_zfs() {
@@ -143,8 +231,8 @@ do_storage_driver_zfs() {
   [ "$(zfs get -H -o value type lxdtest-"$(basename "${LXD_DIR}")/containers/c2")" = "volume" ]
 
   # Create container in block mode with smaller size override.
-  lxc init testimage c3 -d root,size=5GiB
-  lxc delete -f c3
+  lxc init testimage c3 -d root,size=1GiB
+  lxc delete c3
 
   # Delete image volume
   lxc storage volume rm lxdtest-"$(basename "${LXD_DIR}")" image/"${fingerprint}"
@@ -237,7 +325,7 @@ do_storage_driver_zfs() {
   lxc exec c4 -- test -f /root/foo
   ! lxc exec c4 -- test -f /root/bar || false
 
-  lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.size=5GiB
+  lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.size=1GiB
   lxc launch testimage c5
   lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.size
 

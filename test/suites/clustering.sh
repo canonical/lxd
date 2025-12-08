@@ -3909,14 +3909,19 @@ test_clustering_evacuation_restore_operations() {
   echo "Clean up"
   lxc delete c{1..3} --force
   lxc network delete "${bridge}"
+  printf 'config: {}\ndevices: {}' | lxc profile edit default
+  lxc storage delete data
 
   shutdown_lxd "${LXD_ONE_DIR}"
+  shutdown_lxd "${LXD_TWO_DIR}"
   rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
 
   teardown_clustering_netns
   teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_edit_configuration() {

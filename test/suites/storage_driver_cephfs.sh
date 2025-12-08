@@ -3,12 +3,12 @@ test_storage_driver_cephfs() {
 
   lxd_backend=$(storage_backend "${LXD_DIR}")
   if [ "${lxd_backend}" != "ceph" ]; then
-    echo "==> SKIP: test_storage_driver_cephfs only supports 'ceph', not ${lxd_backend}"
+    export TEST_UNMET_REQUIREMENT="ceph specific test, not for ${lxd_backend}"
     return
   fi
 
   if [ -z "${LXD_CEPH_CEPHFS:-}" ]; then
-    echo "==> SKIP: test_storage_driver_cephfs requires 'LXD_CEPH_CEPHFS' to be set"
+    export TEST_UNMET_REQUIREMENT="required 'LXD_CEPH_CEPHFS' not set"
     return
   fi
 

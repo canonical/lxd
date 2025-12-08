@@ -181,14 +181,21 @@ func TryMount(ctx context.Context, src string, dst string, fs string, flags uint
 		defer cancel()
 	}
 
+	var lastErr error
+
 mountLoop:
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("Failed to mount %q on %q using %q: %w", src, dst, fs, ctx.Err())
+			// Populate the context's error in case it got cancelled before we were able to try the mount for the first time.
+			if lastErr == nil {
+				lastErr = ctx.Err()
+			}
+
+			return fmt.Errorf("Failed to mount %q on %q using %q: %w", src, dst, fs, lastErr)
 		default:
-			err := unix.Mount(src, dst, fs, flags, options)
-			if err == nil {
+			lastErr = unix.Mount(src, dst, fs, flags, options)
+			if lastErr == nil {
 				break mountLoop
 			}
 		}
@@ -218,23 +225,6 @@ func TryUnmount(path string, flags int) error {
 	}
 
 	return nil
-}
-
-// tryExists waits for a file to exist or the context being cancelled.
-// The probe happens at intervals of 500 milliseconds.
-func tryExists(ctx context.Context, path string) bool {
-	for {
-		select {
-		case <-ctx.Done():
-			return false
-		default:
-			if shared.PathExists(path) {
-				return true
-			}
-		}
-
-		time.Sleep(500 * time.Millisecond)
-	}
 }
 
 // fsUUID returns the filesystem UUID for the given block path.
@@ -820,7 +810,7 @@ func loopFileSizeDefault() (uint64, error) {
 	if gibAvailable > 30 {
 		return 30, nil // Default to no more than 30GiB.
 	} else if gibAvailable > 5 {
-		return gibAvailable / 5, nil // Use 20% of free space otherwise.
+		return max(gibAvailable/5, 5), nil // Use at least 5GiB or 20% of free space otherwise.
 	} else if gibAvailable == 5 {
 		return gibAvailable, nil // Need at least 5GiB free.
 	}

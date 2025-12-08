@@ -104,12 +104,28 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		return response.ErrorResponse(http.StatusInternalServerError, err.Error())
 	}
 
-	server, err := lxd.ConnectLXDHTTP(nil, client)
+	args := &lxd.ConnectionArgs{
+		SkipGetServer: true,
+	}
+
+	server, err := lxd.ConnectLXDHTTP(args, client)
 	if err != nil {
 		return response.ErrorResponse(http.StatusInternalServerError, err.Error())
 	}
 
 	defer server.Disconnect()
+
+	// Now get the server information to verify the connection.
+	//
+	// If DevLXD was previously disabled, this call will fail as forbidden.
+	// This is expected because DevLXD will allow access only once this call
+	// succeeds and the "security.devlxd" flag is set to true.
+	// Therefore, we ignore forbidden error here, as it is still sufficient to
+	// confirm the DevLXD is actually accessible.
+	_, _, err = server.GetServer()
+	if err != nil && !api.StatusErrorCheck(err, http.StatusForbidden) {
+		return response.SmartError(fmt.Errorf("Failed to verify connection to LXD server: %w", err))
+	}
 
 	// Let LXD know, we were able to connect successfully.
 	d.chConnected <- struct{}{}

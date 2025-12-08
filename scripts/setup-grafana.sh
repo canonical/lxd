@@ -12,7 +12,7 @@ SERVER_NAME="$(lxc info | awk '{if ($1 == "server_name:") print $2}')"
 IS_LXD_CLUSTERED=$(lxc info | grep "server_clustered:" | grep "false")
 if [ -z "$IS_LXD_CLUSTERED" ]; then
     echo "Error: LXD is clustered, this script only works for single node installations."
-    echo "See https://documentation.ubuntu.com/lxd/latest/metrics/ for more information."
+    echo "See https://documentation.ubuntu.com/lxd/stable-5.21/metrics/ for more information."
     exit 1
 fi
 
@@ -118,4 +118,4 @@ echo "Next steps:"
 echo "1. Wait for the container to finish booting"
 echo "2. Sign in with admin/admin to grafana at https://$CONTAINER_IP:3000"
 echo "3. Change password"
-echo "4. Create a dashboard, see https://documentation.ubuntu.com/lxd/latest/howto/grafana/ for more details."
+echo "4. Create a dashboard, see https://documentation.ubuntu.com/lxd/stable-5.21/howto/grafana/ for more details."

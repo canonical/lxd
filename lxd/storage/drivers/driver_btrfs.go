@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -208,18 +207,7 @@ func (d *btrfs) Create() error {
 			return err
 		}
 
-		// Confirm that the symlink is appearing (give it 10s).
-		// In case of timeout it falls back to using the volume's path
-		// instead of its UUID.
-		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 10*time.Second)
-		defer cancel()
-
-		if tryExists(ctx, "/dev/disk/by-uuid/"+devUUID) {
-			// Override the config to use the UUID.
-			d.config["source"] = devUUID
-		} else {
-			d.config["source"] = d.config["volatile.initial_source"]
-		}
+		d.config["source"] = devUUID
 	} else if d.config["source"] != "" {
 		hostPath := shared.HostPath(d.config["source"])
 		if d.isSubvolume(hostPath) {
@@ -457,7 +445,13 @@ func (d *btrfs) Mount() (bool, error) {
 		}
 	} else {
 		// Mount using UUID.
-		mntSrc = "/dev/disk/by-uuid/" + d.config["source"]
+		// We don't use the volatile.initial_source as it might change between system reboots.
+		mntSrcPath, err := d.getDiskPathFromFSUUID(d.config["source"])
+		if err != nil {
+			return false, fmt.Errorf("Failed to get disk path for filesystem UUID %q: %w", d.config["source"], err)
+		}
+
+		mntSrc = mntSrcPath
 	}
 
 	// Get the custom mount flags/options.

@@ -87,6 +87,7 @@ Restore from older snapshots (not latest)   | ✅        | ✅   | ✅     | ❌
 Storage quotas                              | ✅[^5]    | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅              | ✅          | ✅
 Available on `lxd init`                     | ✅        | ✅   | ✅     | ✅     | ✅       | ❌     | ❌          | ❌              | ❌          | ❌
 Object storage                              | ✅        | ✅   | ✅     | ✅     | ❌       | ❌     | ✅          | ❌              | ❌          | ❌
+Volume recovery                             | ✅        | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅[^6]          | ✅[^6]      | ❌
 
 [^1]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
 [^2]: Requires {config:option}`storage-lvm-pool-conf:lvm.use_thinpool` to be enabled. Only when refreshing local volumes.
@@ -98,6 +99,8 @@ Object storage                              | ✅        | ✅   | ✅     | ✅
          :start-after: <!-- Include start dir quotas -->
          :end-before: <!-- Include end dir quotas -->
       ```
+
+[^6]: Only instance volumes can be recovered due to the use of transformed volume names.
 
 (storage-optimized-image-storage)=
 ### Optimized image storage

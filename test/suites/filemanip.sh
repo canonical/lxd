@@ -163,12 +163,22 @@ test_filemanip() {
   # Test SFTP functionality.
   "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 --no-auth &
   mountPID=$!
-  sleep 1
+  sleep 0.1
 
-  output=$(curl -s -S --insecure sftp://127.0.0.1:2022/foo || true)
+  [ "$(curl -s -S --insecure sftp://127.0.0.1:2022/foo)" = "foo" ]
   kill -9 "${mountPID}"
-  lxc delete filemanip -f
-  [ "$output" = "foo" ]
+
+  CREDS_FILE="$(mktemp)"
+  "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 > "${CREDS_FILE}" &
+  mountPID=$!
+  sleep 0.1
+  userCreds=$(sed -nE 's/^[^"]+ "([^"]+)" [^"]+ "([^"]+)"$/\1:\2/p' "${CREDS_FILE}")
+  rm "${CREDS_FILE}"
+
+  [ "$(curl -s -S --insecure --user "${userCreds}" sftp://127.0.0.1:2022/foo)" = "foo" ]
+  kill -9 "${mountPID}"
+
+  lxc delete -f filemanip
 
   rm "${TEST_DIR}"/filemanip
   rm -rf "${TEST_DIR}/source" "${TEST_DIR}/dest"
@@ -186,7 +196,7 @@ test_filemanip_req_content_type() {
   # This ensures strings.Reader works correctly with the content-type check.
   # The specific here is that the net/http package will configure the
   # content-length on the request, which in LXD triggers content-type check.
-  go run -C lxd-client . file-push "${inst}" /tmp/status.txt "success"
+  lxd-client file-push "${inst}" /tmp/status.txt "success"
   [ "$(lxc exec "${inst}" -- cat /tmp/status.txt)" = "success" ]
 
   lxc delete "${inst}" --force

@@ -356,10 +356,10 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 	// Check if nesting is required.
 	// We only want to use recursion (and possible raw) mode if required as it can interfere with ZFS encryption.
 	if d.needsRecursion(dataset) {
-		args = append(args, "-R")
+		args = append(args, "--replicate")
 
 		if zfsRaw {
-			args = append(args, "-w")
+			args = append(args, "--raw")
 		}
 	}
 

@@ -30,13 +30,22 @@ test_lxd_user() {
   lxc_user project list
   lxc_user list --fast
 
-  # Cleanup
+  # Self-cleanup
   lxc_user delete c1
   lxc_user storage volume delete "${pool_name}" myvol
 
+  # Cleanup
   kill -9 "${USER_PID}"
-
+  rm -rf "${USER_TEMPDIR}"
+  rm -rf "${TEST_DIR}/lxd-user"
   LXD_DIR="${bakLxdDir}"
+  local ID
+  ID="$(id -u nobody)"
+  local fingerprint
+  fingerprint="$(lxc config trust list -f csv | awk -F, "/^client,lxd-user-${ID},/ {print \$4}")"
+  lxc config trust remove "${fingerprint}"
+  lxc project delete "user-${ID}"
+  lxc network delete "lxdbr-${ID}"
 }
 
 snap_lxc_user() {
@@ -67,6 +76,9 @@ test_snap_lxd_user() {
   snap_lxc_user query /1.0 | jq --exit-status '.auth_user_method == "tls" and .auth_user_name == "'"${fingerprint}"'"'
 
   # Cleanup
+  snap_lxc_user config trust remove "${fingerprint}"
   lxc project delete user-5000
+  lxc network delete lxdbr-5000
+  rm -rf "${LXD_USER_DIR}/users/5000"
   userdel --remove --force testuser 2>/dev/null || true
 }

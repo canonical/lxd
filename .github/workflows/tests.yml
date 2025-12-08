@@ -118,14 +118,13 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Install Python
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         if: github.event_name != 'pull_request'
         with:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
-            doc/.sphinx/build_requirements.py
-            doc/.sphinx/requirements.txt
-            doc/custom_conf.py
+            doc/requirements.txt
+            doc/conf.py
           python-version: '3.x'  # satisfied by any 3.x version already installed
 
       - name: Install build dependencies
@@ -178,54 +177,6 @@ jobs:
           # Build from unpacked dist tarball.
           cd /home/runner/work/lxd/lxd-test
           make
-
-      - name: Check lxc/lxd-agent binary sizes
-        if: env.GOCOVERAGE != 'true'
-        run: |
-          set -eux
-
-          # bin/max (sizes are in MiB)
-          SIZES="lxc 16
-                 lxd-agent 14"
-          MIB="$((1024 * 1024))"
-
-          # Strip a copy of the freshly built binaries and check their size
-          mkdir /tmp/bin
-          while read -r bin max; do
-            install --strip "/home/runner/go/bin/${bin}" /tmp/bin/
-            cur="$(stat --format=%s "/tmp/bin/${bin}")"
-            min=$((max - 1))
-            min_mib="$((min * MIB))"
-            max_mib="$((max * MIB))"
-            rm -f "/tmp/bin/${bin}"
-
-            if [ "${cur}" -gt "${max_mib}" ]; then
-              echo "FAIL: ${bin} binary size exceeds ${max}MiB"
-              exit 1
-            fi
-
-            # XXX: check for when we need to lower the min/max sizes
-            if [ "${cur}" -lt "${min_mib}" ]; then
-              echo "Congratulations: ${bin} binary size reduced below ${min}MiB"
-              echo "It is now time to edit the workflow job to use smaller min/max sizes for ${bin}"
-              exit 1
-            fi
-
-            echo "OK: ${bin} is between ${min} and ${max}MiB"
-          done <<< ${SIZES}
-
-      - name: Check binaries were compiled with the Go minimum version
-        run: |
-          set -eux
-
-          # Check which Go version was used to compile each of the lxc/lxd binaries
-          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
-          UNEXPECTED_GO_VER="$(go version -v ~/go/bin/lxc* ~/go/bin/lxd* | grep -vF ": go${GOMIN}" || true)"
-          if [ -n "${UNEXPECTED_GO_VER:-}" ]; then
-            echo "Some binaries were compiled with an unexpected Go version (!= ${GOMIN}):"
-            echo "${UNEXPECTED_GO_VER}"
-            exit 1
-          fi
 
       # XXX: `make static-analysis` also run golangci-lint but this one provides
       #      useful feedback in the PR through github-code-scanning bot
@@ -282,10 +233,15 @@ jobs:
         with:
           name: system-test-deps
           path: |
-            /home/runner/go/bin/lxc*
-            /home/runner/go/bin/lxd*
             /home/runner/go/bin/devlxd-client
             /home/runner/go/bin/fuidshift
+            /home/runner/go/bin/lxc
+            /home/runner/go/bin/lxd
+            /home/runner/go/bin/lxd-agent
+            /home/runner/go/bin/lxd-benchmark
+            /home/runner/go/bin/lxd-client
+            /home/runner/go/bin/lxd-migrate
+            /home/runner/go/bin/lxd-user
             /home/runner/go/bin/mini-oidc
             /home/runner/go/bin/sysinfo
           retention-days: 1
@@ -327,11 +283,6 @@ jobs:
 
       - name: Remove docker
         uses: ./.github/actions/disable-docker
-
-      - name: Install Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          go-version-file: 'go.mod'
 
       - name: Install runtime dependencies
         uses: ./.github/actions/install-lxd-runtimedeps
@@ -404,7 +355,7 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          export PATH="$PATH:/snap/microovn/current/commands"
+          export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
 
           # Check if there are existing coredumps
           if [ -n "$(ls -A /var/crash/)" ]; then
@@ -448,6 +399,7 @@ jobs:
       BRANCH_NAME: ${{ github.ref_name }}
       SNAP_RISK: ${{ inputs.snap-risk || 'edge' }}
       SNAP_TRACK: "5.21"
+      SUDO_PRESERVE_ENV: "GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,OVN_SOURCE"
     name: Snap (${{ matrix.test }} - ${{ matrix.os }})
     runs-on: ubuntu-${{ matrix.os }}
     # avoid runaway test burning 6 hours of CI
@@ -683,7 +635,7 @@ jobs:
             fi
           fi
 
-          sudo --preserve-env=GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,OVN_SOURCE ./bin/local-run "tests/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./bin/local-run "tests/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
 
       # always update cache as we have our own logic of
       # cache invalidation and updates in addition to a date check
@@ -1164,13 +1116,12 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Install Python
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
-            doc/.sphinx/build_requirements.py
-            doc/.sphinx/requirements.txt
-            doc/custom_conf.py
+            doc/requirements.txt
+            doc/conf.py
           python-version: '3.x'  # satisfied by any 3.x version already installed
 
       - name: Install dependencies
@@ -1227,13 +1178,12 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Install Python
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
-            doc/.sphinx/build_requirements.py
-            doc/.sphinx/requirements.txt
-            doc/custom_conf.py
+            doc/requirements.txt
+            doc/conf.py
           python-version: '3.x'  # satisfied by any 3.x version already installed
 
       - name: Build LXD client

@@ -41,4 +41,5 @@ test_oidc() {
   lxc auth identity delete oidc/test-user@example.com
   lxc remote remove oidc
   lxc config set oidc.issuer="" oidc.client.id=""
+  kill_oidc
 }
