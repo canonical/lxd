@@ -322,6 +322,18 @@ func (op *Operation) done() {
 	}()
 }
 
+func updateStatusWithWarning(op *Operation, newStatus api.StatusCode) {
+	oldStatus := op.status
+	err := op.updateStatus(newStatus)
+	if err != nil {
+		op.logger.Warn("Failed updating operation status", logger.Ctx{
+			"err":       err,
+			"oldStatus": oldStatus,
+			"newStatus": newStatus,
+		})
+	}
+}
+
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
@@ -330,14 +342,18 @@ func (op *Operation) Start() error {
 		return errors.New("Only pending operations can be started")
 	}
 
-	op.status = api.Running
+	err := op.updateStatus(api.Running)
+	if err != nil {
+		op.lock.Unlock()
+		return fmt.Errorf("Failed updating Operation %s status: %w", op.id, err)
+	}
 
 	if op.onRun != nil {
 		go func(op *Operation) {
 			err := op.onRun(op)
 			if err != nil {
 				op.lock.Lock()
-				op.status = api.Failure
+				updateStatusWithWarning(op, api.Failure)
 				op.err = err
 				op.lock.Unlock()
 				op.done()
@@ -353,7 +369,7 @@ func (op *Operation) Start() error {
 			}
 
 			op.lock.Lock()
-			op.status = api.Success
+			updateStatusWithWarning(op, api.Success)
 			op.lock.Unlock()
 			op.done()
 
@@ -395,7 +411,7 @@ func (op *Operation) Cancel() (chan error, error) {
 	chanCancel := make(chan error, 1)
 
 	oldStatus := op.status
-	op.status = api.Cancelling
+	updateStatusWithWarning(op, api.Cancelling)
 	op.lock.Unlock()
 
 	hasOnCancel := op.onCancel != nil
@@ -405,11 +421,11 @@ func (op *Operation) Cancel() (chan error, error) {
 			err := op.onCancel(op)
 			if err != nil {
 				op.lock.Lock()
-				op.status = oldStatus
+				updateStatusWithWarning(op, oldStatus)
 				op.lock.Unlock()
 				chanCancel <- err
 
-				op.logger.Debug("Failed to cancel operation", logger.Ctx{"err": err})
+				op.logger.Debug("Failed cancelling operation", logger.Ctx{"err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -420,7 +436,7 @@ func (op *Operation) Cancel() (chan error, error) {
 			}
 
 			op.lock.Lock()
-			op.status = api.Cancelled
+			updateStatusWithWarning(op, api.Cancelled)
 			op.lock.Unlock()
 			op.done()
 			chanCancel <- nil
@@ -447,7 +463,7 @@ func (op *Operation) Cancel() (chan error, error) {
 
 	if !hasOnCancel {
 		op.lock.Lock()
-		op.status = api.Cancelled
+		updateStatusWithWarning(op, api.Cancelled)
 		op.lock.Unlock()
 		op.done()
 		chanCancel <- nil
@@ -578,6 +594,15 @@ func (op *Operation) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func (op *Operation) updateStatus(newStatus api.StatusCode) error {
+	op.status = newStatus
+	if op.class != OperationClassDurable {
+		return nil
+	}
+
+	return updateDBOperationStatus(op)
 }
 
 // UpdateResources updates the resources of the operation. It returns an error
