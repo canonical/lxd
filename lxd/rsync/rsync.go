@@ -87,10 +87,7 @@ func runRsync(source string, dest string, bwlimit string, xattrs bool, rsyncArgs
 	}
 
 	if xattrs {
-		args = append(args, "--xattrs")
-		if AtLeast("3.1.3") {
-			args = append(args, "--filter=-x security.selinux")
-		}
+		args = append(args, "--xattrs", "--filter=-x security.selinux")
 	}
 
 	if bwlimit != "" {
@@ -424,10 +421,7 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 func rsyncFeatureArgs(features []string) []string {
 	args := []string{}
 	if slices.Contains(features, "xattrs") {
-		args = append(args, "--xattrs")
-		if AtLeast("3.1.3") {
-			args = append(args, "--filter=-x security.selinux")
-		}
+		args = append(args, "--xattrs", "--filter=-x security.selinux")
 	}
 
 	if slices.Contains(features, "delete") {
