@@ -3,9 +3,13 @@
 package cluster
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Code generation directives.
@@ -61,4 +65,25 @@ type OperationFilter struct {
 	Reference *string
 	Type      *operationtype.Type
 	EntityID  *int
+}
+
+// UpdateOperationStatus updates the status field of an existing operation in the cluster db.
+func UpdateOperationStatus(ctx context.Context, tx *sql.Tx, opReference string, newStatus api.StatusCode, updatedAt time.Time, opErr *string) error {
+	stmt := `UPDATE operations SET status = ?, updated_at = ?, error = ? WHERE reference = ?`
+
+	result, err := tx.ExecContext(ctx, stmt, newStatus, updatedAt, opErr, opReference)
+	if err != nil {
+		return fmt.Errorf("Failed updating operation status: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	return nil
 }
