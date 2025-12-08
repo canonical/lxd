@@ -43,7 +43,6 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
-	"github.com/canonical/lxd/shared/version"
 )
 
 // ForkdnsServersListPath defines the path that contains the forkdns server candidate file.
@@ -1049,42 +1048,19 @@ func (n *bridge) getDnsmasqArgs(bridge *ip.Bridge) ([]string, error) {
 		"--except-interface=lo",
 		"--pid-file=", // Disable attempt at writing a PID file.
 		"--no-ping",   // --no-ping is very important to prevent delays to lease file updates.
-		"--interface=" + n.name}
-
-	dnsmasqVersion, err := dnsmasq.GetVersion()
-	if err != nil {
-		return nil, err
-	}
-
-	// --dhcp-rapid-commit option is only supported on >2.79.
-	minVer, _ := version.NewDottedVersion("2.79")
-	if dnsmasqVersion.Compare(minVer) > 0 {
-		dnsmasqCmd = append(dnsmasqCmd, "--dhcp-rapid-commit")
-	}
-
-	// --no-negcache option is only supported on >2.47.
-	minVer, _ = version.NewDottedVersion("2.47")
-	if dnsmasqVersion.Compare(minVer) > 0 {
-		dnsmasqCmd = append(dnsmasqCmd, "--no-negcache")
+		"--interface=" + n.name,
+		"--no-negcache",       // Added after 2.47
+		"--dhcp-rapid-commit", // Added after 2.79
+		// With --dhcp-ignore-clid option, we want this to avoid duplicate IPs assigned to VM copies.
+		// The issue is that, while LXD updates the UUID on VM copy, cloud-init doesn't update machine-id in the new instance,
+		// and the same machine-id with the same link name in VM leads to the same client-id.
+		// So we ask dnsmasq to use MAC instead.
+		"--dhcp-ignore-clid", // Added after 2.81
 	}
 
 	if !daemon.Debug {
-		// --quiet options are only supported on >2.67.
-		minVer, _ := version.NewDottedVersion("2.67")
-
-		if dnsmasqVersion.Compare(minVer) > 0 {
-			dnsmasqCmd = append(dnsmasqCmd, "--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra")
-		}
-	}
-
-	// --dhcp-ignore-clid option is only supported on >2.81.
-	// We want this to avoid duplicate IPs assigned to VM copies.
-	// The issue is that, while LXD updates the UUID on VM copy, cloud-init doesn't update machine-id in the new instance,
-	// and the same machine-id with the same link name in VM leads to the same client-id.
-	// So we ask dnsmasq to use MAC instead.
-	minVer, _ = version.NewDottedVersion("2.81")
-	if dnsmasqVersion.Compare(minVer) > 0 {
-		dnsmasqCmd = append(dnsmasqCmd, "--dhcp-ignore-clid")
+		// Added after 2.67
+		dnsmasqCmd = append(dnsmasqCmd, "--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra")
 	}
 
 	// Configure IPv4.
