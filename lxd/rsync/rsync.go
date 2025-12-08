@@ -2,7 +2,6 @@ package rsync
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -19,7 +18,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/version"
 )
 
 // Debug controls additional debugging in rsync output.
@@ -433,33 +431,4 @@ func rsyncFeatureArgs(features []string) []string {
 	}
 
 	return args
-}
-
-// AtLeast compares the local version to a minimum version.
-func AtLeast(minimum string) bool {
-	// Parse the current version.
-	out, err := shared.RunCommandContext(context.TODO(), "rsync", "--version")
-	if err != nil {
-		return false
-	}
-
-	fields := strings.Split(strings.SplitN(out, "\n", 2)[0], "  ")
-	if len(fields) < 3 {
-		return false
-	}
-
-	versionStr := strings.TrimPrefix(fields[1], "version ")
-
-	ver, err := version.Parse(versionStr)
-	if err != nil {
-		return false
-	}
-
-	// Load minium version.
-	minVer, err := version.NewDottedVersion(minimum)
-	if err != nil {
-		return false
-	}
-
-	return ver.Compare(minVer) >= 0
 }
