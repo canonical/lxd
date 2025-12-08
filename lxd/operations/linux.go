@@ -25,6 +25,7 @@ func registerDBOperation(op *Operation) error {
 			Class:     (int64)(op.class),
 			CreatedAt: op.createdAt,
 			UpdatedAt: op.updatedAt,
+			Status:    int64(op.Status()),
 		}
 
 		if op.projectName != "" {
