@@ -112,6 +112,14 @@ helm install lxd-csi-driver oci://ghcr.io/canonical/charts/lxd-csi-driver \
   --namespace lxd-csi
 ```
 
+Optionally, you can enabled support for volume snapshots by setting `snapshotter.enabled` to `true`:
+```sh
+helm install lxd-csi-driver oci://ghcr.io/canonical/charts/lxd-csi-driver \
+  --version v0 \
+  --namespace lxd-csi \
+  --set snapshotter.enabled=true
+```
+
 ```{tip}
 Use the `template` command instead of `install` to see the resulting manifests.
 ```
