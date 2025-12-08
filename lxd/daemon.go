@@ -2563,7 +2563,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		d.lastNodeList = heartbeatData
 	}
 
-	// If we are leader and called from the leader heartbeat send function (unavailbleMembers != nil) and there
+	// If we are leader and called from the leader heartbeat send function (unavailableMembers != nil) and there
 	// are other members in the cluster, then check if we need to update roles. We do not want to do this if
 	// we are called on the leader as part of a notification heartbeat being received from another member.
 	if isLeader && unavailableMembers != nil && len(heartbeatData.Members) > 1 {
@@ -2594,29 +2594,29 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		maxVoters := s.GlobalConfig.MaxVoters()
 		maxStandBy := s.GlobalConfig.MaxStandBy()
 
-		// If there are offline members that have voter or stand-by database roles, let's see if we can
-		// replace them with spare ones. Also, if we don't have enough voters or standbys, let's see if we
-		// can upgrade some member.
-		if isDegraded || onlineVoters < maxVoters || onlineStandbys < maxStandBy {
+		needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys < maxStandBy
+
+		if needsRebalance || hasNodesNotPartOfRaft {
 			d.clusterMembershipMutex.Lock()
-			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
-			err := rebalanceMemberRoles(context.Background(), d.State(), d.gateway, unavailableMembers)
-			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
-				logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
+			defer d.clusterMembershipMutex.Unlock()
+
+			// If there are offline members that have voter or stand-by database roles, let's see if we can replace them with spare ones.
+			if needsRebalance {
+				logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
+				err := rebalanceMemberRoles(context.Background(), d.State(), d.gateway, unavailableMembers)
+				if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
+					logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
+				}
 			}
 
-			d.clusterMembershipMutex.Unlock()
-		}
-
-		if hasNodesNotPartOfRaft {
-			d.clusterMembershipMutex.Lock()
-			logger.Debug("Upgrading members without raft role in heartbeat", logger.Ctx{"local": localClusterAddress})
-			err := upgradeNodesWithoutRaftRole(d.State(), d.gateway)
-			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
-				logger.Warn("Failed upgrading raft roles:", logger.Ctx{"err": err, "local": localClusterAddress})
+			// If we don't have enough voters or standbys, let's see if we can upgrade some member.
+			if hasNodesNotPartOfRaft {
+				logger.Debug("Upgrading members without raft role in heartbeat", logger.Ctx{"local": localClusterAddress})
+				err := upgradeNodesWithoutRaftRole(d.State(), d.gateway)
+				if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
+					logger.Warn("Failed upgrading raft roles:", logger.Ctx{"err": err, "local": localClusterAddress})
+				}
 			}
-
-			d.clusterMembershipMutex.Unlock()
 		}
 	}
 
