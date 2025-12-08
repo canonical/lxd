@@ -630,16 +630,6 @@ func (c *ClusterTx) UpdateNodeConfig(ctx context.Context, id int64, config map[s
 
 // UpdateNodeRoles changes the list of roles on a member.
 func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
-	getRoleID := func(role ClusterRole) (int, error) {
-		for k, v := range ClusterRoles {
-			if v == role {
-				return k, nil
-			}
-		}
-
-		return -1, fmt.Errorf("Invalid cluster role %q", role)
-	}
-
 	// Translate role names to ids
 	roleIDs := []int{}
 	for _, role := range roles {
@@ -648,9 +638,9 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 			continue
 		}
 
-		roleID, err := getRoleID(role)
-		if err != nil {
-			return err
+		roleID, valid := ClusterRoleIDs[role]
+		if !valid {
+			return fmt.Errorf("Invalid cluster role %q", role)
 		}
 
 		roleIDs = append(roleIDs, roleID)
