@@ -53,6 +53,25 @@ var ClusterRoles = map[int]ClusterRole{
 	2: ClusterRoleOVNChassis,
 }
 
+// ClusterRoleIDs provides reverse lookup from role name to ID.
+// Automatically populated at init time.
+var ClusterRoleIDs map[ClusterRole]int
+
+// ClusterRoleSet provides O(1) membership testing for valid external cluster roles.
+// Automatically populated at init time.
+var ClusterRoleSet map[ClusterRole]bool
+
+func init() {
+	// Build reverse lookup maps
+	ClusterRoleIDs = make(map[ClusterRole]int, len(ClusterRoles))
+	ClusterRoleSet = make(map[ClusterRole]bool, len(ClusterRoles))
+
+	for id, role := range ClusterRoles {
+		ClusterRoleIDs[role] = id
+		ClusterRoleSet[role] = true
+	}
+}
+
 // Numeric type codes identifying different cluster member states.
 const (
 	ClusterMemberStateCreated   = 0
