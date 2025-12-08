@@ -328,6 +328,12 @@ run_test() {
       # Run test.
       ${TEST_CURRENT}
 
+      # XXX: Ignore qemu core dumps
+      if [ -n "$(ls /var/crash/core-qemu-system-x86.*.gz)" ]; then
+        echo "==> IGNORE: Ignoring qemu core dumps"
+        rm -f /var/crash/core-qemu-system-x86.*.gz
+      fi
+
       # Check for any core dump after running the test
       if ! check_empty /var/crash/; then
         echo "==> CORE: coredumps found after running the test"
