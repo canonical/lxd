@@ -5,6 +5,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -25,6 +26,7 @@ func registerDBOperation(op *Operation) error {
 			CreatedAt: op.createdAt,
 			UpdatedAt: op.updatedAt,
 			Inputs:    op.inputs,
+			Status:    int64(op.Status()),
 		}
 
 		if op.projectName != "" {
@@ -51,6 +53,25 @@ func registerDBOperation(op *Operation) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Failed creating %q operation record: %w", op.dbOpType.Description(), err)
+	}
+
+	return nil
+}
+
+func updateDBOperationStatus(op *Operation) error {
+	op.updatedAt = time.Now()
+
+	var opErr *string
+	if op.err != nil {
+		tempErr := op.err.Error()
+		opErr = &tempErr
+	}
+
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return cluster.UpdateOperationStatus(ctx, tx.Tx(), op.id, op.Status(), op.updatedAt, opErr)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed updating Operation %s status in database: %w", op.id, err)
 	}
 
 	return nil
