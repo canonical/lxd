@@ -81,6 +81,27 @@ func UpdateOperationNodeID(ctx context.Context, tx *sql.Tx, opUUID string, newNo
 	return nil
 }
 
+// UpdateOperationStatus updates the status field of an existing operation in the cluster db.
+func UpdateOperationStatus(ctx context.Context, tx *sql.Tx, opUUID string, newStatus api.StatusCode) error {
+	stmt := `UPDATE operations SET status = ? WHERE uuid = ?`
+
+	result, err := tx.ExecContext(ctx, stmt, newStatus, opUUID)
+	if err != nil {
+		return fmt.Errorf("Failed updating operation status: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	return nil
+}
+
 // GetDurableOperationMetadata retrieves metadata key/value pairs for a durable operation from the cluster db.
 func GetDurableOperationMetadata(ctx context.Context, tx *sql.Tx, opID int64) (map[string]string, error) {
 	stmt := `SELECT key, value FROM operations_metadata WHERE operation_id = ?`
