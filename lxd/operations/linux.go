@@ -118,6 +118,7 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 	var dbOps []cluster.Operation
 	metadata := make(map[int64]map[string]string)
 	resources := make(map[int64]map[string][]api.URL)
+	identities := make(map[int64]*cluster.Identity)
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// See if there are any durable operations running on this node which need to be restarted.
@@ -137,6 +138,20 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 			resources[dbOp.ID], err = cluster.GetDurableOperationResources(ctx, tx.Tx(), dbOp.ID)
 			if err != nil {
 				return fmt.Errorf("Failed loading durable operation resources for operation %d: %w", dbOp.ID, err)
+			}
+
+			if dbOp.IdentityID != nil {
+				identityFilter := cluster.IdentityFilter{ID: dbOp.IdentityID}
+				clusterIdentities, err := cluster.GetIdentitys(ctx, tx.Tx(), identityFilter)
+				if err != nil {
+					return fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.ID, err)
+				}
+
+				if len(clusterIdentities) != 1 {
+					return fmt.Errorf("Unexpected number of identities (%d) found for id %d", len(clusterIdentities), dbOp.ID)
+				}
+
+				identities[dbOp.ID] = &clusterIdentities[0]
 			}
 		}
 
@@ -163,6 +178,8 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 				continue
 			}
 		}
+
+		// TODO Reconstruct the Requestor of the operation here.
 
 		op, err := CreateDurableOperation(ctx, s, dbOp.UUID, projectName, dbOp.Type, resources[dbOp.ID], metadata[dbOp.ID])
 
