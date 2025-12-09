@@ -155,7 +155,7 @@ sitemap_excludes = [
 linkcheck_ignore = [
     r"https?://localhost.*",
     r"https?://127\.0\.0\.1.*",
-    r"/api.*",
+    r"^/.*/api/",
     # These links often/always fail both locally and in GitHub CI
     r"https://ceph\.io.*",
     r"https://.*\.sourceforge\.net.*",
