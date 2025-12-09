@@ -2090,21 +2090,15 @@ func (d *Daemon) numRunningInstances(instances []instance.Instance) int {
 }
 
 // cancelCancelableOps cancels all running cancelable operations.
-func cancelCancelableOps() error {
+func cancelCancelableOps(ctx context.Context) error {
 	ops := operations.Clone()
 	for _, op := range ops {
-		if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
+		if op.Status() != api.Running {
 			continue
 		}
 
-		_, opAPI, err := op.Render()
-		if err != nil {
-			return fmt.Errorf("Failed to render an operation while attempting to stop cancelable operations: %w", err)
-		}
-
-		if opAPI.MayCancel {
-			_, _ = op.Cancel()
-		}
+		_ = op.Cancel()
+		_ = op.Wait(ctx)
 	}
 
 	return nil
@@ -2180,7 +2174,10 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 			if d.db.Cluster != nil {
 				// Try to cancel any cancelable operations.
-				err = cancelCancelableOps()
+				ctx, cancel := context.WithTimeout(context.Background(), s.GlobalConfig.ShutdownTimeout())
+				defer cancel()
+
+				err = cancelCancelableOps(ctx)
 				if err != nil {
 					logger.Error("Failed to cancel cancelable operations", logger.Ctx{"err": err})
 				}
