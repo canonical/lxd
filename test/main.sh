@@ -2,6 +2,25 @@
 set -eu
 set -o pipefail
 
+# === pre-flight checks === #
+# root is required
+if [ "${USER:-'root'}" != "root" ]; then
+  echo "The testsuite must be run as root." >&2
+  exit 1
+fi
+
+# Avoid accidental re-execution
+if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
+    echo "Refusing to run tests from inside a LXD_INSPECT session" >&2
+    exit 1
+fi
+
+# Create LXD_LOGS if needed
+[ -n "${LXD_LOGS:-}" ] && mkdir -p "${LXD_LOGS}"
+
+# Create GOCOVERDIR if needed
+[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}"
+
 # OVN
 export LXD_OVN_NB_CA_CRT_FILE="${LXD_OVN_NB_CA_CRT_FILE:-}"
 export LXD_OVN_NB_CLIENT_CRT_FILE="${LXD_OVN_NB_CLIENT_CRT_FILE:-}"
@@ -32,12 +51,6 @@ if [ -n "${GOPATH:-}" ]; then
     [[ "${PATH}" != *"${GOPATH}/bin"* ]] && PATH="${GOPATH}/bin:${PATH}"
 fi
 export PATH
-
-# Avoid accidental re-execution
-if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
-    echo "Refusing to run tests from inside a LXD_INSPECT session" >&2
-    exit 1
-fi
 
 # Don't translate lxc output for parsing in it in tests.
 export LC_ALL="C"
@@ -168,19 +181,9 @@ _LXC="$(unset -f lxc; command -v lxc)"
 readonly _LXC
 export _LXC
 
-if [ "${USER:-'root'}" != "root" ]; then
-  echo "The testsuite must be run as root." >&2
-  exit 1
-fi
-
 # Set ulimit to ensure core dump is outputted.
 ulimit -c unlimited
 echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
-
-if [ -n "${LXD_LOGS:-}" ] && [ ! -d "${LXD_LOGS}" ]; then
-  echo "Your LXD_LOGS path doesn't exist: ${LXD_LOGS}"
-  exit 1
-fi
 
 # Default sizes to be used with storage pools
 export DEFAULT_VOLUME_SIZE="24MiB"
@@ -468,9 +471,6 @@ export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 # This must be enough to accommodate the ubuntu-minimal-daily:24.04 image
 export SMALLEST_VM_ROOT_DISK="3584MiB"
 export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
-
-# Create GOCOVERDIR if needed
-[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}"
 
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
