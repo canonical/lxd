@@ -775,7 +775,7 @@ func (o *Verifier) secureCookieFromV7UUID(ctx context.Context, sessionID uuid.UU
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string, clusterUUID string, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error), httpClientFunc func() (*http.Client, error), sessionHandler SessionHandler) (*Verifier, error) {
+func NewVerifier(ctx context.Context, issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string, clusterUUID string, networkAddress string, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error), httpClientFunc func() (*http.Client, error), sessionHandler SessionHandler) (*Verifier, error) {
 	verifier := &Verifier{
 		issuer:         issuer,
 		clientID:       clientID,
@@ -787,6 +787,12 @@ func NewVerifier(issuer string, clientID string, clientSecret string, scopes []s
 		secretsFunc:    secretsFunc,
 		httpClientFunc: httpClientFunc,
 		sessionHandler: sessionHandler,
+	}
+
+	// Ensure configuration is valid with daemon's network address.
+	err := verifier.ensureConfig(ctx, networkAddress)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to ensure new verifier's configuration: %w", err)
 	}
 
 	return verifier, nil
