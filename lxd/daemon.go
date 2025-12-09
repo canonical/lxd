@@ -1760,7 +1760,7 @@ func (d *Daemon) init() error {
 		sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, d.globalConfig.OIDCSessionExpiry)
 		d.oidcVerifier, err = oidc.NewVerifier(d.shutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, d.globalConfig.ClusterUUID(), d.endpoints.NetworkAddress(), d.getCoreAuthSecrets, httpClientFunc, sessionHandler)
 		if err != nil {
-			return err
+			logger.Warn("Failed to setup OIDC verifier", logger.Ctx{"err": err})
 		}
 	}
 
