@@ -325,7 +325,7 @@ jobs:
           sudo microceph.ceph status
           sudo rm -f /snap/bin/rbd
 
-      - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
+      - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
           set -eux
           chmod +x ~
