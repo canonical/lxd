@@ -58,7 +58,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 		return
 	}
 
-	opRun := func(op *operations.Operation) error {
+	opRun := func(ctx context.Context, op *operations.Operation) error {
 		for _, op := range expiredTokenOps {
 			_, err := op.Cancel()
 			if err != nil {
@@ -66,7 +66,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 			}
 		}
 
-		err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			for _, expiredPendingTLSIdentity := range expiredPendingTLSIdentities {
 				err := cluster.DeleteIdentity(ctx, tx.Tx(), api.AuthenticationMethodTLS, expiredPendingTLSIdentity.Identifier)
 				if err != nil {
@@ -83,7 +83,13 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RemoveExpiredTokens, nil, nil, opRun, nil, nil)
+	args := operations.OperationArgs{
+		Type:    operationtype.RemoveExpiredTokens,
+		Class:   operations.OperationClassTask,
+		RunHook: opRun,
+	}
+
+	op, err := operations.CreateServerOperation(s, args)
 	if err != nil {
 		logger.Warn("Failed creating remove expired tokens operation", logger.Ctx{"err": err})
 		return

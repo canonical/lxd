@@ -65,6 +65,10 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	<-d.waitReady.Done()
 
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -128,7 +132,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		architecture = 0
 	}
 
-	var do func(*operations.Operation) error
+	var do func(context.Context, *operations.Operation) error
 	var opType operationtype.Type
 	if configRaw.Restore == "" {
 		// Check project limits.
@@ -165,7 +169,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Update container configuration
-		do = func(_ *operations.Operation) error {
+		do = func(_ context.Context, _ *operations.Operation) error {
 			defer unlock()
 
 			args := db.InstanceArgs{
@@ -189,7 +193,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		opType = operationtype.InstanceUpdate
 	} else {
 		// Snapshot Restore
-		do = func(_ *operations.Operation) error {
+		do = func(_ context.Context, _ *operations.Operation) error {
 			defer unlock()
 
 			return instanceSnapRestore(s, projectName, name, configRaw)
@@ -205,7 +209,15 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        opType,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     do,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

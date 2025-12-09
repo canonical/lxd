@@ -89,6 +89,11 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 // doInstanceDelete deletes an instance in the given project.
 // If the instance is running and force is true, the instance is force stopped. Otherwise, an error is returned.
 func doInstanceDelete(ctx context.Context, s *state.State, name string, projectName string, force bool) (*operations.Operation, error) {
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to initialize instance delete operation: %w", err)
+	}
+
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return nil, err
@@ -110,7 +115,7 @@ func doInstanceDelete(ctx context.Context, s *state.State, name string, projectN
 		}
 	}
 
-	rmct := func(op *operations.Operation) error {
+	rmct := func(ctx context.Context, op *operations.Operation) error {
 		return inst.Delete(false, "")
 	}
 
@@ -121,7 +126,15 @@ func doInstanceDelete(ctx context.Context, s *state.State, name string, projectN
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.InstanceDelete,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     rmct,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return nil, err
 	}

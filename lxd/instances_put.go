@@ -82,6 +82,10 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 	<-d.waitReady.Done()
 
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	c, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
@@ -159,7 +163,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Batch the changes.
-	do := func(op *operations.Operation) error {
+	do := func(ctx context.Context, op *operations.Operation) error {
 		localAction := func(local bool) error {
 			failures := map[string]error{}
 			failuresLock := sync.Mutex{}
@@ -184,13 +188,8 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			return coalesceErrors(local, failures)
 		}
 
-		requestor, err := request.GetRequestor(r.Context())
-		if err != nil {
-			return err
-		}
-
 		// Only return the local data if asked by cluster member.
-		if requestor.IsClusterNotification() {
+		if op.Requestor().IsClusterNotification() {
 			return localAction(false)
 		}
 
@@ -201,7 +200,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 
 		// Get all members in cluster.
 		var members []db.NodeInfo
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			members, err = tx.GetNodes(ctx)
@@ -242,7 +241,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 				}
 
 				// Connect to the remote server.
-				client, err := cluster.Connect(r.Context(), member.Address, networkCert, s.ServerCert(), true)
+				client, err := cluster.Connect(ctx, member.Address, networkCert, s.ServerCert(), true)
 				if err != nil {
 					failuresLock.Lock()
 					failures[member.Name] = err
@@ -280,7 +279,15 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		resources["instances"] = append(resources["instances"], *api.NewURL().Path(version.APIVersion, "instances", instName))
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        opType,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     do,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
