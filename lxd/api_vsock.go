@@ -9,6 +9,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -17,7 +18,8 @@ import (
 // vSockServer creates an http.Server capable of handling /dev/lxd requests over vsock.
 func vSockServer(d *Daemon) *http.Server {
 	return &http.Server{
-		Handler: devLXDAPI(d, vSockAuthenticator{}),
+		Handler:     devLXDAPI(d, vSockAuthenticator{}),
+		ConnContext: request.SaveConnectionInContext,
 	}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -143,6 +144,10 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -197,7 +202,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	do := func(op *operations.Operation) error {
+	do := func(ctx context.Context, op *operations.Operation) error {
 		inst.SetOperation(op)
 
 		return doInstanceStatePut(inst, req)
@@ -205,7 +210,15 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]api.URL{}
 	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        opType,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     do,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

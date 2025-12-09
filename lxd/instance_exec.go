@@ -138,7 +138,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 }
 
 // Do connects to the websocket and executes the operation.
-func (s *execWs) Do(op *operations.Operation) error {
+func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
 	defer func() {
 		s.connsLock.Lock()
@@ -240,7 +240,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[execWSStderr]
 	}
 
-	waitAttachedChildIsDead, markAttachedChildIsDead := context.WithCancel(context.Background())
+	waitAttachedChildIsDead, markAttachedChildIsDead := context.WithCancel(ctx)
 	var wgEOF sync.WaitGroup
 
 	// Define a function to clean up TTYs and sockets when done.
@@ -520,6 +520,10 @@ func (s *execWs) Do(op *operations.Operation) error {
 //	    $ref: "#/responses/InternalServerError"
 func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -684,7 +688,17 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			resources["containers"] = resources["instances"]
 		}
 
-		op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.CommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		args := operations.OperationArgs{
+			ProjectName: projectName,
+			Type:        operationtype.CommandExec,
+			Class:       operations.OperationClassWebsocket,
+			Resources:   resources,
+			Metadata:    ws.Metadata(),
+			RunHook:     ws.Do,
+			ConnectHook: ws.Connect,
+		}
+
+		op, err := operations.CreateUserOperation(s, requestor, args)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -692,7 +706,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		return operations.OperationResponse(op)
 	}
 
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		metadata := shared.Jmap{}
 
 		var err error
@@ -760,7 +774,15 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.CommandExec, resources, nil, run, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.CommandExec,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     run,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
