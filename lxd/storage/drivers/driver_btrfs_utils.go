@@ -660,27 +660,14 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *iopro
 
 // getDiskPathFromFSUUID returns the disk hosting the filesystem with the given UUID.
 func (d *btrfs) getDiskPathFromFSUUID(uuid string) (string, error) {
-	// Read all the top-level /sys/class/block entries.
-	entries, err := os.ReadDir("/sys/class/block")
+	uuid, err := shared.RunCommandContext(context.TODO(), "blkid", "--cache=/dev/null", "--uuid", uuid)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Failed to locate a device for filesystem UUID %q: %w", uuid, err)
 	}
 
-	// Check each entry for a entries match.
-	for _, entry := range entries {
-		// Check if it's our dataset.
-		devPath := filepath.Join("/dev", entry.Name())
-
-		devFSUUID, err := fsUUID(devPath)
-		if err != nil {
-			// Device must not have a filesystem.
-			continue
-		}
-
-		if devFSUUID == uuid {
-			return devPath, nil
-		}
+	if uuid == "" {
+		return "", fmt.Errorf("Failed to locate a device for filesystem UUID %q", uuid)
 	}
 
-	return "", fmt.Errorf("Failed to locate a device for filesystem UUID %q", uuid)
+	return strings.TrimSpace(uuid), nil
 }
