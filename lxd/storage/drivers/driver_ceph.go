@@ -257,7 +257,7 @@ func (d *ceph) Create() error {
 			// ceph.osd.force_reuse is deprecated and should not be used. OSD pools are a logical
 			// construct there is no good reason not to create one for dedicated use by LXD.
 			if shared.IsFalseOrEmpty(d.config["ceph.osd.force_reuse"]) {
-				return fmt.Errorf("Pool '%s' in cluster '%s' seems to be in use by another LXD instance", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
+				return fmt.Errorf("Pool %q in cluster %q seems to be in use by another LXD instance", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
 			}
 
 			d.config["volatile.pool.pristine"] = "false"

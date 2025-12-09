@@ -282,7 +282,7 @@ func clusterGetMemberConfig(ctx context.Context, cluster *db.Cluster) ([]api.Clu
 				Entity:      "storage-pool",
 				Name:        pool,
 				Key:         key,
-				Description: fmt.Sprintf("\"%s\" property for storage pool \"%s\"", key, pool),
+				Description: fmt.Sprintf("%q property for storage pool %q", key, pool),
 			}
 
 			keys = append(keys, key)
@@ -299,7 +299,7 @@ func clusterGetMemberConfig(ctx context.Context, cluster *db.Cluster) ([]api.Clu
 				Entity:      "network",
 				Name:        network,
 				Key:         key,
-				Description: fmt.Sprintf("\"%s\" property for network \"%s\"", key, network),
+				Description: fmt.Sprintf("%q property for network %q", key, network),
 			}
 
 			keys = append(keys, key)
