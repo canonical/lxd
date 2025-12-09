@@ -27,6 +27,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	"github.com/canonical/lxd/lxd/storage/block"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -1823,7 +1824,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 				return nil, "", false, diskSourceNotFoundError{msg: "Failed mapping Ceph RBD volume", err: err}
 			}
 
-			fsName, err = BlockFsDetect(rbdPath)
+			fsName, err = block.DiskFSType(rbdPath)
 			if err != nil {
 				return nil, "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", rbdPath, err)
 			}
@@ -1844,7 +1845,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 
 			fileMode := fileInfo.Mode()
 			if shared.IsBlockdev(fileMode) {
-				fsName, err = BlockFsDetect(srcPath)
+				fsName, err = block.DiskFSType(srcPath)
 				if err != nil {
 					return nil, "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", srcPath, err)
 				}
