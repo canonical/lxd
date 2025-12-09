@@ -6247,7 +6247,7 @@ definitions:
                 x-go-name: KernelFeatures
             kernel_version:
                 description: Kernel version
-                example: 5.4.0-36-generic
+                example: 5.15.0-36-generic
                 type: string
                 x-go-name: KernelVersion
             lxc_features:

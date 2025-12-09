@@ -67,7 +67,7 @@ type ServerEnvironment struct {
 	KernelFeatures map[string]string `json:"kernel_features" yaml:"kernel_features"`
 
 	// Kernel version
-	// Example: 5.4.0-36-generic
+	// Example: 5.15.0-36-generic
 	KernelVersion string `json:"kernel_version" yaml:"kernel_version"`
 
 	// Map of LXC features that were tested on startup
