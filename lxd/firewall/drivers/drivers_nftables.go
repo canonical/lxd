@@ -18,7 +18,6 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/validate"
-	"github.com/canonical/lxd/shared/version"
 )
 
 const nftablesNamespace = "lxd"
@@ -29,10 +28,7 @@ const nftablesContentTemplate = "nftablesContent"
 // to contain underscores (where as instance name is not).
 const nftablesChainSeparator = "."
 
-// nftablesMinVersion We need at least 0.9.1 as this was when the arp ether saddr filters were added.
-const nftablesMinVersion = "0.9.1"
-
-// Nftables is an implmentation of LXD firewall using nftables.
+// Nftables is an implementation of LXD firewall using nftables.
 type Nftables struct{}
 
 // String returns the driver name.
@@ -84,18 +80,6 @@ func (d Nftables) Compat() (bool, error) {
 	_, err = exec.LookPath("nft")
 	if err != nil {
 		return false, fmt.Errorf("Backend command %q missing", "nft")
-	}
-
-	// Get nftables version.
-	nftVersion, err := d.hostVersion()
-	if err != nil {
-		return false, fmt.Errorf("Failed detecting nft version: %w", err)
-	}
-
-	// Check nft version meets minimum required.
-	minVer, _ := version.NewDottedVersion(nftablesMinVersion)
-	if nftVersion.Compare(minVer) < 0 {
-		return false, fmt.Errorf("nft version %q is too low, need %q or above", nftVersion, nftablesMinVersion)
 	}
 
 	// Check that nftables works at all (some kernels let you list ruleset despite missing support).
@@ -184,21 +168,6 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 	}
 
 	return items, nil
-}
-
-// GetVersion returns the version of nftables.
-func (d Nftables) hostVersion() (*version.DottedVersion, error) {
-	output, err := shared.RunCommandCLocale("nft", "--version")
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check nftables version: %w", err)
-	}
-
-	fields := strings.SplitN(string(output), " ", 3)
-	if len(fields) < 2 {
-		return nil, fmt.Errorf("Unexpected nft version output: %q", output)
-	}
-
-	return version.Parse(strings.TrimPrefix(fields[1], "v"))
 }
 
 // networkSetupForwardingPolicy allows forwarding dependent on boolean argument.
