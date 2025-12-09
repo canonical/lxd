@@ -135,6 +135,8 @@ install_storage_driver_tools() {
     elif ! is_backend_available "${LXD_BACKEND}"; then
         pkg=""
         case "${LXD_BACKEND}" in
+          btrfs)
+            pkg="btrfs-progs";;
           ceph)
             pkg="ceph-common";;
           lvm)
