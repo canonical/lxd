@@ -457,13 +457,6 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 		"--xattr",
 	}
 
-	// Virtiofsd defaults to namespace sandbox mode which requires pidfd_open support.
-	// This was added in Linux 5.3, so if running an earlier kernel fallback to chroot sandbox mode.
-	minVer, _ := version.NewDottedVersion("5.3.0")
-	if kernelVersion.Compare(minVer) < 0 {
-		args = append(args, "--sandbox=chroot")
-	}
-
 	proc, err := subprocess.NewProcess(cmd, args, logPath, logPath)
 	if err != nil {
 		return nil, nil, err
