@@ -5381,6 +5381,14 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 
 ```
 
+```{config:option} source.recover storage-btrfs-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to recover an existing `source`"
+:type: "bool"
+Set this option to true to recover an existing source which was previously created by LXD.
+```
+
 ```{config:option} source.wipe storage-btrfs-pool-conf
 :defaultdesc: "`false`"
 :scope: "local"
@@ -5583,6 +5591,14 @@ This option specifies whether to use RBD `du` to obtain disk usage data for stop
 :shortdesc: "Existing OSD storage pool to use"
 :type: "string"
 
+```
+
+```{config:option} source.recover storage-ceph-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to recover an existing `source`"
+:type: "bool"
+Set this option to true to recover an existing source which was previously created by LXD.
 ```
 
 ```{config:option} volatile.pool.pristine storage-ceph-pool-conf
@@ -5801,6 +5817,14 @@ when creating an OSD pool.
 
 ```
 
+```{config:option} source.recover storage-cephfs-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to recover an existing `source`"
+:type: "bool"
+Set this option to true to recover an existing source which was previously created by LXD.
+```
+
 <!-- config group storage-cephfs-pool-conf end -->
 <!-- config group storage-cephfs-volume-conf start -->
 ```{config:option} security.shifted storage-cephfs-volume-conf
@@ -5977,6 +6001,14 @@ to be placed on the socket I/O.
 :shortdesc: "Path to an existing directory"
 :type: "string"
 
+```
+
+```{config:option} source.recover storage-dir-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to recover an existing `source`"
+:type: "bool"
+Set this option to true to recover an existing source which was previously created by LXD.
 ```
 
 <!-- config group storage-dir-pool-conf end -->
@@ -6173,6 +6205,14 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 :shortdesc: "Path to an existing block device, loop file, or LVM volume group"
 :type: "string"
 
+```
+
+```{config:option} source.recover storage-lvm-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to recover an existing `source`"
+:type: "bool"
+Set this option to true to recover an existing source which was previously created by LXD.
 ```
 
 ```{config:option} source.wipe storage-lvm-pool-conf
@@ -6769,6 +6809,14 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 :shortdesc: "Path to an existing block device, loop file, or ZFS dataset/pool"
 :type: "string"
 
+```
+
+```{config:option} source.recover storage-zfs-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to recover an existing `source`"
+:type: "bool"
+Set this option to true to recover an existing source which was previously created by LXD.
 ```
 
 ```{config:option} source.wipe storage-zfs-pool-conf
