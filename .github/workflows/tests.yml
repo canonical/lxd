@@ -27,9 +27,9 @@ defaults:
 jobs:
   code-tests:
     env:
-      CGO_CFLAGS: "-I/home/runner/work/lxd/lxd-test/vendor/raft/include/ -I/home/runner/work/lxd/lxd-test/vendor/dqlite/include/"
-      CGO_LDFLAGS: "-L/home/runner/work/lxd/lxd-test/vendor/raft/.libs/ -L/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
-      LD_LIBRARY_PATH: "/home/runner/work/lxd/lxd-test/vendor/raft/.libs/:/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+      CGO_CFLAGS: "-I/home/runner/work/lxd/lxd-test/vendor/dqlite/include/"
+      CGO_LDFLAGS: "-L/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+      LD_LIBRARY_PATH: "/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
     name: Code
     runs-on: ubuntu-22.04
     steps:
@@ -116,6 +116,9 @@ jobs:
       LXD_VERBOSE: "1"
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
+      CGO_CFLAGS: "-I/home/runner/go/deps/dqlite/include/"
+      CGO_LDFLAGS: "-L/home/runner/go/deps/dqlite/.libs/"
+      LD_LIBRARY_PATH: "/home/runner/go/deps/dqlite/.libs/"
     name: System
     runs-on: ubuntu-22.04
     strategy:
@@ -184,7 +187,6 @@ jobs:
         run: |
           set -eux
           sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
 
           sudo systemctl mask lxc.service lxc-net.service
@@ -195,13 +197,13 @@ jobs:
             libacl1-dev \
             libcap-dev \
             libdbus-1-dev \
-            libdqlite-dev \
             liblxc-dev \
             libseccomp-dev \
             libselinux-dev \
             libsqlite3-dev \
             libtool \
             libudev-dev \
+            libuv1-dev \
             make \
             pkg-config\
             acl \
@@ -259,6 +261,7 @@ jobs:
       - name: Run LXD build
         run: |
           set -eux
+          make deps
           make
 
       - name: Setup MicroCeph
@@ -325,13 +328,13 @@ jobs:
           sudo microceph.ceph status
           sudo rm -f /snap/bin/rbd
 
-      - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
+      - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          sudo --preserve-env=PATH,GOPATH,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
   client:
     name: Client
