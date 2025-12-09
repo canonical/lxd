@@ -12,7 +12,22 @@ test_oidc() {
 
   # Setup OIDC
   spawn_oidc
-  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device"
+
+  # Ensure a clean state before testing validation & rollback
+  lxc config unset oidc.issuer
+  lxc config unset oidc.client.id
+
+  # Should be failed on wrong issuer.
+  ! lxc config set oidc.issuer="http://127.0.0.1:22/" oidc.client.id="device" || false # Wrong port
+  ! lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/wrong-path" "oidc.client.id=device" || false # Invalid path
+  ! lxc config set "oidc.issuer=https://idp.example.com/" "oidc.client.id=device" || false # Invalid host
+
+
+  # Should remain empty as above tests failed.
+  [ -z "$(lxc config get oidc.client.id || echo fail)" ]
+  [ -z "$(lxc config get oidc.issuer || echo fail)" ]
+
+  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device" # Valid Configuration
 
   # Expect this to fail. No user set.
   ! BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
