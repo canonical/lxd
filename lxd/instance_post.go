@@ -75,6 +75,10 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	<-d.waitReady.Done()
 
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -402,14 +406,13 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Setup the instance move operation.
-			run := func(op *operations.Operation) error {
+			run := func(ctx context.Context, op *operations.Operation) error {
 				currentInst := inst
 
 				// Handle local changes.
 				if needsLocalCopy {
 					// Pass a nil target member so the local copy phase never triggers a cluster move.
-					// XXX: context.TODO() is a workaround until we have proper context propagation in operations.
-					err := instancePostMigration(context.TODO(), s, currentInst, req, nil, "", op)
+					err := instancePostMigration(ctx, s, currentInst, req, nil, "", op)
 					if err != nil {
 						return err
 					}
@@ -427,8 +430,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 				if needsClusterMove {
 					// Handle cluster move phase, including any pool/project/config changes.
-					// XXX: context.TODO() is a workaround until we have proper context propagation in operations.
-					return instancePostMigration(context.TODO(), s, currentInst, req, targetMemberInfo, targetGroupName, op)
+					return instancePostMigration(ctx, s, currentInst, req, targetMemberInfo, targetGroupName, op)
 				}
 
 				return nil
@@ -441,7 +443,15 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				resources["containers"] = resources["instances"]
 			}
 
-			op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil)
+			args := operations.OperationArgs{
+				ProjectName: projectName,
+				Type:        operationtype.InstanceMigrate,
+				Class:       operations.OperationClassTask,
+				Resources:   resources,
+				RunHook:     run,
+			}
+
+			op, err := operations.CreateUserOperation(s, requestor, args)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -463,18 +473,35 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			resources["containers"] = resources["instances"]
 		}
 
-		run := func(op *operations.Operation) error {
-			return ws.Do(s, op)
-		}
+		run := func(ctx context.Context, op *operations.Operation) error {
+			// Migrations do not currently cancel via context.
+			// The only way to cancel them is by disconnecting the websocket.
+			// This goroutine disconnects the migration websocket if the context is cancelled before the migration is complete.
+			done := make(chan struct{})
+			defer close(done)
+			go func() {
+				select {
+				case <-done:
+					return
+				case <-ctx.Done():
+					ws.disconnect()
+				}
+			}()
 
-		cancel := func(op *operations.Operation) error {
-			ws.disconnect()
-			return nil
+			return ws.Do(s, op)
 		}
 
 		if req.Target != nil {
 			// Push mode.
-			op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil)
+			args := operations.OperationArgs{
+				ProjectName: projectName,
+				Type:        operationtype.InstanceMigrate,
+				Class:       operations.OperationClassTask,
+				Resources:   resources,
+				RunHook:     run,
+			}
+
+			op, err := operations.CreateUserOperation(s, requestor, args)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -483,7 +510,17 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Pull mode.
-		op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect)
+		args := operations.OperationArgs{
+			ProjectName: projectName,
+			Type:        operationtype.InstanceMigrate,
+			Class:       operations.OperationClassWebsocket,
+			Resources:   resources,
+			Metadata:    ws.Metadata(),
+			RunHook:     run,
+			ConnectHook: ws.Connect,
+		}
+
+		op, err := operations.CreateUserOperation(s, requestor, args)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -503,7 +540,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Name %q already in use", req.Name))
 	}
 
-	run := func(*operations.Operation) error {
+	run := func(context.Context, *operations.Operation) error {
 		return inst.Rename(req.Name, true)
 	}
 
@@ -514,7 +551,15 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceRename, resources, nil, run, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.InstanceRename,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     run,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -726,7 +771,7 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 
 // Migrate an instance to another cluster node (supports both local and remote storage).
 // Source and target members must be online.
-func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, req api.InstancePost, targetArgs *db.InstanceArgs, srcMember db.NodeInfo, newMember db.NodeInfo, targetGroupName string) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, req api.InstancePost, targetArgs *db.InstanceArgs, srcMember db.NodeInfo, newMember db.NodeInfo, targetGroupName string) (func(ctx context.Context, op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 	// Make sure that the source member is online if we end up being called from another member after a
@@ -777,7 +822,7 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 		}
 	}
 
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		networkCert := s.Endpoints.NetworkCert()
 
 		// Connect to the destination member, i.e. the member to migrate the instance to.
@@ -855,16 +900,35 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 			return fmt.Errorf("Failed setting up instance migration on source: %w", err)
 		}
 
-		run := func(op *operations.Operation) error {
+		run := func(ctx context.Context, op *operations.Operation) error {
+			// Migrations do not currently cancel via context.
+			// The only way to cancel them is by disconnecting the websocket.
+			// This goroutine disconnects the migration websocket if the context is cancelled before the migration is complete.
+			done := make(chan struct{})
+			defer close(done)
+			go func() {
+				select {
+				case <-done:
+					return
+				case <-ctx.Done():
+					srcMigration.disconnect()
+				}
+			}()
+
 			return srcMigration.Do(s, op)
 		}
 
-		cancel := func(op *operations.Operation) error {
-			srcMigration.disconnect()
-			return nil
+		args := operations.OperationArgs{
+			ProjectName: targetProject,
+			Type:        operationtype.InstanceMigrate,
+			Class:       operations.OperationClassWebsocket,
+			Resources:   resources,
+			Metadata:    srcMigration.Metadata(),
+			RunHook:     run,
+			ConnectHook: srcMigration.Connect,
 		}
 
-		srcOp, err := operations.OperationCreate(ctx, s, targetProject, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect)
+		srcOp, err := operations.CreateUserOperation(s, op.Requestor(), args)
 		if err != nil {
 			return err
 		}
@@ -989,7 +1053,7 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 
 // instancePostClusteringMigrateWithRemoteStorage handles moving a remote shared storage instance from a source member that is offline.
 // This function must be run on the target cluster member to move the instance to.
-func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo, targetGroupName string) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo, targetGroupName string) (func(ctx context.Context, op *operations.Operation) error, error) {
 	// Sense checks to avoid unexpected behaviour.
 	if !srcPool.Driver().Info().Remote {
 		return nil, errors.New("Source instance's storage pool is not remote shared storage")
@@ -1016,12 +1080,12 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool stor
 		return nil, err
 	}
 
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		projectName := srcInst.Project().Name
 		srcInstName := srcInst.Name()
 
 		// Re-link the database entries against the new member name.
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			err := tx.UpdateInstanceNode(ctx, projectName, srcInstName, finalName, srcInst.ID(), newMember.Name, srcPool.ID(), volDBType)
 			if err != nil {
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMember.Name, finalName, err)
@@ -1077,7 +1141,7 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 
 	// If the source member is online then get its address so we can connect to it and see if the
 	// instance is running later.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		srcMember, err = tx.GetNodeByName(ctx, inst.Location())
 		if err != nil {
 			return fmt.Errorf("Failed getting current cluster member of instance %q", inst.Name())
@@ -1116,7 +1180,7 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 			return err
 		}
 
-		return f(op)
+		return f(ctx, op)
 	}
 
 	f, err := instancePostClusteringMigrate(ctx, s, srcPool, inst, req, targetArgs, srcMember, newMember, targetGroupName)
@@ -1124,5 +1188,5 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 		return err
 	}
 
-	return f(op)
+	return f(ctx, op)
 }

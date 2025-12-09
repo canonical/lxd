@@ -453,11 +453,17 @@ func pruneResolvedWarningsTask(stateFunc func() *state.State) (task.Func, task.S
 	f := func(ctx context.Context) {
 		s := stateFunc()
 
-		opRun := func(op *operations.Operation) error {
+		opRun := func(ctx context.Context, op *operations.Operation) error {
 			return pruneResolvedWarnings(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.WarningsPruneResolved, nil, nil, opRun, nil, nil)
+		args := operations.OperationArgs{
+			Type:    operationtype.WarningsPruneResolved,
+			Class:   operations.OperationClassTask,
+			RunHook: opRun,
+		}
+
+		op, err := operations.CreateServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating prune resolved warnings operation", logger.Ctx{"err": err})
 			return
