@@ -1770,7 +1770,7 @@ func (d *Daemon) init() error {
 
 		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, d.serverCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
-			return err
+			logger.Warn("Failed to setup OIDC verifier", logger.Ctx{"err": err})
 		}
 	}
 
