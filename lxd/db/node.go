@@ -53,6 +53,25 @@ var ClusterRoles = map[int]ClusterRole{
 	2: ClusterRoleOVNChassis,
 }
 
+// ClusterRoleIDs provides reverse lookup from role name to ID.
+// Automatically populated at init time.
+var ClusterRoleIDs map[ClusterRole]int
+
+// ClusterRoleSet provides O(1) membership testing for valid external cluster roles.
+// Automatically populated at init time.
+var ClusterRoleSet map[ClusterRole]bool
+
+func init() {
+	// Build reverse lookup maps
+	ClusterRoleIDs = make(map[ClusterRole]int, len(ClusterRoles))
+	ClusterRoleSet = make(map[ClusterRole]bool, len(ClusterRoles))
+
+	for id, role := range ClusterRoles {
+		ClusterRoleIDs[role] = id
+		ClusterRoleSet[role] = true
+	}
+}
+
 // Numeric type codes identifying different cluster member states.
 const (
 	ClusterMemberStateCreated   = 0
@@ -611,16 +630,6 @@ func (c *ClusterTx) UpdateNodeConfig(ctx context.Context, id int64, config map[s
 
 // UpdateNodeRoles changes the list of roles on a member.
 func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
-	getRoleID := func(role ClusterRole) (int, error) {
-		for k, v := range ClusterRoles {
-			if v == role {
-				return k, nil
-			}
-		}
-
-		return -1, fmt.Errorf("Invalid cluster role %q", role)
-	}
-
 	// Translate role names to ids
 	roleIDs := []int{}
 	for _, role := range roles {
@@ -629,9 +638,9 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 			continue
 		}
 
-		roleID, err := getRoleID(role)
-		if err != nil {
-			return err
+		roleID, valid := ClusterRoleIDs[role]
+		if !valid {
+			return fmt.Errorf("Invalid cluster role %q", role)
 		}
 
 		roleIDs = append(roleIDs, roleID)
