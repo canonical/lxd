@@ -128,29 +128,31 @@ install_tools() {
 
 
 install_storage_driver_tools() {
-    # Default to dir backend if none is specified
-    # If the requested backend is specified but the needed tooling is missing, try to install it.
-    if [ -z "${LXD_BACKEND:-}" ]; then
-        LXD_BACKEND="dir"
-    elif ! is_backend_available "${LXD_BACKEND}"; then
-        pkg=""
-        case "${LXD_BACKEND}" in
-          ceph)
-            pkg="ceph-common";;
-          lvm)
-            pkg="lvm2";;
-          zfs)
-            pkg="zfsutils-linux";;
-          *)
-            ;;
-        esac
+    is_backend_available "${LXD_BACKEND}" && return 0
 
-        if [ -n "${pkg}" ]; then
-            install_packages "${pkg}"
+    # Install the needed tooling is missing
+    pkg=""
+    case "${LXD_BACKEND}" in
+      btrfs)
+        pkg="btrfs-progs";;
+      ceph)
+        pkg="ceph-common";;
+      lvm)
+        pkg="lvm2";;
+      zfs)
+        pkg="zfsutils-linux";;
+      *)
+        ;;
+    esac
 
-            # Verify that the newly installed tools made the storage backend available
-            is_backend_available "${LXD_BACKEND}"
-        fi
+    if [ -n "${pkg}" ]; then
+        install_packages "${pkg}"
+
+        # Verify that the newly installed tools made the storage backend available
+        is_backend_available "${LXD_BACKEND}"
+
+        # Import storage backends now that new tools are available
+        import_storage_backends
     fi
 }
 
