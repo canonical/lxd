@@ -1562,7 +1562,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 			fsType := vol.ConfigBlockFilesystem()
 
 			if vol.mountFilesystemProbe {
-				fsType, err = fsProbe(volDevPath)
+				fsType, err = block.DiskFSType(volDevPath)
 				if err != nil {
 					return fmt.Errorf("Failed probing filesystem: %w", err)
 				}
