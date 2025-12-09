@@ -23,7 +23,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
-	"github.com/canonical/lxd/shared/version"
 )
 
 // BlockFsDetect detects the type of block device.
@@ -370,7 +369,7 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 // Returns UnsupportedError error if the host system or instance does not support virtiofsd, returns normal error
 // type if process cannot be started for other reasons.
 // Returns revert function and listener file handle on success.
-func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry, threadPoolSize uint16) (func(), net.Listener, error) {
+func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry, threadPoolSize uint16) (func(), net.Listener, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
