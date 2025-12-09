@@ -558,14 +558,7 @@ func qemuCPU(opts *qemuCPUOpts, pinning bool) []cfgSection {
 			extraMemEntries = append(extraMemEntries, share)
 		}
 
-		var hostNodesKey string
-		if opts.qemuMemObjectFormat == "indexed" {
-			hostNodesKey = "host-nodes.0"
-		} else {
-			hostNodesKey = "host-nodes"
-		}
-
-		hostNode := cfgEntry{key: hostNodesKey, value: strconv.FormatUint(element, 10)}
+		hostNode := cfgEntry{key: "host-nodes.0", value: strconv.FormatUint(element, 10)}
 		extraMemEntries = append(extraMemEntries, hostNode)
 		// append the extra entries to the [object "mem{{idx}}"] section
 		numaHostNode[0].entries = append(numaHostNode[0].entries, extraMemEntries...)
