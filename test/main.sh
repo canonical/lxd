@@ -211,9 +211,7 @@ cleanup() {
 
   # Allow for failures
   set +e
-  unset CLIENT_DEBUG
-  unset SERVER_DEBUG
-  unset SHELL_TRACING
+  unset CLIENT_DEBUG SERVER_DEBUG SHELL_TRACING
 
   # Check if we failed and if so, provide debug info and possibly an inspection shell.
   if [ "${TEST_RESULT}" != "success" ]; then
