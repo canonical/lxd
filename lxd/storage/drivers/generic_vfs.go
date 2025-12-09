@@ -1232,7 +1232,7 @@ func mountVolume(d Driver, vol Volume, getDevicePath getVolumePathFunc, op *oper
 			fsType := vol.ConfigBlockFilesystem()
 
 			if vol.mountFilesystemProbe {
-				fsType, err = fsProbe(volDevPath)
+				fsType, err = block.DiskFSType(volDevPath)
 				if err != nil {
 					return fmt.Errorf("Failed probing filesystem: %w", err)
 				}

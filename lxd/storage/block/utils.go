@@ -130,6 +130,16 @@ func DiskFSUUID(pathName string) (string, error) {
 	return strings.TrimSpace(uuid), nil
 }
 
+// DiskFSType detects the filesystem type of the block device.
+func DiskFSType(pathName string) (string, error) {
+	fsType, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", pathName)
+	if err != nil {
+		return "", fmt.Errorf("Failed to retrieve filesystem type from device %q: %w", pathName, err)
+	}
+
+	return strings.TrimSpace(fsType), nil
+}
+
 // RefreshDiskDeviceSize refreshes ISCSI multipath device-mapper device size.
 func RefreshDiskDeviceSize(ctx context.Context, diskPath string) error {
 	devName := filepath.Base(diskPath)
