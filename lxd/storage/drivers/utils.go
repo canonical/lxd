@@ -244,16 +244,6 @@ func fsUUID(path string) (string, error) {
 	return val, nil
 }
 
-// fsProbe returns the filesystem type for the given block path.
-func fsProbe(path string) (string, error) {
-	val, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", path)
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(val), nil
-}
-
 // GetPoolMountPath returns the mountpoint of the given pool.
 // {LXD_DIR}/storage-pools/<pool>.
 func GetPoolMountPath(poolName string) string {
