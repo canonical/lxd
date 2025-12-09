@@ -79,6 +79,8 @@ func qemuMachineType(architecture int) string {
 		machineType = "virt"
 	case osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN:
 		machineType = "pseries"
+	case osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN:
+		machineType = "virt"
 	case osarch.ARCH_64BIT_S390_BIG_ENDIAN:
 		machineType = "s390-ccw-virtio"
 	}
