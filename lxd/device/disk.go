@@ -33,7 +33,6 @@ import (
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -42,10 +41,6 @@ import (
 
 // Special disk "source" value used for generating a VM cloud-init config ISO.
 const diskSourceCloudInit = "cloud-init:config"
-
-// DiskVirtiofsdSockMountOpt indicates the mount option prefix used to provide the virtiofsd socket path to
-// the QEMU driver.
-const DiskVirtiofsdSockMountOpt = "virtiofsdSock"
 
 // DiskFileDescriptorMountPrefix indicates the mount dev path is using a file descriptor rather than a normal path.
 // The Mount.DevPath field will be expected to be in the format: "fd:<fdNum>:<devPath>".
@@ -1004,13 +999,6 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// vmVirtfsProxyHelperPaths returns the path for PID file to use with virtfs-proxy-helper process.
-func (d *disk) vmVirtfsProxyHelperPaths() string {
-	pidPath := filepath.Join(d.inst.DevicesPath(), filesystem.PathNameEncode(d.name)+".pid")
-
-	return pidPath
-}
-
 // vmVirtiofsdPaths returns the path for the socket and PID file to use with virtiofsd process.
 func (d *disk) vmVirtiofsdPaths() (sockPath string, pidPath string) {
 	prefix := filepath.Join(d.inst.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(d.name))
@@ -1269,7 +1257,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				revert.Add(revertFunc)
 
 				mount.TargetPath = d.config["path"]
-				mount.FSType = "9p"
+				mount.FSType = "virtiofs"
 
 				rawIDMaps, err := idmap.ParseRawIdmap(d.inst.ExpandedConfig()["raw.idmap"])
 				if err != nil {
@@ -1296,8 +1284,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					virtiofsdThreadPoolSize = uint16(virtiofsdThreadPoolSizeRaw)
 				}
 
-				// Start virtiofsd for virtio-fs share. The lxd-agent prefers to use this over the
-				// virtfs-proxy-helper 9p share. The 9p share will only be used as a fallback.
+				// Start virtiofsd for virtio-fs share.
 				err = func() error {
 					sockPath, pidPath := d.vmVirtiofsdPaths()
 					logPath := filepath.Join(d.inst.LogPath(), "disk."+filesystem.PathNameEncode(d.name)+".log")
@@ -1305,22 +1292,6 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, mountedPath, rawIDMaps, virtiofsdThreadPoolSize)
 					if err != nil {
-						var errUnsupported UnsupportedError
-						if errors.As(err, &errUnsupported) {
-							d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
-
-							if errUnsupported == ErrMissingVirtiofsd {
-								_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-									return tx.UpsertWarningLocalNode(ctx, d.inst.Project().Name, entity.TypeInstance, d.inst.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
-								})
-							} else {
-								// Resolve previous warning.
-								_ = warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.DB.Cluster, d.inst.Project().Name, warningtype.MissingVirtiofsd)
-							}
-
-							return nil
-						}
-
 						return err
 					}
 
@@ -1333,46 +1304,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					// Resolve previous warning
 					_ = warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.DB.Cluster, d.inst.Project().Name, warningtype.MissingVirtiofsd)
 
-					// Add the socket path to the mount options to indicate to the qemu driver
-					// that this share is available.
-					// Note: the sockPath is not passed to the QEMU via mount.DevPath like the
-					// 9p share above. This is because we run the 9p share concurrently
-					// and can only pass one DevPath at a time. Instead pass the sock path to
-					// the QEMU driver via the mount opts field as virtiofsdSock to allow the
-					// QEMU driver also setup the virtio-fs share.
-					mount.Opts = append(mount.Opts, DiskVirtiofsdSockMountOpt+"="+sockPath)
+					mount.DevSource = deviceConfig.DevSourcePath{Path: sockPath}
 
 					return nil
 				}()
 				if err != nil {
 					return nil, fmt.Errorf("Failed to setup virtiofsd for device %q: %w", d.name, err)
-				}
-
-				// We can't hotplug 9p shares, so only do 9p for stopped instances.
-				if !d.inst.IsRunning() {
-					// Start virtfs-proxy-helper for 9p share (this will rewrite mount.DevPath with
-					// socket FD number so must come after starting virtiofsd).
-					err = func() error {
-						unixListener, cleanup, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mountedPath, rawIDMaps)
-						if err != nil {
-							return err
-						}
-
-						revert.Add(cleanup)
-
-						runConf.Revert = func() { _ = unixListener.Close() }
-
-						// Request the unix socket is closed after QEMU has connected on startup.
-						runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
-
-						// Use 9p socket FD number as dev path so qemu can connect to the proxy.
-						mount.DevSource = deviceConfig.DevSourceFD{FD: unixListener.Fd()}
-
-						return nil
-					}()
-					if err != nil {
-						return nil, fmt.Errorf("Failed to setup virtfs-proxy-helper for device %q: %w", d.name, err)
-					}
 				}
 			} else if isPath {
 				f, err := d.localSourceOpen(pathSource.Path)
@@ -2173,14 +2110,8 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 }
 
 func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
-	// Stop the virtfs-proxy-helper process and clean up.
-	err := DiskVMVirtfsProxyStop(d.vmVirtfsProxyHelperPaths())
-	if err != nil {
-		return &deviceConfig.RunConfig{}, fmt.Errorf("Failed cleaning up virtfs-proxy-helper: %w", err)
-	}
-
 	// Stop the virtiofsd process and clean up.
-	err = DiskVMVirtiofsdStop(d.vmVirtiofsdPaths())
+	err := DiskVMVirtiofsdStop(d.vmVirtiofsdPaths())
 	if err != nil {
 		return &deviceConfig.RunConfig{}, fmt.Errorf("Failed cleaning up virtiofsd: %w", err)
 	}
