@@ -3124,7 +3124,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 				Live: live,
 			}
 
-			err := migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, "", req, op)
+			err := migrateInstance(ctx, s, inst, targetMemberInfo.Name, "", req, op)
 			if err != nil {
 				return fmt.Errorf("Failed migrating instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 			}
@@ -3134,7 +3134,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Start it back up on target.
-			dest, err := cluster.Connect(r.Context(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+			dest, err := cluster.Connect(ctx, targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 			if err != nil {
 				return fmt.Errorf("Failed connecting to destination %q for instance %q in project %q: %w", targetMemberInfo.Address, inst.Name(), inst.Project().Name, err)
 			}
