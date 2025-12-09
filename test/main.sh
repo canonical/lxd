@@ -497,6 +497,7 @@ fi
 
 if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     #run_test test_concurrent "concurrent startup" # Disabled as flaky.
+    run_test test_alias "test alias commands"
     run_test test_concurrent_exec "concurrent exec"
     run_test test_database_restore "database restore"
     run_test test_database_no_disk_space "database out of disk space"
