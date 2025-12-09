@@ -367,7 +367,7 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 
 // DiskVMVirtiofsdStart starts a new virtiofsd process.
 // If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
-// Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
+// Returns UnsupportedError error if the host system or instance does not support virtiofsd, returns normal error
 // type if process cannot be started for other reasons.
 // Returns revert function and listener file handle on success.
 func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry, threadPoolSize uint16) (func(), net.Listener, error) {
