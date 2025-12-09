@@ -13,7 +13,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/version"
 )
 
 const (
@@ -171,15 +170,6 @@ func deleteProfile(sysOS *sys.OS, fullName string, name string) error {
 func parserSupports(sysOS *sys.OS, feature string) (bool, error) {
 	if !sysOS.AppArmorAvailable {
 		return false, nil
-	}
-
-	if feature == "unix" {
-		minVer, err := version.NewDottedVersion("2.10.95")
-		if err != nil {
-			return false, err
-		}
-
-		return sysOS.AppArmorVersion.Compare(minVer) >= 0, nil
 	}
 
 	if feature == "mount_nosymfollow" || feature == "userns_rule" {
