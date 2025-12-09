@@ -2968,8 +2968,8 @@
 					{
 						"volatile.attached_volumes": {
 							"condition": "snapshot",
-							"longdesc": "JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding\nsnapshots, created as part of a multi-volume snapshot.\n",
-							"shortdesc": "JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots.",
+							"longdesc": "JSON-serialized map of attached volume device names to the UUIDs of their corresponding\nsnapshots, created as part of a multi-volume snapshot.\n",
+							"shortdesc": "JSON-serialized map of attached volume device names to the UUIDs of their corresponding snapshots.",
 							"type": "string"
 						}
 					},

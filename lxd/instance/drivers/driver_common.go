@@ -836,16 +836,16 @@ func (d *common) runHooks(hooks []func() error) error {
 	return nil
 }
 
-// getAttachedVolumeSnapshots returns storage volume snapshots matching the provided UUIDs.
+// getAttachedVolumeSnapshots returns storage volume snapshots matching the snapshot UUIDs stored in "volatile.attached_volumes".
 // Used for multi-volume instance snapshot restores and deletes.
-func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, attachedVolumeUUIDs map[string]string) ([]*db.StorageVolume, error) {
-	if len(attachedVolumeUUIDs) == 0 {
-		return nil, errors.New("No attached volume UUIDs provided")
+func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, volatileAttachedVolumes map[string]string) ([]*db.StorageVolume, error) {
+	if len(volatileAttachedVolumes) == 0 {
+		return nil, errors.New(`Empty "volatile.attached_volumes"`)
 	}
 
-	// Convert map values to slice for the database query
-	uuids := make([]string, 0, len(attachedVolumeUUIDs))
-	for _, uuid := range attachedVolumeUUIDs {
+	// Convert map values to slice of snapshot UUIDs for database query (filter storage volumes by snapshot UUID).
+	uuids := make([]string, 0, len(volatileAttachedVolumes))
+	for _, uuid := range volatileAttachedVolumes {
 		uuids = append(uuids, uuid)
 	}
 
@@ -881,8 +881,8 @@ func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, attachedVolu
 	return volumes, err
 }
 
-// getAttachedVolumes returns the list of storage volumes attached to the instance.
-func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.StorageVolume, err error) {
+// getAttachedVolumes returns a map of device names to storage volumes that are attached to the instance.
+func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map[string]db.StorageVolume, err error) {
 	// Retrieve the instance's root disk volume storage pool.
 	_, rootDiskDevice, err := d.getRootDiskDevice()
 	if err != nil {
@@ -903,10 +903,9 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 	storageCache := storagePools.NewStorageCache(rootDiskPool)
 
 	// Get attached storage volumes.
-	attachedDiskVolumeDevices := d.expandedDevices.Filter(filters.IsCustomVolumeDisk)
-	volumes = make([]*db.StorageVolume, 0, len(attachedDiskVolumeDevices))
+	attachedVolumes = make(map[string]db.StorageVolume)
 	instanceProject := inst.Project()
-	for name, dev := range attachedDiskVolumeDevices {
+	for name, dev := range d.expandedDevices.Filter(filters.IsCustomVolumeDisk) {
 		// Storage cache lookup.
 		pool, err := storageCache.GetPool(dev["pool"])
 		if err != nil {
@@ -921,7 +920,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 				return err
 			}
 
-			volumes = append(volumes, vol)
+			attachedVolumes[name] = *vol
 			return nil
 		})
 		if err != nil {
@@ -929,7 +928,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 		}
 	}
 
-	return volumes, nil
+	return attachedVolumes, nil
 }
 
 // snapshotCommon handles the common part of a snapshot.
@@ -957,7 +956,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	}
 
 	// Load attached volumes for multi-volume snapshot (if requested).
-	var attachedVolumes []*db.StorageVolume
+	var attachedVolumes map[string]db.StorageVolume
 	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
 		var err error
 		attachedVolumes, err = d.getAttachedVolumes(inst)
@@ -1033,10 +1032,10 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	if len(attachedVolumes) > 0 {
 		// Snapshot attached custom volumes.
 		storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
-		attachedVolumeUUIDs := make(map[string]string)
+		volatileAttachedVolumes := make(map[string]string)
 		instanceProject := inst.Project()
 		instanceType := inst.Type()
-		for _, volume := range attachedVolumes {
+		for deviceName, volume := range attachedVolumes {
 			// Skip ISO volumes (snapshots not supported).
 			if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
 				continue
@@ -1065,9 +1064,9 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 				return fmt.Errorf("Failed creating attached volume %q snapshot %q in storage pool %q: %w", volume.Name, snapshotName, volume.Pool, err)
 			}
 
-			// Set attached volume snapshot UUID.
+			// Map device name to snapshot UUID.
 			// This is used to identify the attached volume snapshots during restore.
-			attachedVolumeUUIDs[volume.Config["volatile.uuid"]] = snapshotUUID.String()
+			volatileAttachedVolumes[deviceName] = snapshotUUID.String()
 
 			revert.Add(func() {
 				err := pool.DeleteCustomVolumeSnapshot(volume.Project, volume.Name+"/"+snapshotName, d.op)
@@ -1077,12 +1076,12 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			})
 		}
 
-		marshalled, err := json.Marshal(attachedVolumeUUIDs)
+		marshalled, err := json.Marshal(volatileAttachedVolumes)
 		if err != nil {
 			return err
 		}
 
-		// Set "volatile.attached_volumes" to attached volume snapshot UUIDs on the snapshot instance.
+		// Set "volatile.attached_volumes" to map of device name to snapshot UUID on the snapshot instance.
 		err = snap.VolatileSet(map[string]string{
 			"volatile.attached_volumes": string(marshalled),
 		})
@@ -1270,20 +1269,20 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 
 // resolveRestoreSnapshots returns a list of snapshot volumes to include in an instance restore.
 func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance.Instance) (restoreSnapshots []*db.StorageVolume, err error) {
-	var attachedVolumeUUIDs map[string]string
-	err = json.Unmarshal([]byte(source.LocalConfig()["volatile.attached_volumes"]), &attachedVolumeUUIDs)
+	var volatileAttachedVolumes map[string]string
+	err = json.Unmarshal([]byte(source.LocalConfig()["volatile.attached_volumes"]), &volatileAttachedVolumes)
 	if err != nil {
 		return nil, fmt.Errorf(`Failed parsing source instance "volatile.attached_volumes": %w`, err)
 	}
 
-	// Get attached volumes.
+	// Get attached volumes (map of device name -> volume).
 	attachedVolumes, err := d.getAttachedVolumes(source)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting attached volumes: %w", err)
 	}
 
 	// Get attached volume snapshots.
-	attachedVolumeSnapshots, err := d.getAttachedVolumeSnapshots(source, attachedVolumeUUIDs)
+	attachedVolumeSnapshots, err := d.getAttachedVolumeSnapshots(source, volatileAttachedVolumes)
 	if err != nil {
 		return nil, err
 	}
@@ -1294,18 +1293,21 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 		uuidToVolume[vol.Config["volatile.uuid"]] = vol
 	}
 
-	var missing []*db.StorageVolume
-	var shared []*db.StorageVolume
+	var missing []db.StorageVolume
+	var shared []db.StorageVolume
 
 	// Check which attached volumes have matching snapshots.
 	restoreSnapshots = make([]*db.StorageVolume, 0, len(attachedVolumeSnapshots))
-	for _, v := range attachedVolumes {
-		snapshotUUID := attachedVolumeUUIDs[v.Config["volatile.uuid"]]
+	for deviceName, snapshotUUID := range volatileAttachedVolumes {
 		vol, ok := uuidToVolume[snapshotUUID]
 		if ok {
 			restoreSnapshots = append(restoreSnapshots, vol)
 		} else {
-			missing = append(missing, v)
+			// Get volume details for logging.
+			v, ok := attachedVolumes[deviceName]
+			if ok {
+				missing = append(missing, v)
+			}
 		}
 	}
 
