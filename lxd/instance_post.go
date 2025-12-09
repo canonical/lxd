@@ -362,7 +362,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			run := func(op *operations.Operation) error {
-				return migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, targetGroupName, req, op)
+				return migrateInstance(context.TODO(), s, inst, targetMemberInfo.Name, targetGroupName, req, op)
 			}
 
 			resources := map[string][]api.URL{}
