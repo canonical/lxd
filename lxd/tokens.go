@@ -60,10 +60,12 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 
 	opRun := func(ctx context.Context, op *operations.Operation) error {
 		for _, op := range expiredTokenOps {
-			_, err := op.Cancel()
+			err := op.Cancel()
 			if err != nil {
 				logger.Warn("Failed removing expired token", logger.Ctx{"err": err, "operation": op.ID()})
 			}
+
+			_ = op.Wait(ctx)
 		}
 
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
