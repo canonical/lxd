@@ -445,12 +445,12 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"volatile.apply_template": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.attached_volumes)
-	// JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding
+	// JSON-serialized map of attached volume device names to the UUIDs of their corresponding
 	// snapshots, created as part of a multi-volume snapshot.
 	//
 	// ---
 	//   type: string
-	//   shortdesc: JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots.
+	//   shortdesc: JSON-serialized map of attached volume device names to the UUIDs of their corresponding snapshots.
 	//   condition: snapshot
 	"volatile.attached_volumes": validate.IsAny,
 
