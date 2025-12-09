@@ -26,16 +26,6 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// BlockFsDetect detects the type of block device.
-func BlockFsDetect(dev string) (string, error) {
-	out, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", dev)
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(out), nil
-}
-
 // DiskMount mounts a disk device.
 func DiskMount(srcPath string, dstPath string, recursive bool, propagation string, mountOptions []string, fsName string) error {
 	var err error
