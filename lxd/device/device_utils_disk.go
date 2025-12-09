@@ -23,7 +23,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
-	"github.com/canonical/lxd/shared/version"
 )
 
 // BlockFsDetect detects the type of block device.
@@ -367,10 +366,10 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 
 // DiskVMVirtiofsdStart starts a new virtiofsd process.
 // If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
-// Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
+// Returns UnsupportedError error if the host system or instance does not support virtiofsd, returns normal error
 // type if process cannot be started for other reasons.
 // Returns revert function and listener file handle on success.
-func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry, threadPoolSize uint16) (func(), net.Listener, error) {
+func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry, threadPoolSize uint16) (func(), net.Listener, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -455,13 +454,6 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 		"--allow-direct-io",
 		"--thread-pool-size", strconv.FormatUint(uint64(threadPoolSize), 10),
 		"--xattr",
-	}
-
-	// Virtiofsd defaults to namespace sandbox mode which requires pidfd_open support.
-	// This was added in Linux 5.3, so if running an earlier kernel fallback to chroot sandbox mode.
-	minVer, _ := version.NewDottedVersion("5.3.0")
-	if kernelVersion.Compare(minVer) < 0 {
-		args = append(args, "--sandbox=chroot")
 	}
 
 	proc, err := subprocess.NewProcess(cmd, args, logPath, logPath)
