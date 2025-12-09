@@ -1302,7 +1302,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					logPath := filepath.Join(d.inst.LogPath(), "disk."+filesystem.PathNameEncode(d.name)+".log")
 					_ = os.Remove(logPath) // Remove old log if needed.
 
-					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.KernelVersion, d.inst, sockPath, pidPath, logPath, mountedPath, rawIDMaps, virtiofsdThreadPoolSize)
+					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, mountedPath, rawIDMaps, virtiofsdThreadPoolSize)
 					if err != nil {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {
