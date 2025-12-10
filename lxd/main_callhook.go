@@ -42,25 +42,30 @@ func (c *cmdCallhook) Command() *cobra.Command {
 	return cmd
 }
 
-// resolveTargetRelativeToLink converts a target relative to a link path into an absolute path.
+// resolveTargetRelativeToLink converts a link's target into a path relative to the link's path.
 func resolveTargetRelativeToLink(link string, target string) (string, error) {
 	if !filepath.IsAbs(link) {
 		return "", fmt.Errorf("The link must be an absolute path: %q (target: %q)", link, target)
 	}
 
-	if filepath.IsAbs(target) {
+	// If target is already relative, return as-is.
+	if !filepath.IsAbs(target) {
 		return target, nil
 	}
 
-	linkDir := filepath.Dir(link)
-	absTarget := filepath.Join(linkDir, target)
-	cleanPath := filepath.Clean(absTarget)
-	absPath, err := filepath.Abs(cleanPath)
+	// Clean both paths to normalize them.
+	linkClean := filepath.Clean(link)
+	targetClean := filepath.Clean(target)
+
+	linkDir := filepath.Dir(linkClean)
+
+	// Calculate the relative path from link's directory to the target.
+	relPath, err := filepath.Rel(linkDir, targetClean)
 	if err != nil {
 		return "", err
 	}
 
-	return absPath, nil
+	return relPath, nil
 }
 
 // customCDILinkerConfFile is the name of the linker conf file we will write to
@@ -101,7 +106,7 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 	// Creating the symlinks
 	for _, symlink := range hooks.Symlinks {
 		// Resolve hook link from target
-		absTarget, err := resolveTargetRelativeToLink(symlink.Link, symlink.Target)
+		target, err := resolveTargetRelativeToLink(symlink.Link, symlink.Target)
 		if err != nil {
 			return fmt.Errorf("Failed to resolve a CDI symlink: %w\n", err)
 		}
@@ -113,13 +118,13 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 		}
 
 		// Create the symlink
-		err = os.Symlink(absTarget, filepath.Join(containerRootFSMount, symlink.Link))
+		err = os.Symlink(target, filepath.Join(containerRootFSMount, symlink.Link))
 		if err != nil {
 			if !errors.Is(err, fs.ErrExist) {
 				return fmt.Errorf("Failed to create the CDI symlink: %w\n", err)
 			}
 
-			fmt.Printf("Symlink not created because link %q already exists for target %q\n", symlink.Link, absTarget)
+			fmt.Printf("Symlink not created because link %q already exists for target %q\n", symlink.Link, target)
 		}
 	}
 
