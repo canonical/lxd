@@ -54,7 +54,9 @@ updates:
     labels: []
     schedule:
       interval: "weekly"
-    security-updates: true
+    # Security updates have a different PR limit policy (cannot be tweaked)
+    # Preventing PR for regular updates will ensure only security related updates are proposed
+    open-pull-requests-limit: 0
     target-branch: "stable-5.0"
     cooldown:
       default-days: 7
