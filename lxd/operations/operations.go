@@ -101,13 +101,18 @@ type Operation struct {
 	logger      logger.Logger
 
 	// Those functions are called at various points in the Operation lifecycle
-	onRun     func(*Operation) error
+	onRun     func(context.Context, *Operation) error
 	onCancel  func(*Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 	onDone    func(*Operation)
 
-	// Indicates if operation has finished.
+	// finished is cancelled when the operation has finished executing all configured hooks.
+	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
+
+	// running is the basis of the [context.Context] passed into the onRun hook.
+	// It is cancelled when the onRun hook completes or when Cancel is called (on operation deletion).
+	running cancel.Canceller
 
 	// Locking for concurent access to the Operation
 	lock sync.Mutex
@@ -118,7 +123,7 @@ type Operation struct {
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(ctx context.Context, s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+func OperationCreate(ctx context.Context, s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(context.Context, *Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -138,6 +143,7 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
 	op.resources = opResources
 	op.finished = cancel.New()
+	op.running = cancel.New()
 	op.state = s
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
@@ -312,11 +318,21 @@ func (op *Operation) Start() error {
 	op.status = api.Running
 
 	if op.onRun != nil {
-		go func(op *Operation) {
-			err := op.onRun(op)
+		// The operation context is the "running" context plus the requestor.
+		// The requestor is available directly on the operation, but we should still put it in the context.
+		// This is so that, if an operation queries another cluster member, the requestor information will be set
+		// in the request headers.
+		runCtx := context.Context(op.running)
+		if op.requestor != nil {
+			runCtx = request.WithRequestor(runCtx, op.requestor)
+		}
+
+		go func(ctx context.Context, op *Operation) {
+			err := op.onRun(ctx, op)
 			if err != nil {
 				op.lock.Lock()
 				op.status = api.Failure
+				op.running.Cancel()
 				op.err = err
 				op.lock.Unlock()
 				op.done()
@@ -333,6 +349,7 @@ func (op *Operation) Start() error {
 
 			op.lock.Lock()
 			op.status = api.Success
+			op.running.Cancel()
 			op.lock.Unlock()
 			op.done()
 
@@ -342,7 +359,7 @@ func (op *Operation) Start() error {
 			op.lock.Lock()
 			op.sendEvent(md)
 			op.lock.Unlock()
-		}(op)
+		}(runCtx, op)
 	}
 
 	op.lock.Unlock()
@@ -375,6 +392,7 @@ func (op *Operation) Cancel() (chan error, error) {
 
 	oldStatus := op.status
 	op.status = api.Cancelling
+	op.running.Cancel()
 	op.lock.Unlock()
 
 	hasOnCancel := op.onCancel != nil
