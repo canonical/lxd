@@ -154,12 +154,6 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 		}
 	}
 
-	// Check for features.
-	unixSupported, err := parserSupports(sysOS, "unix")
-	if err != nil {
-		return "", err
-	}
-
 	// Render the profile.
 	sb := &strings.Builder{}
 	if inst.Type() == instancetype.Container {
@@ -177,7 +171,6 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"feature_cgns":              sysOS.CGInfo.Namespacing,
 			"feature_cgroup2":           sysOS.CGInfo.Layout == cgroup.CgroupsUnified || sysOS.CGInfo.Layout == cgroup.CgroupsHybrid,
 			"feature_stacking":          sysOS.AppArmorStacking && !sysOS.AppArmorStacked,
-			"feature_unix":              unixSupported,
 			"kernel_binfmt":             shared.IsFalseOrEmpty(inst.ExpandedConfig()["security.privileged"]) && sysOS.UnprivBinfmt,
 			"feature_mount_nosymfollow": mountNosymfollowSupported,
 			"feature_userns_rule":       usernsRuleSupported,

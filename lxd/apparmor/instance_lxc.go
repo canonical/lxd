@@ -423,15 +423,11 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /sys/fs?*{,/**} wklx,
 {{- end }}
 
-{{- if .feature_unix }}
-
-  ### Feature: unix
   # Allow receive via unix sockets from anywhere
   unix (receive),
 
   # Allow all unix in the container
   unix peer=(label=@{profile_name}),
-{{- end }}
 
 {{- if .feature_cgns }}
 

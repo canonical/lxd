@@ -64,7 +64,7 @@ func (s *OS) initAppArmor() []cluster.Warning {
 	// Detect AppArmor cache directories.
 	s.AppArmorCacheLoc = shared.VarPath("security", "apparmor", "cache")
 	if s.AppArmorAvailable {
-		s.AppArmorCacheDir, err = appArmorGetCacheDir(s.AppArmorVersion, s.AppArmorCacheLoc)
+		s.AppArmorCacheDir, err = appArmorGetCacheDir(s.AppArmorCacheLoc)
 		if err != nil {
 			logger.Warn("AppArmor feature cache directory detection failed", logger.Ctx{"err": err})
 		} else {
@@ -144,19 +144,8 @@ func appArmorGetVersion() (*version.DottedVersion, error) {
 }
 
 // appArmorGetCacheDir returns the AppArmor cache directory based on the cache location.
-// If appArmor version is less than 2.13, it returns the base cache location directory.
-func appArmorGetCacheDir(ver *version.DottedVersion, cacheLoc string) (string, error) {
-	// Multiple policy cache directories were only added in v2.13.
-	minVer, err := version.NewDottedVersion("2.13")
-	if err != nil {
-		return "", err
-	}
-
-	if ver.Compare(minVer) < 0 {
-		return cacheLoc, nil
-	}
-
-	// `--print-cache-dir` returns a subdirectory under `--cache-loc`.
+func appArmorGetCacheDir(cacheLoc string) (string, error) {
+	// `--print-cache-dir` (added in Apparmor v2.13) returns a subdirectory under `--cache-loc`.
 	// The subdirectory used will be influenced by the features available and enabled.
 	out, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "--cache-loc", cacheLoc, "--print-cache-dir")
 	if err != nil {
