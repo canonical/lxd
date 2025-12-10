@@ -160,6 +160,22 @@ test_authorization() {
   lxc auth identity list --format csv | grep -F 'oidc,OIDC client," ",test-user@example.com,test-group'
   lxc auth identity list --format csv | grep -F "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
 
+  # Test bearer token.
+  #
+  # LXC reads bearer tokens from the LXD_AUTH_BEARER_TOKEN environment variable. When set, it takes
+  # precedence over TLS auth, which lets us reuse the same test flow across scenarios.
+  #
+  # To test bearer auth, we still need a non-unix remote (lxc will not respect bearer token over unix socket).
+  # Therefore, we add a remote using a TLS identity, then supply LXD_AUTH_BEARER_TOKEN for the actual calls so
+  # bearer is used.
+  LXD_CONF4=$(mktemp -d -p "${TEST_DIR}" XXX)
+  tls_bearer_remote_token="$(lxc auth identity create tls/bearer-remote-user --quiet --group test-group)"
+  LXD_CONF="${LXD_CONF4}" lxc remote add bearer "${tls_bearer_remote_token}"
+  LXD_CONF="${LXD_CONF4}" lxc_remote query bearer:/1.0 | jq --exit-status '.auth == "trusted"'
+  lxc auth identity create bearer/test-user --group test-group
+  bearer_identity_id="$(lxc auth identity show bearer/test-user | grep "^id:" | cut -d' ' -f2)"
+  bearer_identity_token="$(lxc auth identity token issue bearer/test-user --quiet)"
+
   # Test `lxc auth identity info`
   expectedOIDCInfo='authentication_method: oidc
 type: OIDC client
@@ -190,6 +206,24 @@ fine_grained: true"
 
   [ "$(LXD_CONF="${LXD_CONF2}" lxc auth identity info tls:)" = "${expectedTLSInfo}" ]
 
+  # Need heredoc to retain double quotes for empty TLS certificate.
+  expectedBearerInfo="authentication_method: bearer
+type: Client token bearer
+id: ${bearer_identity_id}
+name: test-user
+groups:
+- test-group
+tls_certificate: \"\"
+effective_groups:
+- test-group
+effective_permissions: []
+fine_grained: true"
+
+  # When bearer token is passed using environment variable, it will take precedence over the OIDC/TLS
+  # authentication, however, we need HTTPS remote to get the identity info. We simply reuse the remote
+  # used for testing TLS authentication.
+  [ "$(LXD_CONF="${LXD_CONF4}" LXD_AUTH_BEARER_TOKEN="${bearer_identity_token}" lxc auth identity info bearer:)" = "${expectedBearerInfo}" ]
+
   # Identity permissions.
   ! lxc auth group permission add test-group identity test-user@example.com can_view || false # Missing authentication method
   lxc auth group permission add test-group identity oidc/test-user@example.com can_view # Valid
@@ -215,6 +249,34 @@ fine_grained: true"
   lxc auth group permission add test-group identity "devlxd/${devlxd_identity_id}" can_view # Valid
   lxc auth group permission remove test-group identity "devlxd/${devlxd_identity_id}" can_view
   ! lxc auth group permission remove test-group identity "devlxd/${devlxd_identity_id}" can_view || false # Already removed
+  lxc auth identity delete devlxd/tmp
+
+  lxc auth identity create bearer/tmp
+  tmp_bearer_identity_id="$(lxc auth identity show bearer/tmp | grep "^id:" | cut -d' ' -f2)"
+  ! lxc auth group permission add test-group identity "${tmp_bearer_identity_id}" can_view || false # Missing authentication method
+  lxc auth group permission add test-group identity "bearer/${tmp_bearer_identity_id}" can_view # Valid
+  lxc auth group permission remove test-group identity "bearer/${tmp_bearer_identity_id}" can_view
+  ! lxc auth group permission remove test-group identity "bearer/${tmp_bearer_identity_id}" can_view || false # Already removed
+  lxc auth identity delete bearer/tmp
+
+  # Ensure bearer token can be used to authenticate with main LXD API.
+  # Use curl instead of lxc to ensure API interaction is correct.
+  lxc auth identity create bearer/tmp
+  tmp_bearer_identity_id="$(lxc auth identity show bearer/tmp | grep "^id:" | cut -d' ' -f2)"
+  tmp_bearer_identity_token="$(lxc auth identity token issue bearer/tmp --quiet)"
+  curl -s -k -H "Authorization: Bearer ${tmp_bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+  curl -s -k -H "Authorization: Bearer ${tmp_bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth_user_method == "bearer"'
+  curl -s -k -H "Authorization: Bearer ${tmp_bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status --arg id "${tmp_bearer_identity_id}" '.metadata.auth_user_name == $id'
+
+  # Check that bearer token revocation works.
+  lxc auth identity token revoke bearer/tmp
+  curl -s -k -H "Authorization: Bearer ${tmp_bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.error_code == 403'
+  lxc auth identity delete bearer/tmp
+
+  # Ensure DevLXD token cannot be to authenticate with main LXD API.
+  lxc auth identity create devlxd/tmp
+  devlxd_identity_token="$(lxc auth identity token issue devlxd/tmp --quiet)"
+  curl -s -k -H "Authorization: Bearer ${devlxd_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.error_code == 403'
   lxc auth identity delete devlxd/tmp
 
   ### IDENTITY PROVIDER GROUP MANAGEMENT ###
@@ -256,18 +318,22 @@ fine_grained: true"
   # Check storage pool used-by URLs
   storage_pool_used_by "oidc"
   LXD_CONF="${LXD_CONF2}" storage_pool_used_by "tls"
+  LXD_CONF="${LXD_CONF4}" LXD_AUTH_BEARER_TOKEN="${bearer_identity_token}" storage_pool_used_by "bearer"
 
   # Check network used-by URLs
   network_used_by "oidc"
   LXD_CONF="${LXD_CONF2}" network_used_by "tls"
+  LXD_CONF="${LXD_CONF4}" LXD_AUTH_BEARER_TOKEN="${bearer_identity_token}" network_used_by "bearer"
 
   # Perform access checks
   fine_grained_authorization "oidc"
   LXD_CONF="${LXD_CONF2}" fine_grained_authorization "tls"
+  LXD_CONF="${LXD_CONF4}" LXD_AUTH_BEARER_TOKEN="${bearer_identity_token}" fine_grained_authorization "bearer"
 
   # Perform access check compatibility with project feature flags
   auth_project_features "oidc"
   LXD_CONF="${LXD_CONF2}" auth_project_features "tls"
+  LXD_CONF="${LXD_CONF4}" LXD_AUTH_BEARER_TOKEN="${bearer_identity_token}" auth_project_features "bearer"
 
   # Entitlement enrichment
   entities_enrichment_with_entitlements
@@ -275,6 +341,7 @@ fine_grained: true"
   # Access checks with project specific networks.
   auth_ovn "oidc"
   LXD_CONF="${LXD_CONF2}" auth_ovn "tls"
+  LXD_CONF="${LXD_CONF4}" LXD_AUTH_BEARER_TOKEN="${bearer_identity_token}" auth_ovn "bearer"
 
   # The OIDC identity should be able to delete themselves without any permissions.
   lxc auth identity group remove oidc/test-user@example.com test-group
@@ -370,6 +437,8 @@ fine_grained: true"
   [ "$("${_LXC}" query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\"}" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
 
   lxc auth identity delete devlxd/test-bearer
+  lxc auth identity delete bearer/test-user
+  lxc auth identity delete tls/bearer-remote-user
   lxc auth identity group add oidc/test-user@example.com test-group
 
   # Cleanup
@@ -379,6 +448,7 @@ fine_grained: true"
   lxc remote remove oidc
   rm -r "${LXD_CONF2}"
   rm -r "${LXD_CONF3}"
+  rm -r "${LXD_CONF4}"
   rm "${TEST_DIR}"/unrestricted.{crt,key}
   rm "${TEST_DIR}"/user{4,5,6}.{crt,key}
   lxc config set core.remote_token_expiry="" oidc.issuer="" oidc.client.id=""
@@ -734,7 +804,8 @@ user_is_server_admin() {
   certificate_add_token="$(lxc_remote config trust add "${remote}:" --name test --quiet)"
 
   # The token works.
-  LXD_CONF="${TMP_LXD_CONF}" lxc_remote remote add test-remote "${certificate_add_token}"
+  # Make sure the join token is used during remote addition and the bearer token does not take precedence.
+  LXD_AUTH_BEARER_TOKEN="" LXD_CONF="${TMP_LXD_CONF}" lxc_remote remote add test-remote "${certificate_add_token}"
 
   # Clean up test certificate and config dir.
   lxc_remote config trust remove "${remote}:${tmp_cert_fingerprint}"
