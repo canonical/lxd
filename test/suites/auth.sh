@@ -217,6 +217,37 @@ fine_grained: true"
   ! lxc auth group permission remove test-group identity "devlxd/${devlxd_identity_id}" can_view || false # Already removed
   lxc auth identity delete devlxd/tmp
 
+  lxc auth identity create bearer/tmp
+  bearer_identity_id="$(lxc auth identity show bearer/tmp | grep "^id:" | cut -d' ' -f2)"
+  ! lxc auth group permission add test-group identity "${bearer_identity_id}" can_view || false # Missing authentication method
+  lxc auth group permission add test-group identity "bearer/${bearer_identity_id}" can_view # Valid
+  lxc auth group permission remove test-group identity "bearer/${bearer_identity_id}" can_view
+  ! lxc auth group permission remove test-group identity "bearer/${bearer_identity_id}" can_view || false # Already removed
+  lxc auth identity delete bearer/tmp
+
+  # Ensure bearer token can be used to authenticate with main LXD API.
+  lxc auth identity create bearer/tmp
+  LXD_CONF="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  bearer_identity_id="$(lxc auth identity show bearer/tmp | grep "^id:" | cut -d' ' -f2)"
+  bearer_identity_token="$(lxc auth identity token issue bearer/tmp --quiet)"
+  curl -s -k -H "Authorization: Bearer ${bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+  curl -s -k -H "Authorization: Bearer ${bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth_user_method == "bearer"'
+  curl -s -k -H "Authorization: Bearer ${bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status --arg id "${bearer_identity_id}" '.metadata.auth_user_name == $id'
+
+  # Check that bearer token revocation works.
+  lxc auth identity token revoke bearer/tmp
+  ! curl -s -k -f -H "Authorization: Bearer ${bearer_identity_token}" "https://${LXD_ADDR}/1.0" || false
+  lxc auth identity delete bearer/tmp
+
+  # Ensure DevLXD token cannot be to authenticate with main LXD API.
+  lxc auth identity create devlxd/tmp
+  devlxd_identity_token="$(lxc auth identity token issue devlxd/tmp --quiet)"
+  ! curl -s -k -f -H "Authorization: Bearer ${devlxd_identity_token}" "https://${LXD_ADDR}/1.0" || false
+  lxc auth identity delete devlxd/tmp
+
+  # Cleanup
+  rm -rf "${LXD_CONF}"
+
   ### IDENTITY PROVIDER GROUP MANAGEMENT ###
   lxc auth identity-provider-group create test-idp-group
   ! lxc auth identity-provider-group group add test-idp-group not-found || false # Group not found
