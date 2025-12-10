@@ -276,6 +276,7 @@ endif
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
 	go get github.com/opencontainers/runtime-spec@v1.2.1 # Due to incompat with nvidia-container-toolkit
 	go get github.com/olekukonko/tablewriter@v0.0.5 # Due to breaking API in later versions
+	go get tags.cncf.io/container-device-interface/specs-go@v1.0.0 # Due to compilation issue
 
 	# Enforce minimum go version
 	$(MAKE) check-gomin
