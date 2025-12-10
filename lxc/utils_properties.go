@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
-
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 // stringToTimeHookFunc is a custom decoding hook that converts string values to time.Time using the given layout.
@@ -219,12 +217,12 @@ func unpackKVToWritable(writable any, keys map[string]string) error {
 		),
 	})
 	if err != nil {
-		return fmt.Errorf(i18n.G("Error creating decoder: %v"), err)
+		return fmt.Errorf("Error creating decoder: %v", err)
 	}
 
 	err = decoder.Decode(data)
 	if err != nil {
-		return fmt.Errorf(i18n.G("Error decoding data: %v"), err)
+		return fmt.Errorf("Error decoding data: %v", err)
 	}
 
 	return nil
