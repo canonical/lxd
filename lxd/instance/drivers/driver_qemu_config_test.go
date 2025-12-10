@@ -424,7 +424,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				cpuNumaHostNodes:    []uint64{},
 				hugepages:           "",
 				memory:              7629,
-				qemuMemObjectFormat: "repeated",
+				qemuMemObjectFormat: "indexed",
 			},
 			`# CPU
 			[smp-opts]
@@ -593,7 +593,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				cpuNumaHostNodes:    []uint64{8, 9, 10},
 				hugepages:           "",
 				memory:              12000,
-				qemuMemObjectFormat: "repeated",
+				qemuMemObjectFormat: "indexed",
 			},
 			`# CPU
 			[smp-opts]
@@ -606,7 +606,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			qom-type = "memory-backend-memfd"
 			size = "12000M"
 			policy = "bind"
-			host-nodes = "8"
+			host-nodes.0 = "8"
 
 			[numa]
 			type = "node"
@@ -617,7 +617,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			qom-type = "memory-backend-memfd"
 			size = "12000M"
 			policy = "bind"
-			host-nodes = "9"
+			host-nodes.0 = "9"
 
 			[numa]
 			type = "node"
@@ -628,7 +628,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			qom-type = "memory-backend-memfd"
 			size = "12000M"
 			policy = "bind"
-			host-nodes = "10"
+			host-nodes.0 = "10"
 
 			[numa]
 			type = "node"
