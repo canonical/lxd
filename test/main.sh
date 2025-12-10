@@ -21,6 +21,7 @@ fi
 # Create GOCOVERDIR if needed
 [ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}"
 
+# === export needed environment variables with defaults === #
 # OVN
 export LXD_OVN_NB_CA_CRT_FILE="${LXD_OVN_NB_CA_CRT_FILE:-}"
 export LXD_OVN_NB_CLIENT_CRT_FILE="${LXD_OVN_NB_CLIENT_CRT_FILE:-}"
@@ -93,6 +94,20 @@ if [ "${LXD_DEBUG:-0}" != "0" ]; then
   SHELL_TRACING=1
 fi
 
+# Default sizes to be used with storage pools
+export DEFAULT_VOLUME_SIZE="24MiB"
+export DEFAULT_POOL_SIZE="3GiB"
+
+export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
+export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
+
+# This must be enough to accommodate the busybox testimage
+export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
+
+# This must be enough to accommodate the ubuntu-minimal-daily:24.04 image
+export SMALLEST_VM_ROOT_DISK="3584MiB"
+export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
+
 # shellcheck disable=SC2034
 LXD_NETNS=""
 
@@ -103,6 +118,44 @@ import_subdir_files() {
         # shellcheck disable=SC1090
         . "$file"
     done
+}
+
+dependency_checks() {
+  echo "==> Checking for dependencies"
+  check_dependencies lxd lxc curl busybox dnsmasq expect iptables jq nc ping python3 yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
+  if [ "${LXD_VM_TESTS}" = "1" ]; then
+    check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
+  fi
+  if ! check_dependencies minio mc; then
+    download_minio
+  fi
+
+  echo "==> Checking test dependencies"
+  if ! check_dependencies devlxd-client lxd-client fuidshift mini-oidc sysinfo; then
+    make -C "${MAIN_DIR}/.." test-binaries
+  fi
+
+  # If no test image is specified, busybox-static will be needed by test/deps/import-busybox
+  if [ -z "${LXD_TEST_IMAGE:-}" ]; then
+    BUSYBOX="$(command -v busybox)"
+    if [ ! -e "${BUSYBOX}" ]; then
+        echo "Please install busybox (busybox-static) or set LXD_TEST_IMAGE"
+        exit 1
+    fi
+
+    if ldd "${BUSYBOX}" >/dev/null 2>&1; then
+        echo "The testsuite requires ${BUSYBOX} to be a static binary"
+        exit 1
+    fi
+
+    # Cache the busybox testimage for reuse
+    deps/import-busybox --save-image
+
+    # Avoid `.tar.xz` extension that may conflict with some tests
+    mv busybox.tar.xz busybox.tar.xz.cache
+    export LXD_TEST_IMAGE="busybox.tar.xz.cache"
+    echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
+  fi
 }
 
 # `main.sh` needs to be executed from inside the `test/` directory
@@ -135,41 +188,7 @@ import_subdir_files includes
 # Install needed instance drivers
 install_instance_drivers
 
-echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl busybox dnsmasq expect iptables jq nc ping python3 yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
-if [ "${LXD_VM_TESTS}" = "1" ]; then
-  check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
-fi
-if ! check_dependencies minio mc; then
-  download_minio
-fi
-
-echo "==> Checking test dependencies"
-if ! check_dependencies devlxd-client lxd-client fuidshift mini-oidc sysinfo; then
-  make -C "${MAIN_DIR}/.." test-binaries
-fi
-
-# If no test image is specified, busybox-static will be needed by test/deps/import-busybox
-if [ -z "${LXD_TEST_IMAGE:-}" ]; then
-  BUSYBOX="$(command -v busybox)"
-  if [ ! -e "${BUSYBOX}" ]; then
-      echo "Please install busybox (busybox-static) or set LXD_TEST_IMAGE"
-      exit 1
-  fi
-
-  if ldd "${BUSYBOX}" >/dev/null 2>&1; then
-      echo "The testsuite requires ${BUSYBOX} to be a static binary"
-      exit 1
-  fi
-
-  # Cache the busybox testimage for reuse
-  deps/import-busybox --save-image
-
-  # Avoid `.tar.xz` extension that may conflict with some tests
-  mv busybox.tar.xz busybox.tar.xz.cache
-  export LXD_TEST_IMAGE="busybox.tar.xz.cache"
-  echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
-fi
+dependency_checks
 
 # find the path to lxc binary, not the shell wrapper function
 _LXC="$(unset -f lxc; command -v lxc)"
@@ -179,19 +198,6 @@ export _LXC
 # Set ulimit to ensure core dump is outputted.
 ulimit -c unlimited
 echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
-
-# Default sizes to be used with storage pools
-export DEFAULT_VOLUME_SIZE="24MiB"
-export DEFAULT_POOL_SIZE="3GiB"
-
-echo "==> Available storage backends: $(available_storage_backends | sort)"
-if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
-  echo "Storage backend \"$LXD_BACKEND\" is not available"
-  exit 1
-fi
-echo "==> Using storage backend ${LXD_BACKEND}"
-
-import_storage_backends
 
 cleanup() {
   # Stop tracing everything
@@ -285,6 +291,9 @@ cleanup() {
     echo "==> FAILED TEST: ${TEST_CURRENT#test_}"
   fi
   echo "==> Test result: ${TEST_RESULT}"
+
+  # Allow for reexecution
+  unset LXD_DIR
 }
 
 # Must be set before cleanup()
@@ -462,17 +471,6 @@ spawn_initial_lxd() {
     LXD_ADDR="$(< "${LXD_DIR}/lxd.addr")"
     export LXD_ADDR
 }
-
-export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
-
-export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
-
-# This must be enough to accommodate the busybox testimage
-export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
-
-# This must be enough to accommodate the ubuntu-minimal-daily:24.04 image
-export SMALLEST_VM_ROOT_DISK="3584MiB"
-export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
 
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
