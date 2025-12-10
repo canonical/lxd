@@ -53,7 +53,7 @@ func rsyncSend(ctx context.Context, conn *websocket.Conn, path string, rsyncArgs
 
 // Spawn the rsync process.
 func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instanceType api.InstanceType) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
-	auds := "@lxd-migrate/" + uuid.New().String()
+	auds := "@lxd-convert/" + uuid.New().String()
 	if len(auds) > linux.ABSTRACT_UNIX_SOCK_LEN-1 {
 		auds = auds[:linux.ABSTRACT_UNIX_SOCK_LEN-1]
 	}
