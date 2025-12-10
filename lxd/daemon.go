@@ -2594,7 +2594,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		maxVoters := s.GlobalConfig.MaxVoters()
 		maxStandBy := s.GlobalConfig.MaxStandBy()
 
-		needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys < maxStandBy
+		needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy
 
 		if needsRebalance || hasNodesNotPartOfRaft {
 			d.clusterMembershipMutex.Lock()
