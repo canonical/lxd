@@ -84,6 +84,7 @@ var types = []Type{
 	CertificateMetricsUnrestricted{},
 	CertificateServer{},
 	DevLXDTokenBearer{},
+	TokenBearerClient{},
 }
 
 var nameToType = make(map[string]Type, len(types))
