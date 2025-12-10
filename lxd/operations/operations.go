@@ -120,9 +120,33 @@ type Operation struct {
 	events *events.Server
 }
 
-// OperationCreate creates a new operation and returns it. If it cannot be
-// created, it returns an error.
-func OperationCreate(ctx context.Context, s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(context.Context, *Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+// OperationArgs contains all the arguments for operation creation.
+type OperationArgs struct {
+	ProjectName string
+	Type        operationtype.Type
+	Class       OperationClass
+	Resources   map[string][]api.URL
+	Metadata    any
+	RunHook     func(ctx context.Context, op *Operation) error
+	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
+}
+
+// CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
+func CreateUserOperation(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+	if requestor == nil || requestor.OriginAddress() == "" {
+		return nil, errors.New("Cannot create user operation, the requestor must be set")
+	}
+
+	return operationCreate(s, requestor, args)
+}
+
+// CreateServerOperation creates a new [Operation] that runs as a server background task.
+func CreateServerOperation(s *state.State, args OperationArgs) (*Operation, error) {
+	return operationCreate(s, nil, args)
+}
+
+// operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
+func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -130,27 +154,28 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 
 	// Main attributes
 	op := Operation{}
-	op.projectName = projectName
+	op.projectName = args.ProjectName
 	op.id = uuid.New().String()
-	op.description = opType.Description()
-	op.entityType, op.entitlement = opType.Permission()
-	op.dbOpType = opType
-	op.class = opClass
+	op.description = args.Type.Description()
+	op.entityType, op.entitlement = args.Type.Permission()
+	op.dbOpType = args.Type
+	op.class = args.Class
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
 	op.status = api.Pending
 	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
-	op.resources = opResources
+	op.resources = args.Resources
 	op.finished = cancel.New()
 	op.running = cancel.New()
 	op.state = s
+	op.requestor = requestor
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	if s != nil {
 		op.SetEventServer(s.Events)
 	}
 
-	newMetadata, err := shared.ParseMetadata(opMetadata)
+	newMetadata, err := shared.ParseMetadata(args.Metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +183,8 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	op.metadata = newMetadata
 
 	// Callback functions
-	op.onRun = onRun
-	op.onConnect = onConnect
+	op.onRun = args.RunHook
+	op.onConnect = args.ConnectHook
 
 	// Quick check.
 	if op.class != OperationClassWebsocket && op.onConnect != nil {
@@ -174,17 +199,11 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 		return nil, errors.New("Token operations can't have a Run hook")
 	}
 
-	// Set requestor if the request context is provided.
-	_, err = request.GetRequestor(ctx)
-	if err == nil {
-		op.SetRequestor(ctx)
-	}
-
 	operationsLock.Lock()
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, opType)
+	err = registerDBOperation(&op, args.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -202,11 +221,6 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 // SetEventServer allows injection of event server.
 func (op *Operation) SetEventServer(events *events.Server) {
 	op.events = events
-}
-
-// SetRequestor sets a requestor for this operation from an http.Request.
-func (op *Operation) SetRequestor(ctx context.Context) {
-	op.requestor, _ = request.GetRequestor(ctx)
 }
 
 // CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
