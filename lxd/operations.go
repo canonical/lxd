@@ -1556,12 +1556,51 @@ func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) 
 		return fmt.Errorf("Invalid duration: %w", err)
 	}
 
-	// Sleep for the duration, or until the run context is cancelled.
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.Tick(duration):
+	logger.Warnf("Starting wait handler operation for %s", duration.String())
+
+	// Initialize metadata map if needed.
+	if op.Metadata() == nil {
+		err = op.UpdateMetadata(make(map[string]any))
+		if err != nil {
+			return fmt.Errorf("Failed initializing operation metadata: %w", err)
+		}
 	}
+
+	// See if some waiting was already done.
+	elapsed := time.Duration(0)
+	elapsedMetadata, ok := op.Metadata()["elapsed"]
+	if ok {
+		elapsed, err = time.ParseDuration(elapsedMetadata.(string))
+		if err != nil {
+			return fmt.Errorf("Failed parsing elapsed metadata: %w", err)
+		}
+
+		logger.Warnf("Resuming wait handler operation, already waited for %s", elapsed.String())
+	}
+
+	for duration > elapsed {
+		// Sleep for one second, or until the run context is cancelled.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.Tick(time.Second):
+		}
+
+		elapsed = elapsed + time.Second
+		logger.Warnf("Wait handler operation running for %d seconds...", elapsed/time.Second)
+		op.Metadata()["elapsed"] = elapsed.String()
+		err = op.UpdateMetadata(op.Metadata())
+		if err != nil {
+			return fmt.Errorf("Failed updating operation metadata: %w", err)
+		}
+
+		err = op.CommitMetadata()
+		if err != nil {
+			return fmt.Errorf("Failed committing operation metadata: %w", err)
+		}
+	}
+
+	logger.Warn("Wait handler operation completed")
 
 	return nil
 }
