@@ -28,6 +28,14 @@ func updateDBOperationStatus(op *Operation) error {
 	return nil
 }
 
+func updateDBOperationMetadata(op *Operation) error {
+	if op.state != nil {
+		return fmt.Errorf("updateDBOperationMetadata not supported on this platform")
+	}
+
+	return nil
+}
+
 func removeDBOperation(op *Operation) error {
 	if op.state != nil {
 		return fmt.Errorf("removeDBOperation not supported on this platform")
