@@ -93,7 +93,6 @@ type Operation struct {
 	metadata    map[string]any
 	err         error
 	readonly    bool
-	canceler    *cancel.HTTPRequestCanceller
 	description string
 	entityType  entity.Type
 	entitlement auth.Entitlement
@@ -418,13 +417,6 @@ func (op *Operation) Cancel() (chan error, error) {
 	_, md, _ := op.Render()
 	op.sendEvent(md)
 
-	if op.canceler != nil {
-		err := op.canceler.Cancel()
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if !hasOnCancel {
 		op.lock.Lock()
 		op.status = api.Cancelled
@@ -485,10 +477,6 @@ func (op *Operation) mayCancel() bool {
 	}
 
 	if op.onCancel != nil {
-		return true
-	}
-
-	if op.canceler != nil && op.canceler.Cancelable() {
 		return true
 	}
 
@@ -692,11 +680,6 @@ func (op *Operation) URL() string {
 // Resources returns the operation resources.
 func (op *Operation) Resources() map[string][]api.URL {
 	return op.resources
-}
-
-// SetCanceler sets a canceler.
-func (op *Operation) SetCanceler(canceler *cancel.HTTPRequestCanceller) {
-	op.canceler = canceler
 }
 
 // Permission returns the operations entity.Type and auth.Entitlement.
