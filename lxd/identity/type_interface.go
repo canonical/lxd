@@ -68,6 +68,9 @@ const (
 
 	// identityTypeBearerDevLXD is the code for [api.IdentityTypeBearerTokenDevLXD].
 	identityTypeBearerDevLXD int64 = 9
+
+	// identityTypeBearerClient is the code for [api.IdentityTypeBearerTokenClient].
+	identityTypeBearerClient int64 = 10
 )
 
 // types is a slice of all identity types that implement the [Type] interface.
