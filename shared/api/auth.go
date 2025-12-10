@@ -42,6 +42,9 @@ const (
 
 	// IdentityTypeBearerTokenDevLXD represents an identity that bears a LXD token that can be used to interact with the DevLXD API.
 	IdentityTypeBearerTokenDevLXD = "DevLXD token bearer"
+
+	// IdentityTypeBearerTokenClient represents an identity that bears a LXD token that can be used to interact with the LXD API.
+	IdentityTypeBearerTokenClient = "Client token bearer"
 )
 
 // WithEntitlements is meant to be an embedded struct to API types eligible for entitlement enrichment,
