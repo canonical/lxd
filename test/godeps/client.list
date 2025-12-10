@@ -11,6 +11,7 @@ github.com/canonical/lxd/shared/termios
 github.com/canonical/lxd/shared/units
 github.com/canonical/lxd/shared/version
 github.com/canonical/lxd/shared/ws
+github.com/cespare/xxhash/v2
 github.com/flosch/pongo2
 github.com/go-jose/go-jose/v4
 github.com/go-jose/go-jose/v4/cipher
@@ -44,6 +45,7 @@ go.opentelemetry.io/auto/sdk/internal/telemetry
 go.opentelemetry.io/otel
 go.opentelemetry.io/otel/attribute
 go.opentelemetry.io/otel/attribute/internal
+go.opentelemetry.io/otel/attribute/internal/xxhash
 go.opentelemetry.io/otel/baggage
 go.opentelemetry.io/otel/codes
 go.opentelemetry.io/otel/internal/baggage
