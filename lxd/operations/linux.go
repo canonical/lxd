@@ -171,6 +171,33 @@ func updateDBOperationStatus(op *Operation) error {
 	return nil
 }
 
+func updateDBOperationMetadata(op *Operation) error {
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		filter := cluster.OperationFilter{Reference: &op.id}
+		dbOps, err := cluster.GetOperations(ctx, tx.Tx(), filter)
+		if err != nil {
+			return fmt.Errorf("Failed querying operation %s: %w", op.id, err)
+		}
+
+		if len(dbOps) != 1 {
+			return fmt.Errorf("Operation %s not found in database", op.id)
+		}
+
+		err = cluster.CreateOrInsertDurableOperationMetadata(ctx, tx.Tx(), dbOps[0].ID, op.metadata)
+		if err != nil {
+			return fmt.Errorf("Failed adding operation %s metadata to database: %w", op.id, err)
+		}
+
+		op.updatedAt = time.Now()
+		return cluster.UpdateOperationUpdatedAt(ctx, tx.Tx(), op.id, op.updatedAt)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed adding operation %s metadata to database: %w", op.id, err)
+	}
+
+	return nil
+}
+
 func removeDBOperation(op *Operation) error {
 	if op.state == nil {
 		return nil
