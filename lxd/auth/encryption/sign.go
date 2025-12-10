@@ -40,6 +40,17 @@ func GetDevLXDBearerToken(secret []byte, identityIdentifier string, clusterUUID 
 	return getToken(secret, nil, identityIdentifier, clusterUUID, DevLXDAudience, expiresAt)
 }
 
+// GetClientBearerToken generates and signs a token for use with the main LXD API. For claims it has:
+// - Subject (sub): Identity identifier (UUID)
+// - Issuer (iss): "lxd:{cluster_uuid}"
+// - Audience (aud): "lxd:{cluster_uuid}"
+// - Not before (nbf): time now (UTC)
+// - Issued at (iat): time now (UTC)
+// - Expiry (exp): The given time (UTC).
+func GetClientBearerToken(secret []byte, identityIdentifier string, clusterUUID string, expiresAt time.Time) (string, error) {
+	return getToken(secret, nil, identityIdentifier, clusterUUID, LXDAudience, expiresAt)
+}
+
 // GetOIDCSessionToken generates and signs a token to be set as an OIDC session cookie. For claims it has:
 // - Subject (sub): Session ID (UUID)
 // - Issuer (iss): "lxd:{cluster_uuid}"
