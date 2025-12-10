@@ -18,9 +18,9 @@ type cmdGlobal struct {
 }
 
 func main() {
-	// migrate command (main)
-	migrateCmd := cmdMigrate{}
-	app := migrateCmd.command()
+	// convert command (main)
+	convertCmd := cmdConvert{}
+	app := convertCmd.command()
 	app.SilenceUsage = true
 	app.CompletionOptions = cobra.CompletionOptions{DisableDefaultCmd: true}
 
@@ -29,7 +29,7 @@ func main() {
 
 	// Global flags
 	globalCmd := cmdGlobal{asker: cli.NewAsker(bufio.NewReader(os.Stdin), nil)}
-	migrateCmd.global = &globalCmd
+	convertCmd.global = &globalCmd
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, "Print help")
 
