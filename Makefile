@@ -1,8 +1,4 @@
 DOMAIN=lxd
-POFILES=$(wildcard po/*.po)
-MOFILES=$(patsubst %.po,%.mo,$(POFILES))
-LINGUAS=$(basename $(POFILES))
-POTFILE=po/$(DOMAIN).pot
 VERSION=$(or ${CUSTOM_VERSION},$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2))
 ARCHIVE=lxd-$(VERSION).tar
 HASH := \#
@@ -417,47 +413,6 @@ dist:
 
 	# Cleanup
 	rm -Rf $(TMP)
-
-.PHONY: i18n
-i18n: update-pot update-po
-
-po/%.mo: po/%.po
-	msgfmt --statistics -o $@ $<
-
-po/%.po: po/$(DOMAIN).pot
-	msgmerge --silent -U po/$*.po po/$(DOMAIN).pot
-
-.PHONY: update-po
-update-po:
-	set -eu; \
-	for lang in $(LINGUAS); do \
-		msgmerge --silent --backup=none -U $$lang.po po/$(DOMAIN).pot; \
-	done; \
-	if [ -t 0 ] && ! git diff --quiet -- po/*.po; then \
-		read -rp "Would you like to commit i18n changes (Y/n)? " answer; \
-			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-				git commit -S -sm "i18n: Update translations" -- po/*.po; \
-			fi; \
-	fi
-
-.PHONY: update-pot
-update-pot:
-ifeq "$(LXD_OFFLINE)" ""
-	@# XXX: `go install ...@latest` is almost a noop if already up to date
-	@# Cannot use newer versions (2.58 to 2.72 all failed)
-	go install github.com/snapcore/snapd/i18n/xgettext-go@2.57.6
-endif
-	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxd@lists.canonical.com --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
-	if git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then git checkout -- po/*.pot; fi
-	if [ -t 0 ] && ! git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then \
-		read -rp "Would you like to commit i18n template changes (Y/n)? " answer; \
-			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-				git commit -S -sm "i18n: Update translation templates" -- po/*.pot; \
-			fi; \
-	fi
-
-.PHONY: build-mo
-build-mo: $(MOFILES)
 
 .PHONY: static-analysis
 static-analysis:
