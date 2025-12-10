@@ -8,6 +8,8 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "main"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "github-actions"
     directories:
@@ -17,6 +19,8 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "main"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "gomod"
     directory: "/"
@@ -26,6 +30,8 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "stable-5.21"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "github-actions"
     directories:
@@ -35,6 +41,8 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "stable-5.21"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "gomod"
     directory: "/"
@@ -45,6 +53,8 @@ updates:
       interval: "weekly"
     security-updates: true
     target-branch: "stable-5.0"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "github-actions"
     directories:
@@ -54,6 +64,8 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "stable-5.0"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "github-actions"
     directories:
@@ -63,3 +75,5 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "stable-4.0"
+    cooldown:
+      default-days: 7
