@@ -4,6 +4,7 @@ updates:
     directory: "/"
     ignore:
       - dependency-name: "github.com/olekukonko/tablewriter"
+        versions: ["1.x"]
     labels: []
     schedule:
       interval: "weekly"
@@ -26,6 +27,7 @@ updates:
     directory: "/"
     ignore:
       - dependency-name: "github.com/olekukonko/tablewriter"
+        versions: ["1.x"]
     labels: []
     schedule:
       interval: "weekly"
@@ -48,6 +50,7 @@ updates:
     directory: "/"
     ignore:
       - dependency-name: "github.com/olekukonko/tablewriter"
+        versions: ["1.x"]
     labels: []
     schedule:
       interval: "weekly"
