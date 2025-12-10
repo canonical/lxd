@@ -55,6 +55,7 @@ COPR
 CPUs
 CRIU
 CRD
+CRDs
 CRL
 cron
 cryptographic
@@ -393,6 +394,8 @@ VM's
 VolumeAttachment
 VolumeAttachments
 VolumeSnapshot
+VolumeSnapshotClass
+VolumeSnapshotContent
 VPD
 VPN
 VRAM
