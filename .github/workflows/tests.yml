@@ -240,7 +240,7 @@ jobs:
             /home/runner/go/bin/lxd-agent
             /home/runner/go/bin/lxd-benchmark
             /home/runner/go/bin/lxd-client
-            /home/runner/go/bin/lxd-migrate
+            /home/runner/go/bin/lxd-convert
             /home/runner/go/bin/lxd-user
             /home/runner/go/bin/mini-oidc
             /home/runner/go/bin/sysinfo
@@ -845,15 +845,15 @@ jobs:
           GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o bin/lxd-benchmark.x86_64 ${COVER} ./lxd-benchmark
           GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o bin/lxd-benchmark.aarch64 ${COVER} ./lxd-benchmark
 
-      - name: Build static lxd-migrate
+      - name: Build static lxd-convert
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
           COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
-          GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o bin/lxd-migrate.x86_64 ${COVER} ./lxd-migrate
-          GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o bin/lxd-migrate.aarch64 ${COVER} ./lxd-migrate
+          GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o bin/lxd-convert.x86_64 ${COVER} ./lxd-convert
+          GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o bin/lxd-convert.aarch64 ${COVER} ./lxd-convert
 
       - name: Unit tests (client)
         env:
