@@ -213,7 +213,6 @@ sudo apt install \
     autoconf \
     automake \
     build-essential \
-    gettext \
     git \
     libacl1-dev \
     libapparmor-dev \
