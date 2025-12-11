@@ -117,7 +117,9 @@ Basically, the initialization process consists of the following steps:
 1. Confirm that all local data for the server is lost when joining a cluster.
 1. Configure server-specific settings (see {ref}`clustering-member-config` for more information).
 
-   You can accept the default values or specify custom values for each server.
+   You can specify custom values for each server.
+   In case you are restoring a lost server but you were able to recover the storage pool's disk, you might want to accept the default
+   values which should help telling LXD how to access the existing underlying storage pool.
 
 <details>
 <summary>Expand to see full examples for <code>lxd init</code> on additional servers</summary>
@@ -131,9 +133,9 @@ Are you joining an existing cluster? (yes/no) [default=no]: yes
 Do you have a join token? (yes/no/[token]) [default=no]: yes
 Please provide join token: eyJzZXJ2ZXJfbmFtZSI6InJwaTAxIiwiZmluZ2VycHJpbnQiOiIyNjZjZmExZDk0ZDZiMjk2Nzk0YjU0YzJlYzdjOTMwNDA5ZjIzNjdmNmM1YjRhZWVjOGM0YjAxYTc2NjU0MjgxIiwiYWRkcmVzc2VzIjpbIjE3Mi4xNy4zMC4xODM6ODQ0MyJdLCJzZWNyZXQiOiJmZGI1OTgyNjgxNTQ2ZGQyNGE2ZGE0Mzg5MTUyOGM1ZGUxNWNmYmQ5M2M3OTU3ODNkNGI5OGU4MTQ4MWMzNmUwIn0=
 All existing data is lost when joining a cluster, continue? (yes/no) [default=no] yes
-Choose "size" property for storage pool "local":
+Choose "size" property for storage pool "local" [default=9GiB]:
 Choose "source" property for storage pool "local":
-Choose "zfs.pool_name" property for storage pool "local":
+Choose "zfs.pool_name" property for storage pool "local" [default=local]:
 Would you like a YAML "lxd init" preseed to be printed? (yes/no) [default=no]:
 ```
 
@@ -141,6 +143,9 @@ Would you like a YAML "lxd init" preseed to be printed? (yes/no) [default=no]:
 
 After the initialization process finishes, your server is added as a new cluster member.
 You can check this with [`lxc cluster list`](lxc_cluster_list.md).
+
+In case you have restored a cluster member with a disk that was recovered from a previous cluster member, run
+the `lxd recover` command on this cluster member to recover instances and volumes located on the disk's storage pool.
 
 ## Configure the cluster through preseed files
 
