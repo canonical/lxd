@@ -122,11 +122,11 @@ func (d *common) Info() *api.NetworkACL {
 
 // usedBy returns a list of API endpoints referencing this ACL.
 // If firstOnly is true then search stops at first result.
-func (d *common) usedBy(firstOnly bool) ([]string, error) {
+func (d *common) usedBy(ctx context.Context, firstOnly bool) ([]string, error) {
 	usedBy := []string{}
 
 	// Find all networks, profiles and instance NICs that use this Network ACL.
-	err := UsedBy(d.state, d.projectName, func(ctx context.Context, tx *db.ClusterTx, _ []string, usageType any, _ string, _ map[string]string) error {
+	err := UsedBy(ctx, d.state, d.projectName, func(ctx context.Context, tx *db.ClusterTx, _ []string, usageType any, _ string, _ map[string]string) error {
 		switch u := usageType.(type) {
 		case db.InstanceArgs:
 			usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", u.Name).Project(u.Project).String())
@@ -159,12 +159,12 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 
 // UsedBy returns a list of API endpoints referencing this ACL.
 func (d *common) UsedBy() ([]string, error) {
-	return d.usedBy(false)
+	return d.usedBy(context.TODO(), false)
 }
 
 // isUsed returns whether or not the ACL is in use.
 func (d *common) isUsed() (bool, error) {
-	usedBy, err := d.usedBy(true)
+	usedBy, err := d.usedBy(context.TODO(), true)
 	if err != nil {
 		return false, err
 	}
@@ -183,7 +183,7 @@ func (d *common) validateName(name string) error {
 }
 
 // validateConfig checks the config and rules are valid.
-func (d *common) validateConfig(info *api.NetworkACLPut) error {
+func (d *common) validateConfig(ctx context.Context, info *api.NetworkACLPut) error {
 	err := d.validateConfigMap(info.Config, nil)
 	if err != nil {
 		return err
@@ -200,7 +200,7 @@ func (d *common) validateConfig(info *api.NetworkACLPut) error {
 
 	// Validate each ingress rule.
 	for i, ingressRule := range info.Ingress {
-		err := d.validateRule(ruleDirectionIngress, ingressRule)
+		err := d.validateRule(ctx, ruleDirectionIngress, ingressRule)
 		if err != nil {
 			return fmt.Errorf("Invalid ingress rule %d: %w", i, err)
 		}
@@ -219,7 +219,7 @@ func (d *common) validateConfig(info *api.NetworkACLPut) error {
 
 	// Validate each egress rule.
 	for i, egressRule := range info.Egress {
-		err := d.validateRule(ruleDirectionEgress, egressRule)
+		err := d.validateRule(ctx, ruleDirectionEgress, egressRule)
 		if err != nil {
 			return fmt.Errorf("Invalid egress rule %d: %w", i, err)
 		}
@@ -271,7 +271,7 @@ func (d *common) validateConfigMap(aclConfig map[string]string, rules map[string
 }
 
 // validateRule validates the rule supplied.
-func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) error {
+func (d *common) validateRule(ctx context.Context, direction ruleDirection, rule api.NetworkACLRule) error {
 	// Validate Action field (required).
 	if !slices.Contains(ValidActions, rule.Action) {
 		return fmt.Errorf("Action must be one of: %s", strings.Join(ValidActions, ", "))
@@ -285,7 +285,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 
 	var acls map[string]int64
 
-	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
@@ -558,8 +558,8 @@ func (d *common) validatePorts(ports []string) error {
 }
 
 // Update applies the supplied config to the ACL.
-func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType) error {
-	err := d.validateConfig(config)
+func (d *common) Update(ctx context.Context, config *api.NetworkACLPut, clientType request.ClientType) error {
+	err := d.validateConfig(context.TODO(), config)
 	if err != nil {
 		return err
 	}
@@ -570,7 +570,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 	if clientType == request.ClientTypeNormal {
 		oldConfig := d.info.Writable()
 
-		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Update database. Its important this occurs before we attempt to apply to networks using the ACL
 			// as usage functions will inspect the database.
 			return tx.UpdateNetworkACL(ctx, d.id, *config)
@@ -584,7 +584,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		d.init(d.state, d.id, d.projectName, d.info)
 
 		revert.Add(func() {
-			_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_ = d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpdateNetworkACL(ctx, d.id, oldConfig)
 			})
 
@@ -595,7 +595,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 
 	// Get a list of networks that are using this ACL (either directly or indirectly via a NIC).
 	aclNets := map[string]NetworkACLUsage{}
-	err = NetworkUsage(d.state, d.projectName, []string{d.info.Name}, aclNets)
+	err = NetworkUsage(context.TODO(), d.state, d.projectName, []string{d.info.Name}, aclNets)
 	if err != nil {
 		return fmt.Errorf("Failed getting ACL network usage: %w", err)
 	}
@@ -614,7 +614,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 
 	// Apply ACL changes to non-OVN networks on this member.
 	for _, aclNet := range aclNets {
-		err = FirewallApplyACLRules(d.state, d.logger, d.projectName, aclNet)
+		err = FirewallApplyACLRules(ctx, d.state, d.projectName, aclNet)
 		if err != nil {
 			return err
 		}
@@ -630,7 +630,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 
 		var aclNameIDs map[string]int64
 
-		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get map of ACL names to DB IDs (used for generating OVN port group names).
 			aclNameIDs, err = tx.GetNetworkACLIDsByNames(ctx, d.Project())
 
@@ -646,7 +646,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		// apply those rules to each network affected by the ACL, so pass the full list of OVN networks
 		// affected by this ACL (either because the ACL is assigned directly or because it is assigned to
 		// an OVN NIC in an instance or profile).
-		cleanup, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclOVNNets, []string{d.info.Name}, true)
+		cleanup, err := OVNEnsureACLs(ctx, d.state, d.logger, client, d.projectName, aclNameIDs, aclOVNNets, []string{d.info.Name}, true)
 		if err != nil {
 			return fmt.Errorf("Failed ensuring ACL is configured in OVN: %w", err)
 		}
@@ -655,7 +655,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 
 		// Run unused port group cleanup in case any formerly referenced ACL in this ACL's rules means that
 		// an ACL port group is now considered unused.
-		err = OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.projectName, nil, "", d.info.Name)
+		err = OVNPortGroupDeleteIfUnused(ctx, d.state, d.logger, client, d.projectName, nil, "", d.info.Name)
 		if err != nil {
 			return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 		}
@@ -682,8 +682,8 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 }
 
 // Rename renames the ACL if not in use.
-func (d *common) Rename(newName string) error {
-	_, err := LoadByName(d.state, d.projectName, newName)
+func (d *common) Rename(ctx context.Context, newName string) error {
+	_, err := LoadByName(ctx, d.state, d.projectName, newName)
 	if err == nil {
 		return errors.New("An ACL by that name exists already")
 	}
@@ -702,7 +702,7 @@ func (d *common) Rename(newName string) error {
 		return err
 	}
 
-	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.RenameNetworkACL(ctx, d.id, newName)
 	})
 	if err != nil {
@@ -716,7 +716,7 @@ func (d *common) Rename(newName string) error {
 }
 
 // Delete deletes the ACL.
-func (d *common) Delete() error {
+func (d *common) Delete(ctx context.Context) error {
 	isUsed, err := d.isUsed()
 	if err != nil {
 		return err
@@ -726,7 +726,7 @@ func (d *common) Delete() error {
 		return errors.New("Cannot delete an ACL that is in use")
 	}
 
-	return d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	return d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.DeleteNetworkACL(ctx, d.id)
 	})
 }
