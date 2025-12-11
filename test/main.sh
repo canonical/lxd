@@ -474,6 +474,10 @@ spawn_initial_lxd() {
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
 if [ "${1:-"all"}" = "test-shell" ]; then
+  # Install needed storage driver tools
+  echo "XXX: $LXD_BACKEND"
+  install_storage_driver_tools
+
   spawn_initial_lxd
   bash --rcfile test-shell.bashrc || true
   TEST_CURRENT="test-shell"
