@@ -343,7 +343,7 @@ jobs:
           chmod uog+x /home/runner/go/bin/*
 
       - name: Setup MicroCeph
-        if: ${{ matrix.backend == 'ceph' || matrix.backend == 'all' }}
+        if: ${{ contains(matrix.backends, 'ceph') || matrix.backends == 'all' }}
         uses: ./.github/actions/setup-microceph
         with:
           osd-count: 3
