@@ -47,7 +47,7 @@ on:
 
 env:
   LXD_SKIP_TESTS: "concurrent"  # concurrent is too unreliable/racy
-  LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
+  LXD_REQUIRED_TESTS: "storage_buckets network_ovn"
   GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && github.event.inputs.coverage == 'true' ) || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' )) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
   IMAGE_CACHE_DIR: "/home/runner/image-cache"
