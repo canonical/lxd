@@ -258,6 +258,31 @@ test_basic_usage() {
   CERTNAME="client3" my_curl "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
   lxc image delete bar-image2
 
+  echo "Check that instances can be initialized, launched, and refreshed from private images in non-default projects"
+
+  local LXD2_DIR
+  LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD2_DIR}" true
+
+  lxc project create bar
+  lxc image copy testimage local: --alias testimage --target-project bar
+
+  LXD_DIR="${LXD2_DIR}" lxc project create foo
+  LXD_DIR="${LXD2_DIR}" lxc profile show default | LXD_DIR="${LXD2_DIR}" lxc profile edit default --project foo
+  LXD_DIR="${LXD2_DIR}" lxc init localhost:testimage c1 --project bar --target-project foo
+  LXD_DIR="${LXD2_DIR}" lxc launch localhost:testimage c2 --project bar --target-project foo
+  LXD_DIR="${LXD2_DIR}" lxc file push --quiet "$(command -v devlxd-client)" c2/bin/ --project foo
+  LXD_DIR="${LXD2_DIR}" lxc exec c2 --project foo -- devlxd-client get-state
+  LXD_DIR="${LXD2_DIR}" lxc stop c2 --project foo
+  LXD_DIR="${LXD2_DIR}" lxc rebuild localhost:testimage c2 --project bar --target-project foo
+  LXD_DIR="${LXD2_DIR}" lxc start c2 --project foo
+  ! LXD_DIR="${LXD2_DIR}" lxc exec c2 --project foo -- devlxd-client get-state || false
+
+  shutdown_lxd "${LXD2_DIR}"
+  rm -rf "${LXD2_DIR}"
+
+  lxc project delete bar --force
+
   # Test invalid instance names
   ! lxc init testimage -abc || false
   ! lxc init testimage abc- || false
