@@ -57,7 +57,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		// Fetch current network address and raft nodes
 		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch node configuration: %w", err)
+			return fmt.Errorf("Failed fetching node configuration: %w", err)
 		}
 
 		localClusterAddress = config.ClusterAddress()
@@ -71,7 +71,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		// Add ourselves as first raft node
 		err = tx.CreateFirstRaftNode(localClusterAddress, serverName)
 		if err != nil {
-			return fmt.Errorf("Failed to insert first raft node: %w", err)
+			return fmt.Errorf("Failed inserting first raft node: %w", err)
 		}
 
 		return nil
@@ -117,21 +117,21 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		// reconfiguring raft.
 		err = gateway.Shutdown()
 		if err != nil {
-			return fmt.Errorf("Failed to shutdown gRPC SQL gateway: %w", err)
+			return fmt.Errorf("Failed shutting down gRPC SQL gateway: %w", err)
 		}
 
 		// The cluster CA certificate is a symlink against the regular server CA certificate.
 		if shared.PathExists(filepath.Join(state.OS.VarDir, "server.ca")) {
 			err := os.Symlink("server.ca", filepath.Join(state.OS.VarDir, "cluster.ca"))
 			if err != nil {
-				return fmt.Errorf("Failed to symlink server CA cert to cluster CA cert: %w", err)
+				return fmt.Errorf("Failed symlinking server CA cert to cluster CA cert: %w", err)
 			}
 		}
 
 		// Generate a new cluster certificate.
 		clusterCert, err := util.LoadClusterCert(state.OS.VarDir)
 		if err != nil {
-			return fmt.Errorf("Failed to create cluster cert: %w", err)
+			return fmt.Errorf("Failed creating cluster cert: %w", err)
 		}
 
 		// If endpoint listeners are active, apply new cluster certificate.
@@ -145,7 +145,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		// gateway handlers.
 		err = gateway.init(true)
 		if err != nil {
-			return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
+			return fmt.Errorf("Failed re-initializing gRPC SQL gateway: %w", err)
 		}
 
 		err = gateway.WaitLeadership()
@@ -256,7 +256,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		// Add the new node.
 		id, err = tx.CreateNodeWithArch(name, address, arch)
 		if err != nil {
-			return fmt.Errorf("Failed to insert new node into the database: %w", err)
+			return fmt.Errorf("Failed inserting new node into the database: %w", err)
 		}
 
 		// Mark the node as pending, so it will be skipped when
@@ -264,7 +264,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		// notifications.
 		err = tx.SetNodePendingFlag(id, true)
 		if err != nil {
-			return fmt.Errorf("Failed to mark the new node as pending: %w", err)
+			return fmt.Errorf("Failed marking the new node as pending: %w", err)
 		}
 
 		return nil
@@ -277,7 +277,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	// less than 3 database nodes).
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get raft nodes from the log: %w", err)
+		return nil, fmt.Errorf("Failed getting raft nodes from the log: %w", err)
 	}
 
 	count := len(nodes) // Existing nodes
@@ -340,7 +340,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		// Fetch current network address and raft nodes
 		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch node configuration: %w", err)
+			return fmt.Errorf("Failed fetching node configuration: %w", err)
 		}
 
 		localClusterAddress = config.ClusterAddress()
@@ -354,7 +354,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		// Set the raft nodes list to the one that was returned by Accept().
 		err = tx.ReplaceRaftNodes(raftNodes)
 		if err != nil {
-			return fmt.Errorf("Failed to set raft nodes: %w", err)
+			return fmt.Errorf("Failed setting raft nodes: %w", err)
 		}
 
 		return nil
@@ -407,12 +407,12 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		// the associated raft instance.
 		err = gateway.Shutdown()
 		if err != nil {
-			return fmt.Errorf("Failed to shutdown gRPC SQL gateway: %w", err)
+			return fmt.Errorf("Failed shutting down gRPC SQL gateway: %w", err)
 		}
 
 		err = os.RemoveAll(state.OS.GlobalDatabaseDir())
 		if err != nil {
-			return fmt.Errorf("Failed to remove existing raft data: %w", err)
+			return fmt.Errorf("Failed removing existing raft data: %w", err)
 		}
 
 		// Re-initialize the gateway. This will create a new raft factory an
@@ -422,7 +422,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		gateway.networkCert = networkCert
 		err = gateway.init(false)
 		if err != nil {
-			return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
+			return fmt.Errorf("Failed re-initializing gRPC SQL gateway: %w", err)
 		}
 
 		reverter.Add(func() {
@@ -430,32 +430,32 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 				return tx.ReplaceRaftNodes([]db.RaftNode{})
 			})
 			if err != nil {
-				logger.Error("Failed to clear local raft node records after cluster join error", logger.Ctx{"err": err})
+				logger.Error("Failed clearing local raft node records after cluster join error", logger.Ctx{"err": err})
 				return
 			}
 
 			err = gateway.Shutdown()
 			if err != nil {
-				logger.Error("Failed to shutdown gateway after cluster join error", logger.Ctx{"err": err})
+				logger.Error("Failed shutting down gateway after cluster join error", logger.Ctx{"err": err})
 				return
 			}
 
 			err = os.RemoveAll(state.OS.GlobalDatabaseDir())
 			if err != nil {
-				logger.Error("Failed to remove raft data after cluster join error", logger.Ctx{"err": err})
+				logger.Error("Failed removing raft data after cluster join error", logger.Ctx{"err": err})
 				return
 			}
 
 			gateway.networkCert = oldCert
 			err = gateway.init(false)
 			if err != nil {
-				logger.Error("Failed to re-initialize gateway after cluster join error", logger.Ctx{"err": err})
+				logger.Error("Failed re-initializing gateway after cluster join error", logger.Ctx{"err": err})
 				return
 			}
 
 			err = cluster.EnsureSchema(state.DB.Cluster.DB(), localClusterAddress, state.OS.GlobalDatabaseDir(), state.OS.ServerUUID)
 			if err != nil {
-				logger.Error("Failed to reload schema after cluster join error", logger.Ctx{"err": err})
+				logger.Error("Failed reloading schema after cluster join error", logger.Ctx{"err": err})
 				return
 			}
 		})
@@ -481,7 +481,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			client.WithLogFunc(DqliteLog),
 		)
 		if err != nil {
-			return fmt.Errorf("Failed to connect to cluster leader: %w", err)
+			return fmt.Errorf("Failed connecting to cluster leader: %w", err)
 		}
 
 		defer func() { _ = client.Close() }()
@@ -495,7 +495,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		for !joined {
 			select {
 			case <-ctx.Done():
-				return fmt.Errorf("Failed to join cluster: %w", ctx.Err())
+				return fmt.Errorf("Failed joining cluster: %w", ctx.Err())
 			default:
 				err = client.Add(ctx, info.NodeInfo)
 				if err != nil && err.Error() == errClusterBusy.Error() {
@@ -505,7 +505,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 				}
 
 				if err != nil {
-					return fmt.Errorf("Failed to join cluster: %w", err)
+					return fmt.Errorf("Failed joining cluster: %w", err)
 				}
 
 				joined = true
@@ -522,7 +522,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		err = t(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			node, err := tx.GetPendingNodeByAddress(ctx, localClusterAddress)
 			if err != nil {
-				return fmt.Errorf("Failed to get ID of joining node: %w", err)
+				return fmt.Errorf("Failed getting ID of joining node: %w", err)
 			}
 
 			state.DB.Cluster.NodeID(node.ID)
@@ -531,18 +531,18 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			// Storage pools.
 			ids, err := tx.GetNonPendingStoragePoolsNamesToIDs(ctx)
 			if err != nil {
-				return fmt.Errorf("Failed to get cluster storage pool IDs: %w", err)
+				return fmt.Errorf("Failed getting cluster storage pool IDs: %w", err)
 			}
 
 			for name, id := range ids {
 				err := tx.UpdateStoragePoolAfterNodeJoin(id, node.ID)
 				if err != nil {
-					return fmt.Errorf("Failed to add joining node's to the pool: %w", err)
+					return fmt.Errorf("Failed adding joining node's to the pool: %w", err)
 				}
 
 				driver, err := tx.GetStoragePoolDriver(ctx, id)
 				if err != nil {
-					return fmt.Errorf("Failed to get storage pool driver: %w", err)
+					return fmt.Errorf("Failed getting storage pool driver: %w", err)
 				}
 
 				// For all pools we add the config provided by the joining node.
@@ -553,7 +553,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 
 				err = tx.CreateStoragePoolConfig(id, node.ID, config)
 				if err != nil {
-					return fmt.Errorf("Failed to add joining node's pool config: %w", err)
+					return fmt.Errorf("Failed adding joining node's pool config: %w", err)
 				}
 
 				if slices.Contains([]string{"ceph", "cephfs"}, driver) {
@@ -561,7 +561,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 					// entries for the joining node.
 					err := tx.UpdateCephStoragePoolAfterNodeJoin(ctx, id, node.ID)
 					if err != nil {
-						return fmt.Errorf("Failed to create ceph volumes for joining node: %w", err)
+						return fmt.Errorf("Failed creating ceph volumes for joining node: %w", err)
 					}
 				}
 			}
@@ -569,7 +569,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			// Networks.
 			netids, err := tx.GetNonPendingNetworkIDs(ctx)
 			if err != nil {
-				return fmt.Errorf("Failed to get cluster network IDs: %w", err)
+				return fmt.Errorf("Failed getting cluster network IDs: %w", err)
 			}
 
 			for _, network := range netids {
@@ -581,12 +581,12 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 
 					err := tx.NetworkNodeJoin(id, node.ID)
 					if err != nil {
-						return fmt.Errorf("Failed to add joining node's to the network: %w", err)
+						return fmt.Errorf("Failed adding joining node's to the network: %w", err)
 					}
 
 					err = tx.CreateNetworkConfig(id, node.ID, config)
 					if err != nil {
-						return fmt.Errorf("Failed to add joining node's network config: %w", err)
+						return fmt.Errorf("Failed adding joining node's network config: %w", err)
 					}
 				}
 			}
@@ -601,7 +601,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 
 				_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), op)
 				if err != nil {
-					return fmt.Errorf("Failed to migrate operation %s: %w", operation.UUID, err)
+					return fmt.Errorf("Failed migrating operation %s: %w", operation.UUID, err)
 				}
 			}
 
@@ -609,7 +609,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			// notifications.
 			err = tx.SetNodePendingFlag(node.ID, false)
 			if err != nil {
-				return fmt.Errorf("Failed to unmark the node as pending: %w", err)
+				return fmt.Errorf("Failed unmarking the node as pending: %w", err)
 			}
 
 			// Set last heartbeat time to now, as member is clearly online as it just successfully joined,
@@ -676,7 +676,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed to get current raft members", logger.Ctx{"err": err, "local": localClusterAddress})
+		logger.Warn("Failed getting current raft members", logger.Ctx{"err": err, "local": localClusterAddress})
 		return
 	}
 
@@ -690,7 +690,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err, "local": localClusterAddress})
+		logger.Warn("Failed getting current cluster members", logger.Ctx{"err": err, "local": localClusterAddress})
 		return
 	}
 
@@ -775,7 +775,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		var err error
 		address, err = tx.GetLocalNodeAddress(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch the address of this cluster member: %w", err)
+			return fmt.Errorf("Failed fetching the address of this cluster member: %w", err)
 		}
 
 		return nil
@@ -806,7 +806,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		err = tx.ReplaceRaftNodes(nodes)
 		if err != nil {
-			return fmt.Errorf("Failed to set raft nodes: %w", err)
+			return fmt.Errorf("Failed setting raft nodes: %w", err)
 		}
 
 		return nil
@@ -852,12 +852,12 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		if role == db.RaftVoter && info.Role == db.RaftSpare {
 			err = client.Assign(ctx, info.ID, db.RaftStandBy)
 			if err != nil {
-				return fmt.Errorf("Failed to step back to stand-by: %w", err)
+				return fmt.Errorf("Failed stepping back to stand-by: %w", err)
 			}
 
 			local, err := gateway.getClient()
 			if err != nil {
-				return fmt.Errorf("Failed to get local dqlite client: %w", err)
+				return fmt.Errorf("Failed getting local dqlite client: %w", err)
 			}
 
 			notified := false
@@ -865,7 +865,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 				time.Sleep(500 * time.Millisecond)
 				servers, err := local.Cluster(context.Background())
 				if err != nil {
-					return fmt.Errorf("Failed to get current cluster: %w", err)
+					return fmt.Errorf("Failed getting current cluster: %w", err)
 				}
 
 				for _, server := range servers {
@@ -896,7 +896,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 		err = client.Assign(ctx, info.ID, info.Role)
 		if err != nil {
-			return fmt.Errorf("Failed to assign role: %w", err)
+			return fmt.Errorf("Failed assigning role: %w", err)
 		}
 
 		gateway.info = info
@@ -926,7 +926,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 			// somehow leftover).
 			err = os.RemoveAll(state.OS.GlobalDatabaseDir())
 			if err != nil {
-				return fmt.Errorf("Failed to remove existing raft data: %w", err)
+				return fmt.Errorf("Failed removing existing raft data: %w", err)
 			}
 
 			// Re-initialize the gateway. This will create a new raft factory an
@@ -934,7 +934,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 			// gateway handlers.
 			err = gateway.init(false)
 			if err != nil {
-				return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
+				return fmt.Errorf("Failed re-initializing gRPC SQL gateway: %w", err)
 			}
 
 			return assign()
@@ -1017,13 +1017,13 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 
 	client, err := gateway.getClient()
 	if err != nil {
-		return "", fmt.Errorf("Failed to connect to cluster leader: %w", err)
+		return "", fmt.Errorf("Failed connecting to cluster leader: %w", err)
 	}
 
 	defer func() { _ = client.Close() }()
 	err = client.Remove(ctx, info.ID)
 	if err != nil {
-		return "", fmt.Errorf("Failed to leave the cluster: %w", err)
+		return "", fmt.Errorf("Failed leaving the cluster: %w", err)
 	}
 
 	return address, nil
@@ -1135,22 +1135,22 @@ func Purge(c *db.Cluster, name string) error {
 		// Get the node (if it doesn't exists an error is returned).
 		node, err := tx.GetNodeByName(ctx, name)
 		if err != nil {
-			return fmt.Errorf("Failed to get member %q: %w", name, err)
+			return fmt.Errorf("Failed getting member %q: %w", name, err)
 		}
 
 		err = tx.ClearNode(ctx, node.ID)
 		if err != nil {
-			return fmt.Errorf("Failed to clear member %q: %w", name, err)
+			return fmt.Errorf("Failed clearing member %q: %w", name, err)
 		}
 
 		err = tx.RemoveNode(node.ID)
 		if err != nil {
-			return fmt.Errorf("Failed to remove member %q: %w", name, err)
+			return fmt.Errorf("Failed removing member %q: %w", name, err)
 		}
 
 		err = cluster.DeleteIdentitys(ctx, tx.Tx(), name, api.IdentityTypeCertificateServer)
 		if err != nil {
-			return fmt.Errorf("Failed to remove member %q certificate from trust store: %w", name, err)
+			return fmt.Errorf("Failed removing member %q certificate from trust store: %w", name, err)
 		}
 
 		return nil
@@ -1192,7 +1192,7 @@ func Enabled(node *db.Node) (bool, error) {
 func membershipCheckNodeStateForBootstrapOrJoin(ctx context.Context, tx *db.NodeTx, address string) error {
 	nodes, err := tx.GetRaftNodes(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to fetch current raft nodes: %w", err)
+		return fmt.Errorf("Failed fetching current raft nodes: %w", err)
 	}
 
 	hasClusterAddress := address != ""
