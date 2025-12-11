@@ -71,12 +71,10 @@ test_network_ovn() {
   lxc network create "${uplink_network}" --type=physical parent=dummy0
 
   echo "Set OVN ranges."
-  lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254
-  lxc network set "${uplink_network}" ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
+  lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254 ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
 
   echo "Set IP routes that include OVN ranges."
-  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24
-  lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64
+  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24 ipv6.routes=2001:db8:1:2::/64
 
   echo "Create an OVN network."
   lxc network create "${ovn_network}" --type ovn network="${uplink_network}"
@@ -134,20 +132,16 @@ test_network_ovn() {
   lxc launch testimage c2 -n "${ovn_network}" -d eth0,ipv6.routes.external=2001:db8:1:2::10/128
 
   echo "Clean up instances."
-  lxc delete c1 --force
-  lxc delete c2 --force
+  lxc delete --force c1 c2
 
   echo "Check that removing IP routes on uplink works when there are no dependent OVN forwards."
-  lxc network unset "${uplink_network}" ipv4.routes
-  lxc network unset "${uplink_network}" ipv6.routes
+  lxc network set "${uplink_network}" ipv4.routes= ipv6.routes=
 
   echo "Set ipv4.gateway and ipv6.gateway for the uplink."
-  lxc network set "${uplink_network}" ipv4.gateway=192.0.2.1/24
-  lxc network set "${uplink_network}" ipv6.gateway=2001:db8:1:2::1/64
+  lxc network set "${uplink_network}" ipv4.gateway=192.0.2.1/24 ipv6.gateway=2001:db8:1:2::1/64
 
   echo "Update the uplink's ipv4.routes and ipv6.routes to include the gateway addresses."
-  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/29
-  lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/125
+  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/29 ipv6.routes=2001:db8:1:2::/125
 
   echo "Check that automatic allocation does not allocate uplink's ipv4.gateway and ipv6.gateway for forwards."
   auto_allocate_forwards_ip4 "192.0.2"
@@ -574,9 +568,7 @@ test_network_ovn() {
   [ "$(ovn-nbctl list logical_switch | grep -Fc 'exclude_ips="10.24.140.1..10.24.140.9 10.24.140.13..10.24.140.255"')" = "1" ]
 
   echo "Delete the instances."
-  lxc delete c1 --force
-  lxc delete c2 --force
-  lxc delete c3 --force
+  lxc delete --force c1 c2 c3
 
   echo "Test automatic allocation of an allowed external IP addresses for forwards and load balancers."
 
@@ -611,8 +603,7 @@ test_network_ovn() {
   lxc network unset "${uplink_network}" ipv4.dhcp.gateway
 
   echo "Reset the uplink's routes."
-  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24
-  lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64
+  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24 ipv6.routes=2001:db8:1:2::/64
 
   echo "Test ha_chassis removal on shutdown."
   shutdown_lxd "${LXD_DIR}"
@@ -633,20 +624,17 @@ test_network_ovn() {
   ! lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 0 || false
   ! lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 0 || false
   lxc project set testovn features.networks true
-  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 3
-  lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 3
+  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"=3 limits.networks.uplink_ips.ipv6."${uplink_network}"=3
 
   # We cannot restrict a project with uplink IP limits set.
   lxc project set testovn features.profiles true # Needed to restrict project
   ! lxc project set testovn restricted true || false
-  lxc project unset testovn limits.networks.uplink_ips.ipv4."${uplink_network}"
-  lxc project unset testovn limits.networks.uplink_ips.ipv6."${uplink_network}"
+  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"= limits.networks.uplink_ips.ipv6."${uplink_network}"=
 
   # Cannot restrict a project that is using a forbidden uplink.
   lxc network create restriction-test network="${uplink_network}" --project testovn
   ! lxc project set testovn restricted true || false
-  lxc project set testovn restricted.networks.uplinks="${uplink_network}"
-  lxc project set testovn restricted true
+  lxc project set testovn restricted.networks.uplinks="${uplink_network}" restricted=true
   ! lxc project unset testovn restricted.networks.uplinks="${uplink_network}" || false
   lxc network delete restriction-test --project testovn
   lxc project unset testovn restricted.networks.uplinks
@@ -655,8 +643,7 @@ test_network_ovn() {
   ! lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 1 || false
   ! lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 1 || false
   lxc project set testovn restricted.networks.uplinks="${uplink_network}"
-  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 1
-  lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 1
+  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"=1 limits.networks.uplink_ips.ipv6."${uplink_network}"=1
 
   # Project uplink IP limits have to be non negative numbers.
   ! lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" true || false
@@ -680,8 +667,7 @@ test_network_ovn() {
   lxc network create third-ovn-network --project testovn --type=ovn
 
   # Cannot set uplink IP limits lower than the currently used uplink IPs.
-  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 3
-  lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 3
+  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"=3 limits.networks.uplink_ips.ipv6."${uplink_network}"=3
   ! lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 1 || false
   ! lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 1 || false
   lxc network delete third-ovn-network --project testovn
@@ -697,9 +683,7 @@ test_network_ovn() {
   lxc network delete second-ovn-network --project testovn
   ! lxc project unset testovn restricted.networks.uplinks || false # Cannot unset while having limits set for the uplink network.
   lxc project set testovn restricted false
-  lxc project unset testovn restricted.networks.uplinks
-  lxc project unset testovn limits.networks.uplink_ips.ipv4."${uplink_network}"
-  lxc project unset testovn limits.networks.uplink_ips.ipv6."${uplink_network}"
+  lxc project set testovn restricted.networks.uplinks= limits.networks.uplink_ips.ipv4."${uplink_network}"= limits.networks.uplink_ips.ipv6."${uplink_network}"=
   lxc project set testovn features.profiles false
 
   echo "Create an OVN network isolated in a project."
@@ -721,22 +705,19 @@ test_network_ovn() {
   # There is one ovn network created and one forward of each protocol, so 2 IPs in use for each protocol.
   ! lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 1 || false
   ! lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 1 || false
-  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 2
-  lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 2
+  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"=2 limits.networks.uplink_ips.ipv6."${uplink_network}"=2
 
   # Check project uplink IP limits are enforced on network forward creation.
   ! lxc network forward create "${project_ovn_network}" 192.0.2.2 || false
   ! lxc network forward create "${project_ovn_network}" 2001:db8:1:2::2 || false
-  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 3
-  lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 3
+  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"=3 limits.networks.uplink_ips.ipv6."${uplink_network}"=3
   lxc network forward create "${project_ovn_network}" 192.0.2.2
   lxc network forward create "${project_ovn_network}" 2001:db8:1:2::2
 
   # Clean up
   lxc network forward delete "${project_ovn_network}" 192.0.2.2
   lxc network forward delete "${project_ovn_network}" 2001:db8:1:2::2
-  lxc project unset testovn limits.networks.uplink_ips.ipv4."${uplink_network}"
-  lxc project unset testovn limits.networks.uplink_ips.ipv6."${uplink_network}"
+  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"= limits.networks.uplink_ips.ipv6."${uplink_network}"=
   lxc network forward delete "${project_ovn_network}" 192.0.2.1
   lxc network forward delete "${project_ovn_network}" 2001:db8:1:2::1
 
@@ -753,14 +734,12 @@ test_network_ovn() {
   # There is one ovn network created and one load balancer for each protocol, so 2 IPs in use for each protocol.
   ! lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 1 || false
   ! lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 1 || false
-  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 2
-  lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 2
+  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"=2 limits.networks.uplink_ips.ipv6."${uplink_network}"=2
 
   # Check project uplink IP limits are enforced on load balancer creation.
   ! lxc network load-balancer create "${project_ovn_network}" 192.0.2.2 || false
   ! lxc network load-balancer create "${project_ovn_network}" 2001:db8:1:2::2 || false
-  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}" 3
-  lxc project set testovn limits.networks.uplink_ips.ipv6."${uplink_network}" 3
+  lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"=3 limits.networks.uplink_ips.ipv6."${uplink_network}"=3
   lxc network load-balancer create "${project_ovn_network}" 192.0.2.2
   lxc network load-balancer create "${project_ovn_network}" 2001:db8:1:2::2
 
