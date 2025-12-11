@@ -472,7 +472,7 @@ ifeq "$(LXD_OFFLINE)" ""
 	go install fillmore-labs.com/zerolint@latest
 endif
 ifeq ($(shell command -v golangci-lint),)
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin latest
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin
 endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml
