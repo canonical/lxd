@@ -318,7 +318,10 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 
 		// Unmount the pool if we have mounted it as part of probing for its existence.
 		if ourMount {
-			defer func() { _, _ = b.driver.Unmount() }()
+			_, err := b.driver.Unmount()
+			if err != nil {
+				return fmt.Errorf("Failed to unmount pool %q after probing for its existence: %w", b.name, err)
+			}
 		}
 
 		l.Info("Recovering existing source for pool", logger.Ctx{"pool": b.name})
