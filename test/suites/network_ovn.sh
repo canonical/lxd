@@ -238,8 +238,8 @@ test_network_ovn() {
   [ "$(ovn-nbctl get logical_router_port "${external_router_port_name}" options:gateway_mtu)" = '"'"${mtu}"'"' ]
 
   # Check IPs.
-  [ "$(ovn-nbctl get logical_router_port "${external_router_port_name}" networks | jq -er '.[0]')" = "10.10.10.200/24" ]
-  [ "$(ovn-nbctl get logical_router_port "${external_router_port_name}" networks | jq -er '.[1]')" = "fd42:4242:4242:1010::200/64" ]
+  ovn-nbctl get logical_router_port "${external_router_port_name}" networks | jq --exit-status '.[0] == "10.10.10.200/24"'
+  ovn-nbctl get logical_router_port "${external_router_port_name}" networks | jq --exit-status '.[1] == "fd42:4242:4242:1010::200/64"'
 
   # Internal logical router port exists and has default gateway MTU.
   internal_router_port_name="${logical_router_name}-lrp-int"
@@ -254,8 +254,8 @@ test_network_ovn() {
   [ "$(ovn-nbctl get logical_router_port "${internal_router_port_name}" ipv6_ra_configs:send_periodic)" = '"true"' ]
 
   # Check IPs.
-  [ "$(ovn-nbctl get logical_router_port "${internal_router_port_name}" networks | jq -er '.[0]')" = "10.24.140.1/24" ]
-  [ "$(ovn-nbctl get logical_router_port "${internal_router_port_name}" networks | jq -er '.[1]')" = "fd42:bd85:5f89:5293::1/64" ]
+  ovn-nbctl get logical_router_port "${internal_router_port_name}" networks | jq --exit-status '.[0] == "10.24.140.1/24"'
+  ovn-nbctl get logical_router_port "${internal_router_port_name}" networks | jq --exit-status '.[1] == "fd42:bd85:5f89:5293::1/64"'
 
   # Check external switch is created.
   external_switch_name="${chassis_group_name}-ls-ext"
@@ -292,10 +292,10 @@ test_network_ovn() {
 
   # Check address sets.
   address_set_ipv4_name="${port_group_name}_routes_ip4"
-  [ "$(ovn-nbctl get address_set "${address_set_ipv4_name}" addresses | jq -er '.[0]')" = "10.24.140.0/24" ]
+  ovn-nbctl get address_set "${address_set_ipv4_name}" addresses | jq --exit-status '.[0] == "10.24.140.0/24"'
 
   address_set_ipv6_name="${port_group_name}_routes_ip6"
-  [ "$(ovn-nbctl get address_set "${address_set_ipv6_name}" addresses | jq -er '.[0]')" = "fd42:bd85:5f89:5293::/64" ]
+  ovn-nbctl get address_set "${address_set_ipv6_name}" addresses | jq --exit-status '.[0] == "fd42:bd85:5f89:5293::/64"'
 
   # Check internal switch DHCP options (excluding server_mac address which is random).
   ovn-nbctl --data=bare --no-headings --columns=options find dhcp_options cidr=10.24.140.0/24 | grep -F 'dns_server={10.10.10.1} domain_name="lxd" lease_time=3600 mtu='"${mtu}"' router=10.24.140.1 server_id=10.24.140.1'
@@ -337,7 +337,7 @@ test_network_ovn() {
   [ "$(lxc query /1.0/instances/c1?recursion=1 | jq -er '.state.network.eth0.addresses | .[] | select(.family == "inet6" and .scope == "global").address')" = "${c1_ipv6_address}" ]
 
   # Assert switch port configuration.
-  [ "$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" addresses | jq -er '.[0]')" = "${c1_mac_address} dynamic" ]
+  ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" addresses | jq --exit-status '.[0] == "'"${c1_mac_address}"' dynamic"'
   [ "$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" dynamic_addresses)" = '"'"${c1_mac_address} ${c1_ipv4_address} ${c1_ipv6_address}"'"' ]
   [ "$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" external_ids:lxd_location)" = "none" ] # standalone location.
   [ "$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" external_ids:lxd_switch)" = "${internal_switch_name}" ]
