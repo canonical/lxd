@@ -333,7 +333,7 @@ run_test_n_times() {
 # Run a single test
 run_test() {
   TEST_CURRENT=${1}
-  TEST_CURRENT_DESCRIPTION="${TEST_CURRENT#test_} backend=${LXD_BACKEND}"
+  TEST_CURRENT_DESCRIPTION="${TEST_CURRENT#test_} on ${LXD_BACKEND}"
   TEST_UNMET_REQUIREMENT=""
   cwd="${PWD}"
 
