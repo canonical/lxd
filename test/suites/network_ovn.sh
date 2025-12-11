@@ -45,6 +45,7 @@ test_network_ovn() {
 
   # Function to assert that the associative array matches what is in the northbound database.
   assert_row_count() {
+    local count table_name
     for table_name in "${!tables[@]}"; do
       count="${tables[${table_name}]}"
       echo "Checking ${table_name} has ${count} rows..."
