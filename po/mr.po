@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-12-10 17:19+0000\n"
+"POT-Creation-Date: 2025-12-11 15:59+0300\n"
 "PO-Revision-Date: 2022-03-10 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Marathi <https://hosted.weblate.org/projects/linux-containers/"
@@ -96,6 +96,19 @@ msgid ""
 "### Fields \"data\", \"timestamp\", \"digest\" are HEX-encoded.\n"
 "### Field \"attr\" is an unsigned 32-bit integer.\n"
 "###"
+msgstr ""
+
+#: lxc/alias.go:334
+msgid ""
+"### This is a YAML representation of the aliases.\n"
+"### Any line starting with a '#' will be ignored.\n"
+"###\n"
+"### A sample aliases configuration looks like:\n"
+"### list: \"list -c ns46S\"\n"
+"### my-list: \"list -c ns46S\"\n"
+"### start-all: \"start --all\"\n"
+"###\n"
+"### Note that aliases are key-value pairs."
 msgstr ""
 
 #: lxc/config_trust.go:244
@@ -520,15 +533,15 @@ msgstr ""
 msgid "--target cannot be used with instances"
 msgstr ""
 
-#: lxc/alias.go:211
+#: lxc/alias.go:225
 msgid "<alias>"
 msgstr ""
 
-#: lxc/alias.go:58
+#: lxc/alias.go:72
 msgid "<alias> <target>"
 msgstr ""
 
-#: lxc/alias.go:156
+#: lxc/alias.go:170
 msgid "<old alias> <new alias>"
 msgstr ""
 
@@ -561,7 +574,7 @@ msgstr ""
 msgid "ADDRESS"
 msgstr ""
 
-#: lxc/alias.go:139 lxc/image.go:1144 lxc/image_alias.go:267
+#: lxc/alias.go:153 lxc/image.go:1144 lxc/image_alias.go:267
 msgid "ALIAS"
 msgstr ""
 
@@ -656,7 +669,7 @@ msgstr ""
 msgid "Add member to group"
 msgstr ""
 
-#: lxc/alias.go:59 lxc/alias.go:60
+#: lxc/alias.go:73 lxc/alias.go:74
 msgid "Add new aliases"
 msgstr ""
 
@@ -741,18 +754,23 @@ msgstr ""
 msgid "Admin secret key: %s"
 msgstr ""
 
-#: lxc/alias.go:85 lxc/alias.go:190
+#: lxc/alias.go:99 lxc/alias.go:204
 #, c-format
 msgid "Alias %s already exists"
 msgstr ""
 
-#: lxc/alias.go:184 lxc/alias.go:239
+#: lxc/alias.go:198 lxc/alias.go:253
 #, c-format
 msgid "Alias %s doesn't exist"
 msgstr ""
 
 #: lxc/image_alias.go:101 lxc/image_alias.go:156 lxc/image_alias.go:320
 msgid "Alias name missing"
+msgstr ""
+
+#: lxc/alias.go:409
+#, c-format
+msgid "Alias parsing error: %s"
 msgstr ""
 
 #: lxc/publish.go:256
@@ -1731,21 +1749,21 @@ msgid "Deleted OIDC session %q"
 msgstr ""
 
 #: lxc/action.go:33 lxc/action.go:58 lxc/action.go:84 lxc/action.go:111
-#: lxc/alias.go:23 lxc/alias.go:60 lxc/alias.go:110 lxc/alias.go:159
-#: lxc/alias.go:214 lxc/auth.go:37 lxc/auth.go:69 lxc/auth.go:108
-#: lxc/auth.go:162 lxc/auth.go:211 lxc/auth.go:340 lxc/auth.go:400
-#: lxc/auth.go:449 lxc/auth.go:501 lxc/auth.go:524 lxc/auth.go:583
-#: lxc/auth.go:777 lxc/auth.go:820 lxc/auth.go:1020 lxc/auth.go:1088
-#: lxc/auth.go:1148 lxc/auth.go:1210 lxc/auth.go:1337 lxc/auth.go:1394
-#: lxc/auth.go:1418 lxc/auth.go:1470 lxc/auth.go:1524 lxc/auth.go:1550
-#: lxc/auth.go:1612 lxc/auth.go:1670 lxc/auth.go:1692 lxc/auth.go:1874
-#: lxc/auth.go:1912 lxc/auth.go:1964 lxc/auth.go:2013 lxc/auth.go:2132
-#: lxc/auth.go:2192 lxc/auth.go:2241 lxc/auth.go:2292 lxc/auth.go:2315
-#: lxc/auth.go:2368 lxc/auth.go:2431 lxc/auth.go:2457 lxc/auth.go:2510
-#: lxc/auth.go:2582 lxc/cluster.go:33 lxc/cluster.go:126 lxc/cluster.go:218
-#: lxc/cluster.go:275 lxc/cluster.go:334 lxc/cluster.go:407 lxc/cluster.go:489
-#: lxc/cluster.go:533 lxc/cluster.go:591 lxc/cluster.go:682 lxc/cluster.go:776
-#: lxc/cluster.go:899 lxc/cluster.go:983 lxc/cluster.go:1093
+#: lxc/alias.go:29 lxc/alias.go:74 lxc/alias.go:124 lxc/alias.go:173
+#: lxc/alias.go:228 lxc/alias.go:274 lxc/auth.go:37 lxc/auth.go:69
+#: lxc/auth.go:108 lxc/auth.go:162 lxc/auth.go:211 lxc/auth.go:340
+#: lxc/auth.go:400 lxc/auth.go:449 lxc/auth.go:501 lxc/auth.go:524
+#: lxc/auth.go:583 lxc/auth.go:777 lxc/auth.go:820 lxc/auth.go:1020
+#: lxc/auth.go:1088 lxc/auth.go:1148 lxc/auth.go:1210 lxc/auth.go:1337
+#: lxc/auth.go:1394 lxc/auth.go:1418 lxc/auth.go:1470 lxc/auth.go:1524
+#: lxc/auth.go:1550 lxc/auth.go:1612 lxc/auth.go:1670 lxc/auth.go:1692
+#: lxc/auth.go:1874 lxc/auth.go:1912 lxc/auth.go:1964 lxc/auth.go:2013
+#: lxc/auth.go:2132 lxc/auth.go:2192 lxc/auth.go:2241 lxc/auth.go:2292
+#: lxc/auth.go:2315 lxc/auth.go:2368 lxc/auth.go:2431 lxc/auth.go:2457
+#: lxc/auth.go:2510 lxc/auth.go:2582 lxc/cluster.go:33 lxc/cluster.go:126
+#: lxc/cluster.go:218 lxc/cluster.go:275 lxc/cluster.go:334 lxc/cluster.go:407
+#: lxc/cluster.go:489 lxc/cluster.go:533 lxc/cluster.go:591 lxc/cluster.go:682
+#: lxc/cluster.go:776 lxc/cluster.go:899 lxc/cluster.go:983 lxc/cluster.go:1093
 #: lxc/cluster.go:1181 lxc/cluster.go:1305 lxc/cluster.go:1342
 #: lxc/cluster_group.go:33 lxc/cluster_group.go:87 lxc/cluster_group.go:177
 #: lxc/cluster_group.go:263 lxc/cluster_group.go:323 lxc/cluster_group.go:447
@@ -2065,6 +2083,10 @@ msgstr ""
 
 #: lxc/cluster_group.go:322 lxc/cluster_group.go:323
 msgid "Edit a cluster group"
+msgstr ""
+
+#: lxc/alias.go:319
+msgid "Edit aliases"
 msgstr ""
 
 #: lxc/auth.go:1209 lxc/auth.go:1210
@@ -2612,7 +2634,7 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:112 lxc/auth.go:344 lxc/auth.go:1024 lxc/auth.go:2136
+#: lxc/alias.go:126 lxc/auth.go:344 lxc/auth.go:1024 lxc/auth.go:2136
 #: lxc/auth.go:2514 lxc/cluster.go:128 lxc/cluster.go:984
 #: lxc/cluster_group.go:449 lxc/config_template.go:275 lxc/config_trust.go:351
 #: lxc/config_trust.go:433 lxc/image.go:1119 lxc/image_alias.go:182
@@ -3037,6 +3059,11 @@ msgstr ""
 msgid "Import storage volumes"
 msgstr ""
 
+#: lxc/alias.go:386
+#, c-format
+msgid "Imported: %d alias(es)\n"
+msgstr ""
+
 #: lxc/storage_volume.go:2965
 #, c-format
 msgid "Importing custom volume: %s"
@@ -3325,7 +3352,7 @@ msgstr ""
 msgid "List OIDC sessions"
 msgstr ""
 
-#: lxc/alias.go:109 lxc/alias.go:110
+#: lxc/alias.go:123 lxc/alias.go:124
 msgid "List aliases"
 msgstr ""
 
@@ -3777,7 +3804,7 @@ msgstr ""
 msgid "Manage cluster roles"
 msgstr ""
 
-#: lxc/alias.go:22 lxc/alias.go:23
+#: lxc/alias.go:28 lxc/alias.go:29
 msgid "Manage command aliases"
 msgstr ""
 
@@ -4715,11 +4742,11 @@ msgstr ""
 msgid "Press ctrl+c to finish"
 msgstr ""
 
-#: lxc/auth.go:309 lxc/auth.go:1306 lxc/auth.go:2101 lxc/cluster.go:866
-#: lxc/cluster_group.go:405 lxc/config.go:323 lxc/config.go:398
-#: lxc/config.go:1381 lxc/config_metadata.go:157 lxc/config_template.go:239
-#: lxc/config_trust.go:314 lxc/image.go:493 lxc/network.go:773
-#: lxc/network_acl.go:717 lxc/network_forward.go:777
+#: lxc/alias.go:410 lxc/auth.go:309 lxc/auth.go:1306 lxc/auth.go:2101
+#: lxc/cluster.go:866 lxc/cluster_group.go:405 lxc/config.go:323
+#: lxc/config.go:398 lxc/config.go:1381 lxc/config_metadata.go:157
+#: lxc/config_template.go:239 lxc/config_trust.go:314 lxc/image.go:493
+#: lxc/network.go:773 lxc/network_acl.go:717 lxc/network_forward.go:777
 #: lxc/network_load_balancer.go:740 lxc/network_peer.go:699
 #: lxc/network_zone.go:641 lxc/network_zone.go:1334 lxc/placement_group.go:456
 #: lxc/profile.go:628 lxc/project.go:377 lxc/storage.go:361
@@ -5102,7 +5129,7 @@ msgstr ""
 msgid "Remove a network zone record entry"
 msgstr ""
 
-#: lxc/alias.go:213 lxc/alias.go:214
+#: lxc/alias.go:227 lxc/alias.go:228
 msgid "Remove aliases"
 msgstr ""
 
@@ -5178,7 +5205,7 @@ msgstr ""
 msgid "Rename a placement group"
 msgstr ""
 
-#: lxc/alias.go:158 lxc/alias.go:159 lxc/image_alias.go:287
+#: lxc/alias.go:172 lxc/alias.go:173 lxc/image_alias.go:287
 #: lxc/image_alias.go:288
 msgid "Rename aliases"
 msgstr ""
@@ -5726,6 +5753,10 @@ msgstr ""
 msgid "Show OIDC session"
 msgstr ""
 
+#: lxc/alias.go:273 lxc/alias.go:274
+msgid "Show aliases in YAML format"
+msgstr ""
+
 #: lxc/main.go:100
 msgid "Show all debug messages"
 msgstr ""
@@ -6113,7 +6144,7 @@ msgstr ""
 msgid "Symlink target path can only be used for type \"symlink\""
 msgstr ""
 
-#: lxc/alias.go:140
+#: lxc/alias.go:154
 msgid "TARGET"
 msgstr ""
 
@@ -7630,19 +7661,28 @@ msgstr ""
 msgid "info"
 msgstr ""
 
-#: lxc/alias.go:62
+#: lxc/alias.go:76
 msgid ""
 "lxc alias add list \"list -c ns46S\"\n"
 "    Overwrite the \"list\" command to pass -c ns46S."
 msgstr ""
 
-#: lxc/alias.go:216
+#: lxc/alias.go:321
+msgid ""
+"lxc alias edit\n"
+"\tEdit the aliases via interactive terminal.\n"
+"\n"
+"lxc alias edit < aliases.yaml\n"
+"\tEdit the aliases from \"aliases.yaml\"."
+msgstr ""
+
+#: lxc/alias.go:230
 msgid ""
 "lxc alias remove my-list\n"
 "    Remove the \"my-list\" alias."
 msgstr ""
 
-#: lxc/alias.go:161
+#: lxc/alias.go:175
 msgid ""
 "lxc alias rename list my-list\n"
 "    Rename existing alias \"list\" to \"my-list\"."

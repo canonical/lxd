@@ -1,13 +1,19 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"os"
 	"sort"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
+	"github.com/canonical/lxd/shared"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/termios"
 )
 
 type cmdAlias struct {
@@ -38,6 +44,14 @@ func (c *cmdAlias) command() *cobra.Command {
 	// Remove
 	aliasRemoveCmd := cmdAliasRemove{global: c.global, alias: c}
 	cmd.AddCommand(aliasRemoveCmd.command())
+
+	// Show
+	aliasShowCmd := cmdAliasShow{global: c.global, alias: c}
+	cmd.AddCommand(aliasShowCmd.command())
+
+	// Edit
+	aliasEditCmd := cmdAliasEdit{global: c.global, alias: c}
+	cmd.AddCommand(aliasEditCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -244,4 +258,170 @@ func (c *cmdAliasRemove) run(cmd *cobra.Command, args []string) error {
 
 	// Save the config
 	return conf.SaveConfig(c.global.confPath)
+}
+
+// Show.
+type cmdAliasShow struct {
+	global *cmdGlobal
+	alias  *cmdAlias
+}
+
+// Command creates a Cobra command to show all aliases in YAML format.
+func (c *cmdAliasShow) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show")
+	cmd.Short = i18n.G("Show aliases in YAML format")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show aliases in YAML format`))
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+// Run executes the show command to display all aliases in YAML format.
+func (c *cmdAliasShow) run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, 0)
+	if exit {
+		return err
+	}
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return nil, cobra.ShellCompDirectiveDefault
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// Convert aliases to YAML and print
+	data, err := yaml.Marshal(&conf.Aliases)
+	if err != nil {
+		return err
+	}
+
+	fmt.Print(string(data))
+	return nil
+}
+
+// Edit.
+type cmdAliasEdit struct {
+	global *cmdGlobal
+	alias  *cmdAlias
+}
+
+// Command creates a Cobra command to edit aliases either via interactive editor or via pipe to stdin.
+func (c *cmdAliasEdit) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("edit")
+	cmd.Short = i18n.G("Edit aliases")
+
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc alias edit
+	Edit the aliases via interactive terminal.
+
+lxc alias edit < aliases.yaml
+	Edit the aliases from "aliases.yaml".`))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+// HelpTemplate returns a sample YAML representation of aliases and guidelines for editing.
+func (c *cmdAliasEdit) helpTemplate() string {
+	return i18n.G(
+		`### This is a YAML representation of the aliases.
+### Any line starting with a '#' will be ignored.
+###
+### A sample aliases configuration looks like:
+### list: "list -c ns46S"
+### my-list: "list -c ns46S"
+### start-all: "start --all"
+###
+### Note that aliases are key-value pairs.`)
+}
+
+// Run executes the alias edit command, allowing users to edit aliases via an interactive YAML editor.
+func (c *cmdAliasEdit) run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 0, 0)
+	if exit {
+		return err
+	}
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return nil, cobra.ShellCompDirectiveDefault
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// If stdin isn't a terminal, read text from it.
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newAliases := make(map[string]string)
+		err = yaml.Unmarshal(contents, &newAliases)
+		if err != nil {
+			return err
+		}
+
+		importedCount := len(newAliases)
+		// Prevent clearing all aliases if input is empty.
+		if importedCount == 0 {
+			return errors.New("No aliases found in input.")
+		}
+
+		// Update aliases and save config.
+		conf.Aliases = newAliases
+
+		fmt.Printf(i18n.G("Imported: %d alias(es)\n"), importedCount)
+		return conf.SaveConfig(c.global.confPath)
+	}
+
+	// Extract the current aliases.
+	data, err := yaml.Marshal(&conf.Aliases)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor.
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor.
+		newAliases := make(map[string]string)
+		err = yaml.Unmarshal(content, &newAliases)
+
+		// Respawn the editor if there was an error.
+		if err != nil {
+			fmt.Fprintf(os.Stderr, i18n.G("Alias parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+		// Update aliases and save config.
+		conf.Aliases = newAliases
+		return conf.SaveConfig(c.global.confPath)
+	}
 }
