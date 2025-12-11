@@ -2249,7 +2249,6 @@
 					},
 					{
 						"raw.idmap": {
-							"condition": "unprivileged container",
 							"liveupdate": "no",
 							"longdesc": "For example: `both 1000 1000`",
 							"shortdesc": "Raw idmap configuration",

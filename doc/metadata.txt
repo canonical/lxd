@@ -1971,7 +1971,6 @@ The specified entries are appended to the generated profile.
 ```
 
 ```{config:option} raw.idmap instance-raw
-:condition: "unprivileged container"
 :liveupdate: "no"
 :shortdesc: "Raw idmap configuration"
 :type: "blob"
