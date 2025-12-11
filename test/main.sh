@@ -47,9 +47,9 @@ if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
 fi
 
-if [ -n "${GOPATH:-}" ]; then
-    # Add GOPATH/bin to PATH if not there already
-    [[ "${PATH}" != *"${GOPATH}/bin"* ]] && PATH="${GOPATH}/bin:${PATH}"
+# Add GOPATH/bin to PATH if not there already
+if [ -n "${GOPATH:-}" ] && [[ "${PATH}" != *"${GOPATH}/bin"* ]]; then
+    PATH="${GOPATH}/bin:${PATH}"
 fi
 export PATH
 
