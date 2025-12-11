@@ -329,8 +329,53 @@ do_storage_driver_zfs() {
   lxc launch testimage c5
   lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.size
 
+  # Test snapshot restore behavior with dependent clones
+  # Enable remove_snapshots
+  lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.zfs.remove_snapshots true
+
+  # Create container with multiple snapshots
+  lxc launch testimage c8
+  lxc snapshot c8 snap0
+  lxc exec c8 -- touch /root/file1
+  lxc snapshot c8 snap1
+  lxc exec c8 -- touch /root/file2
+  lxc snapshot c8 snap2
+
+  # Clone from the middle snapshot (this creates a dependency)
+  lxc copy c8/snap1 c9
+
+  # Store snapshot names before restore attempt
+  snap_list_before=$(lxc info c8 | awk '/^\s+snap/ {print $2}')
+
+  # Try to restore c8 to snap0 (should fail due to dependent clone c9 on snap1)
+  # This tests that snapshots are NOT removed from LXD records on failure
+  ! lxc restore c8 snap0 2>&1 | grep "cannot be restored due to snapshot.*having.*dependent clone" || false
+
+  # Verify that snapshots are still visible in LXD after failed restore
+  snap_list_after=$(lxc info c8 | awk '/^\s+snap/ {print $2}')
+  [ "$snap_list_before" = "$snap_list_after" ] || return 1
+
+  # Also verify that the ZFS snapshots still exist
+  for snap in snap0 snap1 snap2; do
+    zfs list -H -o name "lxdtest-$(basename "${LXD_DIR}")/containers/c8@snapshot-${snap}" 2>&1 || return 1
+  done
+
+  # Delete the dependent clone to allow restoration
+  lxc delete -f c9
+
+  # Now restore should work since dependency is gone
+  lxc restore c8 snap0
+
+  # Verify c8 has no files after restore to snap0
+  ! lxc exec c8 -- test -f /root/file1 || false
+  ! lxc exec c8 -- test -f /root/file2 || false
+
   # Clean up
-  lxc rm -f c1 c3 c11 c21 c4 c5 c6 c7
+  lxc delete -f c8
+  lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.zfs.remove_snapshots
+
+  # Clean up
+  lxc delete -f c1 c3 c11 c21 c4 c5 c6 c7
   lxc storage volume rm lxdtest-"$(basename "${LXD_DIR}")" vol1
   lxc storage volume rm lxdtest-"$(basename "${LXD_DIR}")" vol2
 
