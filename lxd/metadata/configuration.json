@@ -5989,6 +5989,15 @@
 						}
 					},
 					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
 						"source.wipe": {
 							"defaultdesc": "`false`",
 							"longdesc": "Set this option to `true` to wipe the block device specified in `source`\nprior to creating the storage pool.",
@@ -6205,6 +6214,15 @@
 							"scope": "local",
 							"shortdesc": "Existing OSD storage pool to use",
 							"type": "string"
+						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
 						}
 					},
 					{
@@ -6434,6 +6452,15 @@
 							"shortdesc": "Existing CephFS file system or file system path to use",
 							"type": "string"
 						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
+						}
 					}
 				]
 			},
@@ -6631,6 +6658,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing directory",
 							"type": "string"
+						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
 						}
 					}
 				]
@@ -6839,6 +6875,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or LVM volume group",
 							"type": "string"
+						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
 						}
 					},
 					{
@@ -7470,6 +7515,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or ZFS dataset/pool",
 							"type": "string"
+						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
 						}
 					},
 					{

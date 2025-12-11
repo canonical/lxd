@@ -269,15 +269,54 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 			}
 
 			for i, config := range cluster.MemberConfig {
+				// In case the 'source.recover' config key is already set by the existing cluster member,
+				// we filter it out as we anyway prompt if an existing source should be reused in case
+				// the 'source' config key is set.
+				// This prevents asking the same question twice.
+				if config.Key == "source.recover" {
+					continue
+				}
+
+				var defaultAnswer string
 				question := "Choose " + config.Description + ": "
 
+				// Don't populate a default for the 'source' key as it is likely depending on the used system.
+				// In case the other cluster members used a loop device created by LXD, populating this
+				// as the default for any new member is wrong.
+				// Other keys like ZFS pool name or LVM volume group name are likely to be identical so it
+				// makes sense to display those as a default.
+				// The same applies for network related keys like the OVN uplink interface.
+				if config.Key != "source" {
+					defaultAnswer = config.Value
+					question = fmt.Sprintf("Choose %s [default=%s]: ", config.Description, config.Value)
+				}
+
 				// Allow for empty values.
-				configValue, err := c.global.asker.AskString(question, "", validate.Optional())
+				configValue, err := c.global.asker.AskString(question, defaultAnswer, validate.Optional())
 				if err != nil {
 					return err
 				}
 
 				cluster.MemberConfig[i].Value = configValue
+
+				// If a specific source was provided, it could be that it already contains an existing storage pool.
+				// In this case ask for recovery.
+				if config.Key == "source" && configValue != "" {
+					configValue, err := c.global.asker.AskBool("Are you recovering an existing source? (yes/no) [default=no]: ", "no")
+					if err != nil {
+						return err
+					}
+
+					// Only populate the value if it set to true.
+					if configValue {
+						cluster.MemberConfig = append(cluster.MemberConfig, api.ClusterMemberConfigKey{
+							Entity: config.Entity,
+							Name:   config.Name,
+							Key:    "source.recover",
+							Value:  "true",
+						})
+					}
+				}
 			}
 
 			config.Cluster.MemberConfig = cluster.MemberConfig
