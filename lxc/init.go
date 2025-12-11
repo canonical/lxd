@@ -24,17 +24,18 @@ import (
 type cmdInit struct {
 	global *cmdGlobal
 
-	flagConfig     []string
-	flagDevice     []string
-	flagEphemeral  bool
-	flagNetwork    string
-	flagProfile    []string
-	flagStorage    string
-	flagTarget     string
-	flagType       string
-	flagNoProfiles bool
-	flagEmpty      bool
-	flagVM         bool
+	flagConfig        []string
+	flagDevice        []string
+	flagEphemeral     bool
+	flagNetwork       string
+	flagProfile       []string
+	flagStorage       string
+	flagTarget        string
+	flagTargetProject string
+	flagType          string
+	flagNoProfiles    bool
+	flagEmpty         bool
+	flagVM            bool
 }
 
 func (c *cmdInit) command() *cobra.Command {
@@ -52,7 +53,13 @@ lxc init ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
     Create a virtual machine with 4 vCPUs and 4GiB of RAM
 
 lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB
-    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB`))
+    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB
+
+Note: The --project flag sets the project for both the image remote and the instance remote.
+If the image remote is a public remote (e.g. simplestreams) then this project is ignored by the image remote.
+If the image remote is another LXD server, specify the source project for the image remote 
+with --project and the instance remote with --target-project (if different from --project).
+`))
 
 	cmd.RunE = c.run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
@@ -63,6 +70,7 @@ lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", i18n.G("Instance type")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Project to create the instance in (if different from --project)")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the instance with no profiles applied"))
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Create an empty instance"))
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Create a virtual machine"))
@@ -271,6 +279,11 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	// Set the target if provided.
 	if c.flagTarget != "" {
 		d = d.UseTarget(c.flagTarget)
+	}
+
+	// Set the target project if provided.
+	if c.flagTargetProject != "" {
+		d = d.UseProject(c.flagTargetProject)
 	}
 
 	// Setup instance creation request.

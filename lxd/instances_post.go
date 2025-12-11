@@ -61,18 +61,19 @@ func ensureDownloadedImageFitWithinBudget(ctx context.Context, s *state.State, o
 	}
 
 	imgDownloaded, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
-		Server:       source.Server,
-		Protocol:     source.Protocol,
-		Certificate:  source.Certificate,
-		Secret:       source.Secret,
-		Alias:        imgAlias,
-		SetCached:    true,
-		Type:         imgType,
-		AutoUpdate:   autoUpdate,
-		Public:       false,
-		PreferCached: true,
-		ProjectName:  p.Name,
-		Budget:       budget,
+		Server:            source.Server,
+		Protocol:          source.Protocol,
+		Certificate:       source.Certificate,
+		Secret:            source.Secret,
+		Alias:             imgAlias,
+		SetCached:         true,
+		Type:              imgType,
+		AutoUpdate:        autoUpdate,
+		Public:            false,
+		PreferCached:      true,
+		ProjectName:       p.Name,
+		Budget:            budget,
+		SourceProjectName: source.Project,
 	})
 	if err != nil {
 		return nil, err
