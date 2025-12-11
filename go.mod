@@ -3,7 +3,7 @@ module github.com/canonical/lxd
 go 1.25.4
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.18.0
+	github.com/NVIDIA/nvidia-container-toolkit v1.18.1
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v2 v2.0.1
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
@@ -62,7 +62,7 @@ require (
 	google.golang.org/protobuf v1.36.10
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	tags.cncf.io/container-device-interface v1.0.1
+	tags.cncf.io/container-device-interface v1.0.2-0.20251114135136-1b24d969689f
 	tags.cncf.io/container-device-interface/specs-go v1.0.0
 )
 
@@ -121,8 +121,8 @@ require (
 	github.com/muhlemmer/httpforwarded v0.1.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/natefinch/wrap v0.2.0 // indirect
-	github.com/opencontainers/runtime-spec v1.2.1 // indirect
-	github.com/opencontainers/runtime-tools v0.9.1-0.20221107090550-2e043c6bd626 // indirect
+	github.com/opencontainers/runtime-spec v1.3.0 // indirect
+	github.com/opencontainers/runtime-tools v0.9.1-0.20251114084447-edf4cb3d2116 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -142,7 +142,6 @@ require (
 	github.com/spf13/viper v1.21.0 // indirect
 	github.com/stoewer/go-strcase v1.3.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/tinylib/msgp v1.5.0 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
