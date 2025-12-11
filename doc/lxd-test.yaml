@@ -17,6 +17,9 @@ config:
         APT::Get::Show-Versions "true";
         # Install just what's in the packages list below
         APT::Install-Recommends "false";
+        # Bypass apt phasing in new package versions
+        Update-Manager::Always-Include-Phased-Updates true;
+        APT::Get::Always-Include-Phased-Updates true;
 
     write_files:
     # Faster dpkg installs
