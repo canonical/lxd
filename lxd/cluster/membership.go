@@ -829,13 +829,13 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		defer func() { _ = client.Close() }()
 
 		// Figure out our current role.
-		role := db.RaftRole(-1)
-		cluster, err := client.Cluster(ctx)
+		role := db.RaftRole(-1) // -1 is an invalid role.
+		servers, err := client.Cluster(ctx)
 		if err != nil {
 			return fmt.Errorf("Fetch current cluster configuration: %w", err)
 		}
 
-		for _, server := range cluster {
+		for _, server := range servers {
 			if server.ID == info.ID {
 				role = server.Role
 				break
@@ -847,8 +847,28 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 		// If we're stepping back from voter to spare, let's first transition
 		// to stand-by first and wait for the configuration change to be
-		// notified to us. This prevent us from thinking we're still voters and
-		// potentially disrupt the cluster.
+		// notified to us. This prevents us from thinking we're still a voter and
+		// potentially disrupting the cluster.
+		//
+		// If we went from voter -> spare directly:
+		// 1. Node informs leader of role change.
+		// 2. Leader acknowledges role change and updates its configuration.
+		// 3. Before the node processes the acknowledgement, it might still:
+		//    - Think it's a voter.
+		//    - Participate in a vote.
+		//    - Potentially cause a split-brain scenario.
+		// 4. Then node becomes spare and stops replicating the log.
+		// 5. The node misses the configuration change event in the log.
+		//
+		// With the two phase voter -> stand-by -> spare change:
+		// 1. Node transitions to stand-by.
+		// 2. Stand-by still replicates the log, so it receives the configuration change.
+		// 3. Node polls until it sees itself as stand-by in the configuration.
+		// 4. Node transitions to spare.
+		//
+		// This way we avoid the split-brain window and ensure the node processes
+		// the configuration change event, guaranteeing the node knows it's no longer
+		// a voter before stopping log replication.
 		if role == db.RaftVoter && info.Role == db.RaftSpare {
 			err = client.Assign(ctx, info.ID, db.RaftStandBy)
 			if err != nil {
@@ -860,8 +880,9 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 				return fmt.Errorf("Failed getting local dqlite client: %w", err)
 			}
 
-			notified := false
-			for range 10 {
+			// Poll for up to 5 seconds to confirm role change.
+			var roleConfirmed bool
+			for i := 0; i < 10 && !roleConfirmed; i++ {
 				time.Sleep(500 * time.Millisecond)
 				servers, err := local.Cluster(context.Background())
 				if err != nil {
@@ -869,20 +890,14 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 				}
 
 				for _, server := range servers {
-					if server.ID != info.ID {
-						continue
-					}
-
-					if server.Role == db.RaftStandBy {
-						notified = true
+					if server.ID == info.ID && server.Role == db.RaftStandBy {
+						roleConfirmed = true
 						break
 					}
 				}
-				if notified {
-					break
-				}
 			}
-			if !notified {
+
+			if !roleConfirmed {
 				return errors.New("Timeout waiting for configuration change notification")
 			}
 		}
