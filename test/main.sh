@@ -502,27 +502,27 @@ for LXD_BACKEND in ${LXD_BACKENDS}; do
 
   spawn_initial_lxd
 
-for arg in "$@"; do
-  if [[ "${arg}" == group:* ]]; then
-    group_name="${arg#group:}"
-    declare -p test_group_"${group_name}" >/dev/null 2>&1 || {
-      echo "Unknown test group: ${group_name}" >&2
-      exit 1
-    }
-    run_test_group "${group_name}"
-  else
-    declare -f "test_${arg}" >/dev/null 2>&1 || {
-      echo "Unknown test: test_${arg}" >&2
-      exit 1
-    }
-    # allow for running a specific set of tests possibly multiple times
-    RUN_COUNT=1
-    while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
-      run_test "test_${arg}"
-      RUN_COUNT="$((RUN_COUNT+1))"
-    done
-  fi
-done
+  for arg in "$@"; do
+    if [[ "${arg}" == group:* ]]; then
+      group_name="${arg#group:}"
+      declare -p test_group_"${group_name}" >/dev/null 2>&1 || {
+        echo "Unknown test group: ${group_name}" >&2
+        exit 1
+      }
+      run_test_group "${group_name}"
+    else
+      declare -f "test_${arg}" >/dev/null 2>&1 || {
+        echo "Unknown test: test_${arg}" >&2
+        exit 1
+      }
+      # allow for running a specific set of tests possibly multiple times
+      RUN_COUNT=1
+      while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
+        run_test "test_${arg}"
+        RUN_COUNT="$((RUN_COUNT+1))"
+      done
+    fi
+  done
 
   # shellcheck disable=SC2034
   TEST_RESULT=success
