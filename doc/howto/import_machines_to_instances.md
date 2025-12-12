@@ -1,26 +1,22 @@
----
-discourse: lxc:[Using&#32;lxd-migrate&#32;to&#32;convert&#32;a&#32;physical&#32;host&#32;to&#32;a&#32;container](14345)
----
-
 (import-machines-to-instances)=
 # How to import physical or virtual machines to LXD instances
 
 ```{youtube} https://www.youtube.com/watch?v=F9GALjHtnUU
 ```
 
-If you have an existing machine, either physical or virtual (VM or container), you can use the `lxd-migrate` tool to create a LXD instance based on your existing disk or image.
+If you have an existing machine, either physical or virtual (VM or container), you can use the `lxd-convert` tool to create a LXD instance based on your existing disk or image.
 
 The tool copies the provided partition, disk or image to the LXD storage pool of the provided LXD server, sets up an instance using that storage and allows you to configure additional settings for the new instance.
 
 ```{note}
-If you want to configure your new instance during the migration process, set up the entities that you want your instance to use before starting the migration process.
+If you want to configure your new instance during the conversion process, set up the entities that you want your instance to use before starting the conversion process.
 
 By default, the new instance will use the entities specified in the `default` profile.
 You can specify a different profile (or a profile list) to customize the configuration.
 See {ref}`profiles` for more information.
 You can also override {ref}`instance-options`, the {ref}`storage pool <storage-pools>` to be used and the size for the {ref}`storage volume <storage-volumes>`, and the {ref}`network <networking>` to be used.
 
-Alternatively, you can update the instance configuration after the migration is complete.
+Alternatively, you can update the instance configuration after the conversion is complete.
 ```
 
 The tool can create both containers and virtual machines:
@@ -29,14 +25,14 @@ The tool can create both containers and virtual machines:
   For example, this could be the `/` root disk of the machine or container where you are running the tool.
 * When creating a virtual machine, you must provide a bootable disk, partition, or an image in raw, QCOW, QCOW2, VDI, VHDX, or VMDK format.
   This means that just providing a file system is not sufficient, and you cannot create a virtual machine from a container that you are running.
-  It is also not possible to create a virtual machine from the physical machine that you are using to do the migration, because the migration tool would be using the disk that it is copying.
+  It is also not possible to create a virtual machine from the physical machine that you are using to do the conversion, because the conversion tool would be using the disk that it is copying.
   Instead, you could provide a bootable image, or a bootable partition or disk that is currently not in use.
 
 The tool can also inject the required VIRTIO drivers into the image:
 
 * To convert the image into raw format and inject the VIRTIO drivers during the conversion, use the following command:
 
-      lxd-migrate --conversion=format,virtio
+      lxd-convert --options=format,virtio
 
   ```{note}
   The conversion option `virtio` requires `virt-v2v-in-place` to be installed on the host where the LXD server runs.
@@ -54,14 +50,14 @@ The tool can also inject the required VIRTIO drivers into the image:
      For other OS versions, download [`rhsrvany.exe` and `pnp_wait.exe`](https://github.com/rwmjones/rhsrvany?tab=readme-ov-file#binary-releases).
 
    ````{tip}
-   The `lxd-migrate` command with the `--conversion=format,virtio` option automatically converts the image and injects the VIRTIO drivers during the conversion.
+   The `lxd-convert` command with the `--options=format,virtio` option automatically converts the image and injects the VIRTIO drivers during the conversion.
    However, if you want to manually convert a Windows VM from a foreign hypervisor, you must install both the required Windows drivers (as described above) and `virt-v2v` (>= 2.3.4).
 
    <details>
    <summary>Expand to see how to convert your Windows VM using <code>virt-v2v</code></summary>
 
    Use `virt-v2v` to convert Windows image into `raw` format and include the required drivers.
-   The resulting image is suitable for use with `lxd-migrate`.
+   The resulting image is suitable for use with `lxd-convert`.
 
    ```
    # Example 1. Convert a VMDK image to a raw image
@@ -74,25 +70,25 @@ The tool can also inject the required VIRTIO drivers into the image:
    sudo virt-v2v --block-driver virtio-scsi -o local -of raw -os ./os -i vmx ./test-vm.vmx
    ```
 
-   You can find the resulting image in the `os` directory and use it with `lxd-migrate` on the next steps.
-   In addition, when migrating already converted images, `lxd-migrate` conversion options are not necessary.
+   You can find the resulting image in the `os` directory and use it with `lxd-convert` on the next steps.
+   In addition, when migrating already converted images, `lxd-convert` conversion options are not necessary.
    </details>
    ````
 
 ## Interactive instance import
 
-Complete the following steps to migrate an existing machine to a LXD instance:
+Complete the following steps to convert an existing machine to a LXD instance:
 
-1. Download the `bin.linux.lxd-migrate` tool ([`bin.linux.lxd-migrate.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-migrate.aarch64) or [`bin.linux.lxd-migrate.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-migrate.x86_64)) from the **Assets** section of the latest [LXD release](https://github.com/canonical/lxd/releases).
+1. Download the `bin.linux.lxd-convert` tool ([`bin.linux.lxd-convert.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-convert.aarch64) or [`bin.linux.lxd-convert.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-convert.x86_64)) from the **Assets** section of the latest [LXD release](https://github.com/canonical/lxd/releases).
 1. Place the tool on the machine that you want to use to create the instance.
-   Make it executable (usually by running `chmod u+x bin.linux.lxd-migrate`).
+   Make it executable (usually by running `chmod u+x bin.linux.lxd-convert`).
 1. Make sure that the machine has `rsync` and `file` installed.
    If they are missing, install them (for example, with `sudo apt install rsync file`).
 1. Run the tool:
 
-       sudo ./bin.linux.lxd-migrate
+       sudo ./bin.linux.lxd-convert
 
-   The tool then asks you to provide the information required for the migration.
+   The tool then asks you to provide the information required for the conversion.
 
    1. Specify the LXD server URL, either as an IP address or as a DNS name.
 
@@ -105,7 +101,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    1. Check and confirm the certificate fingerprint.
    1. Choose a method for authentication (see {ref}`authentication`).
 
-      For example, if you choose using a certificate token, log on to the LXD server and create a token for the machine on which you are running the migration tool with [`lxc config trust add`](lxc_config_trust_add.md).
+      For example, if you choose using a certificate token, log on to the LXD server and create a token for the machine on which you are running the conversion tool with [`lxc config trust add`](lxc_config_trust_add.md).
       Then use the generated token to authenticate the tool.
    1. Choose whether to create a container or a virtual machine.
       See {ref}`containers-and-vms`.
@@ -116,14 +112,14 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    1. Optionally, configure the new instance.
       You can do so by specifying {ref}`profiles <profiles>`, directly setting {ref}`configuration options <instance-options>` or changing {ref}`storage <storage>` or {ref}`network <networking>` settings.
 
-      Alternatively, you can configure the new instance after the migration.
-   1. When you are done with the configuration, start the migration process.
+      Alternatively, you can configure the new instance after the conversion.
+   1. When you are done with the configuration, start the conversion process.
 
    <details>
    <summary>Expand to see an example output for importing to a container</summary>
 
    ```{terminal}
-   :input: sudo ./bin.linux.lxd-migrate
+   :input: sudo ./bin.linux.lxd-convert
 
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx
@@ -151,7 +147,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
      Source: /
 
    Additional overrides can be applied at this stage:
-   1) Begin the migration with the above configuration
+   1) Begin the conversion with the above configuration
    2) Override profile list
    3) Set additional configuration options
    4) Change instance storage pool or volume size
@@ -169,7 +165,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
        limits.cpu: "2"
 
    Additional overrides can be applied at this stage:
-   1) Begin the migration with the above configuration
+   1) Begin the conversion with the above configuration
    2) Override profile list
    3) Set additional configuration options
    4) Change instance storage pool or volume size
@@ -191,7 +187,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
        limits.cpu: "2"
 
    Additional overrides can be applied at this stage:
-   1) Begin the migration with the above configuration
+   1) Begin the conversion with the above configuration
    2) Override profile list
    3) Set additional configuration options
    4) Change instance storage pool or volume size
@@ -212,7 +208,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
        limits.cpu: "2"
 
    Additional overrides can be applied at this stage:
-   1) Begin the migration with the above configuration
+   1) Begin the conversion with the above configuration
    2) Override profile list
    3) Set additional configuration options
    4) Change instance storage pool or volume size
@@ -227,7 +223,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    <summary>Expand to see an example output for importing to a VM</summary>
 
    ```{terminal}
-   :input: sudo ./bin.linux.lxd-migrate
+   :input: sudo ./bin.linux.lxd-convert
 
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx
@@ -257,7 +253,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
        security.secureboot: "false"
 
    Additional overrides can be applied at this stage:
-   1) Begin the migration with the above configuration
+   1) Begin the conversion with the above configuration
    2) Override profile list
    3) Set additional configuration options
    4) Change instance storage pool or volume size
@@ -276,7 +272,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
        security.secureboot: "false"
 
    Additional overrides can be applied at this stage:
-   1) Begin the migration with the above configuration
+   1) Begin the conversion with the above configuration
    2) Override profile list
    3) Set additional configuration options
    4) Change instance storage pool or volume size
@@ -299,7 +295,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
        security.secureboot: "false"
 
    Additional overrides can be applied at this stage:
-   1) Begin the migration with the above configuration
+   1) Begin the conversion with the above configuration
    2) Override profile list
    3) Set additional configuration options
    4) Change instance storage pool or volume size
@@ -321,7 +317,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
        security.secureboot: "false"
 
    Additional overrides can be applied at this stage:
-   1) Begin the migration with the above configuration
+   1) Begin the conversion with the above configuration
    2) Override profile list
    3) Set additional configuration options
    4) Change instance storage pool or volume size
@@ -332,18 +328,18 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    ```
 
    </details>
-1. When the migration is complete, check the new instance and update its configuration to the new environment.
+1. When the conversion is complete, check the new instance and update its configuration to the new environment.
    Typically, you must update at least the storage configuration (`/etc/fstab`) and the network configuration.
 
 ## Non-interactive instance import
 
-Alternatively, the entire instance import configuration can be provided using `lxd-migrate` flags.
-If any required flag is missing, `lxd-migrate` will interactively prompt for the missing value.
+Alternatively, the entire instance import configuration can be provided using `lxd-convert` flags.
+If any required flag is missing, `lxd-convert` will interactively prompt for the missing value.
 However, when the `--non-interactive` flag is used, an error is returned instead.
 
 Note that if any flag contains an invalid value, an error is returned regardless of the mode (interactive or non-interactive).
 
-The `lxd-migrate` command supports the following flags that can be used in non-interactive migration:
+The `lxd-convert` command supports the following flags that can be used in non-interactive conversion:
 
 ```
 Instance configuration:
@@ -366,15 +362,15 @@ Target server:
       --key-path             Trusted certificate path
 
 Other:
-      --conversion strings   Comma-separated list of conversion options to apply. Allowed values are: [format, virtio] (default [format])
-      --non-interactive      Prevent further interaction if migration questions are incomplete
+      --options strings      Comma-separated list of conversion options to apply. Allowed values are: [format, virtio] (default [format])
+      --non-interactive      Prevent further interaction if conversion questions are incomplete
       --rsync-args           Extra arguments to pass to rsync
 ```
 
 Example VM import to local LXD server:
 
 ```sh
-lxd-migrate \
+lxd-convert \
   --name v1 \
   --type vm \
   --source "${sourcePath}" \
@@ -385,9 +381,9 @@ Example VM import to remote HTTPS server:
 
 ```sh
 # Token from remote server.
-token=$(lxc config trust add --name lxd-migrate --quiet)
+token=$(lxc config trust add --name lxd-convert --quiet)
 
-lxd-migrate \
+lxd-convert \
   --server https://example.com:8443 \
   --token "$token" \
   --name v1 \
@@ -399,7 +395,7 @@ lxd-migrate \
 Example VM import with secure boot disabled and custom resource limits:
 
 ```sh
-lxd-migrate \
+lxd-convert \
   --name v1 \
   --type vm \
   --source "${sourcePath}" \

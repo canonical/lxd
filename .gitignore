@@ -12,7 +12,7 @@ fuidshift/fuidshift
 lxc/lxc
 lxd-agent/lxd-agent
 lxd-benchmark/lxd-benchmark
-lxd-migrate/lxd-migrate
+lxd-convert/lxd-convert
 lxd-user/lxd-user
 test/busybox.tar.xz.cache
 test/devlxd-client/devlxd-client

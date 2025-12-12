@@ -151,14 +151,14 @@ func transferRootDiskForConversion(ctx context.Context, op lxd.Operation, rootfs
 	return op.Wait()
 }
 
-func (c *cmdMigrate) connectLocal(path string) (lxd.InstanceServer, error) {
+func (c *cmdConvert) connectLocal(path string) (lxd.InstanceServer, error) {
 	args := lxd.ConnectionArgs{}
-	args.UserAgent = "LXD-MIGRATE " + version.Version
+	args.UserAgent = "LXD-CONVERT " + version.Version
 
 	return lxd.ConnectLXDUnix(path, &args)
 }
 
-func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
+func (c *cmdConvert) connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
 	args := lxd.ConnectionArgs{
 		AuthType: authType,
 	}
@@ -206,7 +206,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 	}
 
 	// Attempt to connect using the system CA
-	args.UserAgent = "LXD-MIGRATE " + version.Version
+	args.UserAgent = "LXD-CONVERT " + version.Version
 	instanceServer, err := lxd.ConnectLXD(url, &args)
 
 	var certificate *x509.Certificate
