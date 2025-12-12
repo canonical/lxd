@@ -35,7 +35,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
@@ -1848,7 +1847,7 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		// Per-network project limits for uplink IPs only make sense for projects with their own networks.
 		if shared.IsTrue(config["features.networks"]) {
 			if defaultNetwork != "" {
-				return errors.New(i18n.G("A default network device cannot be specified if the networks feature is enabled"))
+				return errors.New("A default network device cannot be specified if the networks feature is enabled")
 			}
 
 			// Get networks that are allowed to be used as uplinks by this project.

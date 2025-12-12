@@ -11,8 +11,6 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"go.yaml.in/yaml/v2"
-
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 // Table list format.
@@ -75,7 +73,7 @@ func RenderTable(format string, header []string, data [][]string, raw any) error
 
 		fmt.Printf("%s", out)
 	default:
-		return fmt.Errorf(i18n.G("Invalid format %q"), format)
+		return fmt.Errorf("Invalid format %q", format)
 	}
 
 	return nil
