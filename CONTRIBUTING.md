@@ -122,12 +122,6 @@ If you modify any Go source files, format them:
 
 	make update-fmt
 
-#### CLI tool string updates
-
-If you modify CLI strings in `lxc/`, regenerate and commit translation files:
-
-    make i18n
-
 #### API updates
 
 If you modify the LXD API (`shared/api`), regenerate and commit the Swagger YAML file (`doc/rest-api.yaml`) used for API reference documentation:

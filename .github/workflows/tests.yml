@@ -190,7 +190,6 @@ jobs:
           set -eux
           sudo chmod o+w ./lxd/metadata/configuration.json
           sudo chmod o+w ./doc/metadata.txt
-          sudo chmod o+w ./po/*
           sudo chmod o+w ./lxd/auth/entitlements_generated.go
           sudo chmod o+w ./lxd/auth/drivers/openfga_model.openfga
           make static-analysis
