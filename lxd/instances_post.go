@@ -92,7 +92,12 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 		return response.BadRequest(err)
 	}
 
-	run := func(op *operations.Operation) error {
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	run := func(ctx context.Context, op *operations.Operation) error {
 		devices := deviceConfig.NewDevices(req.Devices)
 
 		args := db.InstanceArgs{
@@ -141,7 +146,15 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(ctx, s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: p.Name,
+		Type:        operationtype.InstanceCreate,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     run,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -152,6 +165,11 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 func createFromNone(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
+	}
+
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -181,7 +199,7 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 		args.Architecture = architecture
 	}
 
-	run := func(_ *operations.Operation) error {
+	run := func(_ context.Context, _ *operations.Operation) error {
 		// Actually create the instance.
 		_, err := instanceCreateAsEmpty(s, args)
 		if err != nil {
@@ -198,7 +216,15 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
+	opArgs := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.InstanceCreate,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     run,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, opArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -329,7 +355,7 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 	// Copy reverter so far so we can use it inside run after this function has finished.
 	runRevert := revert.Clone()
 
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		defer runRevert.Fail()
 
 		sink.instance.SetOperation(op)
@@ -355,17 +381,24 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 		resources["containers"] = resources["instances"]
 	}
 
-	var op *operations.Operation
+	opArgs := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.InstanceCreate,
+		Resources:   resources,
+		RunHook:     run,
+	}
+
 	if push {
-		op, err = operations.OperationCreate(ctx, s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
-		if err != nil {
-			return response.InternalError(err)
-		}
+		opArgs.Class = operations.OperationClassWebsocket
+		opArgs.Metadata = sink.Metadata()
+		opArgs.ConnectHook = sink.Connect
 	} else {
-		op, err = operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
-		if err != nil {
-			return response.InternalError(err)
-		}
+		opArgs.Class = operations.OperationClassTask
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, opArgs)
+	if err != nil {
+		return response.InternalError(err)
 	}
 
 	revert.Success()
@@ -377,6 +410,11 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 func createFromConversion(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
+	}
+
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Validate migration mode.
@@ -443,7 +481,7 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 	// Copy reverter so far so we can use it inside run after this function has finished.
 	runRevert := revert.Clone()
 
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		defer runRevert.Fail()
 
 		sink.instance.SetOperation(op)
@@ -469,7 +507,17 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+	opArgs := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.InstanceCreate,
+		Class:       operations.OperationClassWebsocket,
+		Resources:   resources,
+		Metadata:    sink.Metadata(),
+		RunHook:     run,
+		ConnectHook: sink.Connect,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, opArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -485,6 +533,11 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 
 	if req.Source.Source == "" {
 		return response.BadRequest(errors.New("Must specify a source instance"))
+	}
+
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	sourceProject := req.Source.Project
@@ -608,7 +661,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		Stateful:     req.Stateful,
 	}
 
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		// Actually create the instance.
 		_, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
 			sourceInstance: source,
@@ -641,7 +694,15 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(ctx, s, targetProject, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
+	opArgs := operations.OperationArgs{
+		ProjectName: targetProject,
+		Type:        operationtype.InstanceCreate,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     run,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, opArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -652,6 +713,11 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 func createFromBackup(s *state.State, r *http.Request, projectName string, data io.Reader, pool string, instanceName string, devices map[string]map[string]string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
+
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	backupsPath := s.BackupsStoragePath(projectName)
 
@@ -822,7 +888,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	// Copy reverter so far so we can use it inside run after this function has finished.
 	runRevert := revert.Clone()
 
-	run := func(_ *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		defer func() { _ = backupFile.Close() }()
 		defer runRevert.Fail()
 
@@ -848,7 +914,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		runRevert.Add(revertHook)
 
-		err = internalImportFromBackup(context.TODO(), s, bInfo.Project, bInfo.Name, instanceName != "", devices)
+		err = internalImportFromBackup(ctx, s, bInfo.Project, bInfo.Name, instanceName != "", devices)
 		if err != nil {
 			return fmt.Errorf("Failed importing backup: %w", err)
 		}
@@ -878,7 +944,15 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	resources := map[string][]api.URL{}
 	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", bInfo.Name)}
 
-	op, err := operations.OperationCreate(r.Context(), s, bInfo.Project, operations.OperationClassTask, operationtype.BackupRestore, resources, nil, run, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: bInfo.Project,
+		Type:        operationtype.BackupRestore,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     run,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1559,7 +1633,7 @@ func clusterCopyContainerInternal(ctx context.Context, s *state.State, source in
 	req.Source.Project = ""
 
 	// Run the migration
-	return createFromMigration(context.Background(), s, projectName, profiles, req, false)
+	return createFromMigration(ctx, s, projectName, profiles, req, false)
 }
 
 // instanceCreateFinish finalizes the creation process of an instance by starting it based on

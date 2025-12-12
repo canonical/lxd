@@ -52,11 +52,12 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	_, err = op.Cancel()
+	err = op.Cancel()
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
+	_ = op.Wait(r.Context())
 	return response.EmptySyncResponse
 }
 
