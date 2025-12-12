@@ -4,25 +4,22 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/canonical/lxd/shared/logger"
 )
 
 // Transaction executes the given function within a database transaction with a 10s context timeout.
-func Transaction(ctx context.Context, db *sql.DB, f func(context.Context, *sql.Tx) error) error {
+func Transaction(ctx context.Context, db *sql.DB, immediate bool, f func(context.Context, *sql.Tx) error) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		// If there is a leftover transaction let's try to rollback,
-		// we'll then retry again.
-		if strings.Contains(err.Error(), "cannot start a transaction within a transaction") {
-			_, _ = db.Exec("ROLLBACK")
-		}
+	if immediate && err == nil {
+		_, err = tx.Exec("ROLLBACK; BEGIN IMMEDIATE")
+	}
 
+	if err != nil {
 		return fmt.Errorf("Failed to begin transaction: %w", err)
 	}
 
