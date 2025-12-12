@@ -5624,6 +5624,15 @@
 						}
 					},
 					{
+						"network.ovs.connection": {
+							"defaultdesc": "`unix:/run/openvswitch/db.sock`",
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "OVS database connection string",
+							"type": "string"
+						}
+					},
+					{
 						"storage.backups_volume": {
 							"longdesc": "Specify the volume using the syntax `POOL/VOLUME`.",
 							"scope": "local",

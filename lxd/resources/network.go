@@ -15,7 +15,8 @@ import (
 	"github.com/jaypipes/pcidb"
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/network/ovs"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/validate"
@@ -528,13 +529,13 @@ func getNativeBridgeState(bridgePath string, name string) *api.NetworkStateBridg
 
 // Fetch OVS bridge information.
 // Returns nil if interface is not an OVS bridge.
-func getOVSBridgeState(name string) *api.NetworkStateBridge {
-	ovs := openvswitch.NewOVS()
-	isOVSBridge := false
-	if ovs.Installed() {
-		isOVSBridge, _ = ovs.BridgeExists(name)
+func getOVSBridgeState(s *state.State, name string) *api.NetworkStateBridge {
+	vswitch, err := ovs.NewVSwitch(s.GlobalConfig.NetworkOVSConnection())
+	if err != nil {
+		return nil
 	}
 
+	isOVSBridge, _ := vswitch.BridgeExists(name)
 	if !isOVSBridge {
 		return nil
 	}
@@ -544,37 +545,37 @@ func getOVSBridgeState(name string) *api.NetworkStateBridge {
 	defer cancel()
 
 	// Bridge ID
-	strValue, err := ovs.GenerateOVSBridgeID(ctx, name)
+	strValue, err := vswitch.GenerateOVSBridgeID(ctx, name)
 	if err == nil {
 		bridge.ID = strValue
 	}
 
 	// Bridge STP
-	boolValue, err := ovs.STPEnabled(ctx, name)
+	boolValue, err := vswitch.STPEnabled(ctx, name)
 	if err == nil {
 		bridge.STP = boolValue
 	}
 
 	// Bridge Forwards Delay
-	uintValue, err := ovs.GetSTPForwardDelay(ctx, name)
+	uintValue, err := vswitch.GetSTPForwardDelay(ctx, name)
 	if err == nil {
 		bridge.ForwardDelay = uintValue
 	}
 
 	// Bridge default VLAN (PVID)
-	uintValue, err = ovs.GetVLANPVID(ctx, name)
+	uintValue, err = vswitch.GetVLANPVID(ctx, name)
 	if err == nil {
 		bridge.VLANDefault = uintValue
 	}
 
 	// Bridge VLAN filtering
-	boolValue, err = ovs.VLANFilteringEnabled(ctx, name)
+	boolValue, err = vswitch.VLANFilteringEnabled(ctx, name)
 	if err == nil {
 		bridge.VLANFiltering = boolValue
 	}
 
 	// Upper devices
-	entries, err := ovs.BridgePortList(name)
+	entries, err := vswitch.BridgePortList(name)
 	if err == nil {
 		bridge.UpperDevices = append(bridge.UpperDevices, entries...)
 	}
@@ -583,7 +584,7 @@ func getOVSBridgeState(name string) *api.NetworkStateBridge {
 }
 
 // GetNetworkState returns the OS configuration for the network interface.
-func GetNetworkState(name string) (*api.NetworkState, error) {
+func GetNetworkState(s *state.State, name string) (*api.NetworkState, error) {
 	// Reject known bad names that might cause problem when dealing with paths.
 	err := validate.IsInterfaceName(name)
 	if err != nil {
@@ -704,7 +705,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 	if pathExists(bridgePath) {
 		network.Bridge = getNativeBridgeState(bridgePath, name)
 	} else {
-		network.Bridge = getOVSBridgeState(name)
+		network.Bridge = getOVSBridgeState(s, name)
 	}
 
 	// Populate VLAN details.

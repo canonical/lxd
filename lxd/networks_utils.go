@@ -16,9 +16,9 @@ import (
 
 var networkOVNChassis *bool
 
-func networkAutoAttach(cluster *db.Cluster, devName string) error {
+func networkAutoAttach(s *state.State, devName string) error {
 	var networkName string
-	_ = cluster.Transaction(context.TODO(), func(ctx context.Context, c *db.ClusterTx) error {
+	_ = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, c *db.ClusterTx) error {
 		_, dbInfo, err := c.GetNetworkWithInterface(ctx, devName)
 		if err != nil {
 			if !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -33,7 +33,7 @@ func networkAutoAttach(cluster *db.Cluster, devName string) error {
 	})
 
 	if networkName != "" {
-		return network.AttachInterface(networkName, devName)
+		return network.AttachInterface(s, networkName, devName)
 	}
 
 	return nil
