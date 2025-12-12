@@ -514,12 +514,7 @@ for LXD_BACKEND in ${LXD_BACKENDS}; do
         echo "Unknown test: test_${arg}" >&2
         exit 1
       }
-      # allow for running a specific set of tests possibly multiple times
-      RUN_COUNT=1
-      while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
-        run_test "test_${arg}"
-        RUN_COUNT="$((RUN_COUNT+1))"
-      done
+      run_test_n_times "${arg}"
     fi
   done
 
