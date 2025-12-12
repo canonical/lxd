@@ -290,9 +290,6 @@ cleanup() {
     echo "==> FAILED TEST: ${TEST_CURRENT#test_}"
   fi
   echo "==> Test result: ${TEST_RESULT}"
-
-  # Allow for reexecution
-  unset LXD_DIR
 }
 
 # Must be set before cleanup()
@@ -427,7 +424,7 @@ fi
 
 # Only spawn a new LXD if not done yet.
 spawn_initial_lxd() {
-    [ -z "${LXD_DIR:-}" ] || return 0
+    install_storage_driver_tools
 
     # Setup test directory
     TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
@@ -473,10 +470,6 @@ spawn_initial_lxd() {
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
 if [ "${1:-"all"}" = "test-shell" ]; then
-  # Install needed storage driver tools
-  echo "XXX: $LXD_BACKEND"
-  install_storage_driver_tools
-
   spawn_initial_lxd
   bash --rcfile test-shell.bashrc || true
   TEST_CURRENT="test-shell"
@@ -495,10 +488,6 @@ fi
 
 # Run tests against all requested backends
 for LXD_BACKEND in ${LXD_BACKENDS}; do
-  # Install needed storage driver tools
-  echo "XXX: $LXD_BACKEND"
-  install_storage_driver_tools
-
   spawn_initial_lxd
 
   for arg in "$@"; do
@@ -518,7 +507,6 @@ for LXD_BACKEND in ${LXD_BACKENDS}; do
     fi
   done
 
-  # shellcheck disable=SC2034
   TEST_RESULT=success
 
   cleanup
