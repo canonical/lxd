@@ -281,6 +281,17 @@ exclude_patterns = [
 # You can disable it by setting the following configuration to True.
 disable_feedback_button = False
 
+# Specifies a reST snippet to be prepended to each .rst file
+# Defines woke-ignore and vale-ignore roles that can be used to mark content to be
+# ignored by vale and woke checks
+
+rst_prolog = """
+.. role:: woke-ignore
+    :class: woke-ignore
+.. role:: vale-ignore
+    :class: vale-ignore
+"""
+
 source_suffix = {
     '.rst': 'restructuredtext',
     '.md': 'markdown',
