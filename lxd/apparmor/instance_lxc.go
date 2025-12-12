@@ -520,66 +520,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   ### Configuration: unprivileged containers
   pivot_root,
-
-  # We need to allow all these filesystems because they were allowed
-  # for years as a result of a https://bugs.launchpad.net/apparmor/+bug/1597017
-  # Now, when AppArmor is fixed, we start to get complaints that things which
-  # were working before stopped to work now.
-  mount fstype=devpts,
-  mount fstype=proc,
-  mount fstype=sysfs,
-
-  # Allow unlimited modification of mount propagation
-  mount options=(rw,slave) -> /{,**},
-  mount options=(rw,rslave) -> /{,**},
-  mount options=(rw,shared) -> /{,**},
-  mount options=(rw,rshared) -> /{,**},
-  mount options=(rw,private) -> /{,**},
-  mount options=(rw,rprivate) -> /{,**},
-  mount options=(rw,unbindable) -> /{,**},
-  mount options=(rw,runbindable) -> /{,**},
-
-  # Allow all bind-mounts
-  mount options=(rw,bind) / -> /**,
-  mount options=(rw,bind) /** -> /**,
-  mount options=(rw,rbind) / -> /**,
-  mount options=(rw,rbind) /** -> /**,
-
-  # Allow common combinations of bind/remount
-  # NOTE: AppArmor bug effectively turns those into wildcards mount allow
-  mount options=(ro,remount,bind),
-  mount options=(ro,remount,bind,nodev),
-  mount options=(ro,remount,bind,nodev,nosuid),
-  mount options=(ro,remount,bind,noexec),
-  mount options=(ro,remount,bind,noexec,nodev),
-  mount options=(ro,remount,bind,nosuid),
-  mount options=(ro,remount,bind,nosuid,nodev),
-  mount options=(ro,remount,bind,nosuid,noexec),
-  mount options=(ro,remount,bind,nosuid,noexec,nodev),
-  mount options=(ro,remount,bind,noatime),
-  mount options=(ro,remount,bind,noatime,nodev),
-  mount options=(ro,remount,bind,noatime,noexec),
-  mount options=(ro,remount,bind,noatime,nosuid),
-  mount options=(ro,remount,bind,noatime,noexec,nodev),
-  mount options=(ro,remount,bind,noatime,nosuid,nodev),
-  mount options=(ro,remount,bind,noatime,nosuid,noexec),
-  mount options=(ro,remount,bind,noatime,nosuid,noexec,nodev),
-  mount options=(ro,remount,bind,nosuid,noexec,strictatime),
-  mount options=(ro,remount,nosuid,noexec,strictatime),
-{{- if .feature_mount_nosymfollow }}
-  mount options=(ro,remount,bind,nosymfollow),
-  mount options=(ro,remount,bind,nosymfollow,nodev),
-  mount options=(ro,remount,bind,nosymfollow,noexec),
-  mount options=(ro,remount,bind,nosymfollow,nosuid),
-  mount options=(ro,remount,bind,nosymfollow,noexec,nodev),
-  mount options=(ro,remount,bind,nosymfollow,nosuid,nodev),
-  mount options=(ro,remount,bind,nosymfollow,nosuid,noexec),
-  mount options=(ro,remount,bind,nosymfollow,nosuid,noexec,nodev),
-{{- end }}
-
-  # Allow remounting things read-only
-  mount options=(ro,remount) /,
-  mount options=(ro,remount) /**,
+  mount,
 {{- else }}
 
   ### Configuration: privileged containers
