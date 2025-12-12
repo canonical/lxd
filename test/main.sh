@@ -322,10 +322,10 @@ run_test_group() {
 # Run a test multiple times
 run_test_n_times() {
   local name="${1}"
-  local count=1
-  while [ "${count}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
+  local iterCount=1
+  while [ "${iterCount}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
     run_test "test_${name}"
-    count=$((count + 1))
+    iterCount=$((iterCount + 1))
   done
 }
 
