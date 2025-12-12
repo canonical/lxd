@@ -5521,14 +5521,6 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```
 
-```{config:option} ceph.osd.force_reuse storage-ceph-pool-conf
-:defaultdesc: "`false`"
-:scope: "global"
-:shortdesc: "Whether to allow reuse of an existing OSD storage pool already used by LXD"
-:type: "bool"
-
-```
-
 ```{config:option} ceph.osd.pg_num storage-ceph-pool-conf
 :defaultdesc: "`32`"
 :scope: "global"
