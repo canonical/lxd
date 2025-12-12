@@ -333,7 +333,6 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// ---
 	//  type: blob
 	//  liveupdate: no
-	//  condition: unprivileged container
 	//  shortdesc: Raw idmap configuration
 	"raw.idmap": validate.IsAny,
 
