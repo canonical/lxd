@@ -523,3 +523,6 @@ for LXD_BACKEND in ${LXD_BACKENDS}; do
 
   cleanup
 done
+
+# Avoid running cleanup again
+trap - EXIT HUP INT TERM
