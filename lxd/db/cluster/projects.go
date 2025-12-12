@@ -187,29 +187,21 @@ func GetProjectsSharingDefaultImages(ctx context.Context, tx *sql.Tx) ([]string,
 func GetProjectIDsToNames(ctx context.Context, tx *sql.Tx) (map[int64]string, error) {
 	stmt := "SELECT id, name FROM projects"
 
-	rows, err := tx.QueryContext(ctx, stmt)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = rows.Close() }()
-
 	result := map[int64]string{}
-	for i := 0; rows.Next(); i++ {
+	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
 		var id int64
 		var name string
 
-		err := rows.Scan(&id, &name)
+		err := scan(&id, &name)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		result[id] = name
-	}
-
-	err = rows.Err()
+		return nil
+	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Fetch project IDs to names: %w", err)
 	}
 
 	return result, nil
