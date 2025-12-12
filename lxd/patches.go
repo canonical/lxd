@@ -114,6 +114,7 @@ var patches = []patch{
 	{name: "pool_fix_default_permissions", stage: patchPostDaemonStorage, run: patchDefaultStoragePermissions},
 	{name: "storage_unset_cephfs_pristine_setting", stage: patchPostDaemonStorage, run: patchUnsetCephFSPristineSetting},
 	{name: "update_volatile_attached_volumes_format", stage: patchPostDaemonStorage, run: patchUpdateVolatileAttachedVolumesFormat},
+	{name: "storage_unset_ceph_force_reuse_setting", stage: patchPostDaemonStorage, run: patchUnsetCephForceReuseSetting},
 }
 
 type patch struct {
@@ -1889,7 +1890,7 @@ func patchUpdateVolatileAttachedVolumesFormat(_ string, d *Daemon) error {
 
 		// Query to get all instance snapshots with "volatile.attached_volumes".
 		q := `
-SELECT 
+SELECT
 	instances_snapshots.id,
 	instances_snapshots.name,
 	instances_snapshots.instance_id,
@@ -2013,8 +2014,8 @@ WHERE instances_snapshots_config.key = "volatile.attached_volumes"
 			}
 
 			_, err = tx.Tx().ExecContext(ctx, `
-UPDATE instances_snapshots_config 
-SET value = ? 
+UPDATE instances_snapshots_config
+SET value = ?
 WHERE instance_snapshot_id = ? AND key = "volatile.attached_volumes"
 `, string(marshalled), snap.snapshotID)
 			if err != nil {
@@ -2029,6 +2030,14 @@ WHERE instance_snapshot_id = ? AND key = "volatile.attached_volumes"
 	}
 
 	return nil
+}
+
+// patchUnsetCephForceReuseSetting unsets the ceph.osd.force_reuse setting from all storage pools' configs.
+func patchUnsetCephForceReuseSetting(_ string, d *Daemon) error {
+	_, err := d.State().DB.Cluster.DB().ExecContext(d.shutdownCtx, `
+DELETE FROM storage_pools_config WHERE key = "ceph.osd.force_reuse"
+	`)
+	return err
 }
 
 // Patches end here

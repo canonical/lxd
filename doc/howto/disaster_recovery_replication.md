@@ -111,11 +111,11 @@ If the LXD storage pool at the secondary location exists only in the storage arr
 Use the `lxc storage create` command to add the storage pool. This works for both single and clustered LXD deployments. For more information, see: {ref}`storage-create-pool`.
 
 (disaster-recovery-replication-add-pool-cephrbd)=
-#### Reuse Ceph RBD pool
+#### Recover Ceph RBD pool
 
-LXD's {ref}`Ceph RBD driver <storage-ceph>` uses a _placeholder_ volume to reserve the storage pool and ensure it isn't used more than once. For replication, this behavior can be ignored because the replicated pool must be reused at the secondary location. To allow this, set {config:option}`storage-ceph-pool-conf:ceph.osd.force_reuse` to ignore the placeholder volume if it was also replicated to the secondary location.
+LXD's {ref}`Ceph RBD driver <storage-ceph>` uses a _placeholder_ volume to reserve the storage pool and ensure it isn't used more than once. For replication, this behavior can be ignored because the replicated pool must be recovered at the secondary location. To allow this, set {config:option}`storage-ceph-pool-conf:source.recover` to ignore the placeholder volume if it was also replicated to the secondary location.
 
-When creating the storage pool in a LXD cluster, make sure to add the `ceph.osd.force_reuse=true` setting in the final storage pool creation command. You do not need to include this setting when preparing the storage pool on individual cluster members.
+When creating the storage pool in a LXD cluster, make sure to add the `source.recover=true` setting when creating the pending storage pools per cluster member as this setting is cluster member specific.
 
 (disaster-recovery-replication-failback)=
 ## Demote secondary and fail back to primary location

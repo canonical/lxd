@@ -141,12 +141,6 @@ func (d *ceph) FillConfig() error {
 
 // SourceIdentifier returns a combined string consisting of the cluster and pool name.
 func (d *ceph) SourceIdentifier() (string, error) {
-	// Return an empty identifier in case the pool should be force reused.
-	// This indicates the backend to skip further source verification.
-	if shared.IsTrue(d.config["ceph.osd.force_reuse"]) {
-		return "", nil
-	}
-
 	cluster := d.config["ceph.cluster_name"]
 	if cluster == "" {
 		return "", errors.New("Cannot derive identifier from empty cluster name")
@@ -245,8 +239,6 @@ func (d *ceph) Create() error {
 		if err != nil {
 			return err
 		}
-
-		d.config["volatile.pool.pristine"] = "true"
 	} else {
 		volExists, err := d.HasVolume(placeholderVol)
 		if err != nil {
@@ -254,22 +246,14 @@ func (d *ceph) Create() error {
 		}
 
 		if volExists {
-			// ceph.osd.force_reuse is deprecated and should not be used. OSD pools are a logical
-			// construct there is no good reason not to create one for dedicated use by LXD.
-			if shared.IsFalseOrEmpty(d.config["ceph.osd.force_reuse"]) {
-				return fmt.Errorf("Pool %q in cluster %q seems to be in use by another LXD instance", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
-			}
+			return fmt.Errorf("Pool %q in cluster %q seems to be in use by another LXD instance", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
+		}
 
-			d.config["volatile.pool.pristine"] = "false"
-		} else {
-			// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
-			// pool is already in use by another LXD instance.
-			err := d.rbdCreateVolume(placeholderVol, "0")
-			if err != nil {
-				return err
-			}
-
-			d.config["volatile.pool.pristine"] = "true"
+		// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
+		// pool is already in use by another LXD instance.
+		err = d.rbdCreateVolume(placeholderVol, "0")
+		if err != nil {
+			return err
 		}
 
 		// Use existing OSD pool.
@@ -299,6 +283,13 @@ func (d *ceph) Create() error {
 		// if so the db for it is updated.
 		d.config["ceph.osd.pg_num"] = msg
 	}
+
+	// After dropping the ceph.osd.force_reuse key, the volatile.pool.pristine
+	// config key can only be true.
+	// For backwards compatibility always set it to true when creating new pools.
+	// This ensures that when deleting the pool we also always delete the respective OSD pool
+	// but keep it for old storage pools which were created using ceph.osd.force_reuse=true.
+	d.config["volatile.pool.pristine"] = "true"
 
 	revert.Success()
 
@@ -353,14 +344,6 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  shortdesc: Name of the Ceph cluster in which to create new storage pools
 		//  scope: global
 		"ceph.cluster_name": validate.IsAny,
-		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.force_reuse)
-		//
-		// ---
-		//  type: bool
-		//  defaultdesc: `false`
-		//  shortdesc: Whether to allow reuse of an existing OSD storage pool already used by LXD
-		//  scope: global
-		"ceph.osd.force_reuse": validate.Optional(validate.IsBool), // Deprecated, should not be used.
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.pg_num)
 		//
 		// ---
