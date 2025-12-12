@@ -515,9 +515,13 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		renderedResources = tmpResources
 	}
 
-	// Local server name
-
 	op.lock.Lock()
+
+	// Make a copy of the metadata to avoid concurrent reads/writes.
+	metadata := make(map[string]any, len(op.metadata))
+	maps.Copy(metadata, op.metadata)
+
+	// Put together the response struct.
 	retOp := &api.Operation{
 		ID:          op.id,
 		Class:       op.class.String(),
@@ -527,7 +531,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		Status:      op.status.String(),
 		StatusCode:  op.status,
 		Resources:   renderedResources,
-		Metadata:    op.metadata,
+		Metadata:    metadata,
 		MayCancel:   op.mayCancel(),
 	}
 
