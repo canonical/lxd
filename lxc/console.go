@@ -129,7 +129,7 @@ func (c *cmdConsole) run(cmd *cobra.Command, args []string) error {
 	// Show the current log if requested
 	if c.flagShowLog {
 		if c.flagType != "console" {
-			return errors.New("The --show-log flag is only supported for by 'console' output type")
+			return errors.New("The --show-log flag is only supported for 'console' output type")
 		}
 
 		console := &lxd.InstanceConsoleLogArgs{}
