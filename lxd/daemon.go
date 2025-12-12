@@ -30,6 +30,7 @@ import (
 	"github.com/canonical/lxd/lxd/acme"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/auth/bearer"
 	authDrivers "github.com/canonical/lxd/lxd/auth/drivers"
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/bgp"
@@ -541,6 +542,20 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 	// Bad query, no TLS found.
 	if r.TLS == nil {
 		return nil, errors.New("Bad/missing TLS on network query")
+	}
+
+	// Check if the caller has a bearer token.
+	isBearerRequest, token, subject := bearer.IsAPIRequest(r, d.globalConfig.ClusterUUID())
+	if isBearerRequest {
+		bearerRequestor, err := bearer.Authenticate(token, subject, d.identityCache)
+		if err != nil {
+			// Deny access if the provided token is not verifiable.
+			return nil, fmt.Errorf("Failed to verify bearer token: %w", err)
+		}
+
+		// We successfully authenticated the user via bearer token.
+		// The bearerRequestor contains the identity info (username, protocol=bearer).
+		return bearerRequestor, nil
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
