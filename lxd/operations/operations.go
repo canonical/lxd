@@ -102,7 +102,6 @@ type Operation struct {
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(context.Context, *Operation) error
-	onCancel  func(*Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 	onDone    func(*Operation)
 
@@ -160,7 +159,6 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 
 	// Callback functions
 	op.onRun = onRun
-	op.onCancel = onCancel
 	op.onConnect = onConnect
 
 	// Quick check.
@@ -174,10 +172,6 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 
 	if op.class == OperationClassToken && op.onRun != nil {
 		return nil, errors.New("Token operations can't have a Run hook")
-	}
-
-	if op.class == OperationClassToken && op.onCancel != nil {
-		return nil, errors.New("Token operations can't have a Cancel hook")
 	}
 
 	// Set requestor if the request context is provided.
@@ -266,7 +260,6 @@ func (op *Operation) done() {
 	op.lock.Lock()
 	op.readonly = true
 	op.onRun = nil
-	op.onCancel = nil
 	op.onConnect = nil
 	op.finished.Cancel()
 	op.lock.Unlock()
@@ -331,8 +324,14 @@ func (op *Operation) Start() error {
 			err := op.onRun(ctx, op)
 			if err != nil {
 				op.lock.Lock()
-				op.status = api.Failure
-				op.running.Cancel()
+				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
+				if op.running.Err() != nil {
+					op.status = api.Cancelled
+				} else {
+					op.status = api.Failure
+					op.running.Cancel()
+				}
+
 				op.err = err
 				op.lock.Unlock()
 				op.done()
@@ -376,81 +375,35 @@ func (op *Operation) Start() error {
 
 // Cancel cancels a running operation. If the operation cannot be cancelled, it
 // returns an error.
-func (op *Operation) Cancel() (chan error, error) {
+func (op *Operation) Cancel() error {
 	op.lock.Lock()
 	if op.status != api.Running {
 		op.lock.Unlock()
-		return nil, errors.New("Only running operations can be cancelled")
+		return errors.New("Only running operations can be cancelled")
 	}
 
-	if !op.mayCancel() {
-		op.lock.Unlock()
-		return nil, errors.New("This operation can't be cancelled")
-	}
-
-	chanCancel := make(chan error, 1)
-
-	oldStatus := op.status
-	op.status = api.Cancelling
+	// Signal the operation to stop.
 	op.running.Cancel()
+
+	// Set status to cancelling.
+	// We've only signalled that the goroutine should stop - it might take a while to clean up/revert.
+	op.status = api.Cancelling
 	op.lock.Unlock()
-
-	hasOnCancel := op.onCancel != nil
-
-	if hasOnCancel {
-		go func(op *Operation, oldStatus api.StatusCode, chanCancel chan error) {
-			err := op.onCancel(op)
-			if err != nil {
-				op.lock.Lock()
-				op.status = oldStatus
-				op.lock.Unlock()
-				chanCancel <- err
-
-				op.logger.Debug("Failed to cancel operation", logger.Ctx{"err": err})
-				_, md, _ := op.Render()
-
-				op.lock.Lock()
-				op.sendEvent(md)
-				op.lock.Unlock()
-
-				return
-			}
-
-			op.lock.Lock()
-			op.status = api.Cancelled
-			op.lock.Unlock()
-			op.done()
-			chanCancel <- nil
-
-			op.logger.Debug("Cancelled operation")
-			_, md, _ := op.Render()
-
-			op.lock.Lock()
-			op.sendEvent(md)
-			op.lock.Unlock()
-		}(op, oldStatus, chanCancel)
-	}
 
 	op.logger.Debug("Cancelling operation")
 	_, md, _ := op.Render()
-	op.sendEvent(md)
-
-	if !hasOnCancel {
-		op.lock.Lock()
-		op.status = api.Cancelled
-		op.lock.Unlock()
-		op.done()
-		chanCancel <- nil
-	}
-
-	op.logger.Debug("Cancelled operation")
-	_, md, _ = op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)
 	op.lock.Unlock()
 
-	return chanCancel, nil
+	// If the operation does not have a run hook (e.g. a token operation) we need to call op.done(), because it won't be
+	// called automatically when the run hook completes.
+	if op.onRun == nil {
+		op.done()
+	}
+
+	return nil
 }
 
 // Connect connects a websocket operation. If the operation is not a websocket
@@ -489,18 +442,6 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 	return chanConnect, nil
 }
 
-func (op *Operation) mayCancel() bool {
-	if op.class == OperationClassToken {
-		return true
-	}
-
-	if op.onCancel != nil {
-		return true
-	}
-
-	return false
-}
-
 // Render renders the operation structure.
 // Returns URL of operation and operation info.
 func (op *Operation) Render() (string, *api.Operation, error) {
@@ -534,7 +475,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		StatusCode:  op.status,
 		Resources:   renderedResources,
 		Metadata:    op.metadata,
-		MayCancel:   op.mayCancel(),
+		MayCancel:   true,
 	}
 
 	requestor := op.Requestor()
