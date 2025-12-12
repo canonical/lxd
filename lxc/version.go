@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -17,10 +16,9 @@ type cmdVersion struct {
 
 func (c *cmdVersion) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("version", i18n.G("[<remote>:]"))
-	cmd.Short = i18n.G("Show local and remote versions")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show local and remote versions`))
+	cmd.Use = usage("version", "[<remote>:]")
+	cmd.Short = "Show local and remote versions"
+	cmd.Long = cli.FormatSection("Description", `Show local and remote versions`)
 
 	cmd.RunE = c.run
 
@@ -49,7 +47,7 @@ func (c *cmdVersion) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	serverVersion := i18n.G("unreachable")
+	serverVersion := "unreachable"
 	resources, err := c.global.ParseServers(remote)
 	if err == nil {
 		resource := resources[0]
@@ -62,8 +60,8 @@ func (c *cmdVersion) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf(i18n.G("Client version: %s\n"), clientVersion)
-	fmt.Printf(i18n.G("Server version: %s\n"), serverVersion)
+	fmt.Printf("Client version: %s\n", clientVersion)
+	fmt.Printf("Server version: %s\n", serverVersion)
 
 	return nil
 }

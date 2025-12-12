@@ -6,7 +6,6 @@ import (
 
 	"github.com/canonical/lxd/shared"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdManpage struct {
@@ -17,12 +16,11 @@ type cmdManpage struct {
 
 func (c *cmdManpage) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("manpage", i18n.G("<target>"))
-	cmd.Short = i18n.G("Generate manpages for all commands")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Generate manpages for all commands`))
+	cmd.Use = usage("manpage", "<target>")
+	cmd.Short = "Generate manpages for all commands"
+	cmd.Long = cli.FormatSection("Description", `Generate manpages for all commands`)
 	cmd.Hidden = true
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "man", i18n.G("Format (man|md|rest|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "man", "Format (man|md|rest|yaml)"+"``")
 
 	cmd.RunE = c.run
 
@@ -49,7 +47,7 @@ func (c *cmdManpage) run(cmd *cobra.Command, args []string) error {
 	switch c.flagFormat {
 	case "man":
 		header := &doc.GenManHeader{
-			Title:   i18n.G("LXD - Command line client"),
+			Title:   "LXD - Command line client",
 			Section: "1",
 		}
 
