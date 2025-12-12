@@ -162,7 +162,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, targetProject.Name, operations.OperationClassTask, operationtype.InstanceRebuild, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, "", targetProject.Name, operations.OperationClassTask, operationtype.InstanceRebuild, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}

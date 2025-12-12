@@ -40,6 +40,8 @@ const (
 	OperationClassWebsocket OperationClass = 2
 	// OperationClassToken represents the Token OperationClass.
 	OperationClassToken OperationClass = 3
+	// OperationClassDurable represents the Durable OperationClass.
+	OperationClassDurable OperationClass = 4
 )
 
 func (t OperationClass) String() string {
@@ -47,6 +49,7 @@ func (t OperationClass) String() string {
 		OperationClassTask:      api.OperationClassTask,
 		OperationClassWebsocket: api.OperationClassWebsocket,
 		OperationClassToken:     api.OperationClassToken,
+		OperationClassDurable:   api.OperationClassDurable,
 	}[t]
 }
 
@@ -117,9 +120,15 @@ type Operation struct {
 	events *events.Server
 }
 
+// DurableOperationHandlers represents the set of handlers required for a durable operation.
+type DurableOperationHandlers struct {
+	OnRun    func(*Operation) error
+	OnCancel func(*Operation) error
+}
+
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(ctx context.Context, s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+func OperationCreate(ctx context.Context, s *state.State, opUUID string, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -128,7 +137,11 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	// Main attributes
 	op := Operation{}
 	op.projectName = projectName
-	op.id = uuid.New().String()
+	op.id = opUUID
+	if opUUID == "" {
+		op.id = uuid.New().String()
+	}
+
 	op.description = opType.Description()
 	op.entityType, op.entitlement = opType.Permission()
 	op.dbOpType = opType
@@ -185,7 +198,14 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, opType)
+	if opUUID == "" {
+		// New operation, register it in the database.
+		err = registerDBOperation(&op, opType)
+	} else {
+		// Existing operation, update its node_id in the database.
+		err = updateDBOperationNodeID(&op)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -302,6 +322,18 @@ func (op *Operation) done() {
 	}()
 }
 
+func updateStatusWithWarning(op *Operation, newStatus api.StatusCode) {
+	oldStatus := op.status
+	err := op.updateStatus(newStatus)
+	if err != nil {
+		op.logger.Warn("Failed updating operation status", logger.Ctx{
+			"err":       err,
+			"oldStatus": oldStatus,
+			"newStatus": newStatus,
+		})
+	}
+}
+
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
@@ -310,14 +342,18 @@ func (op *Operation) Start() error {
 		return errors.New("Only pending operations can be started")
 	}
 
-	op.status = api.Running
+	err := op.updateStatus(api.Running)
+	if err != nil {
+		op.lock.Unlock()
+		return fmt.Errorf("Failed updating Operation %s status: %w", op.id, err)
+	}
 
 	if op.onRun != nil {
 		go func(op *Operation) {
 			err := op.onRun(op)
 			if err != nil {
 				op.lock.Lock()
-				op.status = api.Failure
+				updateStatusWithWarning(op, api.Failure)
 				op.err = err
 				op.lock.Unlock()
 				op.done()
@@ -333,7 +369,7 @@ func (op *Operation) Start() error {
 			}
 
 			op.lock.Lock()
-			op.status = api.Success
+			updateStatusWithWarning(op, api.Success)
 			op.lock.Unlock()
 			op.done()
 
@@ -375,7 +411,7 @@ func (op *Operation) Cancel() (chan error, error) {
 	chanCancel := make(chan error, 1)
 
 	oldStatus := op.status
-	op.status = api.Cancelling
+	updateStatusWithWarning(op, api.Cancelling)
 	op.lock.Unlock()
 
 	hasOnCancel := op.onCancel != nil
@@ -385,11 +421,11 @@ func (op *Operation) Cancel() (chan error, error) {
 			err := op.onCancel(op)
 			if err != nil {
 				op.lock.Lock()
-				op.status = oldStatus
+				updateStatusWithWarning(op, oldStatus)
 				op.lock.Unlock()
 				chanCancel <- err
 
-				op.logger.Debug("Failed to cancel operation", logger.Ctx{"err": err})
+				op.logger.Debug("Failed cancelling operation", logger.Ctx{"err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -400,7 +436,7 @@ func (op *Operation) Cancel() (chan error, error) {
 			}
 
 			op.lock.Lock()
-			op.status = api.Cancelled
+			updateStatusWithWarning(op, api.Cancelled)
 			op.lock.Unlock()
 			op.done()
 			chanCancel <- nil
@@ -427,7 +463,7 @@ func (op *Operation) Cancel() (chan error, error) {
 
 	if !hasOnCancel {
 		op.lock.Lock()
-		op.status = api.Cancelled
+		updateStatusWithWarning(op, api.Cancelled)
 		op.lock.Unlock()
 		op.done()
 		chanCancel <- nil
@@ -560,6 +596,15 @@ func (op *Operation) Wait(ctx context.Context) error {
 	}
 }
 
+func (op *Operation) updateStatus(newStatus api.StatusCode) error {
+	op.status = newStatus
+	if op.class != OperationClassDurable {
+		return nil
+	}
+
+	return updateDBOperationStatus(op)
+}
+
 // UpdateResources updates the resources of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateResources(opResources map[string][]api.URL) error {
@@ -619,6 +664,18 @@ func (op *Operation) UpdateMetadata(opMetadata any) error {
 	op.lock.Unlock()
 
 	return nil
+}
+
+// CommitMetadata commits the metadata of a durable operation to the database.
+func (op *Operation) CommitMetadata() error {
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	if op.class != OperationClassDurable {
+		return nil
+	}
+
+	return updateDBOperationMetadata(op)
 }
 
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
@@ -718,4 +775,35 @@ func (op *Operation) Class() OperationClass {
 // Type returns the db operation type.
 func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
+}
+
+// DurableOperationTable represents the table of durable operation handlers.
+type DurableOperationTable map[operationtype.Type]DurableOperationHandlers
+
+var (
+	durableOperations     DurableOperationTable
+	durableOperationsOnce sync.Once
+)
+
+// InitDurableOperations initializes the durable operations table.
+// As durable operations can be restarted on other nodes, the durable operation handlers cannot be defined only in the memory of the node.
+// Therefore we maintain a static map of durable operation handlers based on operation type.
+// As this map contains handlers from across many packages, the table itself is defined in the main package.
+// Because this table needs to be accessible from the operations package, we provide this Init function to set it.
+func InitDurableOperations(opTable DurableOperationTable) {
+	durableOperationsOnce.Do(func() {
+		durableOperations = opTable
+	})
+}
+
+// CreateDurableOperation creates a new durable operation and returns it.
+// Durable operations need to have handlers defined in a durableOperations map rather than provided via arguments.
+// Arguments to these handlers are then looked up in the metadata.
+func CreateDurableOperation(ctx context.Context, s *state.State, opUUID string, projectName string, opType operationtype.Type, opResources map[string][]api.URL, opMetadata map[string]string) (*Operation, error) {
+	handlers, ok := durableOperations[opType]
+	if !ok {
+		return nil, fmt.Errorf("No durable operation handlers defined for operation type %q", opType)
+	}
+
+	return OperationCreate(ctx, s, opUUID, projectName, OperationClassDurable, opType, opResources, opMetadata, handlers.OnRun, handlers.OnCancel, nil)
 }

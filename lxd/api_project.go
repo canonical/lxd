@@ -1026,7 +1026,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ProjectRename, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, "", "", operations.OperationClassTask, operationtype.ProjectRename, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
