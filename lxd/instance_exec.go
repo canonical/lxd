@@ -157,6 +157,8 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	case <-s.waitRequiredConnected.Done():
 	case <-time.After(time.Second * 5):
 		return errors.New("Timed out waiting for websockets to connect")
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
 	var err error
@@ -272,7 +274,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 		}
 
 		// Make VM disconnections (shutdown/reboot) match containers.
-		if cmdErr == drivers.ErrExecDisconnected {
+		if cmdErr == drivers.ErrExecDisconnected || ctx.Err() != nil {
 			cmdResult = 129
 			cmdErr = nil
 		}
@@ -318,6 +320,12 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 
 		l.Debug("Exec control handler started")
 		defer l.Debug("Exec control handler finished")
+
+		go func() {
+			<-ctx.Done()
+			l.Warn("The operation was cancelled, killing command")
+			cmdKill()
+		}()
 
 		for {
 			mt, r, err := conn.NextReader()
