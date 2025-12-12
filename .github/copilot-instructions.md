@@ -15,7 +15,7 @@ LXD requires Go 1.25.4 or higher and is only tested with the Golang compiler.
 ├── lxd/                    # Main server daemon source
 ├── lxc/                    # Client CLI tool source  
 ├── lxd-agent/              # VM agent source
-├── lxd-migrate/            # Migration tool source
+├── lxd-convert/            # Conversion tool source
 ├── client/                 # Go client library
 ├── shared/                 # Shared code between components
 ├── test/                   # Integration test suite

@@ -804,7 +804,7 @@ test_snap_basic_usage_vm() {
 }
 
 test_basic_version() {
-  for bin in lxc lxd lxd-agent lxd-benchmark lxd-migrate lxd-user fuidshift; do
+  for bin in lxc lxd lxd-agent lxd-benchmark lxd-convert lxd-user fuidshift; do
     "${bin}" --version
     "${bin}" --help
   done

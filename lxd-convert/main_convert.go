@@ -31,7 +31,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-type cmdMigrate struct {
+type cmdConvert struct {
 	global *cmdGlobal
 
 	// Instance options.
@@ -59,18 +59,18 @@ type cmdMigrate struct {
 	flagNonInteractive bool
 }
 
-func (c *cmdMigrate) command() *cobra.Command {
+func (c *cmdConvert) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = "lxd-migrate"
-	cmd.Short = "Physical to instance migration tool"
+	cmd.Use = "lxd-convert"
+	cmd.Short = "Physical to instance conversion tool"
 	cmd.Long = `Description:
-  Physical to instance migration tool
+  Physical to instance conversion tool
 
   This tool lets you turn any Linux filesystem (including your current one)
   into a LXD instance on a remote LXD host.
 
   It will setup a clean mount tree made of the root filesystem and any
-  additional mount you list, then transfer this through LXD's migration
+  additional mount you list, then transfer this through LXD's conversion
   API to create a new instance from it.
 `
 	cmd.RunE = c.run
@@ -96,20 +96,20 @@ func (c *cmdMigrate) command() *cobra.Command {
 
 	// Other flags.
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
-	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "conversion", []string{"format"}, "Comma-separated list of conversion options to apply. Allowed values are: [format, virtio]")
+	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "options", []string{"format"}, "Comma-separated list of conversion options to apply. Allowed values are: [format, virtio]")
 	cmd.Flags().BoolVar(&c.flagNonInteractive, "non-interactive", false, "Prevent further interaction if migration questions are incomplete"+"``")
 
 	return cmd
 }
 
-type cmdMigrateData struct {
+type cmdConvertData struct {
 	SourcePath   string
 	Mounts       []string
 	InstanceArgs api.InstancesPost
 	Project      string
 }
 
-func (c *cmdMigrateData) render() string {
+func (c *cmdConvertData) render() string {
 	data := struct {
 		Name        string            `yaml:"Name"`
 		Project     string            `yaml:"Project"`
@@ -157,7 +157,7 @@ func (c *cmdMigrateData) render() string {
 	return string(out)
 }
 
-func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
+func (c *cmdConvert) askServer() (lxd.InstanceServer, string, error) {
 	var serverURL string
 	var err error
 
@@ -356,11 +356,11 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	return c.connectTarget(serverURL, certPath, keyPath, authType, token)
 }
 
-// newMigrateData creates a new migration configuration from the provided flags. The configuration is
+// newConvertData creates a new conversion configuration from the provided flags. The configuration is
 // validated and an error is returned if any of the flags contain an invalid value. A server connection
 // is required for some of the validations, such as checking if the instance name is available.
-func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData, error) {
-	config := &cmdMigrateData{}
+func (c *cmdConvert) newConvertData(server lxd.InstanceServer) (*cmdConvertData, error) {
+	config := &cmdConvertData{}
 	config.InstanceArgs.Config = map[string]string{}
 	config.InstanceArgs.Devices = map[string]map[string]string{}
 	config.InstanceArgs.Source = api.InstanceSource{
@@ -527,9 +527,9 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 	return config, nil
 }
 
-// runInteractive populates the migration request by interacting with the user. If any value is already
+// runInteractive populates the conversion request by interacting with the user. If any value is already
 // provided using flags, the corresponding questions are skipped.
-func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceServer) error {
+func (c *cmdConvert) runInteractive(config *cmdConvertData, server lxd.InstanceServer) error {
 	var err error
 
 	// Instance type.
@@ -679,7 +679,7 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 
 		fmt.Print(`
 Additional overrides can be applied at this stage:
-1) Begin the migration with the above configuration
+1) Begin the conversion with the above configuration
 2) Override profile list
 3) Set additional configuration options
 4) Change instance storage pool or volume size
@@ -711,7 +711,7 @@ Additional overrides can be applied at this stage:
 	}
 }
 
-func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
+func (c *cmdConvert) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if os.Geteuid() != 0 {
 		return errors.New("This tool must be run as root")
@@ -802,7 +802,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		defer func() { _ = server.DeleteCertificate(clientFingerprint) }()
 	}
 
-	config, err := c.newMigrateData(server)
+	config, err := c.newConvertData(server)
 	if err != nil {
 		return err
 	}
@@ -854,7 +854,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the temporary directory to be used for the mounts
-	path, err := os.MkdirTemp("", "lxd-migrate_mount_")
+	path, err := os.MkdirTemp("", "lxd-convert_mount_")
 	if err != nil {
 		return err
 	}
@@ -974,7 +974,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateData) error {
+func (c *cmdConvert) askProfiles(server lxd.InstanceServer, config *cmdConvertData) error {
 	profileNames, err := server.GetProfileNames()
 	if err != nil {
 		return err
@@ -1007,7 +1007,7 @@ func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateDa
 	return nil
 }
 
-func (c *cmdMigrate) askConfig(config *cmdMigrateData) error {
+func (c *cmdConvert) askConfig(config *cmdConvertData) error {
 	configs, err := c.global.asker.AskString("Please specify config keys and values (key=value ...): ", "", func(s string) error {
 		if s == "" {
 			return nil
@@ -1033,7 +1033,7 @@ func (c *cmdMigrate) askConfig(config *cmdMigrateData) error {
 	return nil
 }
 
-func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateData) error {
+func (c *cmdConvert) askStorage(server lxd.InstanceServer, config *cmdConvertData) error {
 	storagePools, err := server.GetStoragePoolNames()
 	if err != nil {
 		return err
@@ -1074,7 +1074,7 @@ func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateDat
 	return nil
 }
 
-func (c *cmdMigrate) askNetwork(server lxd.InstanceServer, config *cmdMigrateData) error {
+func (c *cmdConvert) askNetwork(server lxd.InstanceServer, config *cmdConvertData) error {
 	networks, err := server.GetNetworkNames()
 	if err != nil {
 		return err
@@ -1094,9 +1094,9 @@ func (c *cmdMigrate) askNetwork(server lxd.InstanceServer, config *cmdMigrateDat
 	return nil
 }
 
-// checkSource checks if the source path is valid and can be used for migration.
+// checkSource checks if the source path is valid and can be used for conversion.
 // Source path can represent a disk, image, or partition.
-func (c *cmdMigrate) checkSource(path string, instanceType api.InstanceType, migrationMode string) error {
+func (c *cmdConvert) checkSource(path string, instanceType api.InstanceType, migrationMode string) error {
 	if !shared.PathExists(path) {
 		return errors.New("Path does not exist")
 	}
