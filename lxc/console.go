@@ -22,7 +22,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/termios"
 )
@@ -36,17 +35,16 @@ type cmdConsole struct {
 
 func (c *cmdConsole) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("console", i18n.G("[<remote>:]<instance>"))
-	cmd.Short = i18n.G("Attach to instance consoles")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Attach to instance consoles
+	cmd.Use = usage("console", "[<remote>:]<instance>")
+	cmd.Short = "Attach to instance consoles"
+	cmd.Long = cli.FormatSection("Description", `Attach to instance consoles
 
 This command allows you to interact with the boot console of an instance
-as well as retrieve past log entries from it.`))
+as well as retrieve past log entries from it.`)
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Retrieve the container's console log"))
-	cmd.Flags().StringVarP(&c.flagType, "type", "t", "console", i18n.G("Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output")+"``")
+	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, "Retrieve the container's console log")
+	cmd.Flags().StringVarP(&c.flagType, "type", "t", "console", "Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output"+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpTopLevelResource("instance", toComplete)
@@ -114,7 +112,7 @@ func (c *cmdConsole) run(cmd *cobra.Command, args []string) error {
 
 	// Validate flags.
 	if !slices.Contains([]string{"console", "vga"}, c.flagType) {
-		return fmt.Errorf(i18n.G("Unknown output type %q"), c.flagType)
+		return fmt.Errorf("Unknown output type %q", c.flagType)
 	}
 
 	// Connect to LXD
@@ -131,7 +129,7 @@ func (c *cmdConsole) run(cmd *cobra.Command, args []string) error {
 	// Show the current log if requested
 	if c.flagShowLog {
 		if c.flagType != "console" {
-			return errors.New(i18n.G("The --show-log flag is only supported for by 'console' output type"))
+			return errors.New("The --show-log flag is only supported for by 'console' output type")
 		}
 
 		console := &lxd.InstanceConsoleLogArgs{}
@@ -169,7 +167,7 @@ func (c *cmdConsole) runConsole(d lxd.InstanceServer, name string) error {
 		return c.vga(d, name)
 	}
 
-	return fmt.Errorf(i18n.G("Unknown console type %q"), c.flagType)
+	return fmt.Errorf("Unknown console type %q", c.flagType)
 }
 
 func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
@@ -220,7 +218,7 @@ func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 		close(consoleDisconnect)
 	}()
 
-	fmt.Printf("%s\n\r", i18n.G("To detach from the console, press: <ctrl>+a q"))
+	fmt.Printf("%s\n\r", "To detach from the console, press: <ctrl>+a q")
 
 	// Attach to the instance console
 	op, err := d.ConsoleInstance(name, req, &consoleArgs)
@@ -378,7 +376,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		cmd.Stderr = os.Stderr
 		err := cmd.Start()
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed starting command: %w"), err)
+			return fmt.Errorf("Failed starting command: %w", err)
 		}
 
 		// Handle the command exiting.
@@ -399,8 +397,8 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 			_ = cmd.Process.Kill()
 		}()
 	} else {
-		fmt.Println(i18n.G("LXD automatically uses either spicy or remote-viewer when present."))
-		fmt.Println(i18n.G("As neither could be found, the raw SPICE socket can be found at:"))
+		fmt.Println("LXD automatically uses either spicy or remote-viewer when present.")
+		fmt.Println("As neither could be found, the raw SPICE socket can be found at:")
 		fmt.Printf("  %s\n", socket)
 
 		// Wait for all connections to complete.
