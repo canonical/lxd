@@ -7951,17 +7951,58 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 			continue
 		}
 
+		var customVolConfigPool *api.StoragePool
+
+		// Fetch the custom volume's corresponding pool representation from the backup config's list of pools.
+		for _, pool := range backupConf.Pools {
+			if pool.Name == customVol.Pool {
+				customVolConfigPool = pool
+				break
+			}
+		}
+
 		// The custom volume might be located on a different pool.
 		// Therefore try to load the right pool.
 		customVolPool, err := backupVolConfCache.GetPool(customVol.Pool)
 		if err != nil {
-			// We don't know the pool which hosts the custom volume. Skip it for now.
-			// At this point we would have to notify the user about the new pool and ask for it to be recovered too.
-			if api.StatusErrorCheck(err, http.StatusNotFound) {
+			if !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return fmt.Errorf("Failed to load pool %q for custom volume %q in project %q: %w", customVol.Pool, customVol.Name, customVol.Project, err)
+			}
+
+			// We don't know the pool which hosts the custom volume.
+			// Try to add both the pool and custom volume to allow notifying the user.
+
+			// In case the custom volume's pool is missing from the list of pools,
+			// that is a break of protocol for the version 2 metadata format.
+			// To allow this check being backwards compatible with older metadata formats, we skip this custom volume
+			// as we cannot collect enough information to provide a hint about the pool creation.
+			if customVolConfigPool == nil {
 				continue
 			}
 
-			return fmt.Errorf("Failed to load pool %q for custom volume %q in project %q: %w", customVol.Pool, customVol.Name, customVol.Project, err)
+			// Initialise a temporary pool with the recovered info.
+			poolInfo := api.StoragePool{
+				Name:   customVolConfigPool.Name,
+				Driver: customVolConfigPool.Driver,
+				Config: customVolConfigPool.Config,
+				Status: api.StoragePoolStatusCreated,
+			}
+
+			customVolPool, err = NewTemporary(b.state, &poolInfo)
+			if err != nil {
+				return fmt.Errorf("Failed to initialise unknown pool %q: %w", customVolConfigPool.Name, err)
+			}
+
+			// Populate configuration with default values.
+			err := customVolPool.Driver().FillConfig()
+			if err != nil {
+				return fmt.Errorf("Failed to evaluate the default configuration values for unknown pool %q: %w", customVolConfigPool.Name, err)
+			}
+
+			err = customVolPool.Driver().Validate(poolInfo.Config)
+			if err != nil {
+				return fmt.Errorf("Failed config validation for unknown pool %q: %w", customVolConfigPool.Name, err)
+			}
 		}
 
 		// Check if any entry for the custom volume already exists in the DB.
