@@ -4341,11 +4341,11 @@ test_clustering_remove_members() {
   # Start node 6
   LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
 
-  # make sure node6 is a spare ndoe
+  # make sure node6 is a spare node (no database roles)
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node6"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -E "\- database(|-standy|-leader)$" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -E "\- database-(voter|standby|leader)$" || false
 
-  # waite for leader update table raft_node of local database by heartbeat
+  # wait for leader update table raft_node of local database by heartbeat
   sleep 10s
 
   # Remove the leader, via the spare node
