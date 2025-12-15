@@ -157,6 +157,8 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	case <-s.waitRequiredConnected.Done():
 	case <-time.After(time.Second * 5):
 		return errors.New("Timed out waiting for websockets to connect")
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
 	var err error
@@ -240,7 +242,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 		stderr = ttys[execWSStderr]
 	}
 
-	waitAttachedChildIsDead, markAttachedChildIsDead := context.WithCancel(ctx)
+	waitAttachedChildIsDead, markAttachedChildIsDead := context.WithCancel(context.Background())
 	var wgEOF sync.WaitGroup
 
 	// Define a function to clean up TTYs and sockets when done.
@@ -273,6 +275,13 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 
 		// Make VM disconnections (shutdown/reboot) match containers.
 		if cmdErr == drivers.ErrExecDisconnected {
+			cmdResult = 129
+			cmdErr = nil
+		}
+
+		// If the exec operation was deleted, the exec websocket is closed and the caller is booted from the instance.
+		// In this case, make sure there is a non-zero exit code. The disconnection exit code is used here.
+		if ctx.Err() != nil && cmdResult == 0 {
 			cmdResult = 129
 			cmdErr = nil
 		}
@@ -318,6 +327,18 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 
 		l.Debug("Exec control handler started")
 		defer l.Debug("Exec control handler finished")
+
+		done := make(chan struct{}, 1)
+		defer close(done)
+		go func() {
+			select {
+			case <-done:
+			case <-ctx.Done():
+				// If the websocket operation is deleted, abruptly kill the command.
+				// Note that this goroutine is required otherwise we block on conn.NextReader in the for loop below.
+				cmdKill()
+			}
+		}()
 
 		for {
 			mt, r, err := conn.NextReader()
