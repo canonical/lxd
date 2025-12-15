@@ -25,9 +25,9 @@ import (
 // ClusterRole represents the role of a member in a cluster.
 type ClusterRole string
 
-// ClusterRoleDatabase represents the database role in a cluster.
+// ClusterRoleDatabaseVoter represents the database voter role in a cluster.
 // Assigned to cluster members with the [RaftVoter] role.
-const ClusterRoleDatabase = ClusterRole("database")
+const ClusterRoleDatabaseVoter = ClusterRole("database-voter")
 
 // ClusterRoleDatabaseStandBy represents the database stand-by role in a cluster.
 // Assigned to cluster members with the [RaftStandBy] role.
@@ -150,7 +150,7 @@ func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (
 	}
 
 	if raftNode != nil && raftNode.Role == RaftVoter {
-		result.Roles = append(result.Roles, string(ClusterRoleDatabase))
+		result.Roles = append(result.Roles, string(ClusterRoleDatabaseVoter))
 		result.Database = true
 	}
 
@@ -634,7 +634,7 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	roleIDs := []int{}
 	for _, role := range roles {
 		// Skip internal-only roles.
-		if role == ClusterRoleDatabase || role == ClusterRoleDatabaseStandBy || role == ClusterRoleDatabaseLeader {
+		if role == ClusterRoleDatabaseVoter || role == ClusterRoleDatabaseStandBy || role == ClusterRoleDatabaseLeader {
 			continue
 		}
 
