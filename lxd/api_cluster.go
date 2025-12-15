@@ -1753,6 +1753,12 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 		return response.BadRequest(err)
 	}
 
+	// Validate config before database transaction.
+	err = clusterValidateConfig(req.Config)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
 	// Nodes must belong to at least one group.
 	if len(req.Groups) == 0 {
 		return response.BadRequest(errors.New("Cluster members need to belong to at least one group"))
@@ -1769,11 +1775,6 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 		nodeInfo, err := tx.GetNodeByName(ctx, name)
 		if err != nil {
 			return fmt.Errorf("Loading node information: %w", err)
-		}
-
-		err = clusterValidateConfig(req.Config)
-		if err != nil {
-			return err
 		}
 
 		if isPatch {
