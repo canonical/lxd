@@ -373,9 +373,13 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				}
 			}
 		}
+	}
 
+	// Iterate over poolsProjectVols to ensure we also check volumes in pools which weren't scanned
+	// directly but discovered/appended whilst scanning an instance's backup config on another pool.
+	for _, poolProjectVols := range poolsProjectVols {
 		// Check dependencies are met for each volume.
-		for projectName, poolVols := range poolProjectVols {
+		for projectName, volConfigs := range poolProjectVols {
 			// Check project exists in database.
 			projectInfo := projects[projectName]
 
@@ -391,13 +395,23 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 			profileProjectname = project.ProfileProjectFromRecord(projectInfo)
 			networkProjectName = project.NetworkProjectFromRecord(projectInfo)
 
-			for _, poolVol := range poolVols {
-				if poolVol.Instance == nil {
-					continue // Skip dependency checks for non-instance volumes.
+			for _, volConfig := range volConfigs {
+				dependencyErr, err := identifyCustomVolumePool(s, volConfig, pools)
+				if err != nil {
+					return response.SmartError(fmt.Errorf("Failed to identify custom volume's pool: %w", err))
+				}
+
+				if dependencyErr != nil {
+					addDependencyError(dependencyErr)
+				}
+
+				// Skip dependency checks for non-instance volumes.
+				if volConfig.Instance == nil {
+					continue
 				}
 
 				// Check that the instance's profile dependencies are met.
-				for _, poolInstProfileName := range poolVol.Instance.Profiles {
+				for _, poolInstProfileName := range volConfig.Instance.Profiles {
 					foundProfile := false
 					for _, profile := range projectProfiles[profileProjectname] {
 						if profile.Name == poolInstProfileName {
@@ -411,7 +425,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				}
 
 				// Check that the instance's NIC network dependencies are met.
-				for _, devConfig := range poolVol.Instance.ExpandedDevices {
+				for _, devConfig := range volConfig.Instance.ExpandedDevices {
 					if devConfig["type"] != "nic" {
 						continue
 					}
