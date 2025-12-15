@@ -245,7 +245,7 @@ test_clustering_membership() {
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF -- '- database-leader'
   [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -Fc "database-standby")" = "2" ]
-  [ "$(LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep -Fc "database ")" = "3" ]
+  [ "$(LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep -Fc "database-voter")" = "2" ]
 
   # Show a single node
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -F "server_name: node5"
@@ -2996,7 +2996,7 @@ test_clustering_handover() {
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster ls
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -xF -- "- database"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -xF -- "- database-voter"
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1 | grep -xF "database: false"
 
   # Even if we shutdown one more node, the cluster is still available.
@@ -3108,7 +3108,7 @@ test_clustering_rebalance() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Offline"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: false"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF "status: Online"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -F -- "- database"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -F -- "- database-voter"
 
   # Respawn the second node. It won't be able to disrupt the current leader,
   # since dqlite uses pre-vote.
@@ -3286,8 +3286,8 @@ test_clustering_remove_raft_node() {
   # There are only 2 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- database-leader"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -xF -- "- database"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -xF -- "- database-voter"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database-voter"
 
   # The second node is still in the raft_nodes table.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 1 ]
@@ -3302,8 +3302,8 @@ test_clustering_remove_raft_node() {
   # We're back to 3 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- database-leader"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -xF -- "- database"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -xF -- "- database-voter"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database-voter"
 
   # The second node is gone from the raft_nodes_table.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 0 ]
@@ -3377,11 +3377,11 @@ test_clustering_failure_domains() {
   # Set failure domains
 
   # shellcheck disable=SC2039
-  printf 'roles: ["database"]\nfailure_domain: "az1"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node1
+  printf 'roles: ["database-leader"]\nfailure_domain: "az1"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node1
   # shellcheck disable=SC2039
-  printf 'roles: ["database"]\nfailure_domain: "az2"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node2
+  printf 'roles: ["database-voter"]\nfailure_domain: "az2"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node2
   # shellcheck disable=SC2039
-  printf 'roles: ["database"]\nfailure_domain: "az3"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node3
+  printf 'roles: ["database-voter"]\nfailure_domain: "az3"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node3
   # shellcheck disable=SC2039
   printf 'roles: []\nfailure_domain: "az1"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node4
   # shellcheck disable=SC2039
@@ -4357,7 +4357,6 @@ test_clustering_remove_members() {
 
   # Check whether node6 is changed from a spare node to a leader node.
   LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -xF -- "- database-leader"
-  LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -xF -- "- database"
 
   # Spawn a sixth node
   setup_clustering_netns 7
