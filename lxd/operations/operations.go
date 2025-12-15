@@ -168,7 +168,7 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	}
 
 	if op.class == OperationClassToken && op.onRun != nil {
-		return nil, errors.New("Token operations can't have a Run hook")
+		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
 	if op.class == OperationClassToken && op.onCancel != nil {
