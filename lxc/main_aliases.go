@@ -14,7 +14,6 @@ import (
 
 	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 var numberedArgRegex = regexp.MustCompile(`@ARG(\d+)@`)
@@ -102,11 +101,11 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 			argNoStr := match[1]
 			argNo, err := strconv.Atoi(argNoStr)
 			if err != nil {
-				return nil, false, fmt.Errorf(i18n.G("Invalid argument %q"), match[0])
+				return nil, false, fmt.Errorf("Invalid argument %q", match[0])
 			}
 
 			if argNo > len(atArgs) {
-				return nil, false, fmt.Errorf(i18n.G("Found alias %q references an argument outside the given number"), strings.Join(aliasKey, " "))
+				return nil, false, fmt.Errorf("Found alias %q references an argument outside the given number", strings.Join(aliasKey, " "))
 			}
 
 			numberedArgsMap[argNo] = atArgs[argNo-1]
@@ -145,7 +144,7 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 				argNoStr := match[1]
 				argNo, err := strconv.Atoi(argNoStr)
 				if err != nil {
-					return nil, false, fmt.Errorf(i18n.G("Invalid argument %q"), match[0])
+					return nil, false, fmt.Errorf("Invalid argument %q", match[0])
 				}
 
 				replacement := numberedArgsMap[argNo]
@@ -221,12 +220,12 @@ func execIfAliases() error {
 	// Look for the executable
 	path, err := exec.LookPath(newArgs[0])
 	if err != nil {
-		return fmt.Errorf(i18n.G("Processing aliases failed: %s"), err)
+		return fmt.Errorf("Processing aliases failed: %w", err)
 	}
 
 	// Re-exec
 	environ := getEnviron()
 	environ = append(environ, "LXC_ALIASES=1")
 	ret := doExec(path, newArgs, environ)
-	return fmt.Errorf(i18n.G("Processing aliases failed: %s"), ret)
+	return fmt.Errorf("Processing aliases failed: %w", ret)
 }
