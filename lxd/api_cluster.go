@@ -1841,27 +1841,30 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 	return response.EmptySyncResponse
 }
 
-// clusterRolesChanged checks whether the non-internal roles have changed between oldRoles and newRoles.
+// clusterRolesChanged checks whether manual roles have changed between oldRoles and newRoles.
 func clusterRolesChanged(oldRoles []db.ClusterRole, newRoles []db.ClusterRole) bool {
-	// Filter roles to only known external (user-assignable) roles (excludes internal roles added by raft).
-	newExternalRoles := make([]db.ClusterRole, 0, len(newRoles))
-	oldExternalRoles := make([]db.ClusterRole, 0, len(oldRoles))
+	// Get manual roles to check against.
+	manualRoles := slices.Collect(maps.Values(db.ClusterRoles[db.ClusterRoleClassManual]))
+
+	// Filter roles to only manual (user-assignable) roles.
+	newManualRoles := make([]db.ClusterRole, 0, len(newRoles))
+	oldManualRoles := make([]db.ClusterRole, 0, len(oldRoles))
 
 	for _, role := range newRoles {
-		if db.ClusterRoleSet[role] {
-			newExternalRoles = append(newExternalRoles, role)
+		if slices.Contains(manualRoles, role) {
+			newManualRoles = append(newManualRoles, role)
 		}
 	}
 
 	for _, role := range oldRoles {
-		if db.ClusterRoleSet[role] {
-			oldExternalRoles = append(oldExternalRoles, role)
+		if slices.Contains(manualRoles, role) {
+			oldManualRoles = append(oldManualRoles, role)
 		}
 	}
 
 	// Sort old and new roles for comparison.
-	sortedOld := slices.Sorted(slices.Values(oldExternalRoles))
-	sortedNew := slices.Sorted(slices.Values(newExternalRoles))
+	sortedOld := slices.Sorted(slices.Values(oldManualRoles))
+	sortedNew := slices.Sorted(slices.Values(newManualRoles))
 
 	return !slices.Equal(sortedOld, sortedNew)
 }
