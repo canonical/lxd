@@ -196,7 +196,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	}
 
 	if op.class == OperationClassToken && op.onRun != nil {
-		return nil, errors.New("Token operations can't have a Run hook")
+		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
 	operationsLock.Lock()
