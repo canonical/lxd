@@ -1747,13 +1747,10 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 		return response.BadRequest(err)
 	}
 
-	// Validate the request
-	if slices.Contains(memberInfo.Roles, string(db.ClusterRoleDatabase)) && !slices.Contains(req.Roles, string(db.ClusterRoleDatabase)) {
-		return response.BadRequest(fmt.Errorf("The %q role cannot be dropped at this time", db.ClusterRoleDatabase))
-	}
-
-	if !slices.Contains(memberInfo.Roles, string(db.ClusterRoleDatabase)) && slices.Contains(req.Roles, string(db.ClusterRoleDatabase)) {
-		return response.BadRequest(fmt.Errorf("The %q role cannot be added at this time", db.ClusterRoleDatabase))
+	// Validate the request (preserves automatic roles)
+	req.Roles, err = validateClusterMemberRoles(memberInfo.Roles, req.Roles)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// Nodes must belong to at least one group.
@@ -1867,6 +1864,72 @@ func clusterRolesChanged(oldRoles []db.ClusterRole, newRoles []db.ClusterRole) b
 	sortedNew := slices.Sorted(slices.Values(newManualRoles))
 
 	return !slices.Equal(sortedOld, sortedNew)
+}
+
+// validateClusterMemberRoles validates and normalizes the requested roles for a cluster member update.
+// It preserves any automatic roles not included in the request, then validates that:
+// - Automatic roles cannot be added manually.
+// - All requested roles are valid (exist in [db.ClusterRoles] map).
+// - No duplicate roles are present in the request.
+//
+// Returns the normalized role list with automatic roles preserved.
+func validateClusterMemberRoles(currentRoles []string, requestedRoles []string) ([]string, error) {
+	// Used to check if a role is automatic.
+	isAutomaticRole := func(role string) bool {
+		return slices.Contains(slices.Collect(maps.Values(db.ClusterRoles[db.ClusterRoleClassAutomatic])), db.ClusterRole(role))
+	}
+
+	// Used to check if a role exists in either manual or automatic roles.
+	isValidRole := func(role string) bool {
+		for _, roles := range db.ClusterRoles {
+			if slices.Contains(slices.Collect(maps.Values(roles)), db.ClusterRole(role)) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	// Preserve automatic roles not included in request.
+	// This prevents removing automatic roles when updating cluster members.
+	normalizedRoles := make([]string, len(requestedRoles))
+	copy(normalizedRoles, requestedRoles)
+
+	for _, currentRole := range currentRoles {
+		if !slices.Contains(normalizedRoles, currentRole) && isAutomaticRole(currentRole) {
+			normalizedRoles = append(normalizedRoles, currentRole)
+		}
+	}
+
+	// Track seen roles to detect duplicates.
+	seenRoles := make(map[string]bool, len(normalizedRoles))
+
+	// Validate each role in the normalized list.
+	for _, role := range normalizedRoles {
+		// Check for duplicates
+		if seenRoles[role] {
+			return nil, fmt.Errorf("Duplicate role %q in request", role)
+		}
+
+		seenRoles[role] = true
+
+		// Check if role exists and validate it.
+		if !isValidRole(role) {
+			return nil, fmt.Errorf("Invalid cluster role %q", role)
+		}
+
+		// Manual roles are always allowed.
+		if !isAutomaticRole(role) {
+			continue
+		}
+
+		// Automatic roles: can only be kept, not added.
+		if !slices.Contains(currentRoles, role) {
+			return nil, fmt.Errorf("The automatically assigned %q role cannot be added manually", role)
+		}
+	}
+
+	return normalizedRoles, nil
 }
 
 // clusterValidateConfig validates the configuration keys/values for cluster members.
