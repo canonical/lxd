@@ -26,7 +26,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -500,81 +499,6 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 	}
 
 	// If in import mode and no dependency errors, then re-create missing DB records.
-
-	// Create the pools themselves.
-	for _, pool := range pools {
-		// Create missing storage pool DB record if neeed.
-		if pool.ID() == storagePools.PoolIDTemporary {
-			var instPoolVol *backupConfig.Config // Instance volume used for new pool record.
-			var poolID int64                     // Pool ID of created pool record.
-
-			var poolVols []*backupConfig.Config
-			for _, value := range poolsProjectVols[pool.Name()] {
-				poolVols = append(poolVols, value...)
-			}
-
-			var rootVolPool *api.StoragePool
-
-			// Search unknown volumes looking for an instance volume that can be used to
-			// restore the pool DB config from. This is preferable over using the user
-			// supplied config as it will include any additional settings not supplied.
-			for _, poolVol := range poolVols {
-				rootVolPool, err = poolVol.RootVolumePool()
-				if err != nil {
-					// We are looking for a volume with a pool configuration.
-					// Skip this volume if it doesn't contain what we are looking for.
-					continue
-				}
-
-				if rootVolPool.Config != nil {
-					instPoolVol = poolVol
-					break // Stop search once we've found an instance with pool config.
-				}
-			}
-
-			if instPoolVol != nil {
-				// Create storage pool DB record from config in the instance.
-				logger.Info("Creating storage pool DB record from instance config", logger.Ctx{"name": rootVolPool.Name, "description": rootVolPool.Description, "driver": rootVolPool.Driver, "config": rootVolPool.Config})
-				poolID, err = dbStoragePoolCreateAndUpdateCache(ctx, s, rootVolPool.Name, rootVolPool.Description, rootVolPool.Driver, rootVolPool.Config)
-				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed creating storage pool %q database entry: %w", pool.Name(), err))
-				}
-			} else {
-				// Create storage pool DB record from config supplied by user if not
-				// instance volume pool config found.
-				poolDriverName := pool.Driver().Info().Name
-				poolDriverConfig := pool.Driver().Config()
-				logger.Info("Creating storage pool DB record from user config", logger.Ctx{"name": pool.Name(), "driver": poolDriverName, "config": poolDriverConfig})
-				poolID, err = dbStoragePoolCreateAndUpdateCache(ctx, s, pool.Name(), "", poolDriverName, poolDriverConfig)
-				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed creating storage pool %q database entry: %w", pool.Name(), err))
-				}
-			}
-
-			revert.Add(func() {
-				_ = dbStoragePoolDeleteAndUpdateCache(context.Background(), s, pool.Name())
-			})
-
-			// Set storage pool node to storagePoolCreated.
-			// Must come before storage pool is loaded from the database.
-			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.StoragePoolNodeCreated(poolID)
-			})
-			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed marking storage pool %q local status as created: %w", pool.Name(), err))
-			}
-
-			logger.Debug("Marked storage pool local status as created", logger.Ctx{"pool": pool.Name()})
-
-			newPool, err := storagePools.LoadByName(s, pool.Name())
-			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed loading created storage pool %q: %w", pool.Name(), err))
-			}
-
-			// Record this newly created pool so that defer doesn't unmount on return.
-			pools[pool.Name()] = newPool
-		}
-	}
 
 	// Recover the storage volumes and buckets.
 	for _, pool := range pools {
