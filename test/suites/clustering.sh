@@ -4922,6 +4922,128 @@ test_clustering_events() {
   kill_lxd "${LXD_FIVE_DIR}"
 }
 
+test_clustering_roles() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node.
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn a third node.
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn a fourth node.
+  setup_clustering_netns 4
+  LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns4="${prefix}4"
+  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn a fifth node.
+  setup_clustering_netns 5
+  LXD_FIVE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns5="${prefix}5"
+  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_FIVE_DIR}" "${LXD_ONE_DIR}"
+
+  # Configure cluster with max_voters=3 and max_standby=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.max_voters=3 cluster.max_standby=1 cluster.offline_threshold=11
+
+  sleep 12 # Wait a bit for cluster to stabilize.
+
+  lxc cluster ls
+
+  # Get cluster list once and reuse it for all queries.
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+
+  # Find a member without database-voter role (to test adding it).
+  non_voter_member="$(jq --exit-status --raw-output '[.[] | select(any(.roles[]; contains("database-voter")) | not) | .server_name] | first' <<< "${cluster_list}")"
+  echo "Found non-voter member: ${non_voter_member}"
+
+  # Find a member without database-standby role (to test adding it).
+  non_standby_member="$(jq --exit-status --raw-output '[.[] | select(any(.roles[]; contains("database-standby")) | not) | .server_name] | first' <<< "${cluster_list}")"
+  echo "Found non-standby member: ${non_standby_member}"
+
+  # Find a member without database-leader role (to test adding it).
+  non_leader_member="$(jq --exit-status --raw-output '[.[] | select(any(.roles[]; contains("database-leader")) | not) | .server_name] | first' <<< "${cluster_list}")"
+  echo "Found non-leader member: ${non_leader_member}"
+
+  echo "==> Reject adding automatic role 'database-voter'"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${non_voter_member}" database-voter 2>&1)" = 'Error: The automatically assigned "database-voter" role cannot be added manually' ]
+
+  echo "==> Reject adding automatic role 'database-standby'"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${non_standby_member}" database-standby 2>&1)" = 'Error: The automatically assigned "database-standby" role cannot be added manually' ]
+
+  echo "==> Reject adding automatic role 'database-leader'"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${non_leader_member}" database-leader 2>&1)" = 'Error: The automatically assigned "database-leader" role cannot be added manually' ]
+
+  echo "==> Reject invalid role name"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 invalid-role 2>&1)" = 'Error: Invalid cluster role "invalid-role"' ]
+
+  echo "==> Reject typo in role name"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hubb 2>&1)" = 'Error: Invalid cluster role "event-hubb"' ]
+
+  echo "==> Reject duplicate roles in request"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub,event-hub 2>&1)" = 'Error: Duplicate role "event-hub" in request' ]
+
+  echo "==> Accept valid manual role addition"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub"
+
+  echo "==> Accept adding multiple manual roles"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 ovn-chassis
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- ovn-chassis"
+
+  echo "==> Reject adding role member already has"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub 2>&1)" = 'Error: Member "node1" already has role "event-hub"' ]
+
+  echo "==> Accept removing manual role"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- ovn-chassis"
+
+  echo "==> Reject removing role member does not have"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub 2>&1)" = 'Error: Member "node1" does not have role "event-hub"' ]
+
+  echo "==> Cleanup"
+  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_FIVE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_FIVE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
+
 test_clustering_uuid() {
   local LXD_DIR
 
