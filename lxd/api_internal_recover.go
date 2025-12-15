@@ -499,6 +499,10 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 	}
 
 	// If in import mode and no dependency errors, then re-create missing DB records.
+	// Starting from here we can expect all pools to be present so we can iterate over the 'pools'
+	// map to use the already loaded pools to perform imports.
+	// In case some pools were discovered by checking the backup configs of other pool's instances,
+	// those pools are now loaded too and available under the 'pools' map.
 
 	// Recover the storage volumes and buckets.
 	for _, pool := range pools {
