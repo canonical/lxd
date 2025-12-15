@@ -25,6 +25,17 @@ import (
 // ClusterRole represents the role of a member in a cluster.
 type ClusterRole string
 
+// ClusterRoleClass represents the class of a cluster role.
+type ClusterRoleClass int
+
+const (
+	// ClusterRoleClassAutomatic represents roles that are automatically assigned by LXD.
+	ClusterRoleClassAutomatic ClusterRoleClass = iota
+
+	// ClusterRoleClassManual represents roles that can be manually assigned.
+	ClusterRoleClassManual
+)
+
 // ClusterRoleDatabaseVoter represents the database voter role in a cluster.
 // Assigned to cluster members with the [RaftVoter] role.
 const ClusterRoleDatabaseVoter = ClusterRole("database-voter")
@@ -43,33 +54,21 @@ const ClusterRoleEventHub = ClusterRole("event-hub")
 // ClusterRoleOVNChassis represents a cluster member that operates as an OVN chassis.
 const ClusterRoleOVNChassis = ClusterRole("ovn-chassis")
 
-// ClusterRoles maps role ids into human-readable names.
-//
-// Note: the database role is currently stored directly in the raft
-// configuration which acts as single source of truth for it. This map should
-// only contain LXD-specific cluster roles.
-var ClusterRoles = map[int]ClusterRole{
-	1: ClusterRoleEventHub,
-	2: ClusterRoleOVNChassis,
-}
-
-// ClusterRoleIDs provides reverse lookup from role name to ID.
-// Automatically populated at init time.
-var ClusterRoleIDs map[ClusterRole]int
-
-// ClusterRoleSet provides O(1) membership testing for valid external cluster roles.
-// Automatically populated at init time.
-var ClusterRoleSet map[ClusterRole]bool
-
-func init() {
-	// Build reverse lookup maps
-	ClusterRoleIDs = make(map[ClusterRole]int, len(ClusterRoles))
-	ClusterRoleSet = make(map[ClusterRole]bool, len(ClusterRoles))
-
-	for id, role := range ClusterRoles {
-		ClusterRoleIDs[role] = id
-		ClusterRoleSet[role] = true
-	}
+// ClusterRoles maps role classes to their respective role definitions.
+// Automatic roles are managed by LXD and cannot be manually modified.
+// Manual roles can be assigned and removed by users via the API.
+var ClusterRoles = map[ClusterRoleClass]map[int]ClusterRole{
+	// Automatic roles are not stored in the database, so the keys are not IDs.
+	ClusterRoleClassAutomatic: {
+		1: ClusterRoleDatabaseVoter,
+		2: ClusterRoleDatabaseStandBy,
+		3: ClusterRoleDatabaseLeader,
+	},
+	// Manual cluster roles are stored in the database and are therefore keyed by their respective IDs.
+	ClusterRoleClassManual: {
+		1: ClusterRoleEventHub,
+		2: ClusterRoleOVNChassis,
+	},
 }
 
 // Numeric type codes identifying different cluster member states.
@@ -451,7 +450,7 @@ func (c *ClusterTx) nodes(ctx context.Context, pending bool, where string, args 
 			nodeRoles[nodeID] = []ClusterRole{}
 		}
 
-		roleName := string(ClusterRoles[role])
+		roleName := string(ClusterRoles[ClusterRoleClassManual][role])
 		nodeRoles[nodeID] = append(nodeRoles[nodeID], ClusterRole(roleName))
 
 		return nil
@@ -632,21 +631,20 @@ func (c *ClusterTx) UpdateNodeConfig(ctx context.Context, id int64, config map[s
 }
 
 // UpdateNodeRoles changes the list of roles on a member.
+// Only manual (user-assignable) roles are stored in the database.
+// Automatic roles are managed by Raft and filtered out.
+// Callers are expected to validate roles before calling this function.
 func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
-	// Translate role names to ids
+	// Translate role names to IDs
 	roleIDs := []int{}
 	for _, role := range roles {
-		// Skip internal-only roles.
-		if role == ClusterRoleDatabaseVoter || role == ClusterRoleDatabaseStandBy || role == ClusterRoleDatabaseLeader {
-			continue
+		// Find the role ID for the given manual role.
+		for id, manualRole := range ClusterRoles[ClusterRoleClassManual] {
+			if role == manualRole {
+				roleIDs = append(roleIDs, id)
+				break
+			}
 		}
-
-		roleID, valid := ClusterRoleIDs[role]
-		if !valid {
-			return fmt.Errorf("Invalid cluster role %q", role)
-		}
-
-		roleIDs = append(roleIDs, roleID)
 	}
 
 	// Update the database record
