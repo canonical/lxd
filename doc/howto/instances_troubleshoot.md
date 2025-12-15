@@ -65,7 +65,7 @@ See the following sections for some typical methods of troubleshooting an instan
 
 ### Debug `systemd` `init`
 
-Here is how to enable `systemd` [debug level messages](https://www.freedesktop.org/wiki/Software/systemd/Debugging/) for the `c1` container:
+Here is how to enable `systemd` [debug level messages](https://systemd.io/DEBUGGING/) for the `c1` container:
 
 ```sh
 lxc config set c1 raw.lxc 'lxc.init.cmd = /sbin/init systemd.log_level=debug'
