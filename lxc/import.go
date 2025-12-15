@@ -10,7 +10,6 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/units"
 )
@@ -24,17 +23,15 @@ type cmdImport struct {
 
 func (c *cmdImport) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("import", i18n.G("[<remote>:] <backup file> [<instance name>]"))
-	cmd.Short = i18n.G("Import instance backups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Import backups of instances including their snapshots.`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc import backup0.tar.gz
-    Create a new instance using backup0.tar.gz as the source.`))
+	cmd.Use = usage("import", "[<remote>:] <backup file> [<instance name>]")
+	cmd.Short = "Import instance backups"
+	cmd.Long = cli.FormatSection("Description", `Import backups of instances including their snapshots.`)
+	cmd.Example = cli.FormatSection("", `lxc import backup0.tar.gz
+    Create a new instance using backup0.tar.gz as the source.`)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
-	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", "Storage pool name"+"``")
+	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, "New key/value to apply to a specific device"+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 		if len(args) > 1 {
@@ -107,7 +104,7 @@ func (c *cmdImport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	progress := cli.ProgressRenderer{
-		Format: i18n.G("Importing instance: %s"),
+		Format: "Importing instance: %s",
 		Quiet:  c.global.flagQuiet,
 	}
 

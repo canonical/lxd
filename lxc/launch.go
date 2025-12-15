@@ -7,7 +7,6 @@ import (
 
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdLaunch struct {
@@ -19,11 +18,10 @@ type cmdLaunch struct {
 
 func (c *cmdLaunch) command() *cobra.Command {
 	cmd := c.init.command()
-	cmd.Use = usage("launch", i18n.G("[<remote>:]<image> [<remote>:][<name>]"))
-	cmd.Short = i18n.G("Create and start instances from images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create and start instances from images`))
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc launch ubuntu:24.04 u1
+	cmd.Use = usage("launch", "[<remote>:]<image> [<remote>:][<name>]")
+	cmd.Short = "Create and start instances from images"
+	cmd.Long = cli.FormatSection("Description", `Create and start instances from images`)
+	cmd.Example = cli.FormatSection("", `lxc launch ubuntu:24.04 u1
     Create and start a container
 
 lxc launch ubuntu:24.04 u1 < config.yaml
@@ -36,13 +34,13 @@ lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
     Create and start a virtual machine with 4 vCPUs and 4GiB of RAM
 
 lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB
-    Create and start a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB`))
+    Create and start a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB`)
 
 	cmd.Hidden = false
 
 	cmd.RunE = c.run
 
-	cmd.Flags().StringVar(&c.flagConsole, "console", "", i18n.G("Immediately attach to the console")+"``")
+	cmd.Flags().StringVar(&c.flagConsole, "console", "", "Immediately attach to the console"+"``")
 	cmd.Flags().Lookup("console").NoOptDefVal = "console"
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -93,7 +91,7 @@ func (c *cmdLaunch) run(cmd *cobra.Command, args []string) error {
 
 		// Start the instance
 		if !c.global.flagQuiet {
-			fmt.Printf(i18n.G("Starting %s")+"\n", name)
+			fmt.Printf("Starting %s\n", name)
 		}
 
 		req := api.InstanceStatePut{
@@ -125,7 +123,7 @@ func (c *cmdLaunch) run(cmd *cobra.Command, args []string) error {
 				prettyName = remote + ":" + name
 			}
 
-			return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, prettyName)
+			return fmt.Errorf("%w\nTry `lxc info --show-log %s` for more info", err, prettyName)
 		}
 
 		progress.Done("")
