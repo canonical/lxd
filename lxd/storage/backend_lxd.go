@@ -8021,6 +8021,8 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 		backupConf := backupConfig.NewConfig(backupConf.LastModified())
 		backupConf.Volumes = []*backupConfig.Volume{customVol}
 
+		backupConf.Pools = []*api.StoragePool{customVolConfigPool}
+
 		// Add custom volume to unknown volumes list for the project.
 		if projectVols[customVol.Project] == nil {
 			projectVols[customVol.Project] = []*backupConfig.Config{backupConf}
