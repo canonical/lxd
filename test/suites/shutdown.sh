@@ -69,16 +69,16 @@ test_shutdown() {
     instance_ops_duration["i2"]=8s
     instance_ops_duration["i3"]=10s
 
-    pids=""
+    local pids=()
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
-        pids="$pids $!"
+        pids+=("$!")
     done
 
     # Wait for all instance operations to be registered before initiating the shutdown sequence.
-    sleep 1
+    check_registered_operations "${pids[@]}"
     # Initiate the LXD shutdown sequence.
     # This call should block until before the global timeout is reached.
     lxd_shutdown_restart "${scenario_name}"
@@ -108,7 +108,7 @@ test_shutdown() {
 
     # Cleanup
     lxc delete -f i{1..4}
-    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
+    terminate_leftovers "${pids[@]}"
     rm "$scenario_name.log"
 
     scenario_name="scenario4"
@@ -138,16 +138,16 @@ test_shutdown() {
     lxc config set i3 boot.stop.priority 1
     lxc config set i4 boot.stop.priority 1
 
-    pids=""
+    pids=()
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
-        pids="$pids $!"
+        pids+=("$!")
     done
 
     # Wait for all instance operations to be registered before initiating the shutdown sequence.
-    sleep 1
+    check_registered_operations "${pids[@]}"
     # Initiate the LXD shutdown sequence.
     # This call should block until before the global timeout is reached.
     lxd_shutdown_restart "${scenario_name}"
@@ -191,7 +191,7 @@ test_shutdown() {
 
     # Cleanup
     lxc delete -f i{1..4}
-    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
+    terminate_leftovers "${pids[@]}"
     rm "$scenario_name.log"
 
     scenario_name="scenario5"
@@ -221,15 +221,15 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
-    pids=""
+    pids=()
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
-        pids="$pids $!"
+        pids+=("$!")
     done
 
-    sleep 1
+    check_registered_operations "${pids[@]}"
     lxd_shutdown_restart "${scenario_name}"
 
     expected_msgs=(
@@ -280,7 +280,7 @@ test_shutdown() {
 
     # Cleanup
     lxc delete -f i{1..5}
-    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
+    terminate_leftovers "${pids[@]}"
     rm "$scenario_name.log"
 
     # The following scenarios are only relevant for LXD with storage backend other than ceph.
@@ -326,19 +326,19 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
-    pids=""
+    pids=()
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
-        pids="$pids $!"
+        pids+=("$!")
     done
 
     # Simulate a volume operation that runs for 10 seconds.
     lxd_volume_operation mypool backups 10s &
-    pids="$pids $!"
+    pids+=("$!")
 
-    sleep 1
+    check_registered_operations "${pids[@]}"
     lxd_shutdown_restart "${scenario_name}"
 
     expected_msgs=(
@@ -391,7 +391,7 @@ test_shutdown() {
 
     # Cleanup
     lxc delete -f i{1..5}
-    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
+    terminate_leftovers "${pids[@]}"
     rm "$scenario_name.log"
 
     scenario_name="scenario7"
@@ -422,19 +422,19 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
-    pids=""
+    pids=()
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
-        pids="$pids $!"
+        pids+=("$!")
     done
 
     # Simulate a volume operation that runs for 10 seconds.
     lxd_volume_operation mypool images 10s &
-    pids="$pids $!"
+    pids+=("$!")
 
-    sleep 1
+    check_registered_operations "${pids[@]}"
     lxd_shutdown_restart "${scenario_name}"
 
     expected_msgs=(
@@ -487,7 +487,7 @@ test_shutdown() {
 
     # Cleanup
     lxc delete -f i{1..5}
-    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
+    terminate_leftovers "${pids[@]}"
     rm "$scenario_name.log"
 
     scenario_name="scenario8"
@@ -518,21 +518,21 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
-    pids=""
+    pids=()
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
-        pids="$pids $!"
+        pids+=("$!")
     done
 
     # Simulate a volume operation on the images volume that runs for 10 seconds and on the backups volume that runs for 20 seconds.
     lxd_volume_operation mypool images 5s &
-    pids="$pids $!"
+    pids+=("$!")
     lxd_volume_operation mypool backups 8s &
-    pids="$pids $!"
+    pids+=("$!")
 
-    sleep 1
+    check_registered_operations "${pids[@]}"
     lxd_shutdown_restart "${scenario_name}"
 
     expected_msgs=(
@@ -585,7 +585,7 @@ test_shutdown() {
 
     # Cleanup
     lxc delete -f i{1..5}
-    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
+    terminate_leftovers "${pids[@]}"
     rm "$scenario_name.log"
 
     scenario_name="scenario9"
@@ -620,23 +620,23 @@ test_shutdown() {
     instance_ops_duration["i4"]=5s
     instance_ops_duration["i5"]=10s
 
-    pids=""
+    pids=()
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
-        pids="$pids $!"
+        pids+=("$!")
     done
 
     # Simulate a volume operation on the images volume that runs for 10 seconds and on the backups volume that runs for 20 seconds.
     lxd_volume_operation mypool images 5s &
-    pids="$pids $!"
+    pids+=("$!")
     # This operation will not finish before the shutdown timeout is reached. An error log message should be shown.
     # In this situation, this is the unmount timeout that will be fired (1 minute and not the global shutdown timeout which is set to 2 minutes in this scenario).
     lxd_volume_operation mypool backups 80s &
-    pids="$pids $!"
+    pids+=("$!")
 
-    sleep 1
+    check_registered_operations "${pids[@]}"
     lxd_shutdown_restart "${scenario_name}"
 
     expected_msgs=(
@@ -668,7 +668,7 @@ test_shutdown() {
 
     # Cleanup
     lxc delete -f i{1..5}
-    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
+    terminate_leftovers "${pids[@]}"
     rm "$scenario_name.log"
 
     # Final cleanup.
