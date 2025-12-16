@@ -178,6 +178,37 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, errors.New("LXD is shutting down")
 	}
 
+	// Quick check.
+	if args.Class == OperationClassDurable {
+		if args.RunHook != nil || args.ConnectHook != nil {
+			return nil, errors.New("Durable operations cannot have Run or Connect hooks provided directly")
+		}
+
+		// We store durable operation resources in the form of single entity_id on the operation itself.
+		// More than one resource is not allowed.
+		if len(args.Resources) > 1 {
+			return nil, errors.New("Durable operations can only have up to a single resource")
+		}
+
+		for _, resourceList := range args.Resources {
+			if len(resourceList) > 1 {
+				return nil, errors.New("Durable operations can only have up to a single resource")
+			}
+		}
+	}
+
+	if args.Class != OperationClassWebsocket && args.ConnectHook != nil {
+		return nil, errors.New("Only websocket operations can have a Connect hook")
+	}
+
+	if args.Class == OperationClassWebsocket && args.ConnectHook == nil {
+		return nil, errors.New("Websocket operations must have a Connect hook")
+	}
+
+	if args.Class == OperationClassToken && args.RunHook != nil {
+		return nil, errors.New("Token operations cannot have a Run hook")
+	}
+
 	// Main attributes
 	op := Operation{}
 	op.projectName = args.ProjectName
@@ -216,17 +247,14 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.onRun = args.RunHook
 	op.onConnect = args.ConnectHook
 
-	// Quick check.
-	if op.class != OperationClassWebsocket && op.onConnect != nil {
-		return nil, errors.New("Only websocket operations can have a Connect hook")
-	}
+	if op.class == OperationClassDurable {
+		// Durable operations must have their hooks defined in the durable operations table.
+		runHook, ok := durableOperations[args.Type]
+		if !ok {
+			return nil, fmt.Errorf("No durable operation handlers defined for operation type %q", args.Type)
+		}
 
-	if op.class == OperationClassWebsocket && op.onConnect == nil {
-		return nil, errors.New("Websocket operations must have a Connect hook")
-	}
-
-	if op.class == OperationClassToken && op.onRun != nil {
-		return nil, errors.New("Token operations cannot have a Run hook")
+		op.onRun = runHook
 	}
 
 	operationsLock.Lock()
