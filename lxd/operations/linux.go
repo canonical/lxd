@@ -55,6 +55,27 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			}
 		}
 
+		// Durable operations support only up to a single resource. If there is one, verify and register its entity_id.
+		if op.class == OperationClassDurable && len(op.resources) > 0 {
+			for _, entityURLs := range op.resources {
+				if len(entityURLs) > 0 {
+					entityReference, err := cluster.GetEntityReferenceFromURL(ctx, tx.Tx(), &entityURLs[0])
+					if err != nil {
+						return fmt.Errorf("Failed getting entity ID from resource URL %q: %w", entityURLs[0].String(), err)
+					}
+
+					// The EntityType of the resource must be the same as the EntityType of the required permission defined on the type of the operation.
+					// We don't store EntityType of the resource in the DB, instead, we just use the entityType as defined by the required permissions.
+					permissionEntityType, _ := opType.Permission()
+					if entityReference.EntityType != cluster.EntityType(permissionEntityType) {
+						return fmt.Errorf("Mismatched entity type %q for resource URL %q, expected %q", entityReference.EntityType, entityURLs[0].String(), permissionEntityType)
+					}
+
+					opInfo.EntityID = &entityReference.EntityID
+				}
+			}
+		}
+
 		// Uniqueness conflicts are surfaced to callers.
 		opID, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
 		if err != nil {
@@ -135,7 +156,16 @@ func NewDurableOperation(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *
 		op.SetEventServer(s.Events)
 	}
 
-	op.resources = nil
+	// Load the resource URL if entity ID is provided.
+	if dbOp.EntityID != nil {
+		entityType, _ := dbOp.Type.Permission()
+		entityURL, err := cluster.GetEntityURL(ctx, tx, entityType, *dbOp.EntityID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting entity URL for entity type %q and ID %d: %w", entityType.String(), *dbOp.EntityID, err)
+		}
+
+		op.resources = map[string][]api.URL{string(entityType): {*entityURL}}
+	}
 
 	// Load the metadata of the durable operation.
 	metadata, err := cluster.GetDurableOperationMetadata(ctx, tx, dbOp.ID)
