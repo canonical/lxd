@@ -183,11 +183,94 @@ EOF
   [ "${vol1_uuid}" != "$(lxc storage volume get "${poolName}" vol1 volatile.uuid)" ]
   [ "${vol2_uuid}" != "$(lxc storage volume get "${poolName2}" vol2 volatile.uuid)" ]
 
+  # Create a third storage pool.
+  poolName3="${poolName}-3"
+  if [ "${poolDriver}" = "btrfs" ] || [ "${poolDriver}" = "lvm" ] || [ "${poolDriver}" = "zfs" ]; then
+    lxc storage create "${poolName3}" "${poolDriver}" volume.size="${DEFAULT_VOLUME_SIZE}" size=1GiB
+  else
+    lxc storage create "${poolName3}" "${poolDriver}"
+  fi
+
+  # Create a custom volume in the new pool and attach to the instance.
+  lxc storage volume create "${poolName3}" vol3 size=32MiB
+  lxc storage volume snapshot "${poolName3}" vol3
+  lxc storage volume attach "${poolName3}" vol3 c1 /mnt3
+
+  # Cache the pool's configuration for later recovery.
+  # Join each key/value pair with '=' and each pair using a whitespace.
+  pool_config="$(lxc storage show "${poolName3}" | yq -r '.config | to_entries | map(.key + "=" + .value) | join(" ")')"
+
+  # Get the volume's UUIDs before deleting the pool's database entry.
+  vol3_uuid="$(lxc storage volume get "${poolName3}" vol3 volatile.uuid)"
+  vol3_snap0_uuid="$(lxc storage volume get "${poolName3}" vol3/snap0 volatile.uuid)"
+
+  # Drop the new pool from the database.
+  # This simulates an unknown pool which is used by a custom volume attached to a known instance.
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_pools WHERE name='${poolName3}'"
+
+  # Ensure the custom volume and its pool are no longer listed.
+  ! lxc storage volume show "${poolName3}" vol3 || false
+  ! lxc storage show "${poolName3}" || false
+
+  in_pipe="${LXD_IMPORT_DIR}/in.pipe"
+  out_pipe="${LXD_IMPORT_DIR}/out.pipe"
+  mkfifo "${in_pipe}" "${out_pipe}"
+  lxd recover < "${in_pipe}" > "${out_pipe}" &
+  lxd_recover_pid="$!"
+
+  # Open both pipes for continuous read/write and keep the fd open.
+  exec 3> "${in_pipe}"
+  exec 4< "${out_pipe}"
+
+  # Confirm scanning all available pools.
+  cat <<EOF >&3
+yes
+EOF
+
+  while read -r line <&4; do
+    # Wait until we are notified that the pool is missing.
+    if [[ "$line" == "You are currently missing the following:" ]]; then
+      # Recover the pool.
+      # shellcheck disable=SC2086
+      lxc storage create "${poolName3}" "${poolDriver}" source.recover="true" ${pool_config}
+
+      # Hit enter, retry and confirm volume creation.
+      cat <<EOF >&3
+
+yes
+yes
+EOF
+    fi
+
+    # Exit if we are about to start the recovery of the missing volume.
+    if [[ "$line" == *"Starting recovery..."* ]]; then
+      break
+    fi
+  done
+
+  # Wait for lxd recover to finish.
+  wait "${lxd_recover_pid}"
+
+  # Ensure custom storage volume and pool have been recovered.
+  lxc storage volume show "${poolName3}" vol3 | grep -xF 'content_type: filesystem'
+  lxc storage show "${poolName3}"
+
+  # Ensure the custom volume still has the same UUIDs.
+  # This validates that the custom storage volume was recovered from the instance's backup config.
+  [ "${vol3_uuid}" = "$(lxc storage volume get "${poolName3}" vol3 volatile.uuid)" ]
+  [ "${vol3_snap0_uuid}" = "$(lxc storage volume get "${poolName3}" vol3/snap0 volatile.uuid)" ]
+
   # Cleanup
+  exec 3>&-
+  exec 4<&-
+  rm -rf "${in_pipe}" "${out_pipe}"
+  lxc storage volume detach "${poolName3}" vol3 c1
   lxc storage volume delete "${poolName}" vol1
   lxc storage volume delete "${poolName2}" vol2
+  lxc storage volume delete "${poolName3}" vol3
   lxc delete c1
   lxc storage delete "${poolName2}"
+  lxc storage delete "${poolName3}"
   shutdown_lxd "${LXD_IMPORT_DIR}"
 }
 
