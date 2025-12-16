@@ -139,3 +139,105 @@ func NewDurableOperation(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *
 
 	return &op, nil
 }
+
+// GetDurableOperationsOnNode returns all durable operations from the db that exist on given node.
+func GetDurableOperationsOnNode(ctx context.Context, s *state.State, nodeID int64) ([]*Operation, error) {
+	var result []*Operation
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		projects, err := cluster.GetProjectIDsToNames(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed loading project IDs to names: %w", err)
+		}
+
+		// See if there are any durable operations running on this node which need to be restarted.
+		durableClass := (int64)(OperationClassDurable)
+		filter := cluster.OperationFilter{NodeID: &nodeID, Class: &durableClass}
+		dbOps, err := cluster.GetOperations(ctx, tx.Tx(), filter)
+		if err != nil {
+			return fmt.Errorf("Failed loading durable operations for node ID %d: %w", nodeID, err)
+		}
+
+		result = make([]*Operation, 0, len(dbOps))
+
+		for _, dbOp := range dbOps {
+			var projectName string
+
+			// Load the project name if provided.
+			if dbOp.ProjectID != nil {
+				var ok bool
+				projectName, ok = projects[*dbOp.ProjectID]
+				if !ok {
+					logger.Warn("Project ID not found in the map of projects", logger.Ctx{"projectID": *dbOp.ProjectID})
+					continue
+				}
+			}
+
+			op, err := NewDurableOperation(ctx, tx.Tx(), s, &dbOp, projectName)
+			if err != nil {
+				return fmt.Errorf("Failed creating durable operation from DB entry: %w", err)
+			}
+
+			result = append(result, op)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// CreateDurableOperation creates and starts a new durable operation based on the provided Operation object.
+// This is used to restart operations that were running on a node which failed to respond to heartbeats on other node.
+func CreateDurableOperation(s *state.State, op *Operation) {
+	// Don't restart operations which are already in a final state.
+	if op.Status().IsFinal() {
+		return
+	}
+
+	args := OperationArgs{
+		ProjectName: op.projectName,
+		Type:        op.dbOpType,
+		Class:       op.class,
+		Resources:   op.resources,
+		Metadata:    op.metadata,
+		Reference:   op.id,
+		Inputs:      op.inputs,
+	}
+
+	var createdOp *Operation
+	var err error
+	if op.requestor != nil {
+		createdOp, err = CreateUserOperation(s, op.requestor, args)
+	} else {
+		createdOp, err = CreateServerOperation(s, args)
+	}
+
+	if err != nil {
+		logger.Warn("Failed creating durable operation", logger.Ctx{"err": err})
+		return
+	}
+
+	err = createdOp.Start()
+	if err != nil {
+		logger.Warn("Failed starting durable operation", logger.Ctx{"err": err})
+	}
+}
+
+// RestartDurableOperationsFromNode restarts all durable operations that were running on the node
+// which failed to respond to heartbeats.
+func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID int64) error {
+	operations, err := GetDurableOperationsOnNode(ctx, s, nodeID)
+	if err != nil {
+		return err
+	}
+
+	for _, op := range operations {
+		CreateDurableOperation(s, op)
+	}
+
+	return nil
+}
