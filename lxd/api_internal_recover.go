@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"sort"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
@@ -164,6 +166,67 @@ func appendUnknownVolumeConfig(originalPoolName string, projectName string, volu
 	}
 
 	return nil
+}
+
+// identifyCustomVolumePool checks if the respective pool of a discovered custom volume is already known or missing.
+// This can be the case if a custom volume was discovered through an instance's backup config on another pool.
+// It may return a potential dependency error in case the pool doesn't yet exist.
+func identifyCustomVolumePool(s *state.State, volConfig *backupConfig.Config, existingPools map[string]storagePools.Pool) (dependencyErr error, err error) {
+	customVol, err := volConfig.CustomVolume()
+	if err != nil {
+		// We cannot get the custom volume from the backup config.
+		// This indicates the backup config represents an instance's volume so we can return early.
+		return nil, nil
+	}
+
+	// If the current volume's backup config contains a custom volume, try loading its pool.
+	volPool, err := volConfig.CustomVolumePool()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get pool of custom volume %q: %w", customVol.Name, err)
+	}
+
+	// Check the already existing map of pools requested by the user.
+	// This speeds up the check as we don't need to try loading the pool again.
+	_, volPoolExists := existingPools[volPool.Name]
+	if volPoolExists {
+		// Nothing left to identify, the pool exists.
+		return nil, nil
+	}
+
+	// If the pool doesn't exist in the list of requested pools, try loading it.
+	customVolPool, err := storagePools.LoadByName(s, volPool.Name)
+	if err == nil {
+		// We were able to load the pool.
+		// This is the case if the pool wasn't present when starting the recovery process but
+		// the user created the pool in the meantime and reran the process.
+
+		// Cache it for later reference.
+		existingPools[volPool.Name] = customVolPool
+
+		// Nothing left to identify, the pool exists.
+		return nil, nil
+	}
+
+	configKeysSorted := make([]string, 0, len(volPool.Config))
+	for key := range volPool.Config {
+		configKeysSorted = append(configKeysSorted, key)
+	}
+
+	// Sort all config items for repeatable outputs.
+	sort.Strings(configKeysSorted)
+
+	// The pool is missing so create a dependency error.
+	configItems := make([]string, 0, len(volPool.Config))
+	for _, key := range configKeysSorted {
+		// Skip empty config items
+		if volPool.Config[key] == "" {
+			continue
+		}
+
+		configItems = append(configItems, fmt.Sprintf("%s=%q", key, volPool.Config[key]))
+	}
+
+	return fmt.Errorf("Pool %q using driver %q (%s)", volPool.Name, volPool.Driver, strings.Join(configItems, " ")), nil
 }
 
 // internalRecoverScan provides the discovery and import functionality for both recovery validate and import steps.
