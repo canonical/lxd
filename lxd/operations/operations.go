@@ -240,6 +240,25 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 			return nil, errors.New("LXD is shutting down")
 		}
 
+		// Quick check.
+		if args.Class == OperationClassDurable {
+			if args.RunHook != nil || args.ConnectHook != nil {
+				return nil, errors.New("Durable operation run and connect hooks are statically defined")
+			}
+		}
+
+		if args.Class != OperationClassWebsocket && args.ConnectHook != nil {
+			return nil, errors.New("Only websocket operations can have a Connect hook")
+		}
+
+		if args.Class == OperationClassWebsocket && args.ConnectHook == nil {
+			return nil, errors.New("Websocket operations must have a Connect hook")
+		}
+
+		if args.Class == OperationClassToken && args.RunHook != nil {
+			return nil, errors.New("Token operations cannot have a Run hook")
+		}
+
 		// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
 		// can be reconstructed from a database record (where it is saved as an entity ID).
 		operationEntityType := args.Type.EntityType()
@@ -300,17 +319,14 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.onRun = args.RunHook
 		op.onConnect = args.ConnectHook
 
-		// Quick check.
-		if op.class != OperationClassWebsocket && op.onConnect != nil {
-			return nil, errors.New("Only websocket operations can have a Connect hook")
-		}
+		if op.class == OperationClassDurable {
+			// Durable operations must have their hooks defined in the durable operations table.
+			runHook, ok := durableOperations[args.Type]
+			if !ok {
+				return nil, fmt.Errorf("No durable operation handlers defined for operation type %d (%q)", args.Type, args.Type.Description())
+			}
 
-		if op.class == OperationClassWebsocket && op.onConnect == nil {
-			return nil, errors.New("Websocket operations must have a Connect hook")
-		}
-
-		if op.class == OperationClassToken && op.onRun != nil {
-			return nil, errors.New("Token operations cannot have a Run hook")
+			op.onRun = runHook
 		}
 
 		return &op, nil
@@ -330,7 +346,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	}
 
 	// If this is a single task operation without children, it must have a run hook.
-	if !slices.Contains([]OperationClass{OperationClassWebsocket, OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
+	if !slices.Contains([]OperationClass{OperationClassWebsocket, OperationClassToken, OperationClassDurable}, args.Class) && args.Children == nil && args.RunHook == nil {
 		return nil, errors.New("Task operations must have a Run hook")
 	}
 
@@ -338,6 +354,11 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op, err := initOperation(s, args)
 	if err != nil {
 		return nil, err
+	}
+
+	// If this is a bulk durable operation, clear the parent run hook even if it's defined in the table per parent operation type.
+	if op.class == OperationClassDurable && len(args.Children) > 0 {
+		op.onRun = nil
 	}
 
 	// Create the child operations, if any.
