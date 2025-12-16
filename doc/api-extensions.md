@@ -2884,3 +2884,14 @@ Before this was only partially possible for some of the drivers (e.g. by using `
 The new pool `source.recover` configuration key can be set per cluster member to allow reuse of an existing pool `source`.
 What it does not allow is reusing the same source for multiple storage pools.
 The LVM storage driver has the specific `lvm.vg.force_reuse` configuration key for this purpose.
+
+(extension-clustering-control-plane)=
+## `clustering_control_plane`
+
+Adds a new `control-plane` cluster member role that can be manually assigned to designate which members participate in Raft consensus. Control plane mode is inactive by default until the number of members assigned the `control-plane` role reaches 3 or more. During this inactive period, all cluster members are eligible for automatic promotion to database roles. Once control plane mode activates, only members with the `control-plane` role are eligible to become voters, standbys, or the database leader. Members without the `control-plane` role are automatically assigned the `RAFT_SPARE` role and are excluded from automatic promotion to database roles, enabling safe scaling of cluster members without affecting quorum.
+
+If fewer than 3 members are assigned the `control-plane` role, all members remain eligible for automatic promotion to database roles, maintaining backwards compatibility with existing cluster behavior.
+
+The `control-plane` role is displayed alongside the database role (`database-leader`, `database-voter`, `database-standby`) for members participating in Raft.
+
+For more information, see {ref}`dqlite-internals-lxd-cluster-roles` and {ref}`cluster-manage-control-plane`.
