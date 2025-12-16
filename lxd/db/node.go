@@ -144,12 +144,15 @@ func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (
 	result.Groups = n.Groups
 
 	// Check if member is the leader.
-	if args.LeaderAddress == n.Address {
+	isLeader := args.LeaderAddress == n.Address
+	if isLeader {
 		result.Roles = append(result.Roles, string(ClusterRoleDatabaseLeader))
 		result.Database = true
 	}
 
-	if raftNode != nil && raftNode.Role == RaftVoter {
+	// Add database-voter role only for non-leader voters.
+	// Leaders are implicitly voters, so we don't show database-voter for them.
+	if raftNode != nil && raftNode.Role == RaftVoter && !isLeader {
 		result.Roles = append(result.Roles, string(ClusterRoleDatabaseVoter))
 		result.Database = true
 	}
