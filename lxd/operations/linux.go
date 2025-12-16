@@ -54,7 +54,19 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			}
 		}
 
-		_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		opID, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		if err != nil {
+			return err
+		}
+
+		// For durable operations we need to register metadata and resources in the database.
+		if op.class == OperationClassDurable {
+			err = cluster.CreateOrInsertDurableOperationMetadata(ctx, tx.Tx(), opID, op.metadata)
+			if err != nil {
+				return fmt.Errorf("Failed adding operation %s metadata to database: %w", op.id, err)
+			}
+		}
+
 		return err
 	})
 	if err != nil {
@@ -112,7 +124,18 @@ func NewDurableOperation(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *
 	}
 
 	op.resources = nil
-	op.metadata = nil
+
+	// Load the metadata of the durable operation.
+	metadata, err := cluster.GetDurableOperationMetadata(ctx, tx, dbOp.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading durable operation metadata for operation %d: %w", dbOp.ID, err)
+	}
+
+	// We have to convert metadata from map[string]string to map[string]any.
+	op.metadata = make(map[string]any)
+	for k, v := range metadata {
+		op.metadata[k] = v
+	}
 
 	runHook, ok := durableOperations[op.dbOpType]
 	if !ok {
