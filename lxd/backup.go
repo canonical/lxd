@@ -305,7 +305,7 @@ func pruneExpiredBackupsTask(stateFunc func() *state.State) (task.Func, task.Sch
 	f := func(ctx context.Context) {
 		s := stateFunc()
 
-		opRun := func(op *operations.Operation) error {
+		opRun := func(ctx context.Context, op *operations.Operation) error {
 			err := pruneExpiredInstanceBackups(ctx, s)
 			if err != nil {
 				return fmt.Errorf("Failed pruning expired instance backups: %w", err)
@@ -319,7 +319,13 @@ func pruneExpiredBackupsTask(stateFunc func() *state.State) (task.Func, task.Sch
 			return nil
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil)
+		args := operations.OperationArgs{
+			Type:    operationtype.BackupsExpire,
+			Class:   operations.OperationClassTask,
+			RunHook: opRun,
+		}
+
+		op, err := operations.CreateServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating expired backups operation", logger.Ctx{"err": err})
 			return

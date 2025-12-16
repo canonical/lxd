@@ -232,6 +232,10 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -348,7 +352,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	// We keep the req.ContainerOnly for backward compatibility.
 	instanceOnly := req.InstanceOnly || req.ContainerOnly //nolint:staticcheck,unused
 
-	backup := func(op *operations.Operation) error {
+	backup := func(ctx context.Context, op *operations.Operation) error {
 		args := db.InstanceBackup{
 			Name:                 fullName,
 			InstanceID:           inst.ID(),
@@ -376,8 +380,15 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 
 	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName)}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask,
-		operationtype.BackupCreate, resources, nil, backup, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.BackupCreate,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     backup,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -501,6 +512,10 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -555,7 +570,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 
 	newName := name + shared.SnapshotDelimiter + newBackupName
 
-	rename := func(op *operations.Operation) error {
+	rename := func(ctx context.Context, op *operations.Operation) error {
 		err := backup.Rename(newName)
 		if err != nil {
 			return err
@@ -570,8 +585,15 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask,
-		operationtype.BackupRename, resources, nil, rename, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.BackupRename,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     rename,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -607,6 +629,10 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -644,7 +670,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	remove := func(op *operations.Operation) error {
+	remove := func(ctx context.Context, op *operations.Operation) error {
 		err := backup.Delete()
 		if err != nil {
 			return err
@@ -659,8 +685,15 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask,
-		operationtype.BackupRemove, resources, nil, remove, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.BackupRemove,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     remove,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
