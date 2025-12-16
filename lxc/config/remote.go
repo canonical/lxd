@@ -211,7 +211,10 @@ func (c *Config) connectRemote(remote Remote, args *lxd.ConnectionArgs) (lxd.Ins
 	}
 
 	// HTTPS
-	if !slices.Contains([]string{api.AuthenticationMethodOIDC}, remote.AuthType) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
+	// If bearer token is provided, we don't need TLS client certificate and key.
+	// However, do not advertise that bearer token can be configured.
+	// The support for bearer token in LXC is purely for testing purposes.
+	if !slices.Contains([]string{api.AuthenticationMethodOIDC}, remote.AuthType) && (args.TLSClientCert == "" || args.TLSClientKey == "") && args.BearerToken == "" {
 		return nil, errors.New("Missing TLS client certificate and key")
 	}
 
@@ -389,6 +392,14 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 
 	// Stop here if no client certificate involved
 	if remote.Protocol == "simplestreams" || slices.Contains([]string{api.AuthenticationMethodOIDC}, remote.AuthType) {
+		return &args, nil
+	}
+
+	// Check for LXD_AUTH_BEARER_TOKEN environment variable
+	// Stop here if bearer token is used. It takes precedence over the TLS client certificate and key.
+	token, ok := os.LookupEnv("LXD_AUTH_BEARER_TOKEN")
+	if ok && token != "" {
+		args.BearerToken = token
 		return &args, nil
 	}
 
