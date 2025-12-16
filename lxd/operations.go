@@ -656,19 +656,13 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	localClusterAddress := s.LocalConfig.ClusterAddress()
 	offlineThreshold := s.GlobalConfig.OfflineThreshold()
 
-	memberOnline := func(memberAddress string) bool {
-		for _, member := range members {
-			if member.Address == memberAddress {
-				if member.IsOffline(offlineThreshold) {
-					logger.Warn("Excluding offline member from operations list", logger.Ctx{"member": member.Name, "address": member.Address, "ID": member.ID, "lastHeartbeat": member.Heartbeat})
-					return false
-				}
-
-				return true
-			}
+	memberOnline := func(member *db.NodeInfo) bool {
+		if member.IsOffline(offlineThreshold) {
+			logger.Warn("Excluding offline member from operations list", logger.Ctx{"member": member.Name, "address": member.Address, "ID": member.ID, "lastHeartbeat": member.Heartbeat})
+			return false
 		}
 
-		return false
+		return true
 	}
 
 	networkCert := s.Endpoints.NetworkCert()
@@ -677,7 +671,20 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		if !memberOnline(memberAddress) {
+		var member *db.NodeInfo
+		for _, memberInMembers := range members {
+			if memberInMembers.Address == memberAddress {
+				member = &memberInMembers
+			}
+		}
+
+		// If we didn't find the member in the list, skip it.
+		if member == nil {
+			logger.Warn("Member with operations not found in the cluster member list", logger.Ctx{"address": memberAddress})
+			continue
+		}
+
+		if !memberOnline(member) {
 			continue
 		}
 
