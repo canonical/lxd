@@ -81,6 +81,7 @@ const (
 	ProfileUpdate
 	VolumeUpdate
 	VolumeDelete
+	Wait
 )
 
 // Description return a human-readable description of the operation type.
@@ -214,6 +215,8 @@ func (t Type) Description() string {
 		return "Healing cluster"
 	case RemoveExpiredOIDCSessions:
 		return "Remove expired OIDC sessions"
+	case Wait:
+		return "Just chilling"
 	default:
 		return "Executing operation"
 	}
@@ -295,6 +298,9 @@ func (t Type) Permission() (entity.Type, auth.Entitlement) {
 		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
 	case CustomVolumeBackupRestore:
 		return entity.TypeStorageVolume, auth.EntitlementCanEdit
+
+	case Wait:
+		return entity.TypeInstance, auth.EntitlementCanView
 	}
 
 	return "", ""
