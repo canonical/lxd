@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/warningtype"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
@@ -186,6 +187,11 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, s *state.State, networkCe
 				})
 				if err != nil {
 					logger.Warn("Failed to create warning", logger.Ctx{"err": err})
+				}
+
+				err = operations.RestartDurableOperationsFromNode(ctx, s, nodeID)
+				if err != nil {
+					logger.Warn("Failed restarting durable operations from offline node", logger.Ctx{"node_id": nodeID, "err": err})
 				}
 			}
 		}
