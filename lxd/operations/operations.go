@@ -574,6 +574,16 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	return nil
 }
 
+// CommitMetadata commits the metadata and status of the operation to the database, and updates the updatedAt time.
+func (op *Operation) CommitMetadata() error {
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	op.updatedAt = time.Now()
+	// Use the operation context for the database update, so that if the operation is cancelled, the database update will be cancelled as well.
+	return updateDBOperation(context.Context(op.running), op)
+}
+
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
 // It returns an error if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) ExtendMetadata(metadata map[string]any) error {

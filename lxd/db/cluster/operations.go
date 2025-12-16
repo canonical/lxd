@@ -3,6 +3,8 @@
 package cluster
 
 import (
+	"context"
+	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"time"
@@ -140,4 +142,33 @@ func (r *RequestorProtocol) Value() (driver.Value, error) {
 	}
 
 	return nil, fmt.Errorf("Invalid requestor protocol %q", *r)
+}
+
+// UpdateOperation updates operation status, metadata and error (if set) in the cluster db.
+// This is used to keep DB in sync with the current status of the operation when the operation changes
+// its status, or when calls to commit metadata explicitly.
+func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string,
+	updatedAt time.Time, newStatus api.StatusCode, metadata string, opErr error) error {
+	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, metadata = ?, error = ? WHERE uuid = ?`
+
+	opErrStr := ""
+	if opErr != nil {
+		opErrStr = opErr.Error()
+	}
+
+	result, err := tx.ExecContext(ctx, stmt, updatedAt, newStatus, metadata, opErrStr, opUUID)
+	if err != nil {
+		return fmt.Errorf("Failed updating operation status: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	return nil
 }
