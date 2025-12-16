@@ -283,6 +283,12 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.onConnect = args.ConnectHook
 
 		// Quick check.
+		if args.Class == operationtype.OperationClassDurable {
+			if args.RunHook != nil || args.ConnectHook != nil {
+				return nil, errors.New("Durable operation run and connect hooks are statically defined")
+			}
+		}
+
 		if op.class != operationtype.OperationClassWebsocket && op.onConnect != nil {
 			return nil, errors.New("Only websocket operations can have a Connect hook")
 		}
@@ -293,6 +299,16 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 
 		if op.class == operationtype.OperationClassToken && op.onRun != nil {
 			return nil, errors.New("Token operations cannot have a Run hook")
+		}
+
+		if op.class == operationtype.OperationClassDurable {
+			// Durable operations must have their hooks defined in the durable operations table.
+			runHook, ok := durableOperations[args.Type]
+			if !ok {
+				return nil, fmt.Errorf("No durable operation handlers defined for operation type %d (%q)", args.Type, args.Type.Description())
+			}
+
+			op.onRun = runHook
 		}
 
 		return &op, nil
@@ -306,7 +322,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	}
 
 	// If this is a single task operation without children, it must have a run hook.
-	if !slices.Contains([]operationtype.Class{operationtype.OperationClassWebsocket, operationtype.OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
+	if !slices.Contains([]operationtype.Class{operationtype.OperationClassWebsocket, operationtype.OperationClassToken, operationtype.OperationClassDurable}, args.Class) && args.Children == nil && args.RunHook == nil {
 		return nil, errors.New("Task operations must have a Run hook")
 	}
 
@@ -314,6 +330,11 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op, err := initOperation(s, args)
 	if err != nil {
 		return nil, err
+	}
+
+	// If this is a bulk durable operation, clear the parent run hook even if it's defined in the table per parent operation type.
+	if op.class == operationtype.OperationClassDurable && len(args.Children) > 0 {
+		op.onRun = nil
 	}
 
 	// Create the child operations, if any.
