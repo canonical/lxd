@@ -475,20 +475,6 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !allProjects && projectName != api.ProjectDefaultName {
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			_, err := dbCluster.GetProjectID(ctx, tx.Tx(), projectName)
-			if err != nil {
-				return fmt.Errorf("Failed to get project: %w", err)
-			}
-
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-	}
-
 	canViewProjectOperations, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewOperations, entity.TypeProject)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to get operation permission checker: %w", err))
@@ -503,15 +489,57 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed to check caller access to server operations: %w", err))
 	}
 
-	localOperationURLs := func() (shared.Jmap, error) {
-		// Get all the operations.
-		localOps := operations.Clone()
+	ops := make([]api.Operation, 0)
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projects, err := dbCluster.GetProjectIDsToNames(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed loading project IDs to names: %w", err)
+		}
 
-		// Build a list of URLs.
-		body := shared.Jmap{}
+		// Make sure the requested project exists if not all-projects.
+		if !allProjects {
+			found := false
+			for _, name := range projects {
+				if name == projectName {
+					found = true
+					break
+				}
+			}
 
-		for _, v := range localOps {
-			operationProject := v.Project()
+			if !found {
+				return fmt.Errorf("Project %q doesn't exist", projectName)
+			}
+		}
+
+		// Load all operations.
+		dbOps, err := dbCluster.GetOperations(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed getting operations: %w", err)
+		}
+
+		// Load cluster members.
+		members, err := tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		// Create a map of member ID to member info for easy lookup later.
+		membersByID := make(map[int64]*db.NodeInfo)
+		for _, member := range members {
+			membersByID[member.ID] = &member
+		}
+
+		for _, dbOp := range dbOps {
+			// Get operation project name if it has one.
+			operationProject := ""
+			if dbOp.ProjectID != nil {
+				var ok bool
+				operationProject, ok = projects[*dbOp.ProjectID]
+				if !ok {
+					return fmt.Errorf("Failed to find project name for operation with non-existent project ID %d", *dbOp.ProjectID)
+				}
+			}
+
 			if !allProjects && operationProject != "" && operationProject != projectName {
 				continue
 			}
@@ -521,122 +549,28 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			// Omit operations if the caller does not have `can_view_operations` on the operations' project and the caller is not the operation owner.
-			if !canViewProjectOperations(entity.ProjectURL(operationProject)) && !requestor.CallerIsEqual(v.Requestor()) {
-				continue
-			}
-
-			status := strings.ToLower(v.Status().String())
-			_, ok := body[status]
-			if !ok {
-				body[status] = make([]string, 0)
-			}
-
-			body[status] = append(body[status].([]string), v.URL())
-		}
-
-		return body, nil
-	}
-
-	localOperations := func() (shared.Jmap, error) {
-		// Get all the operations.
-		localOps := operations.Clone()
-
-		// Build a list of operations.
-		body := shared.Jmap{}
-
-		for _, v := range localOps {
-			operationProject := v.Project()
-			if !allProjects && operationProject != "" && operationProject != projectName {
-				continue
-			}
-
-			// Omit operations that don't have a project if the caller does not have access.
-			if operationProject == "" && !canViewServerOperations {
-				continue
-			}
-
-			// Omit operations if the caller does not have `can_view_operations` on the operations' project and the caller is not the operation owner.
-			if !canViewProjectOperations(entity.ProjectURL(operationProject)) && !requestor.CallerIsEqual(v.Requestor()) {
-				continue
-			}
-
-			status := strings.ToLower(v.Status().String())
-			_, ok := body[status]
-			if !ok {
-				body[status] = make([]*api.Operation, 0)
-			}
-
-			_, op := v.Render()
-			body[status] = append(body[status].([]*api.Operation), op)
-		}
-
-		return body, nil
-	}
-
-	recursion, _ := util.IsRecursionRequest(r)
-
-	// Check if called from a cluster node.
-	if requestor.IsClusterNotification() {
-		// Only return the local data.
-		if recursion > 0 {
-			// Recursive queries.
-			body, err := localOperations()
+			// Construct the operation object, which will also reconstruct its requestor.
+			op, err := operations.ConstructOperationFromDB(ctx, tx.Tx(), s, &dbOp, operationProject)
 			if err != nil {
-				return response.InternalError(err)
+				return fmt.Errorf("Failed loading operation ID %q: %w", dbOp.UUID, err)
 			}
 
-			return response.SyncResponse(true, body)
-		}
+			// Omit operations if the caller does not have `can_view_operations` on the operations' project and the caller is not the operation owner.
+			if !canViewProjectOperations(entity.ProjectURL(operationProject)) && !requestor.CallerIsEqual(op.Requestor()) {
+				continue
+			}
 
-		// Normal queries
-		body, err := localOperationURLs()
-		if err != nil {
-			return response.InternalError(err)
-		}
+			_, apiOp := op.Render()
 
-		return response.SyncResponse(true, body)
-	}
+			// The [operations.Operation] doesn't contain the node where the operation is running.
+			// Since we're loading operations from the DB, we need to set the location here.
+			apiOp.Location = ""
+			member, ok := membersByID[dbOp.NodeID]
+			if ok {
+				apiOp.Location = member.Name
+			}
 
-	// Start with local operations.
-	var md shared.Jmap
-
-	if recursion > 0 {
-		md, err = localOperations()
-		if err != nil {
-			return response.InternalError(err)
-		}
-	} else {
-		md, err = localOperationURLs()
-		if err != nil {
-			return response.InternalError(err)
-		}
-	}
-
-	// If not clustered, then just return local operations.
-	if !s.ServerClustered {
-		return response.SyncResponse(true, md)
-	}
-
-	// Get all nodes with running operations in this project.
-	var membersWithOps []string
-	var members []db.NodeInfo
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-
-		if allProjects {
-			membersWithOps, err = tx.GetAllNodesWithOperations(ctx)
-		} else {
-			membersWithOps, err = tx.GetNodesWithOperations(ctx, projectName)
-		}
-
-		if err != nil {
-			return fmt.Errorf("Failed getting members with operations: %w", err)
-		}
-
-		members, err = tx.GetNodes(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed getting cluster members: %w", err)
+			ops = append(ops, *apiOp)
 		}
 
 		return nil
@@ -645,72 +579,26 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Get local address.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
-	offlineThreshold := s.GlobalConfig.OfflineThreshold()
+	recursion, _ := util.IsRecursionRequest(r)
 
-	memberOnline := func(memberAddress string) bool {
-		for _, member := range members {
-			if member.Address == memberAddress {
-				if member.IsOffline(offlineThreshold) {
-					logger.Warn("Excluding offline member from operations list", logger.Ctx{"member": member.Name, "address": member.Address, "ID": member.ID, "lastHeartbeat": member.Heartbeat})
-					return false
-				}
+	// Sort all operations per status.
+	md := map[string]any{}
+	for _, op := range ops {
+		status := strings.ToLower(op.Status)
 
-				return true
-			}
-		}
-
-		return false
-	}
-
-	networkCert := s.Endpoints.NetworkCert()
-	for _, memberAddress := range membersWithOps {
-		if memberAddress == localClusterAddress {
-			continue
-		}
-
-		if !memberOnline(memberAddress) {
-			continue
-		}
-
-		// Connect to the remote server. Use notify=true to only get local operations on remote member.
-		client, err := cluster.Connect(r.Context(), memberAddress, networkCert, s.ServerCert(), true)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err))
-		}
-
-		// Get operation data.
-		var ops []api.Operation
-		if allProjects {
-			ops, err = client.GetOperationsAllProjects()
-		} else {
-			ops, err = client.UseProject(projectName).GetOperations()
-		}
-
-		if err != nil {
-			logger.Warn("Failed getting operations from member", logger.Ctx{"address": memberAddress, "err": err})
-			continue
-		}
-
-		// Merge with existing data.
-		for _, op := range ops {
-			status := strings.ToLower(op.Status)
-
-			_, ok := md[status]
-			if !ok {
-				if recursion > 0 {
-					md[status] = make([]*api.Operation, 0)
-				} else {
-					md[status] = make([]string, 0)
-				}
-			}
-
+		_, ok := md[status]
+		if !ok {
 			if recursion > 0 {
-				md[status] = append(md[status].([]*api.Operation), &op)
+				md[status] = make([]*api.Operation, 0)
 			} else {
-				md[status] = append(md[status].([]string), "/1.0/operations/"+op.ID)
+				md[status] = make([]string, 0)
 			}
+		}
+
+		if recursion > 0 {
+			md[status] = append(md[status].([]*api.Operation), &op)
+		} else {
+			md[status] = append(md[status].([]string), "/1.0/operations/"+op.ID)
 		}
 	}
 
