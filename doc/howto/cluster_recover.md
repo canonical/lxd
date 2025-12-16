@@ -24,6 +24,7 @@ Run `lxd cluster --help` for an overview of all available commands.
 ## Database members
 
 Every LXD cluster has a specific number of members (configured through {config:option}`server-cluster:cluster.max_voters`) that serve as voting members of the distributed database.
+If the cluster uses {ref}`control plane mode <clustering-control-plane>`, only cluster members with the `control-plane` role act as voters.
 If you lose a majority of these cluster members (for example, you have a three-member cluster and you lose two members), the cluster loses quorum and becomes unavailable.
 
 To determine which members have (or had) database roles, log on to any surviving member of your cluster and run the following command:
@@ -78,7 +79,7 @@ The cluster configuration must contain the description of the full cluster.
 
 You can edit the {ref}`clustering-member-roles` of the members, but with the following limitations:
 
-- A cluster member that does not have a `database*` role cannot become a voter, because it might lack a global database.
+- A cluster member that does not have a `database-voter`, `database-standby`, or `database-leader` role cannot become a voter, because it might lack a global database.
 - At least two members must remain voters (except in the case of a two-member cluster, where one voter suffices), or there will be no quorum.
 
 Before performing the recovery, stop the LXD daemon on all surviving cluster members.
