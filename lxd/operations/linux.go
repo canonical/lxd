@@ -19,9 +19,9 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		opInfo := cluster.Operation{
-			UUID:   op.id,
-			Type:   opType,
-			NodeID: tx.GetNodeID(),
+			Reference: op.id,
+			Type:      opType,
+			NodeID:    tx.GetNodeID(),
 		}
 
 		if op.projectName != "" {

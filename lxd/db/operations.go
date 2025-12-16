@@ -52,7 +52,7 @@ WHERE (projects.name = ? OR operations.project_id IS NULL) and operations.type =
 
 	for rows.Next() {
 		var op cluster.Operation
-		err := rows.Scan(&op.ID, &op.UUID, &op.Type, &op.NodeAddress)
+		err := rows.Scan(&op.ID, &op.Reference, &op.Type, &op.NodeAddress)
 		if err != nil {
 			return nil, err
 		}
