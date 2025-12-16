@@ -765,7 +765,12 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 //
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
-func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
+//
+// The optional controlPlaneActive and memberRoles parameters can be provided
+// to avoid redundant database queries when the caller already has this data
+// (e.g., from heartbeats). If memberRoles is nil, member data will be fetched
+// from the database.
+func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string, controlPlaneActive bool, memberRoles map[string][]db.ClusterRole) (string, []db.RaftNode, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
 		return "", nil, nil
@@ -776,6 +781,80 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 		return "", nil, fmt.Errorf("Failed getting current raft nodes: %w", err)
 	}
 
+	localClusterAddress := state.LocalConfig.ClusterAddress()
+	maxVoters := state.GlobalConfig.MaxVoters()
+
+	// If memberRoles not provided, fetch from database.
+	if memberRoles == nil {
+		var members []db.NodeInfo
+		err = state.DB.Cluster.Transaction(state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			// Check if control-plane mode is active.
+			if !controlPlaneActive {
+				controlPlaneActive, err = tx.ControlPlaneActive(maxVoters)
+				if err != nil {
+					return fmt.Errorf("Failed checking %q role: %w", db.ClusterRoleControlPlane, err)
+				}
+			}
+
+			members, err = tx.GetNodes(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster members: %w", err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return "", nil, err
+		}
+
+		// Build memberRoles map to check roles per member address.
+		memberRoles = make(map[string][]db.ClusterRole, len(members))
+		for _, member := range members {
+			memberRoles[member.Address] = member.Roles
+		}
+	}
+
+	// If control-plane mode is active, check for non-control-plane members with database roles that need to be demoted to spare.
+	// This must happen before checking for promotions because roles.Adjust() counts existing voters/standbys to determine if any slots need filling.
+	// If an ineligible (non-control-plane) member is occupying a database role slot, roles.Adjust() sees the cluster as "full" and returns no changes needed.
+	// By demoting ineligible members to spare first, we create vacancies that roles.Adjust() can then detect and fill with eligible control-plane members.
+	if controlPlaneActive {
+		for _, node := range nodes {
+			// Skip spares
+			if node.Role == db.RaftSpare {
+				continue
+			}
+
+			// Skip offline/unavailable members
+			if slices.Contains(unavailableMembers, node.Address) {
+				continue
+			}
+
+			// Check if this member has control-plane role
+			roles, ok := memberRoles[node.Address]
+			if !ok {
+				continue
+			}
+
+			// If member doesn't have control-plane role but has a database role, demote it
+			if !slices.Contains(roles, db.ClusterRoleControlPlane) {
+				logger.Info("Found non-control-plane member with database role requiring demotion", logger.Ctx{"address": node.Address, "currentRole": node.Role, "local": localClusterAddress})
+
+				// Set target role to spare. The Assign() function will handle the two-phase
+				// voter -> standby -> spare transition automatically if needed.
+				for i := range nodes {
+					if nodes[i].Address == node.Address {
+						nodes[i].Role = db.RaftSpare
+						break
+					}
+				}
+
+				return node.Address, nodes, nil
+			}
+		}
+	}
+
+	// Check if there are role adjustments needed (promotions).
 	roles, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
 	if err != nil {
 		return "", nil, err
@@ -788,11 +867,24 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 		return "", nodes, nil
 	}
 
-	localClusterAddress := state.LocalConfig.ClusterAddress()
-
 	// Check if we have a spare node that we can promote to the missing role.
-	candidateAddress := candidates[0].Address
-	logger.Info("Found cluster member whose role needs to be changed", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
+	var candidateAddress string
+	for _, candidate := range candidates {
+		// If no roles found for this address, skip.
+		roles, ok := memberRoles[candidate.Address]
+		if !ok {
+			continue
+		}
+
+		// If control-plane mode active, only promote members that have the control-plane role.
+		if controlPlaneActive && !slices.Contains(roles, db.ClusterRoleControlPlane) {
+			continue
+		}
+
+		candidateAddress = candidate.Address
+		logger.Info("Found cluster member requiring role change", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
+		break
+	}
 
 	for i, node := range nodes {
 		if node.Address == candidateAddress {
