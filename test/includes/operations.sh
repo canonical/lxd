@@ -16,7 +16,7 @@ lxd_volume_operation() {
   local pool_name="$1"
   local volume_name="$2"
   local duration="$3"
-  local project_name="${3:-default}"
+  local project_name="${4:-default}"
 
   lxc query --wait -X POST -d '{"duration": "'"${duration}"'", "op_class": 1, "op_type": 48, "resources": {"storage_volumes": ["/1.0/storage-pools/'"${pool_name}"'/volumes/custom/'"${volume_name}"'?project='"${project_name}"'"]}}' "/internal/testing/operation-wait?project=${project_name}"
 }
