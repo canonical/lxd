@@ -40,7 +40,8 @@ type ProtocolLXD struct {
 	clusterTarget string
 	project       string
 
-	oidcClient *oidcClient
+	oidcClient  *oidcClient
+	bearerToken string
 }
 
 // Disconnect gets rid of any background goroutines.
@@ -166,6 +167,8 @@ func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 
 	if r.oidcClient != nil {
 		req.Header.Set("Authorization", "Bearer "+r.oidcClient.getAccessToken())
+	} else if r.bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+r.bearerToken)
 	}
 }
 

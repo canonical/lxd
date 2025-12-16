@@ -439,6 +439,7 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 		ctxConnected:         ctxConnected,
 		ctxConnectedCancel:   ctxConnectedCancel,
 		eventListenerManager: newEventListenerManager(ctx),
+		bearerToken:          args.BearerToken,
 	}
 
 	if slices.Contains([]string{api.AuthenticationMethodOIDC}, args.AuthType) {
