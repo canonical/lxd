@@ -54,12 +54,23 @@ Automatic roles are assigned by LXD itself and cannot be modified by the user.
 | `database-voter`      | yes           | Voting member of the distributed database |
 | `database-leader`     | yes           | Current leader of the distributed database |
 | `database-standby`    | yes           | Stand-by (non-voting) member of the distributed database |
+| `control-plane`       | no            | Eligible to participate in Raft as voter, standby, or leader. Members without this role are assigned as spares and excluded from automatic promotion. |
 | `event-hub`           | no            | Exchange point (hub) for the internal LXD events (requires at least two) |
 | `ovn-chassis`         | no            | Uplink gateway candidate for OVN networks |
 
 The default number of voter members ({config:option}`server-cluster:cluster.max_voters`) is three.
 The default number of stand-by members ({config:option}`server-cluster:cluster.max_standby`) is two.
 With this configuration, your cluster will remain operational as long as you switch off at most one voting member at a time.
+
+The `control-plane` role is optional and is not assigned by default.
+Control-plane mode remains inactive until the number of members with the `control-plane` role reaches {config:option}`server-cluster:cluster.max_voters`.
+During this inactive period, all cluster members remain eligible for automatic promotion to database roles, and the cluster operates as if control-plane mode is not active.
+Once control-plane mode activates, only members with the `control-plane` role can participate in Raft and be assigned as voters, standbys, or the leader.
+Members without the `control-plane` role are automatically assigned the `RAFT_SPARE` role and are excluded from automatic promotion to database roles.
+Spare members can still run instances and act as "worker" members for hosting workloads.
+This enables safe scaling of cluster members without affecting quorum, as spare members can be added or removed without impacting Raft consensus.
+
+If no cluster members have the `control-plane` role assigned (the default), or if fewer than {config:option}`server-cluster:cluster.max_voters` members have the role, all members are eligible for automatic promotion to database roles.
 
 See {ref}`cluster-manage` for more information.
 
@@ -86,7 +97,7 @@ See {ref}`cluster-recover` for more information.
 #### Failure domains
 
 You can use failure domains to indicate which cluster members should be given preference when assigning roles to a cluster member that has gone offline.
-For example, if a cluster member that currently has the database role gets shut down, LXD tries to assign its database role to another cluster member in the same failure domain, if one is available.
+For example, if a cluster member that currently has the `database-voter` role gets shut down and the `control-plane` role is active, LXD tries to promote another `control-plane` cluster member in the same failure domain to voter, if one is available. If no members have the `control-plane` role assigned (the default), any suitable member in the same failure domain can be promoted instead.
 
 To update the failure domain of a cluster member, use the [`lxc cluster edit <member>`](lxc_cluster_edit.md) command and change the `failure_domain` property from `default` to another string.
 

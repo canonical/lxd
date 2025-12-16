@@ -62,12 +62,19 @@ To add or remove a {ref}`member role <clustering-member-roles>` for a cluster me
 
     lxc cluster role add <member-name> <role>
 
-Example:
+Examples:
 
     lxc cluster role add server1 event-hub
+    lxc cluster role add server1 control-plane
 
 ```{note}
-You can add or remove only those roles that are not assigned automatically by LXD. To find out which roles are automatically assigned, see: {ref}`clustering-member-roles`.
+You can add or remove only those roles that are not assigned automatically by LXD. Database roles (`database-voter`, `database-standby`, `database-leader`) are automatically assigned and cannot be added or removed manually.
+
+The `control-plane` role can be assigned to any cluster member to designate it as eligible for Raft participation. Control-plane mode remains inactive until at least {config:option}`server-cluster:cluster.max_voters` members have the role assigned. During this inactive period, all members remain eligible for database roles. Once control-plane mode activates, only members with the `control-plane` role will be eligible for database roles, and all other members will be spares. Spare members can still run instances and act as "worker" members for hosting workloads. This is useful for clusters that need to support dynamic scaling of non-database members.
+
+If no members have the `control-plane` role assigned (the default), or if fewer than {config:option}`server-cluster:cluster.max_voters` members have the role, all members are eligible for automatic promotion to database roles.
+
+To find out more about which roles are automatically assigned, see: {ref}`clustering-member-roles`.
 ```
 
 (cluster-edit)=

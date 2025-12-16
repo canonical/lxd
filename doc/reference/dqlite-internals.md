@@ -28,6 +28,10 @@ For more information on the Canonical Dqlite Raft implementation, see [`dqlite/s
 
 ### LXD cluster roles
 
-1. `database-voter`: Assigned to cluster members with the `RAFT_VOTER` role.
+LXD assigns database roles to cluster members based on their Dqlite Raft role:
+
+1. `database-voter`: Assigned to cluster members with the `RAFT_VOTER` role (excluding the leader).
 1. `database-standby`: Assigned to cluster members with the `RAFT_STANDBY` role.
 1. `database-leader`: Assigned to the current Raft leader.
+
+LXD also provides a `control-plane` role that can be manually assigned to cluster members. `control-plane` designates a cluster member as eligible to participate in Raft consensus as a voter, standby, or leader. Control-plane mode remains inactive until the number of members with the `control-plane` role reaches {config:option}`server-cluster:cluster.max_voters` (default: 3). During this inactive period, all cluster members remain eligible for automatic promotion to database roles. Once control-plane mode activates, members without the `control-plane` role are assigned the `RAFT_SPARE` role and excluded from automatic promotion to database roles. If no members have the `control-plane` role (the default), or if fewer than {config:option}`server-cluster:cluster.max_voters` members have the role, all members are eligible for database roles.
