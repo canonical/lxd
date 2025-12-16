@@ -4,6 +4,7 @@ package operations
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -18,9 +19,12 @@ func registerDBOperation(op *Operation) error {
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		opInfo := cluster.Operation{
-			UUID:   op.id,
-			Type:   op.dbOpType,
-			NodeID: tx.GetNodeID(),
+			UUID:      op.id,
+			Type:      op.dbOpType,
+			NodeID:    tx.GetNodeID(),
+			Class:     (int64)(op.class),
+			CreatedAt: op.createdAt,
+			UpdatedAt: op.updatedAt,
 		}
 
 		if op.projectName != "" {
@@ -32,7 +36,25 @@ func registerDBOperation(op *Operation) error {
 			opInfo.ProjectID = &projectID
 		}
 
-		_, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+		if op.requestor != nil {
+			value := cluster.RequestorProtocol(op.requestor.CallerProtocol())
+			opInfo.RequestorProtocol = &value
+
+			requestorCallerIdentityID := op.requestor.CallerIdentityID()
+			if requestorCallerIdentityID != 0 {
+				identityID := int64(requestorCallerIdentityID)
+				opInfo.RequestorIdentityID = &identityID
+			}
+		}
+
+		metadataJSON, err := json.Marshal(op.metadata)
+		if err != nil {
+			return fmt.Errorf("Failed marshalling operation metadata: %w", err)
+		}
+
+		opInfo.Metadata = string(metadataJSON)
+
+		_, err = cluster.CreateOperation(ctx, tx.Tx(), opInfo)
 		return err
 	})
 	if err != nil {
