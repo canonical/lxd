@@ -43,7 +43,6 @@ test_storage_volume_recover() {
 
   # Recover custom block volume.
   cat <<EOF | lxd recover
-no
 yes
 yes
 EOF
@@ -117,7 +116,6 @@ test_storage_volume_recover_by_container() {
 
   # Recover the instance.
   cat <<EOF | lxd recover
-no
 yes
 yes
 EOF
@@ -139,7 +137,6 @@ EOF
 
   # Recover custom volumes.
   cat <<EOF | lxd recover
-no
 yes
 yes
 EOF
@@ -169,7 +166,6 @@ EOF
 
   # Recover custom volumes.
   cat <<EOF | lxd recover
-no
 yes
 yes
 EOF
@@ -303,7 +299,6 @@ test_container_recover() {
 
     # Basic no-op check.
     cat <<EOF | lxd recover | grep "No unknown storage pools or volumes found. Nothing to do."
-no
 yes
 EOF
 
@@ -374,7 +369,6 @@ EOF
     respawn_lxd "${LXD_DIR}" true
 
     cat <<EOF | lxd recover
-no
 yes
 yes
 EOF
@@ -422,7 +416,6 @@ EOF
     respawn_lxd "${LXD_DIR}" true
 
     cat <<EOF | lxd recover
-no
 yes
 yes
 EOF
@@ -533,7 +526,6 @@ test_bucket_recover() {
 
   # Recover bucket
   lxd recover << EOF
-no
 yes
 yes
 EOF
@@ -1255,7 +1247,6 @@ test_backup_export_import_recover() {
 
     # Recover removed instance.
     cat <<EOF | lxd recover
-no
 yes
 yes
 EOF
