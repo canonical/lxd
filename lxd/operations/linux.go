@@ -182,6 +182,24 @@ func NewDurableOperation(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *
 		op.metadata[k] = v
 	}
 
+	// TODO Reconstruct the Requestor of the operation here.
+	/*
+		// Load the requestor identity if provided.
+		if dbOp.RequestorIdentityID != nil {
+			identityFilter := cluster.IdentityFilter{ID: dbOp.RequestorIdentityID}
+			clusterIdentities, err := cluster.GetIdentitys(ctx, tx.Tx(), identityFilter)
+			if err != nil {
+				return fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.ID, err)
+			}
+
+			if len(clusterIdentities) != 1 {
+				return fmt.Errorf("Unexpected number of identities (%d) found for id %d", len(clusterIdentities), dbOp.ID)
+			}
+
+			op.requestor.identity = &clusterIdentities[0]
+		}
+	*/
+
 	runHook, ok := durableOperations[op.dbOpType]
 	if !ok {
 		return nil, fmt.Errorf("No durable operation handlers defined for operation type %q", op.dbOpType)
@@ -260,6 +278,7 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 			Reference:   op.id,
 		}
 
+		// TODO create user operation if Requestor is not empty.
 		createdOp, err := CreateServerOperation(s, args)
 		if err != nil {
 			logger.Warn("Failed creating durable operation", logger.Ctx{"err": err})
