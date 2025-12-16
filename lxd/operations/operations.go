@@ -392,11 +392,12 @@ func (op *Operation) Start() error {
 
 // Cancel cancels a running operation. If the operation cannot be cancelled, it
 // returns an error.
-func (op *Operation) Cancel() error {
+func (op *Operation) Cancel() {
 	op.lock.Lock()
 	if op.running.Err() != nil {
+		// Already cancelled, nothing to do.
 		op.lock.Unlock()
-		return api.NewStatusError(http.StatusBadRequest, "Only running operations can be cancelled")
+		return
 	}
 
 	// Signal the operation to stop.
@@ -427,8 +428,6 @@ func (op *Operation) Cancel() error {
 	if op.onRun == nil {
 		op.done()
 	}
-
-	return nil
 }
 
 // Connect connects a websocket operation. If the operation is not a websocket
