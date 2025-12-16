@@ -819,7 +819,11 @@ func filterPromotionCandidates(candidates []client.NodeInfo, memberRoles map[str
 //
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
-func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
+//
+// The optional memberRoles parameter can be provided to avoid redundant database
+// queries when the caller already has this data (e.g., from heartbeats). If
+// memberRoles is nil, member data will be fetched from the database.
+func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string, memberRoles map[string][]db.ClusterRole) (string, []db.RaftNode, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
 		return "", nil, nil
@@ -830,6 +834,59 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 		return "", nil, fmt.Errorf("Failed getting current raft nodes: %w", err)
 	}
 
+	localClusterAddress := state.LocalConfig.ClusterAddress()
+
+	// If memberRoles is not provided, fetch from database.
+	if memberRoles == nil {
+		memberRoles, err = getMemberRoles(state.ShutdownCtx, state)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+
+	controlPlaneActive := IsControlPlaneActive(memberRoles)
+
+	// If control plane mode is active, demote non-control-plane members with database roles to spare.
+	// This must happen before checking for promotions because roles.Adjust() counts existing
+	// voters/standbys to determine available slots. By demoting ineligible members first, we
+	// create vacancies that roles.Adjust() can detect and fill with eligible control plane members.
+	if controlPlaneActive {
+		for _, node := range nodes {
+			// Skip spares
+			if node.Role == db.RaftSpare {
+				continue
+			}
+
+			// Skip offline/unavailable members
+			if slices.Contains(unavailableMembers, node.Address) {
+				continue
+			}
+
+			// Check if this member has the control-plane role
+			roles, ok := memberRoles[node.Address]
+			if !ok {
+				continue
+			}
+
+			// If member doesn't have control-plane role but has a database role, demote it
+			if !slices.Contains(roles, db.ClusterRoleControlPlane) {
+				logger.Info("Found non-control-plane member with database role requiring demotion", logger.Ctx{"address": node.Address, "currentRole": node.Role, "local": localClusterAddress})
+
+				// Set target role to spare. The Assign() function will handle the two-phase
+				// voter -> standby -> spare transition automatically if needed.
+				for i := range nodes {
+					if nodes[i].Address == node.Address {
+						nodes[i].Role = db.RaftSpare
+						break
+					}
+				}
+
+				return node.Address, nodes, nil
+			}
+		}
+	}
+
+	// Check if there are role adjustments needed (promotions).
 	roles, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
 	if err != nil {
 		return "", nil, err
@@ -842,11 +899,14 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 		return "", nodes, nil
 	}
 
-	localClusterAddress := state.LocalConfig.ClusterAddress()
+	// Filter candidates to only those eligible for promotion.
+	candidates = filterPromotionCandidates(candidates, memberRoles, controlPlaneActive)
+	if len(candidates) == 0 {
+		return "", nodes, nil
+	}
 
-	// Check if we have a spare node that we can promote to the missing role.
 	candidateAddress := candidates[0].Address
-	logger.Info("Found cluster member whose role needs to be changed", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
+	logger.Info("Found cluster member requiring role change", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
 
 	for i, node := range nodes {
 		if node.Address == candidateAddress {
