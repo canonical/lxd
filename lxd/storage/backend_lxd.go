@@ -8178,8 +8178,11 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 		})
 	}
 
+	// When crafting the backup config of a custom volume, always include the volume
+	// itself and its respective pool in the lists of volumes and pools.
 	backupConf := &backupConfig.Config{
 		Volumes: []*backupConfig.Volume{customVol},
+		Pools:   []*api.StoragePool{&b.db},
 	}
 
 	// Add to volume to unknown volumes list for the project.
