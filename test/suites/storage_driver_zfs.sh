@@ -14,6 +14,7 @@ test_storage_driver_zfs() {
   do_zfs_cross_pool_copy
   do_zfs_delegate
   do_zfs_rebase
+  do_recursive_copy_snapshot_cleanup
 }
 
 do_zfs_delegate() {
@@ -388,4 +389,91 @@ do_storage_driver_zfs() {
 
   # shellcheck disable=SC2031
   kill_lxd "${LXD_STORAGE_DIR}"
+}
+
+do_recursive_copy_snapshot_cleanup() {
+  echo "Test recursive copy snapshot cleanup."
+  local storage_pool
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  echo "Create the first container."
+  lxc init testimage t1
+
+  echo "Make two copies."
+  lxc copy t1 t2
+  lxc copy t1 t3
+
+  echo "Verify two copy snapshots exist."
+  [ "$(zfs list -t snapshot -H -o name "${storage_pool}/containers/t1" | grep -cF "@copy-")" -eq 2 ]
+
+  echo "Delete t3, should delete one copy snapshot."
+  lxc delete t3
+
+  echo "Verify one copy snapshot remains."
+  [ "$(zfs list -t snapshot -H -o name "${storage_pool}/containers/t1" | grep -cF "@copy-")" -eq 1 ]
+
+  echo "Delete t2, should delete the remaining copy snapshot."
+  lxc delete t2
+
+  echo "Verify no snapshots remain, should output \"no datasets available\"."
+  [ "$(zfs list -t snapshot "${storage_pool}/containers/t1" 2>&1)" = "no datasets available" ]
+
+  echo "Create two new copies."
+  lxc copy t1 t4
+  lxc copy t1 t5
+
+  echo "Verify two new copy snapshots exist."
+  [ "$(zfs list -t snapshot -H -o name "${storage_pool}/containers/t1" | grep -cF "@copy-")" -eq 2 ]
+
+  echo "Delete the original container t1, should move to deleted pool with snapshots."
+  lxc delete t1
+
+  echo "Verify container moved to deleted pool with both copy snapshots."
+  [ "$(zfs list -rt snapshot "${storage_pool}/deleted/containers" | grep -cF "@copy-")" -eq 2 ]
+
+  echo "Delete t5, should delete its snapshot from deleted container."
+  lxc delete t5
+
+  echo "Verify one snapshot remains in the deleted container."
+  [ "$(zfs list -rt snapshot "${storage_pool}/deleted/containers" | grep -cF "@copy-")" -eq 1 ]
+
+  echo "Delete t4, should delete remaining snapshot, leaving no snapshots."
+  lxc delete t4
+
+  echo "Verify no snapshots remain."
+  [ "$(zfs list -rt snapshot "${storage_pool}/deleted/containers" 2>&1)" = "no datasets available" ]
+
+  echo "Test chain copy snapshot cleanup."
+
+  echo "Create base container."
+  lxc init testimage base
+
+  echo "Create chain of copies."
+  lxc copy base chain1
+  lxc copy chain1 chain2
+  lxc copy chain2 chain3
+
+  echo "Verify base container has one copy snapshot."
+  [ "$(zfs list -t snapshot -H -o name "${storage_pool}/containers/base" | grep -cF "@copy-")" -eq 1 ]
+
+  echo "Verify chain1 has one copy snapshot."
+  [ "$(zfs list -t snapshot -H -o name "${storage_pool}/containers/chain1" | grep -cF "@copy-")" -eq 1 ]
+
+  echo "Verify chain2 has one copy snapshot."
+  [ "$(zfs list -t snapshot -H -o name "${storage_pool}/containers/chain2" | grep -cF "@copy-")" -eq 1 ]
+
+  echo "Verify chain3 has no copy snapshots."
+  [ "$(zfs list -t snapshot -H -o name "${storage_pool}/containers/chain3" | grep -cF "@copy-")" -eq 0 ]
+
+  echo "Delete base, chain1, and chain2 containers."
+  lxc delete base chain1 chain2
+
+  echo "Verify three copy snapshots exist in deleted pool."
+  [ "$(zfs list -rt snapshot "${storage_pool}/deleted/containers" | grep -cF "@copy-")" -eq 3 ]
+
+  echo "Delete the remaining chain3 container."
+  lxc delete chain3
+
+  echo "Verify no snapshots remain in deleted pool."
+  [ "$(zfs list -rt snapshot "${storage_pool}/deleted/containers" 2>&1)" = "no datasets available" ]
 }
