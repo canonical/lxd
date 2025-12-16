@@ -595,6 +595,15 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	return nil
 }
 
+// CommitMetadata commits the metadata of a durable operation to the database.
+func (op *Operation) CommitMetadata() error {
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	op.updatedAt = time.Now()
+	return updateDBOperationStatus(op)
+}
+
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
 // It returns an error if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) ExtendMetadata(metadata map[string]any) error {

@@ -71,6 +71,27 @@ func registerDBOperation(op *Operation) error {
 	return nil
 }
 
+func updateDBOperationStatus(op *Operation) error {
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		opErr := ""
+		if op.err != nil {
+			opErr = op.err.Error()
+		}
+
+		metadataJSON, err := json.Marshal(op.metadata)
+		if err != nil {
+			return fmt.Errorf("Failed marshalling operation metadata: %w", err)
+		}
+
+		return cluster.UpdateOperationStatus(ctx, tx.Tx(), op.id, op.updatedAt, op.status, string(metadataJSON), opErr)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed adding operation %s metadata to database: %w", op.id, err)
+	}
+
+	return nil
+}
+
 func removeDBOperation(op *Operation) error {
 	if op.state == nil {
 		return nil
