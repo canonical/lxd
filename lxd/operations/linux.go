@@ -12,6 +12,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -223,6 +224,39 @@ func NewDurableOperation(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *
 	op.metadata = make(map[string]any)
 	for k, v := range metadata {
 		op.metadata[k] = v
+	}
+
+	// Load the requestor identity if provided.
+	if dbOp.RequestorIdentityID != nil {
+		identityFilter := cluster.IdentityFilter{ID: dbOp.RequestorIdentityID}
+		clusterIdentities, err := cluster.GetIdentitys(ctx, tx, identityFilter)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.ID, err)
+		}
+
+		if len(clusterIdentities) != 1 {
+			return nil, fmt.Errorf("Unexpected number of identities (%d) found for id %d", len(clusterIdentities), dbOp.ID)
+		}
+
+		// We need to construct the requestor object to hold the identity information.
+		// The standard way is to construct it through the http request, but in this case we have no real http request.
+		// We'll just use an empty one temporarily.
+		r := &http.Request{}
+		args := request.RequestorArgs{
+			Trusted:  true,
+			Username: clusterIdentities[0].Identifier,
+			Protocol: dbOp.RequestorProtocol,
+		}
+
+		err = request.SetRequestor(r, requestorHook, args)
+		if err != nil {
+			return nil, fmt.Errorf("Failed setting requestor for operation %d: %w", dbOp.ID, err)
+		}
+
+		op.requestor, err = request.GetRequestor(r.Context())
+		if err != nil {
+			return nil, fmt.Errorf("Failed constructing requestor for operation %d: %w", dbOp.ID, err)
+		}
 	}
 
 	runHook, ok := durableOperations[op.dbOpType]
