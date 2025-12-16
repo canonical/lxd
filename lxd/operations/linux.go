@@ -51,6 +51,27 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			}
 		}
 
+		// Durable operations support only up to a single resource. If there is one, verify and register its entity_id.
+		if op.class == OperationClassDurable && len(op.resources) > 0 {
+			for _, entityURLs := range op.resources {
+				if len(entityURLs) > 0 {
+					entityReference, err := cluster.GetEntityReferenceFromURL(ctx, tx.Tx(), &entityURLs[0])
+					if err != nil {
+						return fmt.Errorf("Failed getting entity ID from resource URL %q: %w", entityURLs[0].String(), err)
+					}
+
+					// The EntityType of the resource must be the same as the EntityType of the required permission defined on the type of the operation.
+					// We don't store EntityType of the resource in the DB, instead, we just use the entityType as defined by the required permissions.
+					permissionEntityType, _ := opType.Permission()
+					if entityReference.EntityType != cluster.EntityType(permissionEntityType) {
+						return fmt.Errorf("Mismatched entity type %q for resource URL %q, expected %q", entityReference.EntityType, entityURLs[0].String(), permissionEntityType)
+					}
+
+					opInfo.EntityID = &entityReference.EntityID
+				}
+			}
+		}
+
 		opID, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
 		if err != nil {
 			return err
@@ -100,6 +121,7 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 	var err error
 	var dbOps []cluster.Operation
 	metadata := make(map[int64]map[string]string)
+	resources := make(map[int64]map[string][]api.URL)
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// See if there are any durable operations running on this node which need to be restarted.
@@ -111,6 +133,17 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 		}
 
 		for _, dbOp := range dbOps {
+			// Load the resource URL if entity ID is provided.
+			if dbOp.EntityID != nil {
+				entityType, _ := dbOp.Type.Permission()
+				entityURL, err := cluster.GetEntityURL(ctx, tx.Tx(), entityType, *dbOp.EntityID)
+				if err != nil {
+					return fmt.Errorf("Failed getting entity URL for entity type %q and ID %d: %w", entityType.String(), *dbOp.EntityID, err)
+				}
+
+				resources[dbOp.ID] = map[string][]api.URL{string(entityType): {*entityURL}}
+			}
+
 			metadata[dbOp.ID], err = cluster.GetDurableOperationMetadata(ctx, tx.Tx(), dbOp.ID)
 			if err != nil {
 				return fmt.Errorf("Failed loading durable operation metadata for operation %d: %w", dbOp.ID, err)
@@ -141,11 +174,16 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 			}
 		}
 
+		resources, ok := resources[dbOp.ID]
+		if !ok {
+			resources = nil
+		}
+
 		args := OperationArgs{
 			ProjectName: projectName,
 			Type:        dbOp.Type,
 			Class:       OperationClass(dbOp.Class),
-			Resources:   nil,
+			Resources:   resources,
 			Metadata:    metadata[dbOp.ID],
 			Reference:   dbOp.Reference,
 		}
