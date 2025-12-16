@@ -408,7 +408,7 @@ definitions:
                 type: object
                 x-go-name: Config
             database:
-                description: Whether the cluster member is a database server
+                description: Whether the cluster member is a database server (database-leader, database-voter, or database-standby)
                 example: true
                 type: boolean
                 x-go-name: Database
