@@ -470,6 +470,7 @@ var APIExtensions = []string{
 	"ovn_nic_acceleration_parent",
 	"storage_and_profile_operations",
 	"storage_source_recover",
+	"clustering_control_plane",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
