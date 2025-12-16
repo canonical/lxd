@@ -26,8 +26,13 @@ For more information on the Canonical Dqlite Raft implementation, see [`dqlite/s
 1. `RAFT_STANDBY`: Replicates the log but does not participate in quorum/elections.
 1. `RAFT_SPARE`: Does not replicate the log and does not participate in quorum/elections.
 
+(dqlite-internals-lxd-cluster-roles)=
 ### LXD cluster roles
 
-1. `database-voter`: Assigned to cluster members with the `RAFT_VOTER` role.
+LXD assigns database roles to cluster members based on their Dqlite Raft role:
+
+1. `database-voter`: Assigned to cluster members with the `RAFT_VOTER` role (excluding the leader).
 1. `database-standby`: Assigned to cluster members with the `RAFT_STANDBY` role.
 1. `database-leader`: Assigned to the current Raft leader.
+
+LXD also provides a `control-plane` role that restricts which members can be assigned Raft roles. When 3 or more members have the `control-plane` role assigned, members without it are assigned the `RAFT_SPARE` role and excluded from automatic promotion. The {config:option}`server-cluster:cluster.max_voters` and {config:option}`server-cluster:cluster.max_standby` settings determine how many control-plane members are promoted to `RAFT_VOTER` and `RAFT_STANDBY` roles. If control plane members exceed these limits, the extras remain as promotion candidates.
