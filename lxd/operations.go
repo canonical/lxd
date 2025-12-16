@@ -286,11 +286,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err = op.Cancel()
-		if err != nil {
-			return response.BadRequest(err)
-		}
-
+		op.Cancel()
 		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(op, request.CreateRequestor(r.Context()), nil))
 
 		_ = op.Wait(r.Context())
@@ -336,13 +332,7 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 	// Check if operation is local and if so, cancel it.
 	localOp, _ := operations.OperationGetInternal(op.ID)
 	if localOp != nil {
-		if localOp.Status() == api.Running {
-			err := localOp.Cancel()
-			if err != nil {
-				return fmt.Errorf("Failed to cancel local operation %q: %w", op.ID, err)
-			}
-		}
-
+		localOp.Cancel()
 		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(localOp, request.CreateRequestor(ctx), nil))
 		_ = localOp.Wait(ctx)
 
