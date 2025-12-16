@@ -48,6 +48,9 @@ const ClusterRoleDatabaseStandBy = ClusterRole("database-standby")
 // Assigned to the current Raft leader.
 const ClusterRoleDatabaseLeader = ClusterRole("database-leader")
 
+// ClusterRoleControlPlane represents a control plane cluster member.
+const ClusterRoleControlPlane = ClusterRole("control-plane")
+
 // ClusterRoleEventHub represents a cluster member that operates as an event hub.
 const ClusterRoleEventHub = ClusterRole("event-hub")
 
@@ -68,6 +71,7 @@ var ClusterRoles = map[ClusterRoleClass]map[int]ClusterRole{
 	ClusterRoleClassManual: {
 		1: ClusterRoleEventHub,
 		2: ClusterRoleOVNChassis,
+		3: ClusterRoleControlPlane,
 	},
 }
 
