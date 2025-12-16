@@ -64,7 +64,9 @@ var operationWebsocket = APIEndpoint{
 // DurableOperations is the table of durable operations handlers.
 // This is needed so that we can always find the right handlers based on the operation type.
 // We want this in the main package so the table can contain handlers from various other packages.
-var DurableOperations = operations.DurableOperationTable{}
+var DurableOperations = operations.DurableOperationTable{
+	operationtype.Wait: waitHandlerOperationRunHook,
+}
 
 // runningInstanceOperations returns a map of project name to map of instance name to list of running operations.
 // This is used to determine if an instance is busy and should not be shut down immediately.
@@ -1474,6 +1476,12 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		ConflictReference: req.ConflictReference,
 	}
 
+	// Durable operations have their run hook set in the DurableOperations table.
+	if req.OpClass == operations.OperationClassDurable {
+		args.RunHook = nil
+	}
+
+	// Internal APIs don't record metrics, so start a server operation which doesn't use metrics callback.
 	op, err := operations.ScheduleServerOperation(d.State(), args)
 	if err != nil {
 		return response.InternalError(err)
