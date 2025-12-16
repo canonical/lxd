@@ -22,9 +22,9 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 		// Fixed references use the unique DB constraint to enforce cluster-wide exclusivity.
 		nodeID := tx.GetNodeID()
 		opInfo := cluster.Operation{
-			UUID:   op.id,
-			Type:   opType,
-			NodeID: &nodeID,
+			Reference: op.id,
+			Type:      opType,
+			NodeID:    &nodeID,
 		}
 
 		if op.projectName != "" {
