@@ -298,7 +298,7 @@ test_container_recover() {
     lxc project switch test
 
     # Basic no-op check.
-    cat <<EOF | lxd recover | grep "No unknown storage pools or volumes found. Nothing to do."
+    cat <<EOF | lxd recover | grep "No unknown storage volumes found. Nothing to do."
 yes
 EOF
 
