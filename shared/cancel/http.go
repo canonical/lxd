@@ -24,6 +24,17 @@ func NewHTTPRequestCanceller() *HTTPRequestCanceller {
 	return &c
 }
 
+// NewHTTPRequestCancellerWithContext returns a new HTTPRequestCanceller that automatically cancels when the given context is cancelled.
+func NewHTTPRequestCancellerWithContext(ctx context.Context) *HTTPRequestCanceller {
+	c := NewHTTPRequestCanceller()
+	go func() {
+		<-ctx.Done()
+		_ = c.Cancel()
+	}()
+
+	return c
+}
+
 // Cancelable indicates whether there are operations that support cancellation.
 func (c *HTTPRequestCanceller) Cancelable() bool {
 	c.lock.Lock()

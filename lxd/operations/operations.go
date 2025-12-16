@@ -93,7 +93,6 @@ type Operation struct {
 	metadata    map[string]any
 	err         error
 	readonly    bool
-	canceler    *cancel.HTTPRequestCanceller
 	description string
 	entityType  entity.Type
 	entitlement auth.Entitlement
@@ -102,13 +101,17 @@ type Operation struct {
 	logger      logger.Logger
 
 	// Those functions are called at various points in the Operation lifecycle
-	onRun     func(*Operation) error
-	onCancel  func(*Operation) error
+	onRun     func(context.Context, *Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 	onDone    func(*Operation)
 
-	// Indicates if operation has finished.
+	// finished is cancelled when the operation has finished executing all configured hooks.
+	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
+
+	// running is the basis of the [context.Context] passed into the onRun hook.
+	// It is cancelled when the onRun hook completes or when Cancel is called (on operation deletion).
+	running cancel.Canceller
 
 	// Locking for concurent access to the Operation
 	lock sync.Mutex
@@ -117,9 +120,33 @@ type Operation struct {
 	events *events.Server
 }
 
-// OperationCreate creates a new operation and returns it. If it cannot be
-// created, it returns an error.
-func OperationCreate(ctx context.Context, s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+// OperationArgs contains all the arguments for operation creation.
+type OperationArgs struct {
+	ProjectName string
+	Type        operationtype.Type
+	Class       OperationClass
+	Resources   map[string][]api.URL
+	Metadata    any
+	RunHook     func(ctx context.Context, op *Operation) error
+	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
+}
+
+// CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
+func CreateUserOperation(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+	if requestor == nil || requestor.OriginAddress() == "" {
+		return nil, errors.New("Cannot create user operation, the requestor must be set")
+	}
+
+	return operationCreate(s, requestor, args)
+}
+
+// CreateServerOperation creates a new [Operation] that runs as a server background task.
+func CreateServerOperation(s *state.State, args OperationArgs) (*Operation, error) {
+	return operationCreate(s, nil, args)
+}
+
+// operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
+func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -127,26 +154,28 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 
 	// Main attributes
 	op := Operation{}
-	op.projectName = projectName
+	op.projectName = args.ProjectName
 	op.id = uuid.New().String()
-	op.description = opType.Description()
-	op.entityType, op.entitlement = opType.Permission()
-	op.dbOpType = opType
-	op.class = opClass
+	op.description = args.Type.Description()
+	op.entityType, op.entitlement = args.Type.Permission()
+	op.dbOpType = args.Type
+	op.class = args.Class
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
 	op.status = api.Pending
 	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
-	op.resources = opResources
+	op.resources = args.Resources
 	op.finished = cancel.New()
+	op.running = cancel.New()
 	op.state = s
+	op.requestor = requestor
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	if s != nil {
 		op.SetEventServer(s.Events)
 	}
 
-	newMetadata, err := shared.ParseMetadata(opMetadata)
+	newMetadata, err := shared.ParseMetadata(args.Metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -154,9 +183,8 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	op.metadata = newMetadata
 
 	// Callback functions
-	op.onRun = onRun
-	op.onCancel = onCancel
-	op.onConnect = onConnect
+	op.onRun = args.RunHook
+	op.onConnect = args.ConnectHook
 
 	// Quick check.
 	if op.class != OperationClassWebsocket && op.onConnect != nil {
@@ -168,24 +196,14 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	}
 
 	if op.class == OperationClassToken && op.onRun != nil {
-		return nil, errors.New("Token operations can't have a Run hook")
-	}
-
-	if op.class == OperationClassToken && op.onCancel != nil {
-		return nil, errors.New("Token operations can't have a Cancel hook")
-	}
-
-	// Set requestor if the request context is provided.
-	_, err = request.GetRequestor(ctx)
-	if err == nil {
-		op.SetRequestor(ctx)
+		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
 	operationsLock.Lock()
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, opType)
+	err = registerDBOperation(&op, args.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -203,11 +221,6 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 // SetEventServer allows injection of event server.
 func (op *Operation) SetEventServer(events *events.Server) {
 	op.events = events
-}
-
-// SetRequestor sets a requestor for this operation from an http.Request.
-func (op *Operation) SetRequestor(ctx context.Context) {
-	op.requestor, _ = request.GetRequestor(ctx)
 }
 
 // CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
@@ -261,7 +274,6 @@ func (op *Operation) done() {
 	op.lock.Lock()
 	op.readonly = true
 	op.onRun = nil
-	op.onCancel = nil
 	op.onConnect = nil
 	op.finished.Cancel()
 	op.lock.Unlock()
@@ -313,12 +325,31 @@ func (op *Operation) Start() error {
 	op.status = api.Running
 
 	if op.onRun != nil {
-		go func(op *Operation) {
-			err := op.onRun(op)
+		// The operation context is the "running" context plus the requestor.
+		// The requestor is available directly on the operation, but we should still put it in the context.
+		// This is so that, if an operation queries another cluster member, the requestor information will be set
+		// in the request headers.
+		runCtx := context.Context(op.running)
+		if op.requestor != nil {
+			runCtx = request.WithRequestor(runCtx, op.requestor)
+		}
+
+		go func(ctx context.Context, op *Operation) {
+			err := op.onRun(ctx, op)
 			if err != nil {
 				op.lock.Lock()
-				op.status = api.Failure
+
+				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
+				if errors.Is(err, context.Canceled) {
+					op.status = api.Cancelled
+				} else {
+					op.status = api.Failure
+				}
+
+				// Always call cancel. This is a no-op if already cancelled.
+				op.running.Cancel()
 				op.err = err
+
 				op.lock.Unlock()
 				op.done()
 
@@ -334,6 +365,7 @@ func (op *Operation) Start() error {
 
 			op.lock.Lock()
 			op.status = api.Success
+			op.running.Cancel()
 			op.lock.Unlock()
 			op.done()
 
@@ -343,7 +375,7 @@ func (op *Operation) Start() error {
 			op.lock.Lock()
 			op.sendEvent(md)
 			op.lock.Unlock()
-		}(op)
+		}(runCtx, op)
 	}
 
 	op.lock.Unlock()
@@ -360,87 +392,43 @@ func (op *Operation) Start() error {
 
 // Cancel cancels a running operation. If the operation cannot be cancelled, it
 // returns an error.
-func (op *Operation) Cancel() (chan error, error) {
+func (op *Operation) Cancel() error {
 	op.lock.Lock()
-	if op.status != api.Running {
+	if op.running.Err() != nil {
 		op.lock.Unlock()
-		return nil, errors.New("Only running operations can be cancelled")
+		return api.NewStatusError(http.StatusBadRequest, "Only running operations can be cancelled")
 	}
 
-	if !op.mayCancel() {
-		op.lock.Unlock()
-		return nil, errors.New("This operation can't be cancelled")
+	// Signal the operation to stop.
+	op.running.Cancel()
+
+	// If the operation has a run hook, then set the status to cancelling.
+	// When the hook returns, the status will be set to cancelled because the run context is cancelled.
+	// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
+	//
+	// If the operation does not have a run hook, immediately set the status to cancelled because there is nothing to clean up.
+	if op.onRun != nil {
+		op.status = api.Cancelling
+	} else {
+		op.status = api.Cancelled
 	}
 
-	chanCancel := make(chan error, 1)
-
-	oldStatus := op.status
-	op.status = api.Cancelling
 	op.lock.Unlock()
-
-	hasOnCancel := op.onCancel != nil
-
-	if hasOnCancel {
-		go func(op *Operation, oldStatus api.StatusCode, chanCancel chan error) {
-			err := op.onCancel(op)
-			if err != nil {
-				op.lock.Lock()
-				op.status = oldStatus
-				op.lock.Unlock()
-				chanCancel <- err
-
-				op.logger.Debug("Failed to cancel operation", logger.Ctx{"err": err})
-				_, md, _ := op.Render()
-
-				op.lock.Lock()
-				op.sendEvent(md)
-				op.lock.Unlock()
-
-				return
-			}
-
-			op.lock.Lock()
-			op.status = api.Cancelled
-			op.lock.Unlock()
-			op.done()
-			chanCancel <- nil
-
-			op.logger.Debug("Cancelled operation")
-			_, md, _ := op.Render()
-
-			op.lock.Lock()
-			op.sendEvent(md)
-			op.lock.Unlock()
-		}(op, oldStatus, chanCancel)
-	}
 
 	op.logger.Debug("Cancelling operation")
 	_, md, _ := op.Render()
-	op.sendEvent(md)
-
-	if op.canceler != nil {
-		err := op.canceler.Cancel()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if !hasOnCancel {
-		op.lock.Lock()
-		op.status = api.Cancelled
-		op.lock.Unlock()
-		op.done()
-		chanCancel <- nil
-	}
-
-	op.logger.Debug("Cancelled operation")
-	_, md, _ = op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)
 	op.lock.Unlock()
 
-	return chanCancel, nil
+	// If the operation does not have a run hook (e.g. a token operation) we need to call op.done(), because it won't be
+	// called automatically when the run hook completes.
+	if op.onRun == nil {
+		op.done()
+	}
+
+	return nil
 }
 
 // Connect connects a websocket operation. If the operation is not a websocket
@@ -452,9 +440,9 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 		return nil, errors.New("Only websocket operations can be connected")
 	}
 
-	if op.status != api.Running {
+	if op.running.Err() != nil {
 		op.lock.Unlock()
-		return nil, errors.New("Only running operations can be connected")
+		return nil, api.NewStatusError(http.StatusBadRequest, "Only running operations can be connected")
 	}
 
 	chanConnect := make(chan error, 1)
@@ -477,22 +465,6 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 	op.logger.Debug("Connecting to operation")
 
 	return chanConnect, nil
-}
-
-func (op *Operation) mayCancel() bool {
-	if op.class == OperationClassToken {
-		return true
-	}
-
-	if op.onCancel != nil {
-		return true
-	}
-
-	if op.canceler != nil && op.canceler.Cancelable() {
-		return true
-	}
-
-	return false
 }
 
 // Render renders the operation structure.
@@ -532,7 +504,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		StatusCode:  op.status,
 		Resources:   renderedResources,
 		Metadata:    metadata,
-		MayCancel:   op.mayCancel(),
+		MayCancel:   true,
 	}
 
 	requestor := op.Requestor()
@@ -568,9 +540,9 @@ func (op *Operation) Wait(ctx context.Context) error {
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateResources(opResources map[string][]api.URL) error {
 	op.lock.Lock()
-	if op.status != api.Pending && op.status != api.Running {
+	if op.finished.Err() != nil {
 		op.lock.Unlock()
-		return errors.New("Only pending or running operations can be updated")
+		return api.NewStatusError(http.StatusBadRequest, "Operations cannot be updated after they have completed")
 	}
 
 	if op.readonly {
@@ -596,9 +568,9 @@ func (op *Operation) UpdateResources(opResources map[string][]api.URL) error {
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateMetadata(opMetadata any) error {
 	op.lock.Lock()
-	if op.status != api.Pending && op.status != api.Running {
+	if op.finished.Err() != nil {
 		op.lock.Unlock()
-		return errors.New("Only pending or running operations can be updated")
+		return api.NewStatusError(http.StatusBadRequest, "Operations cannot be updated after they have completed")
 	}
 
 	if op.readonly {
@@ -631,9 +603,9 @@ func (op *Operation) ExtendMetadata(metadata any) error {
 	op.lock.Lock()
 
 	// Quick checks.
-	if op.status != api.Pending && op.status != api.Running {
+	if op.finished.Err() != nil {
 		op.lock.Unlock()
-		return errors.New("Only pending or running operations can be updated")
+		return api.NewStatusError(http.StatusBadRequest, "Operations cannot be updated after they have completed")
 	}
 
 	if op.readonly {
@@ -692,11 +664,6 @@ func (op *Operation) URL() string {
 // Resources returns the operation resources.
 func (op *Operation) Resources() map[string][]api.URL {
 	return op.resources
-}
-
-// SetCanceler sets a canceler.
-func (op *Operation) SetCanceler(canceler *cancel.HTTPRequestCanceller) {
-	op.canceler = canceler
 }
 
 // Permission returns the operations entity.Type and auth.Entitlement.

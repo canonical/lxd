@@ -369,8 +369,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 	var canceler *cancel.HTTPRequestCanceller
 	if op != nil {
-		canceler = cancel.NewHTTPRequestCanceller()
-		op.SetCanceler(canceler)
+		canceler = cancel.NewHTTPRequestCancellerWithContext(ctx)
 	}
 
 	switch protocol {

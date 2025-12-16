@@ -60,6 +60,10 @@ import (
 //	    $ref: "#/responses/InternalServerError"
 func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	targetProjectName := request.ProjectParam(r)
 
@@ -136,13 +140,13 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Instance must be stopped to be rebuilt"))
 	}
 
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		if req.Source.Type == api.SourceTypeNone {
 			return instanceRebuildFromEmpty(inst, op)
 		}
 
 		if req.Source.Server != "" {
-			sourceImage, err = ensureDownloadedImageFitWithinBudget(r.Context(), s, op, *targetProject, sourceImageRef, req.Source, inst.Type().String())
+			sourceImage, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, *targetProject, sourceImageRef, req.Source, inst.Type().String())
 			if err != nil {
 				return err
 			}
@@ -152,7 +156,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 			return errors.New("Image not provided for instance rebuild")
 		}
 
-		return instanceRebuildFromImage(r.Context(), s, inst, sourceImage, op)
+		return instanceRebuildFromImage(ctx, s, inst, sourceImage, op)
 	}
 
 	resources := map[string][]api.URL{}
@@ -162,7 +166,15 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, targetProject.Name, operations.OperationClassTask, operationtype.InstanceRebuild, resources, nil, run, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: targetProject.Name,
+		Type:        operationtype.InstanceRebuild,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     run,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

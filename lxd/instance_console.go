@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -216,18 +217,18 @@ func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
 }
 
 // Do connects to the websocket and executes the operation.
-func (s *consoleWs) Do(_ *operations.Operation) error {
+func (s *consoleWs) Do(ctx context.Context, _ *operations.Operation) error {
 	switch s.protocol {
 	case instance.ConsoleTypeConsole:
-		return s.doConsole()
+		return s.doConsole(ctx)
 	case instance.ConsoleTypeVGA:
-		return s.doVGA()
+		return s.doVGA(ctx)
 	default:
 		return fmt.Errorf("Unknown protocol %q", s.protocol)
 	}
 }
 
-func (s *consoleWs) doConsole() error {
+func (s *consoleWs) doConsole(ctx context.Context) error {
 	defer logger.Debug("Console websocket finished")
 	<-s.allConnected
 
@@ -321,13 +322,14 @@ func (s *consoleWs) doConsole() error {
 		close(mirrorDoneCh)
 	}()
 
-	// Wait until either the console or the websocket is done.
+	// Wait until either the console, the websocket, or the operation context is done.
 	select {
 	case <-mirrorDoneCh:
-		close(consoleDisconnectCh)
 	case <-s.consoleDone.Done():
-		close(consoleDisconnectCh)
+	case <-ctx.Done():
 	}
+
+	close(consoleDisconnectCh)
 
 	// Get the console and control websockets.
 	s.connsLock.Lock()
@@ -360,7 +362,7 @@ func (s *consoleWs) doConsole() error {
 	return nil
 }
 
-func (s *consoleWs) doVGA() error {
+func (s *consoleWs) doVGA(ctx context.Context) error {
 	defer logger.Debug("VGA websocket finished")
 
 	// The control socket is used to terminate the operation.
@@ -385,8 +387,12 @@ func (s *consoleWs) doVGA() error {
 		}
 	}()
 
-	// Wait until the control channel is done.
-	<-s.consoleDone.Done()
+	// Wait until the control channel is done or the context is cancelled.
+	select {
+	case <-s.consoleDone.Done():
+	case <-ctx.Done():
+	}
+
 	s.connsLock.Lock()
 	control := s.conns[-1]
 	s.connsLock.Unlock()
@@ -439,6 +445,10 @@ func (s *consoleWs) doVGA() error {
 //	    $ref: "#/responses/InternalServerError"
 func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -541,7 +551,17 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.ConsoleShow, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.ConsoleShow,
+		Class:       operations.OperationClassWebsocket,
+		Resources:   resources,
+		Metadata:    ws.Metadata(),
+		RunHook:     ws.Do,
+		ConnectHook: ws.Connect,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

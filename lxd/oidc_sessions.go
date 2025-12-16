@@ -329,7 +329,7 @@ func pruneExpiredOIDCSessionsTask(stateFunc func() *state.State) (task.Func, tas
 			return
 		}
 
-		opRun := func(op *operations.Operation) error {
+		opRun := func(ctx context.Context, op *operations.Operation) error {
 			now := time.Now().UTC()
 			return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				sessions, err := dbCluster.GetAllOIDCSessions(ctx, tx.Tx())
@@ -356,7 +356,13 @@ func pruneExpiredOIDCSessionsTask(stateFunc func() *state.State) (task.Func, tas
 			})
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RemoveExpiredOIDCSessions, nil, nil, opRun, nil, nil)
+		args := operations.OperationArgs{
+			Type:    operationtype.RemoveExpiredOIDCSessions,
+			Class:   operations.OperationClassTask,
+			RunHook: opRun,
+		}
+
+		op, err := operations.CreateServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating remove expired OIDC sessions operation", logger.Ctx{"err": err})
 			return

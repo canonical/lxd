@@ -24,11 +24,17 @@ func expireLogsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		state := stateFunc()
 
-		opRun := func(op *operations.Operation) error {
+		opRun := func(ctx context.Context, op *operations.Operation) error {
 			return expireLogs(ctx, state)
 		}
 
-		op, err := operations.OperationCreate(context.Background(), state, "", operations.OperationClassTask, operationtype.LogsExpire, nil, nil, opRun, nil, nil)
+		args := operations.OperationArgs{
+			Type:    operationtype.LogsExpire,
+			Class:   operations.OperationClassTask,
+			RunHook: opRun,
+		}
+
+		op, err := operations.CreateServerOperation(state, args)
 		if err != nil {
 			logger.Error("Failed creating log files expiry operation", logger.Ctx{"err": err})
 			return

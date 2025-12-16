@@ -286,13 +286,14 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		_, err = op.Cancel()
+		err = op.Cancel()
 		if err != nil {
 			return response.BadRequest(err)
 		}
 
 		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(op, request.CreateRequestor(r.Context()), nil))
 
+		_ = op.Wait(r.Context())
 		return response.EmptySyncResponse
 	}
 
@@ -336,13 +337,14 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 	localOp, _ := operations.OperationGetInternal(op.ID)
 	if localOp != nil {
 		if localOp.Status() == api.Running {
-			_, err := localOp.Cancel()
+			err := localOp.Cancel()
 			if err != nil {
 				return fmt.Errorf("Failed to cancel local operation %q: %w", op.ID, err)
 			}
 		}
 
 		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(localOp, request.CreateRequestor(ctx), nil))
+		_ = localOp.Wait(ctx)
 
 		return nil
 	}
@@ -1228,11 +1230,17 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 			return
 		}
 
-		opRun := func(op *operations.Operation) error {
+		opRun := func(ctx context.Context, op *operations.Operation) error {
 			return autoRemoveOrphanedOperations(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil)
+		args := operations.OperationArgs{
+			Type:    operationtype.RemoveOrphanedOperations,
+			Class:   operations.OperationClassTask,
+			RunHook: opRun,
+		}
+
+		op, err := operations.CreateServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating remove orphaned operations operation", logger.Ctx{"err": err})
 			return
@@ -1301,9 +1309,14 @@ type operationWaitPost struct {
 
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
 func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Extract the entity URL and duration from the request.
 	req := operationWaitPost{}
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1339,9 +1352,14 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid operation type %q", req.OpType))
 	}
 
-	run := func(op *operations.Operation) error {
-		// Just sleep for the duration.
-		time.Sleep(duration)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		// Sleep for the duration, or until the run context is cancelled.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.Tick(duration):
+		}
+
 		return nil
 	}
 
@@ -1353,7 +1371,16 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	op, err := operations.OperationCreate(r.Context(), d.State(), request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, nil, run, nil, onConnect)
+	args := operations.OperationArgs{
+		ProjectName: request.QueryParam(r, "project"),
+		Type:        req.OpType,
+		Class:       req.OpClass,
+		Resources:   resources,
+		RunHook:     run,
+		ConnectHook: onConnect,
+	}
+
+	op, err := operations.CreateUserOperation(d.State(), requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

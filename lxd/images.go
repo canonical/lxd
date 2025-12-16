@@ -1314,7 +1314,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	isClusterNotification := requestor.IsClusterNotification()
 
 	// Begin background operation
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		var err error
 		var info *api.Image
 
@@ -1328,10 +1328,10 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			switch req.Source.Type {
 			case api.SourceTypeImage:
 				/* Processing image copy from remote */
-				info, err = imgPostRemoteInfo(r.Context(), s, req, op, dbProject.Name, budget)
+				info, err = imgPostRemoteInfo(ctx, s, req, op, dbProject.Name, budget)
 			case "url":
 				/* Processing image copy from URL */
-				info, err = imgPostURLInfo(r.Context(), s, req, op, dbProject.Name, budget)
+				info, err = imgPostURLInfo(ctx, s, req, op, dbProject.Name, budget)
 			default:
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
@@ -1376,7 +1376,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &dbProject.Name})
 			if err != nil {
 				return fmt.Errorf("Fetch image %q: %w", info.Fingerprint, err)
@@ -1405,7 +1405,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Sync the images between each node in the cluster on demand
-		err = imageSyncBetweenNodes(s.ShutdownCtx, s, r, dbProject.Name, info.Fingerprint)
+		err = imageSyncBetweenNodes(ctx, s, r, dbProject.Name, info.Fingerprint)
 		if err != nil {
 			return fmt.Errorf("Failed syncing image between nodes: %w", err)
 		}
@@ -1426,7 +1426,15 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	imageOp, err := operations.OperationCreate(r.Context(), s, dbProject.Name, operations.OperationClassTask, operationtype.ImageDownload, nil, metadata, run, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: dbProject.Name,
+		Type:        operationtype.ImageDownload,
+		Class:       operations.OperationClassTask,
+		Metadata:    metadata,
+		RunHook:     run,
+	}
+
+	imageOp, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		cleanup(builddir, post)
 		return response.InternalError(err)
@@ -1948,11 +1956,17 @@ func autoUpdateImagesTask(stateFunc func() *state.State) (task.Func, task.Schedu
 	f := func(ctx context.Context) {
 		s := stateFunc()
 
-		opRun := func(op *operations.Operation) error {
+		opRun := func(ctx context.Context, op *operations.Operation) error {
 			return autoUpdateImages(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ImagesUpdate, nil, nil, opRun, nil, nil)
+		args := operations.OperationArgs{
+			Type:    operationtype.ImagesUpdate,
+			Class:   operations.OperationClassTask,
+			RunHook: opRun,
+		}
+
+		op, err := operations.CreateServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating image update operation", logger.Ctx{"err": err})
 			return
@@ -2551,11 +2565,17 @@ func pruneExpiredImagesTask(stateFunc func() *state.State) (task.Func, task.Sche
 	f := func(ctx context.Context) {
 		s := stateFunc()
 
-		opRun := func(op *operations.Operation) error {
+		opRun := func(ctx context.Context, op *operations.Operation) error {
 			return pruneExpiredImages(ctx, s, op)
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ImagesExpire, nil, nil, opRun, nil, nil)
+		args := operations.OperationArgs{
+			Type:    operationtype.ImagesExpire,
+			Class:   operations.OperationClassTask,
+			RunHook: opRun,
+		}
+
+		op, err := operations.CreateServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating expired image prune operation", logger.Ctx{"err": err})
 			return
@@ -2621,11 +2641,11 @@ func pruneLeftoverImages(s *state.State) {
 		return pool.Driver().Info().VolumeMultiNode, nil
 	}
 
-	opRun := func(op *operations.Operation) error {
+	opRun := func(ctx context.Context, op *operations.Operation) error {
 		// Get all projects and images
 		var imagesOnNode map[string][]string
 		var projects []string
-		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			imagesOnNode, err = tx.GetImagesOnLocalNode(ctx)
 			if err != nil {
@@ -2699,7 +2719,13 @@ func pruneLeftoverImages(s *state.State) {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ImagesPruneLeftover, nil, nil, opRun, nil, nil)
+	args := operations.OperationArgs{
+		Type:    operationtype.ImagesPruneLeftover,
+		Class:   operations.OperationClassTask,
+		RunHook: opRun,
+	}
+
+	op, err := operations.CreateServerOperation(s, args)
 	if err != nil {
 		logger.Error("Failed creating leftover image clean up operation", logger.Ctx{"err": err})
 		return
@@ -2951,7 +2977,7 @@ func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imag
 	}
 
 	isClusterNotification := requestor.IsClusterNotification()
-	do := func(op *operations.Operation) error {
+	do := func(ctx context.Context, op *operations.Operation) error {
 		// Lock this operation to ensure that concurrent image operations don't conflict.
 		// Other operations will wait for this one to finish.
 		unlock, err := imageOperationLock(fingerprint)
@@ -2963,7 +2989,7 @@ func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imag
 
 		var exist bool
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check image still exists and another request hasn't removed it since we resolved the image
 			// fingerprint above.
 			exist, err = tx.ImageExists(ctx, projectName, fingerprint)
@@ -3105,7 +3131,15 @@ func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imag
 	resources := map[string][]api.URL{}
 	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", fingerprint)}
 
-	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.ImageDelete,
+		Class:       operations.OperationClassTask,
+		Resources:   resources,
+		RunHook:     do,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return nil, err
 	}
@@ -4568,6 +4602,10 @@ func imageExportFiles(ctx context.Context, s *state.State, imgInfo *api.Image, r
 //	    $ref: "#/responses/InternalServerError"
 func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
@@ -4599,7 +4637,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 
 	var imageCreateOp lxd.Operation
 
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		createArgs := &lxd.ImageCreateArgs{}
 		imageMetaPath := filepath.Join(s.ImagesStoragePath(projectName), details.imageFingerprintPrefix)
 		imageRootfsPath := imageMetaPath + ".rootfs"
@@ -4673,7 +4711,14 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.ImageDownload, nil, nil, run, nil, nil)
+	opArgs := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.ImageDownload,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, opArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4815,6 +4860,10 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 //	    $ref: "#/responses/InternalServerError"
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
@@ -4823,10 +4872,10 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Begin background operation
-	run := func(op *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		var nodes []db.NodeInfo
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			nodeAddresses, err := tx.GetNodesWithImageAndAutoUpdate(ctx, details.imageFingerprintPrefix, true)
 			if err != nil {
 				return fmt.Errorf("Failed getting cluster members with auto-update images: %w", err)
@@ -4847,20 +4896,20 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Error getting cluster members for refreshing image %q in project %q: %w", details.imageFingerprintPrefix, projectName, err)
 		}
 
-		newImage, err := autoUpdateImage(s.ShutdownCtx, s, op, details.imageID, &details.image, projectName, true)
+		newImage, err := autoUpdateImage(ctx, s, op, details.imageID, &details.image, projectName, true)
 		if err != nil {
 			return fmt.Errorf("Failed to update image %q in project %q: %w", details.imageFingerprintPrefix, projectName, err)
 		}
 
 		if newImage != nil {
 			if len(nodes) > 1 {
-				err := distributeImage(s.ShutdownCtx, s, nodes, details.imageFingerprintPrefix, newImage)
+				err := distributeImage(ctx, s, nodes, details.imageFingerprintPrefix, newImage)
 				if err != nil {
 					return fmt.Errorf("Failed to distribute new image %q: %w", newImage.Fingerprint, err)
 				}
 			}
 
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				// Remove the database entry for the image after distributing to cluster members.
 				return tx.DeleteImage(ctx, details.imageID)
 			})
@@ -4872,7 +4921,14 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		return err
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.ImageRefresh, nil, nil, run, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.ImageRefresh,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4901,11 +4957,17 @@ func autoSyncImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule
 			return
 		}
 
-		opRun := func(op *operations.Operation) error {
+		opRun := func(ctx context.Context, op *operations.Operation) error {
 			return autoSyncImages(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ImagesSynchronize, nil, nil, opRun, nil, nil)
+		args := operations.OperationArgs{
+			Type:    operationtype.ImagesSynchronize,
+			Class:   operations.OperationClassTask,
+			RunHook: opRun,
+		}
+
+		op, err := operations.CreateServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating image synchronization operation", logger.Ctx{"err": err})
 			return
@@ -5097,6 +5159,11 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 }
 
 func createTokenResponse(s *state.State, r *http.Request, projectName string, fingerprint string, metadata shared.Jmap) response.Response {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	secret, err := shared.RandomCryptoString()
 	if err != nil {
 		return response.InternalError(err)
@@ -5111,7 +5178,15 @@ func createTokenResponse(s *state.State, r *http.Request, projectName string, fi
 	resources := map[string][]api.URL{}
 	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", fingerprint)}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassToken, operationtype.ImageToken, resources, meta, nil, nil, nil)
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.ImageToken,
+		Class:       operations.OperationClassToken,
+		Resources:   resources,
+		Metadata:    meta,
+	}
+
+	op, err := operations.CreateUserOperation(s, requestor, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
