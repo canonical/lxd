@@ -736,7 +736,7 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return "", nil, fmt.Errorf("Get current raft nodes: %w", err)
+		return "", nil, fmt.Errorf("Failed getting current raft nodes: %w", err)
 	}
 
 	roles, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
