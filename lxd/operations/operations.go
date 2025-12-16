@@ -564,34 +564,6 @@ func (op *Operation) Wait(ctx context.Context) error {
 	}
 }
 
-// UpdateResources updates the resources of the operation. It returns an error
-// if the operation is not pending or running, or the operation is read-only.
-func (op *Operation) UpdateResources(opResources map[string][]api.URL) error {
-	op.lock.Lock()
-	if op.status != api.Pending && op.status != api.Running {
-		op.lock.Unlock()
-		return errors.New("Only pending or running operations can be updated")
-	}
-
-	if op.readonly {
-		op.lock.Unlock()
-		return errors.New("Read-only operations can't be updated")
-	}
-
-	op.updatedAt = time.Now()
-	op.resources = opResources
-	op.lock.Unlock()
-
-	op.logger.Debug("Updated resources for oeration")
-	_, md, _ := op.Render()
-
-	op.lock.Lock()
-	op.sendEvent(md)
-	op.lock.Unlock()
-
-	return nil
-}
-
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateMetadata(opMetadata any) error {
