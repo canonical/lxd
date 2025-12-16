@@ -19,44 +19,44 @@ import (
 var _ = api.ServerEnvironment{}
 
 var operationObjects = RegisterStmt(`
-SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.reference, coalesce(nodes.address, '') AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status, operations.error, operations.parent, operations.stage
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
+  LEFT JOIN nodes ON operations.node_id = nodes.id
   ORDER BY operations.id, operations.reference
 `)
 
 var operationObjectsByNodeID = RegisterStmt(`
-SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.reference, coalesce(nodes.address, '') AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status, operations.error, operations.parent, operations.stage
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
+  LEFT JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.node_id = ? )
   ORDER BY operations.id, operations.reference
 `)
 
 var operationObjectsByID = RegisterStmt(`
-SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.reference, coalesce(nodes.address, '') AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status, operations.error, operations.parent, operations.stage
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
+  LEFT JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.id = ? )
   ORDER BY operations.id, operations.reference
 `)
 
 var operationObjectsByReference = RegisterStmt(`
-SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.reference, coalesce(nodes.address, '') AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status, operations.error, operations.parent, operations.stage
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
+  LEFT JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.reference = ? )
   ORDER BY operations.id, operations.reference
 `)
 
 var operationCreate = RegisterStmt(`
-INSERT INTO operations (reference, project_id, node_id, type)
-  VALUES (?, ?, ?, ?)
+INSERT INTO operations (reference, project_id, node_id, type, requestor_protocol, requestor_identity_id, entity_id, class, created_at, updated_at, inputs, status, error, parent, stage)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
 var operationCreateOrReplace = RegisterStmt(`
-INSERT OR REPLACE INTO operations (reference, project_id, node_id, type)
- VALUES (?, ?, ?, ?)
+INSERT OR REPLACE INTO operations (reference, project_id, node_id, type, requestor_protocol, requestor_identity_id, entity_id, class, created_at, updated_at, inputs, status, error, parent, stage)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
 var operationDeleteByReference = RegisterStmt(`
@@ -73,7 +73,7 @@ func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operatio
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.Reference, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.Reference, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.Error, &o.Parent, &o.Stage)
 		if err != nil {
 			return err
 		}
@@ -97,7 +97,7 @@ func getOperationsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) 
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.Reference, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.Reference, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.Error, &o.Parent, &o.Stage)
 		if err != nil {
 			return err
 		}
@@ -233,13 +233,24 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 // CreateOperation adds a new operation to the database.
 // generator: operation Create
 func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
-	args := make([]any, 4)
+	args := make([]any, 15)
 
 	// Populate the statement arguments.
 	args[0] = object.Reference
 	args[1] = object.ProjectID
 	args[2] = object.NodeID
 	args[3] = object.Type
+	args[4] = object.RequestorProtocol
+	args[5] = object.RequestorIdentityID
+	args[6] = object.EntityID
+	args[7] = object.Class
+	args[8] = object.CreatedAt
+	args[9] = object.UpdatedAt
+	args[10] = object.Inputs
+	args[11] = object.Status
+	args[12] = object.Error
+	args[13] = object.Parent
+	args[14] = object.Stage
 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreate)
@@ -268,13 +279,24 @@ func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, 
 // CreateOrReplaceOperation adds a new operation to the database.
 // generator: operation CreateOrReplace
 func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
-	args := make([]any, 4)
+	args := make([]any, 15)
 
 	// Populate the statement arguments.
 	args[0] = object.Reference
 	args[1] = object.ProjectID
 	args[2] = object.NodeID
 	args[3] = object.Type
+	args[4] = object.RequestorProtocol
+	args[5] = object.RequestorIdentityID
+	args[6] = object.EntityID
+	args[7] = object.Class
+	args[8] = object.CreatedAt
+	args[9] = object.UpdatedAt
+	args[10] = object.Inputs
+	args[11] = object.Status
+	args[12] = object.Error
+	args[13] = object.Parent
+	args[14] = object.Stage
 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreateOrReplace)

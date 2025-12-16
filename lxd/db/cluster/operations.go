@@ -3,6 +3,8 @@
 package cluster
 
 import (
+	"time"
+
 	"github.com/canonical/lxd/lxd/db/operationtype"
 )
 
@@ -31,12 +33,23 @@ import (
 // Operation holds information about a single LXD operation running on a node
 // in the cluster.
 type Operation struct {
-	ID          int64              `db:"primary=yes"`                                      // Stable database identifier
-	Reference   string             `db:"primary=yes"`                                      // User-visible identifier, such as uuid
-	NodeAddress string             `db:"join=nodes.address&omit=create,create-or-replace"` // Address of the node the operation is running on
-	ProjectID   *int64             // ID of the project for the operation.
-	NodeID      int64              // ID of the node the operation is running on
-	Type        operationtype.Type // Type of the operation
+	ID                  int64              `db:"primary=yes"`                                                      // Stable database identifier
+	Reference           string             `db:"primary=yes"`                                                      // User-visible identifier, such as uuid
+	NodeAddress         string             `db:"coalesce=''&leftjoin=nodes.address&omit=create,create-or-replace"` // Address of the node the operation is running on
+	ProjectID           *int64             // ID of the project for the operation.
+	NodeID              int64              // ID of the node the operation is running on
+	Type                operationtype.Type // Type of the operation
+	RequestorProtocol   string             // Protocol from the operation requestor
+	RequestorIdentityID *int64             // Identity ID from the operation requestor
+	EntityID            *int               // ID of the entity the operation acts upon
+	Class               int64              // Class of the operation
+	CreatedAt           time.Time          // Time the operation was created
+	UpdatedAt           time.Time          // Time when the state or the metadata of the operation were last updated
+	Inputs              string             // JSON encoded inputs for the operation
+	Status              int64              // Status code of the operation
+	Error               *string            // Error message if the operation failed
+	Parent              *int64             // Parent operation ID. This is used for sub-operations of other operations.
+	Stage               *int64             // Stage of the operation
 }
 
 // OperationFilter specifies potential query parameter fields.
