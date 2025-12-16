@@ -37,7 +37,7 @@ func (c *ClusterTx) GetOperationsOfType(ctx context.Context, projectName string,
 	var ops []cluster.Operation
 
 	stmt := `
-SELECT operations.id, operations.uuid, operations.type, nodes.address
+SELECT operations.id, operations.reference, operations.type, nodes.address
   FROM operations
   LEFT JOIN projects on projects.id = operations.project_id
   JOIN nodes on nodes.id = operations.node_id

@@ -16,7 +16,7 @@ func (e entityTypeOperation) code() int64 {
 
 func (e entityTypeOperation) allURLsQuery() string {
 	return fmt.Sprintf(`
-SELECT %d, operations.id, coalesce(projects.name, ''), '', json_array(operations.uuid) 
+SELECT %d, operations.id, coalesce(projects.name, ''), '', json_array(operations.reference)
 FROM operations 
 LEFT JOIN projects ON operations.project_id = projects.id`, e.code())
 }
@@ -36,7 +36,7 @@ FROM operations
 LEFT JOIN projects ON operations.project_id = projects.id 
 WHERE coalesce(projects.name, '') = ? 
 	AND '' = ? 
-	AND operations.uuid = ?`
+	AND operations.reference = ?`
 }
 
 func (e entityTypeOperation) onDeleteTriggerSQL() (name string, sql string) {
