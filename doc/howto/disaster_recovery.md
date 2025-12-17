@@ -47,9 +47,37 @@ This is how a recovery process could look.
 We start by adding the `default` pool we still know about. On this pool we expect an instance `v1` which might use volumes from others unknown pools:
 
 ```{terminal}
-lxc storage create default zfs source=/dev/sdb zfs.pool_name=default source.recover=true
+lxd recover
 
-Storage pool default created
+This LXD server currently has the following storage pools:
+Would you like to recover another storage pool? (yes/no) [default=no]: yes
+Name of the storage pool: default
+Name of the storage backend (btrfs, ceph, cephfs, cephobject, dir, lvm, zfs): zfs
+Source of the storage pool (block device, volume group, dataset, path, ... as applicable): /var/snap/lxd/common/lxd/storage-pools/default/containers
+Additional storage pool configuration property (KEY=VALUE, empty when done): zfs.pool_name=default
+Additional storage pool configuration property (KEY=VALUE, empty when done):
+Would you like to recover another storage pool? (yes/no) [default=no]:
+The recovery process will be scanning the following storage pools:
+ - NEW: "default" (backend="zfs", source="/var/snap/lxd/common/lxd/storage-pools/default/containers")
+Would you like to continue with scanning for lost volumes? (yes/no) [default=yes]: yes
+Scanning for unknown volumes...
+The following unknown volumes have been found:
+ - Container "u1" on pool "default" in project "default" (includes 0 snapshots)
+ - Container "u2" on pool "default" in project "default" (includes 0 snapshots)
+You are currently missing the following:
+ - Network "lxdbr0" in project "default"
+Please create those missing entries and then hit ENTER: ^Z
+[1]+  Stopped                 lxd recover
+```
+
+```{terminal}
+lxc network create lxdbr0
+
+Network lxdbr0 created
+```
+
+```{terminal}
+fg
 ```
 
 ```{terminal}
@@ -132,15 +160,13 @@ Starting recovery...
 ```{terminal}
 lxc list
 
-+------+---------+------+------+-----------------+-----------+
-| NAME |  STATE  | IPV4 | IPV6 |      TYPE       | SNAPSHOTS |
-+------+---------+------+------+-----------------+-----------+
-| u1   | STOPPED |      |      | CONTAINER       | 0         |
-+------+---------+------+------+-----------------+-----------+
-| u2   | STOPPED |      |      | CONTAINER       | 0         |
-+------+---------+------+------+-----------------+-----------+
-| v1   | STOPPED |      |      | VIRTUAL-MACHINE | 0         |
-+------+---------+------+------+-----------------+-----------+
++------+---------+------+------+-----------+-----------+
+| NAME |  STATE  | IPV4 | IPV6 |   TYPE    | SNAPSHOTS |
++------+---------+------+------+-----------+-----------+
+| u1   | STOPPED |      |      | CONTAINER | 0         |
++------+---------+------+------+-----------+-----------+
+| u2   | STOPPED |      |      | CONTAINER | 0         |
++------+---------+------+------+-----------+-----------+
 ```
 
 ```{terminal}
@@ -156,13 +182,11 @@ lxc start u1
 ```{terminal}
 lxc list
 
-+------+---------+----------------------+-----------------------------------------------+-----------------+-----------+
-| NAME |  STATE  |         IPV4         |                     IPV6                      |      TYPE       | SNAPSHOTS |
-+------+---------+----------------------+-----------------------------------------------+-----------------+-----------+
-| u1   | RUNNING | 192.0.2.2 (eth0)     | 2001:db8:cff3:5089:216:3eff:fef0:549f (eth0)  | CONTAINER       | 0         |
-+------+---------+----------------------+-----------------------------------------------+-----------------+-----------+
-| u2   | STOPPED |                      |                                               | CONTAINER       | 0         |
-+------+---------+----------------------+-----------------------------------------------+-----------------+-----------+
-| v1   | STOPPED |                      |                                               | VIRTUAL-MACHINE | 0         |
-+------+---------+----------------------+-----------------------------------------------+-----------------+-----------+
++------+---------+-------------------+---------------------------------------------+-----------+-----------+
+| NAME |  STATE  |       IPV4        |                    IPV6                     |   TYPE    | SNAPSHOTS |
++------+---------+-------------------+---------------------------------------------+-----------+-----------+
+| u1   | RUNNING | 192.0.2.49 (eth0) | 2001:db8:8b6:abfe:216:3eff:fe82:918e (eth0) | CONTAINER | 0         |
++------+---------+-------------------+---------------------------------------------+-----------+-----------+
+| u2   | STOPPED |                   |                                             | CONTAINER | 0         |
++------+---------+-------------------+---------------------------------------------+-----------+-----------+
 ```

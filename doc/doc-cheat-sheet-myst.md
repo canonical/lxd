@@ -252,10 +252,6 @@ the input command
 the output
 ```
 
-For more information, see the [`sphinx-terminal` README](https://github.com/canonical/sphinx-terminal/blob/main/README.md).
-
-### YouTube links
-
 A link to a YouTube video:
 
 ```{youtube} https://www.youtube.com/watch?v=iMLiK1fX4I0
