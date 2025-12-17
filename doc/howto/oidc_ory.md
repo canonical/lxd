@@ -5,7 +5,7 @@ Ory Hydra is an easy solution to authenticate users for the LXD UI. It supports 
 
 ## Using Ory Hydra to access LXD UI
 
-1. Open a free account on [Ory.sh/Hydra](https://www.ory.sh/hydra/).
+1. Open a free account on [Ory.sh/Hydra](https://www.ory.com/hydra).
 
 1. Once logged into the Ory Console, navigate to {guilabel}`OAuth 2` > {guilabel}`OAuth2 Clients` > {guilabel}`Create OAuth2 Client`.
 
@@ -29,6 +29,6 @@ Ory Hydra is an easy solution to authenticate users for the LXD UI. It supports 
 
 Now you can access the LXD UI with any browser and use {abbr}`SSO (single sign-on)` login.
 
-No users exist within ORY by default. New users can use the sign-up link during login. Alternatively, configure Google, Facebook, Microsoft, GitHub, Apple, or another social sign-in provider as described in the [ORY documentation](https://www.ory.sh/docs/kratos/social-signin/overview).
+No users exist within ORY by default. New users can use the sign-up link during login. Alternatively, configure Google, Facebook, Microsoft, GitHub, Apple, or another social sign-in provider as described in the [ORY documentation](https://www.ory.com/docs/kratos/social-signin/overview).
 
 Users authenticated through ORY have no default permissions in the LXD UI. Set up {ref}`LXD authorization groups <manage-permissions>` to grant access to projects and instances and map a LXD authorization group to the user. Note that the user object in LXD is only created on the first login of that user to LXD.
