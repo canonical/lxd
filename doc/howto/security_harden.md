@@ -229,7 +229,7 @@ To harden your deployment, also harden the host's operating system (OS). These a
 (howto-security-harden-cis)=
 ### Ubuntu CIS hardening
 
-For Ubuntu LTS releases subscribed to Ubuntu Pro, use the [Ubuntu Security Guide (USG)](https://documentation.ubuntu.com/security/docs/compliance/usg/) tool for CIS hardening. The tool can audit the host system and fix many issues automatically. Depending on how your system is configured, there might be other issues that you must remediate manually.
+For Ubuntu LTS releases subscribed to Ubuntu Pro, use the [Ubuntu Security Guide (USG)](https://documentation.ubuntu.com/security/compliance/usg/) tool for CIS hardening. The tool can audit the host system and fix many issues automatically. Depending on how your system is configured, there might be other issues that you must remediate manually.
 
 There are known issues with three of the auditing tool's rule IDs when auditing LXD hosts with the `cis_level1_server` profile. One is that it generates a false failure report for the following rule ID, flagging that no UEFI boot loader password is set even when it is:
 
@@ -248,7 +248,7 @@ xccdf_org.ssgproject.content_rule_file_permissions_ungroupowned
 
 By design, LXD's unprivileged containers run inside a user namespace for greater isolation. This causes some files and directories under `/sys/fs/cgroup/lxc.payload.<container_name>` to appear as having no owner. Since this is expected, the USG tool's failure report for this can be ignored.
 
-You can the customize the tool's CIS profile to always ignore these three rule IDs. To do so, follow the instructions in the [Customizing CIS profiles](https://documentation.ubuntu.com/security/docs/compliance/usg/cis-customize/) section of the Ubuntu security documentation.
+You can customize the tool's CIS profile to always ignore these three rule IDs. To do so, follow the instructions in the [Customizing CIS profiles](https://documentation.ubuntu.com/security/compliance/usg/cis-customize/) section of the Ubuntu security documentation.
 
 ## Related topics
 
