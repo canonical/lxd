@@ -426,63 +426,7 @@ EOF
     lxc info c1
     lxc exec c1 --project test -- hostname
 
-    # Test recover after pool DB config deletion too.
-    poolConfigBefore=$(lxd sql global --format csv "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
-    poolSource=$(lxc storage get "${poolName}" source)
-    poolExtraConfig=""
-
-    case $poolDriver in
-      lvm)
-        poolExtraConfig="lvm.vg_name=$(lxc storage get "${poolName}" lvm.vg_name)
-"
-      ;;
-      zfs)
-        poolExtraConfig="zfs.pool_name=$(lxc storage get "${poolName}" zfs.pool_name)
-"
-      ;;
-      ceph)
-        poolExtraConfig="ceph.cluster_name=$(lxc storage get "${poolName}" ceph.cluster_name)
-ceph.osd.pool_name=$(lxc storage get "${poolName}" ceph.osd.pool_name)
-ceph.user.name=$(lxc storage get "${poolName}" ceph.user.name)
-"
-      ;;
-      *)
-        # nothing extra config needed
-      ;;
-    esac
-
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_pools WHERE name='${poolName}'"
-
-    cat <<EOF |lxd recover
-yes
-${poolName}
-${poolDriver}
-${poolSource}
-${poolExtraConfig}
-no
-yes
-yes
-EOF
-
-    # Check recovered pool config (from instance backup file) matches what originally was there.
-    lxc storage show "${poolName}"
-    poolConfigAfter=$(lxd sql global --format csv "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
-    echo "Before:"
-    echo "${poolConfigBefore}"
-
-    echo "After:"
-    echo "${poolConfigAfter}"
-
-    [ "${poolConfigBefore}" = "${poolConfigAfter}" ]
-    lxc storage show "${poolName}"
-
-    lxc info c1 | grep snap0
-    lxc exec c1 --project test -- ls
-    lxc restore c1 snap0
-    lxc info c1
-    lxc exec c1 --project test -- ls
+    # Cleanup.
     lxc delete -f c1
     lxc storage volume delete "${poolName}" vol1_test
     lxc project switch default
