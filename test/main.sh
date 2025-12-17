@@ -264,9 +264,6 @@ trap cleanup EXIT HUP INT TERM
 # Import all the testsuites
 import_subdir_files suites
 
-# Setup test directory
-TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
-chmod +x "${TEST_DIR}"
 
 # Verify the dir chain is accessible for other users (other's execute bit has to be `x` or `t` (sticky))
 # This is to catch if `sudo chmod +x ~` was not run and the TEST_DIR is under `~`
@@ -384,7 +381,29 @@ if ldd "${_LXC}" | grep -F liblxc; then
 fi
 
 # Only spawn a new LXD if not done yet.
-if [ -z "${LXD_DIR:-}" ]; then
+spawn_initial_lxd() {
+    install_storage_driver_tools
+
+    # Setup test directory
+    TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
+    chmod +x "${TEST_DIR}"
+
+    # Verify the dir chain is accessible for other users (other's execute bit has to be `x` or `t` (sticky))
+    # This is to catch if `sudo chmod +x ~` was not run and the TEST_DIR is under `~`
+    INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {if ($1 !~ "^d.*[xt]$") print $2}')"
+    if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
+        echo "Some directories are not accessible by other users" >&2
+        namei -m "${TEST_DIR}"
+        exit 1
+    fi
+
+    echo "==> Available storage backends: $(available_storage_backends | sort)"
+    if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
+    echo "Storage backend \"$LXD_BACKEND\" is not available"
+    exit 1
+    fi
+    echo "==> Using storage backend ${LXD_BACKEND}"
+
     if [ "${LXD_TMPFS:-0}" = "1" ]; then
       mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=8G
     fi
@@ -400,9 +419,9 @@ if [ -z "${LXD_DIR:-}" ]; then
     export LXD_DIR
     chmod +x "${LXD_DIR}"
     spawn_lxd "${LXD_DIR}" true
-    LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
+    LXD_ADDR="$(< "${LXD_DIR}/lxd.addr")"
     export LXD_ADDR
-fi
+}
 
 export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 
@@ -421,6 +440,7 @@ export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_D
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
 if [ "${1:-"all"}" = "test-shell" ]; then
+  spawn_initial_lxd
   bash --rcfile test-shell.bashrc || true
   TEST_CURRENT="test-shell"
   TEST_CURRENT_DESCRIPTION="n/a"
