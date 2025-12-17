@@ -401,15 +401,14 @@ run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1#test_}}
   TEST_UNMET_REQUIREMENT=""
-  cwd="${PWD}"
 
   if [ "${RUN_COUNT:-0}" -ne 0 ] && [ "${LXD_REPEAT_TESTS:-1}" -ne 1 ]; then
     TEST_CURRENT_DESCRIPTION="${TEST_CURRENT_DESCRIPTION} (${RUN_COUNT}/${LXD_REPEAT_TESTS})"
   fi
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
-  START_TIME=$(date +%s.%N)
-
+  local DURATION="-1"  # Set default duration to -1 (indicating not run)
+  local cwd="${PWD}"
   local skip=false
 
   # Skip test if requested.
@@ -444,8 +443,16 @@ run_test() {
         false
       fi
 
+      local START_TIME END_TIME
+
+      START_TIME="$(date +%s.%2N)"
+      readonly START_TIME
+
       # Run test.
       ${TEST_CURRENT}
+
+      END_TIME="$(date +%s.%2N)"
+      DURATION=$(awk "BEGIN {printf \"%.2f\", ${END_TIME} - ${START_TIME}}")
 
       # Check for any core dump after running the test
       if ! check_coredumps; then
@@ -455,6 +462,7 @@ run_test() {
 
     # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
     if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
+      DURATION="-1"
       if [ -n "${LXD_REQUIRED_TESTS:-}" ]; then
         for testName in ${LXD_REQUIRED_TESTS}; do
           if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
@@ -469,13 +477,10 @@ run_test() {
     fi
   fi
 
-  END_TIME=$(date +%s.%N)
-  DURATION=$(awk "BEGIN {printf \"%.2f\", ${END_TIME} - ${START_TIME}}")
-  durations["${TEST_CURRENT#test_},${LXD_BACKEND}"]="${DURATION}"
-  cd "${cwd}"
-
   # output duration in blue
   echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION}s\033[0m)"
+  durations["${TEST_CURRENT#test_},${LXD_BACKEND}"]="${DURATION}"
+  cd "${cwd}"
 }
 
 # Preflight check
