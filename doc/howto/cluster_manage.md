@@ -5,7 +5,7 @@ discourse: lxc:[Cluster&#32;member&#32;evacuation](11330)
 (cluster-manage)=
 # How to manage a cluster
 
-After your cluster is formed, use [`lxc cluster list`](lxc_cluster_list.md) to see a list of its members and their status:
+After your cluster is formed, use [`lxc cluster list`](lxc_cluster_list.md) to see a list of its members and their status. Example output:
 
 ```{terminal}
 :input: lxc cluster list
