@@ -367,7 +367,6 @@ run_test() {
           if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
               echo "==> REQUIRED: ${TEST_CURRENT} ${TEST_UNMET_REQUIREMENT}"
               false
-              return
           fi
         done
       else
