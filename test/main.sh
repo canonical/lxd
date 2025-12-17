@@ -166,10 +166,26 @@ readonly MAIN_DIR="${PWD}"
 export MAIN_DIR
 export LXD_BACKEND="${LXD_BACKEND:-"dir"}"
 
+# Support multiple backends selection
+LXD_BACKENDS="${LXD_BACKENDS:-"${LXD_BACKEND}"}"
+if [ "${LXD_BACKENDS}" = "all" ]; then
+  LXD_BACKENDS="btrfs ceph dir lvm zfs random"
+elif [ "${LXD_BACKENDS}" = "fasts" ]; then
+  LXD_BACKENDS="btrfs dir"
+elif [ "${LXD_BACKENDS}" = "fast" ]; then
+  # Pick one of btrfs or dir
+  LXD_BACKENDS="btrfs"
+  if [ $(( "${GITHUB_RUN_ID:-"${RANDOM}"}" % 2 )) -eq 0 ]; then
+    LXD_BACKENDS="dir"
+  fi
+  echo "::notice::fast backend=${LXD_BACKENDS}"
+fi
+readonly LXD_BACKENDS
+
 import_subdir_files includes
 
-# Install needed storage driver tools
-install_storage_driver_tools
+# Import all storage backends once
+import_storage_backends
 
 # Install needed instance drivers
 install_instance_drivers
@@ -209,19 +225,6 @@ check_coredumps() {
 
   return 0
 }
-
-echo "==> Available storage backends: $(available_storage_backends | sort)"
-if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
-  if [ "${LXD_BACKEND}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
-    echo "Ceph storage backend requires that \"LXD_CEPH_CLUSTER\" be set."
-    exit 1
-  fi
-  echo "Storage backend \"$LXD_BACKEND\" is not available"
-  exit 1
-fi
-echo "==> Using storage backend ${LXD_BACKEND}"
-
-import_storage_backends
 
 cleanup() {
   # Stop tracing everything
@@ -303,14 +306,13 @@ cleanup() {
   echo ""
   echo ""
   if [ "${TEST_RESULT}" != "success" ]; then
-    echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
+    echo "==> FAILED TEST: ${TEST_CURRENT#test_}"
   fi
   echo "==> Test result: ${TEST_RESULT}"
 }
 
 # Must be set before cleanup()
 TEST_CURRENT=setup
-TEST_CURRENT_DESCRIPTION=setup
 # shellcheck disable=SC2034
 TEST_RESULT=failure
 
@@ -395,11 +397,31 @@ trap cleanup EXIT HUP INT TERM
 # Import all the testsuites
 import_subdir_files suites
 
+# Run all tests in a group
+run_test_group() {
+    local -n group_ref="test_group_${1}"
+    local SHUF='cat'
+    [ "${LXD_RANDOMIZE_TESTS:-0}" = "1" ] && SHUF='shuf'
 
+    for t in $(printf '%s\n' "${group_ref[@]}" | "${SHUF}"); do
+      run_test_n_times "${t}"
+    done
+}
 
+# Run a test multiple times
+run_test_n_times() {
+  local name="${1}"
+  local iterCount=1
+  while [ "${iterCount}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
+    run_test "test_${name}"
+    iterCount=$((iterCount + 1))
+  done
+}
+
+# Run a single test
 run_test() {
   TEST_CURRENT=${1}
-  TEST_CURRENT_DESCRIPTION=${2:-${1#test_}}
+  TEST_CURRENT_DESCRIPTION="${TEST_CURRENT#test_} on ${LXD_BACKEND}"
   TEST_UNMET_REQUIREMENT=""
 
   if [ "${RUN_COUNT:-0}" -ne 0 ] && [ "${LXD_REPEAT_TESTS:-1}" -ne 1 ]; then
@@ -538,7 +560,6 @@ if [ "${1:-"all"}" = "test-shell" ]; then
   spawn_initial_lxd
   bash --rcfile test-shell.bashrc || true
   TEST_CURRENT="test-shell"
-  TEST_CURRENT_DESCRIPTION="n/a"
   TEST_RESULT=success
   exit 0
 fi
@@ -547,247 +568,39 @@ if [ -n "${SHELL_TRACING:-}" ]; then
   set -x
 fi
 
-# allow for running a specific set of tests possibly multiple times
-if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "snap" ] && [ "$1" != "standalone" ]; then
-  for t in "${@}"; do
-    RUN_COUNT=1
-    while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
-      run_test "test_${t}"
-      RUN_COUNT="$((RUN_COUNT+1))"
-    done
-    shift
+# If no args, default to group:all
+if [ "$#" -eq 0 ]; then
+  set -- "group:all"
+fi
+
+# Run tests against all requested backends
+for LXD_BACKEND in ${LXD_BACKENDS}; do
+  spawn_initial_lxd
+
+  for arg in "$@"; do
+    if [[ "${arg}" == group:* ]]; then
+      group_name="${arg#group:}"
+      declare -p test_group_"${group_name}" >/dev/null 2>&1 || {
+        echo "Unknown test group: ${group_name}" >&2
+        exit 1
+      }
+      run_test_group "${group_name}"
+    else
+      declare -f "test_${arg}" >/dev/null 2>&1 || {
+        echo "Unknown test: test_${arg}" >&2
+        exit 1
+      }
+      run_test_n_times "${arg}"
+    fi
   done
-  # shellcheck disable=SC2034
+
   TEST_RESULT=success
-  exit
-fi
 
-if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
-    run_test test_clustering_enable "clustering enable"
-    run_test test_clustering_edit_configuration "clustering config edit"
-    run_test test_clustering_membership "clustering membership"
-    run_test test_clustering_roles "clustering roles"
-    run_test test_clustering_containers "clustering containers"
-    run_test test_clustering_storage "clustering storage"
-    run_test test_clustering_storage_single_node "clustering storage single node"
-    run_test test_clustering_network "clustering network"
-    run_test test_clustering_publish "clustering publish"
-    run_test test_clustering_profiles "clustering profiles"
-    run_test test_clustering_projects_force_delete "clustering projects force delete"
-    run_test test_clustering_join_api "clustering join api"
-    run_test test_clustering_shutdown_nodes "clustering shutdown"
-    run_test test_clustering_projects "clustering projects"
-    run_test test_clustering_metrics "clustering metrics"
-    run_test test_clustering_update_cert "clustering update cert"
-    run_test test_clustering_update_cert_reversion "clustering update cert reversion"
-    run_test test_clustering_update_cert_token "clustering update cert token"
-    run_test test_clustering_address "clustering address"
-    run_test test_clustering_image_replication "clustering image replication"
-    run_test test_clustering_dns "clustering DNS"
-    run_test test_clustering_fan "clustering FAN"
-    run_test test_clustering_recover "clustering recovery"
-    run_test test_clustering_ha "clustering high availability"
-    run_test test_clustering_handover "clustering handover"
-    run_test test_clustering_rebalance "clustering rebalance"
-    run_test test_clustering_rebalance_remove_leader "clustering rebalance remove leader"
-    run_test test_clustering_remove_raft_node "clustering remove raft node"
-    run_test test_clustering_failure_domains "clustering failure domains"
-    run_test test_clustering_image_refresh "clustering image refresh"
-    run_test test_clustering_evacuation "clustering evacuation"
-    run_test test_clustering_evacuation_restore_operations "clustering evacuation/restore operations"
-    run_test test_clustering_move "clustering move"
-    run_test test_clustering_remove_members "clustering config remove members"
-    run_test test_clustering_autotarget "clustering autotarget member"
-    run_test test_clustering_upgrade "clustering upgrade"
-    run_test test_clustering_upgrade_large "clustering upgrade_large"
-    run_test test_clustering_downgrade "clustering downgrade"
-    run_test test_clustering_groups "clustering groups"
-    run_test test_clustering_events "clustering events"
-    run_test test_clustering_uuid "clustering uuid"
-    run_test test_clustering_trust_add "clustering trust add"
-    run_test test_clustering_waitready "clustering waitready"
-    run_test test_clustering_heal_networks_stop "clustering heal networks stop"
-    run_test test_clustering_placement_groups "clustering placement groups"
-    run_test test_clustering_force_removal "clustering force removal"
-    run_test test_clustering_recovery "clustering recovery"
-fi
+  cleanup
+done
 
-if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
-    #run_test test_concurrent "concurrent startup" # Disabled as flaky.
-    run_test test_alias "test alias commands"
-    run_test test_concurrent_exec "concurrent exec"
-    run_test test_database_restore "database restore"
-    run_test test_database_no_disk_space "database out of disk space"
-    run_test test_sql "lxd sql"
-    run_test test_tls_restrictions "TLS restrictions"
-    run_test test_tls_version "TLS version"
-    run_test test_completions "CLI completions"
-    run_test test_oidc "OpenID Connect"
-    run_test test_authorization "Authorization"
-    run_test test_certificate_edit "Certificate edit"
-    run_test test_basic_usage "basic usage"
-    run_test test_duplicate_detection "duplicate detection"
-    run_test test_basic_version "basic version"
-    run_test test_server_info "server info"
-    run_test test_remote_url "remote url handling"
-    run_test test_remote_url_with_token "remote token handling"
-    run_test test_remote_admin "remote administration"
-    run_test test_remote_usage "remote usage"
-    run_test test_projects_default "default project"
-    run_test test_projects_copy "copy/move between projects"
-    run_test test_projects_crud "projects CRUD operations"
-    run_test test_projects_containers "containers inside projects"
-    run_test test_projects_snapshots "snapshots inside projects"
-    run_test test_projects_backups "backups inside projects"
-    run_test test_projects_profiles "profiles inside projects"
-    run_test test_projects_profiles_default "profiles from the global default project"
-    run_test test_projects_images "images inside projects"
-    run_test test_projects_images_default "images from the global default project"
-    run_test test_projects_storage "projects and storage pools"
-    run_test test_projects_network "projects and networks"
-    run_test test_projects_limits "projects limits"
-    run_test test_projects_usage "projects usage"
-    run_test test_projects_yaml "projects with yaml initialization"
-    run_test test_projects_before_init "project operations before init"
-    run_test test_projects_restrictions "projects restrictions"
-    run_test test_projects_images_volume "projects images volume"
-    run_test test_projects_backups_volume "projects backups volume"
-    run_test test_projects_force_delete "projects force delete"
-    run_test test_container_devices_disk "container devices - disk"
-    run_test test_container_devices_disk_restricted "container devices - disk - restricted"
-    run_test test_container_devices_nic_p2p "container devices - nic - p2p"
-    run_test test_container_devices_nic_bridged "container devices - nic - bridged"
-    run_test test_container_devices_nic_bridged_acl "container devices - nic - bridged - acl"
-    run_test test_container_devices_nic_bridged_filtering "container devices - nic - bridged - filtering"
-    run_test test_container_devices_nic_bridged_vlan "container devices - nic - bridged - vlan"
-    run_test test_container_devices_nic_physical "container devices - nic - physical"
-    run_test test_container_devices_nic_macvlan "container devices - nic - macvlan"
-    run_test test_container_devices_nic_ipvlan "container devices - nic - ipvlan"
-    run_test test_container_devices_nic_sriov "container devices - nic - sriov"
-    run_test test_container_devices_nic_routed "container devices - nic - routed"
-    run_test test_container_devices_none "container devices - none"
-    run_test test_container_devices_infiniband_physical "container devices - infiniband - physical"
-    run_test test_container_devices_infiniband_sriov "container devices - infiniband - sriov"
-    run_test test_container_devices_proxy "container devices - proxy"
-    run_test test_container_devices_gpu "container devices - gpu"
-    run_test test_container_devices_unix "container devices - unix"
-    run_test test_container_devices_tpm "container devices - tpm"
-    run_test test_container_move "container server-side move"
-    run_test test_container_syscall_interception "container syscall interception"
-    run_test test_security "security features"
-    run_test test_security_protection "container protection"
-    run_test test_apparmor "apparmor restrictions"
-    run_test test_image_expiry "image expiry"
-    run_test test_image_list_all_aliases "image list all aliases"
-    run_test test_image_list_remotes "image list of simplestream remotes"
-    run_test test_image_auto_update "image auto-update"
-    run_test test_image_prefer_cached "image prefer cached"
-    run_test test_image_import_dir "import image from directory"
-    run_test test_image_import_existing_alias "import existing image from alias"
-    run_test test_image_refresh "image refresh"
-    run_test test_image_acl "image acl"
-    run_test test_images_public "public images"
-    run_test test_cloud_init "cloud-init"
-    run_test test_exec "exec"
-    run_test test_exec_exit_code "exec exit code"
-    run_test test_lxd_benchmark_basic "lxd-benchmark basic init/start/stop/delete"
-    run_test test_shutdown "lxd shutdown sequence"
-    run_test test_snapshots "container snapshots"
-    run_test test_snapshot_restore "snapshot restores"
-    run_test test_snapshot_expiry "snapshot expiry"
-    run_test test_snapshot_schedule "snapshot scheduling"
-    run_test test_snapshot_volume_db_recovery "snapshot volume database record recovery"
-    run_test test_snapshot_fail "snapshot creation failure"
-    run_test test_snapshot_multi_volume "multi-volume snapshots"
-    run_test test_config_profiles "profiles and configuration"
-    run_test test_config_edit "container configuration edit"
-    run_test test_property "container property"
-    run_test test_config_edit_container_snapshot_pool_config "container and snapshot volume configuration edit"
-    run_test test_container_metadata "manage container metadata and templates"
-    run_test test_container_snapshot_config "container snapshot configuration"
-    run_test test_server_config "server configuration"
-    run_test test_filemanip "file manipulations"
-    run_test test_filemanip_req_content_type "request content-type header verification during file push"
-    run_test test_network "network management"
-    run_test test_network_acl "network ACL management"
-    run_test test_network_forward "network address forwards"
-    run_test test_network_zone "network DNS zones"
-    run_test test_network_ovn "OVN network management"
-    run_test test_idmap "id mapping"
-    run_test test_template "file templating"
-    run_test test_pki "PKI mode"
-    run_test test_devlxd "/dev/lxd"
-    run_test test_devlxd_vm "/dev/lxd VM"
-    run_test test_devlxd_volume_management "devLXD volume management"
-    run_test test_devlxd_volume_management_snapshots "devLXD volume snapshot management"
-    run_test test_fuidshift "fuidshift"
-    run_test test_migration "migration"
-    run_test test_fdleak "fd leak"
-    run_test test_storage "storage"
-    run_test test_storage_volume_snapshots "storage volume snapshots"
-    run_test test_init_auto "lxd init auto"
-    run_test test_init_dump "lxd init dump"
-    run_test test_init_interactive "lxd init interactive"
-    run_test test_init_preseed "lxd init preseed"
-    run_test test_storage_profiles "storage profiles"
-    run_test test_container_recover "container recover"
-    run_test test_bucket_recover "bucket recover"
-    run_test test_get_operations "test_get_operations"
-    run_test test_storage_volume_attach "attaching storage volumes"
-    run_test test_storage_driver_btrfs "btrfs storage driver"
-    run_test test_storage_driver_ceph "ceph storage driver"
-    run_test test_storage_driver_cephfs "cephfs storage driver"
-    run_test test_storage_driver_dir "dir storage driver"
-    run_test test_storage_driver_zfs "zfs storage driver"
-    run_test test_storage_driver_pure "pure storage driver"
-    run_test test_storage_buckets "storage buckets"
-    run_test test_storage_volume_import "storage volume import"
-    run_test test_storage_volume_initial_config "storage volume initial configuration"
-    run_test test_resources "resources"
-    run_test test_resources_bcache "resources bcache"
-    run_test test_kernel_limits "kernel limits"
-    run_test test_console "console"
-    run_test test_console_vm "console VM"
-    run_test test_query "query"
-    run_test test_storage_local_volume_handling "storage local volume handling"
-    run_test test_backup_import "backup import"
-    run_test test_backup_export "backup export"
-    run_test test_backup_rename "backup rename"
-    run_test test_backup_volume_export "backup volume export"
-    run_test test_backup_export_import_instance_only "backup export and import instance only"
-    run_test test_backup_metadata "backup metadata checks for containers and custom storage volumes"
-    run_test test_backup_volume_rename_delete "backup volume rename and delete"
-    run_test test_backup_instance_uuid "backup instance and check instance UUIDs"
-    run_test test_backup_volume_expiry "backup volume expiry"
-    run_test test_backup_export_import_recover "backup export, import, and recovery"
-    run_test test_container_local_cross_pool_handling "container local cross pool handling"
-    run_test test_incremental_copy "incremental container copy"
-    run_test test_profiles_project_default "profiles in default project"
-    run_test test_profiles_project_images_profiles "profiles in project with images and profiles enabled"
-    run_test test_profiles_project_images "profiles in project with images enabled and profiles disabled"
-    run_test test_profiles_project_profiles "profiles in project with images disabled and profiles enabled"
-    run_test test_filtering "API filtering"
-    run_test test_warnings "Warnings"
-    run_test test_metrics "Metrics"
-    run_test test_storage_volume_recover "Recover storage volumes"
-    run_test test_storage_volume_recover_by_container "Recover storage volumes by container"
-    run_test test_syslog_socket "Syslog socket"
-    run_test test_lxd_user "lxd user"
-    run_test test_waitready "waitready"
-    run_test test_vm_empty "Empty VM"
-    run_test test_vm_pcie_bus "VM PCIe bus numbers"
-fi
-
-if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
-    run_test test_snap_basic_usage_vm "snap basic usage VM"
-    run_test test_snap_vm_empty "snap empty VM"
-    run_test test_snap_lxd_user "snap lxd-user"
-    run_test test_snap_storage_volume_attach_vm "snap attaching storage volumes to VMs"
-    run_test test_snap_apparmor "snap apparmor restrictions"
-fi
-
-# shellcheck disable=SC2034
-TEST_RESULT=success
+# Avoid running cleanup again
+trap - EXIT HUP INT TERM
 
 # Build a markdown table with the duration of each test
 generate_duration_table
