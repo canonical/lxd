@@ -244,8 +244,8 @@ test_clustering_membership() {
   # checking which are database nodes and which are database-standby nodes.
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF -- '- database-leader'
-  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -Fc "database-standby")" = "2" ]
-  [ "$(LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep -Fc "database-voter")" = "2" ]
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -wFc "database-standby")" = "2" ]
+  [ "$(LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep -wFc "database-voter")" = "2" ]
 
   # Show a single node
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -F "server_name: node5"
@@ -2984,7 +2984,7 @@ test_clustering_handover() {
   echo "Launched member 4"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby")" = "1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -wFc "database-standby")" = "1" ]
 
   # Shutdown the first node.
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -3094,7 +3094,7 @@ test_clustering_rebalance() {
 
   # Check there is one database-standby member.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby")" = "1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -wFc "database-standby")" = "1" ]
 
   # Kill the second node.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
@@ -4798,7 +4798,7 @@ test_clustering_events() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster role add node2 event-hub
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub)" = "2" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc event-hub)" = "2" ]
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -4832,7 +4832,7 @@ test_clustering_events() {
 
   # Switch into full-mesh mode by removing one event-hub role so there is <2 in the cluster.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub)" = "1" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc event-hub)" = "1" ]
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
