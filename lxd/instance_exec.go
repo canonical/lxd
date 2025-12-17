@@ -279,13 +279,6 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 			cmdErr = nil
 		}
 
-		// If the exec operation was deleted, the exec websocket is closed and the caller is booted from the instance.
-		// In this case, make sure there is a non-zero exit code. The disconnection exit code is used here.
-		if ctx.Err() != nil && cmdResult == 0 {
-			cmdResult = 129
-			cmdErr = nil
-		}
-
 		metadata := shared.Jmap{"return": cmdResult}
 
 		err = op.ExtendMetadata(metadata)
