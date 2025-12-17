@@ -13,6 +13,7 @@ To run only the integration tests, run from the test directory:
 Name                           | Default                   | Description
 :--                            | :---                      | :----------
 `LXD_BACKEND`                  | dir                       | What backend to test against (btrfs, ceph, dir, lvm, zfs, or random)
+`LXD_BACKENDS`                 | `LXD_BACKEND`             | Space-delimited list of backends to run test against. Accepts `fast` (`btrfs` or `dir`), `fasts` (`btrfs` and `dir`) and `all` (see the list in `LXD_BACKEND`)
 `LXD_CEPH_CLUSTER`             | ceph                      | The name of the ceph cluster to create osd pools in
 `LXD_CEPH_CEPHFS`              | cephfs                    | Enables the CephFS tests using the specified cephfs filesystem for `cephfs` pools
 `LXD_CEPH_CEPHOBJECT_RADOSGW`  | ""                        | Enables the Ceph Object tests using the specified radosgw HTTP endpoint for `cephobject` pools
