@@ -45,41 +45,43 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Get list of existing storage pools to scan.
-	existingPools, err := d.GetStoragePools()
-	if err != nil {
-		return fmt.Errorf("Failed getting existing storage pools: %w", err)
-	}
-
-	fmt.Println("This LXD server currently has the following storage pools:")
-	for _, existingPool := range existingPools {
-		fmt.Printf(" - %s (backend=%q, source=%q)\n", existingPool.Name, existingPool.Driver, existingPool.Config["source"])
-	}
-
-	proceed, err := c.global.asker.AskBool("Would you like to continue with scanning for lost volumes? (yes/no) [default=yes]: ", "yes")
-	if err != nil {
-		return err
-	}
-
-	if !proceed {
-		return nil
-	}
-
-	fmt.Println("Scanning for unknown volumes...")
-
-	// Send /internal/recover/validate request to LXD.
-	reqValidate := internalRecoverValidatePost{
-		Pools: make([]api.StoragePoolsPost, 0, len(existingPools)),
-	}
-
-	// Add existing pools to request.
-	for _, p := range existingPools {
-		reqValidate.Pools = append(reqValidate.Pools, api.StoragePoolsPost{
-			Name: p.Name, // Only send existing pool name, the rest will be looked up on server.
-		})
-	}
+	var reqValidate internalRecoverValidatePost
 
 	for {
+		// Get list of existing storage pools to scan.
+		existingPools, err := d.GetStoragePools()
+		if err != nil {
+			return fmt.Errorf("Failed getting existing storage pools: %w", err)
+		}
+
+		fmt.Println("This LXD server currently has the following storage pools:")
+		for _, existingPool := range existingPools {
+			fmt.Printf(" - %s (backend=%q, source=%q)\n", existingPool.Name, existingPool.Driver, existingPool.Config["source"])
+		}
+
+		proceed, err := c.global.asker.AskBool("Would you like to continue with scanning for lost volumes? (yes/no) [default=yes]: ", "yes")
+		if err != nil {
+			return err
+		}
+
+		if !proceed {
+			return nil
+		}
+
+		fmt.Println("Scanning for unknown volumes...")
+
+		// Send /internal/recover/validate request to LXD.
+		reqValidate = internalRecoverValidatePost{
+			Pools: make([]api.StoragePoolsPost, 0, len(existingPools)),
+		}
+
+		// Add existing pools to request.
+		for _, p := range existingPools {
+			reqValidate.Pools = append(reqValidate.Pools, api.StoragePoolsPost{
+				Name: p.Name, // Only send existing pool name, the rest will be looked up on server.
+			})
+		}
+
 		resp, _, err := d.RawQuery(http.MethodPost, "/internal/recover/validate", reqValidate, "")
 		if err != nil {
 			return fmt.Errorf("Failed validation request: %w", err)
@@ -117,7 +119,7 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 		break // Dependencies met.
 	}
 
-	proceed, err = c.global.asker.AskBool("Would you like those to be recovered? (yes/no) [default=no]: ", "no")
+	proceed, err := c.global.asker.AskBool("Would you like those to be recovered? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
 	}
