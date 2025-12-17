@@ -227,3 +227,59 @@ func unpackKVToWritable(writable any, keys map[string]string) error {
 
 	return nil
 }
+
+// getEditableYAMLFields uses reflection to extract YAML field names from a struct.
+func getEditableYAMLFields(v any) []string {
+	var fields []string
+	typ := reflect.TypeOf(v)
+
+	// Handle pointer types
+	if typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+	}
+
+	// Only process struct types
+	if typ.Kind() != reflect.Struct {
+		return fields
+	}
+
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		yamlTag := field.Tag.Get("yaml")
+
+		// Skip fields without yaml tags or with "-"
+		if yamlTag == "" || yamlTag == "-" {
+			continue
+		}
+
+		// Extract the field name from the yaml tag (handle "name,omitempty" format)
+		fieldName, _, _ := strings.Cut(yamlTag, ",")
+		if fieldName != "" {
+			fields = append(fields, fieldName)
+		}
+	}
+
+	return fields
+}
+
+// formatFieldList formats a slice of field names as a quoted, comma-separated list.
+func formatFieldList(fields []string) string {
+	if len(fields) == 0 {
+		return ""
+	}
+
+	quoted := make([]string, 0, len(fields))
+	for _, field := range fields {
+		quoted = append(quoted, fmt.Sprintf("%q", field))
+	}
+
+	switch len(quoted) {
+	case 1:
+		return quoted[0]
+	case 2:
+		return quoted[0] + " and " + quoted[1]
+	default:
+		// For 3+ fields: "field1", "field2", and "field3"
+		return strings.Join(quoted[:len(quoted)-1], ", ") + ", and " + quoted[len(quoted)-1]
+	}
+}
