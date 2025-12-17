@@ -3108,7 +3108,7 @@ test_clustering_rebalance() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Offline"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: false"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF "status: Online"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -F -- "- database-voter"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database-voter"
 
   # Respawn the second node. It won't be able to disrupt the current leader,
   # since dqlite uses pre-vote.
