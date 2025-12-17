@@ -327,7 +327,6 @@ parts:
     source: https://git.launchpad.net/ubuntu/+source/edk2
     source-depth: 1
     source-commit: 0b1f127464c5e53bea2933e26a37155424974fdf # import/2025.02-8ubuntu3
-    source-submodules: []
     source-type: git
     plugin: nil
     build-packages:
@@ -350,15 +349,6 @@ parts:
     override-pull: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
-
-      set -ex
-
-      # Fix submodule sources
-      # see https://github.com/tianocore/edk2/commit/95d8a1c255cfb8e063d679930d08ca6426eb5701
-      sed -i "s#https://github.com/Zeex/subhook.git#https://github.com/tianocore/edk2-subhook.git#g" .gitmodules
-
-      # Pull submodules after switching to source-commit
-      git submodule update --init --recursive
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       set -ex
