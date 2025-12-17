@@ -314,6 +314,82 @@ TEST_CURRENT_DESCRIPTION=setup
 # shellcheck disable=SC2034
 TEST_RESULT=failure
 
+# Record tests durations info per backend
+# Structure: durations[test_name,backend]=duration_seconds
+declare -A durations
+
+# Generate markdown table with test durations across backends
+generate_duration_table() {
+    local output="${GITHUB_STEP_SUMMARY:-"/dev/stdout"}"
+
+    # Collect all unique test names
+    local -a test_names=()
+    for key in "${!durations[@]}"; do
+        local test_name="${key%,*}"
+        if [[ ! " ${test_names[*]} " =~ (^|[[:space:]])${test_name}([[:space:]]|$) ]]; then
+            test_names+=("${test_name}")
+        fi
+    done
+
+    # Sort test names
+    mapfile -t test_names < <(printf '%s\n' "${test_names[@]}" | sort)
+
+    # Calculate column widths
+    local test_col_width=4  # "Test"
+    local -a backends
+    read -ra backends <<< "${LXD_BACKENDS}"
+    local -A backend_col_widths
+    for backend in "${backends[@]}"; do
+        backend_col_widths[${backend}]=${#backend}
+    done
+
+    for test_name in "${test_names[@]}"; do
+        [ ${#test_name} -gt "${test_col_width}" ] && test_col_width=${#test_name}
+        for backend in "${backends[@]}"; do
+            local duration="${durations[${test_name},${backend}]:-}"
+            local cell_text
+            if [ -n "${duration}" ]; then
+                cell_text="${duration}s"
+            else
+                cell_text="-"
+            fi
+            [ ${#cell_text} -gt "${backend_col_widths[${backend}]}" ] && backend_col_widths[${backend}]=${#cell_text}
+        done
+    done
+
+    {
+        # Header row
+        printf "%-${test_col_width}s" "Test"
+        for backend in "${backends[@]}"; do
+            printf " | %${backend_col_widths[${backend}]}s" "${backend}"
+        done
+        echo ""
+
+        # Alignment row
+        printf ":%-$((test_col_width-1))s" "$(printf '%*s' $((test_col_width-1)) '' | tr ' ' '-')"
+        for backend in "${backends[@]}"; do
+            printf " | %s:" "$(printf '%*s' $((backend_col_widths[${backend}]-1)) '' | tr ' ' '-')"
+        done
+        echo ""
+
+        # Data rows
+        for test_name in "${test_names[@]}"; do
+            printf "%-${test_col_width}s" "${test_name}"
+            for backend in "${backends[@]}"; do
+                local duration="${durations[${test_name},${backend}]:-}"
+                local cell_text
+                if [ -n "${duration}" ]; then
+                    cell_text="${duration}s"
+                else
+                    cell_text="-"
+                fi
+                printf " | %${backend_col_widths[${backend}]}s" "${cell_text}"
+            done
+            echo ""
+        done
+    } > "${output}"
+}
+
 trap cleanup EXIT HUP INT TERM
 
 # Import all the testsuites
@@ -332,7 +408,7 @@ run_test() {
   fi
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
-  START_TIME=$(date +%s)
+  START_TIME=$(date +%s.%N)
 
   local skip=false
 
@@ -393,24 +469,14 @@ run_test() {
     fi
   fi
 
-  END_TIME=$(date +%s)
-  DURATION=$((END_TIME-START_TIME))
+  END_TIME=$(date +%s.%N)
+  DURATION=$(awk "BEGIN {printf \"%.2f\", ${END_TIME} - ${START_TIME}}")
+  durations["${TEST_CURRENT#test_},${LXD_BACKEND}"]="${DURATION}"
   cd "${cwd}"
 
   # output duration in blue
   echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION}s\033[0m)"
-
-  if [ -n "${GITHUB_ACTIONS:-}" ]; then
-      # strip the "test_" prefix to save the shorten test name along with its duration
-      echo "${TEST_CURRENT#test_}|${DURATION}" >> "${GITHUB_STEP_SUMMARY}"
-  fi
 }
-
-if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    # build a markdown table with the duration of each test
-    echo "Test | Duration (s)" > "${GITHUB_STEP_SUMMARY}"
-    echo ":--- | :---" >> "${GITHUB_STEP_SUMMARY}"
-fi
 
 # Preflight check
 if ldd "${_LXC}" | grep -F liblxc; then
@@ -717,3 +783,6 @@ fi
 
 # shellcheck disable=SC2034
 TEST_RESULT=success
+
+# Build a markdown table with the duration of each test
+generate_duration_table
