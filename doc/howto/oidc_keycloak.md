@@ -8,7 +8,7 @@ Keycloak is a self-hosted open source tool for authentication. Keycloak supports
 1. Set up Keycloak. For this guide, it is assumed that Keycloak is available over HTTPS.
    - If you already have Keycloak installed, follow their guide on [configuring Keycloak for production](https://www.keycloak.org/server/configuration-production).
    - Alternatively, run the development version:
-      - Download [Keycloak-25.0.4](https://github.com/keycloak/keycloak/releases/download/25.0.4/keycloak-25.0.4.zip).
+      - Download [Keycloak `.zip`](https://www.keycloak.org/downloads).
       - Extract the files and run `bin/kc.sh start-dev`.
       - Open [`http://localhost:8080`](http://localhost:8080) in your browser and create an admin user with a password.
 
