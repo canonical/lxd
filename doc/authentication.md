@@ -14,6 +14,7 @@ The following authentication methods are supported:
 
 - {ref}`authentication-tls-certs`
 - {ref}`authentication-openid`
+- {ref}`authentication-bearer`
 
 (authentication-tls-certs)=
 ## TLS client certificates
@@ -283,6 +284,21 @@ backend lxd_cluster_tcp
   server lxd-3 1.2.3.6:8443 check send-proxy
 # EOF
 ```
+
+(authentication-bearer)=
+## Bearer token authentication
+
+LXD supports authenticating to the LXD API using bearer tokens. Bearer tokens provide a secure and temporary way to authenticate API requests without requiring client certificates.
+
+Bearer tokens can be issued for identities of type `bearer`. The permissions associated with a token are derived from the identity it belongs to and are enforced through {ref}`fine-grained-authorization`.
+
+To authenticate an API request using a bearer token, include it in the `Authorization` header
+as `Authorization: Bearer <token>`, where `<token>` represents an actual token value.
+
+By default, bearer tokens expire after 24 hours, unless they are manually revoked.
+The expiration time can be customized when issuing the token.
+
+See {ref}`howto-auth-bearer` to learn how to issue and use bearer token in LXD.
 
 ## Failure scenarios
 
