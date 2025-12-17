@@ -286,13 +286,26 @@ See the following examples for different storage drivers for instructions on how
 Create a storage pool named `my-pool` using the ZFS driver at different locations and with different sizes on three cluster members:
 
 ```{terminal}
-:input: lxc storage create my-pool zfs source=/dev/sdX size=10GiB --target=vm01
+lxc storage create my-pool zfs source=/dev/sdX size=10GiB --target=vm01
+
 Storage pool my-pool pending on member vm01
-:input: lxc storage create my-pool zfs source=/dev/sdX size=15GiB --target=vm02
+```
+
+```{terminal}
+lxc storage create my-pool zfs source=/dev/sdX size=15GiB --target=vm02
+
 Storage pool my-pool pending on member vm02
-:input: lxc storage create my-pool zfs source=/dev/sdY size=10GiB --target=vm03
+```
+
+```{terminal}
+lxc storage create my-pool zfs source=/dev/sdY size=10GiB --target=vm03
+
 Storage pool my-pool pending on member vm03
-:input: lxc storage create my-pool zfs
+```
+
+```{terminal}
+lxc storage create my-pool zfs
+
 Storage pool my-pool created
 ```
 
@@ -302,64 +315,130 @@ Create a storage pool named `my-ceph-pool` using the {ref}`Ceph RBD driver <stor
 Because the {config:option}`storage-ceph-pool-conf:ceph.osd.pool_name` configuration setting isn't member-specific, it must be set when creating the actual storage pool:
 
 ```{terminal}
-:input: lxc storage create my-ceph-pool ceph --target=vm01
+lxc storage create my-ceph-pool ceph --target=vm01
+
 Storage pool my-ceph-pool pending on member vm01
-:input: lxc storage create my-ceph-pool ceph --target=vm02
+```
+
+```{terminal}
+lxc storage create my-ceph-pool ceph --target=vm02
+
 Storage pool my-ceph-pool pending on member vm02
-:input: lxc storage create my-ceph-pool ceph --target=vm03
+```
+
+```{terminal}
+lxc storage create my-ceph-pool ceph --target=vm03
+
 Storage pool my-ceph-pool pending on member vm03
-:input: lxc storage create my-ceph-pool ceph ceph.osd.pool_name=my-osd
+```
+
+```{terminal}
+lxc storage create my-ceph-pool ceph ceph.osd.pool_name=my-osd
+
 Storage pool my-ceph-pool created
 ```
 
 Create a storage pool named `my-cephobject-pool` using the {ref}`Ceph Object driver <storage-cephobject>` and a preconfigured {ref}`RADOS Gateway endpoint <howto-storage-pools-ceph-requirements-radosgw>` (the endpoint shown below is only an example):
+
 ```{terminal}
-:input: lxc storage create my-cephobject-pool cephobject --target=vm01
+lxc storage create my-cephobject-pool cephobject --target=vm01
+
 Storage pool my-cephobject-pool pending on member vm01
-:input: lxc storage create my-cephobject-pool cephobject --target=vm02
+```
+
+```{terminal}
+lxc storage create my-cephobject-pool cephobject --target=vm02
+
 Storage pool my-cephobject-pool pending on member vm02
-:input: lxc storage create my-cephobject-pool cephobject --target=vm03
+```
+
+```{terminal}
+lxc storage create my-cephobject-pool cephobject --target=vm03
+
 Storage pool my-cephobject-pool pending on member vm03
-:input: lxc storage create my-cephobject-pool cephobject cephobject.radosgw.endpoint=http://192.0.2.10:8080
+```
+
+```{terminal}
+lxc storage create my-cephobject-pool cephobject cephobject.radosgw.endpoint=http://192.0.2.10:8080
+
 Storage pool my-cephobject-pool created
 ```
 
 Create a storage pool named `my-powerflex-pool` using the {ref}`Dell PowerFlex driver <storage-powerflex>` in SDC mode and the pool `sp1` in protection domain `pd1`:
 
 ```{terminal}
-:input: lxc storage create my-powerflex-pool powerflex --target=vm01
+lxc storage create my-powerflex-pool powerflex --target=vm01
+
 Storage pool my-powerflex-pool pending on member vm01
-:input: lxc storage create my-powerflex-pool powerflex --target=vm02
+```
+
+```{terminal}
+lxc storage create my-powerflex-pool powerflex --target=vm02
+
 Storage pool my-powerflex-pool pending on member vm02
-:input: lxc storage create my-powerflex-pool powerflex --target=vm03
+```
+
+```{terminal}
+lxc storage create my-powerflex-pool powerflex --target=vm03
+
 Storage pool my-powerflex-pool pending on member vm03
-:input: lxc storage create my-powerflex-pool powerflex powerflex.mode=sdc powerflex.pool=sp1 powerflex.domain=pd1 powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
+```
+
+```{terminal}
+lxc storage create my-powerflex-pool powerflex powerflex.mode=sdc powerflex.pool=sp1 powerflex.domain=pd1 powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
+
 Storage pool my-powerflex-pool created
 ```
 
 Create a storage pool named `my-purestorage-pool` using the {ref}`Pure Storage driver <storage-pure>`:
 
 ```{terminal}
-:input: lxc storage create my-purestorage-pool pure --target=vm01
+lxc storage create my-purestorage-pool pure --target=vm01
+
 Storage pool my-purestorage-pool pending on member vm01
-:input: lxc storage create my-purestorage-pool pure --target=vm02
+```
+
+```{terminal}
+lxc storage create my-purestorage-pool pure --target=vm02
+
 Storage pool my-purestorage-pool pending on member vm02
-:input: lxc storage create purestorage-pool pure --target=vm03
+```
+
+```{terminal}
+lxc storage create purestorage-pool pure --target=vm03
+
 Storage pool purestorage-pool pending on member vm03
-:input: lxc storage purestorage-pool pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
+```
+
+```{terminal}
+lxc storage purestorage-pool pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
+
 Storage pool purestorage-pool created
 ```
 
 Create a storage pool named `my-alletrastorage-pool` using the {ref}`HPE Alletra driver <storage-alletra>`:
 
 ```{terminal}
-:input: lxc storage create my-alletrastorage-pool alletra --target=vm01
+lxc storage create my-alletrastorage-pool alletra --target=vm01
+
 Storage pool my-alletrastorage-pool pending on member vm01
-:input: lxc storage create my-alletrastorage-pool alletra --target=vm02
+```
+
+```{terminal}
+lxc storage create my-alletrastorage-pool alletra --target=vm02
+
 Storage pool my-alletrastorage-pool pending on member vm02
-:input: lxc storage create my-alletrastorage-pool alletra --target=vm03
+```
+
+```{terminal}
+lxc storage create my-alletrastorage-pool alletra --target=vm03
+
 Storage pool my-alletrastorage-pool pending on member vm03
-:input: lxc storage my-alletrastorage-pool alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
+```
+
+```{terminal}
+lxc storage my-alletrastorage-pool alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
+
 Storage pool my-alletrastorage-pool created
 ```
 
@@ -376,7 +455,6 @@ Finally, click {guilabel}`Create` to create the storage pool.
 :width: 80%
 :alt: Create a storage pool in a clustered LXD environment
 ```
-
 
 ````
 `````
@@ -509,10 +587,10 @@ In the output, look for a cluster member with `rgw` in its `Services` list.
 
 Example:
 
-```{terminal}
-:input: microceph status
+```{terminal} 
 :user: root
 :host: micro1
+microceph status
 
 MicroCeph deployment summary:
 - micro1 (192.0.2.10)
@@ -536,9 +614,9 @@ sudo ss -ltnp | grep radosgw
 Example:
 
 ```{terminal}
-:input: sudo ss -ltnp | grep radosgw
 :user: root
 :host: micro1
+sudo ss -ltnp | grep radosgw
 
 LISTEN 0      4096         0.0.0.0:8080      0.0.0.0:*    users:(("radosgw",pid=11345,fd=60))
 LISTEN 0      4096            [::]:8080         [::]:*    users:(("radosgw",pid=11345,fd=61))

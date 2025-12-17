@@ -73,7 +73,8 @@ On `m1` (the cluster member designated as `MASTER`), run the following command, 
 ```{terminal}
 :user: ubuntu
 :host: m1
-:input: ip -br addr show <interface>
+
+ip -br addr show <interface>
 ```
 
 Confirm that in the output, you can see the VIP as an IP address of the interface.
@@ -88,12 +89,26 @@ First, {ref}`create a container <instances-create>` on each of the cluster membe
 ```{terminal}
 :user: ubuntu
 :host: m1
+lxc init ubuntu:24.04 c1 --target m1
 
-:input: lxc init ubuntu:24.04 c1 --target m1
 Creating c1
-:input: lxc init ubuntu:24.04 c2 --target m2
+```
+
+
+```{terminal}
+:user: ubuntu
+:host: m1
+lxc init ubuntu:24.04 c2 --target m2
+
 Creating c2
-:input: lxc init ubuntu:24.04 c3 --target m3
+```
+
+
+```{terminal}
+:user: ubuntu
+:host: m1
+lxc init ubuntu:24.04 c3 --target m3
+
 Creating c3
 ```
 
@@ -110,7 +125,7 @@ Next, you need a client LXD server that can access the network used by the clust
 ```{terminal}
 :user: ubuntu
 :host: my-client
-:input: lxc remote add my-cluster 192.0.2.50
+lxc remote add my-cluster 192.0.2.50
 ```
 
 Then check the list of instances running on the cluster from the client machine. Example:
@@ -118,7 +133,7 @@ Then check the list of instances running on the cluster from the client machine.
 ```{terminal}
 :user: ubuntu
 :host: my-client
-:input: lxc list my-cluster:
+lxc list my-cluster:
 ```
 
 The output shown should match what you see when you run `lxc list` on any of the cluster members.

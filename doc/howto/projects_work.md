@@ -20,8 +20,9 @@ To list all projects (that you have permission to see), enter the following comm
 By default, the output is presented as a list:
 
 ```{terminal}
-:input: lxc project list
 :scroll:
+
+lxc project list
 
 +----------------------+--------+----------+-----------------+-----------------+----------+---------------+---------------------+---------+
 |      NAME            | IMAGES | PROFILES | STORAGE VOLUMES | STORAGE BUCKETS | NETWORKS | NETWORK ZONES |     DESCRIPTION     | USED BY |

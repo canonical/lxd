@@ -123,7 +123,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    <summary>Expand to see an example output for importing to a container</summary>
 
    ```{terminal}
-   :input: sudo ./bin.linux.lxd-convert
+   sudo ./bin.linux.lxd-convert
 
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx
@@ -227,7 +227,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    <summary>Expand to see an example output for importing to a VM</summary>
 
    ```{terminal}
-   :input: sudo ./bin.linux.lxd-convert
+   sudo ./bin.linux.lxd-convert
 
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx
