@@ -185,6 +185,31 @@ export _LXC
 ulimit -c unlimited
 echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
 
+# Check for core dumps, ignoring qemu crashes (known issue)
+check_coredumps() {
+  if ! compgen -G "/var/crash/core-*.gz" > /dev/null; then
+    return 0  # No core dumps at all
+  fi
+
+  # Ignore qemu core dumps (known crasher, to be fixed later)
+  # TODO: look at the core dump along with debug builds of qemu to track the
+  #       root cause.
+  # Enable extended globbing for the !(pattern) syntax
+  shopt -s extglob
+  if compgen -G "/var/crash/core-!(qemu-system-*).gz" > /dev/null 2>&1; then
+    echo "==> CORE: coredumps found"
+    ls -la /var/crash/
+    shopt -u extglob
+    return 1
+  fi
+  shopt -u extglob
+
+  # Only QEMU core dumps (known issue)
+  echo "::notice::==> CORE: QEMU core dump ignored"
+
+  return 0
+}
+
 echo "==> Available storage backends: $(available_storage_backends | sort)"
 if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
   if [ "${LXD_BACKEND}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
@@ -339,23 +364,15 @@ run_test() {
       export TEST_UNMET_REQUIREMENT="VM test currently disabled due to LXD_VM_TESTS=0"
     else
       # Check for any core dump before running the test
-      if ! check_empty /var/crash/; then
-        echo "==> CORE: coredumps found before running the test"
+      if ! check_coredumps; then
         false
       fi
 
       # Run test.
       ${TEST_CURRENT}
 
-      # XXX: Ignore qemu core dumps
-      if [ -n "$(ls /var/crash/core-qemu-system-x86.*.gz)" ]; then
-        echo "==> IGNORE: Ignoring qemu core dumps"
-        rm -f /var/crash/core-qemu-system-x86.*.gz
-      fi
-
       # Check for any core dump after running the test
-      if ! check_empty /var/crash/; then
-        echo "==> CORE: coredumps found after running the test"
+      if ! check_coredumps; then
         false
       fi
     fi
