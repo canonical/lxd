@@ -2,14 +2,11 @@
 set -eu
 set -o pipefail
 
-export GOTOOLCHAIN=local # Avoid downloading toolchain
-if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
-    GOPATH="$(go env GOPATH)"
-fi
-
-if [ -n "${GOPATH:-}" ]; then
-    # Add GOPATH/bin to PATH if not there already
-    [[ "${PATH}" != *"${GOPATH}/bin"* ]] && export "PATH=${GOPATH}/bin:${PATH}"
+# === pre-flight checks === #
+# root is required
+if [ "${USER:-'root'}" != "root" ]; then
+  echo "The testsuite must be run as root." >&2
+  exit 1
 fi
 
 # Avoid accidental re-execution
@@ -18,27 +15,59 @@ if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
     exit 1
 fi
 
+# Create LXD_LOGS if needed
+[ -n "${LXD_LOGS:-}" ] && mkdir -p "${LXD_LOGS}"
+
+# Create GOCOVERDIR if needed
+[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}"
+
+# === export needed environment variables with defaults === #
+# OVN
+export LXD_OVN_NB_CA_CRT_FILE="${LXD_OVN_NB_CA_CRT_FILE:-}"
+export LXD_OVN_NB_CLIENT_CRT_FILE="${LXD_OVN_NB_CLIENT_CRT_FILE:-}"
+export LXD_OVN_NB_CLIENT_KEY_FILE="${LXD_OVN_NB_CLIENT_KEY_FILE:-}"
+if [ -d "/snap/microovn/current/commands" ]; then
+    # Add microovn snap commands to PATH if not there already
+    [[ "${PATH}" != *"/snap/microovn/current/commands"* ]] && PATH="${PATH}:/snap/microovn/current/commands"
+
+    # Handle microovn certificates
+    if [[ "${LXD_OVN_NB_CONNECTION:-}" =~ ^ssl: ]]; then
+      [ -z "${LXD_OVN_NB_CLIENT_CRT_FILE}" ] && LXD_OVN_NB_CLIENT_CRT_FILE=/var/snap/microovn/common/data/pki/client-cert.pem
+      [ -z "${LXD_OVN_NB_CLIENT_KEY_FILE}" ] && LXD_OVN_NB_CLIENT_KEY_FILE=/var/snap/microovn/common/data/pki/client-privkey.pem
+      [ -z "${LXD_OVN_NB_CA_CRT_FILE}" ]     && LXD_OVN_NB_CA_CRT_FILE=/var/snap/microovn/common/data/pki/cacert.pem
+    fi
+fi
+
+# Ceph
+export LXD_CEPH_CLUSTER="${LXD_CEPH_CLUSTER:-"ceph"}"
+export LXD_CEPH_CEPHFS="${LXD_CEPH_CEPHFS:-"cephfs"}"
+
+export GOTOOLCHAIN=local # Avoid downloading toolchain
+if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
+    GOPATH="$(go env GOPATH)"
+fi
+
+# Add GOPATH/bin to PATH if not there already
+if [ -n "${GOPATH:-}" ] && [[ "${PATH}" != *"${GOPATH}/bin"* ]]; then
+    PATH="${GOPATH}/bin:${PATH}"
+fi
+export PATH
+
 # Don't translate lxc output for parsing in it in tests.
 export LC_ALL="C"
 
 # Force UTC for consistency
 export TZ="UTC"
 
-if [ -z "${NO_PROXY:-}" ]; then
-  # Prevent proxy usage for some host names/IPs (comma-separated list)
-  export NO_PROXY="127.0.0.1"
-fi
+# Prevent proxy usage for some host names/IPs (comma-separated list)
+export NO_PROXY="${NO_PROXY:-"127.0.0.1"}"
 
 # Detect architecture name for later use
 ARCH="$(dpkg --print-architecture || echo "amd64")"
 export ARCH
 
-LXD_VM_TESTS="${LXD_VM_TESTS:-1}"
-export LXD_VM_TESTS
-
-export CLIENT_DEBUG=""
-export SERVER_DEBUG=""
-export SHELL_TRACING=""
+export LXD_VM_TESTS="${LXD_VM_TESTS:-1}"
+export CLIENT_DEBUG="" SERVER_DEBUG="" SHELL_TRACING=""
 if [ "${LXD_VERBOSE:-0}" != "0" ]; then
   if [ "${LXD_VERBOSE}" = "client" ]; then
       CLIENT_DEBUG="--verbose"
@@ -64,6 +93,20 @@ if [ "${LXD_DEBUG:-0}" != "0" ]; then
 
   SHELL_TRACING=1
 fi
+
+# Default sizes to be used with storage pools
+export DEFAULT_VOLUME_SIZE="24MiB"
+export DEFAULT_POOL_SIZE="3GiB"
+
+export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
+export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
+
+# This must be enough to accommodate the busybox testimage
+export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
+
+# This must be enough to accommodate the ubuntu-minimal-daily:24.04 image
+export SMALLEST_VM_ROOT_DISK="3584MiB"
+export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
 
 # shellcheck disable=SC2034
 LXD_NETNS=""
@@ -119,9 +162,10 @@ run_dependency_checks() {
 if [ "${PWD}" != "$(dirname "${0}")" ]; then
     cd "$(dirname "${0}")"
 fi
-MAIN_DIR="${PWD}"
-readonly MAIN_DIR
+readonly MAIN_DIR="${PWD}"
 export MAIN_DIR
+export LXD_BACKEND="${LXD_BACKEND:-"dir"}"
+
 import_subdir_files includes
 
 # Install needed storage driver tools
@@ -137,23 +181,9 @@ _LXC="$(unset -f lxc; command -v lxc)"
 readonly _LXC
 export _LXC
 
-if [ "${USER:-'root'}" != "root" ]; then
-  echo "The testsuite must be run as root." >&2
-  exit 1
-fi
-
 # Set ulimit to ensure core dump is outputted.
 ulimit -c unlimited
 echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
-
-if [ -n "${LXD_LOGS:-}" ] && [ ! -d "${LXD_LOGS}" ]; then
-  echo "Your LXD_LOGS path doesn't exist: ${LXD_LOGS}"
-  exit 1
-fi
-
-# Default sizes to be used with storage pools
-export DEFAULT_VOLUME_SIZE="24MiB"
-export DEFAULT_POOL_SIZE="3GiB"
 
 echo "==> Available storage backends: $(available_storage_backends | sort)"
 if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
@@ -269,14 +299,6 @@ trap cleanup EXIT HUP INT TERM
 import_subdir_files suites
 
 
-# Verify the dir chain is accessible for other users (other's execute bit has to be `x` or `t` (sticky))
-# This is to catch if `sudo chmod +x ~` was not run and the TEST_DIR is under `~`
-INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {if ($1 !~ "^d.*[xt]$") print $2}')"
-if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
-    echo "Some directories are not accessible by other users" >&2
-    namei -m "${TEST_DIR}"
-    exit 1
-fi
 
 run_test() {
   TEST_CURRENT=${1}
@@ -426,20 +448,6 @@ spawn_initial_lxd() {
     LXD_ADDR="$(< "${LXD_DIR}/lxd.addr")"
     export LXD_ADDR
 }
-
-export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
-
-export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
-
-# This must be enough to accommodate the busybox testimage
-export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
-
-# This must be enough to accommodate the ubuntu-minimal-daily:24.04 image
-export SMALLEST_VM_ROOT_DISK="3584MiB"
-export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
-
-# Create GOCOVERDIR if needed
-[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}"
 
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
