@@ -2890,3 +2890,9 @@ The LVM storage driver has the specific `lvm.vg.force_reuse` configuration key f
 ## `instance_force_delete`
 
 This adds support for a `force` query parameter to the `DELETE /1.0/instances/{name}` endpoint. When set, running instances will be forcibly stopped before deletion.
+
+(extension-auth-bearer-lxd)=
+## `auth_bearer`
+
+Adds new identity type `bearer` that allows authentication with the LXD API using bearer tokens.
+See {ref}`LXD bearer tokens <authentication-bearer>`.
