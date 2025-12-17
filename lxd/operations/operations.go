@@ -392,11 +392,12 @@ func (op *Operation) Start() error {
 
 // Cancel cancels a running operation. If the operation cannot be cancelled, it
 // returns an error.
-func (op *Operation) Cancel() error {
+func (op *Operation) Cancel() {
 	op.lock.Lock()
 	if op.running.Err() != nil {
+		// Already cancelled, nothing to do.
 		op.lock.Unlock()
-		return api.NewStatusError(http.StatusBadRequest, "Only running operations can be cancelled")
+		return
 	}
 
 	// Signal the operation to stop.
@@ -427,8 +428,6 @@ func (op *Operation) Cancel() error {
 	if op.onRun == nil {
 		op.done()
 	}
-
-	return nil
 }
 
 // Connect connects a websocket operation. If the operation is not a websocket
@@ -534,34 +533,6 @@ func (op *Operation) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-}
-
-// UpdateResources updates the resources of the operation. It returns an error
-// if the operation is not pending or running, or the operation is read-only.
-func (op *Operation) UpdateResources(opResources map[string][]api.URL) error {
-	op.lock.Lock()
-	if op.finished.Err() != nil {
-		op.lock.Unlock()
-		return api.NewStatusError(http.StatusBadRequest, "Operations cannot be updated after they have completed")
-	}
-
-	if op.readonly {
-		op.lock.Unlock()
-		return errors.New("Read-only operations can't be updated")
-	}
-
-	op.updatedAt = time.Now()
-	op.resources = opResources
-	op.lock.Unlock()
-
-	op.logger.Debug("Updated resources for oeration")
-	_, md, _ := op.Render()
-
-	op.lock.Lock()
-	op.sendEvent(md)
-	op.lock.Unlock()
-
-	return nil
 }
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
