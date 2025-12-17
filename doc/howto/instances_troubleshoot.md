@@ -100,7 +100,7 @@ lxc console c1
 In this example, let's investigate a RHEL 7 system in which `systemd` cannot start.
 
 ```{terminal}
-:input: lxc console --show-log rhel7
+lxc console --show-log rhel7
 
 Console log:
 
@@ -126,10 +126,15 @@ This is equivalent to setting `init=/bin/bash` on the Linux kernel command line.
 Here is what it looks like:
 
 ```{terminal}
-:input: lxc config set rhel7 raw.lxc 'lxc.init.cmd = /bin/bash'
+lxc config set rhel7 raw.lxc 'lxc.init.cmd = /bin/bash'
+```
 
-:input: lxc start rhel7
-:input: lxc console --show-log rhel7
+```{terminal}
+lxc start rhel7
+```
+
+```{terminal}
+lxc console --show-log rhel7
 
 Console log:
 
@@ -139,7 +144,7 @@ Console log:
 Now that the container has started, you can check it and see that things are not running as well as expected:
 
 ```{terminal}
-:input: lxc exec rhel7 -- bash
+lxc exec rhel7 -- bash
 
 [root@rhel7 ~]# ls
 [root@rhel7 ~]# mount

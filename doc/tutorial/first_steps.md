@@ -31,9 +31,10 @@ snap version
 If `snap` is installed, you will see output similar to this:
 
 ```{terminal}
-:input: snap version
 :user: your-user
 :host: host-system
+
+snap version
 
 snap          2.72
 snapd         2.72
@@ -139,9 +140,10 @@ lxc info | grep -FA2 'instance_types'
 If your host system is capable of KVM virtualization, you should see `virtual-machine` in the list of `instance_types`:
 
 ```{terminal}
-:input: lxc info | grep -FA2 'instance_types'
 :user: your-user
 :host: host-system
+
+lxc info | grep -FA2 'instance_types'
 
 instance_types:
        - container
@@ -627,9 +629,10 @@ lxc exec first -- cat helloworld.txt
 You should see the line that you added:
 
 ```{terminal}
-:input: lxc exec first -- cat helloworld.txt
 :user: your-user
 :host: host-system
+
+lxc exec first -- cat helloworld.txt
 
 Hello world!
 ```

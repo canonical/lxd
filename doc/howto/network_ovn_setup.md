@@ -41,8 +41,9 @@ Complete the following steps to create a standalone OVN network that is connecte
 1. Run [`lxc list`](lxc_list.md) to show the instance information:
 
    ```{terminal}
-   :input: lxc list
    :scroll:
+   
+   lxc list
 
    +------+---------+---------------------+----------------------------------------------+-----------+-----------+
    | NAME |  STATE  |        IPV4         |                     IPV6                     |   TYPE    | SNAPSHOTS |

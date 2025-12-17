@@ -46,7 +46,7 @@ For example, if the `lxdbr0` bridge is used in an instance and you are prompted 
 This is how a recovery process could look:
 
 ```{terminal}
-:input: lxd recover
+lxd recover
 
 This LXD server currently has the following storage pools:
 Would you like to recover another storage pool? (yes/no) [default=no]: yes
@@ -67,9 +67,19 @@ You are currently missing the following:
  - Network "lxdbr0" in project "default"
 Please create those missing entries and then hit ENTER: ^Z
 [1]+  Stopped                 lxd recover
-:input: lxc network create lxdbr0
+```
+
+```{terminal}
+lxc network create lxdbr0
+
 Network lxdbr0 created
-:input: fg
+```
+
+```{terminal}
+fg
+```
+
+```{terminal}
 lxd recover
 
 The following unknown volumes have been found:
@@ -77,7 +87,11 @@ The following unknown volumes have been found:
  - Container "u2" on pool "default" in project "default" (includes 0 snapshots)
 Would you like those to be recovered? (yes/no) [default=no]: yes
 Starting recovery...
-:input: lxc list
+```
+
+```{terminal}
+lxc list
+
 +------+---------+------+------+-----------+-----------+
 | NAME |  STATE  | IPV4 | IPV6 |   TYPE    | SNAPSHOTS |
 +------+---------+------+------+-----------+-----------+
@@ -85,10 +99,21 @@ Starting recovery...
 +------+---------+------+------+-----------+-----------+
 | u2   | STOPPED |      |      | CONTAINER | 0         |
 +------+---------+------+------+-----------+-----------+
-:input: lxc profile device add default eth0 nic network=lxdbr0 name=eth0
+```
+
+```{terminal}
+lxc profile device add default eth0 nic network=lxdbr0 name=eth0
+
 Device eth0 added to default
-:input: lxc start u1
-:input: lxc list
+```
+
+```{terminal}
+lxc start u1
+```
+
+```{terminal}
+lxc list
+
 +------+---------+-------------------+---------------------------------------------+-----------+-----------+
 | NAME |  STATE  |       IPV4        |                    IPV6                     |   TYPE    | SNAPSHOTS |
 +------+---------+-------------------+---------------------------------------------+-----------+-----------+

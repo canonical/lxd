@@ -35,7 +35,7 @@ Let's consider an example with a socket filter program from [libbpf-bootstrap](h
 
 The following creates an unprivileged container instance and sets all the necessary configuration options to enable BPF delegation:
 
-```{terminal}
+```bash
 lxc launch ubuntu:noble bpf-experiments
 lxc config set bpf-experiments limits.kernel.memlock=unlimited
 lxc config set bpf-experiments security.delegate_bpf=true
@@ -47,7 +47,7 @@ lxc config set bpf-experiments security.delegate_bpf.map_types=ringbuf
 
 The following set of commands clones and builds the libbpf-bootstrap.git repository within the example `bpf-experiments` container:
 
-```{terminal}
+```bash
 lxc shell bpf-experiments
 apt install clang build-essential
 git clone https://github.com/libbpf/libbpf-bootstrap.git

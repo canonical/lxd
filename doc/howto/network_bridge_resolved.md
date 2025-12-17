@@ -189,7 +189,7 @@ If the respective bridge already exists (because LXD is already running), you ca
 You should see output similar to the following:
 
 ```{terminal}
-:input: sudo systemctl status lxd-dns-lxdbr0.service
+sudo systemctl status lxd-dns-lxdbr0.service
 
 ● lxd-dns-lxdbr0.service - LXD per-link DNS configuration for lxdbr0
      Loaded: loaded (/etc/systemd/system/lxd-dns-lxdbr0.service; enabled; vendor preset: enabled)
@@ -202,7 +202,7 @@ You should see output similar to the following:
 To check that `resolved` has applied the settings, use `resolvectl status <network_bridge>`:
 
 ```{terminal}
-:input: resolvectl status lxdbr0
+resolvectl status lxdbr0
 
 Link 6 (lxdbr0)
       Current Scopes: DNS

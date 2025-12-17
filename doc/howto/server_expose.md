@@ -36,7 +36,7 @@ To allow access through a specific IP address, use `ip addr` to find an availabl
 For example:
 
 ```{terminal}
-:input: ip addr
+ip addr
 
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
@@ -58,7 +58,10 @@ For example:
        valid_lft forever preferred_lft forever
     inet6 fd42:f4ab:4399:e6eb::1/64 scope global
        valid_lft forever preferred_lft forever
-:input: lxc config set core.https_address 10.68.216.12
+```
+
+```{terminal}
+lxc config set core.https_address 10.68.216.12
 ```
 
 All remote clients can then connect to LXD and access any image that is marked for public use.
