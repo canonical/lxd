@@ -164,9 +164,8 @@ func (d *lvm) ValidateSource() error {
 	defaultSource := loopFilePath(d.name)
 
 	if d.config["source"] == "" || d.config["source"] == defaultSource {
-		if shared.PathExists(d.config["source"]) {
-			return fmt.Errorf("Source file location %q already exists", d.config["source"])
-		}
+		// All set, no further source checks required.
+		return nil
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Size is invalid as the physical device is already sized.
 		if d.config["size"] != "" && !d.usesThinpool() {
@@ -212,6 +211,10 @@ func (d *lvm) Create() error {
 
 	if d.config["source"] == "" || d.config["source"] == defaultSource {
 		usingLoopFile = true
+
+		if shared.PathExists(d.config["source"]) {
+			return fmt.Errorf("Source file location %q already exists", d.config["source"])
+		}
 
 		// We are using a LXD internal loopback file.
 		d.config["source"] = defaultSource
