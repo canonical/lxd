@@ -56,7 +56,7 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 
 		fmt.Println("This LXD server currently has the following storage pools:")
 		for _, existingPool := range existingPools {
-			fmt.Printf(" - %s (backend=%q, source=%q)\n", existingPool.Name, existingPool.Driver, existingPool.Config["source"])
+			fmt.Printf(" - Pool %q using driver %q\n", existingPool.Name, existingPool.Driver)
 		}
 
 		proceed, err := c.global.asker.AskBool("Would you like to continue with scanning for lost volumes? (yes/no) [default=yes]: ", "yes")
