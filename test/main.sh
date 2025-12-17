@@ -213,9 +213,7 @@ cleanup() {
 
   # Allow for failures
   set +e
-  unset CLIENT_DEBUG
-  unset SERVER_DEBUG
-  unset SHELL_TRACING
+  unset CLIENT_DEBUG SERVER_DEBUG SHELL_TRACING
 
   # Check if we failed and if so, provide debug info and possibly an inspection shell.
   if [ "${TEST_RESULT}" != "success" ]; then
@@ -267,8 +265,6 @@ cleanup() {
     echo "==> Skipping cleanup (GitHub Action runner detected)"
   else
     echo "==> Cleaning up"
-
-    [ -e "${LXD_TEST_IMAGE:-}" ] && rm "${LXD_TEST_IMAGE}"
 
     kill_oidc
     clear_ovn_nb_db
