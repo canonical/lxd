@@ -268,8 +268,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ["cluster", "standalone", "snap"]
-        backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
+        include:
+          - group: cluster
+            backends: fast
+          - group: cluster_storage
+            backends: all
+          - group: instance
+            backends: fast
+          - group: network
+            backends: fast
+          - group: standalone
+            backends: fast
+          - group: snap
+            backends: all
+          - group: standalone_storage
+            backends: btrfs
+          - group: standalone_storage
+            backends: ceph
+          - group: standalone_storage
+            backends: dir
+          - group: standalone_storage
+            backends: lvm
+          - group: standalone_storage
+            backends: zfs
+          - group: standalone_storage
+            backends: random
 
     steps:
       - name: Checkout
@@ -323,7 +346,7 @@ jobs:
           chmod uog+x /home/runner/go/bin/*
 
       - name: Setup MicroCeph
-        if: ${{ matrix.backend == 'ceph' }}
+        if: ${{ contains(matrix.backends, 'ceph') || matrix.backends == 'all' }}
         uses: ./.github/actions/setup-microceph
         with:
           osd-count: 3
@@ -345,12 +368,15 @@ jobs:
       - name: Sanitize Artifact Name
         id: sanitize
         env:
-          ID: ${{ matrix.suite }}-${{ matrix.backend }}
+          ID: ${{ matrix.group }}-${{ matrix.backends }}
         run: |
           set -eux
           echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
 
-      - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
+      - name: "Run system tests (${{ matrix.group }}, ${{ matrix.backends }})"
+        env:
+          LXD_BACKENDS: ${{ matrix.backends }}
+          GROUP: ${{ matrix.group }}
         run: |
           set -eux
           chmod +x ~
@@ -364,7 +390,8 @@ jobs:
             sudo rm /var/crash/*
           fi
 
-          sudo --preserve-env="${SUDO_PRESERVE_ENV}" LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          # Run the tests for the selected backends
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
 
       - name: Upload crash dumps
         if: always()
