@@ -390,6 +390,11 @@ func (op *Operation) Start() error {
 	return nil
 }
 
+// IsRunning returns true if the operation run hook is still in progress.
+func (op *Operation) IsRunning() bool {
+	return op.running.Err() == nil
+}
+
 // Cancel cancels a running operation. If the operation cannot be cancelled, it
 // returns an error.
 func (op *Operation) Cancel() {
