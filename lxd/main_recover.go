@@ -54,6 +54,10 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Failed getting existing storage pools: %w", err)
 		}
 
+		if len(existingPools) == 0 {
+			return errors.New(`This LXD server doesn't have any storage pools. First recover a pool using the "source.recover" config item`)
+		}
+
 		fmt.Println("This LXD server currently has the following storage pools:")
 		for _, existingPool := range existingPools {
 			fmt.Printf(" - Pool %q using driver %q\n", existingPool.Name, existingPool.Driver)
