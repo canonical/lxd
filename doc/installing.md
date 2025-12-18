@@ -344,7 +344,7 @@ below (shown for example purposes) may not exactly match what your version of LX
 We recommend having at least 2GiB of RAM to allow the build to complete.
 
 ```{terminal}
-:input: make deps
+make deps
 
 ...
 make[1]: Leaving directory '/root/go/deps/dqlite'
@@ -355,7 +355,10 @@ Please set the following in your environment (possibly ~/.bashrc)
 #  export CGO_LDFLAGS="${CGO_LDFLAGS} -L$(go env GOPATH)/deps/dqlite/.libs/"
 #  export LD_LIBRARY_PATH="$(go env GOPATH)/deps/dqlite/.libs/${LD_LIBRARY_PATH}"
 #  export CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-:input: make
+```
+
+```{terminal}
+make
 ```
 
 ### From source: Install

@@ -172,9 +172,10 @@ If the result is `status: running`, `cloud-init` is still working. If the result
 Alternatively, use the `--wait` flag to be notified only when `cloud-init` is finished:
 
 ```{terminal}
-:input: cloud-init status --wait
 :user: root
 :host: instance
+
+cloud-init status --wait
 
 .....................................
 status: done
