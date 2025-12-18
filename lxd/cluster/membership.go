@@ -1165,6 +1165,25 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 		return "", nil, nil
 	}
 
+	var memberRoles map[string][]db.ClusterRole
+	err = state.DB.Cluster.Transaction(state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		memberRoles, err = GetMemberRoles(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("Failed loading cluster member roles: %w", err)
+		}
+
+		return err
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Filter candidates to only those eligible for promotion.
+	candidates = filterPromotionCandidates(candidates, memberRoles)
+	if len(candidates) == 0 {
+		return "", nil, nil
+	}
+
 	for i, node := range nodes {
 		if node.Address == candidates[0].Address {
 			nodes[i].Role = role
