@@ -286,6 +286,10 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
+		if !op.IsRunning() {
+			return response.BadRequest(errors.New("Only running operations can be cancelled"))
+		}
+
 		op.Cancel()
 		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(op, request.CreateRequestor(r.Context()), nil))
 
