@@ -311,10 +311,40 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		return nil, errors.New("Cannot convert maximum standby cluster members to int: Upper bound exceeded")
 	}
 
-	if count > 1 && voters < int(maxVoters) {
-		node.Role = db.RaftVoter
-	} else if standbys < int(maxStandBy) {
-		node.Role = db.RaftStandBy
+	// Check if the new member is eligible for promotion.
+	// Members are always eligible unless control plane mode is active and they lack the control-plane role.
+	var canPromote bool
+	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get the new member (it's still pending at this point).
+		newMember, err := tx.GetPendingNodeByAddress(ctx, address)
+		if err != nil {
+			return fmt.Errorf("Failed getting new member %q: %w", address, err)
+		}
+
+		canPromote = slices.Contains(newMember.Roles, db.ClusterRoleControlPlane)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// If member doesn't have control-plane role, check if control plane mode is active.
+	if !canPromote {
+		memberRoles, err := getMemberRoles(context.TODO(), state)
+		if err != nil {
+			return nil, err
+		}
+
+		// Member is only eligible if control plane mode is not active.
+		canPromote = !IsControlPlaneActive(memberRoles)
+	}
+
+	if canPromote {
+		if count > 1 && voters < int(maxVoters) {
+			node.Role = db.RaftVoter
+		} else if standbys < int(maxStandBy) {
+			node.Role = db.RaftStandBy
+		}
 	}
 
 	nodes = append(nodes, node)
