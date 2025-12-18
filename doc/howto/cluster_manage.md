@@ -8,8 +8,10 @@ discourse: lxc:[Cluster&#32;member&#32;evacuation](11330)
 After your cluster is formed, use [`lxc cluster list`](lxc_cluster_list.md) to see a list of its members and their status. Example output:
 
 ```{terminal}
-:input: lxc cluster list
 :scroll:
+
+lxc cluster list
+
 
 +---------+----------------------------+------------------+--------------+----------------+-------------+--------+-------------------+
 | NAME    |            URL             |      ROLES       | ARCHITECTURE | FAILURE DOMAIN | DESCRIPTION | STATE  |      MESSAGE      |

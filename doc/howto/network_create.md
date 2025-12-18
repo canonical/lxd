@@ -70,19 +70,32 @@ Then create the network without specifying the `--target` flag to actually set i
 For example, the following series of commands sets up a physical network with the name `UPLINK` on three cluster members:
 
 ```{terminal}
-:input: lxc network create UPLINK --type=physical parent=br0 --target=vm01
+lxc network create UPLINK --type=physical parent=br0 --target=vm01
 
 Network UPLINK pending on member vm01
-:input: lxc network create UPLINK --type=physical parent=br0 --target=vm02
+```
+
+```{terminal}
+lxc network create UPLINK --type=physical parent=br0 --target=vm02
+
 Network UPLINK pending on member vm02
-:input: lxc network create UPLINK --type=physical parent=br0 --target=vm03
+```
+
+```{terminal}
+lxc network create UPLINK --type=physical parent=br0 --target=vm03
+
 Network UPLINK pending on member vm03
-:input: lxc network create UPLINK --type=physical
+```
+
+```{terminal}
+lxc network create UPLINK --type=physical
+
 Network UPLINK created
 ```
 
 Also see {ref}`cluster-config-networks`.
 ````
+
 ```` {group-tab} UI
 
 From the main navigation, select {guilabel}`Networks`.

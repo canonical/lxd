@@ -27,7 +27,7 @@ Fetching metrics is a relatively expensive operation for LXD to perform, so if t
 To view the raw data that LXD collects, use the [`lxc query`](lxc_query.md) command to query the `/1.0/metrics` endpoint:
 
 ```{terminal}
-:input: lxc query /1.0/metrics
+lxc query /1.0/metrics
 
 # HELP lxd_api_requests_completed_total The total number of completed API requests.
 # TYPE lxd_api_requests_completed_total counter
@@ -210,7 +210,7 @@ scrape_configs:
   For example, assume that `server.crt` has the following content:
 
   ```{terminal}
-  :input: openssl x509 -noout -text -in /var/snap/prometheus/common/tls/server.crt
+  openssl x509 -noout -text -in /var/snap/prometheus/common/tls/server.crt
 
   ...
               X509v3 Subject Alternative Name:

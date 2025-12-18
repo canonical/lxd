@@ -69,7 +69,7 @@ match as a string with what the DNS server in `lxd` thinks is the exact remote a
 For example, running `dig @<DNS_server_IP> -p <DNS_server_PORT> axfr lxd.example.net` might give the following output:
 
 ```{terminal}
-:input: dig @192.0.2.200 -p 1053 axfr lxd.example.net
+dig @192.0.2.200 -p 1053 axfr lxd.example.net
 
 lxd.example.net.                        3600 IN SOA  lxd.example.net. ns1.lxd.example.net. 1669736788 120 60 86400 30
 lxd.example.net.                        300  IN NS   ns1.lxd.example.net.
@@ -90,7 +90,7 @@ If you configure a zone for IPv4 reverse DNS records for `2.0.192.in-addr.arpa` 
 For example, running `dig @<DNS_server_IP> -p <DNS_server_PORT> axfr 2.0.192.in-addr.arpa` might give the following output:
 
 ```{terminal}
-:input: dig @192.0.2.200 -p 1053 axfr 2.0.192.in-addr.arpa
+dig @192.0.2.200 -p 1053 axfr 2.0.192.in-addr.arpa
 
 2.0.192.in-addr.arpa.                  3600 IN SOA  2.0.192.in-addr.arpa. ns1.2.0.192.in-addr.arpa. 1669736828 120 60 86400 30
 2.0.192.in-addr.arpa.                  300  IN NS   ns1.2.0.192.in-addr.arpa.
