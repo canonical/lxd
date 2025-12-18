@@ -1173,6 +1173,18 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 		return "", nil, nil
 	}
 
+	var memberRoles map[string][]db.ClusterRole
+	memberRoles, err = getMemberRoles(state.ShutdownCtx, state)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Filter candidates to only those eligible for promotion.
+	candidates = filterPromotionCandidates(candidates, memberRoles, IsControlPlaneActive(memberRoles))
+	if len(candidates) == 0 {
+		return "", nil, nil
+	}
+
 	for i, node := range nodes {
 		if node.Address == candidates[0].Address {
 			nodes[i].Role = role
