@@ -5,7 +5,7 @@ discourse: lxc:[Cluster&#32;member&#32;evacuation](11330)
 (cluster-manage)=
 # How to manage a cluster
 
-After your cluster is formed, use [`lxc cluster list`](lxc_cluster_list.md) to see a list of its members and their status:
+After your cluster is formed, use [`lxc cluster list`](lxc_cluster_list.md) to see a list of its members and their status. Example output:
 
 ```{terminal}
 :input: lxc cluster list
@@ -15,9 +15,8 @@ After your cluster is formed, use [`lxc cluster list`](lxc_cluster_list.md) to s
 | NAME    |            URL             |      ROLES       | ARCHITECTURE | FAILURE DOMAIN | DESCRIPTION | STATE  |      MESSAGE      |
 +---------+----------------------------+------------------+--------------+----------------+-------------+--------+-------------------+
 | server1 | https://192.0.2.101:8443   | database-leader  | x86_64       | default        |             | ONLINE | Fully operational |
-|         |                            | database         |              |                |             |        |                   |
 +---------+----------------------------+------------------+--------------+----------------+-------------+--------+-------------------+
-| server2 | https://192.0.2.102:8443   | database-standby | aarch64      | default        |             | ONLINE | Fully operational |
+| server2 | https://192.0.2.102:8443   | database-voter   | aarch64      | default        |             | ONLINE | Fully operational |
 +---------+----------------------------+------------------+--------------+----------------+-------------+--------+-------------------+
 | server3 | https://192.0.2.103:8443   | database-standby | aarch64      | default        |             | ONLINE | Fully operational |
 +---------+----------------------------+------------------+--------------+----------------+-------------+--------+-------------------+
