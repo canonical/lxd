@@ -1398,6 +1398,22 @@ func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 
 	defer logger.Debug("Handling mknod syscall", ctx)
 
+	// For whiteouts we can just let syscall to continue normally,
+	// because kernel allows creating whiteouts in user namespaces.
+	// We need to limit this to kernels >= 5.8, because we need
+	// https://github.com/torvalds/linux/commit/a3c751a50fe6bbe50eb7622a14b18b361804ee0c
+	// to make this work correctly.
+	// Instead of hardcoding kernel version check, we just check if idmapped
+	// mounts are supported, which means that kernel is new enough.
+	if bool(C.is_whiteout(C.dev_t(siov.req.data.args[2]), C.mode_t(siov.req.data.args[1]))) &&
+		s.s.OS.IdmappedMounts {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+	}
+
 	if C.device_allowed(C.dev_t(siov.req.data.args[2]), C.mode_t(siov.req.data.args[1])) < 0 {
 		ctx["err"] = "Device not allowed"
 		if s.s.OS.SeccompListenerContinue {
@@ -1448,6 +1464,22 @@ func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 	}
 
 	defer logger.Debug("Handling mknodat syscall", ctx)
+
+	// For whiteouts we can just let syscall to continue normally,
+	// because kernel allows creating whiteouts in user namespaces.
+	// We need to limit this to kernels >= 5.8, because we need
+	// https://github.com/torvalds/linux/commit/a3c751a50fe6bbe50eb7622a14b18b361804ee0c
+	// to make this work correctly.
+	// Instead of hardcoding kernel version check, we just check if idmapped
+	// mounts are supported, which means that kernel is new enough.
+	if bool(C.is_whiteout(C.dev_t(siov.req.data.args[3]), C.mode_t(siov.req.data.args[2]))) &&
+		s.s.OS.IdmappedMounts {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+	}
 
 	// Make sure to handle 64bit kernel, 32bit container/userspace, LXD
 	// built on 64bit userspace correctly.
