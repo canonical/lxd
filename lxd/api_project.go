@@ -821,9 +821,9 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 					return err
 				}
 			} else {
-				// Delete the project-specific default profile.
+				// Delete the project-specific default profile if it exists.
 				err = dbCluster.DeleteProfile(ctx, tx.Tx(), project.Name, api.ProjectDefaultName)
-				if err != nil {
+				if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 					return fmt.Errorf("Delete project default profile: %w", err)
 				}
 			}
