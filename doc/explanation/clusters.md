@@ -51,7 +51,7 @@ Automatic roles are assigned by LXD itself and cannot be modified by the user.
 
 | Role                  | Automatic     | Description |
 | :---                  | :--------     | :---------- |
-| `database`            | yes           | Voting member of the distributed database |
+| `database-voter`      | yes           | Voting member of the distributed database |
 | `database-leader`     | yes           | Current leader of the distributed database |
 | `database-standby`    | yes           | Stand-by (non-voting) member of the distributed database |
 | `event-hub`           | no            | Exchange point (hub) for the internal LXD events (requires at least two) |

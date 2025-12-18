@@ -451,6 +451,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_enable "clustering enable"
     run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_membership "clustering membership"
+    run_test test_clustering_roles "clustering roles"
     run_test test_clustering_containers "clustering containers"
     run_test test_clustering_storage "clustering storage"
     run_test test_clustering_storage_single_node "clustering storage single node"

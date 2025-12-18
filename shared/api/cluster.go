@@ -162,7 +162,7 @@ type ClusterMember struct {
 	// Example: https://10.0.0.1:8443
 	URL string `json:"url" yaml:"url"`
 
-	// Whether the cluster member is a database server
+	// Whether the cluster member is a database server (database-leader, database-voter, or database-standby)
 	// Example: true
 	Database bool `json:"database" yaml:"database"`
 

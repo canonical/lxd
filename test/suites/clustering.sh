@@ -244,8 +244,8 @@ test_clustering_membership() {
   # checking which are database nodes and which are database-standby nodes.
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF -- '- database-leader'
-  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -Fc "database-standby")" = "2" ]
-  [ "$(LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep -Fc "database ")" = "3" ]
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -wFc "database-standby")" = "2" ]
+  [ "$(LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep -wFc "database-voter")" = "2" ]
 
   # Show a single node
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -F "server_name: node5"
@@ -2977,7 +2977,7 @@ test_clustering_handover() {
   echo "Launched member 4"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby")" = "1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -wFc "database-standby")" = "1" ]
 
   # Shutdown the first node.
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -2989,7 +2989,7 @@ test_clustering_handover() {
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster ls
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -xF -- "- database"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -xF -- "- database-voter"
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1 | grep -xF "database: false"
 
   # Even if we shutdown one more node, the cluster is still available.
@@ -3087,7 +3087,7 @@ test_clustering_rebalance() {
 
   # Check there is one database-standby member.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby")" = "1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -wFc "database-standby")" = "1" ]
 
   # Kill the second node.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
@@ -3101,7 +3101,7 @@ test_clustering_rebalance() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Offline"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: false"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF "status: Online"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -F -- "- database"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database-voter"
 
   # Respawn the second node. It won't be able to disrupt the current leader,
   # since dqlite uses pre-vote.
@@ -3279,8 +3279,8 @@ test_clustering_remove_raft_node() {
   # There are only 2 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- database-leader"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -xF -- "- database"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -xF -- "- database-voter"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database-voter"
 
   # The second node is still in the raft_nodes table.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 1 ]
@@ -3295,8 +3295,8 @@ test_clustering_remove_raft_node() {
   # We're back to 3 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- database-leader"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -xF -- "- database"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -xF -- "- database-voter"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database-voter"
 
   # The second node is gone from the raft_nodes_table.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 0 ]
@@ -3370,11 +3370,11 @@ test_clustering_failure_domains() {
   # Set failure domains
 
   # shellcheck disable=SC2039
-  printf 'roles: ["database"]\nfailure_domain: "az1"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node1
+  printf 'roles: ["database-leader"]\nfailure_domain: "az1"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node1
   # shellcheck disable=SC2039
-  printf 'roles: ["database"]\nfailure_domain: "az2"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node2
+  printf 'roles: ["database-voter"]\nfailure_domain: "az2"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node2
   # shellcheck disable=SC2039
-  printf 'roles: ["database"]\nfailure_domain: "az3"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node3
+  printf 'roles: ["database-voter"]\nfailure_domain: "az3"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node3
   # shellcheck disable=SC2039
   printf 'roles: []\nfailure_domain: "az1"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node4
   # shellcheck disable=SC2039
@@ -4334,11 +4334,11 @@ test_clustering_remove_members() {
   # Start node 6
   LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
 
-  # make sure node6 is a spare ndoe
+  # make sure node6 is a spare node (no database roles)
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node6"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -E "\- database(|-standy|-leader)$" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -E "\- database-(voter|standby|leader)$" || false
 
-  # waite for leader update table raft_node of local database by heartbeat
+  # wait for leader update table raft_node of local database by heartbeat
   sleep 10s
 
   # Remove the leader, via the spare node
@@ -4350,7 +4350,6 @@ test_clustering_remove_members() {
 
   # Check whether node6 is changed from a spare node to a leader node.
   LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -xF -- "- database-leader"
-  LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -xF -- "- database"
 
   # Spawn a sixth node
   setup_clustering_netns 7
@@ -4792,7 +4791,7 @@ test_clustering_events() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster role add node2 event-hub
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub)" = "2" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc event-hub)" = "2" ]
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -4826,7 +4825,7 @@ test_clustering_events() {
 
   # Switch into full-mesh mode by removing one event-hub role so there is <2 in the cluster.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub)" = "1" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc event-hub)" = "1" ]
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
@@ -4913,6 +4912,128 @@ test_clustering_events() {
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
   kill_lxd "${LXD_FIVE_DIR}"
+}
+
+test_clustering_roles() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node.
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn a third node.
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn a fourth node.
+  setup_clustering_netns 4
+  LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns4="${prefix}4"
+  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn a fifth node.
+  setup_clustering_netns 5
+  LXD_FIVE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns5="${prefix}5"
+  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_FIVE_DIR}" "${LXD_ONE_DIR}"
+
+  # Configure cluster with max_voters=3 and max_standby=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.max_voters=3 cluster.max_standby=1 cluster.offline_threshold=11
+
+  sleep 12 # Wait a bit for cluster to stabilize.
+
+  lxc cluster ls
+
+  # Get cluster list once and reuse it for all queries.
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+
+  # Find a member without database-voter role (to test adding it).
+  non_voter_member="$(jq --exit-status --raw-output '[.[] | select(any(.roles[]; contains("database-voter")) | not) | .server_name] | first' <<< "${cluster_list}")"
+  echo "Found non-voter member: ${non_voter_member}"
+
+  # Find a member without database-standby role (to test adding it).
+  non_standby_member="$(jq --exit-status --raw-output '[.[] | select(any(.roles[]; contains("database-standby")) | not) | .server_name] | first' <<< "${cluster_list}")"
+  echo "Found non-standby member: ${non_standby_member}"
+
+  # Find a member without database-leader role (to test adding it).
+  non_leader_member="$(jq --exit-status --raw-output '[.[] | select(any(.roles[]; contains("database-leader")) | not) | .server_name] | first' <<< "${cluster_list}")"
+  echo "Found non-leader member: ${non_leader_member}"
+
+  echo "==> Reject adding automatic role 'database-voter'"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${non_voter_member}" database-voter 2>&1)" = 'Error: The automatically assigned "database-voter" role cannot be added manually' ]
+
+  echo "==> Reject adding automatic role 'database-standby'"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${non_standby_member}" database-standby 2>&1)" = 'Error: The automatically assigned "database-standby" role cannot be added manually' ]
+
+  echo "==> Reject adding automatic role 'database-leader'"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${non_leader_member}" database-leader 2>&1)" = 'Error: The automatically assigned "database-leader" role cannot be added manually' ]
+
+  echo "==> Reject invalid role name"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 invalid-role 2>&1)" = 'Error: Invalid cluster role "invalid-role"' ]
+
+  echo "==> Reject typo in role name"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hubb 2>&1)" = 'Error: Invalid cluster role "event-hubb"' ]
+
+  echo "==> Reject duplicate roles in request"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub,event-hub 2>&1)" = 'Error: Duplicate role "event-hub" in request' ]
+
+  echo "==> Accept valid manual role addition"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub"
+
+  echo "==> Accept adding multiple manual roles"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 ovn-chassis
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- ovn-chassis"
+
+  echo "==> Reject adding role member already has"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub 2>&1)" = 'Error: Member "node1" already has role "event-hub"' ]
+
+  echo "==> Accept removing manual role"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- ovn-chassis"
+
+  echo "==> Reject removing role member does not have"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub 2>&1)" = 'Error: Member "node1" does not have role "event-hub"' ]
+
+  echo "==> Cleanup"
+  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_FIVE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_FIVE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
 }
 
 test_clustering_uuid() {
