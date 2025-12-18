@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -50,6 +51,10 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	op, err := operations.OperationGetInternal(id)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if !op.IsRunning() {
+		return response.BadRequest(errors.New("Only running operations can be cancelled"))
 	}
 
 	op.Cancel()
