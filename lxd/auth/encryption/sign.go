@@ -1,12 +1,15 @@
 package encryption
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+
+	"github.com/canonical/lxd/client"
 )
 
 const (
@@ -37,7 +40,7 @@ func LXDAudience(clusterUUID string) string {
 // - Issued at (iat): time now (UTC)
 // - Expiry (exp): The given time (UTC).
 func GetDevLXDBearerToken(secret []byte, identityIdentifier string, clusterUUID string, expiresAt time.Time) (string, error) {
-	return getToken(secret, nil, identityIdentifier, clusterUUID, DevLXDAudience, expiresAt)
+	return getToken(secret, nil, identityIdentifier, clusterUUID, DevLXDAudience, expiresAt, "")
 }
 
 // GetClientBearerToken generates and signs a token for use with the main LXD API. For claims it has:
@@ -47,8 +50,13 @@ func GetDevLXDBearerToken(secret []byte, identityIdentifier string, clusterUUID 
 // - Not before (nbf): time now (UTC)
 // - Issued at (iat): time now (UTC)
 // - Expiry (exp): The given time (UTC).
-func GetClientBearerToken(secret []byte, identityIdentifier string, clusterUUID string, expiresAt time.Time) (string, error) {
-	return getToken(secret, nil, identityIdentifier, clusterUUID, LXDAudience, expiresAt)
+// - Server certificate fingerprint (server_cert_fingerprint): The given serverCertFingerprint.
+func GetClientBearerToken(secret []byte, identityIdentifier string, clusterUUID string, expiresAt time.Time, serverCertFingerprint string) (string, error) {
+	if serverCertFingerprint == "" {
+		return "", errors.New("Server certificate fingerprint must be provided for LXD bearer tokens")
+	}
+
+	return getToken(secret, nil, identityIdentifier, clusterUUID, LXDAudience, expiresAt, serverCertFingerprint)
 }
 
 // GetOIDCSessionToken generates and signs a token to be set as an OIDC session cookie. For claims it has:
@@ -59,7 +67,7 @@ func GetClientBearerToken(secret []byte, identityIdentifier string, clusterUUID 
 // - Issued at (iat): time now (UTC)
 // - Expiry (exp): The given time (UTC).
 func GetOIDCSessionToken(secret []byte, sessionID uuid.UUID, clusterUUID string, expiresAt time.Time) (string, error) {
-	return getToken(secret, sessionID[:], sessionID.String(), clusterUUID, LXDAudience, expiresAt)
+	return getToken(secret, sessionID[:], sessionID.String(), clusterUUID, LXDAudience, expiresAt, "")
 }
 
 // getToken generates and signs a token for use with the LXD. If a salt is provided, a signing key will be generated
@@ -71,14 +79,22 @@ func GetOIDCSessionToken(secret []byte, sessionID uuid.UUID, clusterUUID string,
 // - Not before (nbf): time now (UTC)
 // - Issued at (iat): time now (UTC)
 // - Expiry (exp): The given time (UTC).
-func getToken(secret []byte, salt []byte, subject string, clusterUUID string, audienceFunc func(string) string, expiresAt time.Time) (string, error) {
-	claims := jwt.RegisteredClaims{
-		Issuer:    Issuer(clusterUUID),
-		Subject:   subject,
-		Audience:  jwt.ClaimStrings{audienceFunc(clusterUUID)},
-		NotBefore: jwt.NewNumericDate(time.Now().UTC()),
-		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
-		ExpiresAt: jwt.NewNumericDate(expiresAt.UTC()),
+// - Server certificate fingerprint (server_cert_fingerprint): The given serverCertFingerprint, if not empty.
+func getToken(secret []byte, salt []byte, subject string, clusterUUID string, audienceFunc func(string) string, expiresAt time.Time, serverCertFingerprint string) (string, error) {
+	claims := lxd.ClientBearerTokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    Issuer(clusterUUID),
+			Subject:   subject,
+			Audience:  jwt.ClaimStrings{audienceFunc(clusterUUID)},
+			NotBefore: jwt.NewNumericDate(time.Now().UTC()),
+			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
+			ExpiresAt: jwt.NewNumericDate(expiresAt.UTC()),
+		},
+	}
+
+	// If server certificate fingerprint is provided, include it in the claims.
+	if serverCertFingerprint != "" {
+		claims.ServerFingerprint = serverCertFingerprint
 	}
 
 	var err error
