@@ -1,15 +1,16 @@
 test_alias() {
   # Get list of original aliases before test
   local original_alias_list
-  original_alias_list=$(lxc alias list --format json | jq --raw-ouput 'keys[]' || echo "")
+  original_alias_list=$(lxc alias list --format json | jq --exit-status --raw-output 'keys[]' || echo "")
 
   echo "Test 1: Add a new alias"
   lxc alias add my-list "list -c ns46S"
   lxc alias list --format csv | grep -xF "my-list,list -c ns46S"
 
   echo "Test 2: Prevent adding duplicate alias (should fail)"
-  ALIAS_ERR="$(! lxc alias add my-list "list -c -s" 2>&1 || echo fail)"
-  [ "$(echo "${ALIAS_ERR}" | tail -1)" = "Error: Alias my-list already exists" ]
+  local alias_err
+  alias_err="$(! lxc alias add my-list "list -c -s" 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${alias_err}")" = "Error: Alias my-list already exists" ]
 
   echo "Test 3: Show alias in YAML format"
   lxc alias show | grep -xF "my-list: list -c ns46S"
@@ -21,22 +22,23 @@ test_alias() {
 
   echo "Test 5: Prevent rename to existing alias (should fail)"
   lxc alias add another-alias "list -c s"
-  ALIAS_ERR="$(! lxc alias rename another-alias my-list2 2>&1 || echo fail)"
-  [ "$(echo "${ALIAS_ERR}" | tail -1)" = "Error: Alias my-list2 already exists" ]
+  alias_err="$(! lxc alias rename another-alias my-list2 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${alias_err}")" = "Error: Alias my-list2 already exists" ]
 
   echo "Test 6: Remove an alias"
   lxc alias remove my-list2
   ! lxc alias list --format csv | grep -F "my-list2," || false
 
   echo "Test 7: Prevent removing non-existent alias (should fail)"
-  ALIAS_ERR="$(! lxc alias remove non-existent 2>&1 || echo fail)"
-  [ "$(echo "${ALIAS_ERR}" | tail -1)" = "Error: Alias non-existent doesn't exist" ]
+  alias_err="$(! lxc alias remove non-existent 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${alias_err}")" = "Error: Alias non-existent doesn't exist" ]
 
   echo "Test 8: alias command with spaces in target"
   lxc alias add complex "list --format csv --all-projects"
   lxc alias list --format csv | grep -xF "complex,list --format csv --all-projects"
 
   echo "Test 9: Alias list formats"
+  local -a formats
   formats=("json" "yaml" "compact" "table")
   for format in "${formats[@]}"; do
     lxc alias list --format "${format}" | grep -F "another-alias"
@@ -51,14 +53,15 @@ EOF
   lxc alias list --format csv | grep -xF "new-alias2,list -c ns"
 
   echo "Test 11: Prevent clearing all aliases with empty input"
-  ALIAS_ERR="$(! echo "" | lxc alias edit 2>&1 || echo fail)"
-  [ "$(echo "${ALIAS_ERR}" | tail -1)" = "Error: No aliases found in input." ]
+  alias_err="$(! echo "" | lxc alias edit 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${alias_err}")" = "Error: No aliases found in input." ]
 
   echo "Test 12: Handle invalid YAML in edit (non-interactive)"
   # Store current aliases count
-  alias_count_before=$(lxc alias list --format json | jq length)
-  ALIAS_ERR="$(! echo "invalid: yaml: [}" | lxc alias edit 2>&1 || echo fail)"
-  echo "${ALIAS_ERR}" | grep -F "yaml:"
+  local alias_count_before alias_count_after
+  alias_count_before="$(lxc alias list --format json | jq --exit-status length)"
+  alias_err="$(! echo "invalid: yaml: [}" | lxc alias edit 2>&1 || echo fail)"
+  grep -F "yaml:" <<< "${alias_err}"
 
   # Verify aliases were not changed
   alias_count_after="$(lxc alias list --format json | jq --exit-status length)"
@@ -93,8 +96,10 @@ EOF
   done
 
   # Check aliases
+  local alias_list_csv
+  alias_list_csv="$(lxc alias list --format csv)"
   for alias_name in "${!special_aliases[@]}"; do
-    lxc alias list --format csv | grep -xF "${alias_name},${special_aliases[$alias_name]}"
+    grep -xF "${alias_name},${special_aliases[$alias_name]}" <<< "${alias_list_csv}"
   done
 
   echo "Test 18: Bulk update aliases via edit"
@@ -106,11 +111,14 @@ bulk-alias4: "list --format table"
 EOF
 
   # Check bulk aliases
+  local -a bulk_formats
   bulk_formats=("csv" "json" "yaml" "table")
+  local bulk_alias_list_csv
+  bulk_alias_list_csv="$(lxc alias list --format csv)"
   for format_index in "${!bulk_formats[@]}"; do
     alias_number=$((format_index + 1))
     format_string=${bulk_formats[format_index]}
-    lxc alias list --format csv | grep -xF "bulk-alias${alias_number},list --format ${format_string}"
+    grep -xF "bulk-alias${alias_number},list --format ${format_string}" <<< "${bulk_alias_list_csv}"
   done
 
   echo "Test 19: Round-trip show to edit pipeline"
@@ -130,21 +138,21 @@ EOF
   lxc alias show | lxc alias edit
 
   # Get alias lists once outside the loop
-  ALIAS_LIST_JSON="$(lxc alias list --format json)"
-  ALIAS_LIST_CSV="$(lxc alias list --format csv)"
+  local alias_list_json alias_list_csv
+  alias_list_json="$(lxc alias list --format json)"
+  alias_list_csv="$(lxc alias list --format csv)"
 
   # Verify that Round-trip aliases still exist and being correct
   for alias_name in "${!roundtrip_aliases[@]}"; do
     alias_value="${roundtrip_aliases[$alias_name]}"
     # check with JSON format
-    jq --exit-status '.["'"${alias_name}"'"] == "'"${alias_value}"'"' <<< "${ALIAS_LIST_JSON}"
+    jq --exit-status '.["'"${alias_name}"'"] == "'"${alias_value}"'"' <<< "${alias_list_json}"
     # Check with CSV format
-    grep -xF "${alias_name},${roundtrip_aliases[$alias_name]}" <<< "${ALIAS_LIST_CSV}"
+    grep -xF "${alias_name},${roundtrip_aliases[$alias_name]}" <<< "${alias_list_csv}"
   done
 
   # Clean up
   alias_test_cleanup "${original_alias_list}"
-
 }
 
 alias_test_cleanup() {
@@ -152,7 +160,7 @@ alias_test_cleanup() {
 
   # Get current aliases
   local current_alias_list
-  current_alias_list=$(lxc alias list --format json | jq --raw-output 'keys[]' || echo "")
+  current_alias_list=$(lxc alias list --format json | jq --exit-status --raw-output 'keys[]' || echo "")
 
   # Remove all test aliases
   local removed_count=0
@@ -181,5 +189,4 @@ alias_test_cleanup() {
   fi
 
   return 0
-
 }
