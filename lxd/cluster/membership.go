@@ -1119,8 +1119,58 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 		return "", nil, nil
 	}
 
+	maxVoters := state.GlobalConfig.MaxVoters()
+
+	var members []db.NodeInfo
+	var controlPlaneActive bool
+	err = state.DB.Cluster.Transaction(state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check if control-plane mode is active.
+		controlPlaneActive, err = tx.ControlPlaneActive(maxVoters)
+		if err != nil {
+			return fmt.Errorf("Failed checking %q role: %w", db.ClusterRoleControlPlane, err)
+		}
+
+		// We need member info to check roles.
+		members, err = tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Prepare a map that stores [db.NodeInfo] by address to check roles of candidates.
+	membersInfo := map[string]db.NodeInfo{}
+	for _, member := range members {
+		membersInfo[member.Address] = member
+	}
+
+	// Find the first candidate that is eligible for promotion.
+	var candidateAddress string
+	for _, candidate := range candidates {
+		member, ok := membersInfo[candidate.Address]
+		if !ok {
+			continue
+		}
+
+		// Skip non-control-plane members if control-plane mode is active.
+		if controlPlaneActive && !slices.Contains(member.Roles, db.ClusterRoleControlPlane) {
+			continue
+		}
+
+		candidateAddress = candidate.Address
+		break
+	}
+
+	if candidateAddress == "" {
+		return "", nil, nil
+	}
+
 	for i, node := range nodes {
-		if node.Address == candidates[0].Address {
+		if node.Address == candidateAddress {
 			nodes[i].Role = role
 			return node.Address, nodes, nil
 		}
