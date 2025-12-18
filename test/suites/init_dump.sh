@@ -15,6 +15,7 @@ test_init_dump() {
 config:
   core.https_address: 127.0.0.1:9999
   images.auto_update_interval: 15
+  network.ovs.connection: unix:///var/snap/microovn/common/run/switch/db.sock
 storage_pools:
 - name: ${storage_pool}
   driver: $driver
@@ -50,6 +51,7 @@ cat <<EOF > expected.yaml
 config:
   core.https_address: 127.0.0.1:9999
   images.auto_update_interval: "15"
+  network.ovs.connection: unix:///var/snap/microovn/common/run/switch/db.sock
   volatile.uuid: ${cluster_uuid}
 networks:
 - config:

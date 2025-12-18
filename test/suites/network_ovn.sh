@@ -59,6 +59,10 @@ test_network_ovn() {
 
   setup_ovn
 
+  # This assertion tests that the "BridgeExists" function works correctly and can find the integration bridge.
+  # If the OVS package is not able to find the bridge, the "type" field is "unknown" instead of "bridge".
+  [ "$(lxc query /1.0/networks/br-int | jq -er '.type')" = "bridge" ]
+
   uplink_network="uplink$$"
   ovn_network="ovn$$"
 

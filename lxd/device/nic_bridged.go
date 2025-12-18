@@ -29,7 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -584,12 +584,12 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	revert.Add(r)
 
 	// Attach host side veth interface to bridge.
-	err = network.AttachInterface(d.config["parent"], saveData["host_name"])
+	err = network.AttachInterface(d.state, d.config["parent"], saveData["host_name"])
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { _ = network.DetachInterface(d.config["parent"], saveData["host_name"]) })
+	revert.Add(func() { _ = network.DetachInterface(d.state, d.config["parent"], saveData["host_name"]) })
 
 	// Attempt to disable router advertisement acceptance.
 	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
@@ -848,7 +848,7 @@ func (d *nicBridged) postStop() error {
 
 	if d.config["host_name"] != "" && network.InterfaceExists(d.config["host_name"]) {
 		// Detach host-side end of veth pair from bridge (required for openvswitch particularly).
-		err := network.DetachInterface(bridgeName, d.config["host_name"])
+		err := network.DetachInterface(d.state, bridgeName, d.config["host_name"])
 		if err != nil {
 			return fmt.Errorf("Failed to detach interface %q from %q: %w", d.config["host_name"], bridgeName, err)
 		}
@@ -1585,7 +1585,10 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 
 // setupOVSBridgePortVLANs configures the bridge port with the specified VLAN settings on the openvswitch bridge.
 func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
-	ovs := openvswitch.NewOVS()
+	vswitch, err := ovs.NewVSwitch(d.state.GlobalConfig.NetworkOVSConnection())
+	if err != nil {
+		return fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
 
 	// Set port on bridge to specified untagged PVID.
 	if d.config["vlan"] != "" {
@@ -1598,7 +1601,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Order is important here, as vlan_mode is set to "access", assuming that vlan.tagged is not used.
 		// If vlan.tagged is specified, then we expect it to also change the vlan_mode as needed.
 		if d.config["vlan"] != "none" {
-			err := ovs.BridgePortSet(hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
+			err := vswitch.BridgePortSet(hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
 			if err != nil {
 				return err
 			}
@@ -1628,7 +1631,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Also set the vlan_mode as needed from above.
 		// Must come after the PortSet command used for setting "vlan" mode above so that the correct
 		// vlan_mode is retained.
-		err = ovs.BridgePortSet(hostName, "vlan_mode="+vlanMode, "trunks="+strings.Join(vlanIDs, ","))
+		err = vswitch.BridgePortSet(hostName, "vlan_mode="+vlanMode, "trunks="+strings.Join(vlanIDs, ","))
 		if err != nil {
 			return err
 		}
