@@ -791,13 +791,13 @@ func (c *cmdProfileList) parseColumns() ([]profileColumn, error) {
 
 	for _, columnEntry := range columnList {
 		if columnEntry == "" {
-			return nil, fmt.Errorf(i18n.G("Empty column entry (redundant, leading or trailing command) in '%s'"), c.flagColumns)
+			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in %q", c.flagColumns)
 		}
 
 		for _, columnRune := range columnEntry {
 			column, ok := columnsShorthandMap[columnRune]
 			if !ok {
-				return nil, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)
+				return nil, fmt.Errorf("Unknown column shorthand char '%c' in %q", columnRune, columnEntry)
 			}
 
 			columns = append(columns, column)
