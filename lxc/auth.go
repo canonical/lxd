@@ -297,7 +297,7 @@ func (c *cmdGroupEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not parse group: %q\n", err)
+			fmt.Fprintf(os.Stderr, "Could not parse group: %v\n", err)
 			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
@@ -1280,7 +1280,7 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not parse identity: %q\n", err)
+			fmt.Fprintf(os.Stderr, "Could not parse identity: %v\n", err)
 			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
@@ -2060,7 +2060,7 @@ func (c *cmdIdentityProviderGroupEdit) run(cmd *cobra.Command, args []string) er
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not parse group: %q\n", err)
+			fmt.Fprintf(os.Stderr, "Could not parse group: %v\n", err)
 			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
