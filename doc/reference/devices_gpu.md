@@ -2,6 +2,7 @@
 # Type: `gpu`
 
 ```{youtube} https://www.youtube.com/watch?v=T0aV2LsMpoA
+:title: LXD and the NVIDIA A100
 ```
 
 GPU devices make the specified GPU device or devices appear in the instance.

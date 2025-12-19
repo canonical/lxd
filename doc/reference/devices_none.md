@@ -2,6 +2,7 @@
 # Type: `none`
 
 ```{youtube} https://www.youtube.com/watch?v=6NCLnd5_guQ
+:title: LXD none devices
 ```
 
 ```{note}
