@@ -324,8 +324,6 @@ declare -A durations
 
 # Generate markdown table with test durations across backends
 generate_duration_table() {
-    local output="${GITHUB_STEP_SUMMARY:-"/dev/stdout"}"
-
     # Collect all unique test names
     local -a test_names=()
     for key in "${!durations[@]}"; do
@@ -407,7 +405,7 @@ generate_duration_table() {
             printf " | %${backend_col_widths[${backend}]}s" "${backend_totals[${backend}]}s"
         done
         echo ""
-    } > "${output}"
+    } | tee ${GITHUB_STEP_SUMMARY:+"${GITHUB_STEP_SUMMARY}"}  # Output to GitHub summary + stdout if in GitHub Actions, stdout alone otherwise
 }
 
 trap cleanup EXIT HUP INT TERM
