@@ -338,13 +338,15 @@ generate_duration_table() {
     # Sort test names
     mapfile -t test_names < <(printf '%s\n' "${test_names[@]}" | sort)
 
-    # Calculate column widths
-    local test_col_width=4  # "Test"
+    # Calculate column widths and totals
+    local test_col_width=5  # "TOTAL"
     local -a backends
     read -ra backends <<< "${LXD_BACKENDS}"
     local -A backend_col_widths
+    local -A backend_totals
     for backend in "${backends[@]}"; do
         backend_col_widths[${backend}]=${#backend}
+        backend_totals[${backend}]=0
     done
 
     for test_name in "${test_names[@]}"; do
@@ -354,11 +356,18 @@ generate_duration_table() {
             local cell_text
             if [ -n "${duration}" ]; then
                 cell_text="${duration}s"
+                backend_totals[${backend}]=$(awk "BEGIN {printf \"%.2f\", ${backend_totals[${backend}]} + ${duration}}")
             else
                 cell_text="-"
             fi
             [ ${#cell_text} -gt "${backend_col_widths[${backend}]}" ] && backend_col_widths[${backend}]=${#cell_text}
         done
+    done
+
+    # Check total width
+    for backend in "${backends[@]}"; do
+        local total_text="${backend_totals[${backend}]}s"
+        [ ${#total_text} -gt "${backend_col_widths[${backend}]}" ] && backend_col_widths[${backend}]=${#total_text}
     done
 
     {
@@ -391,6 +400,13 @@ generate_duration_table() {
             done
             echo ""
         done
+
+        # Total row
+        printf "%-${test_col_width}s" "TOTAL"
+        for backend in "${backends[@]}"; do
+            printf " | %${backend_col_widths[${backend}]}s" "${backend_totals[${backend}]}s"
+        done
+        echo ""
     } > "${output}"
 }
 
