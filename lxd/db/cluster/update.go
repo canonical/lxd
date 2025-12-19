@@ -4320,7 +4320,7 @@ CREATE VIEW profiles_used_by_ref (project, name, value) AS
 
 		count2 := counts2[table]
 		if count1 != count2 {
-			return fmt.Errorf("Row count mismatch in table '%s': %d vs %d", table, count1, count2)
+			return fmt.Errorf("Row count mismatch in table %q: %d vs %d", table, count1, count2)
 		}
 	}
 
