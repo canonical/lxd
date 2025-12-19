@@ -10,7 +10,6 @@ readonly test_group_cluster=(
     "clustering_membership"
     "clustering_containers"
     "clustering_network"
-    "clustering_publish"
     "clustering_profiles"
     "clustering_projects_force_delete"
     "clustering_join_api"
@@ -52,6 +51,7 @@ readonly test_group_cluster=(
 readonly test_group_cluster_storage=(
     "clustering_image_refresh"
     "clustering_image_replication"
+    "clustering_publish"
     "clustering_recovery"
     "clustering_storage"
     "clustering_storage_single_node"
