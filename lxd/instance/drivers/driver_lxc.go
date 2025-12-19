@@ -1898,7 +1898,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 			module = strings.TrimPrefix(module, " ")
 			err := util.LoadModule(module)
 			if err != nil {
-				return nil, "", nil, fmt.Errorf("Failed to load kernel module '%s': %w", module, err)
+				return nil, "", nil, fmt.Errorf("Failed to load kernel module %q: %w", module, err)
 			}
 		}
 	}
@@ -3842,7 +3842,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
 		if !slices.Contains(profiles, profile.Name) {
-			return fmt.Errorf("Requested profile '%s' doesn't exist", profile.Name)
+			return fmt.Errorf("Requested profile %q doesn't exist", profile.Name)
 		}
 
 		if slices.Contains(checkedProfiles, profile.Name) {
@@ -4216,7 +4216,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					module = strings.TrimPrefix(module, " ")
 					err := util.LoadModule(module)
 					if err != nil {
-						return fmt.Errorf("Failed to load kernel module '%s': %w", module, err)
+						return fmt.Errorf("Failed to load kernel module %q: %w", module, err)
 					}
 				}
 			} else if key == "limits.disk.priority" {

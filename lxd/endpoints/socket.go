@@ -95,7 +95,7 @@ func socketUnixSetOwnership(path string, groupName string) error {
 	if groupName != "" {
 		g, err := user.LookupGroup(groupName)
 		if err != nil {
-			return fmt.Errorf("cannot get group ID of '%s': %w", groupName, err)
+			return fmt.Errorf("cannot get group ID of %q: %w", groupName, err)
 		}
 
 		gid, err = strconv.Atoi(g.Gid)

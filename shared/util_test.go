@@ -20,7 +20,7 @@ func TestURLEncode(t *testing.T) {
 		map[string]string{"param": "with spaces", "other": "without"})
 	expected := "/path/with%20spaces?other=without&param=with+spaces"
 	if url != expected {
-		t.Error(fmt.Errorf("'%s' != '%s'", url, expected))
+		t.Error(fmt.Errorf("%q != %q", url, expected))
 	}
 }
 
@@ -36,7 +36,7 @@ func TestUrlsJoin(t *testing.T) {
 
 	expected := "https://cloud-images.ubuntu.com/releases/image/root.tar.xz"
 	if res != expected {
-		t.Error(fmt.Errorf("'%s' != '%s'", res, expected))
+		t.Error(fmt.Errorf("%q != %q", res, expected))
 	}
 }
 

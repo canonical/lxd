@@ -5754,7 +5754,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
 		if !slices.Contains(profiles, profile.Name) {
-			return fmt.Errorf("Requested profile '%s' doesn't exist", profile.Name)
+			return fmt.Errorf("Requested profile %q doesn't exist", profile.Name)
 		}
 
 		if slices.Contains(checkedProfiles, profile.Name) {
@@ -5768,7 +5768,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	if args.Architecture != 0 {
 		_, err = osarch.ArchitectureName(args.Architecture)
 		if err != nil {
-			return fmt.Errorf("Invalid architecture ID: %s", err)
+			return fmt.Errorf("Invalid architecture ID: %w", err)
 		}
 	}
 

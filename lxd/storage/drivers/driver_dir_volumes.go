@@ -193,7 +193,7 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 	// Remove the volume from the storage device.
 	err = forceRemoveAll(volPath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove '%s': %w", volPath, err)
+		return fmt.Errorf("Failed to remove %q: %w", volPath, err)
 	}
 
 	// Get the volume ID for the volume, which is used to remove project quota.
@@ -502,7 +502,7 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	// Remove the snapshot from the storage device.
 	err := forceRemoveAll(snapPath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove '%s': %w", snapPath, err)
+		return fmt.Errorf("Failed to remove %q: %w", snapPath, err)
 	}
 
 	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)

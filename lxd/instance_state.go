@@ -240,7 +240,7 @@ func instanceActionToOptype(action string) (operationtype.Type, error) {
 		return operationtype.InstanceUnfreeze, nil
 	}
 
-	return operationtype.Unknown, fmt.Errorf("Unknown action: '%s'", action)
+	return operationtype.Unknown, fmt.Errorf("Unknown action: %q", action)
 }
 
 func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error {
@@ -284,5 +284,5 @@ func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error 
 		return inst.Unfreeze()
 	}
 
-	return fmt.Errorf("Unknown action: '%s'", req.Action)
+	return fmt.Errorf("Unknown action: %q", req.Action)
 }

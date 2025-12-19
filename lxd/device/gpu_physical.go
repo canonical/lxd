@@ -742,7 +742,7 @@ func (d *gpuPhysical) postStop() error {
 		if cdiID != nil {
 			err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), cdi.CDIUnixPrefix, d.name, "")
 			if err != nil {
-				return fmt.Errorf("Failed to delete files for CDI device '%s': %w", d.name, err)
+				return fmt.Errorf("Failed to delete files for CDI device %q: %w", d.name, err)
 			}
 
 			// Also remove the JSON files that were used to store the CDI related information.

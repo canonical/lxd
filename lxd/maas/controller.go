@@ -83,7 +83,7 @@ func NewController(url string, key string, machine string) (*Controller, error) 
 			return nil, err
 		}
 
-		return nil, fmt.Errorf("Unable to connect MAAS at '%s': %v", baseURL,
+		return nil, fmt.Errorf("Unable to connect MAAS at %q: %v", baseURL,
 			strings.Split(strings.Split(err.Error(), "unsupported version: ")[1], " (")[0])
 	}
 
@@ -178,13 +178,13 @@ func (c *Controller) CreateContainer(inst Instance, interfaces []ContainerInterf
 
 	for _, iface := range interfaces {
 		if len(iface.Subnets) < 1 {
-			return fmt.Errorf("Bad subnet provided for interface '%s'", iface.Name)
+			return fmt.Errorf("Bad subnet provided for interface %q", iface.Name)
 		}
 
 		for _, subnet := range iface.Subnets {
 			_, ok := subnets[subnet.Name]
 			if !ok {
-				return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+				return fmt.Errorf("Subnet %q doesn't exist in MAAS", subnet.Name)
 			}
 		}
 	}
@@ -297,13 +297,13 @@ func (c *Controller) UpdateContainer(inst Instance, interfaces []ContainerInterf
 
 	for _, iface := range interfaces {
 		if len(iface.Subnets) < 1 {
-			return fmt.Errorf("Bad subnet provided for interface '%s'", iface.Name)
+			return fmt.Errorf("Bad subnet provided for interface %q", iface.Name)
 		}
 
 		for _, subnet := range iface.Subnets {
 			_, ok := subnets[subnet.Name]
 			if !ok {
-				return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+				return fmt.Errorf("Subnet %q doesn't exist in MAAS", subnet.Name)
 			}
 		}
 	}

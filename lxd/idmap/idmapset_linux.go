@@ -189,7 +189,7 @@ func (e *IdmapEntry) Usable() error {
 		}
 
 		if !valid {
-			return fmt.Errorf("The '%s' map can't work in the current user namespace", e.ToLxcString())
+			return fmt.Errorf("The %q map can't work in the current user namespace", e.ToLxcString())
 		}
 	}
 
@@ -208,7 +208,7 @@ func (e *IdmapEntry) Usable() error {
 		}
 
 		if !valid {
-			return fmt.Errorf("The '%s' map can't work in the current user namespace", e.ToLxcString())
+			return fmt.Errorf("The %q map can't work in the current user namespace", e.ToLxcString())
 		}
 	}
 

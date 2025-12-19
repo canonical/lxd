@@ -269,7 +269,7 @@ func (p *Process) Save(path string) error {
 
 	err = os.WriteFile(path, dat, 0644)
 	if err != nil {
-		return fmt.Errorf("Unable to write to file '%s': %w", path, err)
+		return fmt.Errorf("Unable to write to file %q: %w", path, err)
 	}
 
 	return nil

@@ -154,7 +154,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 	}
 
 	if !network.InterfaceExists(d.config["parent"]) {
-		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
 	}
 
 	if d.config["parent"] == "" && d.config["vlan"] != "" {
