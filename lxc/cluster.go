@@ -8,7 +8,6 @@ import (
 	"maps"
 	"net/http"
 	"os"
-	"slices"
 	"sort"
 	"strings"
 
@@ -619,7 +618,7 @@ Are you really sure you want to force removing %s? (yes/no): `, name)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSuffix(input, "\n")
 
-	if !slices.Contains([]string{"yes"}, strings.ToLower(input)) {
+	if strings.ToLower(input) != "yes" {
 		return errors.New("User aborted delete operation")
 	}
 
