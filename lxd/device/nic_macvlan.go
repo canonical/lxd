@@ -129,7 +129,7 @@ func (d *nicMACVLAN) validateEnvironment() error {
 	}
 
 	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
-		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
 	}
 
 	return nil
