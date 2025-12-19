@@ -1534,13 +1534,13 @@ func (d *zfs) deleteVolume(vol Volume, op *operations.Operation) error {
 		// Delete the mountpoint if present.
 		err := os.Remove(vol.MountPath())
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove '%s': %w", vol.MountPath(), err)
+			return fmt.Errorf("Failed to remove %q: %w", vol.MountPath(), err)
 		}
 
 		// Delete the snapshot storage.
 		err = os.RemoveAll(GetVolumeSnapshotDir(d.name, vol.volType, vol.name))
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove '%s': %w", GetVolumeSnapshotDir(d.name, vol.volType, vol.name), err)
+			return fmt.Errorf("Failed to remove %q: %w", GetVolumeSnapshotDir(d.name, vol.volType, vol.name), err)
 		}
 	}
 
@@ -3035,7 +3035,7 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 	// Delete the mountpoint.
 	err = os.Remove(vol.MountPath())
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove '%s': %w", vol.MountPath(), err)
+		return fmt.Errorf("Failed to remove %q: %w", vol.MountPath(), err)
 	}
 
 	// Remove the parent snapshot directory if this is the last snapshot being removed.
