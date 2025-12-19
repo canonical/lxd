@@ -605,7 +605,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	needsData := false
 	for _, columnEntry := range columnList {
 		if columnEntry == "" {
-			return nil, false, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in '%s'", c.flagColumns)
+			return nil, false, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in %q", c.flagColumns)
 		}
 
 		// Config keys always contain a period, parse anything without a
@@ -614,7 +614,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 			for _, columnRune := range columnEntry {
 				column, ok := columnsShorthandMap[columnRune]
 				if !ok {
-					return nil, false, fmt.Errorf("Unknown column shorthand char '%c' in '%s'", columnRune, columnEntry)
+					return nil, false, fmt.Errorf("Unknown column shorthand char '%c' in %q", columnRune, columnEntry)
 				}
 
 				columns = append(columns, column)
@@ -632,7 +632,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 			}
 
 			if len(cc) > 3 {
-				return nil, false, fmt.Errorf("Invalid config key column format (too many fields): '%s'", columnEntry)
+				return nil, false, fmt.Errorf("Invalid config key column format (too many fields): %q", columnEntry)
 			}
 
 			k := cc[0]
