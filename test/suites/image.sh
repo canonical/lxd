@@ -51,11 +51,11 @@ test_image_expiry() {
   echo "Trigger the expiry."
   lxc_remote config set l2: images.remote_cache_expiry 1
 
-  for _ in $(seq 20); do
-    sleep 1
-    if lxc_remote image info l2:"${fpbrief}"; then
+  for _ in $(seq 40); do
+    if ! lxc_remote image info l2:"${fpbrief}" 2>/dev/null; then
       break
     fi
+    sleep 0.5
   done
 
   ! lxc_remote image info l2:"${fpbrief}" || false
@@ -75,11 +75,11 @@ test_image_expiry() {
   echo "Trigger the expiry in p1 project by changing global images.remote_cache_expiry."
   lxc_remote config unset l2: images.remote_cache_expiry
 
-  for _ in $(seq 20); do
-    sleep 1
-    if lxc_remote image info l2:"${fpbrief}" --project p1; then
+  for _ in $(seq 40); do
+    if ! lxc_remote image info l2:"${fpbrief}" --project p1 2>/dev/null; then
       break
     fi
+    sleep 0.5
   done
 
   ! lxc_remote image info l2:"${fpbrief}" --project p1 || false
@@ -110,11 +110,11 @@ test_image_expiry() {
   echo "==> Trigger the expiry. Image in the default project should get pruned, but image in project p1 should remain."
   lxc_remote config set l2: images.remote_cache_expiry 1
 
-  for _ in $(seq 20); do
-    sleep 1
-    if lxc_remote image info l2:"${fpbrief}"; then
+  for _ in $(seq 40); do
+    if ! lxc_remote image info l2:"${fpbrief}" 2>/dev/null; then
       break
     fi
+    sleep 0.5
   done
 
   echo "==> Check that image in the default project was deleted."
