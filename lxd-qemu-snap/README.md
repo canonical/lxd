@@ -1,6 +1,17 @@
 # External QEMU snap for LXD snap
 
-## How to build and use
+The idea behind this feature is to allow LXD users to build their own snap
+containing QEMU and then plug it into the LXD snap, so that LXD uses this
+custom QEMU instead of the built-in one.
+
+To make it easier to test this feature and simplify the user experience,
+we provide a reference snapcraft.yaml file. It is intended solely as
+a starting point for building and customizing your own QEMU snap.
+
+Please note that we do not provide regular or security updates for this
+reference example, as it is meant for documentation and educational purposes only.
+
+## How to build and use (example)
 
 ```
 cd lxd-qemu-snap
@@ -9,7 +20,7 @@ cd lxd-qemu-snap
 rm -f qemu-for-lxd_*.snap
 
 # build
-snapcraft
+snapcraft pack
 
 # install
 sudo snap install qemu-for-lxd_*.snap --devmode
@@ -20,6 +31,11 @@ sudo snap connect lxd:qemu-external qemu-for-lxd:qemu-external
 ```
 
 ## How to use with virgl (only specific to this example of snapcraft.yaml)
+
+As part of this external QEMU snap example, we build QEMU with virglrenderer
+library support. Of course, this is not required, and in your specific use
+case you may choose to omit it. The following instructions show how to verify
+that the external QEMU snap with virgl support is working correctly.
 
 ```
 lxc init images:ubuntu/noble/desktop desktop -c limits.memory=8GiB --vm
