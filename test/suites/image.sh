@@ -7,6 +7,7 @@ test_image_expiry() {
 
   ensure_import_testimage
 
+  local token
   token="$(lxc config trust add --name foo -q)"
   # shellcheck disable=2153
   lxc_remote remote add l1 "${LXD_ADDR}" --token "${token}"
@@ -22,6 +23,7 @@ test_image_expiry() {
   lxc_remote project create l2:p2 -c features.images=true -c features.profiles=false
   lxc_remote project switch l2:p2
 
+  local fp
   fp="$(lxc_remote image info testimage | awk '/^Fingerprint/ {print $2}')"
 
   echo "Create instance from cached image."
@@ -30,15 +32,16 @@ test_image_expiry() {
 
   echo "Confirm the image is cached."
   [ -n "${fp}" ]
+  local fpbrief
   fpbrief=$(echo "${fp}" | cut -c 1-12)
-  lxc_remote image list l2: | grep -wF "${fpbrief}"
+  lxc_remote image list -f csv -c f l2: | grep -xF "${fpbrief}"
 
   echo "Project can still be deleted since cached images are pruned."
   lxc_remote project delete l2:p2
 
   echo "Switch back to default project and confirm image is still cached."
   lxc_remote project switch l2:default
-  lxc_remote image list l2: | grep -wF "${fpbrief}"
+  lxc_remote image list -f csv -c f l2: | grep -xF "${fpbrief}"
 
   echo "Test modification of image expiry date."
   lxc_remote image info "l2:${fp}" | grep "Expires.*never"
@@ -61,7 +64,7 @@ test_image_expiry() {
   ! lxc_remote image info l2:"${fpbrief}" || false
 
   echo "Check image is still in p1 project and has not been expired."
-  lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"
+  lxc_remote image list -f csv -c f l2: --project p1 | grep -xF "${fpbrief}"
 
   echo "Test instance can still be created in p1 project."
   lxc_remote project switch l2:p1
