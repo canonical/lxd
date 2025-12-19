@@ -21,7 +21,6 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -33,9 +32,8 @@ type cmdAuth struct {
 func (c *cmdAuth) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("auth")
-	cmd.Short = i18n.G("Manage user authorization")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage user authorization`))
+	cmd.Short = "Manage user authorization"
+	cmd.Long = cli.FormatSection("Description", `Manage user authorization`)
 
 	groupCmd := cmdGroup{global: c.global}
 	cmd.AddCommand(groupCmd.command())
@@ -65,9 +63,8 @@ type cmdGroup struct {
 func (c *cmdGroup) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("group")
-	cmd.Short = i18n.G("Manage groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage groups`))
+	cmd.Short = "Manage groups"
+	cmd.Long = cli.FormatSection("Description", `Manage groups`)
 
 	groupCreateCmd := cmdGroupCreate{global: c.global}
 	cmd.AddCommand(groupCreateCmd.command())
@@ -103,10 +100,9 @@ type cmdGroupCreate struct {
 
 func (c *cmdGroupCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<group>"))
-	cmd.Short = i18n.G("Create groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create groups`))
+	cmd.Use = usage("create", "[<remote>:]<group>")
+	cmd.Short = "Create groups"
+	cmd.Long = cli.FormatSection("Description", `Create groups`)
 	cmd.Flags().StringVarP(&c.flagDescription, "description", "d", "", "Group description")
 	cmd.RunE = c.run
 
@@ -129,7 +125,7 @@ func (c *cmdGroupCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing group name"))
+		return errors.New("Missing group name")
 	}
 
 	// Create the group
@@ -143,7 +139,7 @@ func (c *cmdGroupCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Group %s created")+"\n", resource.name)
+		fmt.Printf("Group %s created\n", resource.name)
 	}
 
 	return nil
@@ -156,11 +152,10 @@ type cmdGroupDelete struct {
 
 func (c *cmdGroupDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<group>"))
+	cmd.Use = usage("delete", "[<remote>:]<group>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete groups`))
+	cmd.Short = "Delete groups"
+	cmd.Long = cli.FormatSection("Description", `Delete groups`)
 
 	cmd.RunE = c.run
 
@@ -183,7 +178,7 @@ func (c *cmdGroupDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing group name"))
+		return errors.New("Missing group name")
 	}
 
 	// Delete the group
@@ -193,7 +188,7 @@ func (c *cmdGroupDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Group %s deleted")+"\n", resource.name)
+		fmt.Printf("Group %s deleted\n", resource.name)
 	}
 
 	return nil
@@ -206,13 +201,11 @@ type cmdGroupEdit struct {
 
 func (c *cmdGroupEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<group>"))
-	cmd.Short = i18n.G("Edit groups as YAML")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit groups as YAML`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc auth group edit <group> < group.yaml
-   Update a group using the content of group.yaml`))
+	cmd.Use = usage("edit", "[<remote>:]<group>")
+	cmd.Short = "Edit groups as YAML"
+	cmd.Long = cli.FormatSection("Description", `Edit groups as YAML`)
+	cmd.Example = cli.FormatSection("", `lxc auth group edit <group> < group.yaml
+   Update a group using the content of group.yaml`)
 
 	cmd.RunE = c.run
 
@@ -220,8 +213,7 @@ func (c *cmdGroupEdit) command() *cobra.Command {
 }
 
 func (c *cmdGroupEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a YAML representation of the group.
+	return `### This is a YAML representation of the group.
 ### Any line starting with a '# will be ignored.
 ###
 ### NOTE: All group information is shown but only the description and permissions can be modified.
@@ -240,7 +232,7 @@ func (c *cmdGroupEdit) helpTemplate() string {
 ### identity_provider_groups:
 ### - sales
 ### - operations
-`)
+`
 }
 
 func (c *cmdGroupEdit) run(cmd *cobra.Command, args []string) error {
@@ -259,7 +251,7 @@ func (c *cmdGroupEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing group name"))
+		return errors.New("Missing group name")
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -305,8 +297,8 @@ func (c *cmdGroupEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Could not parse group: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Fprintf(os.Stderr, "Could not parse group: %q\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -334,14 +326,13 @@ type cmdGroupList struct {
 
 func (c *cmdGroupList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List groups`))
+	cmd.Short = "List groups"
+	cmd.Long = cli.FormatSection("Description", `List groups`)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
 
 	return cmd
 }
@@ -380,8 +371,8 @@ func (c *cmdGroupList) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("NAME"),
-		i18n.G("DESCRIPTION"),
+		"NAME",
+		"DESCRIPTION",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, groups)
@@ -394,11 +385,10 @@ type cmdGroupRename struct {
 
 func (c *cmdGroupRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("rename", i18n.G("[<remote>:]<group> <new_name>"))
+	cmd.Use = usage("rename", "[<remote>:]<group> <new_name>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = i18n.G("Rename groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Rename groups`))
+	cmd.Short = "Rename groups"
+	cmd.Long = cli.FormatSection("Description", `Rename groups`)
 
 	cmd.RunE = c.run
 
@@ -421,7 +411,7 @@ func (c *cmdGroupRename) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing group name"))
+		return errors.New("Missing group name")
 	}
 
 	// Rename the group
@@ -431,7 +421,7 @@ func (c *cmdGroupRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Group %s renamed to %s")+"\n", resource.name, args[1])
+		fmt.Printf("Group %s renamed to %s\n", resource.name, args[1])
 	}
 
 	return nil
@@ -444,10 +434,9 @@ type cmdGroupShow struct {
 
 func (c *cmdGroupShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<group>"))
-	cmd.Short = i18n.G("Show group configurations")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show group configurations`))
+	cmd.Use = usage("show", "[<remote>:]<group>")
+	cmd.Short = "Show group configurations"
+	cmd.Long = cli.FormatSection("Description", `Show group configurations`)
 
 	cmd.RunE = c.run
 
@@ -470,7 +459,7 @@ func (c *cmdGroupShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing group name"))
+		return errors.New("Missing group name")
 	}
 
 	// Show the group
@@ -497,9 +486,8 @@ func (c *cmdGroupPermission) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("permission")
 	cmd.Aliases = []string{"perm"}
-	cmd.Short = i18n.G("Manage permissions")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage permissions`))
+	cmd.Short = "Manage permissions"
+	cmd.Long = cli.FormatSection("Description", `Manage permissions`)
 
 	groupCreateCmd := cmdGroupPermissionAdd{global: c.global}
 	cmd.AddCommand(groupCreateCmd.command())
@@ -519,10 +507,9 @@ type cmdGroupPermissionAdd struct {
 
 func (c *cmdGroupPermissionAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:]<group> <entity_type> [<entity_name>] <entitlement> [<key>=<value>...]"))
-	cmd.Short = i18n.G("Add permissions to groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add permissions to groups`))
+	cmd.Use = usage("add", "[<remote>:]<group> <entity_type> [<entity_name>] <entitlement> [<key>=<value>...]")
+	cmd.Short = "Add permissions to groups"
+	cmd.Long = cli.FormatSection("Description", `Add permissions to groups`)
 
 	cmd.RunE = c.run
 
@@ -545,7 +532,7 @@ func (c *cmdGroupPermissionAdd) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing group name"))
+		return errors.New("Missing group name")
 	}
 
 	group, eTag, err := resource.server.GetAuthGroup(resource.name)
@@ -577,11 +564,10 @@ type cmdGroupPermissionRemove struct {
 
 func (c *cmdGroupPermissionRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<group> <entity_type> [<entity_name>] <entitlement> [<key>=<value>...]"))
+	cmd.Use = usage("remove", "[<remote>:]<group> <entity_type> [<entity_name>] <entitlement> [<key>=<value>...]")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Remove permissions from groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove permissions from groups`))
+	cmd.Short = "Remove permissions from groups"
+	cmd.Long = cli.FormatSection("Description", `Remove permissions from groups`)
 
 	cmd.RunE = c.run
 
@@ -604,7 +590,7 @@ func (c *cmdGroupPermissionRemove) run(cmd *cobra.Command, args []string) error 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing group name"))
+		return errors.New("Missing group name")
 	}
 
 	group, eTag, err := resource.server.GetAuthGroup(resource.name)
@@ -737,7 +723,7 @@ type cmdIdentity struct {
 func resolveIdentityTypeShorthand(identityArg string) (method string, identityType string, nameOrID string, err error) {
 	shorthandType, idName, ok := strings.Cut(identityArg, "/")
 	if !ok {
-		return "", "", "", errors.New(i18n.G("Malformed argument, expected `[<remote>:]<type>/<name>`, got ") + identityArg)
+		return "", "", "", errors.New("Malformed argument, expected `[<remote>:]<type>/<name>`, got " + identityArg)
 	}
 
 	switch shorthandType {
@@ -773,9 +759,8 @@ func (c *cmdIdentity) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("identity")
 	cmd.Aliases = []string{"user"}
-	cmd.Short = i18n.G("Manage identities")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage identities`))
+	cmd.Short = "Manage identities"
+	cmd.Long = cli.FormatSection("Description", `Manage identities`)
 
 	identityCreateCmd := cmdIdentityCreate{global: c.global, identity: c}
 	cmd.AddCommand(identityCreateCmd.command())
@@ -815,10 +800,9 @@ type cmdIdentityCreate struct {
 
 func (c *cmdIdentityCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<type>/<name> [<path to PEM encoded certificate>] [[--group <group_name>]]"))
-	cmd.Short = i18n.G("Create an identity")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create a TLS identity`))
+	cmd.Use = usage("create", "[<remote>:]<type>/<name> [<path to PEM encoded certificate>] [[--group <group_name>]]")
+	cmd.Short = "Create an identity"
+	cmd.Long = cli.FormatSection("Description", `Create a TLS identity`)
 
 	cmd.RunE = c.run
 	cmd.Flags().StringSliceVarP(&c.flagGroups, "group", "g", []string{}, "Groups to add to the identity")
@@ -930,7 +914,7 @@ func (c *cmdIdentityCreate) createTLSIdentity(remote string, name string, certFi
 				return fmt.Errorf("Received invalid pending identity UUID %q: %w", pendingIdentityUUIDStr, err)
 			}
 
-			fmt.Printf(i18n.G("TLS identity %q (%s) pending identity token:")+"\n", name, pendingIdentityUUID.String())
+			fmt.Printf("TLS identity %q (%s) pending identity token:\n", name, pendingIdentityUUID.String())
 		}
 
 		// Encode certificate add token to JSON.
@@ -956,7 +940,7 @@ func (c *cmdIdentityCreate) createTLSIdentity(remote string, name string, certFi
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("TLS identity %q created with fingerprint %q")+"\n", name, fingerprint)
+		fmt.Printf("TLS identity %q created with fingerprint %q\n", name, fingerprint)
 	}
 
 	return nil
@@ -1014,14 +998,13 @@ type cmdIdentityList struct {
 
 func (c *cmdIdentityList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List identities")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List identities`))
+	cmd.Short = "List identities"
+	cmd.Long = cli.FormatSection("Description", `List identities`)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
 
 	return cmd
 }
@@ -1065,11 +1048,11 @@ func (c *cmdIdentityList) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("AUTHENTICATION METHOD"),
-		i18n.G("TYPE"),
-		i18n.G("NAME"),
-		i18n.G("IDENTIFIER"),
-		i18n.G("GROUPS"),
+		"AUTHENTICATION METHOD",
+		"TYPE",
+		"NAME",
+		"IDENTIFIER",
+		"GROUPS",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, identities)
@@ -1083,16 +1066,15 @@ type cmdIdentityShow struct {
 
 func (c *cmdIdentityShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<type>/<name_or_identifier>"))
-	cmd.Short = i18n.G("View an identity")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show identity configurations
+	cmd.Use = usage("show", "[<remote>:]<type>/<name_or_identifier>")
+	cmd.Short = "View an identity"
+	cmd.Long = cli.FormatSection("Description", `Show identity configurations
 
 The argument must be a concatenation of the authentication method and either the
 name or identifier of the identity, delimited by a forward slash. This command
 will fail if an identity name is used that is not unique within the authentication
 method. Use the identifier instead if this occurs.
-`))
+`)
 
 	cmd.RunE = c.run
 
@@ -1143,15 +1125,14 @@ type cmdIdentityInfo struct {
 
 func (c *cmdIdentityInfo) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("info", i18n.G("[<remote>:]"))
-	cmd.Short = i18n.G("View the current identity")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show the current identity
+	cmd.Use = usage("info", "[<remote>:]")
+	cmd.Short = "View the current identity"
+	cmd.Long = cli.FormatSection("Description", `Show the current identity
 
 This command will display permissions for the current user.
 This includes contextual information, such as effective groups and permissions
 that are granted via identity provider group mappings.
-`))
+`)
 
 	cmd.RunE = c.run
 
@@ -1205,13 +1186,11 @@ type cmdIdentityEdit struct {
 
 func (c *cmdIdentityEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<group>"))
-	cmd.Short = i18n.G("Edit an identity as YAML")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit an identity as YAML`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc auth identity edit <type>/<name_or_identifier> < identity.yaml
-   Update an identity using the content of identity.yaml`))
+	cmd.Use = usage("edit", "[<remote>:]<group>")
+	cmd.Short = "Edit an identity as YAML"
+	cmd.Long = cli.FormatSection("Description", `Edit an identity as YAML`)
+	cmd.Example = cli.FormatSection("", `lxc auth identity edit <type>/<name_or_identifier> < identity.yaml
+   Update an identity using the content of identity.yaml`)
 
 	cmd.RunE = c.run
 
@@ -1219,8 +1198,7 @@ func (c *cmdIdentityEdit) command() *cobra.Command {
 }
 
 func (c *cmdIdentityEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a YAML representation of the group.
+	return `### This is a YAML representation of the group.
 ### Any line starting with a '# will be ignored.
 ###
 ### An identity has the following format:
@@ -1235,7 +1213,7 @@ func (c *cmdIdentityEdit) helpTemplate() string {
 ### groups:
 ### - my-first-group
 ###
-### Note that all identity information is shown but only the projects and groups can be modified`)
+### Note that all identity information is shown but only the projects and groups can be modified`
 }
 
 func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
@@ -1302,8 +1280,8 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Could not parse identity: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Fprintf(os.Stderr, "Could not parse identity: %q\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -1331,11 +1309,10 @@ type cmdIdentityDelete struct {
 
 func (c *cmdIdentityDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<type>/<name_or_identifier>"))
+	cmd.Use = usage("delete", "[<remote>:]<type>/<name_or_identifier>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete an identity")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete an identity`))
+	cmd.Short = "Delete an identity"
+	cmd.Long = cli.FormatSection("Description", `Delete an identity`)
 	cmd.Example = cli.FormatSection("", `lxc auth identity delete oidc/jane.doe@example.com
 	Delete the OIDC identity with email address "jane.doe@example.com" in the default remote.
 
@@ -1390,9 +1367,8 @@ type cmdIdentityGroup struct {
 func (c *cmdIdentityGroup) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("group")
-	cmd.Short = i18n.G("Manage groups for the identity")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage groups for the identity`))
+	cmd.Short = "Manage groups for the identity"
+	cmd.Long = cli.FormatSection("Description", `Manage groups for the identity`)
 
 	identityGroupAddCmd := cmdIdentityGroupAdd{global: c.global, identity: c.identity}
 	cmd.AddCommand(identityGroupAddCmd.command())
@@ -1413,10 +1389,9 @@ type cmdIdentityGroupAdd struct {
 
 func (c *cmdIdentityGroupAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:]<type>/<name_or_identifier> <group>"))
-	cmd.Short = i18n.G("Add a group to an identity")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add a group to an identity`))
+	cmd.Use = usage("add", "[<remote>:]<type>/<name_or_identifier> <group>")
+	cmd.Short = "Add a group to an identity"
+	cmd.Long = cli.FormatSection("Description", `Add a group to an identity`)
 
 	cmd.RunE = c.run
 
@@ -1465,10 +1440,9 @@ type cmdIdentityGroupRemove struct {
 
 func (c *cmdIdentityGroupRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<type>/<name_or_identifier> <group>"))
-	cmd.Short = i18n.G("Remove a group from an identity")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove a group from an identity`))
+	cmd.Use = usage("remove", "[<remote>:]<type>/<name_or_identifier> <group>")
+	cmd.Short = "Remove a group from an identity"
+	cmd.Long = cli.FormatSection("Description", `Remove a group from an identity`)
 
 	cmd.RunE = c.run
 
@@ -1520,10 +1494,9 @@ type cmdIdentityToken struct {
 func (c *cmdIdentityToken) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("token")
-	cmd.Short = i18n.G("Manage bearer identity tokens")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Issue and revoke tokens for bearer identities
-`))
+	cmd.Short = "Manage bearer identity tokens"
+	cmd.Long = cli.FormatSection("Description", `Issue and revoke tokens for bearer identities
+`)
 
 	tokenIssueCmd := cmdIdentityTokenIssue{global: c.global, identity: c.identity}
 	cmd.AddCommand(tokenIssueCmd.command())
@@ -1545,12 +1518,11 @@ type cmdIdentityTokenIssue struct {
 
 func (c *cmdIdentityTokenIssue) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("issue", i18n.G("[<remote>:]<type>/<name>"))
-	cmd.Short = i18n.G("Issue a token for a bearer identity")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Issue a token for a bearer identity
+	cmd.Use = usage("issue", "[<remote>:]<type>/<name>")
+	cmd.Short = "Issue a token for a bearer identity"
+	cmd.Long = cli.FormatSection("Description", `Issue a token for a bearer identity
 
-Note that this revokes the current token if one is issued`))
+Note that this revokes the current token if one is issued`)
 
 	cmd.Flags().StringVar(&c.flagExpiry, "expiry", "", `Token expiration as a space separated list of durations in the form (\d)+(S|M|H|d|w|m|y)`)
 	cmd.RunE = c.run
@@ -1593,7 +1565,7 @@ func (c *cmdIdentityTokenIssue) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.identity.global.flagQuiet {
-		fmt.Printf(i18n.G("Issued token for identity %q")+"\n", name)
+		fmt.Printf("Issued token for identity %q\n", name)
 	}
 
 	fmt.Println(token.Token)
@@ -1607,10 +1579,9 @@ type cmdIdentityTokenRevoke struct {
 
 func (c *cmdIdentityTokenRevoke) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("revoke", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
-	cmd.Short = i18n.G("Revoke the current token for a bearer identity")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Revoke the current token for a bearer identity`))
+	cmd.Use = usage("revoke", "[<remote>:]<authentication_method>/<name_or_identifier>")
+	cmd.Short = "Revoke the current token for a bearer identity"
+	cmd.Long = cli.FormatSection("Description", `Revoke the current token for a bearer identity`)
 
 	cmd.RunE = c.run
 
@@ -1652,7 +1623,7 @@ func (c *cmdIdentityTokenRevoke) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.identity.global.flagQuiet {
-		fmt.Printf(i18n.G("Revoked token for identity %q")+"\n", name)
+		fmt.Printf("Revoked token for identity %q\n", name)
 	}
 
 	return nil
@@ -1666,9 +1637,8 @@ func (c *cmdPermission) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("permission")
 	cmd.Aliases = []string{"perm"}
-	cmd.Short = i18n.G("Inspect permissions")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Inspect permissions`))
+	cmd.Short = "Inspect permissions"
+	cmd.Long = cli.FormatSection("Description", `Inspect permissions`)
 
 	permissionListCmd := cmdPermissionList{global: c.global}
 	cmd.AddCommand(permissionListCmd.command())
@@ -1687,10 +1657,9 @@ type cmdPermissionList struct {
 
 func (c *cmdPermissionList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:] [project=<project_name>] [entity_type=<entity_type>]"))
-	cmd.Short = i18n.G("List permissions")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List permissions`))
+	cmd.Use = usage("list", "[<remote>:] [project=<project_name>] [entity_type=<entity_type>]")
+	cmd.Short = "List permissions"
+	cmd.Long = cli.FormatSection("Description", `List permissions`)
 
 	cmd.Flags().IntVar(&c.flagMaxEntitlements, "max-entitlements", 3, "Maximum number of unassigned entitlements to display before overflowing (set to zero to display all)")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", cli.TableFormatTable, "Display format (json, yaml, table, compact, csv)")
@@ -1870,9 +1839,8 @@ func (c *cmdIdentityProviderGroup) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("identity-provider-group")
 	cmd.Aliases = []string{"idp-group"}
-	cmd.Short = i18n.G("Manage groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage groups`))
+	cmd.Short = "Manage groups"
+	cmd.Long = cli.FormatSection("Description", `Manage groups`)
 
 	idpGroupCreateCmd := cmdIdentityProviderGroupCreate{global: c.global}
 	cmd.AddCommand(idpGroupCreateCmd.command())
@@ -1907,10 +1875,9 @@ type cmdIdentityProviderGroupCreate struct {
 
 func (c *cmdIdentityProviderGroupCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<group>"))
-	cmd.Short = i18n.G("Create identity provider groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create identity provider groups`))
+	cmd.Use = usage("create", "[<remote>:]<group>")
+	cmd.Short = "Create identity provider groups"
+	cmd.Long = cli.FormatSection("Description", `Create identity provider groups`)
 	cmd.RunE = c.run
 
 	return cmd
@@ -1932,7 +1899,7 @@ func (c *cmdIdentityProviderGroupCreate) run(cmd *cobra.Command, args []string) 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity provider group name"))
+		return errors.New("Missing identity provider group name")
 	}
 
 	// Create the identity provider group
@@ -1945,7 +1912,7 @@ func (c *cmdIdentityProviderGroupCreate) run(cmd *cobra.Command, args []string) 
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Identity provider group %s created")+"\n", resource.name)
+		fmt.Printf("Identity provider group %s created\n", resource.name)
 	}
 
 	return nil
@@ -1958,11 +1925,10 @@ type cmdIdentityProviderGroupDelete struct {
 
 func (c *cmdIdentityProviderGroupDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<identity_provider_group>"))
+	cmd.Use = usage("delete", "[<remote>:]<identity_provider_group>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete identity provider groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete identity provider groups`))
+	cmd.Short = "Delete identity provider groups"
+	cmd.Long = cli.FormatSection("Description", `Delete identity provider groups`)
 
 	cmd.RunE = c.run
 
@@ -1985,7 +1951,7 @@ func (c *cmdIdentityProviderGroupDelete) run(cmd *cobra.Command, args []string) 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity provider group name"))
+		return errors.New("Missing identity provider group name")
 	}
 
 	// Delete the identity provider group
@@ -1995,7 +1961,7 @@ func (c *cmdIdentityProviderGroupDelete) run(cmd *cobra.Command, args []string) 
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Identity provider group %s deleted")+"\n", resource.name)
+		fmt.Printf("Identity provider group %s deleted\n", resource.name)
 	}
 
 	return nil
@@ -2008,13 +1974,11 @@ type cmdIdentityProviderGroupEdit struct {
 
 func (c *cmdIdentityProviderGroupEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<identity_provider_group>"))
-	cmd.Short = i18n.G("Edit identity provider groups as YAML")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit identity provider groups as YAML`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc auth identity-provider-group edit <identity_provider_group> < identity-provider-group.yaml
-   Update an identity provider group using the content of identity-provider-group.yaml`))
+	cmd.Use = usage("edit", "[<remote>:]<identity_provider_group>")
+	cmd.Short = "Edit identity provider groups as YAML"
+	cmd.Long = cli.FormatSection("Description", `Edit identity provider groups as YAML`)
+	cmd.Example = cli.FormatSection("", `lxc auth identity-provider-group edit <identity_provider_group> < identity-provider-group.yaml
+   Update an identity provider group using the content of identity-provider-group.yaml`)
 
 	cmd.RunE = c.run
 
@@ -2022,8 +1986,7 @@ func (c *cmdIdentityProviderGroupEdit) command() *cobra.Command {
 }
 
 func (c *cmdIdentityProviderGroupEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a YAML representation of the identity provider group.
+	return `### This is a YAML representation of the identity provider group.
 ### Any line starting with a '# will be ignored.
 ###
 ### An identity provider group has the following format:
@@ -2032,7 +1995,7 @@ func (c *cmdIdentityProviderGroupEdit) helpTemplate() string {
 ### - foo
 ### - bar
 ###
-### Note that the name is shown but cannot be modified`)
+### Note that the name is shown but cannot be modified`
 }
 
 func (c *cmdIdentityProviderGroupEdit) run(cmd *cobra.Command, args []string) error {
@@ -2051,7 +2014,7 @@ func (c *cmdIdentityProviderGroupEdit) run(cmd *cobra.Command, args []string) er
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity provider group name"))
+		return errors.New("Missing identity provider group name")
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -2097,8 +2060,8 @@ func (c *cmdIdentityProviderGroupEdit) run(cmd *cobra.Command, args []string) er
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Could not parse group: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Fprintf(os.Stderr, "Could not parse group: %q\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -2126,14 +2089,13 @@ type cmdIdentityProviderGroupList struct {
 
 func (c *cmdIdentityProviderGroupList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List identity provider groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List identity provider groups`))
+	cmd.Short = "List identity provider groups"
+	cmd.Long = cli.FormatSection("Description", `List identity provider groups`)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
 
 	return cmd
 }
@@ -2172,8 +2134,8 @@ func (c *cmdIdentityProviderGroupList) run(cmd *cobra.Command, args []string) er
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("NAME"),
-		i18n.G("GROUPS"),
+		"NAME",
+		"GROUPS",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, groups)
@@ -2186,11 +2148,10 @@ type cmdIdentityProviderGroupRename struct {
 
 func (c *cmdIdentityProviderGroupRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("rename", i18n.G("[<remote>:]<identity_provider_group> <new_name>"))
+	cmd.Use = usage("rename", "[<remote>:]<identity_provider_group> <new_name>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = i18n.G("Rename identity provider groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Rename identity provider groups`))
+	cmd.Short = "Rename identity provider groups"
+	cmd.Long = cli.FormatSection("Description", `Rename identity provider groups`)
 
 	cmd.RunE = c.run
 
@@ -2213,7 +2174,7 @@ func (c *cmdIdentityProviderGroupRename) run(cmd *cobra.Command, args []string) 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity provider group name"))
+		return errors.New("Missing identity provider group name")
 	}
 
 	// Rename the group
@@ -2223,7 +2184,7 @@ func (c *cmdIdentityProviderGroupRename) run(cmd *cobra.Command, args []string) 
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Group %s renamed to %s")+"\n", resource.name, args[1])
+		fmt.Printf("Group %s renamed to %s\n", resource.name, args[1])
 	}
 
 	return nil
@@ -2236,10 +2197,9 @@ type cmdIdentityProviderGroupShow struct {
 
 func (c *cmdIdentityProviderGroupShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<identity_provider_group>"))
-	cmd.Short = i18n.G("Show an identity provider group")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show an identity provider group`))
+	cmd.Use = usage("show", "[<remote>:]<identity_provider_group>")
+	cmd.Short = "Show an identity provider group"
+	cmd.Long = cli.FormatSection("Description", `Show an identity provider group`)
 
 	cmd.RunE = c.run
 
@@ -2262,7 +2222,7 @@ func (c *cmdIdentityProviderGroupShow) run(cmd *cobra.Command, args []string) er
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing group name"))
+		return errors.New("Missing group name")
 	}
 
 	// Show the group
@@ -2288,9 +2248,8 @@ type cmdIdentityProviderGroupGroup struct {
 func (c *cmdIdentityProviderGroupGroup) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("group")
-	cmd.Short = i18n.G("Manage identity provider group mappings")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage identity provider group mappings`))
+	cmd.Short = "Manage identity provider group mappings"
+	cmd.Long = cli.FormatSection("Description", `Manage identity provider group mappings`)
 
 	identityProviderGroupGroupAddCmd := cmdIdentityProviderGroupGroupAdd{global: c.global}
 	cmd.AddCommand(identityProviderGroupGroupAddCmd.command())
@@ -2310,10 +2269,9 @@ type cmdIdentityProviderGroupGroupAdd struct {
 
 func (c *cmdIdentityProviderGroupGroupAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:]<identity_provider_group> <group>"))
-	cmd.Short = i18n.G("Add a group to an identity provider group")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add a group to an identity provider group`))
+	cmd.Use = usage("add", "[<remote>:]<identity_provider_group> <group>")
+	cmd.Short = "Add a group to an identity provider group"
+	cmd.Long = cli.FormatSection("Description", `Add a group to an identity provider group`)
 
 	cmd.RunE = c.run
 
@@ -2336,7 +2294,7 @@ func (c *cmdIdentityProviderGroupGroupAdd) run(cmd *cobra.Command, args []string
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity provider group name argument"))
+		return errors.New("Missing identity provider group name argument")
 	}
 
 	idpGroup, eTag, err := resource.server.GetIdentityProviderGroup(resource.name)
@@ -2363,10 +2321,9 @@ type cmdIdentityProviderGroupGroupRemove struct {
 
 func (c *cmdIdentityProviderGroupGroupRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<identity_provider_group> <group>"))
-	cmd.Short = i18n.G("Remove a LXD group from an identity provider group")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove a LXD group from an identity provider group`))
+	cmd.Use = usage("remove", "[<remote>:]<identity_provider_group> <group>")
+	cmd.Short = "Remove a LXD group from an identity provider group"
+	cmd.Long = cli.FormatSection("Description", `Remove a LXD group from an identity provider group`)
 
 	cmd.RunE = c.run
 
@@ -2389,7 +2346,7 @@ func (c *cmdIdentityProviderGroupGroupRemove) run(cmd *cobra.Command, args []str
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity provider group name argument"))
+		return errors.New("Missing identity provider group name argument")
 	}
 
 	idpGroup, eTag, err := resource.server.GetIdentityProviderGroup(resource.name)
@@ -2427,9 +2384,8 @@ type cmdOIDCSession struct {
 func (c *cmdOIDCSession) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("oidc-session")
-	cmd.Short = i18n.G("Manage OIDC sessions")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage OIDC sessions`))
+	cmd.Short = "Manage OIDC sessions"
+	cmd.Long = cli.FormatSection("Description", `Manage OIDC sessions`)
 
 	sessionDeleteCmd := cmdOIDCSessionDelete{global: c.global}
 	cmd.AddCommand(sessionDeleteCmd.command())
@@ -2452,10 +2408,9 @@ type cmdOIDCSessionShow struct {
 
 func (c *cmdOIDCSessionShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<session ID>"))
-	cmd.Short = i18n.G("Show OIDC session")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show an OIDC session`))
+	cmd.Use = usage("show", "[<remote>:]<session ID>")
+	cmd.Short = "Show OIDC session"
+	cmd.Long = cli.FormatSection("Description", `Show an OIDC session`)
 
 	cmd.RunE = c.run
 
@@ -2478,7 +2433,7 @@ func (c *cmdOIDCSessionShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing session ID"))
+		return errors.New("Missing session ID")
 	}
 
 	// Show the session
@@ -2504,14 +2459,13 @@ type cmdOIDCSessionList struct {
 
 func (c *cmdOIDCSessionList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List OIDC sessions")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List OIDC sessions`))
+	cmd.Short = "List OIDC sessions"
+	cmd.Long = cli.FormatSection("Description", `List OIDC sessions`)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
 
 	return cmd
 }
@@ -2558,13 +2512,13 @@ func (c *cmdOIDCSessionList) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("EMAIL"),
-		i18n.G("USERNAME"),
-		i18n.G("UUID"),
-		i18n.G("IP ADDRESS"),
-		i18n.G("USER AGENT"),
-		i18n.G("CREATION DATE"),
-		i18n.G("EXPIRY DATE"),
+		"EMAIL",
+		"USERNAME",
+		"UUID",
+		"IP ADDRESS",
+		"USER AGENT",
+		"CREATION DATE",
+		"EXPIRY DATE",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, sessions)
@@ -2576,11 +2530,10 @@ type cmdOIDCSessionDelete struct {
 
 func (c *cmdOIDCSessionDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<session_id>"))
+	cmd.Use = usage("delete", "[<remote>:]<session_id>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete OIDC sessions")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete an OIDC session`))
+	cmd.Short = "Delete OIDC sessions"
+	cmd.Long = cli.FormatSection("Description", `Delete an OIDC session`)
 
 	cmd.RunE = c.run
 
@@ -2603,7 +2556,7 @@ func (c *cmdOIDCSessionDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing session ID"))
+		return errors.New("Missing session ID")
 	}
 
 	// Delete the session
@@ -2613,7 +2566,7 @@ func (c *cmdOIDCSessionDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Deleted OIDC session %q")+"\n", resource.name)
+		fmt.Printf("Deleted OIDC session %q\n", resource.name)
 	}
 
 	return nil
