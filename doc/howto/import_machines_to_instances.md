@@ -6,6 +6,7 @@ discourse: lxc:[Using&#32;lxd-migrate&#32;to&#32;convert&#32;a&#32;physical&#32;
 # How to import physical or virtual machines to LXD instances
 
 ```{youtube} https://www.youtube.com/watch?v=F9GALjHtnUU
+:title: Importing systems into LXD
 ```
 
 If you have an existing machine, either physical or virtual (VM or container), you can use the `lxd-convert` tool to create a LXD instance based on your existing disk or image.

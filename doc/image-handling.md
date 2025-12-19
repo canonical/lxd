@@ -2,6 +2,7 @@
 # Local and remote images
 
 ```{youtube} https://www.youtube.com/watch?v=wT7IDjo0Wgg
+:title: Image servers and image handling in LXD
 ```
 
 LXD uses an image-based workflow.

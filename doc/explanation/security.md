@@ -7,6 +7,7 @@ relatedlinks: "[Linux&#32;containers&#32;security](https://linuxcontainers.org/l
 # Security
 
 ```{youtube} https://www.youtube.com/watch?v=cOOzKdYHkus
+:title: LXD security
 ```
 
 % Include content from [../../README.md](../../README.md)

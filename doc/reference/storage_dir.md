@@ -2,6 +2,7 @@
 # Directory - `dir`
 
 ```{youtube} https://www.youtube.com/watch?v=imWkPM9GjCY
+:title: Directory storage and LXD
 ```
 
 The directory storage driver is a basic backend that stores its data in a standard file and directory structure.

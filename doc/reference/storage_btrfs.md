@@ -2,6 +2,7 @@
 # Btrfs - `btrfs`
 
 ```{youtube} https://www.youtube.com/watch?v=2r5FYuusxNc
+:title: Btrfs storage and LXD
 ```
 
 {abbr}`Btrfs (B-tree file system)` is a local file system based on the {abbr}`COW (copy-on-write)` principle.
