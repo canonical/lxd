@@ -152,8 +152,12 @@ test_image_list_all_aliases() {
 }
 
 test_image_list_remotes() {
-    # list images from the `images:` and `ubuntu-minimal:`  builtin remotes if they are reachable
+    if [ -n "${LXD_OFFLINE:-}" ]; then
+        export TEST_UNMET_REQUIREMENT="LXD_OFFLINE mode enabled, skipping"
+        return 0
+    fi
 
+    # list images from the `images:` and `ubuntu-minimal:` builtin remotes if they are reachable
     lxc remote list -f csv | while IFS=, read -r name url _; do
         if [ "${name}" != "images" ] && [ "${name}" != "ubuntu-minimal" ]; then
             continue
