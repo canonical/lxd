@@ -56,13 +56,14 @@ parts:
 
   virgl:
     source: https://gitlab.freedesktop.org/virgl/virglrenderer.git
-    source-tag: virglrenderer-1.1.0
+    source-tag: virglrenderer-1.2.0
     source-depth: 1
     plugin: meson
     meson-parameters:
       - --prefix=/external/qemu
     build-packages:
       - meson
+      - python3-yaml
       - libgbm-dev
       - libdrm-dev
 
@@ -70,7 +71,7 @@ parts:
     after:
       - virgl
     source: https://gitlab.com/qemu-project/qemu
-    source-commit: ea35a5082a5fe81ce8fd184b0e163cd7b08b7ff7 # v9.2.2
+    source-commit: b2995afed254e4804611df52210067a4d5dbdf0b # v9.2.4
     source-depth: 1
     source-submodules: []
     source-type: git
