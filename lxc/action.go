@@ -12,7 +12,6 @@ import (
 	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 // Start.
@@ -28,10 +27,9 @@ func (c *cmdStart) command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("start")
-	cmd.Use = usage("start", i18n.G("[<remote>:]<instance> [[<remote>:]<instance>...]"))
-	cmd.Short = i18n.G("Start instances")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Start instances`))
+	cmd.Use = usage("start", "[<remote>:]<instance> [[<remote>:]<instance>...]")
+	cmd.Short = "Start instances"
+	cmd.Long = cli.FormatSection("Description", `Start instances`)
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpInstancesAction(toComplete, "start", c.action.flagForce)
@@ -53,10 +51,9 @@ func (c *cmdPause) command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("pause")
-	cmd.Use = usage("pause", i18n.G("[<remote>:]<instance> [[<remote>:]<instance>...]"))
-	cmd.Short = i18n.G("Pause instances")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Pause instances`))
+	cmd.Use = usage("pause", "[<remote>:]<instance> [[<remote>:]<instance>...]")
+	cmd.Short = "Pause instances"
+	cmd.Long = cli.FormatSection("Description", `Pause instances`)
 	cmd.Aliases = []string{"freeze"}
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -79,12 +76,11 @@ func (c *cmdRestart) command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("restart")
-	cmd.Use = usage("restart", i18n.G("[<remote>:]<instance> [[<remote>:]<instance>...]"))
-	cmd.Short = i18n.G("Restart instances")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Restart instances
+	cmd.Use = usage("restart", "[<remote>:]<instance> [[<remote>:]<instance>...]")
+	cmd.Short = "Restart instances"
+	cmd.Long = cli.FormatSection("Description", `Restart instances
 
-The opposite of "lxc pause" is "lxc start".`))
+The opposite of "lxc pause" is "lxc start".`)
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpInstancesAction(toComplete, "restart", c.action.flagForce)
@@ -106,10 +102,9 @@ func (c *cmdStop) command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("stop")
-	cmd.Use = usage("stop", i18n.G("[<remote>:]<instance> [[<remote>:]<instance>...]"))
-	cmd.Short = i18n.G("Stop instances")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Stop instances`))
+	cmd.Use = usage("stop", "[<remote>:]<instance> [[<remote>:]<instance>...]")
+	cmd.Short = "Stop instances"
+	cmd.Long = cli.FormatSection("Description", `Stop instances`)
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpInstancesAction(toComplete, "stop", c.action.flagForce)
@@ -135,23 +130,23 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.RunE = c.run
 
-	cmd.Flags().BoolVar(&c.flagAll, "all", false, i18n.G("Run against all instances"))
+	cmd.Flags().BoolVar(&c.flagAll, "all", false, "Run against all instances")
 
 	switch action {
 	case "stop":
-		cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Store the instance state"))
+		cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, "Store the instance state")
 	case "start":
-		cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Ignore the instance state"))
+		cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, "Ignore the instance state")
 	}
 
 	if slices.Contains([]string{"start", "restart", "stop"}, action) {
-		cmd.Flags().StringVar(&c.flagConsole, "console", "", i18n.G("Immediately attach to the console")+"``")
+		cmd.Flags().StringVar(&c.flagConsole, "console", "", "Immediately attach to the console"+"``")
 		cmd.Flags().Lookup("console").NoOptDefVal = "console"
 	}
 
 	if slices.Contains([]string{"restart", "stop"}, action) {
-		cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the instance to stop"))
-		cmd.Flags().IntVar(&c.flagTimeout, "timeout", -1, i18n.G("Time to wait for the instance to shutdown cleanly")+"``")
+		cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Force the instance to stop")
+		cmd.Flags().IntVar(&c.flagTimeout, "timeout", -1, "Time to wait for the instance to shutdown cleanly"+"``")
 	}
 
 	return cmd
@@ -162,7 +157,7 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 func (c *cmdAction) doActionAll(action string, resource remoteResource) error {
 	if resource.name != "" {
 		// both --all and instance name given.
-		return errors.New(i18n.G("Both --all and instance name given"))
+		return errors.New("Both --all and instance name given")
 	}
 
 	remote := resource.remote
@@ -231,7 +226,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	}
 
 	if action == "stop" && c.flagForce && c.flagConsole != "" {
-		return errors.New(i18n.G("--console can't be used while forcing instance shutdown"))
+		return errors.New("--console can't be used while forcing instance shutdown")
 	}
 
 	remote, name, err := conf.ParseRemote(nameArg)
@@ -245,7 +240,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	}
 
 	if name == "" {
-		return fmt.Errorf(i18n.G("Must supply instance name for: ")+"\"%s\"", nameArg)
+		return fmt.Errorf("Must supply instance name for: %q", nameArg)
 	}
 
 	if action == "start" {
@@ -299,7 +294,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	err = cli.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
-		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, nameArg)
+		return fmt.Errorf("%s\nTry `lxc info --show-log %s` for more info", err, nameArg)
 	}
 
 	progress.Done("")
@@ -336,7 +331,7 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 		for _, resource := range resources {
 			// We don't allow instance names with --all.
 			if resource.name != "" {
-				return errors.New(i18n.G("Both --all and instance name given"))
+				return errors.New("Both --all and instance name given")
 			}
 
 			// See if we can use the bulk API.
@@ -380,11 +375,11 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 
 	if c.flagConsole != "" {
 		if c.flagAll {
-			return errors.New(i18n.G("--console can't be used with --all"))
+			return errors.New("--console can't be used with --all")
 		}
 
 		if len(names) != 1 {
-			return errors.New(i18n.G("--console only works with a single instance"))
+			return errors.New("--console only works with a single instance")
 		}
 	}
 
@@ -405,7 +400,7 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 		}
 
 		success = false
-		msg := fmt.Sprintf(i18n.G("error: %v"), result.err)
+		msg := fmt.Sprintf("error: %v", result.err)
 		for line := range strings.SplitSeq(msg, "\n") {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", result.name, line)
 		}
@@ -413,7 +408,7 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 
 	if !success {
 		fmt.Fprintln(os.Stderr, "")
-		return fmt.Errorf(i18n.G("Some instances failed to %s"), cmd.Name())
+		return fmt.Errorf("Some instances failed to %s", cmd.Name())
 	}
 
 	return nil
