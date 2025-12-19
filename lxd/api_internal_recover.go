@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"sort"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
@@ -24,7 +26,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -166,6 +167,67 @@ func appendUnknownVolumeConfig(originalPoolName string, projectName string, volu
 	return nil
 }
 
+// identifyCustomVolumePool checks if the respective pool of a discovered custom volume is already known or missing.
+// This can be the case if a custom volume was discovered through an instance's backup config on another pool.
+// It may return a potential dependency error in case the pool doesn't yet exist.
+func identifyCustomVolumePool(s *state.State, volConfig *backupConfig.Config, existingPools map[string]storagePools.Pool) (dependencyErr error, err error) {
+	customVol, err := volConfig.CustomVolume()
+	if err != nil {
+		// We cannot get the custom volume from the backup config.
+		// This indicates the backup config represents an instance's volume so we can return early.
+		return nil, nil
+	}
+
+	// If the current volume's backup config contains a custom volume, try loading its pool.
+	volPool, err := volConfig.CustomVolumePool()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get pool of custom volume %q: %w", customVol.Name, err)
+	}
+
+	// Check the already existing map of pools requested by the user.
+	// This speeds up the check as we don't need to try loading the pool again.
+	_, volPoolExists := existingPools[volPool.Name]
+	if volPoolExists {
+		// Nothing left to identify, the pool exists.
+		return nil, nil
+	}
+
+	// If the pool doesn't exist in the list of requested pools, try loading it.
+	customVolPool, err := storagePools.LoadByName(s, volPool.Name)
+	if err == nil {
+		// We were able to load the pool.
+		// This is the case if the pool wasn't present when starting the recovery process but
+		// the user created the pool in the meantime and reran the process.
+
+		// Cache it for later reference.
+		existingPools[volPool.Name] = customVolPool
+
+		// Nothing left to identify, the pool exists.
+		return nil, nil
+	}
+
+	configKeysSorted := make([]string, 0, len(volPool.Config))
+	for key := range volPool.Config {
+		configKeysSorted = append(configKeysSorted, key)
+	}
+
+	// Sort all config items for repeatable outputs.
+	sort.Strings(configKeysSorted)
+
+	// The pool is missing so create a dependency error.
+	configItems := make([]string, 0, len(volPool.Config))
+	for _, key := range configKeysSorted {
+		// Skip empty config items
+		if volPool.Config[key] == "" {
+			continue
+		}
+
+		configItems = append(configItems, fmt.Sprintf("%s=%q", key, volPool.Config[key]))
+	}
+
+	return fmt.Errorf("Pool %q using driver %q (%s)", volPool.Name, volPool.Driver, strings.Join(configItems, " ")), nil
+}
+
 // internalRecoverScan provides the discovery and import functionality for both recovery validate and import steps.
 func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.StoragePoolsPost, validateOnly bool) response.Response {
 	var err error
@@ -260,40 +322,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 	for _, p := range userPools {
 		pool, err := storagePools.LoadByName(s, p.Name)
 		if err != nil {
-			if !response.IsNotFoundError(err) {
-				return response.SmartError(fmt.Errorf("Failed loading existing pool %q: %w", p.Name, err))
-			}
-
-			// If the pool DB record doesn't exist, and we are clustered, then don't proceed
-			// any further as we do not support pool DB record recovery when clustered.
-			if s.ServerClustered {
-				return response.BadRequest(errors.New("Storage pool recovery not supported when clustered"))
-			}
-
-			// If pool doesn't exist in DB, initialise a temporary pool with the supplied info.
-			poolInfo := api.StoragePool{
-				Name:   p.Name,
-				Driver: p.Driver,
-				Status: api.StoragePoolStatusCreated,
-			}
-
-			poolInfo.SetWritable(p.StoragePoolPut)
-
-			pool, err = storagePools.NewTemporary(s, &poolInfo)
-			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed to initialise unknown pool %q: %w", p.Name, err))
-			}
-
-			// Populate configuration with default values.
-			err := pool.Driver().FillConfig()
-			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed to evaluate the default configuration values for unknown pool %q: %w", p.Name, err))
-			}
-
-			err = pool.Driver().Validate(poolInfo.Config)
-			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed config validation for unknown pool %q: %w", p.Name, err))
-			}
+			return response.SmartError(fmt.Errorf("Failed loading existing pool %q: %w", p.Name, err))
 		}
 
 		// Record this pool to be used during import stage, assuming validation passes.
@@ -343,9 +372,13 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				}
 			}
 		}
+	}
 
+	// Iterate over poolsProjectVols to ensure we also check volumes in pools which weren't scanned
+	// directly but discovered/appended whilst scanning an instance's backup config on another pool.
+	for _, poolProjectVols := range poolsProjectVols {
 		// Check dependencies are met for each volume.
-		for projectName, poolVols := range poolProjectVols {
+		for projectName, volConfigs := range poolProjectVols {
 			// Check project exists in database.
 			projectInfo := projects[projectName]
 
@@ -361,13 +394,23 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 			profileProjectname = project.ProfileProjectFromRecord(projectInfo)
 			networkProjectName = project.NetworkProjectFromRecord(projectInfo)
 
-			for _, poolVol := range poolVols {
-				if poolVol.Instance == nil {
-					continue // Skip dependency checks for non-instance volumes.
+			for _, volConfig := range volConfigs {
+				dependencyErr, err := identifyCustomVolumePool(s, volConfig, pools)
+				if err != nil {
+					return response.SmartError(fmt.Errorf("Failed to identify custom volume's pool: %w", err))
+				}
+
+				if dependencyErr != nil {
+					addDependencyError(dependencyErr)
+				}
+
+				// Skip dependency checks for non-instance volumes.
+				if volConfig.Instance == nil {
+					continue
 				}
 
 				// Check that the instance's profile dependencies are met.
-				for _, poolInstProfileName := range poolVol.Instance.Profiles {
+				for _, poolInstProfileName := range volConfig.Instance.Profiles {
 					foundProfile := false
 					for _, profile := range projectProfiles[profileProjectname] {
 						if profile.Name == poolInstProfileName {
@@ -381,7 +424,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				}
 
 				// Check that the instance's NIC network dependencies are met.
-				for _, devConfig := range poolVol.Instance.ExpandedDevices {
+				for _, devConfig := range volConfig.Instance.ExpandedDevices {
 					if devConfig["type"] != "nic" {
 						continue
 					}
@@ -456,81 +499,10 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 	}
 
 	// If in import mode and no dependency errors, then re-create missing DB records.
-
-	// Create the pools themselves.
-	for _, pool := range pools {
-		// Create missing storage pool DB record if neeed.
-		if pool.ID() == storagePools.PoolIDTemporary {
-			var instPoolVol *backupConfig.Config // Instance volume used for new pool record.
-			var poolID int64                     // Pool ID of created pool record.
-
-			var poolVols []*backupConfig.Config
-			for _, value := range poolsProjectVols[pool.Name()] {
-				poolVols = append(poolVols, value...)
-			}
-
-			var rootVolPool *api.StoragePool
-
-			// Search unknown volumes looking for an instance volume that can be used to
-			// restore the pool DB config from. This is preferable over using the user
-			// supplied config as it will include any additional settings not supplied.
-			for _, poolVol := range poolVols {
-				rootVolPool, err = poolVol.RootVolumePool()
-				if err != nil {
-					// We are looking for a volume with a pool configuration.
-					// Skip this volume if it doesn't contain what we are looking for.
-					continue
-				}
-
-				if rootVolPool.Config != nil {
-					instPoolVol = poolVol
-					break // Stop search once we've found an instance with pool config.
-				}
-			}
-
-			if instPoolVol != nil {
-				// Create storage pool DB record from config in the instance.
-				logger.Info("Creating storage pool DB record from instance config", logger.Ctx{"name": rootVolPool.Name, "description": rootVolPool.Description, "driver": rootVolPool.Driver, "config": rootVolPool.Config})
-				poolID, err = dbStoragePoolCreateAndUpdateCache(ctx, s, rootVolPool.Name, rootVolPool.Description, rootVolPool.Driver, rootVolPool.Config)
-				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed creating storage pool %q database entry: %w", pool.Name(), err))
-				}
-			} else {
-				// Create storage pool DB record from config supplied by user if not
-				// instance volume pool config found.
-				poolDriverName := pool.Driver().Info().Name
-				poolDriverConfig := pool.Driver().Config()
-				logger.Info("Creating storage pool DB record from user config", logger.Ctx{"name": pool.Name(), "driver": poolDriverName, "config": poolDriverConfig})
-				poolID, err = dbStoragePoolCreateAndUpdateCache(ctx, s, pool.Name(), "", poolDriverName, poolDriverConfig)
-				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed creating storage pool %q database entry: %w", pool.Name(), err))
-				}
-			}
-
-			revert.Add(func() {
-				_ = dbStoragePoolDeleteAndUpdateCache(context.Background(), s, pool.Name())
-			})
-
-			// Set storage pool node to storagePoolCreated.
-			// Must come before storage pool is loaded from the database.
-			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.StoragePoolNodeCreated(poolID)
-			})
-			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed marking storage pool %q local status as created: %w", pool.Name(), err))
-			}
-
-			logger.Debug("Marked storage pool local status as created", logger.Ctx{"pool": pool.Name()})
-
-			newPool, err := storagePools.LoadByName(s, pool.Name())
-			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed loading created storage pool %q: %w", pool.Name(), err))
-			}
-
-			// Record this newly created pool so that defer doesn't unmount on return.
-			pools[pool.Name()] = newPool
-		}
-	}
+	// Starting from here we can expect all pools to be present so we can iterate over the 'pools'
+	// map to use the already loaded pools to perform imports.
+	// In case some pools were discovered by checking the backup configs of other pool's instances,
+	// those pools are now loaded too and available under the 'pools' map.
 
 	// Recover the storage volumes and buckets.
 	for _, pool := range pools {
