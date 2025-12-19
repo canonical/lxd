@@ -59,6 +59,13 @@ var operationWebsocket = APIEndpoint{
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }
 
+// DurableOperations is the table of durable operations handlers.
+// This is needed so that we can always find the right handlers based on the operation type.
+// We want this in the main package so the table can contain handlers from various other packages.
+var DurableOperations = operations.DurableOperationTable{
+	operationtype.Wait: waitHandlerOperationRunHook,
+}
+
 // pendingInstanceOperations returns a map of instance URLs to operations that are currently running.
 // This is used to determine if an instance is busy and should not be shut down immediately.
 func pendingInstanceOperations() (map[string]*operations.Operation, error) {
@@ -179,7 +186,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.OperationFilter{UUID: &id}
+		filter := dbCluster.OperationFilter{Reference: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
@@ -300,7 +307,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.OperationFilter{UUID: &id}
+		filter := dbCluster.OperationFilter{Reference: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
@@ -347,7 +354,7 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 	var memberAddress string
 	var err error
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.OperationFilter{UUID: &op.ID}
+		filter := dbCluster.OperationFilter{Reference: &op.ID}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return fmt.Errorf("Failed loading operation %q: %w", op.ID, err)
@@ -381,6 +388,122 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 	}
 
 	return nil
+}
+
+func getDurableOperationsOnNode(ctx context.Context, s *state.State, nodeID int64, projectName string, canViewServerOperations bool, canViewProjectOperations auth.PermissionChecker) ([]api.Operation, error) {
+	var projects map[int64]string
+	var err error
+	var dbOps []dbCluster.Operation
+	dbResources := make(map[*dbCluster.Operation]map[string][]api.URL)
+	dbMetadata := make(map[*dbCluster.Operation]map[string]string)
+
+	// See if there are any durable operations running on this node which need to be restarted.
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		durableClass := (int64)(operations.OperationClassDurable)
+		filter := dbCluster.OperationFilter{NodeID: &nodeID, Class: &durableClass}
+		dbOps, err = dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		if err != nil {
+			return fmt.Errorf("Failed loading durable operations for the node %d: %w", nodeID, err)
+		}
+
+		for _, dbOp := range dbOps {
+			// Load the resource URL if entity ID is provided.
+			if dbOp.EntityID != nil {
+				entityType, _ := dbOp.Type.Permission()
+				entityURL, err := dbCluster.GetEntityURL(ctx, tx.Tx(), entityType, *dbOp.EntityID)
+				if err != nil {
+					return fmt.Errorf("Failed getting entity URL for entity type %q and ID %d: %w", entityType.String(), *dbOp.EntityID, err)
+				}
+
+				dbResources[&dbOp] = map[string][]api.URL{string(entityType): {*entityURL}}
+			}
+
+			dbMetadata[&dbOp], err = dbCluster.GetDurableOperationMetadata(ctx, tx.Tx(), dbOp.ID)
+			if err != nil {
+				return fmt.Errorf("Failed loading durable operation metadata for operation %d: %w", dbOp.ID, err)
+			}
+		}
+
+		projects, err = dbCluster.GetProjectIDsToNames(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed loading project IDs to names: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]api.Operation, 0, len(dbOps))
+	for _, dbOp := range dbOps {
+		var opProjectName string
+
+		// Load the project name if provided.
+		if dbOp.ProjectID != nil {
+			var ok bool
+			opProjectName, ok = projects[*dbOp.ProjectID]
+			if !ok {
+				logger.Warn("Project ID not found in the map of projects", logger.Ctx{"projectID": *dbOp.ProjectID})
+				continue
+			}
+		}
+
+		// Don't return operations outside of the requested project.
+		if projectName != "" && opProjectName != "" && projectName != opProjectName {
+			continue
+		}
+
+		// Omit operations that don't have a project if the caller does not have access.
+		if opProjectName == "" && !canViewServerOperations {
+			continue
+		}
+
+		// Omit operations if the caller does not have `can_view_operations` on the operations' project and the caller is not the operation owner.
+		// TODO once we reconstruct requestor on the operation, also return operations owned by the caller.
+		if !canViewProjectOperations(entity.ProjectURL(opProjectName)) {
+			continue
+		}
+
+		op := api.Operation{}
+		op.ID = dbOp.Reference
+		op.Class = (operations.OperationClass)(dbOp.Class).String()
+		op.Description = dbOp.Description
+		op.CreatedAt = dbOp.CreatedAt
+		op.Status = api.Frozen.String() // As we are loading the operation from the DB, it's likely not running right now.
+
+		// Setup the resource URLs
+		op.Resources = make(map[string][]string)
+		resources, ok := dbResources[&dbOp]
+		if !ok {
+			resources = nil
+		}
+
+		// We just need to convert the URLs to strings here. So copying the full map. Sigh.
+		if resources != nil {
+			tmpResources := make(map[string][]string)
+			for key, value := range resources {
+				var values []string
+				for _, c := range value {
+					values = append(values, c.Project(opProjectName).String())
+				}
+
+				tmpResources[key] = values
+			}
+
+			op.Resources = tmpResources
+		}
+
+		// Here we convert the map[string]string metadata to map[string]any API representation.
+		op.Metadata = make(map[string]any)
+		for key, value := range dbMetadata[&dbOp] {
+			op.Metadata[key] = value
+		}
+
+		result = append(result, op)
+	}
+
+	return result, nil
 }
 
 // swagger:operation GET /1.0/operations operations operations_get
@@ -677,19 +800,13 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	localClusterAddress := s.LocalConfig.ClusterAddress()
 	offlineThreshold := s.GlobalConfig.OfflineThreshold()
 
-	memberOnline := func(memberAddress string) bool {
-		for _, member := range members {
-			if member.Address == memberAddress {
-				if member.IsOffline(offlineThreshold) {
-					logger.Warn("Excluding offline member from operations list", logger.Ctx{"member": member.Name, "address": member.Address, "ID": member.ID, "lastHeartbeat": member.Heartbeat})
-					return false
-				}
-
-				return true
-			}
+	memberOnline := func(member *db.NodeInfo) bool {
+		if member.IsOffline(offlineThreshold) {
+			logger.Warn("Excluding offline member from operations list", logger.Ctx{"member": member.Name, "address": member.Address, "ID": member.ID, "lastHeartbeat": member.Heartbeat})
+			return false
 		}
 
-		return false
+		return true
 	}
 
 	networkCert := s.Endpoints.NetworkCert()
@@ -698,27 +815,57 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		if !memberOnline(memberAddress) {
-			continue
+		var member *db.NodeInfo
+		for _, memberInMembers := range members {
+			if memberInMembers.Address == memberAddress {
+				member = &memberInMembers
+			}
 		}
 
-		// Connect to the remote server. Use notify=true to only get local operations on remote member.
-		client, err := cluster.Connect(r.Context(), memberAddress, networkCert, s.ServerCert(), true)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err))
+		// If we didn't find the member in the list, skip it.
+		if member == nil {
+			logger.Warn("Member with operations not found in the cluster member list", logger.Ctx{"address": memberAddress})
+			continue
 		}
 
 		// Get operation data.
 		var ops []api.Operation
-		if allProjects {
-			ops, err = client.GetOperationsAllProjects()
-		} else {
-			ops, err = client.UseProject(projectName).GetOperations()
+
+		// For online cluster members, get the list of operations from them directly.
+		var err error
+		isOnline := memberOnline(member)
+		var operationsLoaded bool
+		if isOnline {
+			// Connect to the remote server. Use notify=true to only get local operations on remote member.
+			client, err := cluster.Connect(r.Context(), memberAddress, networkCert, s.ServerCert(), true)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err))
+			}
+
+			if allProjects {
+				ops, err = client.GetOperationsAllProjects()
+			} else {
+				ops, err = client.UseProject(projectName).GetOperations()
+			}
+
+			if err != nil {
+				logger.Warn("Failed getting operations from member", logger.Ctx{"address": memberAddress, "err": err})
+			} else {
+				operationsLoaded = true
+			}
 		}
 
-		if err != nil {
-			logger.Warn("Failed getting operations from member", logger.Ctx{"address": memberAddress, "err": err})
-			continue
+		// If the member is offline or we failed to get the operations from it, load the durable operations from the database.
+		if !isOnline || !operationsLoaded {
+			if allProjects {
+				ops, err = getDurableOperationsOnNode(r.Context(), s, member.ID, "", canViewServerOperations, canViewProjectOperations)
+			} else {
+				ops, err = getDurableOperationsOnNode(r.Context(), s, member.ID, projectName, canViewServerOperations, canViewProjectOperations)
+			}
+
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed getting durable operations from member %q: %w", memberAddress, err))
+			}
 		}
 
 		// Merge with existing data.
@@ -791,7 +938,7 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 				memberOps[op.NodeAddress] = make(map[string]dbCluster.Operation)
 			}
 
-			memberOps[op.NodeAddress][op.UUID] = op
+			memberOps[op.NodeAddress][op.Reference] = op
 		}
 
 		return nil
@@ -1026,7 +1173,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.OperationFilter{UUID: &id}
+		filter := dbCluster.OperationFilter{Reference: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
@@ -1169,7 +1316,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 
 	var address string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.OperationFilter{UUID: &id}
+		filter := dbCluster.OperationFilter{Reference: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
@@ -1301,6 +1448,53 @@ type operationWaitPost struct {
 	Resources map[string][]string       `json:"resources" yaml:"resources"`
 }
 
+func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
+	duration, err := time.ParseDuration(op.Metadata()["duration"].(string))
+	if err != nil {
+		return fmt.Errorf("Invalid duration metadata: %w", err)
+	}
+
+	logger.Warnf("Starting wait handler operation for %s", duration.String())
+
+	// See if some waiting was already done.
+	elapsed := time.Duration(0)
+	elapsedMetadata, ok := op.Metadata()["elapsed"]
+	if ok {
+		elapsed, err = time.ParseDuration(elapsedMetadata.(string))
+		if err != nil {
+			return fmt.Errorf("Failed parsing elapsed metadata: %w", err)
+		}
+
+		logger.Warnf("Resuming wait handler operation, already waited for %s", elapsed.String())
+	}
+
+	for duration > elapsed {
+		// Sleep for one second, or until the run context is cancelled.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.Tick(time.Second):
+		}
+
+		elapsed = elapsed + time.Second
+		logger.Warnf("Wait handler operation running for %d seconds...", elapsed/time.Second)
+		op.Metadata()["elapsed"] = elapsed.String()
+		err = op.UpdateMetadata(op.Metadata())
+		if err != nil {
+			return fmt.Errorf("Failed updating operation metadata: %w", err)
+		}
+
+		err = op.CommitMetadata()
+		if err != nil {
+			return fmt.Errorf("Failed committing operation metadata: %w", err)
+		}
+	}
+
+	logger.Warn("Wait handler operation completed")
+
+	return nil
+}
+
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
 func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	requestor, err := request.GetRequestor(r.Context())
@@ -1346,15 +1540,8 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid operation type %q", req.OpType))
 	}
 
-	run := func(ctx context.Context, op *operations.Operation) error {
-		// Sleep for the duration, or until the run context is cancelled.
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.Tick(duration):
-		}
-
-		return nil
+	metadata := map[string]string{
+		"duration": duration.String(),
 	}
 
 	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
@@ -1370,8 +1557,14 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		Type:        req.OpType,
 		Class:       req.OpClass,
 		Resources:   resources,
-		RunHook:     run,
+		Metadata:    metadata,
+		RunHook:     waitHandlerOperationRunHook,
 		ConnectHook: onConnect,
+	}
+
+	// Durable operations have their run hook set in the DurableOperations table.
+	if req.OpClass == operations.OperationClassDurable {
+		args.RunHook = nil
 	}
 
 	op, err := operations.CreateUserOperation(d.State(), requestor, args)

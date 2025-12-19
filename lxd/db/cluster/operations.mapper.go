@@ -19,43 +19,51 @@ import (
 var _ = api.ServerEnvironment{}
 
 var operationObjects = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.inputs, operations.status, operations.error, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
-  ORDER BY operations.id, operations.uuid
+  ORDER BY operations.id, operations.reference
 `)
 
 var operationObjectsByNodeID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.inputs, operations.status, operations.error, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.node_id = ? )
-  ORDER BY operations.id, operations.uuid
+  ORDER BY operations.id, operations.reference
+`)
+
+var operationObjectsByNodeIDAndClass = RegisterStmt(`
+SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.inputs, operations.status, operations.error, operations.stage
+  FROM operations
+  JOIN nodes ON operations.node_id = nodes.id
+  WHERE ( operations.node_id = ? AND operations.class = ? )
+  ORDER BY operations.id, operations.reference
 `)
 
 var operationObjectsByID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.inputs, operations.status, operations.error, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.id = ? )
-  ORDER BY operations.id, operations.uuid
+  ORDER BY operations.id, operations.reference
 `)
 
-var operationObjectsByUUID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+var operationObjectsByReference = RegisterStmt(`
+SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.inputs, operations.status, operations.error, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
-  WHERE ( operations.uuid = ? )
-  ORDER BY operations.id, operations.uuid
+  WHERE ( operations.reference = ? )
+  ORDER BY operations.id, operations.reference
 `)
 
 var operationCreateOrReplace = RegisterStmt(`
-INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type)
- VALUES (?, ?, ?, ?)
+INSERT OR REPLACE INTO operations (reference, project_id, node_id, type, description, requestor_protocol, requestor_identity_id, entity_id, class, created_at, inputs, status, error, stage)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
-var operationDeleteByUUID = RegisterStmt(`
-DELETE FROM operations WHERE uuid = ?
+var operationDeleteByReference = RegisterStmt(`
+DELETE FROM operations WHERE reference = ?
 `)
 
 var operationDeleteByNodeID = RegisterStmt(`
@@ -68,7 +76,7 @@ func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operatio
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.Reference, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.Description, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Class, &o.CreatedAt, &o.Inputs, &o.Status, &o.Error, &o.Stage)
 		if err != nil {
 			return err
 		}
@@ -92,7 +100,7 @@ func getOperationsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) 
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.Reference, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.Description, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Class, &o.CreatedAt, &o.Inputs, &o.Status, &o.Error, &o.Stage)
 		if err != nil {
 			return err
 		}
@@ -131,18 +139,18 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 	}
 
 	for i, filter := range filters {
-		if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
-			args = append(args, []any{filter.UUID}...)
+		if filter.NodeID != nil && filter.Class != nil && filter.ID == nil && filter.Reference == nil {
+			args = append(args, []any{filter.NodeID, filter.Class}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, operationObjectsByUUID)
+				sqlStmt, err = Stmt(tx, operationObjectsByNodeIDAndClass)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"operationObjectsByUUID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed to get \"operationObjectsByNodeIDAndClass\" prepared statement: %w", err)
 				}
 
 				break
 			}
 
-			query, err := StmtString(operationObjectsByUUID)
+			query, err := StmtString(operationObjectsByNodeIDAndClass)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
 			}
@@ -155,7 +163,31 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
+		} else if filter.Reference != nil && filter.ID == nil && filter.NodeID == nil && filter.Class == nil {
+			args = append(args, []any{filter.Reference}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, operationObjectsByReference)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"operationObjectsByReference\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(operationObjectsByReference)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.NodeID != nil && filter.ID == nil && filter.Reference == nil && filter.Class == nil {
 			args = append(args, []any{filter.NodeID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByNodeID)
@@ -179,7 +211,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
+		} else if filter.ID != nil && filter.NodeID == nil && filter.Reference == nil && filter.Class == nil {
 			args = append(args, []any{filter.ID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByID)
@@ -203,7 +235,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
+		} else if filter.ID == nil && filter.NodeID == nil && filter.Reference == nil && filter.Class == nil {
 			return nil, errors.New("Cannot filter on empty OperationFilter")
 		} else {
 			return nil, errors.New("No statement exists for the given Filter")
@@ -228,13 +260,23 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 // CreateOrReplaceOperation adds a new operation to the database.
 // generator: operation CreateOrReplace
 func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
-	args := make([]any, 4)
+	args := make([]any, 14)
 
 	// Populate the statement arguments.
-	args[0] = object.UUID
+	args[0] = object.Reference
 	args[1] = object.ProjectID
 	args[2] = object.NodeID
 	args[3] = object.Type
+	args[4] = object.Description
+	args[5] = object.RequestorProtocol
+	args[6] = object.RequestorIdentityID
+	args[7] = object.EntityID
+	args[8] = object.Class
+	args[9] = object.CreatedAt
+	args[10] = object.Inputs
+	args[11] = object.Status
+	args[12] = object.Error
+	args[13] = object.Stage
 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreateOrReplace)
@@ -261,14 +303,14 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 }
 
 // DeleteOperation deletes the operation matching the given key parameters.
-// generator: operation DeleteOne-by-UUID
-func DeleteOperation(ctx context.Context, tx *sql.Tx, uuid string) error {
-	stmt, err := Stmt(tx, operationDeleteByUUID)
+// generator: operation DeleteOne-by-Reference
+func DeleteOperation(ctx context.Context, tx *sql.Tx, reference string) error {
+	stmt, err := Stmt(tx, operationDeleteByReference)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"operationDeleteByUUID\" prepared statement: %w", err)
+		return fmt.Errorf("Failed to get \"operationDeleteByReference\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.ExecContext(ctx, uuid)
+	result, err := stmt.ExecContext(ctx, reference)
 	if err != nil {
 		return fmt.Errorf("Delete \"operations\": %w", err)
 	}

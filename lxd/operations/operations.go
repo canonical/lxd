@@ -40,6 +40,8 @@ const (
 	OperationClassWebsocket OperationClass = 2
 	// OperationClassToken represents the Token OperationClass.
 	OperationClassToken OperationClass = 3
+	// OperationClassDurable represents the Durable OperationClass.
+	OperationClassDurable OperationClass = 4
 )
 
 func (t OperationClass) String() string {
@@ -47,6 +49,7 @@ func (t OperationClass) String() string {
 		OperationClassTask:      api.OperationClassTask,
 		OperationClassWebsocket: api.OperationClassWebsocket,
 		OperationClassToken:     api.OperationClassToken,
+		OperationClassDurable:   api.OperationClassDurable,
 	}[t]
 }
 
@@ -120,6 +123,9 @@ type Operation struct {
 	events *events.Server
 }
 
+// RunHook represents the function signature for an operation run hook.
+type RunHook func(ctx context.Context, op *Operation) error
+
 // OperationArgs contains all the arguments for operation creation.
 type OperationArgs struct {
 	ProjectName string
@@ -127,7 +133,8 @@ type OperationArgs struct {
 	Class       OperationClass
 	Resources   map[string][]api.URL
 	Metadata    any
-	RunHook     func(ctx context.Context, op *Operation) error
+	Reference   string
+	RunHook     RunHook
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
 }
 
@@ -145,6 +152,25 @@ func CreateServerOperation(s *state.State, args OperationArgs) (*Operation, erro
 	return operationCreate(s, nil, args)
 }
 
+// DurableOperationTable represents the table of durable operation hooks.
+type DurableOperationTable map[operationtype.Type]RunHook
+
+var (
+	durableOperations     DurableOperationTable
+	durableOperationsOnce sync.Once
+)
+
+// InitDurableOperations initializes the durable operations table.
+// As durable operations can be restarted on other nodes, the durable operation handlers cannot be defined only in the memory of the node.
+// Therefore we maintain a static map of durable operation handlers based on operation type.
+// As this map contains handlers from across many packages, the table itself is defined in the main package.
+// Because this table needs to be accessible from the operations package, we provide this Init function to set it.
+func InitDurableOperations(opTable DurableOperationTable) {
+	durableOperationsOnce.Do(func() {
+		durableOperations = opTable
+	})
+}
+
 // operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
 func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
@@ -152,10 +178,45 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, errors.New("LXD is shutting down")
 	}
 
+	// Quick check.
+	if args.Class == OperationClassDurable {
+		if args.RunHook != nil || args.ConnectHook != nil {
+			return nil, errors.New("Durable operations cannot have Run or Connect hooks provided directly")
+		}
+
+		// We store durable operation resources in the form of single entity_id on the operation itself.
+		// More than one resource is not allowed.
+		if len(args.Resources) > 1 {
+			return nil, errors.New("Durable operations can only have up to a single resource")
+		}
+
+		for _, resourceList := range args.Resources {
+			if len(resourceList) > 1 {
+				return nil, errors.New("Durable operations can only have up to a single resource")
+			}
+		}
+	}
+
+	if args.Class != OperationClassWebsocket && args.ConnectHook != nil {
+		return nil, errors.New("Only websocket operations can have a Connect hook")
+	}
+
+	if args.Class == OperationClassWebsocket && args.ConnectHook == nil {
+		return nil, errors.New("Websocket operations must have a Connect hook")
+	}
+
+	if args.Class == OperationClassToken && args.RunHook != nil {
+		return nil, errors.New("Token operations cannot have a Run hook")
+	}
+
 	// Main attributes
 	op := Operation{}
 	op.projectName = args.ProjectName
-	op.id = uuid.New().String()
+	op.id = args.Reference
+	if op.id == "" {
+		op.id = uuid.New().String()
+	}
+
 	op.description = args.Type.Description()
 	op.entityType, op.entitlement = args.Type.Permission()
 	op.dbOpType = args.Type
@@ -186,24 +247,28 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.onRun = args.RunHook
 	op.onConnect = args.ConnectHook
 
-	// Quick check.
-	if op.class != OperationClassWebsocket && op.onConnect != nil {
-		return nil, errors.New("Only websocket operations can have a Connect hook")
-	}
+	if op.class == OperationClassDurable {
+		// Durable operations must have their hooks defined in the durable operations table.
+		runHook, ok := durableOperations[args.Type]
+		if !ok {
+			return nil, fmt.Errorf("No durable operation handlers defined for operation type %q", args.Type)
+		}
 
-	if op.class == OperationClassWebsocket && op.onConnect == nil {
-		return nil, errors.New("Websocket operations must have a Connect hook")
-	}
-
-	if op.class == OperationClassToken && op.onRun != nil {
-		return nil, errors.New("Token operations cannot have a Run hook")
+		op.onRun = runHook
 	}
 
 	operationsLock.Lock()
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, args.Type)
+	if args.Reference == "" {
+		// New operation, register it in the database.
+		err = registerDBOperation(&op, args.Type)
+	} else {
+		// Existing operation, update its node_id in the database.
+		err = updateDBOperationNodeID(&op)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -314,6 +379,18 @@ func (op *Operation) done() {
 	}()
 }
 
+func updateStatusWithWarning(op *Operation, newStatus api.StatusCode) {
+	oldStatus := op.status
+	err := op.updateStatus(newStatus)
+	if err != nil {
+		op.logger.Warn("Failed updating operation status", logger.Ctx{
+			"err":       err,
+			"oldStatus": oldStatus,
+			"newStatus": newStatus,
+		})
+	}
+}
+
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
@@ -322,7 +399,11 @@ func (op *Operation) Start() error {
 		return errors.New("Only pending operations can be started")
 	}
 
-	op.status = api.Running
+	err := op.updateStatus(api.Running)
+	if err != nil {
+		op.lock.Unlock()
+		return fmt.Errorf("Failed updating Operation %s status: %w", op.id, err)
+	}
 
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
@@ -341,9 +422,9 @@ func (op *Operation) Start() error {
 
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
-					op.status = api.Cancelled
+					updateStatusWithWarning(op, api.Cancelled)
 				} else {
-					op.status = api.Failure
+					updateStatusWithWarning(op, api.Failure)
 				}
 
 				// Always call cancel. This is a no-op if already cancelled.
@@ -364,7 +445,7 @@ func (op *Operation) Start() error {
 			}
 
 			op.lock.Lock()
-			op.status = api.Success
+			updateStatusWithWarning(op, api.Success)
 			op.running.Cancel()
 			op.lock.Unlock()
 			op.done()
@@ -414,9 +495,9 @@ func (op *Operation) Cancel() {
 	//
 	// If the operation does not have a run hook, immediately set the status to cancelled because there is nothing to clean up.
 	if op.onRun != nil {
-		op.status = api.Cancelling
+		updateStatusWithWarning(op, api.Cancelling)
 	} else {
-		op.status = api.Cancelled
+		updateStatusWithWarning(op, api.Cancelled)
 	}
 
 	op.lock.Unlock()
@@ -540,6 +621,15 @@ func (op *Operation) Wait(ctx context.Context) error {
 	}
 }
 
+func (op *Operation) updateStatus(newStatus api.StatusCode) error {
+	op.status = newStatus
+	if op.class != OperationClassDurable {
+		return nil
+	}
+
+	return updateDBOperationStatus(op)
+}
+
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateMetadata(opMetadata any) error {
@@ -571,6 +661,18 @@ func (op *Operation) UpdateMetadata(opMetadata any) error {
 	op.lock.Unlock()
 
 	return nil
+}
+
+// CommitMetadata commits the metadata of a durable operation to the database.
+func (op *Operation) CommitMetadata() error {
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	if op.class != OperationClassDurable {
+		return nil
+	}
+
+	return updateDBOperationMetadata(op)
 }
 
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
