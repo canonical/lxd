@@ -458,7 +458,7 @@ func (d *zfs) Delete(op *operations.Operation) error {
 	loopPath := loopFilePath(d.name)
 	err = os.Remove(loopPath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove '%s': %w", loopPath, err)
+		return fmt.Errorf("Failed to remove %q: %w", loopPath, err)
 	}
 
 	return nil
