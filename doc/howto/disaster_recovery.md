@@ -27,7 +27,8 @@ The tool is available through the `lxd recover` command (note the `lxd` command 
 
 When you run the tool, it scans all storage pools that still exist in the database, looking for missing volumes that can be recovered.
 Any unknown storage pools (those that exist on disk but do not exist in the database) which are discovered whilst scanning existing and unknown volumes
-are printed so they can be created manually using the `lxc storage create` command.
+are printed so they can be created manually using the `lxc storage create ... source.recover=true` command.
+Concrete examples for each storage driver can be found in {ref}`storage-recover-pool`.
 
 After mounting the specified storage pools (if not already mounted), the tool scans them for unknown volumes that look like they are associated with LXD.
 LXD maintains a `backup.yaml` file in each instance's storage volume, which contains all necessary information to recover a given instance (including instance configuration, attached devices, storage volume, and pool configuration).
