@@ -2,6 +2,8 @@
 set -eu
 set -o pipefail
 
+export LC_ALL=C.UTF-8  # Ensure consistency in sorting/grep/etc
+
 # === pre-flight checks === #
 # root is required
 if [ "${USER:-'root'}" != "root" ]; then
