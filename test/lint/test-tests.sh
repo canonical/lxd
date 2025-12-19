@@ -44,7 +44,11 @@ if [ -n "${LXD_SKIP_TESTS}" ]; then
     echo "::warning::Skipped tests: ${LXD_SKIP_TESTS}"
 fi
 
-grep -oP 'run_test test_\K[a-zA-Z0-9_]+' test/main.sh | grep -vxf "${SKIPPED_TESTS}" | sort > "${CALLED_TESTS}"
+# Load the definitions of all test groups
+. test/includes/test-groups.sh
+for t in "${test_group_all[@]}"; do
+    echo "${t}"
+done | grep -vxf "${SKIPPED_TESTS}" | sort > "${CALLED_TESTS}"
 grep -ohP '^test_\K[a-zA-Z0-9_]+' test/suites/*.sh    | grep -vxf "${SKIPPED_TESTS}" | sort > "${EXISTING_TESTS}"
 
 diff -Nau "${CALLED_TESTS}" "${EXISTING_TESTS}"
