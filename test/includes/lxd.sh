@@ -20,11 +20,6 @@ spawn_lxd_snap() {
         lxd_backend="$(random_storage_backend)"
     fi
 
-    if [ "${lxd_backend}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
-        echo "A cluster name must be specified when using the CEPH driver." >&2
-        exit 1
-    fi
-
     # Pass GOCOVERDIR to snap
     gocoverage_lxd_snap
 
@@ -84,11 +79,6 @@ spawn_lxd() {
     local lxd_backend="${LXD_BACKEND}"
     if [ "$LXD_BACKEND" = "random" ]; then
         lxd_backend="$(random_storage_backend)"
-    fi
-
-    if [ "${lxd_backend}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
-        echo "A cluster name must be specified when using the CEPH driver." >&2
-        exit 1
     fi
 
     # setup storage

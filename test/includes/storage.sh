@@ -15,14 +15,12 @@ storage_backend_available() {
     local backends
     backends="$(available_storage_backends)"
     if [ "${backends#*"$1"}" != "$backends" ]; then
-        true
-        return
+        return 0
     elif [ "${1}" = "cephfs" ] && [ "${backends#*"ceph"}" != "$backends" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
-        true
-        return
+        return 0
     fi
 
-    false
+    return 1
 }
 
 # Returns 0 if --optimized-storage works for backups (export/import)
