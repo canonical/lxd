@@ -123,33 +123,74 @@ func (d *zfs) deleteDatasetRecursive(dataset string) error {
 
 	// Check if the origin can now be deleted.
 	if origin != "" && origin != "-" {
-		if strings.HasPrefix(origin, d.config["zfs.pool_name"]+"/deleted") {
-			// Strip the snapshot name when dealing with a deleted volume.
-			dataset, _, _ = strings.Cut(origin, "@")
-		} else if strings.Contains(origin, "@deleted-") || strings.Contains(origin, "@copy-") {
-			// Handle deleted snapshots.
-			dataset = origin
-		} else {
-			// Origin is still active.
-			dataset = ""
+		// It will be set non-empty if origin (or parent of) should be deleted.
+		var originToDelete string
+
+		// Determine if the origin is a temporary snapshot created.
+		if strings.Contains(origin, "@deleted-") || strings.Contains(origin, "@copy-") {
+			// Origin is a temporary snapshot for this dataset, delete it.
+			originToDelete = origin
+		} else if strings.HasPrefix(origin, d.config["zfs.pool_name"]+"/deleted/") {
+			// This is a regular snapshot for dataset in deleted/ dataset.
+			// Delete the parent dataset (strip the @part) because when a dataset is in deleted/, it's marked for cleanup, and we should remove the entire dataset when its last snapshot is gone.
+			originToDelete, _, _ = strings.Cut(origin, "@")
 		}
 
-		if dataset != "" {
-			// Get all clones.
-			clones, err := d.getClones(dataset)
+		// If no origin needs to be deleted we're done.
+		if originToDelete == "" {
+			return nil
+		}
+
+		// Check if the origin (or parent dataset) has any clones.
+		clones, err := d.getClones(originToDelete)
+		if err != nil {
+			return err
+		}
+
+		// If there are clones, we can't delete the origin.
+		if len(clones) > 0 {
+			return nil
+		}
+
+		// We need to check if we should also delete the parent dataset.
+		if strings.Contains(originToDelete, "@") && strings.HasPrefix(originToDelete, d.config["zfs.pool_name"]+"/deleted/") {
+			// This is a snapshot in a deleted/ dataset.
+			parentVolume, _, _ := strings.Cut(originToDelete, "@")
+
+			// First delete the snapshot.
+			_, err = shared.TryRunCommand("zfs", "destroy", originToDelete)
 			if err != nil {
 				return err
 			}
 
-			if len(clones) == 0 {
-				// Delete the origin.
-				err = d.deleteDatasetRecursive(dataset)
+			// Then check if the parent volume has any remaining snapshots or clones.
+			parentClones, err := d.getClones(parentVolume)
+			if err != nil {
+				return err
+			}
+
+			// Check if parent volume has any snapshots.
+			parentSnapshots, err := d.getDatasets(parentVolume, "snapshot")
+			if err != nil {
+				return err
+			}
+
+			// If no clones and no snapshots, delete the parent volume too.
+			if len(parentClones) == 0 && len(parentSnapshots) == 0 {
+				_, err = shared.TryRunCommand("zfs", "destroy", parentVolume)
 				if err != nil {
 					return err
 				}
 			}
+		} else {
+			// For non-snapshot targets or snapshots not in deleted directory, use recursive deletion.
+			err = d.deleteDatasetRecursive(originToDelete)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 
