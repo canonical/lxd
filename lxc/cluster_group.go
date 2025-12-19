@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -29,9 +28,8 @@ type cmdClusterGroup struct {
 func (c *cmdClusterGroup) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("group")
-	cmd.Short = i18n.G("Manage cluster groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage cluster groups`))
+	cmd.Short = "Manage cluster groups"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Assign
 	clusterGroupAssignCmd := cmdClusterGroupAssign{global: c.global, cluster: c.cluster}
@@ -81,17 +79,15 @@ type cmdClusterGroupAssign struct {
 // Setting a groups to cluster members, setting usage, description, examples, and the RunE method.
 func (c *cmdClusterGroupAssign) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("assign", i18n.G("[<remote>:]<member> <group>"))
+	cmd.Use = usage("assign", "[<remote>:]<member> <group>")
 	cmd.Aliases = []string{"apply"}
-	cmd.Short = i18n.G("Assign sets of groups to cluster members")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Assign sets of groups to cluster members`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc cluster group assign foo default,bar
+	cmd.Short = "Assign sets of groups to cluster members"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc cluster group assign foo default,bar
     Set the groups for "foo" to "default" and "bar".
 
 lxc cluster group assign foo default
-    Reset "foo" to only using the "default" cluster group.`))
+    Reset "foo" to only using the "default" cluster group.`)
 
 	cmd.RunE = c.run
 
@@ -133,7 +129,7 @@ func (c *cmdClusterGroupAssign) run(cmd *cobra.Command, args []string) error {
 
 	// Assign the cluster group
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster member name"))
+		return errors.New("Missing cluster member name")
 	}
 
 	member, etag, err := resource.server.GetClusterMember(resource.name)
@@ -153,11 +149,11 @@ func (c *cmdClusterGroupAssign) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if args[1] == "" {
-		args[1] = i18n.G("(none)")
+		args[1] = "(none)"
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Cluster member %s added to cluster groups %s")+"\n", resource.name, args[1])
+		fmt.Printf("Cluster member %s added to cluster groups %s\n", resource.name, args[1])
 	}
 
 	return nil
@@ -172,15 +168,14 @@ type cmdClusterGroupCreate struct {
 // Creation of a new cluster group, defining its usage, short and long descriptions, and the RunE method.
 func (c *cmdClusterGroupCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<group>"))
-	cmd.Short = i18n.G("Create a cluster group")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create a cluster group`))
+	cmd.Use = usage("create", "[<remote>:]<group>")
+	cmd.Short = "Create a cluster group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc cluster group create g1
+	cmd.Example = cli.FormatSection("", `lxc cluster group create g1
 
 lxc cluster group create g1 < config.yaml
-	Create a cluster group with configuration from config.yaml`))
+	Create a cluster group with configuration from config.yaml`)
 
 	cmd.RunE = c.run
 
@@ -227,7 +222,7 @@ func (c *cmdClusterGroupCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster group name"))
+		return errors.New("Missing cluster group name")
 	}
 
 	// Create the cluster group
@@ -242,7 +237,7 @@ func (c *cmdClusterGroupCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Cluster group %s created")+"\n", resource.name)
+		fmt.Printf("Cluster group %s created\n", resource.name)
 	}
 
 	return nil
@@ -257,11 +252,10 @@ type cmdClusterGroupDelete struct {
 // It deletes a cluster group, setting up usage, descriptions, aliases, and the RunE method.
 func (c *cmdClusterGroupDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<group>"))
+	cmd.Use = usage("delete", "[<remote>:]<group>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete a cluster group")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete a cluster group`))
+	cmd.Short = "Delete a cluster group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -293,7 +287,7 @@ func (c *cmdClusterGroupDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster group name"))
+		return errors.New("Missing cluster group name")
 	}
 
 	// Delete the cluster group
@@ -303,7 +297,7 @@ func (c *cmdClusterGroupDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Cluster group %s deleted")+"\n", resource.name)
+		fmt.Printf("Cluster group %s deleted\n", resource.name)
 	}
 
 	return nil
@@ -318,10 +312,9 @@ type cmdClusterGroupEdit struct {
 // This Command generates the cobra command that enables the editing of a cluster group's attributes.
 func (c *cmdClusterGroupEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<group>"))
-	cmd.Short = i18n.G("Edit a cluster group")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit a cluster group`))
+	cmd.Use = usage("edit", "[<remote>:]<group>")
+	cmd.Short = "Edit a cluster group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -353,7 +346,7 @@ func (c *cmdClusterGroupEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster group name"))
+		return errors.New("Missing cluster group name")
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -401,8 +394,8 @@ func (c *cmdClusterGroupEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -425,9 +418,8 @@ func (c *cmdClusterGroupEdit) run(cmd *cobra.Command, args []string) error {
 
 // Returns a string explaining the expected YAML structure for a cluster group configuration.
 func (c *cmdClusterGroupEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a YAML representation of the cluster group.
-### Any line starting with a '# will be ignored.`)
+	return `### This is a YAML representation of the cluster group.
+### Any line starting with a '# will be ignored.`
 }
 
 // List.
@@ -441,12 +433,11 @@ type cmdClusterGroupList struct {
 // Command returns a cobra command to list all the cluster groups in a specified format.
 func (c *cmdClusterGroupList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List all the cluster groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List all the cluster groups`))
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Short = "List all the cluster groups"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	cmd.RunE = c.run
 
@@ -489,7 +480,7 @@ func (c *cmdClusterGroupList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return errors.New(i18n.G("LXD server isn't part of a cluster"))
+		return errors.New("LXD server isn't part of a cluster")
 	}
 
 	groups, err := resource.server.GetClusterGroups()
@@ -507,9 +498,9 @@ func (c *cmdClusterGroupList) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("NAME"),
-		i18n.G("DESCRIPTION"),
-		i18n.G("MEMBERS"),
+		"NAME",
+		"DESCRIPTION",
+		"MEMBERS",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, groups)
@@ -524,10 +515,9 @@ type cmdClusterGroupRemove struct {
 // Removal of a specified member from a specific cluster group.
 func (c *cmdClusterGroupRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<member> <group>"))
-	cmd.Short = i18n.G("Remove member from group")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove a cluster member from a cluster group`))
+	cmd.Use = usage("remove", "[<remote>:]<member> <group>")
+	cmd.Short = "Remove member from group"
+	cmd.Long = cli.FormatSection("Description", `Remove a cluster member from a cluster group`)
 
 	cmd.RunE = c.run
 
@@ -568,7 +558,7 @@ func (c *cmdClusterGroupRemove) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster member name"))
+		return errors.New("Missing cluster member name")
 	}
 
 	// Remove the cluster group
@@ -578,7 +568,7 @@ func (c *cmdClusterGroupRemove) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !slices.Contains(member.Groups, args[1]) {
-		return fmt.Errorf(i18n.G("Cluster group %s isn't currently applied to %s"), args[1], resource.name)
+		return fmt.Errorf("Cluster group %s isn't currently applied to %s", args[1], resource.name)
 	}
 
 	groups := []string{}
@@ -598,7 +588,7 @@ func (c *cmdClusterGroupRemove) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Cluster member %s removed from group %s")+"\n", resource.name, args[1])
+		fmt.Printf("Cluster member %s removed from group %s\n", resource.name, args[1])
 	}
 
 	return nil
@@ -613,11 +603,10 @@ type cmdClusterGroupRename struct {
 // Renaming a cluster group, defining usage, aliases, and linking the associated runtime function.
 func (c *cmdClusterGroupRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("rename", i18n.G("[<remote>:]<group> <new-name>"))
+	cmd.Use = usage("rename", "[<remote>:]<group> <new-name>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = i18n.G("Rename a cluster group")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Rename a cluster group`))
+	cmd.Short = "Rename a cluster group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -655,7 +644,7 @@ func (c *cmdClusterGroupRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Cluster group %s renamed to %s")+"\n", resource.name, args[1])
+		fmt.Printf("Cluster group %s renamed to %s\n", resource.name, args[1])
 	}
 
 	return nil
@@ -670,10 +659,9 @@ type cmdClusterGroupShow struct {
 // Setting up the 'show' command to display the configurations of a specified cluster group in a remote server.
 func (c *cmdClusterGroupShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<group>"))
-	cmd.Short = i18n.G("Show cluster group configurations")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show cluster group configurations`))
+	cmd.Use = usage("show", "[<remote>:]<group>")
+	cmd.Short = "Show cluster group configurations"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -705,7 +693,7 @@ func (c *cmdClusterGroupShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster group name"))
+		return errors.New("Missing cluster group name")
 	}
 
 	// Show the cluster group
@@ -732,10 +720,9 @@ type cmdClusterGroupAdd struct {
 
 func (c *cmdClusterGroupAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:]<member> <group>"))
-	cmd.Short = i18n.G("Add member to group")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add a cluster member to a cluster group`))
+	cmd.Use = usage("add", "[<remote>:]<member> <group>")
+	cmd.Short = "Add member to group"
+	cmd.Long = cli.FormatSection("Description", `Add a cluster member to a cluster group`)
 
 	cmd.RunE = c.run
 
@@ -775,7 +762,7 @@ func (c *cmdClusterGroupAdd) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster member name"))
+		return errors.New("Missing cluster member name")
 	}
 
 	// Retrieve cluster member information.
@@ -785,7 +772,7 @@ func (c *cmdClusterGroupAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if slices.Contains(member.Groups, args[1]) {
-		return fmt.Errorf(i18n.G("Cluster member %s is already in group %s"), resource.name, args[1])
+		return fmt.Errorf("Cluster member %s is already in group %s", resource.name, args[1])
 	}
 
 	member.Groups = append(member.Groups, args[1])
@@ -796,7 +783,7 @@ func (c *cmdClusterGroupAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Cluster member %s added to group %s")+"\n", resource.name, args[1])
+		fmt.Printf("Cluster member %s added to group %s\n", resource.name, args[1])
 	}
 
 	return nil
