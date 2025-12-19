@@ -232,7 +232,7 @@ Create a storage pool named `pool2` that uses a HPE Alletra gateway with a certi
 
     lxc storage create pool2 alletra alletra.wsapi=https://<alletra-storage-address> alletra.wsapi.verify=false alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
 
-Create a storage pool named `pool3` that uses NVMe/TCP to connect to Pure Storage array via specific target addresses:
+Create a storage pool named `pool3` that uses NVMe/TCP to connect to HPE Alletra array via specific target addresses:
 
     lxc storage create pool3 alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password> alletra.mode=nvme alletra.target=<target_address_1>,<target_address_2>
 
@@ -259,6 +259,9 @@ See the {ref}`storage-drivers` documentation for a list of available configurati
 
 If you are running a LXD cluster and want to add a storage pool, you must create the storage pool for each cluster member separately.
 The reason for this is that the configuration, for example, the storage location or the size of the pool, might be different between cluster members.
+
+If some cluster members use disks that already contain a LXD storage pool or you want to recover an existing remote storage pool,
+refer to the {ref}`Recover a storage pool <storage-recover-pool>` section.
 
 `````{tabs}
 ````{group-tab} CLI
@@ -456,6 +459,163 @@ Finally, click {guilabel}`Create` to create the storage pool.
 :alt: Create a storage pool in a clustered LXD environment
 ```
 
+````
+`````
+
+(storage-recover-pool)=
+## Recover a storage pool
+
+You might need to recover a storage pool when setting up a new LXD server or cluster with non-pristine storage disks, or when trying to access remote storage that was previously used by another LXD deployment.
+
+Using recovery, you can restore instances, custom volumes, and buckets that are still located on those storage pools.
+
+`````{tabs}
+````{group-tab} CLI
+To recover a storage pool, use the following command:
+
+    lxc storage create <pool_name> <driver> source.recover=true [original_pool_configuration_options...]
+See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
+The `lxd recover` command output also provides hints about missing storage pools and their original configuration, if such information can be discovered.
+
+````
+`````
+
+### Examples
+
+`````{tabs}
+````{group-tab} CLI
+
+The following examples demonstrate how to recover a storage pool using different types of storage drivers.
+
+#### Recover a directory pool
+
+Recover a pool named `pool1`:
+
+    lxc storage create pool1 dir source.recover=true source=/data/lxd
+
+#### Recover a Btrfs pool
+
+Recover a pool named `pool1` on the existing Btrfs filesystem at `/some/path`:
+
+    lxc storage create pool1 btrfs source.recover=true source=/some/path
+
+Recover a pool named `pool2` on `/dev/sdX`:
+
+    lxc storage create pool2 btrfs source.recover=true source=/dev/sdX
+
+#### Recover a LVM pool
+
+```{admonition} Existing LVM volume groups
+:class: tip
+
+Get a list of existing LVM volume groups by running `vgs`.
+```
+
+Recover a pool named `pool1` using the existing LVM volume group called `my-pool`:
+
+    lxc storage create pool1 lvm source.recover=true source=my-pool
+
+Recover a pool named `pool2` using the existing LVM thin pool called `my-pool` in volume group `my-vg`:
+
+    lxc storage create pool2 lvm source.recover=true source=my-vg lvm.thinpool_name=my-pool
+
+Recover a pool named `pool3` on `/dev/sdX`:
+
+    lxc storage create pool3 lvm source.recover=true source=/dev/sdX
+
+Recover a pool named `pool4` on `/dev/sdX` with the LVM volume group name `my-pool`:
+
+    lxc storage create pool4 lvm source.recover=true source=/dev/sdX lvm.vg_name=my-pool
+
+#### Recover a ZFS pool
+
+```{admonition} Existing ZFS pools
+:class: tip
+
+Get a list of existing ZFS pools by running `zpool list`.
+```
+
+Recover a pool named `pool1` using the existing ZFS pool `my-tank`:
+
+    lxc storage create pool1 zfs source.recover=true source=my-tank
+
+Recover a pool named `pool2` using the existing ZFS dataset `my-tank/slice`:
+
+    lxc storage create pool2 zfs source.recover=true source=my-tank/slice
+
+#### Recover a Ceph RBD pool
+
+```{admonition} Existing OSD pools
+:class: tip
+
+Get a list of existing OSD pools by running `ceph osd pool ls`.
+```
+
+Recover a pool named `pool1` using the existing OSD storage pool `my-osd`:
+
+    lxc storage create pool1 ceph source.recover=true source=my-osd
+
+Recover a pool named `pool2` using the existing OSD storage pool `my-osd` in the Ceph cluster `my-cluster`:
+
+    lxc storage create pool2 ceph source.recover=true source=my-osd ceph.cluster_name=my-cluster
+
+#### Recover a CephFS pool
+
+```{admonition} Existing CephFS file systems
+:class: tip
+
+Get a list of existing CephFS file systems by running `ceph fs volume ls`.
+```
+
+Recover a pool named `pool1` using the existing CephFS file system `my-filesystem`:
+
+    lxc storage create pool1 cephfs source.recover=true source=my-filesystem
+
+Recover a pool named `pool2` using the existing sub-directory `my-directory` on the Ceph FS file system `my-filesystem`:
+
+    lxc storage create pool2 cephfs source.recover=true source=my-filesystem/my-directory
+
+#### Recover a Ceph Object pool
+
+The Ceph Object storage driver doesn't require providing any additional configuration for recovery.
+Use the regular Ceph object pool creation command for recovery.
+
+Ceph Object does not yet support recovery of existing buckets already present on the `radosgw`.
+
+#### Recover a Dell PowerFlex pool
+
+The PowerFlex storage driver doesn't require providing any additional configuration for recovery as LXD is not creating any entities on
+the storage array when creating a pool. Instead it uses an existing pool inside the respective protection domain.
+
+Use the regular PowerFlex pool creation command for recovery.
+
+#### Recover a Pure Storage pool
+
+Recover a pool named `pool1` using the existing pod `pool1`:
+
+    lxc storage create pool1 pure source.recover=true pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
+
+Recover a pool named `pool2` using the existing pod `pool2` and iSCSI to connect to Pure Storage array:
+
+    lxc storage create pool2 pure source.recover=true pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=iscsi
+
+Recover a pool named `pool3` using the existing pod `pool3` and NVMe/TCP to connect to Pure Storage array via specific target address:
+
+    lxc storage create pool3 pure source.recover=true pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme pure.target=<target_address_1>,<target_address_2>
+
+#### Recover a HPE Alletra pool
+
+Recover a pool named `pool1` using the existing volume set `pool1`:
+
+    lxc storage create pool1 alletra source.recover=true alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
+
+Recover a pool named `pool2` using the existing volume set `pool2` and accept a not trusted certificate of the HPE Alletra gateway:
+
+    lxc storage create pool2 alletra source.recover=true alletra.wsapi=https://<alletra-storage-address> alletra.wsapi.verify=false alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
+
+Recover a pool named `pool3` using the existing volume set `pool3` and NVMe/TCP to connect to HPE Alletra array via specific target address:
+
+    lxc storage create pool3 alletra source.recover=true alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password> alletra.mode=nvme alletra.target=<target_address_1>,<target_address_2>
 ````
 `````
 
