@@ -55,6 +55,47 @@ snapshots() {
   # Check if the snapshot's UUID can be modified
   ! lxc storage volume set "${pool}" container/foo/snap0 volatile.uuid "2d94c537-5eff-4751-95b1-6a1b7d11f849" || false
 
+  # Check snapshot configuration editing
+  # Test that only expires_at field can be modified for instance snapshots
+
+  tmp_yaml=$(mktemp)
+  ERROR_MSG="Error: Only \"expires_at\" field(s) can be modified for instance snapshots"
+
+  # Test all non-editable properties
+  for field in name architecture config devices ephemeral profiles stateful created_at last_used_at; do
+    lxc config show foo/snap0 > "$tmp_yaml"
+    case $field in
+      config|devices)
+        sed -i "s/^${field}:.*/${field}: {}/" "$tmp_yaml"
+        ;;
+      profiles)
+        sed -i "s/^${field}:.*/${field}: []/" "$tmp_yaml"
+        ;;
+      ephemeral|stateful)
+        sed -i "s/^${field}:.*/${field}: true/" "$tmp_yaml"
+        ;;
+      created_at|last_used_at)
+        sed -i "s/^${field}:.*/${field}: 2024-01-01T00:00:00Z/" "$tmp_yaml"
+        ;;
+      *)
+        sed -i "s/^${field}:.*/${field}: invalid-${field}/" "$tmp_yaml"
+        ;;
+    esac
+
+    ! lxc config edit foo/snap0 < "$tmp_yaml" 2>&1 | grep -xF "$ERROR_MSG" || false
+  done
+
+  # Test that expires_at can be modified
+  expiry_date=$(date -u -d '+1 day' '+%Y-%m-%dT%H:%M:%SZ')
+  lxc config show foo/snap0 > "$tmp_yaml"
+  sed -i "s/^expires_at:.*/expires_at: ${expiry_date}/" "$tmp_yaml"
+  lxc config edit foo/snap0 <<EOF
+$(cat "$tmp_yaml")
+EOF
+  lxc config show foo/snap0 | grep -F "expires_at: ${expiry_date}"
+
+  rm -f "$tmp_yaml"
+
   lxc snapshot foo
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" = "dir" ]; then
