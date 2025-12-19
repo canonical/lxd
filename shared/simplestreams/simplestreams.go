@@ -437,7 +437,7 @@ func (s *SimpleStreams) GetAlias(imageType string, name string) (*api.ImageAlias
 
 		if match != nil {
 			if match.Type != entry.Type {
-				return nil, fmt.Errorf("More than one match for alias '%s'", name)
+				return nil, fmt.Errorf("More than one match for alias %q", name)
 			}
 
 			continue
@@ -447,7 +447,7 @@ func (s *SimpleStreams) GetAlias(imageType string, name string) (*api.ImageAlias
 	}
 
 	if match == nil {
-		return nil, fmt.Errorf("Alias '%s' doesn't exist", name)
+		return nil, fmt.Errorf("Alias %q doesn't exist", name)
 	}
 
 	return match, nil
@@ -472,14 +472,14 @@ func (s *SimpleStreams) GetAliasArchitectures(imageType string, name string) (ma
 		}
 
 		if aliases[entry.Architecture] != nil {
-			return nil, fmt.Errorf("More than one match for alias '%s'", name)
+			return nil, fmt.Errorf("More than one match for alias %q", name)
 		}
 
 		aliases[entry.Architecture] = entry.Alias
 	}
 
 	if len(aliases) == 0 {
-		return nil, fmt.Errorf("Alias '%s' doesn't exist", name)
+		return nil, fmt.Errorf("Alias %q doesn't exist", name)
 	}
 
 	return aliases, nil
