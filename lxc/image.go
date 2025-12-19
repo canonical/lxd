@@ -907,7 +907,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(`Invalid type %T for "fingerprint" key in operation metadata`, fingerprint)
 	}
 
-	progress.Done(fmt.Sprintf("Image imported with fingerprint: %s", fingerprint))
+	progress.Done("Image imported with fingerprint: " + fingerprint)
 
 	// Add the aliases
 	if len(c.flagAliases) > 0 {
