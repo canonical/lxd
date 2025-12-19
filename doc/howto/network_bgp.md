@@ -12,6 +12,7 @@ See {ref}`network-bgp-ovn` for instructions.
 ```
 
 ```{youtube} https://www.youtube.com/watch?v=C9zU-FEqtTw
+:title: LXD and BGP
 ```
 
 {abbr}`BGP (Border Gateway Protocol)` is a protocol that allows exchanging routing information between autonomous systems.

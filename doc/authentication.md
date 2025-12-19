@@ -19,6 +19,7 @@ The following authentication methods are supported:
 ## TLS client certificates
 
 ```{youtube} https://www.youtube.com/watch?v=4iNpiL-lrXU
+:title: LXD token based remote authentication
 ```
 
 When using {abbr}`TLS (Transport Layer Security)` client certificates for authentication, both the client and the server will generate a key pair the first time they're launched.

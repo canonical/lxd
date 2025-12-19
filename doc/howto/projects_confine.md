@@ -14,6 +14,7 @@ See {ref}`restricted-tls-certs` for more information.
 Only certificates returned by `lxc config trust list` can be managed in this way.
 
 ```{youtube} https://www.youtube.com/watch?v=4iNpiL-lrXU&t=525s
+:title: LXD token based remote authentication
 ```
 
 ```{note}
@@ -250,6 +251,7 @@ The `<client_name>` must be unique. If it is not, the email address of the clien
 ## Confine users to specific LXD projects via Unix socket
 
 ```{youtube} https://www.youtube.com/watch?v=6O0q3rSWr8A
+:title: LXD for multi-user systems
 ```
 
 If you use the [LXD snap](https://snapcraft.io/lxd), you can configure the multi-user LXD daemon contained in the snap to dynamically create projects for all users in a specific user group.

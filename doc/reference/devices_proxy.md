@@ -6,6 +6,7 @@ discourse: lxc:[Using&#32;proxy&#32;device&#32;to&#32;forward&#32;network&#32;co
 # Type: `proxy`
 
 ```{youtube} https://www.youtube.com/watch?v=IbAKwRBW8V0
+:title: LXD proxy devices
 ```
 
 ```{note}
