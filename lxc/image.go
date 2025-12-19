@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -907,7 +907,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(`Invalid type %T for "fingerprint" key in operation metadata`, fingerprint)
 	}
 
-	progress.Done("Image imported with fingerprint: " + fingerprint)
+	progress.Done(fmt.Sprintf("Image imported with fingerprint: %s", fingerprint))
 
 	// Add the aliases
 	if len(c.flagAliases) > 0 {
