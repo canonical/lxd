@@ -217,6 +217,27 @@ func (c *Config) CustomVolume() (*Volume, error) {
 	return volume, nil
 }
 
+// CustomVolumePool returns the pool of the custom volume.
+func (c *Config) CustomVolumePool() (*api.StoragePool, error) {
+	customVolPool, err := c.primaryVolume()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(c.Pools) != 1 {
+		return nil, errors.New("Pool config of the custom volume does not exist")
+	}
+
+	poolConfigName := c.Pools[0].Name
+	customVolPoolName := customVolPool.Pool
+
+	if poolConfigName != customVolPoolName {
+		return nil, fmt.Errorf("Pool config name %q does not match pool %q of the custom volume", poolConfigName, customVolPoolName)
+	}
+
+	return c.Pools[0], nil
+}
+
 // LastModified returns the backup config's immutable last modification time.
 func (c *Config) LastModified() time.Time {
 	return c.metadata.lastModified
