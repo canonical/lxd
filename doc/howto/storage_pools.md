@@ -260,6 +260,9 @@ See the {ref}`storage-drivers` documentation for a list of available configurati
 If you are running a LXD cluster and want to add a storage pool, you must create the storage pool for each cluster member separately.
 The reason for this is that the configuration, for example, the storage location or the size of the pool, might be different between cluster members.
 
+If some cluster members use disks that already contain a LXD storage pool or you want to recover an existing remote storage pool,
+refer to the {ref}`Recover a storage pool <storage-recover-pool>` section.
+
 `````{tabs}
 ````{group-tab} CLI
 
