@@ -2562,6 +2562,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	if isLeader && unavailableMembers != nil && len(heartbeatData.Members) > 1 {
 		isDegraded := false
 		hasNodesNotPartOfRaft := false
+		hasNonControlPlaneMemberWithDatabaseRole := false
 		onlineVoters := int64(0)
 		onlineStandbys := int64(0)
 
@@ -2570,6 +2571,8 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		for _, member := range heartbeatData.Members {
 			memberRoles[member.Address] = member.Roles
 		}
+
+		controlPlaneActive := cluster.IsControlPlaneActive(memberRoles)
 
 		for _, node := range heartbeatData.Members {
 			role := db.RaftRole(node.RaftRole)
@@ -2585,6 +2588,12 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 				if node.RaftID == 0 {
 					hasNodesNotPartOfRaft = true
 				}
+
+				// Check if a non-control-plane node currently has a raft role other than spare.
+				if controlPlaneActive && !slices.Contains(node.Roles, db.ClusterRoleControlPlane) && role != db.RaftSpare {
+					hasNonControlPlaneMemberWithDatabaseRole = true
+					logger.Info("Detected non-control-plane member with database role", logger.Ctx{"address": node.Address, "role": role, "local": localClusterAddress})
+				}
 			} else if role != db.RaftSpare {
 				isDegraded = true // Offline member that has voter or stand-by raft role.
 			}
@@ -2593,7 +2602,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		maxVoters := s.GlobalConfig.MaxVoters()
 		maxStandBy := s.GlobalConfig.MaxStandBy()
 
-		needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy
+		needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy || hasNonControlPlaneMemberWithDatabaseRole
 
 		if needsRebalance || hasNodesNotPartOfRaft {
 			d.clusterMembershipMutex.Lock()
