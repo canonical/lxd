@@ -2,6 +2,7 @@
 # LVM - `lvm`
 
 ```{youtube} https://www.youtube.com/watch?v=AqLl2eMZE6U
+:title: LVM storage and LXD
 ```
 
 {abbr}`LVM (Logical Volume Manager)` is a storage management framework rather than a file system.

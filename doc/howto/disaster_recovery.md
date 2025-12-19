@@ -6,6 +6,7 @@ discourse: lxc:[New&#32;disaster&#32;recovery&#32;tool](11296)
 # How to recover instances in case of disaster
 
 ```{youtube} https://youtu.be/IFOZpAxckPo?t=796
+:title: LXD backup and disaster recovery
 ```
 
 LXD provides a tool for disaster recovery in case the {ref}`LXD database <database>` is corrupted or otherwise lost.

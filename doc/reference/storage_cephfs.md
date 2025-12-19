@@ -6,6 +6,7 @@ discourse: lxc:[Introducing&#32;MicroCeph](15457)
 # CephFS - `cephfs`
 
 ```{youtube} https://youtube.com/watch?v=kVLGbvRU98A
+:title: Ceph and a LXD cluster
 ```
 
 % Include content from [storage_ceph.md](storage_ceph.md)

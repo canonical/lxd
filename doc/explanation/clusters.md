@@ -6,6 +6,7 @@ discourse: lxc:[Scriptlet&#32;based&#32;instance&#32;placement&#32;scheduler](15
 # Clusters
 
 ```{youtube} https://www.youtube.com/watch?v=nrOR6yaO_MY
+:title: Deep dive into LXD clustering
 ```
 
 To spread the total workload over several servers, LXD can be run in clustering mode.

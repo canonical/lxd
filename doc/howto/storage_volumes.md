@@ -2,6 +2,7 @@
 # How to manage storage volumes
 
 ```{youtube} https://www.youtube.com/watch?v=dvQ111pbqtk
+:title: Custom storage volumes in LXD
 ```
 
 See the following sections for instructions on how to create, configure, view and resize {ref}`storage-volumes`.

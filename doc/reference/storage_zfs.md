@@ -6,6 +6,7 @@ discourse: lxc:[ZFS&#32;block&#32;mode](15872)
 # ZFS - `zfs`
 
 ```{youtube} https://www.youtube.com/watch?v=ysLi_LYAs_M
+:title: ZFS storage and LXD
 ```
 
 {abbr}`ZFS (Zettabyte file system)` combines both physical volume management and a file system.

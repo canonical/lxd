@@ -10,6 +10,7 @@ Network forwards are available for the {ref}`network-ovn` and the {ref}`network-
 ```
 
 ```{youtube} https://www.youtube.com/watch?v=B-Uzo9WldMs
+:title: LXD network forwards
 ```
 
 Network forwards allow an external IP address (or specific ports on it) to be forwarded to an internal IP address (or specific ports on it) in the network that the forward belongs to.

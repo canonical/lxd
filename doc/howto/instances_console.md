@@ -86,6 +86,7 @@ Navigate to the instance detail page and switch to the {guilabel}`Console` tab t
 ## Access the graphical console (for virtual machines)
 
 ```{youtube} https://www.youtube.com/watch?v=pEUsTMiq4B4
+:title: Arch Linux and Ubuntu Desktop in LXD VMs
 ```
 
 On virtual machines, log on to the console to get graphical output.

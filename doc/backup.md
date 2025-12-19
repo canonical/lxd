@@ -2,6 +2,7 @@
 # How to back up a LXD server
 
 ```{youtube} https://www.youtube.com/watch?v=IFOZpAxckPo
+:title: LXD backup and disaster recovery
 ```
 
 In a production setup, you should always back up the contents of your LXD server.

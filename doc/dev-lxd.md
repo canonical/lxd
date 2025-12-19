@@ -2,6 +2,7 @@
 # Communication between instance and host
 
 ```{youtube} https://www.youtube.com/watch?v=xZSnqqWykmo
+:title: The LXD instance API
 ```
 
 The DevLXD API allows for limited communication between guest instances and the host.
