@@ -145,8 +145,9 @@ test_image_list_all_aliases() {
     sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
     lxc image alias create zzz "$sum"
     # both aliases are listed if the "aliases" column is included in output
-    lxc image list -c L | grep -wF testimage
-    lxc image list -c L | grep -wF zzz
+    local expected_output
+    expected_output="$(echo -e '"testimage\nzzz"')"
+    [ "$(lxc image list -f csv -c L)" = "${expected_output}" ]
     lxc image alias delete zzz
 }
 
