@@ -129,7 +129,7 @@ func (d *usb) Register() error {
 			runConf.PostHooks = []func() error{func() error {
 				err := unixDeviceDeleteFiles(state, devicesPath, "unix", deviceName, relativeTargetPath)
 				if err != nil {
-					return fmt.Errorf("Failed to delete files for device '%s': %w", deviceName, err)
+					return fmt.Errorf("Failed to delete files for device %q: %w", deviceName, err)
 				}
 
 				return nil
@@ -255,7 +255,7 @@ func (d *usb) postStop() error {
 	// Remove host files for this device.
 	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 	if err != nil {
-		return fmt.Errorf("Failed to delete files for device '%s': %w", d.name, err)
+		return fmt.Errorf("Failed to delete files for device %q: %w", d.name, err)
 	}
 
 	return nil
