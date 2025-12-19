@@ -115,6 +115,8 @@ func (d *cephfs) FillConfig() error {
 		d.config["cephfs.osd_pool_size"] = strconv.Itoa(defaultSize)
 	}
 
+	d.config["cephfs.path"] = d.config["source"]
+
 	return nil
 }
 
@@ -152,8 +154,6 @@ func (d *cephfs) ValidateSource() error {
 func (d *cephfs) Create() error {
 	revert := revert.New()
 	defer revert.Fail()
-
-	d.config["cephfs.path"] = d.config["source"]
 
 	// Parse the namespace / path.
 	fields := strings.SplitN(d.config["cephfs.path"], "/", 2)
