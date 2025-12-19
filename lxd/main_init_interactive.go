@@ -225,7 +225,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 			config.Cluster.ClusterToken = clusterJoinToken
 
 			// Confirm wiping
-			clusterWipeMember, err := c.global.asker.AskBool("All existing data is lost when joining a cluster, continue? (yes/no) [default=no] ", "no")
+			clusterWipeMember, err := c.global.asker.AskBool("All existing data in the local database is lost when joining a cluster, continue? (yes/no) [default=no] ", "no")
 			if err != nil {
 				return err
 			}
