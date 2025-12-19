@@ -1290,7 +1290,7 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 func doVolumeMigration(s *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
-		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
+		return response.NotImplemented(fmt.Errorf("Mode %q not implemented", req.Source.Mode))
 	}
 
 	// create new certificate
