@@ -232,7 +232,7 @@ Create a storage pool named `pool2` that uses a HPE Alletra gateway with a certi
 
     lxc storage create pool2 alletra alletra.wsapi=https://<alletra-storage-address> alletra.wsapi.verify=false alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
 
-Create a storage pool named `pool3` that uses NVMe/TCP to connect to Pure Storage array via specific target addresses:
+Create a storage pool named `pool3` that uses NVMe/TCP to connect to HPE Alletra array via specific target addresses:
 
     lxc storage create pool3 alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password> alletra.mode=nvme alletra.target=<target_address_1>,<target_address_2>
 
