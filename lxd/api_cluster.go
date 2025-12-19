@@ -2212,9 +2212,46 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if name == leaderNodeInfo.Name && len(nodes) == 2 {
 		for i := range nodes {
 			if nodes[i].Address != leaderInfo.Address && nodes[i].Role != db.RaftVoter {
+				// Check if control-plane mode is active and if the remaining member is eligible.
+				var controlPlaneActive bool
+				var remainingMemberRoles []db.ClusterRole
+				err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+					maxVoters := s.GlobalConfig.MaxVoters()
+					var err error
+					controlPlaneActive, err = tx.ControlPlaneActive(maxVoters)
+					if err != nil {
+						return fmt.Errorf("Failed checking %q role: %w", db.ClusterRoleControlPlane, err)
+					}
+
+					if controlPlaneActive {
+						// Get the remaining member's roles.
+						members, err := tx.GetNodes(ctx)
+						if err != nil {
+							return fmt.Errorf("Failed getting cluster members: %w", err)
+						}
+
+						for _, member := range members {
+							if member.Address == nodes[i].Address {
+								remainingMemberRoles = member.Roles
+								break
+							}
+						}
+					}
+
+					return nil
+				})
+				if err != nil {
+					return response.SmartError(err)
+				}
+
+				// If control-plane mode is active and the remaining member doesn't have the control-plane role, reject the removal to prevent leaving behind a spare.
+				if controlPlaneActive && !slices.Contains(remainingMemberRoles, db.ClusterRoleControlPlane) {
+					return response.BadRequest(errors.New("Cannot remove leader as remaining cluster member does not have control-plane role and cannot be promoted"))
+				}
+
 				// Promote the remaining node.
 				nodes[i].Role = db.RaftVoter
-				err := changeMemberRole(r.Context(), s, nodes[i].Address, nodes)
+				err = changeMemberRole(r.Context(), s, nodes[i].Address, nodes)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Unable to promote remaining cluster member to leader: %w", err))
 				}
