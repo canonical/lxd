@@ -48,6 +48,9 @@ const ClusterRoleDatabaseStandBy = ClusterRole("database-standby")
 // Assigned to the current Raft leader.
 const ClusterRoleDatabaseLeader = ClusterRole("database-leader")
 
+// ClusterRoleControlPlane represents a control plane cluster member.
+const ClusterRoleControlPlane = ClusterRole("control-plane")
+
 // ClusterRoleEventHub represents a cluster member that operates as an event hub.
 const ClusterRoleEventHub = ClusterRole("event-hub")
 
@@ -68,6 +71,7 @@ var ClusterRoles = map[ClusterRoleClass]map[int]ClusterRole{
 	ClusterRoleClassManual: {
 		1: ClusterRoleEventHub,
 		2: ClusterRoleOVNChassis,
+		3: ClusterRoleControlPlane,
 	},
 }
 
@@ -628,6 +632,31 @@ func (c *ClusterTx) UpdateNodeConfig(ctx context.Context, id int64, config map[s
 	}
 
 	return nil
+}
+
+// ControlPlaneActive returns true if control-plane mode is active.
+// Control-plane mode is active when the number of members with the control-plane role
+// is greater than or equal to maxVoters.
+func (c *ClusterTx) ControlPlaneActive(maxVoters int64) (bool, error) {
+	// Lookup the numeric ID for the manual control-plane role.
+	controlPlaneRoleID := -1
+	for id, role := range ClusterRoles[ClusterRoleClassManual] {
+		if role == ClusterRoleControlPlane {
+			controlPlaneRoleID = id
+			break
+		}
+	}
+
+	// Check if at least maxVoters members have the control-plane role.
+	// Use LIMIT to stop scanning once we reach the threshold.
+	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM nodes_roles WHERE role = ? LIMIT %d)", maxVoters)
+	var active bool
+	err := c.tx.QueryRow(query, controlPlaneRoleID).Scan(&active)
+	if err != nil {
+		return false, err
+	}
+
+	return active, nil
 }
 
 // UpdateNodeRoles changes the list of roles on a member.

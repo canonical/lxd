@@ -4953,7 +4953,8 @@ test_clustering_roles() {
   ns5="${prefix}5"
   spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_FIVE_DIR}" "${LXD_ONE_DIR}"
 
-  # Configure cluster with max_voters=3 and max_standby=1
+  # With 3 database voters and 1 standby, 4 nodes will be given DB roles, so the remaining 5th node remains unassigned (a "spare").
+  # Node5 is intentionally left spare so we can verify it has no database or control-plane roles and test that adding the control-plane role makes it eligible for database roles during rebalance.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.max_voters=3 cluster.max_standby=1 cluster.offline_threshold=11
 
   sleep 12 # Wait a bit for cluster to stabilize.
@@ -5013,10 +5014,104 @@ test_clustering_roles() {
   echo "==> Reject removing role member does not have"
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub 2>&1)" = 'Error: Member "node1" does not have role "event-hub"' ]
 
-  echo "==> Cleanup"
-  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  echo "==> Test safe incremental assignment: add control-plane to 2 members (below threshold)"
+  # With max_voters=3, control-plane mode remains inactive until we reach 3 members
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node2 control-plane
+  sleep 12 # Wait for heartbeat
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
+  # Control-plane mode is inactive (2 < 3), so all members are still eligible for database roles
+  echo "Verify node4 or node5 (spares without control-plane) can still have database roles"
+  spare_with_db_role=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json | jq -r '[.[] | select(.server_name == "node4" or .server_name == "node5") | select(any(.roles[]; test("database-(leader|voter|standby)")))] | .[0].server_name // ""')
+  [ -n "${spare_with_db_role}" ]
+
+  echo "==> Activate control-plane mode by reaching threshold"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node3 control-plane
+  sleep 12 # Wait for heartbeat cycle to detect control-plane mode becoming active and demote non-control-plane members
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
+  echo "==> Verify control-plane displayed alongside database roles"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -E -- "- database-(leader|voter|standby)"
+
+  # node4 and node5 should now be spares (no database roles) since control-plane mode is active
+  echo "Verify node4 and node5 demoted to spares after control-plane mode activated"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -E -- "- database-(leader|voter|standby)" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -E -- "- database-(leader|voter|standby)" || false
+
+  echo "==> Test adding control-plane to spare makes it eligible for database roles"
+  # Current: 3 control-plane members, max_voters=3, max_standby=1
+  # Control-plane mode active (3 >= 3), only control-plane members eligible
+  # We have 3 voters and room for 1 standby
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node5 control-plane
+  sleep 12 # Wait for heartbeat to promote node5 to standby
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -xF -- "- control-plane"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -E -- "- database-(leader|voter|standby)"
+  echo "node5 promoted to database role after gaining control-plane"
+
+  echo "==> Test removing control-plane demotes member back to spare"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node5 control-plane
+  sleep 12 # Wait for heartbeat to demote node5
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -xF -- "- control-plane" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -E -- "- database-(leader|voter|standby)" || false
+  echo "node5 demoted to spare after losing control-plane"
+
+  echo '==> Test control-plane mode becoming inactive when dropping below threshold'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node3 control-plane
+  sleep 12 # Wait for heartbeat to deactivate control-plane mode (2 < 3)
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
+  control_plane_count=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json | jq '[.[] | select(any(.roles[]; . == "control-plane"))] | length')
+  echo "Control-plane members: ${control_plane_count} (should be 2, mode inactive)"
+  [ "${control_plane_count}" -eq 2 ]
+
+  # Control-plane mode is now inactive (2 < 3), so all members are eligible again
+  echo "Verify at least one of the former spares (node4 or node5) gets promoted"
+  sleep 12 # Wait for promotion
+  spare_with_db_role=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json | jq -r '[.[] | select(.server_name == "node4" or .server_name == "node5") | select(any(.roles[]; test("database-(leader|voter|standby)")))] | .[0].server_name // ""')
+  [ -n "${spare_with_db_role}" ]
+
+  voter_count=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json | jq '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader")))] | length')
+  [ "${voter_count}" -eq 3 ] # Should have 3 voters (max_voters=3)
+
+  echo "==> Test 2-member cluster prevents removing leader when remaining member is spare"
+  sleep 12 # Wait for rebalancing
+
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
+  sleep 0.5
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --force --yes
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node4 --force --yes
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node5 --force --yes
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF -- "- control-plane"
+  sleep 12 # Wait for rebalancing
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node2 control-plane
+  sleep 12 # Wait for node2 to become spare
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF -- "- control-plane" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -E -- "- database-(leader|voter|standby)" || false
+
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+  [ "$(jq 'length' <<< "${cluster_list}")" -eq 2 ]
+  [ "$(jq '[.[] | select(any(.roles[]; . == "control-plane"))] | length' <<< "${cluster_list}")" -eq 1 ]
+
+  leader=$(jq -r '[.[] | select(any(.roles[]; . == "database-leader")) | .server_name] | first' <<< "${cluster_list}")
+  echo "==> Test 2-member cluster prevents removing leader when remaining member is spare"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove "${leader}" --force --yes 2>&1)" = "Error: Cannot remove leader as remaining cluster member does not have control-plane role and cannot be promoted" ]
+
+  echo "==> Cleanup"
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5

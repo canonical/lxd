@@ -2212,9 +2212,46 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if name == leaderNodeInfo.Name && len(nodes) == 2 {
 		for i := range nodes {
 			if nodes[i].Address != leaderInfo.Address && nodes[i].Role != db.RaftVoter {
+				// Check if control-plane mode is active and if the remaining member is eligible.
+				var controlPlaneActive bool
+				var remainingMemberRoles []db.ClusterRole
+				err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+					maxVoters := s.GlobalConfig.MaxVoters()
+					var err error
+					controlPlaneActive, err = tx.ControlPlaneActive(maxVoters)
+					if err != nil {
+						return fmt.Errorf("Failed checking %q role: %w", db.ClusterRoleControlPlane, err)
+					}
+
+					if controlPlaneActive {
+						// Get the remaining member's roles.
+						members, err := tx.GetNodes(ctx)
+						if err != nil {
+							return fmt.Errorf("Failed getting cluster members: %w", err)
+						}
+
+						for _, member := range members {
+							if member.Address == nodes[i].Address {
+								remainingMemberRoles = member.Roles
+								break
+							}
+						}
+					}
+
+					return nil
+				})
+				if err != nil {
+					return response.SmartError(err)
+				}
+
+				// If control-plane mode is active and the remaining member doesn't have the control-plane role, reject the removal to prevent leaving behind a spare.
+				if controlPlaneActive && !slices.Contains(remainingMemberRoles, db.ClusterRoleControlPlane) {
+					return response.BadRequest(errors.New("Cannot remove leader as remaining cluster member does not have control-plane role and cannot be promoted"))
+				}
+
 				// Promote the remaining node.
 				nodes[i].Role = db.RaftVoter
-				err := changeMemberRole(r.Context(), s, nodes[i].Address, nodes)
+				err = changeMemberRole(r.Context(), s, nodes[i].Address, nodes)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Unable to promote remaining cluster member to leader: %w", err))
 				}
@@ -2308,7 +2345,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed removing member from database: %w", err))
 	}
 
-	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, false, nil)
 	if err != nil {
 		logger.Warnf("Failed rebalancing dqlite nodes: %v", err)
 	}
@@ -2670,7 +2707,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	d.clusterMembershipMutex.Lock()
 	defer d.clusterMembershipMutex.Unlock()
 
-	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, false, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2680,13 +2717,13 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
-func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.Gateway, unavailableMembers []string) error {
+func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.Gateway, unavailableMembers []string, controlPlaneActive bool, memberRoles map[string][]db.ClusterRole) error {
 	if s.ShutdownCtx.Err() != nil {
 		return nil
 	}
 
 again:
-	address, nodes, err := cluster.Rebalance(s, gateway, unavailableMembers)
+	address, nodes, err := cluster.Rebalance(s, gateway, unavailableMembers, controlPlaneActive, memberRoles)
 	if err != nil {
 		return err
 	}
@@ -2715,8 +2752,8 @@ again:
 		goto again
 	}
 
-	// Tell the node to promote itself.
-	logger.Info("Promoting member during rebalance", logger.Ctx{"candidateAddress": address})
+	// Tell the node to change its role (promotion or demotion).
+	logger.Info("Changing member role during rebalance", logger.Ctx{"candidateAddress": address})
 	err = changeMemberRole(ctx, s, address, nodes)
 	if err != nil {
 		return err
@@ -3058,7 +3095,7 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 		return response.SmartError(err)
 	}
 
-	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, false, nil)
 	if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 		logger.Warn("Could not rebalance cluster member roles after raft member removal", logger.Ctx{"err": err})
 	}
