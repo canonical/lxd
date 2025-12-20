@@ -204,8 +204,7 @@ EOF
 }
 
 spawn_lxd_and_join_cluster() {
-  local LXD_NETNS
-  set -e
+  local ns bridge cert index target token driver port source source_recover
 
   ns="${1}"
   bridge="${2}"
