@@ -112,8 +112,7 @@ teardown_clustering_netns() {
 }
 
 spawn_lxd_and_bootstrap_cluster() {
-  local LXD_NETNS
-  set -e
+  local ns bridge driver port
 
   ns="${1}"
   bridge="${2}"
