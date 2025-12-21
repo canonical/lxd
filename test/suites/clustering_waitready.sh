@@ -15,8 +15,8 @@ test_clustering_waitready() {
   # Get used storage backend.
   lxd_backend=$(storage_backend "${LXD_ONE_DIR}")
 
-  # Add a newline at the end of each line. YAML has weird rules..
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node.
   setup_clustering_netns 2
