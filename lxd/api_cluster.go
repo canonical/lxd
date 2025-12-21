@@ -1437,7 +1437,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	// Remove any existing join tokens for the requested cluster member, this way we only ever have one active
 	// join token for each potential new member, and it has the most recent active members list for joining.
 	// This also ensures any historically unused (but potentially published) join tokens are removed.
-	ops, err := operationsGetByType(r.Context(), s, api.ProjectDefaultName, operationtype.ClusterJoinToken)
+	ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterJoinToken)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed getting cluster join token operations: %w", err))
 	}
@@ -1455,7 +1455,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		if opServerName == req.ServerName {
 			// Join token operation matches requested server name, so lets cancel it.
 			logger.Warn("Cancelling duplicate join token operation", logger.Ctx{"operation": op.ID, "serverName": opServerName})
-			err = operationCancel(r.Context(), s, api.ProjectDefaultName, op)
+			err = operationCancel(r.Context(), s, "", op)
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Failed cancelling operation %q: %w", op.ID, err))
 			}
@@ -1489,11 +1489,10 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	resources["cluster"] = []api.URL{}
 
 	args := operations.OperationArgs{
-		ProjectName: api.ProjectDefaultName,
-		Type:        operationtype.ClusterJoinToken,
-		Class:       operations.OperationClassToken,
-		Resources:   resources,
-		Metadata:    meta,
+		Type:      operationtype.ClusterJoinToken,
+		Class:     operations.OperationClassToken,
+		Resources: resources,
+		Metadata:  meta,
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, args)
