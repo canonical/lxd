@@ -185,8 +185,8 @@ test_clustering_membership() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -387,8 +387,8 @@ test_clustering_containers() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -564,8 +564,8 @@ test_clustering_storage() {
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -1100,8 +1100,8 @@ test_clustering_network() {
   # The state of the preseeded network shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep -F "${bridge}" | grep -wF CREATED
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Create a project with restricted.networks.subnets set to check the default networks are created before projects
   # when a member joins the cluster.
@@ -1357,8 +1357,8 @@ test_clustering_heal_networks_stop() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -1458,8 +1458,8 @@ test_clustering_upgrade() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -1550,8 +1550,8 @@ test_clustering_downgrade() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -1640,8 +1640,8 @@ test_clustering_upgrade_large() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   for i in $(seq 2 "${N}"); do
     setup_clustering_netns "${i}"
@@ -1689,8 +1689,8 @@ test_clustering_publish() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -1738,8 +1738,8 @@ test_clustering_profiles() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -1839,8 +1839,8 @@ test_clustering_update_cert() {
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
   ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -1914,8 +1914,8 @@ test_clustering_update_cert_reversion() {
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
   ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -2003,8 +2003,8 @@ test_clustering_update_cert_token() {
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
   ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -2115,8 +2115,8 @@ test_clustering_shutdown_nodes() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -2183,8 +2183,8 @@ test_clustering_projects() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -2241,8 +2241,8 @@ test_clustering_metrics() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -2332,8 +2332,8 @@ test_clustering_address() {
   lxc remote add cluster --token "${token}" "${url}"
   lxc storage list cluster: | grep -F data
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node using a custom cluster port
   setup_clustering_netns 2
@@ -2394,8 +2394,8 @@ test_clustering_image_replication() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -2651,8 +2651,8 @@ test_clustering_fan() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -2734,8 +2734,8 @@ test_clustering_recover() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -2823,8 +2823,8 @@ test_clustering_ha() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -2949,8 +2949,8 @@ test_clustering_handover() {
 
   echo "Launched member 1"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -3061,8 +3061,8 @@ test_clustering_rebalance() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -3144,8 +3144,8 @@ test_clustering_rebalance_remove_leader() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -3214,8 +3214,8 @@ test_clustering_remove_raft_node() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -3331,8 +3331,8 @@ test_clustering_failure_domains() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -3439,8 +3439,8 @@ test_clustering_image_refresh() {
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -3680,8 +3680,8 @@ test_clustering_evacuation() {
   echo "Check the state of the preseeded storage pool shows up as CREATED"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -4047,8 +4047,8 @@ test_clustering_evacuation_restore_operations() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -4127,8 +4127,8 @@ test_clustering_edit_configuration() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -4275,8 +4275,8 @@ test_clustering_remove_members() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -4403,8 +4403,8 @@ test_clustering_autotarget() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -4452,8 +4452,8 @@ test_clustering_groups() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -4728,8 +4728,8 @@ test_clustering_events() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules...
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node.
   setup_clustering_netns 2
@@ -4926,8 +4926,8 @@ test_clustering_roles() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node.
   setup_clustering_netns 2
@@ -5049,7 +5049,8 @@ test_clustering_uuid() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   setup_clustering_netns 2
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -5099,7 +5100,8 @@ test_clustering_trust_add() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   setup_clustering_netns 2
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -5191,8 +5193,8 @@ test_clustering_projects_force_delete() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -5300,8 +5302,8 @@ test_clustering_placement_groups() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -5550,8 +5552,8 @@ test_clustering_force_removal() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
   setup_clustering_netns 2
@@ -5641,8 +5643,8 @@ test_clustering_recovery() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${pool_driver}"
 
-  # Add a newline at the end of each line. YAML has weird rules.
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node.
   setup_clustering_netns 2
