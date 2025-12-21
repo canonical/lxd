@@ -565,7 +565,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		joinToken, err := shared.JoinTokenDecode(req.TrustToken)
 		if err == nil {
 			// If so then check there is a matching join operation.
-			joinOp, err := clusterMemberJoinTokenValid(s, r, api.ProjectDefaultName, joinToken)
+			joinOp, err := clusterMemberJoinTokenValid(s, r, "", joinToken)
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Failed during search for join token operation: %w", err))
 			}
