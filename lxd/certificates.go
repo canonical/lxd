@@ -207,8 +207,8 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 // clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
-func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
-	ops, err := operationsGetByType(r.Context(), s, projectName, operationtype.ClusterJoinToken)
+func clusterMemberJoinTokenValid(s *state.State, r *http.Request, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
+	ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterJoinToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting cluster join token operations: %w", err)
 	}
@@ -251,7 +251,7 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 
 	if foundOp != nil {
 		// Token is single-use, so cancel it now.
-		err = operationCancel(r.Context(), s, projectName, foundOp)
+		err = operationCancel(r.Context(), s, "", foundOp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
@@ -565,7 +565,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		joinToken, err := shared.JoinTokenDecode(req.TrustToken)
 		if err == nil {
 			// If so then check there is a matching join operation.
-			joinOp, err := clusterMemberJoinTokenValid(s, r, api.ProjectDefaultName, joinToken)
+			joinOp, err := clusterMemberJoinTokenValid(s, r, joinToken)
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Failed during search for join token operation: %w", err))
 			}
