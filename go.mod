@@ -63,7 +63,7 @@ require (
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 	tags.cncf.io/container-device-interface v1.0.1
-	tags.cncf.io/container-device-interface/specs-go v1.0.0
+	tags.cncf.io/container-device-interface/specs-go v1.1.0
 )
 
 require (
