@@ -129,56 +129,54 @@ spawn_lxd_and_bootstrap_cluster() {
   echo "==> Spawn bootstrap cluster node in ${ns} with storage driver ${driver}"
 
   LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
-  (
-    set -e
 
-    cat > "${LXD_DIR}/preseed.yaml" <<EOF
-config:
-  core.https_address: 100.64.1.101:8443
-EOF
-    if [ "${port}" != "" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  cluster.https_address: 100.64.1.101:${port}
-EOF
-    fi
-    cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  local preseed
+  preseed="config:
+  core.https_address: 100.64.1.101:8443"
+
+  if [ "${port}" != "" ]; then
+    preseed+="
+  cluster.https_address: 100.64.1.101:${port}"
+  fi
+
+  preseed+="
   images.auto_update_interval: 0
 storage_pools:
 - name: data
-  driver: $driver
-EOF
-    if [ "${driver}" = "btrfs" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  driver: ${driver}"
+
+  if [ "${driver}" = "btrfs" ]; then
+    preseed+="
+  config:
+    size: 1GiB"
+  fi
+
+  if [ "${driver}" = "zfs" ]; then
+    preseed+="
   config:
     size: 1GiB
-EOF
-    fi
-    if [ "${driver}" = "zfs" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  config:
-    size: 1GiB
-    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
-    fi
-    if [ "${driver}" = "lvm" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}"
+  fi
+
+  if [ "${driver}" = "lvm" ]; then
+    preseed+="
   config:
     volume.size: 25MiB
     size: 1GiB
-    lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
-    fi
-    if [ "${driver}" = "ceph" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}"
+  fi
+
+  if [ "${driver}" = "ceph" ]; then
+    preseed+="
   config:
     source: lxdtest-$(basename "${TEST_DIR}")
     volume.size: 25MiB
-    ceph.osd.pg_num: 16
-EOF
-    fi
-    cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    ceph.osd.pg_num: 16"
+  fi
+
+  preseed+="
 networks:
-- name: $bridge
+- name: ${bridge}
   type: bridge
   config:
     ipv4.address: none
@@ -192,14 +190,12 @@ profiles:
       type: disk
 cluster:
   server_name: node1
-  enabled: true
-EOF
+  enabled: true"
 
   # Print the preseed for debugging purposes.
-  cat "${LXD_DIR}/preseed.yaml"
+  echo "${preseed}"
 
-  lxd init --preseed < "${LXD_DIR}/preseed.yaml"
-  )
+  lxd init --preseed <<< "${preseed}"
 }
 
 spawn_lxd_and_join_cluster() {
