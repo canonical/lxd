@@ -4173,10 +4173,8 @@ test_clustering_edit_configuration() {
   shutdown_lxd "${LXD_FOUR_DIR}"
 
   # Force-kill the last two to prevent leadership loss.
-  daemon_pid=$(< "${LXD_FIVE_DIR}/lxd.pid")
-  kill -9 "${daemon_pid}" 2>/dev/null || true
-  daemon_pid=$(< "${LXD_SIX_DIR}/lxd.pid")
-  kill -9 "${daemon_pid}" 2>/dev/null || true
+  kill -9 "$(< "${LXD_FIVE_DIR}/lxd.pid)" 2>/dev/null || true
+  kill -9 "$(< "${LXD_SIX_DIR}/lxd.pid)" 2>/dev/null || true
 
   config=$(mktemp -p "${TEST_DIR}" XXX)
   # Update the cluster configuration with new port numbers
@@ -4238,10 +4236,8 @@ test_clustering_edit_configuration() {
   shutdown_lxd "${LXD_FOUR_DIR}"
 
   # Force-kill the last two to prevent leadership loss.
-  daemon_pid=$(< "${LXD_FIVE_DIR}/lxd.pid")
-  kill -9 "${daemon_pid}" 2>/dev/null || true
-  daemon_pid=$(< "${LXD_SIX_DIR}/lxd.pid")
-  kill -9 "${daemon_pid}" 2>/dev/null || true
+  kill -9 "$(< "${LXD_FIVE_DIR}/lxd.pid)" 2>/dev/null || true
+  kill -9 "$(< "${LXD_SIX_DIR}/lxd.pid)" 2>/dev/null || true
 
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
