@@ -1,6 +1,5 @@
 test_clustering_waitready() {
-  # shellcheck disable=SC2034
-  local LXD_DIR
+  LXD_DIR=
   local lxd_backend
 
   setup_clustering_bridge
