@@ -51,7 +51,7 @@ jobs:
         if: github.event_name == 'pull_request'
 
       - name: Upload artifact with ShellCheck defects in SARIF format
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Differential ShellCheck SARIF
           path: ${{ steps.ShellCheck.outputs.sarif }}
@@ -446,7 +446,7 @@ jobs:
         run: go test -v ./shared/...
 
       - name: Upload lxc client artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         continue-on-error: true
         with:
           name: ${{ runner.os }}
@@ -502,7 +502,7 @@ jobs:
 
       - name: Upload documentation artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: documentation
           path: doc/html
