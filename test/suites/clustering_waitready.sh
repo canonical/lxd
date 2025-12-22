@@ -8,9 +8,9 @@ test_clustering_waitready() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   # Get used storage backend.
   lxd_backend=$(storage_backend "${LXD_ONE_DIR}")
