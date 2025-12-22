@@ -1,5 +1,5 @@
 test_clustering_enable() {
-  local LXD_DIR
+  LXD_DIR=
 
   LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD_INIT_DIR}" false
@@ -174,7 +174,7 @@ test_clustering_enable() {
 }
 
 test_clustering_membership() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -375,7 +375,7 @@ test_clustering_membership() {
 }
 
 test_clustering_containers() {
-  local LXD_DIR
+  LXD_DIR=
 
   echo "Create cluster with 3 nodes."
   setup_clustering_bridge
@@ -546,7 +546,7 @@ test_clustering_containers() {
 }
 
 test_clustering_storage() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -1016,7 +1016,7 @@ test_clustering_storage() {
 # two-stage process required multi-node clusters, or directly with the normal
 # procedure for non-clustered daemons.
 test_clustering_storage_single_node() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -1087,7 +1087,7 @@ test_clustering_storage_single_node() {
 }
 
 test_clustering_network() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -1346,7 +1346,7 @@ test_clustering_network() {
 test_clustering_heal_networks_stop() {
   echo "==> Test: cluster healing does not shut down networks on the leader node when evacuating an offline member"
   # Regression test for https://github.com/canonical/lxd/issues/16642.
-  local LXD_DIR
+  LXD_DIR=
 
   echo "Create a cluster with 3 nodes"
   setup_clustering_bridge
@@ -1679,7 +1679,7 @@ test_clustering_upgrade_large() {
 }
 
 test_clustering_publish() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -1728,7 +1728,7 @@ test_clustering_publish() {
 }
 
 test_clustering_profiles() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -1798,7 +1798,7 @@ EOF
 }
 
 test_clustering_update_cert() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -1873,7 +1873,7 @@ test_clustering_update_cert() {
 }
 
 test_clustering_update_cert_reversion() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -1962,7 +1962,7 @@ test_clustering_update_cert_reversion() {
 }
 
 test_clustering_update_cert_token() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -2104,7 +2104,7 @@ test_clustering_join_api() {
 }
 
 test_clustering_shutdown_nodes() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -2172,7 +2172,7 @@ test_clustering_shutdown_nodes() {
 }
 
 test_clustering_projects() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -2230,7 +2230,7 @@ test_clustering_projects() {
 }
 
 test_clustering_metrics() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -2308,7 +2308,7 @@ test_clustering_metrics() {
 }
 
 test_clustering_address() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -2383,7 +2383,7 @@ test_clustering_address() {
 }
 
 test_clustering_image_replication() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -2640,7 +2640,7 @@ test_clustering_dns() {
 }
 
 test_clustering_fan() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -2723,7 +2723,7 @@ test_clustering_fan() {
 
 test_clustering_recover() {
   # shellcheck disable=SC2034
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -2802,7 +2802,7 @@ test_clustering_recover() {
 # the cluster, filter out some bogus/spam/malicious requests without terminating
 # TLS and while preserving the original client IP addresses.
 test_clustering_ha() {
-  local LXD_DIR
+  LXD_DIR=
   local successes
   local failures
   local FOUND_RADOSGW
@@ -2936,7 +2936,7 @@ test_clustering_ha() {
 # node.
 test_clustering_handover() {
   # shellcheck disable=SC2034
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -3050,7 +3050,7 @@ test_clustering_handover() {
 # stand-by.
 test_clustering_rebalance() {
   # shellcheck disable=SC2034
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -3132,7 +3132,7 @@ test_clustering_rebalance() {
 }
 
 test_clustering_rebalance_remove_leader() {
-  local LXD_DIR
+  LXD_DIR=
 
   echo "Create two node cluster"
   setup_clustering_bridge
@@ -3203,7 +3203,7 @@ test_clustering_rebalance_remove_leader() {
 # Recover a cluster where a raft node was removed from the nodes table but not
 # from the raft configuration.
 test_clustering_remove_raft_node() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -3320,7 +3320,7 @@ test_clustering_remove_raft_node() {
 }
 
 test_clustering_failure_domains() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -3417,7 +3417,7 @@ test_clustering_failure_domains() {
 }
 
 test_clustering_image_refresh() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -3660,7 +3660,7 @@ test_clustering_image_refresh() {
 }
 
 test_clustering_evacuation() {
-  local LXD_DIR
+  LXD_DIR=
 
   echo "Create cluster with 3 nodes"
   setup_clustering_bridge
@@ -4030,8 +4030,7 @@ test_clustering_evacuation() {
 }
 
 test_clustering_evacuation_restore_operations() {
-  local LXD_DIR
-
+  LXD_DIR=
   echo "Create cluster with 2 nodes"
   setup_clustering_bridge
   prefix="lxd$$"
@@ -4115,7 +4114,7 @@ test_clustering_evacuation_restore_operations() {
 }
 
 test_clustering_edit_configuration() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -4263,7 +4262,7 @@ test_clustering_edit_configuration() {
 }
 
 test_clustering_remove_members() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -4392,7 +4391,7 @@ test_clustering_remove_members() {
 }
 
 test_clustering_autotarget() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -4440,7 +4439,7 @@ test_clustering_autotarget() {
 }
 
 test_clustering_groups() {
-  local LXD_DIR
+  LXD_DIR=
 
   echo 'Create cluster with 3 nodes'
   setup_clustering_bridge
@@ -4717,7 +4716,7 @@ EOF
 }
 
 test_clustering_events() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -4915,7 +4914,7 @@ test_clustering_events() {
 }
 
 test_clustering_roles() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -5037,7 +5036,7 @@ test_clustering_roles() {
 }
 
 test_clustering_uuid() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -5088,7 +5087,7 @@ test_clustering_uuid() {
 }
 
 test_clustering_trust_add() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -5182,7 +5181,7 @@ test_clustering_trust_add() {
 }
 
 test_clustering_projects_force_delete() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -5290,7 +5289,7 @@ test_clustering_projects_force_delete() {
 }
 
 test_clustering_placement_groups() {
-  local LXD_DIR
+  LXD_DIR=
 
   echo "Create cluster with 5 members."
   setup_clustering_bridge
@@ -5540,7 +5539,7 @@ test_clustering_placement_groups() {
 }
 
 test_clustering_force_removal() {
-  local LXD_DIR
+  LXD_DIR=
 
   echo "Create cluster with 3 members."
   setup_clustering_bridge
@@ -5628,7 +5627,7 @@ test_clustering_force_removal() {
 }
 
 test_clustering_recovery() {
-  local LXD_DIR
+  LXD_DIR=
 
   setup_clustering_bridge
   prefix="lxd$$"
