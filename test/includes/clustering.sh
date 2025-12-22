@@ -206,36 +206,68 @@ cluster:
 }
 
 spawn_lxd_and_join_cluster() {
-  local ns bridge cert index target token driver port source source_recover
+  local cert index target token driver port source source_recover
 
-  ns="${1}"
-  bridge="${2}"
-  cert="${3}"
-  index="${4}"
-  target="${5}"
-  if [ -d "${6}" ]; then
-    token="$(LXD_DIR=${6} lxc cluster add --quiet "node${index}")"
+  cert="${1}"
+  index="${2}"
+  target="${3}"
+  if [ -d "${4}" ]; then
+    token="$(LXD_DIR=${4} lxc cluster add --quiet "node${index}")"
   else
-    token="${6}"
+    token="${4}"
   fi
   driver="dir"
   port="8443"
   source=""
   source_recover="false"
+  if [ "$#" -ge  "5" ]; then
+      driver="${5}"
+  fi
+  if [ "$#" -ge  "6" ]; then
+      port="${6}"
+  fi
   if [ "$#" -ge  "7" ]; then
-      driver="${7}"
+      source="${7}"
   fi
   if [ "$#" -ge  "8" ]; then
-      port="${8}"
-  fi
-  if [ "$#" -ge  "9" ]; then
-      source="${9}"
-  fi
-  if [ "$#" -ge  "10" ]; then
-      source_recover="${10}"
+      source_recover="${8}"
   fi
 
+  setup_clustering_netns "${index}"
+
   LXD_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  ns="${bridge}${index}"
+
+  case "${index}" in
+    2)
+      # shellcheck disable=SC2034
+      LXD_TWO_DIR="${LXD_DIR}" ns2="${ns}";;
+    3)
+      # shellcheck disable=SC2034
+      LXD_THREE_DIR="${LXD_DIR}" ns3="${ns}";;
+    4)
+      # shellcheck disable=SC2034
+      LXD_FOUR_DIR="${LXD_DIR}" ns4="${ns}";;
+    5)
+      # shellcheck disable=SC2034
+      LXD_FIVE_DIR="${LXD_DIR}" ns5="${ns}";;
+    6)
+      # shellcheck disable=SC2034
+      LXD_SIX_DIR="${LXD_DIR}" ns6="${ns}";;
+    7)
+      # shellcheck disable=SC2034
+      LXD_SEVEN_DIR="${LXD_DIR}" ns7="${ns}";;
+    8)
+      # shellcheck disable=SC2034
+      LXD_EIGHT_DIR="${LXD_DIR}" ns8="${ns}";;
+    9)
+      # shellcheck disable=SC2034
+      LXD_NINE_DIR="${LXD_DIR}" ns9="${ns}";;
+    *)
+      echo "spawn_lxd_and_join_cluster: Unsupported index ${index}"
+      false
+      ;;
+  esac
 
   echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
 
