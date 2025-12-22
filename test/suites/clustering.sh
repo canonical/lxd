@@ -181,9 +181,9 @@ test_clustering_membership() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -383,9 +383,9 @@ test_clustering_containers() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -557,9 +557,9 @@ test_clustering_storage() {
   poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
@@ -1027,9 +1027,9 @@ test_clustering_storage_single_node() {
   poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   # Create a pending storage pool on the node.
   driver_config=""
@@ -1094,9 +1094,9 @@ test_clustering_network() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   # The state of the preseeded network shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep -F "${bridge}" | grep -wF CREATED
@@ -1354,9 +1354,9 @@ test_clustering_heal_networks_stop() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -1455,9 +1455,9 @@ test_clustering_upgrade() {
 
   # First, test the upgrade with a 2-node cluster
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -1547,9 +1547,9 @@ test_clustering_downgrade() {
 
   # First, test the upgrade with a 2-node cluster.
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -1639,7 +1639,7 @@ test_clustering_upgrade_large() {
   LXD_ONE_DIR="${LXD_CLUSTER_DIR}/1"
   mkdir -p "${LXD_ONE_DIR}"
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -1686,9 +1686,9 @@ test_clustering_publish() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -1735,9 +1735,9 @@ test_clustering_profiles() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -1808,9 +1808,9 @@ test_clustering_update_cert() {
 
   # Bootstrap a node to steal its certs
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   cert_path=$(mktemp -p "${TEST_DIR}" XXX)
   key_path=$(mktemp -p "${TEST_DIR}" XXX)
@@ -1832,9 +1832,9 @@ test_clustering_update_cert() {
 
   # Bootstrap the first node
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   # quick check
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
@@ -1883,9 +1883,9 @@ test_clustering_update_cert_reversion() {
 
   # Bootstrap a node to steal its certs
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   cert_path=$(mktemp -p "${TEST_DIR}" XXX)
   key_path=$(mktemp -p "${TEST_DIR}" XXX)
@@ -1907,9 +1907,9 @@ test_clustering_update_cert_reversion() {
 
   # Bootstrap the first node
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   # quick check
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
@@ -1972,9 +1972,9 @@ test_clustering_update_cert_token() {
 
   # Bootstrap a node to steal its certs
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   cert_path=$(mktemp -p "${TEST_DIR}" XXX)
   key_path=$(mktemp -p "${TEST_DIR}" XXX)
@@ -1996,9 +1996,9 @@ test_clustering_update_cert_token() {
 
   # Bootstrap the first node
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   # quick check
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
@@ -2060,9 +2060,9 @@ test_clustering_join_api() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_json "${LXD_ONE_DIR}/cluster.crt")"
@@ -2113,9 +2113,9 @@ test_clustering_shutdown_nodes() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -2181,9 +2181,9 @@ test_clustering_projects() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -2239,9 +2239,9 @@ test_clustering_metrics() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -2392,9 +2392,9 @@ test_clustering_image_replication() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -2649,9 +2649,9 @@ test_clustering_fan() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -2732,9 +2732,9 @@ test_clustering_recover() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -2821,9 +2821,9 @@ test_clustering_ha() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -2945,9 +2945,9 @@ test_clustering_handover() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   echo "Launched member 1"
 
@@ -3059,9 +3059,9 @@ test_clustering_rebalance() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -3142,9 +3142,9 @@ test_clustering_rebalance_remove_leader() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -3212,9 +3212,9 @@ test_clustering_remove_raft_node() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -3329,9 +3329,9 @@ test_clustering_failure_domains() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -3431,9 +3431,9 @@ test_clustering_image_refresh() {
 
   # Spawn first node
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.images_minimal_replica 1
   LXD_DIR="${LXD_ONE_DIR}" lxc config set images.auto_update_interval 1
@@ -3675,9 +3675,9 @@ test_clustering_evacuation() {
 
   # Spawn first node
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   echo "Check the state of the preseeded storage pool shows up as CREATED"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
@@ -4045,9 +4045,9 @@ test_clustering_evacuation_restore_operations() {
 
   # Spawn first node
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -4125,9 +4125,9 @@ test_clustering_edit_configuration() {
 
   # Bootstrap the first node
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -4273,9 +4273,9 @@ test_clustering_remove_members() {
 
   # Bootstrap the first node
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -4401,9 +4401,9 @@ test_clustering_autotarget() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -4450,9 +4450,9 @@ test_clustering_groups() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -4726,9 +4726,9 @@ test_clustering_events() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -4924,9 +4924,9 @@ test_clustering_roles() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -5047,9 +5047,9 @@ test_clustering_uuid() {
 
   # create two cluster nodes
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -5098,9 +5098,9 @@ test_clustering_trust_add() {
 
   # create two cluster nodes
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -5191,9 +5191,9 @@ test_clustering_projects_force_delete() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -5300,9 +5300,9 @@ test_clustering_placement_groups() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -5550,9 +5550,9 @@ test_clustering_force_removal() {
   bridge="${prefix}"
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
@@ -5641,9 +5641,9 @@ test_clustering_recovery() {
   pool_driver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
 
   setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${pool_driver}"
+  LXD_ONE_DIR="${LXD_DIR}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
