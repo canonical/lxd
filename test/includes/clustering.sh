@@ -112,24 +112,30 @@ teardown_clustering_netns() {
 }
 
 spawn_lxd_and_bootstrap_cluster() {
-  local ns bridge driver port
+  local driver port
 
-  ns="${1}"
-  bridge="${2}"
+  bridge="lxd$$"
   driver="dir"
   port=""
-  if [ "$#" -ge  "3" ]; then
-      driver="${3}"
+  if [ "$#" -ge  "2" ]; then
+      driver="${2}"
   fi
-  if [ "$#" -ge  "4" ]; then
-      port="${4}"
+  if [ "$#" -ge  "3" ]; then
+      port="${3}"
   fi
 
+  setup_clustering_bridge
+  setup_clustering_netns 1
+
   LXD_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  ns="${bridge}1"
 
   echo "==> Spawn bootstrap cluster node in ${ns} with storage driver ${driver}"
 
   LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
+
+  # shellcheck disable=SC2034
+  LXD_ONE_DIR="${LXD_DIR}" ns1="${ns}"
 
   local preseed
   preseed="config:
