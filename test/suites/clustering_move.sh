@@ -1,6 +1,5 @@
 test_clustering_move() {
-  # shellcheck disable=SC2034
-  local LXD_DIR
+  LXD_DIR=
 
   echo "Create cluster with 3 nodes."
 
