@@ -2135,16 +2135,11 @@ test_clustering_shutdown_nodes() {
   # Get container PID
   instance_pid="$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c p foo)"
 
-  # Get server PIDs
-  daemon_pid1=$(< "${LXD_ONE_DIR}/lxd.pid")
-  daemon_pid2=$(< "${LXD_TWO_DIR}/lxd.pid")
-  daemon_pid3=$(< "${LXD_THREE_DIR}/lxd.pid")
-
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  wait "${daemon_pid2}"
+  wait "$(< "${LXD_TWO_DIR}/lxd.pid")"
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  wait "${daemon_pid3}"
+  wait "$(< "${LXD_THREE_DIR}/lxd.pid")"
 
   # Wait for raft election to take place and become aware that quorum has been lost (should take 3-6s).
   sleep 10
@@ -2156,7 +2151,7 @@ test_clustering_shutdown_nodes() {
 
   # Wait for LXD to terminate, otherwise the db will not be empty, and the
   # cleanup code will fail
-  wait "${daemon_pid1}"
+  wait "$(< "${LXD_ONE_DIR}/lxd.pid")"
 
   # Container foo shouldn't be running anymore
   [ ! -e "/proc/${instance_pid}" ]
