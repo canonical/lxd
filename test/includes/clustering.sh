@@ -112,17 +112,10 @@ teardown_clustering_netns() {
 }
 
 spawn_lxd_and_bootstrap_cluster() {
-  local driver port
-
   bridge="lxd$$"
-  driver="dir"
-  port=""
-  if [ "$#" -ge  "2" ]; then
-      driver="${2}"
-  fi
-  if [ "$#" -ge  "3" ]; then
-      port="${3}"
-  fi
+
+  local driver="${1:-dir}"
+  local port="${2:-}"
 
   setup_clustering_bridge
   setup_clustering_netns 1
