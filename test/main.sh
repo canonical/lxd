@@ -413,7 +413,7 @@ run_test_n_times() {
   local name="${1}"
   local iterCount=1
   while [ "${iterCount}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
-    run_test "test_${name}"
+    run_test "test_${name}" "${iterCount}"
     iterCount=$((iterCount + 1))
   done
 }
@@ -423,9 +423,10 @@ run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION="${TEST_CURRENT#test_} on ${LXD_BACKEND}"
   TEST_UNMET_REQUIREMENT=""
+  local iterCount=${2:-0}
 
-  if [ "${RUN_COUNT:-0}" -ne 0 ] && [ "${LXD_REPEAT_TESTS:-1}" -ne 1 ]; then
-    TEST_CURRENT_DESCRIPTION="${TEST_CURRENT_DESCRIPTION} (${RUN_COUNT}/${LXD_REPEAT_TESTS})"
+  if [ "${iterCount}" -ne 0 ] && [ "${LXD_REPEAT_TESTS:-1}" -ne 1 ]; then
+    TEST_CURRENT_DESCRIPTION="${TEST_CURRENT_DESCRIPTION} (${iterCount}/${LXD_REPEAT_TESTS})"
   fi
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
