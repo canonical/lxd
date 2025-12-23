@@ -215,6 +215,7 @@ test_devlxd_volume_management() {
   local authGroup="${testName}-group"
   local authIdentity="devlxd/${testName}-identity"
 
+  local poolDriver
   poolDriver="$(storage_backend "$LXD_DIR")"
   lxc storage create "${pool}" "${poolDriver}"
 
@@ -528,6 +529,7 @@ test_devlxd_volume_management_snapshots() {
   local authGroup="${testName}-group"
   local authIdentity="devlxd/${testName}-identity"
 
+  local poolDriver
   poolDriver="$(storage_backend "$LXD_DIR")"
   lxc storage create "${pool}" "${poolDriver}"
 
