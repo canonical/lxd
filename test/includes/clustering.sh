@@ -199,32 +199,17 @@ cluster:
 }
 
 spawn_lxd_and_join_cluster() {
-  local cert index target token driver port source source_recover
-
-  cert="${1}"
-  index="${2}"
-  target="${3}"
+  local cert="${1}"
+  local index="${2}"
+  local target="${3}"
+  local token="${4}"
   if [ -d "${4}" ]; then
     token="$(LXD_DIR=${4} lxc cluster add --quiet "node${index}")"
-  else
-    token="${4}"
   fi
-  driver="dir"
-  port="8443"
-  source=""
-  source_recover="false"
-  if [ "$#" -ge  "5" ]; then
-      driver="${5}"
-  fi
-  if [ "$#" -ge  "6" ]; then
-      port="${6}"
-  fi
-  if [ "$#" -ge  "7" ]; then
-      source="${7}"
-  fi
-  if [ "$#" -ge  "8" ]; then
-      source_recover="${8}"
-  fi
+  local driver="${5:-dir}"
+  local port="${6:-8443}"
+  local source="${7:-}"
+  local source_recover="${8:-false}"
 
   setup_clustering_netns "${index}"
 
