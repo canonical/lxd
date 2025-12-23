@@ -1,15 +1,10 @@
 test_clustering_waitready() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
+  ns1="" ns2="" ns3=""
   local lxd_backend
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   # Get used storage backend.
   lxd_backend=$(storage_backend "${LXD_ONE_DIR}")
@@ -18,16 +13,10 @@ test_clustering_waitready() {
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node.
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Setup a cluster wide network.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create br1 --target "node1"
