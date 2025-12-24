@@ -506,6 +506,8 @@ test_clustering_storage() {
   # shellcheck disable=SC2034
   LXD_NETNS="" ns="" prefix="" bridge=""
   ns1="" ns2="" ns3=""
+  local LXD_ORIG_DIR="${LXD_DIR}"
+  readonly LXD_ORIG_DIR
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
@@ -958,6 +960,9 @@ test_clustering_storage() {
   if [ -n "${LXD_THREE_DIR:-}" ]; then
     kill_lxd "${LXD_THREE_DIR}"
   fi
+
+  # Restore LXD_DIR
+  LXD_DIR="${orig_LXD_DIR}"
 }
 
 # On a single-node cluster storage pools can be created either with the
