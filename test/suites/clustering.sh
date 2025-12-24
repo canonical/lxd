@@ -1,5 +1,6 @@
 test_clustering_enable() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD_INIT_DIR}" false
@@ -174,25 +175,17 @@ test_clustering_enable() {
 }
 
 test_clustering_membership() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
+  ns1="" ns2="" ns3="" ns4="" ns5=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Neither server certificate can be deleted
   LXD_ONE_FINGERPRINT="$(cert_fingerprint "${LXD_ONE_DIR}/server.crt")"
@@ -218,22 +211,14 @@ test_clustering_membership() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create net1 --target node2
 
   # Spawn a third node, using the non-leader node2 as join target.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 2 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 2 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node, this will be a non-database node.
-  setup_clustering_netns 4
-  ns4="${prefix}4"
-  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_ONE_DIR}"
-  LXD_FOUR_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node, using non-database node4 as join target.
-  setup_clustering_netns 5
-  ns5="${prefix}5"
-  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 4 "${LXD_ONE_DIR}"
-  LXD_FIVE_DIR="${LXD_DIR}"
+  LXD_FIVE_DIR=""
+  spawn_lxd_and_join_cluster "${cert}" 5 4 "${LXD_ONE_DIR}"
 
   # Wait a bit for raft roles to update.
   sleep 5
@@ -288,12 +273,7 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 | grep "${token}"
 
   # Spawn a sixth node, using join token.
-  setup_clustering_netns 6
-  LXD_SIX_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  ns6="${prefix}6"
-
-  # shellcheck disable=SC2034
-  spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 2 "${LXD_SIX_DIR}" "${token}"
+  spawn_lxd_and_join_cluster "${cert}" 6 2 "${token}"
 
   # Check token has been deleted after join.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
@@ -319,12 +299,7 @@ test_clustering_membership() {
   token_valid="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node8)"
 
   # Spawn an eigth node, using join token.
-  setup_clustering_netns 8
-  LXD_EIGHT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  ns8="${prefix}8"
-
-  # shellcheck disable=SC2034
-  spawn_lxd_and_join_cluster "${ns8}" "${bridge}" "${cert}" 8 2 "${LXD_EIGHT_DIR}" "${token_valid}"
+  spawn_lxd_and_join_cluster "${cert}" 8 2 "${token_valid}"
 
   # This will cause the token to expire
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=2S
@@ -332,12 +307,8 @@ test_clustering_membership() {
   sleep 2
 
   # Spawn a ninth node, using join token.
-  setup_clustering_netns 9
-  LXD_NINE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  ns9="${prefix}9"
-
-  # shellcheck disable=SC2034
-  ! spawn_lxd_and_join_cluster "${ns9}" "${bridge}" "${cert}" 9 2 "${LXD_NINE_DIR}" "${token_expired}" || false
+  LXD_NINE_DIR=""
+  ! spawn_lxd_and_join_cluster "${cert}" 9 2 "${token_expired}" || false
 
   # Unset join_token_expiry which will set it to the default value of 3h
   LXD_DIR="${LXD_ONE_DIR}" lxc config unset cluster.join_token_expiry
@@ -373,32 +344,20 @@ test_clustering_membership() {
 }
 
 test_clustering_containers() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   echo "Create cluster with 3 nodes."
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   echo "Init a container on node2, using a client connected to node1."
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
@@ -544,20 +503,16 @@ test_clustering_containers() {
 }
 
 test_clustering_storage() {
-  LXD_DIR=
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
+  ns1="" ns2="" ns3=""
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_DIR}")"
 
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
 
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
@@ -566,10 +521,7 @@ test_clustering_storage() {
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # The state of the preseeded storage pool is still CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
@@ -872,9 +824,7 @@ test_clustering_storage() {
   # member_config, and actually added to a joining node so we can validate it.
   if [ "${poolDriver}" = "zfs" ] || [ "${poolDriver}" = "btrfs" ] || [ "${poolDriver}" = "ceph" ] || [ "${poolDriver}" = "lvm" ]; then
     # Spawn a third node
-    setup_clustering_netns 3
-    LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-    ns3="${prefix}3"
+    LXD_THREE_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
     LXD_NETNS="${ns3}" spawn_lxd "${LXD_THREE_DIR}" false
 
     key=$(echo "${driver_config}" | cut -d'=' -f1)
@@ -1014,20 +964,15 @@ test_clustering_storage() {
 # two-stage process required multi-node clusters, or directly with the normal
 # procedure for non-clustered daemons.
 test_clustering_storage_single_node() {
-  LXD_DIR=
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_DIR}")"
 
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
 
   # Create a pending storage pool on the node.
   driver_config=""
@@ -1085,22 +1030,16 @@ test_clustering_storage_single_node() {
 }
 
 test_clustering_network() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
-
-  # The state of the preseeded network shows up as CREATED
-  LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep -F "${bridge}" | grep -wF CREATED
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+
+  # The state of the preseeded network shows up as CREATED
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep -F "${bridge}" | grep -wF CREATED
 
   # Create a project with restricted.networks.subnets set to check the default networks are created before projects
   # when a member joins the cluster.
@@ -1111,10 +1050,7 @@ test_clustering_network() {
     -c restricted.networks.subnets="${bridge}":192.0.2.0/24
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # The state of the preseeded network is still CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep -F "${bridge}" | grep -wF CREATED
@@ -1344,32 +1280,21 @@ test_clustering_network() {
 test_clustering_heal_networks_stop() {
   echo "==> Test: cluster healing does not shut down networks on the leader node when evacuating an offline member"
   # Regression test for https://github.com/canonical/lxd/issues/16642.
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   echo "Create a cluster with 3 nodes"
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   echo "Create bridge network to start BGP listener on"
   bgpbr="${prefix}bgpbr"
@@ -1445,26 +1370,17 @@ test_clustering_heal_networks_stop() {
 # Perform an upgrade of a 2-member cluster, then a join a third member and
 # perform one more upgrade
 test_clustering_upgrade() {
-  local LXD_DIR LXD_NETNS
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   # First, test the upgrade with a 2-node cluster
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Respawn the second node, making it believe it has an higher
   # version than it actually has.
@@ -1490,10 +1406,7 @@ test_clustering_upgrade() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -c "Fully operational")" -eq 2 ]
 
   # Now spawn a third node and test the upgrade with a 3-node cluster.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Respawn the second node, making it believe it has an higher
   # version than it actually has.
@@ -1537,26 +1450,16 @@ test_clustering_upgrade() {
 
 # Perform a downgrade of a 2-member cluster, then a join a third member and perform one more downgrade.
 test_clustering_downgrade() {
-  local LXD_DIR LXD_NETNS
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  # First, test the upgrade with a 2-node cluster.
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Respawn the second node, making it believe it has an lower version than it actually has.
   export LXD_ARTIFICIALLY_BUMP_API_EXTENSIONS=-1
@@ -1580,10 +1483,7 @@ test_clustering_downgrade() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -c "Fully operational")" -eq 2 ]
 
   # Now spawn a third node and test the upgrade with a 3-node cluster.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Respawn the second node, making it believe it has an lower version than it actually has.
   export LXD_ARTIFICIALLY_BUMP_API_EXTENSIONS=-2
@@ -1624,78 +1524,57 @@ test_clustering_downgrade() {
 
 # Perform an upgrade of an 8-member cluster.
 test_clustering_upgrade_large() {
-  local LXD_DIR LXD_NETNS N
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  LXD_CLUSTER_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  N=8
-
-  setup_clustering_netns 1
-  LXD_ONE_DIR="${LXD_CLUSTER_DIR}/1"
-  mkdir -p "${LXD_ONE_DIR}"
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
-  for i in $(seq 2 "${N}"); do
-    setup_clustering_netns "${i}"
-    LXD_ITH_DIR="${LXD_CLUSTER_DIR}/${i}"
-    mkdir -p "${LXD_ITH_DIR}"
-    nsi="${prefix}${i}"
-    spawn_lxd_and_join_cluster "${nsi}" "${bridge}" "${cert}" "${i}" 1 "${LXD_ITH_DIR}" "${LXD_ONE_DIR}"
+  for i in $(seq 2 8); do
+    spawn_lxd_and_join_cluster "${cert}" "${i}" 1 "${LXD_ONE_DIR}"
   done
 
   # Respawn all nodes in sequence, as if their version had been upgrade.
   export LXD_ARTIFICIALLY_BUMP_API_EXTENSIONS=1
-  for i in $(seq "${N}" -1 1); do
-    shutdown_lxd "${LXD_CLUSTER_DIR}/${i}"
-    LXD_NETNS="${prefix}${i}" respawn_lxd "${LXD_CLUSTER_DIR}/${i}" false
+  i=8
+  for d in "${LXD_EIGHT_DIR}" "${LXD_SEVEN_DIR}" "${LXD_SIX_DIR}" "${LXD_FIVE_DIR}" "${LXD_FOUR_DIR}" "${LXD_THREE_DIR}" "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"; do
+    shutdown_lxd "${d}"
+    LXD_NETNS="${prefix}${i}" respawn_lxd "${d}" false
+    i=$((i-1))
   done
 
   LXD_DIR="${LXD_ONE_DIR}" lxd waitready --timeout=10
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "OFFLINE" || false
 
-  for i in $(seq "${N}" -1 1); do
-    LXD_DIR="${LXD_CLUSTER_DIR}/${i}" lxd shutdown
+  for d in "${LXD_EIGHT_DIR}" "${LXD_SEVEN_DIR}" "${LXD_SIX_DIR}" "${LXD_FIVE_DIR}" "${LXD_FOUR_DIR}" "${LXD_THREE_DIR}" "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"; do
+    LXD_DIR="${d}" lxd shutdown
   done
   sleep 0.5
-  for i in $(seq "${N}"); do
-    rm -f "${LXD_CLUSTER_DIR}/${i}/unix.socket"
+  for d in "${LXD_EIGHT_DIR}" "${LXD_SEVEN_DIR}" "${LXD_SIX_DIR}" "${LXD_FIVE_DIR}" "${LXD_FOUR_DIR}" "${LXD_THREE_DIR}" "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"; do
+    rm -f "${d}/unix.socket"
   done
 
   teardown_clustering_netns
   teardown_clustering_bridge
 
-  for i in $(seq "${N}"); do
-    kill_lxd "${LXD_CLUSTER_DIR}/${i}"
+  for d in "${LXD_EIGHT_DIR}" "${LXD_SEVEN_DIR}" "${LXD_SIX_DIR}" "${LXD_FIVE_DIR}" "${LXD_FOUR_DIR}" "${LXD_THREE_DIR}" "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"; do
+    kill_lxd "${d}"
   done
 }
 
 test_clustering_publish() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Give LXD a couple of seconds to get event API connected properly
   sleep 2
@@ -1726,25 +1605,16 @@ test_clustering_publish() {
 }
 
 test_clustering_profiles() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
   # TODO: Fix known race in importing small images that complete before event listener is setup.
@@ -1796,17 +1666,11 @@ EOF
 }
 
 test_clustering_update_cert() {
-  LXD_DIR=
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   # Bootstrap a node to steal its certs
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   cert_path=$(mktemp -p "${TEST_DIR}" XXX)
   key_path=$(mktemp -p "${TEST_DIR}" XXX)
@@ -1824,13 +1688,8 @@ test_clustering_update_cert() {
   kill_lxd "${LXD_ONE_DIR}"
 
   # Set up again
-  setup_clustering_bridge
-
   # Bootstrap the first node
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   # quick check
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
@@ -1840,10 +1699,7 @@ test_clustering_update_cert() {
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Send update request
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster update-cert "${cert_path}" "${key_path}" -q
@@ -1871,17 +1727,11 @@ test_clustering_update_cert() {
 }
 
 test_clustering_update_cert_reversion() {
-  LXD_DIR=
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   # Bootstrap a node to steal its certs
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   cert_path=$(mktemp -p "${TEST_DIR}" XXX)
   key_path=$(mktemp -p "${TEST_DIR}" XXX)
@@ -1899,13 +1749,8 @@ test_clustering_update_cert_reversion() {
   kill_lxd "${LXD_ONE_DIR}"
 
   # Set up again
-  setup_clustering_bridge
-
   # Bootstrap the first node
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   # quick check
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
@@ -1915,16 +1760,10 @@ test_clustering_update_cert_reversion() {
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Shutdown third node
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
@@ -1960,17 +1799,11 @@ test_clustering_update_cert_reversion() {
 }
 
 test_clustering_update_cert_token() {
-  LXD_DIR=
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   # Bootstrap a node to steal its certs
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   cert_path=$(mktemp -p "${TEST_DIR}" XXX)
   key_path=$(mktemp -p "${TEST_DIR}" XXX)
@@ -1988,13 +1821,9 @@ test_clustering_update_cert_token() {
   kill_lxd "${LXD_ONE_DIR}"
 
   # Set up again
-  setup_clustering_bridge
 
   # Bootstrap the first node
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   # quick check
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
@@ -2004,10 +1833,7 @@ test_clustering_update_cert_token() {
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Get a token embedding the current cluster cert fingerprint
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
@@ -2049,22 +1875,15 @@ test_clustering_update_cert_token() {
 
 test_clustering_join_api() {
   # shellcheck disable=SC2034
-  local LXD_DIR LXD_NETNS
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_json "${LXD_ONE_DIR}/cluster.crt")"
 
   setup_clustering_netns 2
-  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_TWO_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
   ns2="${prefix}2"
   LXD_NETNS="${ns2}" spawn_lxd "${LXD_TWO_DIR}" false
 
@@ -2102,31 +1921,19 @@ test_clustering_join_api() {
 }
 
 test_clustering_shutdown_nodes() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Init a container on node1, using a client connected to node1
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
@@ -2165,25 +1972,16 @@ test_clustering_shutdown_nodes() {
 }
 
 test_clustering_projects() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Create a test project
   LXD_DIR="${LXD_ONE_DIR}" lxc project create p1
@@ -2223,25 +2021,17 @@ test_clustering_projects() {
 }
 
 test_clustering_metrics() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Create one running container in each node and a stopped one on the leader.
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
@@ -2301,18 +2091,11 @@ test_clustering_metrics() {
 }
 
 test_clustering_address() {
-  LXD_DIR=
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  ns1="${prefix}1"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   # Bootstrap the first node using a custom cluster port
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "dir" "8444"
+  spawn_lxd_and_bootstrap_cluster "dir" "8444"
 
   # The bootstrap node appears in the list with its cluster-specific port
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F :8444
@@ -2329,10 +2112,7 @@ test_clustering_address() {
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node using a custom cluster port
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}" "dir" "8444"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "dir" "8444"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F node2
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -xF "database: true"
@@ -2376,25 +2156,17 @@ test_clustering_address() {
 }
 
 test_clustering_image_replication() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Image replication will be performed across all nodes in the cluster by default
   images_minimal_replica1=$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster.images_minimal_replica)
@@ -2419,10 +2191,7 @@ test_clustering_image_replication() {
   [ -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/images/${fingerprint}" ]
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Wait for the test image to be synced into the joined node on the background
   retries=10
@@ -2633,30 +2402,21 @@ test_clustering_dns() {
 }
 
 test_clustering_fan() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Import the test image on node1
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
-  fanbridge="${prefix}f"
+  local fanbridge="${bridge}f"
 
   echo "Create a fan bridge"
   LXD_DIR="${LXD_ONE_DIR}" lxc network create --target node1 "${fanbridge}"
@@ -2716,31 +2476,18 @@ test_clustering_fan() {
 
 test_clustering_recover() {
   # shellcheck disable=SC2034
-  LXD_DIR=
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Wait a bit for raft roles to update.
   sleep 5
@@ -2795,7 +2542,8 @@ test_clustering_recover() {
 # the cluster, filter out some bogus/spam/malicious requests without terminating
 # TLS and while preserving the original client IP addresses.
 test_clustering_ha() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
   local successes
   local failures
   local FOUND_RADOSGW
@@ -2807,23 +2555,13 @@ test_clustering_ha() {
     microceph disable rgw
   fi
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   echo "Get IP:port of all cluster members"
   LXD_ONE_ADDR="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get core.https_address)"
@@ -2929,16 +2667,9 @@ test_clustering_ha() {
 # node.
 test_clustering_handover() {
   # shellcheck disable=SC2034
-  LXD_DIR=
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   echo "Launched member 1"
 
@@ -2946,26 +2677,17 @@ test_clustering_handover() {
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   echo "Launched member 2"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   echo "Launched member 3"
 
   # Spawn a fourth node, this will be a non-voter, stand-by node.
-  setup_clustering_netns 4
-  ns4="${prefix}4"
-  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_ONE_DIR}"
-  LXD_FOUR_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
 
   echo "Launched member 4"
 
@@ -3043,37 +2765,21 @@ test_clustering_handover() {
 # stand-by.
 test_clustering_rebalance() {
   # shellcheck disable=SC2034
-  LXD_DIR=
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node
-  setup_clustering_netns 4
-  ns4="${prefix}4"
-  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_ONE_DIR}"
-  LXD_FOUR_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
 
   # Wait a bit for raft roles to update.
   sleep 5
@@ -3125,26 +2831,17 @@ test_clustering_rebalance() {
 }
 
 test_clustering_rebalance_remove_leader() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   echo "Create two node cluster"
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   echo "Verify clustering enabled on both nodes"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F node1
@@ -3196,25 +2893,16 @@ test_clustering_rebalance_remove_leader() {
 # Recover a cluster where a raft node was removed from the nodes table but not
 # from the raft configuration.
 test_clustering_remove_raft_node() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Configuration keys can be changed on any node.
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
@@ -3232,16 +2920,10 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create net1 --target node2
 
   # Spawn a third node, using the non-leader node2 as join target.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 2 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 2 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node, this will be a database-standby node.
-  setup_clustering_netns 4
-  ns4="${prefix}4"
-  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_ONE_DIR}"
-  LXD_FOUR_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
 
@@ -3311,49 +2993,28 @@ test_clustering_remove_raft_node() {
 }
 
 test_clustering_failure_domains() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node, using the non-leader node2 as join target.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 2 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 2 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node, this will be a non-database node.
-  setup_clustering_netns 4
-  ns4="${prefix}4"
-  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_ONE_DIR}"
-  LXD_FOUR_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node, using non-database node4 as join target.
-  setup_clustering_netns 5
-  ns5="${prefix}5"
-  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 4 "${LXD_ONE_DIR}"
-  LXD_FIVE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 5 4 "${LXD_ONE_DIR}"
 
   # Spawn a sixth node, using non-database node4 as join target.
-  setup_clustering_netns 6
-  ns6="${prefix}6"
-  spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 4 "${LXD_ONE_DIR}"
-  LXD_SIX_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 6 4 "${LXD_ONE_DIR}"
 
   # Default failure domain
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "failure_domain: default"
@@ -3408,21 +3069,19 @@ test_clustering_failure_domains() {
 }
 
 test_clustering_image_refresh() {
-  LXD_DIR=
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
+  ns1="" ns2="" ns3="" ns4="" ns5="" ns6=""
+  local LXD_ORIG_DIR="${LXD_DIR}"
+  readonly LXD_ORIG_DIR
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_DIR}")"
 
   # Spawn first node
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.images_minimal_replica 1
   LXD_DIR="${LXD_ONE_DIR}" lxc config set images.auto_update_interval 1
@@ -3434,20 +3093,14 @@ test_clustering_image_refresh() {
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn public node which has a public testimage
   setup_clustering_netns 4
-  LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_REMOTE_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
   ns4="${prefix}4"
 
   LXD_NETNS="${ns4}" spawn_lxd "${LXD_REMOTE_DIR}" false
@@ -3648,43 +3301,38 @@ test_clustering_image_refresh() {
 
   # shellcheck disable=SC2034
   LXD_NETNS=
+
+  # Restore original LXD_DIR
+  LXD_DIR="${LXD_ORIG_DIR}"
 }
 
 test_clustering_evacuation() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
+  local LXD_ORIG_DIR="${LXD_DIR}"
+  readonly LXD_ORIG_DIR
 
   echo "Create cluster with 3 nodes"
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_DIR}")"
 
   # Spawn first node
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_ONE_DIR="${LXD_DIR}"
-
-  echo "Check the state of the preseeded storage pool shows up as CREATED"
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
+  echo "Check the state of the preseeded storage pool shows up as CREATED"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
+
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   echo "Create local pool"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node1
@@ -4018,33 +3666,30 @@ test_clustering_evacuation() {
 
   # shellcheck disable=SC2034
   LXD_NETNS=
+
+  # Restore original LXD_DIR
+  LXD_DIR="${LXD_ORIG_DIR}"
 }
 
 test_clustering_evacuation_restore_operations() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
+
   echo "Create cluster with 2 nodes"
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_DIR}")"
 
   # Spawn first node
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   LXD_DIR="${LXD_ONE_DIR}"
   ensure_import_testimage
@@ -4105,47 +3750,26 @@ test_clustering_evacuation_restore_operations() {
 }
 
 test_clustering_edit_configuration() {
-  LXD_DIR=
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   # Bootstrap the first node
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn 6 nodes in total for role coverage.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
-  setup_clustering_netns 4
-  ns4="${prefix}4"
-  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_ONE_DIR}"
-  LXD_FOUR_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
 
-  setup_clustering_netns 5
-  ns5="${prefix}5"
-  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_ONE_DIR}"
-  LXD_FIVE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
 
-  setup_clustering_netns 6
-  ns6="${prefix}6"
-  spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 1 "${LXD_ONE_DIR}"
-  LXD_SIX_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 6 1 "${LXD_ONE_DIR}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
 
@@ -4164,8 +3788,8 @@ test_clustering_edit_configuration() {
   shutdown_lxd "${LXD_FOUR_DIR}"
 
   # Force-kill the last two to prevent leadership loss.
-  kill -9 "$(< "${LXD_FIVE_DIR}/lxd.pid)" 2>/dev/null || true
-  kill -9 "$(< "${LXD_SIX_DIR}/lxd.pid)" 2>/dev/null || true
+  kill -9 "$(< "${LXD_FIVE_DIR}/lxd.pid")" 2>/dev/null || true
+  kill -9 "$(< "${LXD_SIX_DIR}/lxd.pid")" 2>/dev/null || true
 
   config=$(mktemp -p "${TEST_DIR}" XXX)
   # Update the cluster configuration with new port numbers
@@ -4227,8 +3851,8 @@ test_clustering_edit_configuration() {
   shutdown_lxd "${LXD_FOUR_DIR}"
 
   # Force-kill the last two to prevent leadership loss.
-  kill -9 "$(< "${LXD_FIVE_DIR}/lxd.pid)" 2>/dev/null || true
-  kill -9 "$(< "${LXD_SIX_DIR}/lxd.pid)" 2>/dev/null || true
+  kill -9 "$(< "${LXD_FIVE_DIR}/lxd.pid")" 2>/dev/null || true
+  kill -9 "$(< "${LXD_SIX_DIR}/lxd.pid")" 2>/dev/null || true
 
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
@@ -4249,50 +3873,29 @@ test_clustering_edit_configuration() {
 }
 
 test_clustering_remove_members() {
-  LXD_DIR=
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   # Bootstrap the first node
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node
-  setup_clustering_netns 4
-  ns4="${prefix}4"
-  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_ONE_DIR}"
-  LXD_FOUR_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node
-  setup_clustering_netns 5
-  ns5="${prefix}5"
-  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_ONE_DIR}"
-  LXD_FIVE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
 
   # Spawn a sixth node
-  setup_clustering_netns 6
-  ns6="${prefix}6"
-  spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 1 "${LXD_ONE_DIR}"
-  LXD_SIX_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 6 1 "${LXD_ONE_DIR}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -F "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -F "server_name: node1"
@@ -4337,11 +3940,8 @@ test_clustering_remove_members() {
   # Check whether node6 is changed from a spare node to a leader node.
   LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -xF -- "- database-leader"
 
-  # Spawn a sixth node
-  setup_clustering_netns 7
-  ns7="${prefix}7"
-  spawn_lxd_and_join_cluster "${ns7}" "${bridge}" "${cert}" 7 6 "${LXD_SIX_DIR}"
-  LXD_SEVEN_DIR="${LXD_DIR}"
+  # Spawn a seventh node using node6 as the target
+  spawn_lxd_and_join_cluster "${cert}" 7 6 "${LXD_SIX_DIR}"
 
   # Ensure the remaining node is working by join a new node7
   LXD_DIR="${LXD_SIX_DIR}" lxc info --target node7 | grep -F "server_name: node7"
@@ -4378,25 +3978,16 @@ test_clustering_remove_members() {
 }
 
 test_clustering_autotarget() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Use node1 for all cluster actions.
   LXD_DIR="${LXD_ONE_DIR}"
@@ -4426,32 +4017,20 @@ test_clustering_autotarget() {
 }
 
 test_clustering_groups() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   echo 'Create cluster with 3 nodes'
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
   lxc remote add cluster --token "${token}" "https://100.64.1.101:8443"
@@ -4703,43 +4282,25 @@ EOF
 }
 
 test_clustering_events() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
-
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node.
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node.
-  setup_clustering_netns 4
-  ns4="${prefix}4"
-  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_ONE_DIR}"
-  LXD_FOUR_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node.
-  setup_clustering_netns 5
-  ns5="${prefix}5"
-  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_ONE_DIR}"
-  LXD_FIVE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
@@ -4901,43 +4462,26 @@ test_clustering_events() {
 }
 
 test_clustering_roles() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node.
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node.
-  setup_clustering_netns 4
-  ns4="${prefix}4"
-  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_ONE_DIR}"
-  LXD_FOUR_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node.
-  setup_clustering_netns 5
-  ns5="${prefix}5"
-  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_ONE_DIR}"
-  LXD_FIVE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
 
   # Configure cluster with max_voters=3 and max_standby=1
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.max_voters=3 cluster.max_standby=1 cluster.offline_threshold=11
@@ -5023,25 +4567,17 @@ test_clustering_roles() {
 }
 
 test_clustering_uuid() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
   # create two cluster nodes
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # spawn an instance on the first LXD node
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 --target=node1
@@ -5074,25 +4610,17 @@ test_clustering_uuid() {
 }
 
 test_clustering_trust_add() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
   # create two cluster nodes
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Check using token that is expired
 
@@ -5168,25 +4696,17 @@ test_clustering_trust_add() {
 }
 
 test_clustering_projects_force_delete() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   echo "Capture baseline state before creating project."
   VOLUMES_BEFORE="$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list -f csv --all-projects)"
@@ -5276,44 +4796,27 @@ test_clustering_projects_force_delete() {
 }
 
 test_clustering_placement_groups() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   echo "Create cluster with 5 members."
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node.
-  setup_clustering_netns 4
-  ns4="${prefix}4"
-  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_ONE_DIR}"
-  LXD_FOUR_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node.
-  setup_clustering_netns 5
-  ns5="${prefix}5"
-  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_ONE_DIR}"
-  LXD_FIVE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
 
   echo "==> Test spread/strict: initial placement"
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-spread-strict policy=spread rigor=strict
@@ -5526,32 +5029,21 @@ test_clustering_placement_groups() {
 }
 
 test_clustering_force_removal() {
-  LXD_DIR=
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   echo "Create cluster with 3 members."
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
 
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node.
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}"
-  LXD_THREE_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Spawn an instance on the third node.
   LXD_DIR="${LXD_THREE_DIR}" ensure_import_testimage
@@ -5614,45 +5106,34 @@ test_clustering_force_removal() {
 }
 
 test_clustering_recovery() {
-  LXD_DIR=
-
-  setup_clustering_bridge
-  prefix="lxd$$"
-  bridge="${prefix}"
+  # shellcheck disable=SC2034
+  LXD_NETNS="" ns="" prefix="" bridge=""
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  pool_driver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "$LXD_DIR")"
 
-  setup_clustering_netns 1
-  ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${pool_driver}"
-  LXD_ONE_DIR="${LXD_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node.
-  setup_clustering_netns 2
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_ONE_DIR}" "${pool_driver}"
-  LXD_TWO_DIR="${LXD_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn a third node using a custom loop device outside of LXD's directory.
   configure_loop_device loop_file_1 loop_device_1
   # shellcheck disable=SC2154
   source="${loop_device_1}"
-  if [ "${pool_driver}" = "dir" ]; then
+  if [ "${poolDriver}" = "dir" ]; then
     # The dir driver is special as it requires the source to be a directory.
     mkfs.ext4 "${source}"
     mkdir -p "${TEST_DIR}/pools/data"
     mount "${source}" "${TEST_DIR}/pools/data"
     source="${TEST_DIR}/pools/data"
   fi
-  setup_clustering_netns 3
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_ONE_DIR}" "${pool_driver}"
-  LXD_THREE_DIR="${LXD_DIR}" 8443 "${source}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Create an instance and custom volume on the third node's data pool.
   ensure_import_testimage
@@ -5669,19 +5150,19 @@ test_clustering_recovery() {
   # Check that both the instance and custom volume are gone.
   # When using Ceph RBD the volume is still present as it is not bound to any cluster member.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc config show c1 || false
-  if [ "${pool_driver}" != "ceph" ]; then
+  if [ "${poolDriver}" != "ceph" ]; then
     ! LXD_DIR="${LXD_ONE_DIR}" lxc storage volume show data vol1 || false
   fi
 
   # Recreate the third cluster member.
-  if [ "${pool_driver}" = "zfs" ]; then
+  if [ "${poolDriver}" = "zfs" ]; then
     # Use the name of the existing ZFS zpool as source.
     source="lxdtest-$(basename "${TEST_DIR}")-${ns3}"
   fi
   # Recreate the original directory of the third cluster member.
   # We reuse the name (path) to ensure the same name of the underlying storage artifacts.
   mkdir "${LXD_THREE_DIR}"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${pool_driver}" 8443 "${source}" true
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}" true
 
   # Recover instance and custom volume from the third node's data pool.
   # We also require recovery for remote drivers as the DB entries got purged when force removing the cluster member.
@@ -5702,7 +5183,7 @@ EOF
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_TWO_DIR}" lxc storage delete data
 
-  if [ "${pool_driver}" = "dir" ]; then
+  if [ "${poolDriver}" = "dir" ]; then
     umount "${TEST_DIR}/pools/data"
     rm -rf "${TEST_DIR}/pools/data"
   fi
