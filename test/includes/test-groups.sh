@@ -52,9 +52,9 @@ readonly test_group_cluster=(
 readonly test_group_cluster_storage=(
     "clustering_image_refresh"
     "clustering_image_replication"
-    "clustering_recovery"
     "clustering_storage"
     "clustering_storage_single_node"
+    "clustering_recovery"
 )
 
 readonly test_group_instance=(
