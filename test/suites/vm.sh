@@ -96,7 +96,8 @@ test_vm_pcie_bus() {
   [ "$(lxc config get v1 volatile.root.bus)" = "6" ]
 
   # Check hotplugging block volume.
-  poolDriver=$(lxc storage show "${pool}" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_DIR}")"
 
   if [ "$(lxc config get --expanded v1 migration.stateful || echo fail)" = "" ] || [ "${poolDriver}" = "ceph" ]; then
     # Check using PCIe based virtio-blk when using shared storage or migration.stateful disabled.

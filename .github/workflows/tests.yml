@@ -96,16 +96,6 @@ jobs:
         uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
         if: github.event_name == 'pull_request'
 
-      # XXX: `make static-analysis` also run shellcheck but this one provides
-      #      useful feedback in the PR through github-code-scanning bot
-      - id: ShellCheck
-        name: Differential ShellCheck
-        uses: redhat-plumbers-in-action/differential-shellcheck@0d9e5b29625f871e6a4215380486d6f1a7cb6cdd # v5.5.5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          strict-check-on-push: true
-        if: github.event_name == 'pull_request'
-
       - name: Upload artifact with ShellCheck defects in SARIF format
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
