@@ -306,14 +306,7 @@ EOF
 }
 
 respawn_lxd_cluster_member() {
-  # shellcheck disable=SC2034
-  local LXD_NETNS
-  set -e
-
-  local ns="${1}"
-  LXD_DIR="${2}"
-
-  LXD_NETNS="${ns}" respawn_lxd "${LXD_DIR}" true
+  LXD_NETNS="${1}" respawn_lxd "${2}" true
 }
 
 is_uuid_v4() {
