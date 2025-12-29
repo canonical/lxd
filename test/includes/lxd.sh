@@ -90,9 +90,7 @@ spawn_lxd() {
     if [ "${LXD_NETNS}" = "" ]; then
         lxd --logfile "${LXD_DIR}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     else
-        # shellcheck disable=SC2153
-        read -r pid < "${TEST_DIR}/ns/${LXD_NETNS}/PID"
-        nsenter -n -m -t "${pid}" lxd --logfile "${LXD_DIR}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
+        nsenter -n -m -t "$(< "${TEST_DIR}/ns/${LXD_NETNS}/PID")" lxd --logfile "${LXD_DIR}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     fi
     local LXD_PID=$!
     echo "${LXD_PID}" > "${LXD_DIR}/lxd.pid"
