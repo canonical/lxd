@@ -115,14 +115,8 @@ spawn_lxd_and_bootstrap_cluster() {
   ns="${1}"
   bridge="${2}"
   LXD_DIR="${3}"
-  driver="dir"
-  port=""
-  if [ "$#" -ge  "4" ]; then
-      driver="${4}"
-  fi
-  if [ "$#" -ge  "5" ]; then
-      port="${5}"
-  fi
+  local driver="${4:-dir}"
+  local port="${5:-}"
 
   echo "==> Spawn bootstrap cluster node in ${ns} with storage driver ${driver}"
 
