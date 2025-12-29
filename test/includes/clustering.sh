@@ -112,8 +112,6 @@ teardown_clustering_netns() {
 }
 
 spawn_lxd_and_bootstrap_cluster() {
-  set -e
-
   ns="${1}"
   bridge="${2}"
   LXD_DIR="${3}"
@@ -129,56 +127,54 @@ spawn_lxd_and_bootstrap_cluster() {
   echo "==> Spawn bootstrap cluster node in ${ns} with storage driver ${driver}"
 
   LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
-  (
-    set -e
 
-    cat > "${LXD_DIR}/preseed.yaml" <<EOF
-config:
-  core.https_address: 100.64.1.101:8443
-EOF
+  local preseed
+  preseed="config:
+  core.https_address: 100.64.1.101:8443"
+
     if [ "${port}" != "" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  cluster.https_address: 100.64.1.101:${port}
-EOF
+    preseed+="
+  cluster.https_address: 100.64.1.101:${port}"
     fi
-    cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+
+  preseed+="
   images.auto_update_interval: 0
 storage_pools:
 - name: data
-  driver: $driver
-EOF
+  driver: ${driver}"
+
     if [ "${driver}" = "btrfs" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    preseed+="
   config:
-    size: 1GiB
-EOF
+    size: 1GiB"
     fi
+
     if [ "${driver}" = "zfs" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    preseed+="
   config:
     size: 1GiB
-    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
+    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}"
     fi
+
     if [ "${driver}" = "lvm" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    preseed+="
   config:
     volume.size: 25MiB
     size: 1GiB
-    lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
+    lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}"
     fi
+
     if [ "${driver}" = "ceph" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    preseed+="
   config:
     source: lxdtest-$(basename "${TEST_DIR}")
     volume.size: 25MiB
-    ceph.osd.pg_num: 16
-EOF
+    ceph.osd.pg_num: 16"
     fi
-    cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+
+  preseed+="
 networks:
-- name: $bridge
+- name: ${bridge}
   type: bridge
   config:
     ipv4.address: none
