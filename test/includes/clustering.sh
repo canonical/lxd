@@ -88,9 +88,7 @@ EOF
 }
 
 teardown_clustering_netns() {
-  local prefix="lxd$$"
-  local nsbridge="br$$"
-  local ns veth1 pid
+  local ns veth1
 
   [ -d "${TEST_DIR}/ns/" ] || return
 
@@ -103,8 +101,7 @@ teardown_clustering_netns() {
         ip link del "${veth1}"
       fi
 
-      pid="$(< "${TEST_DIR}/ns/${ns}/PID")"
-      kill -9 "${pid}" 2>/dev/null || true
+      kill -9 "$(< "${TEST_DIR}/ns/${ns}/PID")" 2>/dev/null || true
 
       umount -l "${TEST_DIR}/ns/${ns}/net" >/dev/null 2>&1 || true
       rm -Rf "${TEST_DIR}/ns/${ns}"
