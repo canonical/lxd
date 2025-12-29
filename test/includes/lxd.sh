@@ -252,13 +252,6 @@ kill_lxd() {
         # Kill the daemon
         timeout -k 30 30 lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
 
-        sleep 2
-
-        # Cleanup devlxd and shmounts (needed due to the forceful kill)
-        # Only try to unmount things on the same filesystem as LXD_DIR and only if they are directories.
-        # This is to avoid stepping on the snap symlink that appears to be dangling from the host's point of view.
-        find "${LXD_DIR}" -type d -xdev \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
-
         check_leftovers="true"
     fi
 
@@ -275,23 +268,6 @@ kill_lxd() {
     fi
 
     if [ "${check_leftovers}" = "true" ]; then
-        echo "==> Checking for leftover files"
-        rm -f "${LXD_DIR}/containers/lxc-monitord.log"
-
-        # Support AppArmor policy cache directory
-        apparmor_cache_dir="$(apparmor_parser --cache-loc "${LXD_DIR}"/security/apparmor/cache --print-cache-dir)"
-        rm -f "${apparmor_cache_dir}/.features"
-        check_empty "${LXD_DIR}/containers/"
-        check_empty "${LXD_DIR}/devices/"
-        check_empty "${LXD_DIR}/images/"
-        # FIXME: Once container logging rework is done, uncomment
-        # check_empty "${LXD_DIR}/logs/"
-        check_empty "${apparmor_cache_dir}"
-        check_empty "${LXD_DIR}/security/apparmor/profiles/"
-        check_empty "${LXD_DIR}/security/seccomp/"
-        check_empty "${LXD_DIR}/shmounts/"
-        check_empty "${LXD_DIR}/snapshots/"
-
         echo "==> Checking for leftover DB entries"
         check_empty_table "${LXD_DIR}/database/global/db.bin" "images"
         check_empty_table "${LXD_DIR}/database/global/db.bin" "images_aliases"
@@ -314,6 +290,28 @@ kill_lxd() {
         check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_pools_nodes"
         check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_volumes"
         check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_volumes_config"
+
+        # Cleanup devlxd and shmounts (needed due to the forceful kill)
+        # Only try to unmount things on the same filesystem as LXD_DIR and only if they are directories.
+        # This is to avoid stepping on the snap symlink that appears to be dangling from the host's point of view.
+        find "${LXD_DIR}" -type d -xdev \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
+
+        echo "==> Checking for leftover files"
+        rm -f "${LXD_DIR}/containers/lxc-monitord.log"
+
+        # Support AppArmor policy cache directory
+        apparmor_cache_dir="$(apparmor_parser --cache-loc "${LXD_DIR}"/security/apparmor/cache --print-cache-dir)"
+        rm -f "${apparmor_cache_dir}/.features"
+        check_empty "${LXD_DIR}/containers/"
+        check_empty "${LXD_DIR}/devices/"
+        check_empty "${LXD_DIR}/images/"
+        # FIXME: Once container logging rework is done, uncomment
+        # check_empty "${LXD_DIR}/logs/"
+        check_empty "${apparmor_cache_dir}"
+        check_empty "${LXD_DIR}/security/apparmor/profiles/"
+        check_empty "${LXD_DIR}/security/seccomp/"
+        check_empty "${LXD_DIR}/shmounts/"
+        check_empty "${LXD_DIR}/snapshots/"
     fi
 
     # teardown storage
