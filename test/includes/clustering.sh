@@ -188,19 +188,15 @@ profiles:
       type: disk
 cluster:
   server_name: node1
-  enabled: true
-EOF
+  enabled: true"
 
   # Print the preseed for debugging purposes.
-  cat "${LXD_DIR}/preseed.yaml"
+  echo "${preseed}"
 
-  lxd init --preseed < "${LXD_DIR}/preseed.yaml"
-  )
+  lxd init --preseed <<< "${preseed}"
 }
 
 spawn_lxd_and_join_cluster() {
-  set -e
-
   ns="${1}"
   bridge="${2}"
   cert="${3}"
@@ -232,71 +228,67 @@ spawn_lxd_and_join_cluster() {
   echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
 
   LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
-  (
-    set -e
 
-    # If a custom cluster port was given, we need to first set the REST
-    # API address.
-    if [ "${port}" != "8443" ]; then
-      lxc config set core.https_address "100.64.1.10${index}:8443"
-    fi
+  # If a custom cluster port was given, we need to first set the REST
+  # API address.
+  if [ "${port}" != "8443" ]; then
+    lxc config set core.https_address "100.64.1.10${index}:8443"
+  fi
 
-    cat > "${LXD_DIR}/preseed.yaml" <<EOF
-cluster:
+  local preseed
+  preseed="cluster:
   enabled: true
   server_name: node${index}
   server_address: 100.64.1.10${index}:${port}
   cluster_address: 100.64.1.10${target}:8443
-  cluster_certificate: "$cert"
+  cluster_certificate: \"${cert}\"
   cluster_token: ${token}
-  member_config:
-EOF
+  member_config:"
+
     # Declare the pool only if the driver is not ceph, because
     # the ceph pool doesn't need to be created on the joining
     # node (it's shared with the bootstrap one).
     if [ "${driver}" != "ceph" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    preseed+="
   - entity: storage-pool
     name: data
     key: source
-    value: "${source}"
+    value: \"${source}\"
   - entity: storage-pool
     name: data
     key: source.recover
-    value: ${source_recover}
-EOF
+    value: ${source_recover}"
+
       if [ "${driver}" = "zfs" ]; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+      preseed+="
   - entity: storage-pool
     name: data
     key: zfs.pool_name
-    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
+    value: lxdtest-$(basename "${TEST_DIR}")-${ns}"
       fi
+
       if [ "${driver}" = "lvm" ]; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+      preseed+="
   - entity: storage-pool
     name: data
     key: lvm.vg_name
-    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
+    value: lxdtest-$(basename "${TEST_DIR}")-${ns}"
       fi
+
       # shellcheck disable=SC2235
       if [ "${source}" = "" ] && { [ "${driver}" = "btrfs" ] || [ "${driver}" = "zfs" ] || [ "${driver}" = "lvm" ]; }; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+      preseed+="
   - entity: storage-pool
     name: data
     key: size
-    value: 1GiB
-EOF
+    value: 1GiB"
       fi
     fi
 
     # Print the preseed for debugging purposes.
-    cat "${LXD_DIR}/preseed.yaml"
+  echo "${preseed}"
 
-    lxd init --preseed < "${LXD_DIR}/preseed.yaml"
-  )
+  lxd init --preseed <<< "${preseed}"
 }
 
 respawn_lxd_cluster_member() {
