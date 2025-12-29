@@ -197,27 +197,14 @@ spawn_lxd_and_join_cluster() {
   index="${4}"
   target="${5}"
   LXD_DIR="${6}"
+  local token="${7}"
   if [ -d "${7}" ]; then
     token="$(LXD_DIR=${7} lxc cluster add --quiet "node${index}")"
-  else
-    token="${7}"
   fi
-  driver="dir"
-  port="8443"
-  source=""
-  source_recover="false"
-  if [ "$#" -ge  "8" ]; then
-      driver="${8}"
-  fi
-  if [ "$#" -ge  "9" ]; then
-      port="${9}"
-  fi
-  if [ "$#" -ge  "10" ]; then
-      source="${10}"
-  fi
-  if [ "$#" -ge  "11" ]; then
-      source_recover="${11}"
-  fi
+  local driver="${8:-dir}"
+  local port="${9:-8443}"
+  local source="${10:-}"
+  local source_recover="${11:-false}"
 
   echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
 
