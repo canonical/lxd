@@ -3503,7 +3503,7 @@ test_clustering_image_refresh() {
   done
 
   # Modify public testimage
-  dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
+  echo "${RANDOM}" | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
   LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --reuse --public
   new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
 
@@ -3586,7 +3586,7 @@ test_clustering_image_refresh() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   # Modify public testimage
-  dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
+  echo "${RANDOM}" | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
   LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --reuse --public
   new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
 
