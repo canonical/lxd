@@ -4766,7 +4766,7 @@ test_clustering_events() {
   LXD_DIR="${LXD_FOUR_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
   LXD_DIR="${LXD_FIVE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
 
-  ensure_import_testimage
+  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
 
   # c1 should go to node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
