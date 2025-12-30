@@ -132,7 +132,9 @@ test_clustering_membership() {
   # Spawn a second node
   setup_clustering_netns 2
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  # shellcheck disable=SC2154
   ns2="${prefix}2"
+  # shellcheck disable=SC2154
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
 
   # Neither server certificate can be deleted
@@ -149,6 +151,7 @@ test_clustering_membership() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get cluster.offline_threshold)" = "11" ]
 
   # The preseeded network bridge exists on all nodes.
+  # shellcheck disable=SC2154
   nsenter -m -n -t "$(< "${TEST_DIR}/ns/${ns1}/PID")" -- ip link show "${bridge}" > /dev/null
   nsenter -m -n -t "$(< "${TEST_DIR}/ns/${ns2}/PID")" -- ip link show "${bridge}" > /dev/null
 
