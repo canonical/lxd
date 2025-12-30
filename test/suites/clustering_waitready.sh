@@ -11,7 +11,9 @@ test_clustering_waitready() {
   # Spawn a second node.
   setup_clustering_netns 2
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  # shellcheck disable=SC2154
   ns2="${prefix}2"
+  # shellcheck disable=SC2154
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
 
   # Spawn a third node.
@@ -42,6 +44,7 @@ test_clustering_waitready() {
   driver_config_node3="${driver_config}"
 
   if [ "${poolDriver}" = "zfs" ]; then
+      # shellcheck disable=SC2154
       driver_config_node1="${driver_config_node1} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns1}"
       driver_config_node2="${driver_config_node2} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns2}"
       driver_config_node3="${driver_config_node3} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns3}"
