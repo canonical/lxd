@@ -2668,8 +2668,7 @@ test_clustering_fan() {
   echo "Create a fan bridge"
   LXD_DIR="${LXD_ONE_DIR}" lxc network create --target node1 "${fanbridge}"
   LXD_DIR="${LXD_ONE_DIR}" lxc network create --target node2 "${fanbridge}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${fanbridge}" bridge.mode=fan
-  LXD_DIR="${LXD_ONE_DIR}" lxc network set "${fanbridge}" dns.domain=fantastic
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${fanbridge}" bridge.mode=fan dns.domain=fantastic
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${fanbridge}"
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" bridge.mode)" = "fan" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" dns.domain)" = "fantastic" ]
