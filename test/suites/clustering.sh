@@ -1759,7 +1759,8 @@ test_clustering_profiles() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 -p default -p web testimage c2
 
   # Edit the profile.
-  source=$(mktemp -d -p "${TEST_DIR}" XXX)
+  local source
+  source="$(mktemp -d -p "${TEST_DIR}" XXX)"
   touch "${source}/hello"
   chmod 755 "${source}"
   chmod 644 "${source}/hello"
@@ -1784,6 +1785,8 @@ EOF
 
   LXD_DIR="${LXD_TWO_DIR}" lxc stop c1 --force
   LXD_DIR="${LXD_ONE_DIR}" lxc stop c2 --force
+
+  rm -rf "${source}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
