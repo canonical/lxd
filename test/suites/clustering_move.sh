@@ -1,8 +1,7 @@
 test_clustering_move() {
-  # shellcheck disable=SC2034
-  local LXD_DIR
-
   echo "Create cluster with 3 nodes."
+  # shellcheck disable=SC2154
+  local prefix="${prefix}" bridge="${bridge}"
 
   spawn_lxd_and_bootstrap_cluster
 
