@@ -5289,7 +5289,7 @@ test_clustering_recovery() {
 
   # Recover instance and custom volume from the third node's data pool.
   # We also require recovery for remote drivers as the DB entries got purged when force removing the cluster member.
-  LXD_DIR="${LXD_THREE_DIR}" cat <<EOF | lxd recover
+  LXD_DIR="${LXD_THREE_DIR}" lxd recover <<EOF
 yes
 yes
 EOF
