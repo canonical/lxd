@@ -29,8 +29,7 @@ setup_clustering_netns() {
 
   echo "==> Setup clustering netns ${ns}"
 
-  cat << EOF | unshare -m -n /bin/sh
-set -e
+  unshare -m -n /bin/sh -e << EOF
 mkdir -p "${TEST_DIR}/ns/${ns}"
 touch "${TEST_DIR}/ns/${ns}/net"
 mount -o bind /proc/self/ns/net "${TEST_DIR}/ns/${ns}/net"
@@ -49,9 +48,9 @@ touch /run/netns/hostns
 mount --bind /proc/1/ns/net /run/netns/hostns
 
 mount -t tmpfs tmpfs /usr/local/bin
-cat << EOE > /usr/local/bin/in-hostnetns
+cat <<'EOE' > /usr/local/bin/in-hostnetns
 #!/bin/sh
-exec ip netns exec hostns /usr/bin/\\\$(basename \\\$0) "\\\$@"
+exec ip netns exec hostns /usr/bin/$(basename "$0") "$@"
 EOE
 chmod +x /usr/local/bin/in-hostnetns
 # Setup ceph
@@ -72,9 +71,7 @@ EOF
 
   local nsbridge="br$$"
   ip link set dev "${veth1}" master "${nsbridge}" up
-  cat << EOF | nsenter -n -m -t "${nspid}" /bin/sh
-set -e
-
+  nsenter -n -m -t "${nspid}" /bin/sh -e << EOF
 ip link set dev lo up
 ip link set dev "${veth2}" name eth0
 ip link set eth0 up
