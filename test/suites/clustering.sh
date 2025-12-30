@@ -1778,8 +1778,8 @@ used_by:
 - /1.0/instances/c2
 EOF
 
-  LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 -- ls /mnt | grep -xF hello
-  LXD_DIR="${LXD_TWO_DIR}" lxc exec c2 -- ls /mnt | grep -xF hello
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 -- test -e /mnt/hello
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec c2 -- test -e /mnt/hello
 
   LXD_DIR="${LXD_TWO_DIR}" lxc stop c1 --force
   LXD_DIR="${LXD_ONE_DIR}" lxc stop c2 --force
