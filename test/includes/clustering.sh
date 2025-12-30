@@ -25,14 +25,21 @@ teardown_clustering_bridge() {
 
 setup_clustering_netns() {
   local id="${1}"
+  # shellcheck disable=SC2154
   local ns="${prefix}${id}"
+  local ns_dir="${TEST_DIR}/ns/${ns}"
+  local veth1="v${ns}1"
+  local veth2="v${ns}2"
+  local nsbridge="br$$"
+  local netns_link="/run/netns/${ns}"
 
   echo "==> Setup clustering netns ${ns}"
 
-  unshare -m -n /bin/sh -e << EOF
-mkdir -p "${TEST_DIR}/ns/${ns}"
-touch "${TEST_DIR}/ns/${ns}/net"
-mount -o bind /proc/self/ns/net "${TEST_DIR}/ns/${ns}/net"
+  TEST_DIR="${TEST_DIR}" ns="${ns}" ns_dir="${ns_dir}" unshare -m -n /bin/sh <<'EOF'
+set -e
+mkdir -p "${ns_dir}"
+touch "${ns_dir}/net"
+mount -o bind /proc/self/ns/net "${ns_dir}/net"
 mount --move /sys /mnt
 umount -l /proc
 mount -t sysfs sysfs /sys
@@ -57,34 +64,34 @@ chmod +x /usr/local/bin/in-hostnetns
 ln -s in-hostnetns /usr/local/bin/ceph
 ln -s in-hostnetns /usr/local/bin/rbd
 
-sleep 300&
-echo \$! > "${TEST_DIR}/ns/${ns}/PID"
+sleep 300 & echo $! > "${ns_dir}/PID"
 EOF
 
-  local veth1="v${ns}1"
-  local veth2="v${ns}2"
   local nspid
-  nspid=$(< "${TEST_DIR}/ns/${ns}/PID")
+  nspid="$(< "${ns_dir}/PID")"
 
-  ip link add "${veth1}" type veth peer name "${veth2}"
-  ip link set "${veth2}" netns "${nspid}"
-
-  local nsbridge="br$$"
-  ip link set dev "${veth1}" master "${nsbridge}" up
-  nsenter -n -m -t "${nspid}" /bin/sh -e << EOF
-ip link set dev lo up
-ip link set dev "${veth2}" name eth0
-ip link set eth0 up
-ip addr add "100.64.1.10${id}/16" dev eth0
-ip route add default via 100.64.1.1
-ip link add localBridge${id} type bridge
+  ip -batch - <<EOF
+link add ${veth1} type veth peer name ${veth2}
+link set dev ${veth2} netns ${nspid}
+link set dev ${veth1} master ${nsbridge}
+link set dev ${veth1} up
+EOF
+  mkdir -p /run/netns
+  ln -snf "/proc/${nspid}/ns/net" "${netns_link}"
+  ip -n "${ns}" -batch - <<EOF
+link set dev lo up
+link set dev ${veth2} name eth0
+link set dev eth0 up
+addr add 100.64.1.10${id}/16 dev eth0
+route add default via 100.64.1.1
+link add localBridge${id} type bridge
 EOF
 }
 
 teardown_clustering_netns() {
-  local ns veth1
+  [ -d "${TEST_DIR}/ns/" ] || return 0
 
-  [ -d "${TEST_DIR}/ns/" ] || return
+  local ns veth1
 
   # shellcheck disable=SC2045
   for ns in $(ls -1 "${TEST_DIR}/ns/"); do
@@ -99,6 +106,7 @@ teardown_clustering_netns() {
 
       umount -l "${TEST_DIR}/ns/${ns}/net" >/dev/null 2>&1 || true
       rm -Rf "${TEST_DIR}/ns/${ns}"
+      rm -f "/run/netns/${ns}"
   done
 }
 
