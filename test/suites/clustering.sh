@@ -5671,8 +5671,7 @@ test_clustering_recovery() {
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${pool_driver}" 8443 "${source}"
 
   # Create an instance and custom volume on the third node's data pool.
-  ensure_import_testimage
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 -s data --target node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -s data --target node3
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data vol1 --target node3 size=32MiB
 
   # Kill the third cluster member.
@@ -5711,7 +5710,7 @@ EOF
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume show data vol1
 
   # Cleanup.
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete data vol1
 
   # Ensure cleanup of the cluster's data pool to not leave any traces behind when we are using a different driver besides dir.
