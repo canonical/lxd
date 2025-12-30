@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -29,4 +30,13 @@ func parseMemoryStr(memory string) (valueInt int64, err error) {
 	}
 
 	return valueInt, err
+}
+
+// validateMemoryLimit checks if the memory limit is too low (less than 50MiB).
+func validateMemoryLimit(valueInt int64) error {
+	if valueInt < 50*1024*1024 {
+		return fmt.Errorf("memory limit is too low (minimum 50MiB). Did you mean GiB?")
+	}
+
+	return nil
 }

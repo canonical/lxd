@@ -1111,6 +1111,11 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 				return nil, err
 			}
 
+			err = validateMemoryLimit(valueInt)
+			if err != nil {
+				return nil, err
+			}
+
 			if memoryEnforce == "soft" {
 				err = cg.SetMemorySoftLimit(valueInt)
 				if err != nil {
@@ -4260,6 +4265,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					memoryInt = -1
 				} else {
 					memoryInt, err = parseMemoryStr(memory)
+					if err != nil {
+						return err
+					}
+
+					err = validateMemoryLimit(memoryInt)
 					if err != nil {
 						return err
 					}

@@ -38,7 +38,7 @@ import (
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	agentAPI "github.com/canonical/lxd/lxd-agent/api"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup/config"
@@ -1046,6 +1046,11 @@ func (d *qemu) validateRootDiskStatefulStop() error {
 	memoryLimit, err := parseMemoryStr(memoryLimitStr)
 	if err != nil {
 		return fmt.Errorf("Failed parsing limits.memory: %w", err)
+	}
+
+	err = validateMemoryLimit(memoryLimit)
+	if err != nil {
+		return err
 	}
 
 	if stateDiskSize < memoryLimit {
