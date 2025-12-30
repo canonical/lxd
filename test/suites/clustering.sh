@@ -554,7 +554,8 @@ test_clustering_storage() {
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_INITIAL_DIR}")"
 
   setup_clustering_netns 1
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -1023,7 +1024,8 @@ test_clustering_storage_single_node() {
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_INITIAL_DIR}")"
 
   setup_clustering_netns 1
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -3431,7 +3433,8 @@ test_clustering_image_refresh() {
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "$LXD_INITIAL_DIR")"
 
   # Spawn first node
   setup_clustering_netns 1
@@ -3674,7 +3677,8 @@ test_clustering_evacuation() {
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "$LXD_INITIAL_DIR")"
 
   # Spawn first node
   setup_clustering_netns 1
@@ -4044,7 +4048,8 @@ test_clustering_evacuation_restore_operations() {
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "$LXD_INITIAL_DIR")"
 
   # Spawn first node
   setup_clustering_netns 1
@@ -5638,12 +5643,13 @@ test_clustering_recovery() {
 
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
-  pool_driver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  local poolDriver
+  poolDriver="$(storage_backend "$LXD_INITIAL_DIR")"
 
   setup_clustering_netns 1
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${pool_driver}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
@@ -5652,13 +5658,13 @@ test_clustering_recovery() {
   setup_clustering_netns 2
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}" "${pool_driver}"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn a third node using a custom loop device outside of LXD's directory.
   configure_loop_device loop_file_1 loop_device_1 128M  # 128M to accommodate for btrfs
   # shellcheck disable=SC2154
   source="${loop_device_1}"
-  if [ "${pool_driver}" = "dir" ]; then
+  if [ "${poolDriver}" = "dir" ]; then
     # The dir driver is special as it requires the source to be a directory.
     mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${source}"
     mkdir -p "${TEST_DIR}/pools/data"
@@ -5668,7 +5674,7 @@ test_clustering_recovery() {
   setup_clustering_netns 3
   LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${pool_driver}" 8443 "${source}"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}"
 
   # Create an instance and custom volume on the third node's data pool.
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -s data --target node3
@@ -5684,19 +5690,19 @@ test_clustering_recovery() {
   # Check that both the instance and custom volume are gone.
   # When using Ceph RBD the volume is still present as it is not bound to any cluster member.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc config show c1 || false
-  if [ "${pool_driver}" != "ceph" ]; then
+  if [ "${poolDriver}" != "ceph" ]; then
     ! LXD_DIR="${LXD_ONE_DIR}" lxc storage volume show data vol1 || false
   fi
 
   # Recreate the third cluster member.
-  if [ "${pool_driver}" = "zfs" ]; then
+  if [ "${poolDriver}" = "zfs" ]; then
     # Use the name of the existing ZFS zpool as source.
     source="lxdtest-$(basename "${TEST_DIR}")-${ns3}"
   fi
   # Recreate the original directory of the third cluster member.
   # We reuse the name (path) to ensure the same name of the underlying storage artifacts.
   mkdir "${LXD_THREE_DIR}"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${pool_driver}" 8443 "${source}" true
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}" true
 
   # Recover instance and custom volume from the third node's data pool.
   # We also require recovery for remote drivers as the DB entries got purged when force removing the cluster member.
@@ -5717,7 +5723,7 @@ EOF
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_TWO_DIR}" lxc storage delete data
 
-  if [ "${pool_driver}" = "dir" ]; then
+  if [ "${poolDriver}" = "dir" ]; then
     umount "${TEST_DIR}/pools/data"
     rm -rf "${TEST_DIR}/pools/data"
   fi
