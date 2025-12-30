@@ -1811,6 +1811,7 @@ test_clustering_update_cert() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
+  local cert_path key_path
   cert_path=$(mktemp -p "${TEST_DIR}" XXX)
   key_path=$(mktemp -p "${TEST_DIR}" XXX)
 
@@ -1859,6 +1860,8 @@ test_clustering_update_cert() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -F "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+
+  rm "${cert_path}" "${key_path}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -1949,6 +1952,8 @@ test_clustering_update_cert_reversion() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc warning list | grep -F "Unable to update cluster certificate"
 
+  rm "${cert_path}" "${key_path}"
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
@@ -1975,6 +1980,7 @@ test_clustering_update_cert_token() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
+  local cert_path key_path
   cert_path=$(mktemp -p "${TEST_DIR}" XXX)
   key_path=$(mktemp -p "${TEST_DIR}" XXX)
 
@@ -2036,6 +2042,8 @@ test_clustering_update_cert_token() {
   lxc remote add cluster "${token}"
   lxc cluster list cluster:
   lxc remote remove cluster
+
+  rm "${cert_path}" "${key_path}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
