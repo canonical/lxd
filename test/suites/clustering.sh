@@ -3783,7 +3783,7 @@ test_clustering_remove_members() {
   # Check whether node6 is changed from a spare node to a leader node.
   LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -xF -- "- database-leader"
 
-  # Spawn a sixth node
+  # Spawn a seventh node
   spawn_lxd_and_join_cluster "${cert}" 7 6 "${LXD_SIX_DIR}"
 
   # Ensure the remaining node is working by join a new node7
