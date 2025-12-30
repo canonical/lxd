@@ -25,9 +25,6 @@ teardown_clustering_bridge() {
 
 setup_clustering_netns() {
   local id="${1}"
-  shift
-
-  local prefix="lxd$$"
   local ns="${prefix}${id}"
 
   echo "==> Setup clustering netns ${ns}"
