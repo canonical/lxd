@@ -2663,7 +2663,7 @@ test_clustering_fan() {
   # Import the test image on node1
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
-  fanbridge="${prefix}f"
+  local fanbridge="${prefix}f"
 
   echo "Create a fan bridge"
   LXD_DIR="${LXD_ONE_DIR}" lxc network create --target node1 "${fanbridge}"
