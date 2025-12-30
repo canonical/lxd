@@ -2,7 +2,8 @@ test_clustering_waitready() {
   spawn_lxd_and_bootstrap_cluster
 
   # Get used storage backend.
-  lxd_backend=$(storage_backend "${LXD_ONE_DIR}")
+  local poolDriver
+  poolDriver=$(storage_backend "${LXD_ONE_DIR}")
 
   # Add a newline at the end of each line. YAML has weird rules..
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
@@ -27,11 +28,11 @@ test_clustering_waitready() {
 
   # Set up node-specific storage pool keys for the selected backend.
   driver_config=""
-  if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "lvm" ] || [ "${lxd_backend}" = "zfs" ]; then
+  if [ "${poolDriver}" = "btrfs" ] || [ "${poolDriver}" = "lvm" ] || [ "${poolDriver}" = "zfs" ]; then
       driver_config="size=1GiB"
   fi
 
-  if [ "${lxd_backend}" = "ceph" ]; then
+  if [ "${poolDriver}" = "ceph" ]; then
       driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"
   fi
 
@@ -40,13 +41,13 @@ test_clustering_waitready() {
   driver_config_node2="${driver_config}"
   driver_config_node3="${driver_config}"
 
-  if [ "${lxd_backend}" = "zfs" ]; then
+  if [ "${poolDriver}" = "zfs" ]; then
       driver_config_node1="${driver_config_node1} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns1}"
       driver_config_node2="${driver_config_node2} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns2}"
       driver_config_node3="${driver_config_node3} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns3}"
   fi
 
-  if [ "${lxd_backend}" = "lvm" ]; then
+  if [ "${poolDriver}" = "lvm" ]; then
       driver_config_node1="${driver_config_node1} lvm.vg_name=pool1-$(basename "${TEST_DIR}")-${ns1}"
       driver_config_node2="${driver_config_node2} lvm.vg_name=pool1-$(basename "${TEST_DIR}")-${ns2}"
       driver_config_node3="${driver_config_node3} lvm.vg_name=pool1-$(basename "${TEST_DIR}")-${ns3}"
@@ -54,12 +55,12 @@ test_clustering_waitready() {
 
   # Setup a cluster wide storage pool.
   # shellcheck disable=SC2086
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${lxd_backend}" ${driver_config_node1} --target "node1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" ${driver_config_node1} --target "node1"
   # shellcheck disable=SC2086
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${lxd_backend}" ${driver_config_node2} --target "node2"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" ${driver_config_node2} --target "node2"
   # shellcheck disable=SC2086
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${lxd_backend}" ${driver_config_node3} --target "node3"
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${lxd_backend}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" ${driver_config_node3} --target "node3"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}"
 
   # Evacuate the first cluster member.
   # Afterwards we break both the cluster member's network and storage to see how the waitready command behaves.
