@@ -1,176 +1,130 @@
 test_clustering_enable() {
+  # Override LXD_DIR for the test scope
   local LXD_DIR
-
-  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_INIT_DIR}" false
+  LXD_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  spawn_lxd "${LXD_DIR}" false
 
   # Test specified core.https_address with no cluster.https_address
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR=${LXD_INIT_DIR}
+  lxc config show | grep -xE "\s+core\.https_address: 127\.0\.0\.1:[0-9]{4,5}"
+  # Launch a container.
+  ensure_import_testimage
+  lxc storage create default dir
+  lxc profile device add default root disk path="/" pool="default"
+  lxc launch testimage c1
 
-    lxc config show | grep -xE "^\s+core\.https_address: 127\.0\.0\.1:[0-9]{4,5}"
-    # Launch a container.
-    ensure_import_testimage
-    lxc storage create default dir
-    lxc profile device add default root disk path="/" pool="default"
-    lxc launch testimage c1
+  # Enable clustering.
+  lxc cluster enable node1
 
-    # Enable clustering.
-    lxc cluster enable node1
+  # Test the non-recursive mode to list cluster members.
+  lxc query /1.0/cluster/members | jq --exit-status '.[0] == "/1.0/cluster/members/node1"'
 
-    # Test the non-recursive mode to list cluster members.
-    lxc query /1.0/cluster/members | jq --exit-status '.[0] == "/1.0/cluster/members/node1"'
+  # Test the recursive mode to list cluster members.
+  # The command implicitly sets the recursive=1 query paramter.
+  lxc cluster list | grep -wF node1
 
-    # Test the recursive mode to list cluster members.
-    # The command implicitly sets the recursive=1 query paramter.
-    lxc cluster list | grep -wF node1
+  # The container is still there and now shows up as
+  # running on node 1.
+  [ "$(lxc list -f csv -c nL c1)" = "c1,node1" ]
 
-    # The container is still there and now shows up as
-    # running on node 1.
-    [ "$(lxc list -f csv -c nL c1)" = "c1,node1" ]
+  # Clustering can't be enabled on an already clustered instance.
+  ! lxc cluster enable node2 || false
 
-    # Clustering can't be enabled on an already clustered instance.
-    ! lxc cluster enable node2 || false
+  # Delete the container
+  lxc delete --force c1
 
-    # Delete the container
-    lxc delete --force c1
-  )
-
-  kill_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_DIR}"
 
   # Test wildcard core.https_address with no cluster.https_address
-  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_INIT_DIR}" false
+  mkdir "${LXD_DIR}"
+  spawn_lxd "${LXD_DIR}" false
 
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR=${LXD_INIT_DIR}
-    lxc config set core.https_address ::
-    # Enable clustering.
-    ! lxc cluster enable node1 || false
-  )
+  lxc config set core.https_address ::
+  # Enable clustering.
+  ! lxc cluster enable node1 || false
 
-  kill_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_DIR}"
 
   # Test default port core.https_address with no cluster.https_address
-  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_INIT_DIR}" false
+  mkdir "${LXD_DIR}"
+  spawn_lxd "${LXD_DIR}" false
 
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR=${LXD_INIT_DIR}
-    lxc config set core.https_address 127.0.0.1
-    # Enable clustering.
-    lxc cluster enable node1
-    lxc cluster list | grep -F 127.0.0.1:8443
-  )
+  lxc config set core.https_address 127.0.0.1
+  # Enable clustering.
+  lxc cluster enable node1
+  lxc cluster list | grep -F 127.0.0.1:8443
 
-  kill_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_DIR}"
 
   # Test wildcard core.https_address with valid cluster.https_address
-  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_INIT_DIR}" false
+  mkdir "${LXD_DIR}"
+  spawn_lxd "${LXD_DIR}" false
 
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR=${LXD_INIT_DIR}
-    lxc config set core.https_address ::
-    lxc config set cluster.https_address 127.0.0.1:8443
-    # Enable clustering.
-    lxc cluster enable node1
-    lxc cluster list | grep -F 127.0.0.1:8443
-  )
+  lxc config set core.https_address ::
+  lxc config set cluster.https_address 127.0.0.1:8443
+  # Enable clustering.
+  lxc cluster enable node1
+  lxc cluster list | grep -F 127.0.0.1:8443
 
-  kill_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_DIR}"
 
   # Test empty core.https_address with no cluster.https_address
-  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_INIT_DIR}" false
+  mkdir "${LXD_DIR}"
+  spawn_lxd "${LXD_DIR}" false
 
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR=${LXD_INIT_DIR}
-    lxc config unset core.https_address
-    # Enable clustering.
-    ! lxc cluster enable node1 || false
-  )
+  lxc config unset core.https_address
+  # Enable clustering.
+  ! lxc cluster enable node1 || false
 
-  kill_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_DIR}"
 
   # Test empty core.https_address with valid cluster.https_address
-  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_INIT_DIR}" false
+  mkdir "${LXD_DIR}"
+  spawn_lxd "${LXD_DIR}" false
 
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR=${LXD_INIT_DIR}
-    lxc config unset core.https_address
-    lxc config set cluster.https_address 127.0.0.1:8443
-    # Enable clustering.
-    lxc cluster enable node1
-    lxc cluster list | grep -F 127.0.0.1:8443
-  )
+  lxc config unset core.https_address
+  lxc config set cluster.https_address 127.0.0.1:8443
+  # Enable clustering.
+  lxc cluster enable node1
+  lxc cluster list | grep -F 127.0.0.1:8443
 
-  kill_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_DIR}"
 
   # Test empty core.https_address with default port cluster.https_address
-  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_INIT_DIR}" false
+  mkdir "${LXD_DIR}"
+  spawn_lxd "${LXD_DIR}" false
 
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR=${LXD_INIT_DIR}
-    lxc config unset core.https_address
-    lxc config set cluster.https_address 127.0.0.1
-    # Enable clustering.
-    lxc cluster enable node1
-    lxc cluster list | grep -F 127.0.0.1:8443
-  )
+  lxc config unset core.https_address
+  lxc config set cluster.https_address 127.0.0.1
+  # Enable clustering.
+  lxc cluster enable node1
+  lxc cluster list | grep -F 127.0.0.1:8443
 
-  kill_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_DIR}"
 
   # Test covered cluster.https_address
-  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_INIT_DIR}" false
+  mkdir "${LXD_DIR}"
+  spawn_lxd "${LXD_DIR}" false
 
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR=${LXD_INIT_DIR}
-    lxc config set core.https_address 127.0.0.1:8443
-    lxc config set cluster.https_address 127.0.0.1:8443
-    # Enable clustering.
-    lxc cluster enable node1
-    lxc cluster list | grep -F 127.0.0.1:8443
-  )
+  lxc config set core.https_address 127.0.0.1:8443
+  lxc config set cluster.https_address 127.0.0.1:8443
+  # Enable clustering.
+  lxc cluster enable node1
+  lxc cluster list | grep -F 127.0.0.1:8443
 
-  kill_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_DIR}"
 
   # Test cluster listener after reload
-  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_INIT_DIR}" false
+  mkdir "${LXD_DIR}"
+  spawn_lxd "${LXD_DIR}" false
 
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR=${LXD_INIT_DIR}
-    lxc config set cluster.https_address 127.0.0.1:8443
-    kill -9 "$(< "${LXD_DIR}/lxd.pid")"
-    respawn_lxd "${LXD_DIR}" true
-    # Enable clustering.
-    lxc cluster enable node1
-    lxc cluster list | grep -F 127.0.0.1:8443
-  )
+  lxc config set cluster.https_address 127.0.0.1:8443
+  kill -9 "$(< "${LXD_DIR}/lxd.pid")"
+  respawn_lxd "${LXD_DIR}" true
+  # Enable clustering.
+  lxc cluster enable node1
+  lxc cluster list | grep -F 127.0.0.1:8443
 
-  kill_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_DIR}"
 }
 
 test_clustering_membership() {
