@@ -2365,15 +2365,10 @@ test_clustering_image_replication() {
 }
 
 test_clustering_dns() {
-  local lxdDir
-
   # Because we do not want tests to only run on Ubuntu (due to cluster's fan network dependency)
   # instead we will just spawn forkdns directly and check DNS resolution.
 
-  # XXX: make a copy of the global LXD_DIR
-  # shellcheck disable=SC2031
-  lxdDir="${LXD_DIR}"
-  prefix="lxd$$"
+  local ipRand forkdns_pid1 forkdns_pid2
   ipRand=$(shuf -i 0-9 -n 1)
 
   # Create first dummy interface for forkdns
@@ -2382,7 +2377,7 @@ test_clustering_dns() {
   ip a add 127.0.1.1"${ipRand}"/32 dev "${prefix}1"
 
   # Create forkdns config directory
-  mkdir "${lxdDir}"/networks/lxdtest1/forkdns.servers -p
+  mkdir "${LXD_DIR}"/networks/lxdtest1/forkdns.servers -p
 
   # Launch forkdns (we expect syslog error about missing servers.conf file)
   lxd forkdns 127.0.1.1"${ipRand}":1053 lxd lxdtest1 &
@@ -2394,7 +2389,7 @@ test_clustering_dns() {
   ip a add 127.0.1.2"${ipRand}"/32 dev "${prefix}2"
 
   # Create forkdns config directory
-  mkdir "${lxdDir}"/networks/lxdtest2/forkdns.servers -p
+  mkdir "${LXD_DIR}"/networks/lxdtest2/forkdns.servers -p
 
   # Launch forkdns (we expect syslog error about missing servers.conf file)
   lxd forkdns 127.0.1.2"${ipRand}":1053 lxd lxdtest2 &
@@ -2404,11 +2399,11 @@ test_clustering_dns() {
   sleep 0.1
 
   # Create servers list file for forkdns1 pointing at forkdns2 (should be live reloaded)
-  echo "127.0.1.2${ipRand}" > "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf.tmp
-  mv "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf.tmp "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf
+  echo "127.0.1.2${ipRand}" > "${LXD_DIR}"/networks/lxdtest1/forkdns.servers/servers.conf.tmp
+  mv "${LXD_DIR}"/networks/lxdtest1/forkdns.servers/servers.conf.tmp "${LXD_DIR}"/networks/lxdtest1/forkdns.servers/servers.conf
 
   # Create fake DHCP lease file on forkdns2 network
-  echo "$(date +%s) 00:16:3e:98:05:40 10.140.78.145 test1 ff:2b:a8:0a:df:00:02:00:00:ab:11:36:ea:11:e5:37:e0:85:45" > "${lxdDir}"/networks/lxdtest2/dnsmasq.leases
+  echo "$(date +%s) 00:16:3e:98:05:40 10.140.78.145 test1 ff:2b:a8:0a:df:00:02:00:00:ab:11:36:ea:11:e5:37:e0:85:45" > "${LXD_DIR}"/networks/lxdtest2/dnsmasq.leases
 
   # Test querying forkdns1 for A record that is on forkdns2 network
   if ! dig @127.0.1.1"${ipRand}" -p1053 test1.lxd | grep -F "10.140.78.145" ; then
