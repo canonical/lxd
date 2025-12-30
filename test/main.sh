@@ -583,6 +583,10 @@ spawn_initial_lxd() {
     spawn_lxd "${LXD_DIR}" true
     LXD_ADDR="$(< "${LXD_DIR}/lxd.addr")"
     export LXD_ADDR
+
+    # Export initial LXD dir for tests that need to refer to the standalone LXD instance
+    export LXD_INITIAL_DIR="${LXD_DIR}"
+    readonly LXD_INITIAL_DIR
 }
 
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
