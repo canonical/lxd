@@ -199,10 +199,8 @@ test_clustering_membership() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get cluster.offline_threshold)" = "11" ]
 
   # The preseeded network bridge exists on all nodes.
-  ns1_pid="$(< "${TEST_DIR}/ns/${ns1}/PID")"
-  ns2_pid="$(< "${TEST_DIR}/ns/${ns2}/PID")"
-  nsenter -m -n -t "${ns1_pid}" -- ip link show "${bridge}" > /dev/null
-  nsenter -m -n -t "${ns2_pid}" -- ip link show "${bridge}" > /dev/null
+  nsenter -m -n -t "$(< "${TEST_DIR}/ns/${ns1}/PID")" -- ip link show "${bridge}" > /dev/null
+  nsenter -m -n -t "$(< "${TEST_DIR}/ns/${ns2}/PID")" -- ip link show "${bridge}" > /dev/null
 
   # Create a pending network and pool, to show that they are not
   # considered when checking if the joining node has all the required
