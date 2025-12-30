@@ -4061,8 +4061,7 @@ test_clustering_evacuation_restore_operations() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}" "${poolDriver}"
 
-  LXD_DIR="${LXD_ONE_DIR}"
-  ensure_import_testimage
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
   echo "Launch 3 containers on node1"
   for c in c{1..3}; do lxc launch testimage "${c}" --target node1; done
