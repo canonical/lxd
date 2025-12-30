@@ -1764,8 +1764,7 @@ test_clustering_profiles() {
   touch "${source}/hello"
   chmod 755 "${source}"
   chmod 644 "${source}/hello"
-  (
-    cat <<EOF
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile edit web <<EOF
 config: {}
 description: ""
 devices:
@@ -1778,7 +1777,6 @@ used_by:
 - /1.0/instances/c1
 - /1.0/instances/c2
 EOF
-  ) | LXD_DIR="${LXD_TWO_DIR}" lxc profile edit web
 
   LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 -- ls /mnt | grep -xF hello
   LXD_DIR="${LXD_TWO_DIR}" lxc exec c2 -- ls /mnt | grep -xF hello
