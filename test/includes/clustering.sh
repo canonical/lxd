@@ -202,20 +202,58 @@ cluster:
 }
 
 spawn_lxd_and_join_cluster() {
-  ns="${1}"
-  bridge="${2}"
-  cert="${3}"
-  index="${4}"
-  target="${5}"
-  LXD_DIR="${6}"
-  local token="${7}"
-  if [ -d "${7}" ]; then
-    token="$(LXD_DIR=${7} lxc cluster add --quiet "node${index}")"
+  local cert="${1}"
+  local index="${2}"
+  local target="${3}"
+  local token="${4}"
+  if [ -d "${4}" ]; then
+    token="$(LXD_DIR=${4} lxc cluster add --quiet "node${index}")"
   fi
-  local driver="${8:-dir}"
-  local port="${9:-8443}"
-  local source="${10:-}"
-  local source_recover="${11:-false}"
+  local driver="${5:-dir}"
+  local port="${6:-8443}"
+  local source="${7:-}"
+  local source_recover="${8:-false}"
+
+  [ "${LXD_NETNS_KEEP:-""}" = "" ] && setup_clustering_netns "${index}"
+
+  if [ "${LXD_DIR_KEEP:-""}" = "" ]; then
+    LXD_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  else
+    LXD_DIR="${LXD_DIR_KEEP}"
+    mkdir -p "${LXD_DIR}"
+  fi
+  ns="${bridge}${index}"
+
+  case "${index}" in
+    2)
+      # shellcheck disable=SC2034
+      LXD_TWO_DIR="${LXD_DIR}" ns2="${ns}";;
+    3)
+      # shellcheck disable=SC2034
+      LXD_THREE_DIR="${LXD_DIR}" ns3="${ns}";;
+    4)
+      # shellcheck disable=SC2034
+      LXD_FOUR_DIR="${LXD_DIR}" ns4="${ns}";;
+    5)
+      # shellcheck disable=SC2034
+      LXD_FIVE_DIR="${LXD_DIR}" ns5="${ns}";;
+    6)
+      # shellcheck disable=SC2034
+      LXD_SIX_DIR="${LXD_DIR}" ns6="${ns}";;
+    7)
+      # shellcheck disable=SC2034
+      LXD_SEVEN_DIR="${LXD_DIR}" ns7="${ns}";;
+    8)
+      # shellcheck disable=SC2034
+      LXD_EIGHT_DIR="${LXD_DIR}" ns8="${ns}";;
+    9)
+      # shellcheck disable=SC2034
+      LXD_NINE_DIR="${LXD_DIR}" ns9="${ns}";;
+    *)
+      echo "spawn_lxd_and_join_cluster: Unsupported index ${index}"
+      false
+      ;;
+  esac
 
   echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
 
