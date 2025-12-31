@@ -778,9 +778,10 @@ test_clustering_storage() {
     fi
 
     # Manually send the join request.
-    cert=$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_ONE_DIR}/cluster.crt")
+    local cert_json
+    cert_json="$(cert_to_json "${LXD_ONE_DIR}/cluster.crt")"
     token="$(lxc cluster add node3 --quiet)"
-    op="$(curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node3","enabled":true,"member_config":['"${member_config}"'],"server_address":"100.64.1.103:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq --exit-status --raw-output '.operation')"
+    op="$(curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node3","enabled":true,"member_config":['"${member_config}"'],"server_address":"100.64.1.103:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":'"${cert_json}"',"cluster_token":"'"${token}"'"}' | jq --exit-status --raw-output '.operation')"
     curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body "lxd${op}/wait"
 
     # Ensure that node-specific config appears on all nodes,
@@ -1792,8 +1793,6 @@ test_clustering_update_cert_token() {
 test_clustering_join_api() {
   spawn_lxd_and_bootstrap_cluster
 
-  cert=$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_ONE_DIR}/cluster.crt")
-
   setup_clustering_netns 2
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns2="${prefix}2"
@@ -1802,19 +1801,22 @@ test_clustering_join_api() {
   # Check a join token cannot be created for the reserved name 'none'
   ! lxc cluster add none --quiet || false
 
+  local cert_json
+  cert_json="$(cert_to_json "${LXD_ONE_DIR}/cluster.crt")"
+
   # Check a server with the name 'valid' cannot be joined when modifying the token.
   # Therefore replace the valid name in the token with 'none'.
   malicious_token="$(lxc cluster add valid --quiet | base64 -d | jq --exit-status '.server_name |= "none"' | base64 --wrap=0)"
-  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"valid","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${malicious_token}"'"}' | jq --exit-status --raw-output '.operation')"
+  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"valid","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":'"${cert_json}"',"cluster_token":"'"${malicious_token}"'"}' | jq --exit-status --raw-output '.operation')"
   curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait" | jq --exit-status '.error_code == 403'
 
   # Check that the server cannot be joined using a valid token by changing it's name to 'none'.
   token="$(lxc cluster add valid2 --quiet)"
-  curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"none","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq --exit-status '.error_code == 400'
+  curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"none","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":'"${cert_json}"',"cluster_token":"'"${token}"'"}' | jq --exit-status '.error_code == 400'
 
   # Check the server can be joined.
   token="$(lxc cluster add node2 --quiet)"
-  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node2","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq --exit-status --raw-output '.operation')"
+  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node2","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":'"${cert_json}"',"cluster_token":"'"${token}"'"}' | jq --exit-status --raw-output '.operation')"
   curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body "lxd${op}/wait"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "message: Fully operational"
