@@ -38,7 +38,9 @@ test_clustering_waitready() {
   if [ "${poolDriver}" = "zfs" ]; then
       # shellcheck disable=SC2154
       driver_config_node1="${driver_config_node1} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns1}"
+      # shellcheck disable=SC2154
       driver_config_node2="${driver_config_node2} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns2}"
+      # shellcheck disable=SC2154
       driver_config_node3="${driver_config_node3} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns3}"
   fi
 
