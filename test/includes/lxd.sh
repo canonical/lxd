@@ -456,7 +456,7 @@ lxd_shutdown_restart() {
     local monitor_pid=$!
 
     # Give monitor a moment to connect
-    sleep 2
+    sleep 0.1
     echo "Monitor PID: $monitor_pid"
     echo "LXD daemon PID: $LXD_PID"
     echo "Starting LXD shutdown sequence..."
