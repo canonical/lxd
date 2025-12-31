@@ -4922,10 +4922,7 @@ test_clustering_recovery() {
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node.
-  setup_clustering_netns 2
-  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn a third node using a custom loop device outside of LXD's directory.
   configure_loop_device loop_file_1 loop_device_1 128M  # 128M to accommodate for btrfs
@@ -4938,10 +4935,7 @@ test_clustering_recovery() {
     mount "${source}" "${TEST_DIR}/pools/data"
     source="${TEST_DIR}/pools/data"
   fi
-  setup_clustering_netns 3
-  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}"
 
   # Create an instance and custom volume on the third node's data pool.
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -s data --target node3
@@ -4968,8 +4962,7 @@ test_clustering_recovery() {
   fi
   # Recreate the original directory of the third cluster member.
   # We reuse the name (path) to ensure the same name of the underlying storage artifacts.
-  mkdir "${LXD_THREE_DIR}"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}" true
+  LXD_DIR_KEEP="${LXD_THREE_DIR}" LXD_NETNS_KEEP="${ns3}" spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}" true
 
   # Recover instance and custom volume from the third node's data pool.
   # We also require recovery for remote drivers as the DB entries got purged when force removing the cluster member.
