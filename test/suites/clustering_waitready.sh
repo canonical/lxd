@@ -9,18 +9,10 @@ test_clustering_waitready() {
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node.
-  setup_clustering_netns 2
-  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  # shellcheck disable=SC2154
-  ns2="${prefix}2"
-  # shellcheck disable=SC2154
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node.
-  setup_clustering_netns 3
-  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   # Setup a cluster wide network.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create br1 --target "node1"
