@@ -127,6 +127,7 @@ test_clustering_membership() {
   spawn_lxd_and_bootstrap_cluster
 
   # Add a newline at the end of each line. YAML has weird rules.
+  # shellcheck disable=SC2153
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -763,6 +764,7 @@ test_clustering_storage() {
     # Spawn a third node
     setup_clustering_netns 3
     LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+    # shellcheck disable=SC2154
     ns3="${prefix}3"
     LXD_NETNS="${ns3}" spawn_lxd "${LXD_THREE_DIR}" false
 
@@ -3657,8 +3659,10 @@ test_clustering_edit_configuration() {
   LXD_NETNS="${ns2}" respawn_lxd "${LXD_TWO_DIR}" false
   LXD_NETNS="${ns3}" respawn_lxd "${LXD_THREE_DIR}" false
   LXD_NETNS="${ns4}" respawn_lxd "${LXD_FOUR_DIR}" false
+  # shellcheck disable=SC2154
   LXD_NETNS="${ns5}" respawn_lxd "${LXD_FIVE_DIR}" false
   # Only wait on the last node, because we don't know who the voters are
+  # shellcheck disable=SC2154
   LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
 
   # Let the heartbeats catch up
