@@ -175,12 +175,9 @@ kill_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
     local LXD_DIR="${1}"
-    shift
 
     # Check if already killed
-    if [ ! -f "${LXD_DIR}/lxd.pid" ]; then
-      return
-    fi
+    [ -f "${LXD_DIR}/lxd.pid" ] || return 0
 
     local LXD_PID lxd_backend check_leftovers
     LXD_PID=$(< "${LXD_DIR}/lxd.pid")
