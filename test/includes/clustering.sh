@@ -123,7 +123,8 @@ spawn_lxd_and_bootstrap_cluster() {
     LXD_DIR="${LXD_DIR_KEEP}"
     mkdir -p "${LXD_DIR}"
   fi
-  ns="${bridge}1"
+  # shellcheck disable=SC2154
+  local ns="${bridge}1"
 
   echo "==> Spawn bootstrap cluster node in ${ns} with storage driver ${driver}"
 
