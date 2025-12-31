@@ -159,11 +159,12 @@ test_storage_driver_btrfs() {
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"
 
     # Test creating storage pool from exiting btrfs subvolume
-    truncate -s 200M testpool.img
-    mkfs.btrfs -f testpool.img
+    configure_loop_device loop_file_1 loop_device_1 128M
+    # shellcheck disable=SC2154
+    mkfs.btrfs "${loop_device_1}"
     basepath="$(pwd)/mnt"
     mkdir -p "${basepath}"
-    mount testpool.img "${basepath}"
+    mount "${loop_device_1}" "${basepath}"
     btrfs subvolume create "${basepath}/foo"
     btrfs subvolume create "${basepath}/foo/bar"
 
@@ -179,7 +180,8 @@ test_storage_driver_btrfs() {
 
     umount "${basepath}"
     rmdir "${basepath}"
-    rm -f testpool.img
+    # shellcheck disable=SC2154
+    deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
   )
 
   # shellcheck disable=SC2031
