@@ -127,6 +127,7 @@ test_clustering_membership() {
   spawn_lxd_and_bootstrap_cluster
 
   local cert
+  # shellcheck disable=SC2153
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node
