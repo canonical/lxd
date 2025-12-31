@@ -5,8 +5,8 @@ test_clustering_waitready() {
   local poolDriver
   poolDriver=$(storage_backend "${LXD_ONE_DIR}")
 
-  # Add a newline at the end of each line. YAML has weird rules..
-  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node.
   spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
