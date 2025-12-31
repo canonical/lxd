@@ -38,7 +38,7 @@ test_clustering_enable() {
   mkdir "${LXD_DIR}"
   spawn_lxd "${LXD_DIR}" false
 
-  lxc config set core.https_address ::
+  lxc config set core.https_address=::
   # Enable clustering.
   ! lxc cluster enable node1 || false
 
@@ -48,7 +48,7 @@ test_clustering_enable() {
   mkdir "${LXD_DIR}"
   spawn_lxd "${LXD_DIR}" false
 
-  lxc config set core.https_address 127.0.0.1
+  lxc config set core.https_address=127.0.0.1
   # Enable clustering.
   lxc cluster enable node1
   lxc cluster list | grep -F 127.0.0.1:8443
@@ -59,8 +59,7 @@ test_clustering_enable() {
   mkdir "${LXD_DIR}"
   spawn_lxd "${LXD_DIR}" false
 
-  lxc config set core.https_address ::
-  lxc config set cluster.https_address 127.0.0.1:8443
+  lxc config set core.https_address=:: cluster.https_address=127.0.0.1:8443
   # Enable clustering.
   lxc cluster enable node1
   lxc cluster list | grep -F 127.0.0.1:8443
@@ -81,8 +80,7 @@ test_clustering_enable() {
   mkdir "${LXD_DIR}"
   spawn_lxd "${LXD_DIR}" false
 
-  lxc config unset core.https_address
-  lxc config set cluster.https_address 127.0.0.1:8443
+  lxc config set core.https_address= cluster.https_address=127.0.0.1:8443
   # Enable clustering.
   lxc cluster enable node1
   lxc cluster list | grep -F 127.0.0.1:8443
@@ -93,8 +91,7 @@ test_clustering_enable() {
   mkdir "${LXD_DIR}"
   spawn_lxd "${LXD_DIR}" false
 
-  lxc config unset core.https_address
-  lxc config set cluster.https_address 127.0.0.1
+  lxc config set core.https_address= cluster.https_address=127.0.0.1
   # Enable clustering.
   lxc cluster enable node1
   lxc cluster list | grep -F 127.0.0.1:8443
@@ -105,8 +102,7 @@ test_clustering_enable() {
   mkdir "${LXD_DIR}"
   spawn_lxd "${LXD_DIR}" false
 
-  lxc config set core.https_address 127.0.0.1:8443
-  lxc config set cluster.https_address 127.0.0.1:8443
+  lxc config set core.https_address=127.0.0.1:8443 cluster.https_address=127.0.0.1:8443
   # Enable clustering.
   lxc cluster enable node1
   lxc cluster list | grep -F 127.0.0.1:8443
@@ -117,7 +113,7 @@ test_clustering_enable() {
   mkdir "${LXD_DIR}"
   spawn_lxd "${LXD_DIR}" false
 
-  lxc config set cluster.https_address 127.0.0.1:8443
+  lxc config set cluster.https_address=127.0.0.1:8443
   kill -9 "$(< "${LXD_DIR}/lxd.pid")"
   respawn_lxd "${LXD_DIR}" true
   # Enable clustering.
