@@ -11,3 +11,14 @@ gen_cert_and_key() {
     cn="${1}.local"
     openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -sha384 -keyout "${key_file}" -nodes -out "${crt_file}" -days 1 -subj "/CN=${cn}"
 }
+
+# Convert a certificate to YAML format for inclusion in LXD cluster preseed files.
+cert_to_yaml() {
+  # Prepend 4 spaces to each line for the cluster certificate field in LXD preseed YAML.
+  sed 's/^/    /' "${1}"
+}
+
+# Convert a certificate to JSON format for inclusion in LXD API calls.
+cert_to_json() {
+  jq --exit-status --raw-input --slurp '.' "${1}"
+}
