@@ -112,7 +112,6 @@ teardown_clustering_netns() {
 }
 
 spawn_lxd_and_bootstrap_cluster() {
-  local LXD_NETNS
   set -e
 
   ns="${1}"
@@ -204,7 +203,6 @@ EOF
 }
 
 spawn_lxd_and_join_cluster() {
-  local LXD_NETNS
   set -e
 
   ns="${1}"
