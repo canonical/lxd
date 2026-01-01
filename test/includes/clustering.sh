@@ -271,7 +271,8 @@ spawn_lxd_and_join_cluster() {
   server_name: node${index}
   server_address: 100.64.1.10${index}:${port}
   cluster_address: 100.64.1.10${target}:8443
-  cluster_certificate: \"${cert}\"
+  cluster_certificate: |
+${cert}
   cluster_token: ${token}
   member_config:"
 
