@@ -83,33 +83,24 @@ import_storage_backends() {
 }
 
 configure_loop_device() {
+    local -n _img_out="${1}"
+    local -n _dev_out="${2}"
     local lv_loop_file pvloopdev
 
     # shellcheck disable=SC2153
-    lv_loop_file=$(mktemp -p "${TEST_DIR}" XXXX.img)
+    lv_loop_file="$(mktemp -p "${TEST_DIR}" XXXX.img)"
     truncate -s 10G "${lv_loop_file}"
-    pvloopdev=$(losetup --show -f "${lv_loop_file}")
-    if [ ! -e "${pvloopdev}" ]; then
-        echo "failed to setup loop"
-        false
+    if ! pvloopdev="$(losetup --show -f "${lv_loop_file}")"; then
+        echo "failed to setup loop" >&2
+        return 1
     fi
-    # shellcheck disable=SC2153
+
+    # Record the loop device
     echo "${pvloopdev}" >> "${TEST_DIR}/loops"
 
-    # The following code enables to return a value from a shell function by
-    # calling the function as: fun VAR1
-
-    local __tmp1="${1}"
-    local res1="${lv_loop_file}"
-    if [ -n "${__tmp1}" ]; then
-        eval "${__tmp1}='${res1}'"
-    fi
-
-    local __tmp2="${2}"
-    local res2="${pvloopdev}"
-    if [ -n "${__tmp2}" ]; then
-        eval "${__tmp2}='${res2}'"
-    fi
+    # Assign values back to the passed variable names using namerefs
+    _img_out="${lv_loop_file}"
+    _dev_out="${pvloopdev}"
 }
 
 deconfigure_loop_device() {
