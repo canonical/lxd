@@ -4,6 +4,10 @@ test_idmap() {
     return 0
   fi
 
+  local UIDs GIDs UID_BASE GID_BASE LARGEST_UIDs LARGEST_GIDs
+  local PID_1 PID_2 UID_1 UID_2 UID_3 UID_4 GID_1 GID_2 GID_3 GID_4
+  local TEST_FILE
+
   # Check that we have a big enough range for this test
   if [ ! -e /etc/subuid ] && [ ! -e /etc/subgid ]; then
     UIDs=1000000000
@@ -47,6 +51,7 @@ test_idmap() {
   # Check a normal, non-isolated container (full LXD id range)
   lxc launch testimage idmap
 
+  local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
   if [ "$lxd_backend" = "btrfs" ]; then
     lxc exec idmap -- btrfs subvolume create -r /aaa || true
