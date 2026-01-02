@@ -171,7 +171,7 @@ _container_devices_disk_ceph() {
   ceph osd pool create "${RBD_POOL_NAME}" 1
   rbd create --pool "${RBD_POOL_NAME}" --size 50M my-volume
   RBD_DEVICE=$(rbd map --pool "${RBD_POOL_NAME}" my-volume)
-  mkfs.ext4 -m0 "${RBD_DEVICE}"
+  mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${RBD_DEVICE}"
   rbd unmap "${RBD_DEVICE}"
 
   lxc launch testimage ceph-disk -c security.privileged=true
