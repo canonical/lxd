@@ -42,7 +42,7 @@ test_storage_volume_recover() {
   fi
 
   # Recover custom block volume.
-  cat <<EOF | lxd recover
+  lxd recover <<EOF
 yes
 yes
 EOF
@@ -115,7 +115,7 @@ test_storage_volume_recover_by_container() {
   ! lxc info c1 || false
 
   # Recover the instance.
-  cat <<EOF | lxd recover
+  lxd recover <<EOF
 yes
 yes
 EOF
@@ -136,7 +136,7 @@ EOF
   ! lxc storage volume show "${poolName2}" vol2 || false
 
   # Recover custom volumes.
-  cat <<EOF | lxd recover
+  lxd recover <<EOF
 yes
 yes
 EOF
@@ -165,7 +165,7 @@ EOF
   ! lxc storage volume show "${poolName2}" vol2 || false
 
   # Recover custom volumes.
-  cat <<EOF | lxd recover
+  lxd recover <<EOF
 yes
 yes
 EOF
@@ -298,7 +298,7 @@ test_container_recover() {
     lxc project switch test
 
     # Basic no-op check.
-    cat <<EOF | lxd recover | grep "No unknown storage volumes found. Nothing to do."
+    lxd recover <<EOF | grep "No unknown storage volumes found. Nothing to do."
 yes
 EOF
 
@@ -368,7 +368,7 @@ EOF
 
     respawn_lxd "${LXD_DIR}" true
 
-    cat <<EOF | lxd recover
+    lxd recover <<EOF
 yes
 yes
 EOF
@@ -415,7 +415,7 @@ EOF
     shutdown_lxd "${LXD_DIR}"
     respawn_lxd "${LXD_DIR}" true
 
-    cat <<EOF | lxd recover
+    lxd recover <<EOF
 yes
 yes
 EOF
@@ -1190,7 +1190,7 @@ test_backup_export_import_recover() {
     lxd sql global "DELETE FROM storage_volumes WHERE name = 'c2'"
 
     # Recover removed instance.
-    cat <<EOF | lxd recover
+    lxd recover <<EOF
 yes
 yes
 EOF
