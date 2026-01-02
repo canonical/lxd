@@ -163,7 +163,7 @@ create_object_storage_pool() {
       mkdir -p "${TEST_DIR}/s3/${poolName}"
       configure_loop_device loop_file_1 loop_device_1
       # shellcheck disable=SC2154
-      mkfs.ext4 "${loop_device_1}"
+      mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${loop_device_1}"
       mount "${loop_device_1}" "${TEST_DIR}/s3/${poolName}"
       mkdir "${TEST_DIR}/s3/${poolName}/objects"
       lxc storage create "${poolName}" dir source="${TEST_DIR}/s3/${poolName}/objects"
