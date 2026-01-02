@@ -60,13 +60,13 @@ test_idmap() {
   ! echo "gid $((GID_BASE+1)) 1000" | lxc config set idmap raw.idmap - || false
 
   # Convert container to isolated and confirm it's not using the first range
-  lxc config set idmap security.idmap.isolated true
+  lxc config set idmap security.idmap.isolated=true
   lxc restart idmap --force
   [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "$((UID_BASE+65536)) 65536" ]
   [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/gid_map)" = "$((GID_BASE+65536)) 65536" ]
 
   # Bump allocation size
-  lxc config set idmap security.idmap.size 100000
+  lxc config set idmap security.idmap.size=100000
   lxc restart idmap --force
   [ "$(lxc exec idmap -- awk '{print $2}' /proc/self/uid_map)" != "${UID_BASE}" ]
   [ "$(lxc exec idmap -- awk '{print $2}' /proc/self/gid_map)" != "${GID_BASE}" ]
@@ -74,16 +74,13 @@ test_idmap() {
   [ "$(lxc exec idmap -- awk '{print $3}' /proc/self/gid_map)" = "100000" ]
 
   # Test using a custom base
-  lxc config set idmap security.idmap.base $((UID_BASE+12345))
-  lxc config set idmap security.idmap.size 110000
+  lxc config set idmap security.idmap.base="$((UID_BASE+12345))" security.idmap.size=110000
   lxc restart idmap --force
   [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "$((UID_BASE+12345)) 110000" ]
   [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/gid_map)" = "$((GID_BASE+12345)) 110000" ]
 
   # Switch back to full LXD range
-  lxc config unset idmap security.idmap.base
-  lxc config unset idmap security.idmap.isolated
-  lxc config unset idmap security.idmap.size
+  lxc config set idmap security.idmap.base= security.idmap.isolated= security.idmap.size=
   lxc restart idmap --force
   [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "${UID_BASE} ${UIDs}" ]
   [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/gid_map)" = "${GID_BASE} ${GIDs}" ]
@@ -116,8 +113,7 @@ test_idmap() {
 
   # Check profile inheritance
   lxc profile create idmap
-  lxc profile set idmap security.idmap.isolated true
-  lxc profile set idmap security.idmap.size 100000
+  lxc profile set idmap security.idmap.isolated=true security.idmap.size=100000
 
   lxc launch testimage idmap2
   [ "$(lxc exec idmap2 -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "${UID_BASE} ${UIDs}" ]
