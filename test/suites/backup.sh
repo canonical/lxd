@@ -6,8 +6,8 @@ test_storage_volume_recover() {
   poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
 
   if [ "${poolDriver}" = "pure" ]; then
-    echo "==> SKIP: Storage driver does not support recovery"
-    return
+    export TEST_UNMET_REQUIREMENT="pure driver does not support recovery"
+    return 0
   fi
 
   # Create custom block volume.
