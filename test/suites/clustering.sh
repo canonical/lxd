@@ -5661,7 +5661,7 @@ test_clustering_recovery() {
   source="${loop_device_1}"
   if [ "${pool_driver}" = "dir" ]; then
     # The dir driver is special as it requires the source to be a directory.
-    mkfs.ext4 "${source}"
+    mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${source}"
     mkdir -p "${TEST_DIR}/pools/data"
     mount "${source}" "${TEST_DIR}/pools/data"
     source="${TEST_DIR}/pools/data"
