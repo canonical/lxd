@@ -1,3 +1,6 @@
+# Ignore "SC2016: Expressions don't expand in single quotes, use double quotes
+# for that." warnings in this file as many `awk` commands need to use single quotes.
+# shellcheck disable=SC2016
 test_idmap() {
   if [ "$(stat --file-system -L -c "%T" .)" = "fuseblk" ]; then
     export TEST_UNMET_REQUIREMENT="cannot be run from a virtiofs directory"
