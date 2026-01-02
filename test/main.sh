@@ -301,6 +301,12 @@ cleanup() {
 
     mountpoint -q "${TEST_DIR}" && umount -l "${TEST_DIR}"
     rm -rf "${TEST_DIR}"
+
+    # Fail if any loop devices were left behind
+    if losetup -l | grep -F "lxdtest-" | grep -wF '(deleted)'; then
+      echo "ERROR: loop devices were left behind"
+      return 1
+    fi
   fi
 
   echo ""
