@@ -14,7 +14,7 @@ test_init_interactive() {
       lxc profile device remove default eth0
     fi
 
-    cat <<EOF | lxd init
+    lxd init <<EOF
 no
 yes
 my-storage-pool
