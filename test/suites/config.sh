@@ -48,23 +48,17 @@ _ensure_fs_unmounted() {
 }
 
 _loop_mounts() {
-  loopfile=$(mktemp -p "${TEST_DIR}" loop_XXX)
-  dd if=/dev/zero of="${loopfile}" bs=1M seek=200 count=1
-  mkfs.ext4 -F "${loopfile}"
+  configure_loop_device loop_file_1 loop_device_1
 
-  lpath=$(losetup --show -f "${loopfile}")
-  if [ ! -e "${lpath}" ]; then
-    echo "failed to setup loop"
-    false
-  fi
-  echo "${lpath}" >> "${TEST_DIR}/loops"
+  # shellcheck disable=SC2154
+  mkfs.ext4 -E assume_storage_prezeroed=1 -m0 -F "${loop_device_1}"
 
   mkdir -p "${TEST_DIR}/mnt"
-  mount "${lpath}" "${TEST_DIR}/mnt" || { echo "loop mount failed"; return; }
+  mount "${loop_device_1}" "${TEST_DIR}/mnt"
   touch "${TEST_DIR}/mnt/hello"
   umount -l "${TEST_DIR}/mnt"
   lxc start foo
-  lxc config device add foo mnt disk source="${lpath}" path=/mnt
+  lxc config device add foo mnt disk source="${loop_device_1}" path=/mnt
   lxc exec foo -- stat /mnt/hello
   # Note - we need to add a set_running_config_item to lxc
   # or work around its absence somehow.  Once that's done, we
@@ -78,8 +72,8 @@ _loop_mounts() {
   lxc restart foo --force
   _ensure_fs_unmounted "removed fs re-appeared after restart"
   lxc stop foo --force
-  losetup -d "${lpath}"
-  sed -i "\\|^${lpath}|d" "${TEST_DIR}/loops"
+
+  deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
 }
 
 _mount_order() {
