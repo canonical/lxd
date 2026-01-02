@@ -20,8 +20,8 @@ test_storage_driver_dir() {
 do_dir_on_empty_fs() {
   # Create and mount a small ext4 filesystem.
   tmp_file="$(mktemp -p "${TEST_DIR}" disk.XXX)"
-  fallocate -l 64MiB "${tmp_file}"
-  mkfs.ext4 "${tmp_file}"
+  truncate -s 24MiB "${tmp_file}"
+  mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${tmp_file}"
 
   mount_point="$(mktemp -d -p "${TEST_DIR}" mountpoint.XXX)"
   mount -o loop "${tmp_file}" "${mount_point}"
