@@ -505,8 +505,8 @@ test_snapshot_fail() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   if [ "${lxd_backend}" != "zfs" ]; then
-    echo "==> SKIP: test_snapshot_fail only supports 'zfs', not ${lxd_backend}"
-    return
+    export TEST_UNMET_REQUIREMENT="zfs specific test, not for ${lxd_backend}"
+    return 0
   fi
 
   ensure_import_testimage
