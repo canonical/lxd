@@ -52,10 +52,8 @@ test_idmap() {
     lxc exec idmap -- btrfs subvolume create -r /aaa || true
   fi
 
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $2}')" = "${UID_BASE}" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $2}')" = "${GID_BASE}" ]
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $3}')" = "${UIDs}" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $3}')" = "${GIDs}" ]
+  [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "${UID_BASE} ${UIDs}" ]
+  [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/gid_map)" = "${GID_BASE} ${GIDs}" ]
 
   # Confirm that we don't allow double mappings
   ! echo "uid $((UID_BASE+1)) 1000" | lxc config set idmap raw.idmap - || false
@@ -64,53 +62,43 @@ test_idmap() {
   # Convert container to isolated and confirm it's not using the first range
   lxc config set idmap security.idmap.isolated true
   lxc restart idmap --force
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $2}')" = "$((UID_BASE+65536))" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $2}')" = "$((GID_BASE+65536))" ]
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $3}')" = "65536" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $3}')" = "65536" ]
+  [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "$((UID_BASE+65536)) 65536" ]
+  [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/gid_map)" = "$((GID_BASE+65536)) 65536" ]
 
   # Bump allocation size
   lxc config set idmap security.idmap.size 100000
   lxc restart idmap --force
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $2}')" != "${UID_BASE}" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $2}')" != "${GID_BASE}" ]
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $3}')" = "100000" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $3}')" = "100000" ]
+  [ "$(lxc exec idmap -- awk '{print $2}' /proc/self/uid_map)" != "${UID_BASE}" ]
+  [ "$(lxc exec idmap -- awk '{print $2}' /proc/self/gid_map)" != "${GID_BASE}" ]
+  [ "$(lxc exec idmap -- awk '{print $3}' /proc/self/uid_map)" = "100000" ]
+  [ "$(lxc exec idmap -- awk '{print $3}' /proc/self/gid_map)" = "100000" ]
 
   # Test using a custom base
   lxc config set idmap security.idmap.base $((UID_BASE+12345))
   lxc config set idmap security.idmap.size 110000
   lxc restart idmap --force
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $2}')" = "$((UID_BASE+12345))" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $2}')" = "$((GID_BASE+12345))" ]
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $3}')" = "110000" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $3}')" = "110000" ]
+  [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "$((UID_BASE+12345)) 110000" ]
+  [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/gid_map)" = "$((GID_BASE+12345)) 110000" ]
 
   # Switch back to full LXD range
   lxc config unset idmap security.idmap.base
   lxc config unset idmap security.idmap.isolated
   lxc config unset idmap security.idmap.size
   lxc restart idmap --force
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $2}')" = "${UID_BASE}" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $2}')" = "${GID_BASE}" ]
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $3}')" = "${UIDs}" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $3}')" = "${GIDs}" ]
+  [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "${UID_BASE} ${UIDs}" ]
+  [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/gid_map)" = "${GID_BASE} ${GIDs}" ]
   lxc delete idmap --force
 
   # Confirm id recycling
   lxc launch testimage idmap -c security.idmap.isolated=true
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $2}')" = "$((UID_BASE+65536))" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $2}')" = "$((GID_BASE+65536))" ]
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $3}')" = "65536" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $3}')" = "65536" ]
+  [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "$((UID_BASE+65536)) 65536" ]
+  [ "$(lxc exec idmap -- awk '{print $2 " " $3}' /proc/self/gid_map)" = "$((GID_BASE+65536)) 65536" ]
 
   # Copy and check that the base differs
   lxc copy idmap idmap1
   lxc start idmap1
-  [ "$(lxc exec idmap1 -- cat /proc/self/uid_map | awk '{print $2}')" = "$((UID_BASE+131072))" ]
-  [ "$(lxc exec idmap1 -- cat /proc/self/gid_map | awk '{print $2}')" = "$((GID_BASE+131072))" ]
-  [ "$(lxc exec idmap1 -- cat /proc/self/uid_map | awk '{print $3}')" = "65536" ]
-  [ "$(lxc exec idmap1 -- cat /proc/self/gid_map | awk '{print $3}')" = "65536" ]
+  [ "$(lxc exec idmap1 -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "$((UID_BASE+131072)) 65536" ]
+  [ "$(lxc exec idmap1 -- awk '{print $2 " " $3}' /proc/self/gid_map)" = "$((GID_BASE+131072)) 65536" ]
 
   # Validate non-overlapping maps
   lxc exec idmap -- touch /a
@@ -132,10 +120,8 @@ test_idmap() {
   lxc profile set idmap security.idmap.size 100000
 
   lxc launch testimage idmap2
-  [ "$(lxc exec idmap2 -- cat /proc/self/uid_map | awk '{print $2}')" = "${UID_BASE}" ]
-  [ "$(lxc exec idmap2 -- cat /proc/self/gid_map | awk '{print $2}')" = "${GID_BASE}" ]
-  [ "$(lxc exec idmap2 -- cat /proc/self/uid_map | awk '{print $3}')" = "${UIDs}" ]
-  [ "$(lxc exec idmap2 -- cat /proc/self/gid_map | awk '{print $3}')" = "${GIDs}" ]
+  [ "$(lxc exec idmap2 -- awk '{print $2 " " $3}' /proc/self/uid_map)" = "${UID_BASE} ${UIDs}" ]
+  [ "$(lxc exec idmap2 -- awk '{print $2 " " $3}' /proc/self/gid_map)" = "${GID_BASE} ${GIDs}" ]
 
   lxc profile add idmap idmap
   lxc profile add idmap1 idmap
@@ -143,33 +129,33 @@ test_idmap() {
   lxc restart idmap idmap1 idmap2 --force
   lxc launch testimage idmap3 -p default -p idmap
 
-  UID_1=$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $2}')
-  GID_1=$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $2}')
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $2}')" != "${UID_BASE}" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $2}')" != "${GID_BASE}" ]
-  [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $3}')" = "100000" ]
-  [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $3}')" = "100000" ]
+  UID_1="$(lxc exec idmap -- awk '{print $2}' /proc/self/uid_map)"
+  GID_1="$(lxc exec idmap -- awk '{print $2}' /proc/self/gid_map)"
+  [ "$(lxc exec idmap -- awk '{print $2}' /proc/self/uid_map)" != "${UID_BASE}" ]
+  [ "$(lxc exec idmap -- awk '{print $2}' /proc/self/gid_map)" != "${GID_BASE}" ]
+  [ "$(lxc exec idmap -- awk '{print $3}' /proc/self/uid_map)" = "100000" ]
+  [ "$(lxc exec idmap -- awk '{print $3}' /proc/self/gid_map)" = "100000" ]
 
-  UID_2=$(lxc exec idmap1 -- cat /proc/self/uid_map | awk '{print $2}')
-  GID_2=$(lxc exec idmap1 -- cat /proc/self/gid_map | awk '{print $2}')
-  [ "$(lxc exec idmap1 -- cat /proc/self/uid_map | awk '{print $2}')" != "${UID_BASE}" ]
-  [ "$(lxc exec idmap1 -- cat /proc/self/gid_map | awk '{print $2}')" != "${GID_BASE}" ]
-  [ "$(lxc exec idmap1 -- cat /proc/self/uid_map | awk '{print $3}')" = "100000" ]
-  [ "$(lxc exec idmap1 -- cat /proc/self/gid_map | awk '{print $3}')" = "100000" ]
+  UID_2="$(lxc exec idmap1 -- awk '{print $2}' /proc/self/uid_map)"
+  GID_2="$(lxc exec idmap1 -- awk '{print $2}' /proc/self/gid_map)"
+  [ "$(lxc exec idmap1 -- awk '{print $2}' /proc/self/uid_map)" != "${UID_BASE}" ]
+  [ "$(lxc exec idmap1 -- awk '{print $2}' /proc/self/gid_map)" != "${GID_BASE}" ]
+  [ "$(lxc exec idmap1 -- awk '{print $3}' /proc/self/uid_map)" = "100000" ]
+  [ "$(lxc exec idmap1 -- awk '{print $3}' /proc/self/gid_map)" = "100000" ]
 
-  UID_3=$(lxc exec idmap2 -- cat /proc/self/uid_map | awk '{print $2}')
-  GID_3=$(lxc exec idmap2 -- cat /proc/self/gid_map | awk '{print $2}')
-  [ "$(lxc exec idmap2 -- cat /proc/self/uid_map | awk '{print $2}')" != "${UID_BASE}" ]
-  [ "$(lxc exec idmap2 -- cat /proc/self/gid_map | awk '{print $2}')" != "${GID_BASE}" ]
-  [ "$(lxc exec idmap2 -- cat /proc/self/uid_map | awk '{print $3}')" = "100000" ]
-  [ "$(lxc exec idmap2 -- cat /proc/self/gid_map | awk '{print $3}')" = "100000" ]
+  UID_3="$(lxc exec idmap2 -- awk '{print $2}' /proc/self/uid_map)"
+  GID_3="$(lxc exec idmap2 -- awk '{print $2}' /proc/self/gid_map)"
+  [ "$(lxc exec idmap2 -- awk '{print $2}' /proc/self/uid_map)" != "${UID_BASE}" ]
+  [ "$(lxc exec idmap2 -- awk '{print $2}' /proc/self/gid_map)" != "${GID_BASE}" ]
+  [ "$(lxc exec idmap2 -- awk '{print $3}' /proc/self/uid_map)" = "100000" ]
+  [ "$(lxc exec idmap2 -- awk '{print $3}' /proc/self/gid_map)" = "100000" ]
 
-  UID_4=$(lxc exec idmap3 -- cat /proc/self/uid_map | awk '{print $2}')
-  GID_4=$(lxc exec idmap3 -- cat /proc/self/gid_map | awk '{print $2}')
-  [ "$(lxc exec idmap3 -- cat /proc/self/uid_map | awk '{print $2}')" != "${UID_BASE}" ]
-  [ "$(lxc exec idmap3 -- cat /proc/self/gid_map | awk '{print $2}')" != "${GID_BASE}" ]
-  [ "$(lxc exec idmap3 -- cat /proc/self/uid_map | awk '{print $3}')" = "100000" ]
-  [ "$(lxc exec idmap3 -- cat /proc/self/gid_map | awk '{print $3}')" = "100000" ]
+  UID_4="$(lxc exec idmap3 -- awk '{print $2}' /proc/self/uid_map)"
+  GID_4="$(lxc exec idmap3 -- awk '{print $2}' /proc/self/gid_map)"
+  [ "$(lxc exec idmap3 -- awk '{print $2}' /proc/self/uid_map)" != "${UID_BASE}" ]
+  [ "$(lxc exec idmap3 -- awk '{print $2}' /proc/self/gid_map)" != "${GID_BASE}" ]
+  [ "$(lxc exec idmap3 -- awk '{print $3}' /proc/self/uid_map)" = "100000" ]
+  [ "$(lxc exec idmap3 -- awk '{print $3}' /proc/self/gid_map)" = "100000" ]
 
   [ "${UID_1}" != "${UID_2}" ]
   [ "${UID_1}" != "${UID_3}" ]
