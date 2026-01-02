@@ -430,7 +430,7 @@ run_test() {
   fi
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
-  local DURATION="-1"  # Set default duration to -1 (indicating not run)
+  local DURATION=""
   local cwd="${PWD}"
   local skip=false
 
@@ -485,7 +485,7 @@ run_test() {
 
     # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
     if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
-      DURATION="-1"
+      DURATION=""
       if [ -n "${LXD_REQUIRED_TESTS:-}" ]; then
         for testName in ${LXD_REQUIRED_TESTS}; do
           if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
@@ -501,7 +501,7 @@ run_test() {
   fi
 
   # output duration in blue
-  echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION}s\033[0m)"
+  echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION:-"-1"}s\033[0m)"
   durations["${TEST_CURRENT#test_},${LXD_BACKEND}"]="${DURATION}"
   cd "${cwd}"
 }
