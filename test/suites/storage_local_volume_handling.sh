@@ -68,7 +68,7 @@ test_storage_local_volume_handling() {
     lxc storage volume set "${pool}" vol1 snapshots.expiry=1H
 
     lxc storage volume create "${pool}" blockVol --type=block
-    truncate -s 25MiB foo.iso
+    truncate -s 8MiB foo.iso
     lxc storage volume import "${pool}" ./foo.iso isoVol
 
     # security.shared is only allowed for block volumes
