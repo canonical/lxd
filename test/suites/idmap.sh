@@ -1,7 +1,7 @@
 test_idmap() {
   if [ "$(stat --file-system -L -c "%T" .)" = "fuseblk" ]; then
-    echo "==> SKIP: this test cannot be run from a virtiofs directory"
-    return
+    export TEST_UNMET_REQUIREMENT="cannot be run from a virtiofs directory"
+    return 0
   fi
 
   # Check that we have a big enough range for this test
