@@ -128,7 +128,7 @@ deconfigure_loop_device() {
     fi
 
     rm -f "${lv_loop_file}"
-    sed -i "\\|^${loopdev}|d" "${TEST_DIR}/loops"
+    sed -i "\|^${loopdev}\$| d" "${TEST_DIR}/loops"
 }
 
 umount_loops() {
