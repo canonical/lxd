@@ -191,13 +191,11 @@ test_idmap() {
   ! lxc launch testimage idmap1 -c security.idmap.isolated=true -c security.idmap.size=$((UIDs+1)) || false
 
   # Test raw id maps
-  (
-  cat << EOF
+  lxc config set idmap raw.idmap - <<EOF
 uid ${UID_BASE} 1000000
 gid $((GID_BASE+1)) 1000000
 both $((UID_BASE+2)) 2000000
 EOF
-  ) | lxc config set idmap raw.idmap -
   lxc restart idmap --force
   PID=$(lxc info idmap | awk '/^PID/ {print $2}')
 
@@ -210,13 +208,11 @@ EOF
   [ "$(stat -c '%u:%g' "/proc/${PID}/root/b")" = "$((UID_BASE+2)):$((GID_BASE+2))" ]
 
   # Test id ranges
-  (
-  cat << EOF
+  lxc config set idmap raw.idmap - <<EOF
 uid $((UID_BASE+10))-$((UID_BASE+19)) 3000000-3000009
 gid $((GID_BASE+10))-$((GID_BASE+19)) 3000000-3000009
 both $((GID_BASE+20))-$((GID_BASE+29)) 4000000-4000009
 EOF
-  ) | lxc config set idmap raw.idmap -
   lxc restart idmap --force
   PID=$(lxc info idmap | awk '/^PID/ {print $2}')
 
