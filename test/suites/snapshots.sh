@@ -512,8 +512,8 @@ test_snapshot_fail() {
   ensure_import_testimage
 
   # Containers should fail to snapshot when root is full (can't write to backup.yaml)
-  lxc launch testimage c1 --device root,size=2MiB
-  if lxc exec c1 -- dd if=/dev/urandom of=/root/big.bin count=100 bs=100K; then
+  lxc launch testimage c1 --device root,size=1MiB
+  if lxc exec c1 -- dd if=/dev/urandom of=/root/big.bin count=1 bs=2M; then
     echo "Writting more data than the root size should have failed"
     false
   fi
