@@ -16,9 +16,6 @@ test_container_devices_disk() {
 }
 
 _container_devices_disk_shift() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-
   # `tmpfs` does not support idmapped mounts on kernels older than 6.3
   if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.3; then
     echo "==> SKIP: tmpfs (LXD_TMPFS=${LXD_TMPFS}) idmapped mount requires a kernel >= 6.3"
@@ -29,7 +26,7 @@ _container_devices_disk_shift() {
     return
   fi
 
-  if [ "${lxd_backend}" = "zfs" ]; then
+  if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
     # ZFS 2.2 is required for idmapped mounts support.
     zfs_version=$(zfs --version | grep -m 1 '^zfs-' | cut -d '-' -f 2)
     if [ "$(printf '%s\n' "$zfs_version" "2.2" | sort -V | head -n1)" = "$zfs_version" ]; then
@@ -166,10 +163,7 @@ _container_devices_raw_mount_options() {
 }
 
 _container_devices_disk_ceph() {
-  local LXD_BACKEND
-
-  LXD_BACKEND=$(storage_backend "$LXD_DIR")
-  if ! [ "${LXD_BACKEND}" = "ceph" ]; then
+  if [ "$(storage_backend "$LXD_DIR")" != "ceph" ]; then
     return
   fi
 
@@ -190,10 +184,7 @@ _container_devices_disk_ceph() {
 }
 
 _container_devices_disk_cephfs() {
-  local LXD_BACKEND
-
-  LXD_BACKEND=$(storage_backend "$LXD_DIR")
-  if [ "${LXD_BACKEND}" != "ceph" ] || [ -z "${LXD_CEPH_CEPHFS:-}" ]; then
+  if [ "$(storage_backend "$LXD_DIR")" != "ceph" ] || [ -z "${LXD_CEPH_CEPHFS:-}" ]; then
     return
   fi
 
