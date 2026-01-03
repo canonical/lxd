@@ -18,8 +18,8 @@ test_storage_driver_btrfs() {
     LXD_DIR="${LXD_STORAGE_DIR}"
 
     # shellcheck disable=SC1009
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" btrfs
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs size=128MiB
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" btrfs size=128MiB
 
     # Set default storage pool for image import.
     lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
@@ -169,11 +169,11 @@ test_storage_driver_btrfs() {
     btrfs subvolume create "${basepath}/foo/bar"
 
     # This should fail as the source itself has subvolumes.
-    ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo" || false
+    ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo" size=128MiB || false
 
     # This should work as the provided subvolume is empty.
     btrfs subvolume delete "${basepath}/foo/bar"
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo"
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo" size=128MiB
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
 
     umount "${basepath}"
