@@ -139,7 +139,8 @@ EOF
 
   # Test putting a file into a bucket.
   lxdTestFile="bucketfile_${bucketPrefix}.txt"
-  head -c 5M /dev/urandom > "${lxdTestFile}"
+  echo $$ > "${lxdTestFile}"
+  truncate -s 5M --no-create "${lxdTestFile}"  # Files too small are not successfully `put`
   ORIG_MD5SUM="$(md5sum < "${lxdTestFile}")"
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo"
   ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo" || false
