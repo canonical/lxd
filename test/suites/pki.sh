@@ -1,10 +1,5 @@
 # shellcheck disable=2031
 test_pki() {
-  if [ ! -d "/usr/share/easy-rsa/" ]; then
-    echo "==> SKIP: The pki test requires easy-rsa to be installed"
-    return
-  fi
-
   # Setup the PKI.
   cp -R /usr/share/easy-rsa "${TEST_DIR}/pki"
   (
