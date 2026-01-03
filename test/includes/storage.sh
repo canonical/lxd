@@ -85,11 +85,17 @@ import_storage_backends() {
 configure_loop_device() {
     local -n _img_out="${1}"
     local -n _dev_out="${2}"
+    # Minimal size for different FSes:
+    # * ext4: 224K
+    # * ZFS: 64M
+    # * btrfs: 109M
+    # * XFS: 300M
+    local size="${3:-"64M"}"
     local lv_loop_file pvloopdev
 
     # shellcheck disable=SC2153
     lv_loop_file="$(mktemp -p "${TEST_DIR}" lxdtest-XXX.img)"
-    truncate -s 10G "${lv_loop_file}"
+    truncate -s "${size}" "${lv_loop_file}"
     if ! pvloopdev="$(losetup --show -f "${lv_loop_file}")"; then
         echo "failed to setup loop" >&2
         return 1
