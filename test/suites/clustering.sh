@@ -5656,7 +5656,7 @@ test_clustering_recovery() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}" "${pool_driver}"
 
   # Spawn a third node using a custom loop device outside of LXD's directory.
-  configure_loop_device loop_file_1 loop_device_1
+  configure_loop_device loop_file_1 loop_device_1 128M  # 128M to accommodate for btrfs
   # shellcheck disable=SC2154
   source="${loop_device_1}"
   if [ "${pool_driver}" = "dir" ]; then
