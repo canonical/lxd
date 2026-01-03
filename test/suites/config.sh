@@ -180,22 +180,22 @@ test_config_profiles() {
   # test live-adding a nic
   veth_host_name="veth$$"
   lxc start foo
-  lxc exec foo -- cat /proc/self/mountinfo | grep "/mnt1.*ro,"
+  lxc exec foo -- grep "/mnt1.*ro," /proc/self/mountinfo
   ! lxc config show foo | grep -F "raw.lxc" || false
   lxc config show foo --expanded | grep -F "raw.lxc"
-  ! lxc config show foo | grep -vF "volatile.eth0" | grep -F "eth0" || false
-  lxc config show foo --expanded | grep -vF "volatile.eth0" | grep -F "eth0"
+  ! lxc config show foo | grep -vF "volatile.eth0" | grep -wF "eth0" || false
+  lxc config show foo --expanded | grep -vF "volatile.eth0" | grep -wF "eth0"
   lxc config device add foo eth2 nic nictype=p2p name=eth10 host_name="${veth_host_name}"
-  lxc exec foo -- /sbin/ifconfig -a | grep eth0
-  lxc exec foo -- /sbin/ifconfig -a | grep eth10
-  lxc config device list foo | grep eth2
+  lxc exec foo -- /sbin/ifconfig -a | grep -wF eth0
+  lxc exec foo -- /sbin/ifconfig -a | grep -wF eth10
+  lxc config device list foo | grep -wF eth2
   lxc config device remove foo eth2
 
   # test live-adding a disk
   mkdir "${TEST_DIR}/mnt2"
   touch "${TEST_DIR}/mnt2/hosts"
   lxc config device add foo mnt2 disk source="${TEST_DIR}/mnt2" path=/mnt2 readonly=true
-  lxc exec foo -- cat /proc/self/mountinfo | grep "/mnt2.*ro,"
+  lxc exec foo -- grep "/mnt2.*ro," /proc/self/mountinfo
   lxc exec foo -- ls /mnt2/hosts
   lxc stop foo --force
   lxc start foo
@@ -252,7 +252,7 @@ test_config_profiles() {
   if [ -e /sys/module/apparmor ]; then
     [ "$(lxc exec foo -- cat /proc/self/attr/current)" = "unconfined" ]
   fi
-  lxc exec foo -- ls /sys/class/net | grep eth0
+  lxc exec foo -- ls /sys/class/net | grep -wF eth0
 
   lxc stop foo --force
   lxc delete foo
