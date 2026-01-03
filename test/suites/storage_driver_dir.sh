@@ -18,13 +18,14 @@ test_storage_driver_dir() {
 }
 
 do_dir_on_empty_fs() {
-  # Create and mount a small ext4 filesystem.
-  tmp_file="$(mktemp -p "${TEST_DIR}" disk.XXX)"
-  truncate -s 24MiB "${tmp_file}"
-  mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${tmp_file}"
+  echo "==> Create and mount a small ext4 filesystem."
+
+  configure_loop_device tmp_file tmp_device
+  # shellcheck disable=SC2154
+  mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${tmp_device}"
 
   mount_point="$(mktemp -d -p "${TEST_DIR}" mountpoint.XXX)"
-  mount -o loop "${tmp_file}" "${mount_point}"
+  mount "${tmp_device}" "${mount_point}"
 
   if [ ! -d "${mount_point}/lost+found" ]; then
     echo "Error: Expected ${mount_point}/lost+found subdirectory to exist"
@@ -44,8 +45,9 @@ do_dir_on_empty_fs() {
 
   # Cleanup.
   umount "${mount_point}"
-  rm -rf "${mount_point}"
-  rm -f "${tmp_file}"
+  rmdir "${mount_point}"
+  # shellcheck disable=SC2154
+  deconfigure_loop_device "${tmp_file}" "${tmp_device}"
 }
 
 do_dir_xfs_project_quotas() {
