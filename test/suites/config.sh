@@ -254,8 +254,7 @@ test_config_profiles() {
   fi
   lxc exec foo -- ls /sys/class/net | grep -wF eth0
 
-  lxc stop foo --force
-  lxc delete foo
+  lxc delete --force foo
 }
 
 
