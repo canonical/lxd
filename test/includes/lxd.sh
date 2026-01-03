@@ -344,7 +344,7 @@ shutdown_lxd() {
 
     # Wait for any cleanup activity that might be happening right
     # after the websocket is closed.
-    sleep 0.5
+    sleep 0.1
 }
 
 wait_for() {
