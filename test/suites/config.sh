@@ -264,8 +264,8 @@ test_config_edit() {
     if ! tty -s; then
         unbuffer="$(command -v unbuffer)"
         if [ -z "${unbuffer}" ]; then
-            echo "==> SKIP: test_config_edit requires a terminal or 'unbuffer'"
-            return
+            export TEST_UNMET_REQUIREMENT="Requires a terminal or 'unbuffer' command"
+            return 0
         fi
     fi
 
@@ -405,8 +405,8 @@ test_container_snapshot_config() {
     if ! tty -s; then
         unbuffer="$(command -v unbuffer)"
         if [ -z "${unbuffer}" ]; then
-            echo "==> SKIP: test_container_snapshot_config requires a terminal or 'unbuffer'"
-            return
+            export TEST_UNMET_REQUIREMENT="Requires a terminal or 'unbuffer' command"
+            return 0
         fi
     fi
 
