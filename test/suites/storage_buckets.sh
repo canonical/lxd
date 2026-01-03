@@ -11,6 +11,8 @@ s3cmdrun () {
       --secret_key="${secreyKey}" \
       --host="${s3Endpoint}" \
       --host-bucket="${s3Endpoint}" \
+      --stop-on-error \
+      --max-retries=0 \
       --no-ssl \
       "$@"
   else
@@ -19,6 +21,8 @@ s3cmdrun () {
       --secret_key="${secreyKey}" \
       --host="${s3Endpoint}" \
       --host-bucket="${s3Endpoint}" \
+      --stop-on-error \
+      --max-retries=0 \
       --ssl \
       --no-check-certificate \
       "$@"
