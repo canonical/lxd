@@ -73,6 +73,7 @@ _loop_mounts() {
   _ensure_fs_unmounted "removed fs re-appeared after restart"
   lxc stop foo --force
 
+  # shellcheck disable=SC2154
   deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
 }
 
