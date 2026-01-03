@@ -176,8 +176,6 @@ test_storage_driver_btrfs() {
     lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo"
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
 
-    sleep 1
-
     umount "${basepath}"
     rmdir "${basepath}"
     # shellcheck disable=SC2154
