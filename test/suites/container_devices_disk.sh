@@ -169,7 +169,7 @@ _container_devices_disk_ceph() {
 
   RBD_POOL_NAME=lxdtest-$(basename "${LXD_DIR}")-disk
   ceph osd pool create "${RBD_POOL_NAME}" 1
-  rbd create --pool "${RBD_POOL_NAME}" --size 50M my-volume
+  rbd create --pool "${RBD_POOL_NAME}" --size 24M my-volume
   RBD_DEVICE=$(rbd map --pool "${RBD_POOL_NAME}" my-volume)
   mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${RBD_DEVICE}"
   rbd unmap "${RBD_DEVICE}"
