@@ -31,10 +31,10 @@ test_resources_bcache() {
   echo "${loop_device_2}" > /sys/fs/bcache/register
 
   # Print for debugging purposes.
-  lxc query /1.0/resources | jq '.storage.disks'
+  lxc query /1.0/resources | jq --exit-status '.storage.disks'
 
   # Check the bcache device is returned by LXD.
-  [ "$(lxc query /1.0/resources | jq -r '.storage.disks[] | select(.id == "bcache0")')" != "" ]
+  lxc query /1.0/resources | jq --exit-status '.storage.disks[] | select(.id == "bcache0")'
 
   # Get the bcache cache and backing devices.
   cache_device_base="$(basename "${loop_device_1}")"
@@ -48,9 +48,9 @@ test_resources_bcache() {
 
   # Check the devices are marked in use by bcache.
   # The actual bcache device should report an unset 'used_by' field.
-  [ "$(lxc query /1.0/resources | jq -r '.storage.disks[] | select(.id == "bcache0") | .used_by')" = "null" ]
-  [ "$(lxc query /1.0/resources | jq -r '.storage.disks[] | select(.device == "'"${cache_device}"'") | .used_by')" = "bcache" ]
-  [ "$(lxc query /1.0/resources | jq -r '.storage.disks[] | select(.device == "'"${backing_device}"'") | .used_by')" = "bcache" ]
+  lxc query /1.0/resources | jq --exit-status '.storage.disks[] | select(.id == "bcache0") | .used_by == null'
+  lxc query /1.0/resources | jq --exit-status '.storage.disks[] | select(.device == "'"${cache_device}"'") | .used_by == "bcache"'
+  lxc query /1.0/resources | jq --exit-status '.storage.disks[] | select(.device == "'"${backing_device}"'") | .used_by == "bcache"'
 
   # Cleanup
   echo 1 > /sys/block/bcache0/bcache/stop
