@@ -16,8 +16,9 @@ test_resources_bcache() {
   modprobe bcache
 
   # Create two loop devices used for the bcache cache and backing device.
-  configure_loop_device loop_file_1 loop_device_1
-  configure_loop_device loop_file_2 loop_device_2
+  # XXX: the caching device must be larger than 256M
+  configure_loop_device loop_file_1 loop_device_1 300M
+  configure_loop_device loop_file_2 loop_device_2 300M
 
   # Create bcache device.
   # shellcheck disable=SC2154
