@@ -94,6 +94,7 @@ config:
     - dnsmasq-base
     - dosfstools
     - e2fsprogs
+    - easy-rsa
     - expect
     - iptables
     - iputils-ping
