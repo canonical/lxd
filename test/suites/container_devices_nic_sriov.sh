@@ -7,11 +7,11 @@
 # sudo rmmod igb
 # sudo modprobe igb max_vfs=2
 test_container_devices_nic_sriov() {
-  parent=${LXD_NIC_SRIOV_PARENT:-""}
+  local parent=${LXD_NIC_SRIOV_PARENT:-""}
 
   if [ "$parent" = "" ]; then
-    echo "==> SKIP: No SR-IOV NIC parent specified"
-    return
+    export TEST_UNMET_REQUIREMENT="No SR-IOV NIC parent specified"
+    return 0
   fi
 
   ensure_import_testimage

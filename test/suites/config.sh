@@ -48,23 +48,17 @@ _ensure_fs_unmounted() {
 }
 
 _loop_mounts() {
-  loopfile=$(mktemp -p "${TEST_DIR}" loop_XXX)
-  dd if=/dev/zero of="${loopfile}" bs=1M seek=200 count=1
-  mkfs.ext4 -F "${loopfile}"
+  configure_loop_device loop_file_1 loop_device_1
 
-  lpath=$(losetup --show -f "${loopfile}")
-  if [ ! -e "${lpath}" ]; then
-    echo "failed to setup loop"
-    false
-  fi
-  echo "${lpath}" >> "${TEST_DIR}/loops"
+  # shellcheck disable=SC2154
+  mkfs.ext4 -E assume_storage_prezeroed=1 -m0 -F "${loop_device_1}"
 
   mkdir -p "${TEST_DIR}/mnt"
-  mount "${lpath}" "${TEST_DIR}/mnt" || { echo "loop mount failed"; return; }
+  mount "${loop_device_1}" "${TEST_DIR}/mnt"
   touch "${TEST_DIR}/mnt/hello"
   umount -l "${TEST_DIR}/mnt"
   lxc start foo
-  lxc config device add foo mnt disk source="${lpath}" path=/mnt
+  lxc config device add foo mnt disk source="${loop_device_1}" path=/mnt
   lxc exec foo -- stat /mnt/hello
   # Note - we need to add a set_running_config_item to lxc
   # or work around its absence somehow.  Once that's done, we
@@ -78,8 +72,9 @@ _loop_mounts() {
   lxc restart foo --force
   _ensure_fs_unmounted "removed fs re-appeared after restart"
   lxc stop foo --force
-  losetup -d "${lpath}"
-  sed -i "\\|^${lpath}|d" "${TEST_DIR}/loops"
+
+  # shellcheck disable=SC2154
+  deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
 }
 
 _mount_order() {
@@ -186,22 +181,22 @@ test_config_profiles() {
   # test live-adding a nic
   veth_host_name="veth$$"
   lxc start foo
-  lxc exec foo -- cat /proc/self/mountinfo | grep "/mnt1.*ro,"
+  lxc exec foo -- grep "/mnt1.*ro," /proc/self/mountinfo
   ! lxc config show foo | grep -F "raw.lxc" || false
   lxc config show foo --expanded | grep -F "raw.lxc"
-  ! lxc config show foo | grep -vF "volatile.eth0" | grep -F "eth0" || false
-  lxc config show foo --expanded | grep -vF "volatile.eth0" | grep -F "eth0"
+  ! lxc config show foo | grep -vF "volatile.eth0" | grep -wF "eth0" || false
+  lxc config show foo --expanded | grep -vF "volatile.eth0" | grep -wF "eth0"
   lxc config device add foo eth2 nic nictype=p2p name=eth10 host_name="${veth_host_name}"
-  lxc exec foo -- /sbin/ifconfig -a | grep eth0
-  lxc exec foo -- /sbin/ifconfig -a | grep eth10
-  lxc config device list foo | grep eth2
+  lxc exec foo -- /sbin/ifconfig -a | grep -wF eth0
+  lxc exec foo -- /sbin/ifconfig -a | grep -wF eth10
+  lxc config device list foo | grep -wF eth2
   lxc config device remove foo eth2
 
   # test live-adding a disk
   mkdir "${TEST_DIR}/mnt2"
   touch "${TEST_DIR}/mnt2/hosts"
   lxc config device add foo mnt2 disk source="${TEST_DIR}/mnt2" path=/mnt2 readonly=true
-  lxc exec foo -- cat /proc/self/mountinfo | grep "/mnt2.*ro,"
+  lxc exec foo -- grep "/mnt2.*ro," /proc/self/mountinfo
   lxc exec foo -- ls /mnt2/hosts
   lxc stop foo --force
   lxc start foo
@@ -258,10 +253,9 @@ test_config_profiles() {
   if [ -e /sys/module/apparmor ]; then
     [ "$(lxc exec foo -- cat /proc/self/attr/current)" = "unconfined" ]
   fi
-  lxc exec foo -- ls /sys/class/net | grep eth0
+  lxc exec foo -- ls /sys/class/net | grep -wF eth0
 
-  lxc stop foo --force
-  lxc delete foo
+  lxc delete --force foo
 }
 
 
@@ -270,8 +264,8 @@ test_config_edit() {
     if ! tty -s; then
         unbuffer="$(command -v unbuffer)"
         if [ -z "${unbuffer}" ]; then
-            echo "==> SKIP: test_config_edit requires a terminal or 'unbuffer'"
-            return
+            export TEST_UNMET_REQUIREMENT="Requires a terminal or 'unbuffer' command"
+            return 0
         fi
     fi
 
@@ -411,8 +405,8 @@ test_container_snapshot_config() {
     if ! tty -s; then
         unbuffer="$(command -v unbuffer)"
         if [ -z "${unbuffer}" ]; then
-            echo "==> SKIP: test_container_snapshot_config requires a terminal or 'unbuffer'"
-            return
+            export TEST_UNMET_REQUIREMENT="Requires a terminal or 'unbuffer' command"
+            return 0
         fi
     fi
 

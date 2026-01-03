@@ -27,7 +27,7 @@ test_init_preseed() {
         source=""
     fi
 
-    cat <<EOF | lxd init --preseed
+    lxd init --preseed <<EOF
 config:
   core.https_address: 127.0.0.1:9999
   images.auto_update_interval: 15

@@ -90,9 +90,7 @@ spawn_lxd() {
     if [ "${LXD_NETNS}" = "" ]; then
         lxd --logfile "${LXD_DIR}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     else
-        # shellcheck disable=SC2153
-        read -r pid < "${TEST_DIR}/ns/${LXD_NETNS}/PID"
-        nsenter -n -m -t "${pid}" lxd --logfile "${LXD_DIR}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
+        nsenter -n -m -t "$(< "${TEST_DIR}/ns/${LXD_NETNS}/PID")" lxd --logfile "${LXD_DIR}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     fi
     local LXD_PID=$!
     echo "${LXD_PID}" > "${LXD_DIR}/lxd.pid"
@@ -177,12 +175,9 @@ kill_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
     local LXD_DIR="${1}"
-    shift
 
     # Check if already killed
-    if [ ! -f "${LXD_DIR}/lxd.pid" ]; then
-      return
-    fi
+    [ -f "${LXD_DIR}/lxd.pid" ] || return 0
 
     local LXD_PID lxd_backend check_leftovers
     LXD_PID=$(< "${LXD_DIR}/lxd.pid")
@@ -257,13 +252,6 @@ kill_lxd() {
         # Kill the daemon
         timeout -k 30 30 lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
 
-        sleep 2
-
-        # Cleanup devlxd and shmounts (needed due to the forceful kill)
-        # Only try to unmount things on the same filesystem as LXD_DIR and only if they are directories.
-        # This is to avoid stepping on the snap symlink that appears to be dangling from the host's point of view.
-        find "${LXD_DIR}" -type d -xdev \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
-
         check_leftovers="true"
     fi
 
@@ -280,23 +268,6 @@ kill_lxd() {
     fi
 
     if [ "${check_leftovers}" = "true" ]; then
-        echo "==> Checking for leftover files"
-        rm -f "${LXD_DIR}/containers/lxc-monitord.log"
-
-        # Support AppArmor policy cache directory
-        apparmor_cache_dir="$(apparmor_parser --cache-loc "${LXD_DIR}"/security/apparmor/cache --print-cache-dir)"
-        rm -f "${apparmor_cache_dir}/.features"
-        check_empty "${LXD_DIR}/containers/"
-        check_empty "${LXD_DIR}/devices/"
-        check_empty "${LXD_DIR}/images/"
-        # FIXME: Once container logging rework is done, uncomment
-        # check_empty "${LXD_DIR}/logs/"
-        check_empty "${apparmor_cache_dir}"
-        check_empty "${LXD_DIR}/security/apparmor/profiles/"
-        check_empty "${LXD_DIR}/security/seccomp/"
-        check_empty "${LXD_DIR}/shmounts/"
-        check_empty "${LXD_DIR}/snapshots/"
-
         echo "==> Checking for leftover DB entries"
         check_empty_table "${LXD_DIR}/database/global/db.bin" "images"
         check_empty_table "${LXD_DIR}/database/global/db.bin" "images_aliases"
@@ -319,6 +290,28 @@ kill_lxd() {
         check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_pools_nodes"
         check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_volumes"
         check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_volumes_config"
+
+        # Cleanup devlxd and shmounts (needed due to the forceful kill)
+        # Only try to unmount things on the same filesystem as LXD_DIR and only if they are directories.
+        # This is to avoid stepping on the snap symlink that appears to be dangling from the host's point of view.
+        find "${LXD_DIR}" -type d -xdev \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
+
+        echo "==> Checking for leftover files"
+        rm -f "${LXD_DIR}/containers/lxc-monitord.log"
+
+        # Support AppArmor policy cache directory
+        apparmor_cache_dir="$(apparmor_parser --cache-loc "${LXD_DIR}"/security/apparmor/cache --print-cache-dir)"
+        rm -f "${apparmor_cache_dir}/.features"
+        check_empty "${LXD_DIR}/containers/"
+        check_empty "${LXD_DIR}/devices/"
+        check_empty "${LXD_DIR}/images/"
+        # FIXME: Once container logging rework is done, uncomment
+        # check_empty "${LXD_DIR}/logs/"
+        check_empty "${apparmor_cache_dir}"
+        check_empty "${LXD_DIR}/security/apparmor/profiles/"
+        check_empty "${LXD_DIR}/security/seccomp/"
+        check_empty "${LXD_DIR}/shmounts/"
+        check_empty "${LXD_DIR}/snapshots/"
     fi
 
     # teardown storage
@@ -351,7 +344,7 @@ shutdown_lxd() {
 
     # Wait for any cleanup activity that might be happening right
     # after the websocket is closed.
-    sleep 0.5
+    sleep 0.1
 }
 
 wait_for() {
@@ -456,7 +449,7 @@ lxd_shutdown_restart() {
     local monitor_pid=$!
 
     # Give monitor a moment to connect
-    sleep 2
+    sleep 0.1
     echo "Monitor PID: $monitor_pid"
     echo "LXD daemon PID: $LXD_PID"
     echo "Starting LXD shutdown sequence..."
