@@ -271,20 +271,20 @@ EOF
 }
 
 test_container_recover() {
-  LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  local LXD_IMPORT_DIR
+  LXD_IMPORT_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
   spawn_lxd "${LXD_IMPORT_DIR}" true
+
+  if [ "$(storage_backend "$LXD_IMPORT_DIR")" = "pure" ]; then
+    export TEST_UNMET_REQUIREMENT="Storage driver does not support recovery"
+    return 0
+  fi
 
   (
     set -e
 
     # shellcheck disable=SC2030
     LXD_DIR=${LXD_IMPORT_DIR}
-    lxd_backend=$(storage_backend "$LXD_DIR")
-
-    if [ "${lxd_backend}" = "pure" ]; then
-      echo "==> SKIP: Storage driver does not support recovery"
-      return
-    fi
 
     ensure_import_testimage
 
