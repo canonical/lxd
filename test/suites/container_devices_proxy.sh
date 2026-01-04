@@ -1,6 +1,10 @@
 test_container_devices_proxy() {
   ensure_import_testimage
 
+  HOST_TCP_PORT="$(local_tcp_port)"
+  HOST_TCP_PORT2="$(local_tcp_port)"
+  HOST_TCP_PORT3="$(local_tcp_port)"
+
   container_devices_proxy_validation
   container_devices_proxy_tcp
   container_devices_proxy_tcp_unix
@@ -10,13 +14,14 @@ test_container_devices_proxy() {
   container_devices_proxy_unix_udp
   container_devices_proxy_unix_tcp
   container_devices_proxy_with_overlapping_forward_net
+
+  unset HOST_TCP_PORT HOST_TCP_PORT2 HOST_TCP_PORT3
 }
 
 container_devices_proxy_validation() {
   echo "====> Testing proxy validation"
 
   # Setup
-  HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
   # Check that connecting to a DNS name is not allowed (security risk).
@@ -67,7 +72,6 @@ container_devices_proxy_tcp() {
 
   # Setup
   MESSAGE="Proxy device test string: tcp"
-  HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
   # Initial test
@@ -120,8 +124,6 @@ container_devices_proxy_tcp() {
 
   # Initial test: Setting up multiple TCP port proxies
   lxc config device remove proxyTester proxyDev
-  HOST_TCP_PORT2=$(local_tcp_port)
-  HOST_TCP_PORT3=$(local_tcp_port)
   PID=$(lxc query /1.0/containers/proxyTester/state | jq .pid)
 
   # Set up three socat listeners in the container
@@ -384,7 +386,6 @@ container_devices_proxy_tcp_unix() {
 
   # Setup
   MESSAGE="Proxy device test string: tcp -> unix"
-  HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
   # Initial test
@@ -653,7 +654,6 @@ container_devices_proxy_tcp_udp() {
 
   # Setup
   MESSAGE="Proxy device test string: tcp -> udp"
-  HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
   # Initial test
@@ -719,7 +719,6 @@ container_devices_proxy_with_overlapping_forward_net() {
 
   overlappingAddr="192.0.2.2"
   proxyTesterStaticIP="192.0.2.3"
-  HOST_TCP_PORT=$(local_tcp_port)
 
   # First, launch container with a static IP
   lxc launch testimage proxyTester
