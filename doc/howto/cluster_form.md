@@ -132,7 +132,7 @@ What IP address or DNS name should be used to reach this server? [default=192.0.
 Are you joining an existing cluster? (yes/no) [default=no]: yes
 Do you have a join token? (yes/no/[token]) [default=no]: yes
 Please provide join token: eyJzZXJ2ZXJfbmFtZSI6InJwaTAxIiwiZmluZ2VycHJpbnQiOiIyNjZjZmExZDk0ZDZiMjk2Nzk0YjU0YzJlYzdjOTMwNDA5ZjIzNjdmNmM1YjRhZWVjOGM0YjAxYTc2NjU0MjgxIiwiYWRkcmVzc2VzIjpbIjE3Mi4xNy4zMC4xODM6ODQ0MyJdLCJzZWNyZXQiOiJmZGI1OTgyNjgxNTQ2ZGQyNGE2ZGE0Mzg5MTUyOGM1ZGUxNWNmYmQ5M2M3OTU3ODNkNGI5OGU4MTQ4MWMzNmUwIn0=
-All existing data is lost when joining a cluster, continue? (yes/no) [default=no] yes
+All existing data in the local database is lost when joining a cluster, continue? (yes/no) [default=no] yes
 Choose "size" property for storage pool "local" [default=9GiB]:
 Choose "source" property for storage pool "local":
 Choose "zfs.pool_name" property for storage pool "local" [default=local]:

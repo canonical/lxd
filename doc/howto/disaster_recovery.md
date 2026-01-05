@@ -27,7 +27,8 @@ The tool is available through the `lxd recover` command (note the `lxd` command 
 
 When you run the tool, it scans all storage pools that still exist in the database, looking for missing volumes that can be recovered.
 Any unknown storage pools (those that exist on disk but do not exist in the database) which are discovered whilst scanning existing and unknown volumes
-are printed so they can be created manually using the `lxc storage create` command.
+are printed so they can be created manually using the `lxc storage create ... source.recover=true` command.
+Concrete examples for each storage driver can be found in {ref}`storage-recover-pool`.
 
 After mounting the specified storage pools (if not already mounted), the tool scans them for unknown volumes that look like they are associated with LXD.
 LXD maintains a `backup.yaml` file in each instance's storage volume, which contains all necessary information to recover a given instance (including instance configuration, attached devices, storage volume, and pool configuration).
@@ -158,7 +159,7 @@ lxc list
 +------+---------+----------------------+-----------------------------------------------+-----------------+-----------+
 | NAME |  STATE  |         IPV4         |                     IPV6                      |      TYPE       | SNAPSHOTS |
 +------+---------+----------------------+-----------------------------------------------+-----------------+-----------+
-| u1   | RUNNING | 10.178.27.235 (eth0) | fd42:f9e6:53c2:ccc5:216:3eff:fe49:e549 (eth0) | CONTAINER       | 0         |
+| u1   | RUNNING | 192.0.2.2 (eth0)     | 2001:db8:cff3:5089:216:3eff:fef0:549f (eth0)  | CONTAINER       | 0         |
 +------+---------+----------------------+-----------------------------------------------+-----------------+-----------+
 | u2   | STOPPED |                      |                                               | CONTAINER       | 0         |
 +------+---------+----------------------+-----------------------------------------------+-----------------+-----------+

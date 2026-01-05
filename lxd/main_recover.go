@@ -55,7 +55,7 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 		}
 
 		if len(existingPools) == 0 {
-			return errors.New(`This LXD server doesn't have any storage pools. First recover a pool using the "source.recover" config item`)
+			return errors.New(`There are no storage pools defined in the database. To recover pools that exist in the storage device already, run "lxc storage create" for each pool with its source configuration and "source.recover=true" setting.`)
 		}
 
 		fmt.Println("This LXD server currently has the following storage pools:")
