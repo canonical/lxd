@@ -282,31 +282,22 @@ migration() {
   lxc_remote copy l1:c1 l2:c2
   lxc_remote copy l1:c1 l2:c2 --refresh
 
-  lxc_remote start l1:c1 l2:c2
+  lxc_remote start l1:c1
 
   # Make sure the testfile doesn't exist
   ! lxc file pull l1:c1 -- /root/testfile1 || false
   ! lxc file pull l2:c2 -- /root/testfile1 || false
 
-  #lxc_remote start l1:c1 l2:c2
-
-  # Containers may not be running when refreshing
-  ! lxc_remote copy l1:c1 l2:c2 --refresh || false
-
-  # Create test file in c1
+  # Create test file in c1 (source)
   echo test | lxc_remote file push - l1:c1/root/testfile1
 
-  lxc_remote stop -f l1:c1 l2:c2
-
-  # Refresh the container and validate the contents
+  # Refresh with running source is allowed (refresh is always stateless).
+  # Target must be stopped to receive the refresh.
   lxc_remote copy l1:c1 l2:c2 --refresh
-  lxc_remote start l2:c2
   [ "$(lxc_remote file pull l2:c2/root/testfile1 -)" = "test" ]
-  lxc_remote stop -f l2:c2
 
   # Change the files modification time by adding one nanosecond.
   # Perform the change on the test runner since the busybox instances `touch` doesn't support setting nanoseconds.
-  lxc_remote start l1:c1
   c1_pid="$(lxc_remote list -f csv -c p l1:c1)"
   mtime_old="$(stat -c %y "/proc/${c1_pid}/root/root/testfile1")"
   mtime_old_ns="$(date -d "$mtime_old" +%N | sed 's/^0*//')"
