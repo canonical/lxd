@@ -7,6 +7,7 @@ test_image_expiry() {
 
   ensure_import_testimage
 
+  local token
   token="$(lxc config trust add --name foo -q)"
   # shellcheck disable=2153
   lxc_remote remote add l1 "${LXD_ADDR}" --token "${token}"
@@ -22,6 +23,7 @@ test_image_expiry() {
   lxc_remote project create l2:p2 -c features.images=true -c features.profiles=false
   lxc_remote project switch l2:p2
 
+  local fp
   fp="$(lxc_remote image info testimage | awk '/^Fingerprint/ {print $2}')"
 
   echo "Create instance from cached image."
@@ -30,15 +32,16 @@ test_image_expiry() {
 
   echo "Confirm the image is cached."
   [ -n "${fp}" ]
+  local fpbrief
   fpbrief=$(echo "${fp}" | cut -c 1-12)
-  lxc_remote image list l2: | grep -wF "${fpbrief}"
+  lxc_remote image list -f csv -c f l2: | grep -xF "${fpbrief}"
 
   echo "Project can still be deleted since cached images are pruned."
   lxc_remote project delete l2:p2
 
   echo "Switch back to default project and confirm image is still cached."
   lxc_remote project switch l2:default
-  lxc_remote image list l2: | grep -wF "${fpbrief}"
+  lxc_remote image list -f csv -c f l2: | grep -xF "${fpbrief}"
 
   echo "Test modification of image expiry date."
   lxc_remote image info "l2:${fp}" | grep "Expires.*never"
@@ -51,17 +54,17 @@ test_image_expiry() {
   echo "Trigger the expiry."
   lxc_remote config set l2: images.remote_cache_expiry 1
 
-  for _ in $(seq 20); do
-    sleep 1
-    if lxc_remote image info l2:"${fpbrief}"; then
+  for _ in $(seq 40); do
+    if ! lxc_remote image info l2:"${fpbrief}" 2>/dev/null; then
       break
     fi
+    sleep 0.5
   done
 
   ! lxc_remote image info l2:"${fpbrief}" || false
 
   echo "Check image is still in p1 project and has not been expired."
-  lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"
+  lxc_remote image list -f csv -c f l2: --project p1 | grep -xF "${fpbrief}"
 
   echo "Test instance can still be created in p1 project."
   lxc_remote project switch l2:p1
@@ -75,11 +78,11 @@ test_image_expiry() {
   echo "Trigger the expiry in p1 project by changing global images.remote_cache_expiry."
   lxc_remote config unset l2: images.remote_cache_expiry
 
-  for _ in $(seq 20); do
-    sleep 1
-    if lxc_remote image info l2:"${fpbrief}" --project p1; then
+  for _ in $(seq 40); do
+    if ! lxc_remote image info l2:"${fpbrief}" --project p1 2>/dev/null; then
       break
     fi
+    sleep 0.5
   done
 
   ! lxc_remote image info l2:"${fpbrief}" --project p1 || false
@@ -110,11 +113,11 @@ test_image_expiry() {
   echo "==> Trigger the expiry. Image in the default project should get pruned, but image in project p1 should remain."
   lxc_remote config set l2: images.remote_cache_expiry 1
 
-  for _ in $(seq 20); do
-    sleep 1
-    if lxc_remote image info l2:"${fpbrief}"; then
+  for _ in $(seq 40); do
+    if ! lxc_remote image info l2:"${fpbrief}" 2>/dev/null; then
       break
     fi
+    sleep 0.5
   done
 
   echo "==> Check that image in the default project was deleted."
@@ -145,14 +148,19 @@ test_image_list_all_aliases() {
     sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
     lxc image alias create zzz "$sum"
     # both aliases are listed if the "aliases" column is included in output
-    lxc image list -c L | grep -wF testimage
-    lxc image list -c L | grep -wF zzz
+    local expected_output
+    expected_output="$(echo -e '"testimage\nzzz"')"
+    [ "$(lxc image list -f csv -c L)" = "${expected_output}" ]
     lxc image alias delete zzz
 }
 
 test_image_list_remotes() {
-    # list images from the `images:` and `ubuntu-minimal:`  builtin remotes if they are reachable
+    if [ -n "${LXD_OFFLINE:-}" ]; then
+        export TEST_UNMET_REQUIREMENT="LXD_OFFLINE mode enabled, skipping"
+        return 0
+    fi
 
+    # list images from the `images:` and `ubuntu-minimal:` builtin remotes if they are reachable
     lxc remote list -f csv | while IFS=, read -r name url _; do
         if [ "${name}" != "images" ] && [ "${name}" != "ubuntu-minimal" ]; then
             continue
