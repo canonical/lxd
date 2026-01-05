@@ -2,6 +2,7 @@
 # Type: `disk`
 
 ```{youtube} https://www.youtube.com/watch?v=JhRw2OYTgtg
+:title: LXD disk devices
 ```
 
 ```{note}

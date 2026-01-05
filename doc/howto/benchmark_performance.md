@@ -2,6 +2,7 @@
 # How to benchmark performance
 
 ```{youtube} https://www.youtube.com/watch?v=z_OKwO5TskA
+:title: Benchmarking LXD storage drivers
 ```
 
 The performance of your LXD server or cluster depends on a lot of different factors, ranging from the hardware, the server configuration, the selected storage driver and the network bandwidth to the overall usage patterns.
