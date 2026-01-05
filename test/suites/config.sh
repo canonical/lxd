@@ -347,9 +347,7 @@ test_config_edit_container_snapshot_pool_config() {
     local storage_pool
     storage_pool="lxdtest-$(basename "${LXD_DIR}")"
 
-    ensure_import_testimage
-
-    lxc init testimage c1 -s "$storage_pool"
+    lxc init --empty c1 -s "$storage_pool"
     lxc snapshot c1 s1
     # edit the container volume name
     lxc storage volume show "$storage_pool" container/c1 | \
