@@ -14,7 +14,7 @@ test_storage_volume_initial_config() {
 
   if [ "$lxd_backend" = "zfs" ] || [ "$lxd_backend" = "lvm" ]; then
     pool="storage-initial-values"
-    lxc storage create "${pool}" "${lxd_backend}" size=512MiB
+    lxc storage create "${pool}" "${lxd_backend}" size=320MiB
   fi
 
   if [ "$lxd_backend" = "zfs" ]; then
