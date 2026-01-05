@@ -2,7 +2,8 @@ test_storage_volume_initial_config() {
 
   lxd_backend=$(storage_backend "$LXD_DIR")
   if [ "${lxd_backend}" != "zfs" ] && [ "${lxd_backend}" != "lvm" ] && [ "${lxd_backend}" != "ceph" ]; then
-    return
+    export TEST_UNMET_REQUIREMENT="${lxd_backend} driver does not support initial configuration for storage volumes"
+    return 0
   fi
 
   ensure_import_testimage
