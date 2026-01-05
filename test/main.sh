@@ -113,6 +113,14 @@ export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_D
 # shellcheck disable=SC2034
 LXD_NETNS=""
 
+# LXD_XXX_DIRs for multiple LXD instances
+export LXD_ONE_DIR="" LXD_TWO_DIR="" LXD_THREE_DIR="" LXD_FOUR_DIR="" LXD_FIVE_DIR="" LXD_SIX_DIR="" LXD_SEVEN_DIR="" LXD_EIGHT_DIR="" LXD_NINE_DIR=""
+# nsX variables for multiple network namespaces
+export ns1="" ns2="" ns3="" ns4="" ns5="" ns6="" ns7="" ns8="" ns9=""
+
+export prefix="lxd$$"
+export bridge="${prefix}"
+
 import_subdir_files() {
     test "$1"
     local file
@@ -575,6 +583,10 @@ spawn_initial_lxd() {
     spawn_lxd "${LXD_DIR}" true
     LXD_ADDR="$(< "${LXD_DIR}/lxd.addr")"
     export LXD_ADDR
+
+    # Export initial LXD dir for tests that need to refer to the standalone LXD instance
+    export LXD_INITIAL_DIR="${LXD_DIR}"
+    readonly LXD_INITIAL_DIR
 }
 
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
