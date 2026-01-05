@@ -8,11 +8,11 @@
 # echo "options mlx4_core num_vfs=4 probe_vf=4" | sudo tee /etc/modprobe.d/mellanox.conf
 # reboot
 test_container_devices_infiniband_sriov() {
-  parent=${LXD_IB_SRIOV_PARENT:-""}
+  local parent=${LXD_IB_SRIOV_PARENT:-""}
 
   if [ "$parent" = "" ]; then
-    echo "==> SKIP: No SR-IOV IB parent specified"
-    return
+    export TEST_UNMET_REQUIREMENT="No SR-IOV IB parent specified"
+    return 0
   fi
 
   ensure_import_testimage

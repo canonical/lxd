@@ -139,7 +139,7 @@ test_remote_url_with_token() {
   token="$(lxc config trust add --name foo --quiet)"
 
   # This will cause the token to expire
-  sleep 2
+  sleep 1.1
 
   # Try adding remote. This should fail.
   ! lxc_remote remote add test "${token}" || false
@@ -148,7 +148,7 @@ test_remote_url_with_token() {
   lxc config trust add --name foo --quiet # Create a token
   [ "$(lxc operation list --format csv | grep -cF 'TOKEN,Executing operation,RUNNING')" -eq 1 ] # Expect only one token operation to be running
   running_token_operation_uuid="$(lxc operation list --format csv | grep -F 'TOKEN,Executing operation,RUNNING' | cut -d, -f1)" # Get the operation UUID
-  sleep 2 # Wait for token to expire (expiry still set to 2 seconds)
+  sleep 1.1 # Wait for token to expire (expiry still set to short expiry)
   lxc query --request POST /internal/testing/prune-tokens # Prune tokens
   [ "$(lxc query "/1.0/operations/${running_token_operation_uuid}" | jq -r '.status')" = "Cancelled" ] # Expect the operation to be cancelled
 

@@ -505,15 +505,15 @@ test_snapshot_fail() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   if [ "${lxd_backend}" != "zfs" ]; then
-    echo "==> SKIP: test_snapshot_fail only supports 'zfs', not ${lxd_backend}"
-    return
+    export TEST_UNMET_REQUIREMENT="zfs specific test, not for ${lxd_backend}"
+    return 0
   fi
 
   ensure_import_testimage
 
   # Containers should fail to snapshot when root is full (can't write to backup.yaml)
-  lxc launch testimage c1 --device root,size=2MiB
-  if lxc exec c1 -- dd if=/dev/urandom of=/root/big.bin count=100 bs=100K; then
+  lxc launch testimage c1 --device root,size=1MiB
+  if lxc exec c1 -- dd if=/dev/urandom of=/root/big.bin count=1 bs=2M; then
     echo "Writting more data than the root size should have failed"
     false
   fi

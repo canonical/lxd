@@ -11,7 +11,7 @@ test_init_dump() {
     storage_pool="lxdtest-$(basename "${LXD_DIR}")-data"
     driver="dir"
 
-    cat <<EOF | lxd init --preseed
+    lxd init --preseed <<EOF
 config:
   core.https_address: 127.0.0.1:9999
   images.auto_update_interval: 15

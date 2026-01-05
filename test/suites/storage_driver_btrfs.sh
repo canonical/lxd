@@ -18,8 +18,8 @@ test_storage_driver_btrfs() {
     LXD_DIR="${LXD_STORAGE_DIR}"
 
     # shellcheck disable=SC1009
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" btrfs
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs size=128MiB
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" btrfs size=128MiB
 
     # Set default storage pool for image import.
     lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
@@ -159,27 +159,27 @@ test_storage_driver_btrfs() {
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"
 
     # Test creating storage pool from exiting btrfs subvolume
-    truncate -s 200M testpool.img
-    mkfs.btrfs -f testpool.img
+    configure_loop_device loop_file_1 loop_device_1 128M
+    # shellcheck disable=SC2154
+    mkfs.btrfs "${loop_device_1}"
     basepath="$(pwd)/mnt"
     mkdir -p "${basepath}"
-    mount testpool.img "${basepath}"
+    mount "${loop_device_1}" "${basepath}"
     btrfs subvolume create "${basepath}/foo"
     btrfs subvolume create "${basepath}/foo/bar"
 
     # This should fail as the source itself has subvolumes.
-    ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo" || false
+    ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo" size=128MiB || false
 
     # This should work as the provided subvolume is empty.
     btrfs subvolume delete "${basepath}/foo/bar"
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo"
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo" size=128MiB
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
-
-    sleep 1
 
     umount "${basepath}"
     rmdir "${basepath}"
-    rm -f testpool.img
+    # shellcheck disable=SC2154
+    deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
   )
 
   # shellcheck disable=SC2031

@@ -303,6 +303,12 @@ cleanup() {
 
     mountpoint -q "${TEST_DIR}" && umount -l "${TEST_DIR}"
     rm -rf "${TEST_DIR}"
+
+    # Fail if any loop devices were left behind
+    if losetup -l | grep -F "lxdtest-" | grep -wF '(deleted)'; then
+      echo "ERROR: loop devices were left behind"
+      return 1
+    fi
   fi
 
   echo ""
@@ -315,6 +321,7 @@ cleanup() {
 
 # Must be set before cleanup()
 TEST_CURRENT=setup
+TEST_CURRENT_DESCRIPTION="setup"
 # shellcheck disable=SC2034
 TEST_RESULT=failure
 
@@ -445,7 +452,7 @@ run_test() {
   fi
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
-  local DURATION="-1"  # Set default duration to -1 (indicating not run)
+  local DURATION=""
   local cwd="${PWD}"
   local skip=false
 
@@ -500,7 +507,7 @@ run_test() {
 
     # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
     if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
-      DURATION="-1"
+      DURATION=""
       if [ -n "${LXD_REQUIRED_TESTS:-}" ]; then
         for testName in ${LXD_REQUIRED_TESTS}; do
           if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
@@ -516,7 +523,7 @@ run_test() {
   fi
 
   # output duration in blue
-  echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION}s\033[0m)"
+  echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION:-"-1"}s\033[0m)"
   durations["${TEST_CURRENT#test_},${LXD_BACKEND}"]="${DURATION}"
   cd "${cwd}"
 }
@@ -576,6 +583,7 @@ if [ "${1:-"all"}" = "test-shell" ]; then
   spawn_initial_lxd
   bash --rcfile test-shell.bashrc || true
   TEST_CURRENT="test-shell"
+  TEST_CURRENT_DESCRIPTION="test-shell"
   TEST_RESULT=success
   exit 0
 fi

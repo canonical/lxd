@@ -1,6 +1,10 @@
 test_container_devices_proxy() {
   ensure_import_testimage
 
+  HOST_TCP_PORT="$(local_tcp_port)"
+  HOST_TCP_PORT2="$(local_tcp_port)"
+  HOST_TCP_PORT3="$(local_tcp_port)"
+
   container_devices_proxy_validation
   container_devices_proxy_tcp
   container_devices_proxy_tcp_unix
@@ -10,13 +14,14 @@ test_container_devices_proxy() {
   container_devices_proxy_unix_udp
   container_devices_proxy_unix_tcp
   container_devices_proxy_with_overlapping_forward_net
+
+  unset HOST_TCP_PORT HOST_TCP_PORT2 HOST_TCP_PORT3
 }
 
 container_devices_proxy_validation() {
   echo "====> Testing proxy validation"
 
   # Setup
-  HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
   # Check that connecting to a DNS name is not allowed (security risk).
@@ -67,16 +72,15 @@ container_devices_proxy_tcp() {
 
   # Setup
   MESSAGE="Proxy device test string: tcp"
-  HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
   # Initial test
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT" connect=tcp:127.0.0.1:4321 bind=host
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}",shut-down)
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -90,9 +94,9 @@ container_devices_proxy_tcp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}",shut-down)
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -106,9 +110,9 @@ container_devices_proxy_tcp() {
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp4-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device set proxyTester proxyDev connect tcp:127.0.0.1:1337
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}",shut-down)
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -120,8 +124,6 @@ container_devices_proxy_tcp() {
 
   # Initial test: Setting up multiple TCP port proxies
   lxc config device remove proxyTester proxyDev
-  HOST_TCP_PORT2=$(local_tcp_port)
-  HOST_TCP_PORT3=$(local_tcp_port)
   PID=$(lxc query /1.0/containers/proxyTester/state | jq .pid)
 
   # Set up three socat listeners in the container
@@ -134,18 +136,18 @@ container_devices_proxy_tcp() {
 
   # Create a proxy device that maps three host ports to three container ports
   lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT,$HOST_TCP_PORT2,$HOST_TCP_PORT3" connect=tcp:127.0.0.1:4321-4323 bind=host
-  sleep 0.5
+  sleep 0.1
 
   echo "Testing standard TCP connection through proxy"
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}",shut-down)
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
   echo "Testing standard TCP connection through proxy with different port"
-  ECHO1=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT2}")
+  ECHO1=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT2}",shut-down)
   kill "${NSENTER_PID1}" 2>/dev/null || true
   wait "${NSENTER_PID1}" 2>/dev/null || true
   echo "Testing half-closed TCP connection through proxy"
-  ECHO2=$( (echo "${MESSAGE}" ; sleep 0.1) | nc -N 127.0.0.1 "${HOST_TCP_PORT3}") # the -N flag to netcat closes the socket after EOF on input
+  ECHO2=$( echo "${MESSAGE}" | nc -N 127.0.0.1 "${HOST_TCP_PORT3}") # the -N flag to netcat closes the socket after EOF on input
   kill "${NSENTER_PID2}" 2>/dev/null || true
   wait "${NSENTER_PID2}" 2>/dev/null || true
 
@@ -307,7 +309,7 @@ container_devices_proxy_unix() {
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 0.1
 
   lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" uid=1234 gid=1234 security.uid=1234 security.gid=1234 connect=unix:/tmp/"lxdtest-$(basename "${LXD_DIR}").sock" bind=host
 
@@ -332,7 +334,7 @@ container_devices_proxy_unix() {
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 0.1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -356,7 +358,7 @@ container_devices_proxy_unix() {
   NSENTER_PID=$!
 
   lxc config device set proxyTester proxyDev connect unix:/tmp/"lxdtest-$(basename "${LXD_DIR}")-2.sock"
-  sleep 0.5
+  sleep 0.1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -384,7 +386,6 @@ container_devices_proxy_tcp_unix() {
 
   # Setup
   MESSAGE="Proxy device test string: tcp -> unix"
-  HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
   # Initial test
@@ -397,9 +398,9 @@ container_devices_proxy_tcp_unix() {
   NSENTER_PID=$!
 
   lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:${HOST_TCP_PORT}" connect=unix:/tmp/"lxdtest-$(basename "${LXD_DIR}").sock" bind=host
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}",shut-down)
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -418,9 +419,9 @@ container_devices_proxy_tcp_unix() {
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}",shut-down)
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -440,9 +441,9 @@ container_devices_proxy_tcp_unix() {
   NSENTER_PID=$!
 
   lxc config device set proxyTester proxyDev connect unix:/tmp/"lxdtest-$(basename "${LXD_DIR}")-2.sock"
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}",shut-down)
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -468,7 +469,7 @@ container_devices_proxy_unix_tcp() {
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" connect=tcp:127.0.0.1:4321 bind=host
-  sleep 0.5
+  sleep 0.1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -486,7 +487,7 @@ container_devices_proxy_unix_tcp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 0.1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -504,7 +505,7 @@ container_devices_proxy_unix_tcp() {
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp4-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device set proxyTester proxyDev connect tcp:127.0.0.1:1337
-  sleep 0.5
+  sleep 0.1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -534,9 +535,9 @@ container_devices_proxy_udp() {
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device add proxyTester proxyDev proxy "listen=udp:127.0.0.1:$HOST_UDP_PORT" connect=udp:127.0.0.1:4321 bind=host
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - udp:127.0.0.1:"${HOST_UDP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - udp:127.0.0.1:"${HOST_UDP_PORT}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -550,9 +551,9 @@ container_devices_proxy_udp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - udp:127.0.0.1:"${HOST_UDP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - udp:127.0.0.1:"${HOST_UDP_PORT}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -566,9 +567,9 @@ container_devices_proxy_udp() {
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp4-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device set proxyTester proxyDev connect udp:127.0.0.1:1337
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - udp:127.0.0.1:"${HOST_UDP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - udp:127.0.0.1:"${HOST_UDP_PORT}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -594,7 +595,7 @@ container_devices_proxy_unix_udp() {
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" connect=udp:127.0.0.1:4321 bind=host
-  sleep 0.5
+  sleep 0.1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -612,7 +613,7 @@ container_devices_proxy_unix_udp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 0.1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -630,7 +631,7 @@ container_devices_proxy_unix_udp() {
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp4-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device set proxyTester proxyDev connect udp:127.0.0.1:1337
-  sleep 0.5
+  sleep 0.1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -653,16 +654,15 @@ container_devices_proxy_tcp_udp() {
 
   # Setup
   MESSAGE="Proxy device test string: tcp -> udp"
-  HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
   # Initial test
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT" connect=udp:127.0.0.1:4321 bind=host
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}",shut-down)
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -676,9 +676,9 @@ container_devices_proxy_tcp_udp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}",shut-down)
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -692,9 +692,9 @@ container_devices_proxy_tcp_udp() {
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp4-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device set proxyTester proxyDev connect udp:127.0.0.1:1337
-  sleep 0.5
+  sleep 0.1
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  ECHO=$( echo "${MESSAGE}" | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}",shut-down)
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -719,7 +719,6 @@ container_devices_proxy_with_overlapping_forward_net() {
 
   overlappingAddr="192.0.2.2"
   proxyTesterStaticIP="192.0.2.3"
-  HOST_TCP_PORT=$(local_tcp_port)
 
   # First, launch container with a static IP
   lxc launch testimage proxyTester

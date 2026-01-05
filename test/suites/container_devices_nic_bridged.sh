@@ -1,7 +1,7 @@
 test_container_devices_nic_bridged() {
   if uname -r | grep -- -kvm$; then
-    echo "==> SKIP: the -kvm kernel flavor is missing CONFIG_NET_SCH_HTB which is required for 'tc qdisc htb'"
-    return
+    export TEST_UNMET_REQUIREMENT="The -kvm kernel flavor is missing CONFIG_NET_SCH_HTB which is required for 'tc qdisc htb'"
+    return 0
   fi
 
   ensure_import_testimage

@@ -235,7 +235,7 @@ EOF
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool3" btrfs
 
       # Create device backed btrfs pool.
-      configure_loop_device loop_file_2 loop_device_2
+      configure_loop_device loop_file_2 loop_device_2 128M
       # shellcheck disable=SC2154
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool4" btrfs source="${loop_device_2}"
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool4"
@@ -293,7 +293,7 @@ EOF
 
     if [ "$lxd_backend" = "lvm" ]; then
       # Create lvm pool.
-      configure_loop_device loop_file_3 loop_device_3
+      configure_loop_device loop_file_3 loop_device_3 300M  # 300M to accommodate XFS filesystems.
       # shellcheck disable=SC2154
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" volume.size="${DEFAULT_VOLUME_SIZE}"
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool6"
