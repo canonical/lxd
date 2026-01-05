@@ -3,7 +3,7 @@ module github.com/canonical/lxd
 go 1.25.4
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.18.0
+	github.com/NVIDIA/nvidia-container-toolkit v1.18.1
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v3 v3.0.3
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
