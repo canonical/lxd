@@ -635,7 +635,7 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 		for i, profile := range req.Profiles {
 			profileID, _, err := tx.GetProfile(ctx, project, profile)
 			if response.IsNotFoundError(err) {
-				return fmt.Errorf("Profile '%s' doesn't exist", profile)
+				return fmt.Errorf("Profile %q doesn't exist", profile)
 			} else if err != nil {
 				return err
 			}
@@ -951,7 +951,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 			for i, val := range p["profile"] {
 				profileID, _, err := tx.GetProfile(ctx, project, val)
 				if response.IsNotFoundError(err) {
-					return fmt.Errorf("Profile '%s' doesn't exist", val)
+					return fmt.Errorf("Profile %q doesn't exist", val)
 				} else if err != nil {
 					return err
 				}
@@ -3497,7 +3497,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		for i, profile := range req.Profiles {
 			profileID, _, err := tx.GetProfile(ctx, projectName, profile)
 			if response.IsNotFoundError(err) {
-				return fmt.Errorf("Profile '%s' doesn't exist", profile)
+				return fmt.Errorf("Profile %q doesn't exist", profile)
 			} else if err != nil {
 				return err
 			}

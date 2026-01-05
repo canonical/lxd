@@ -91,7 +91,7 @@ func forceUnmount(path string) (bool, error) {
 			// Fallback to lazy unmounting.
 			err = unix.Unmount(path, unix.MNT_DETACH)
 			if err != nil {
-				return false, fmt.Errorf("Failed to unmount '%s': %w", path, err)
+				return false, fmt.Errorf("Failed to unmount %q: %w", path, err)
 			}
 		}
 
@@ -303,7 +303,7 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 		if isEmpty {
 			err := os.Remove(snapshotsPath)
 			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("Failed to remove '%s': %w", snapshotsPath, err)
+				return fmt.Errorf("Failed to remove %q: %w", snapshotsPath, err)
 			}
 		}
 	}

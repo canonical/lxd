@@ -74,7 +74,7 @@ func OperationGetInternal(id string) (*Operation, error) {
 	operationsLock.Unlock()
 
 	if !ok {
-		return nil, fmt.Errorf("Operation '%s' doesn't exist", id)
+		return nil, fmt.Errorf("Operation %q doesn't exist", id)
 	}
 
 	return op, nil
