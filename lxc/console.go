@@ -37,14 +37,14 @@ func (c *cmdConsole) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("console", "[<remote>:]<instance>")
 	cmd.Short = "Attach to instance consoles"
-	cmd.Long = cli.FormatSection("Description", `Attach to instance consoles
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 This command allows you to interact with the boot console of an instance
 as well as retrieve past log entries from it.`)
 
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, "Retrieve the container's console log")
-	cmd.Flags().StringVarP(&c.flagType, "type", "t", "console", "Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output"+"``")
+	cmd.Flags().StringVarP(&c.flagType, "type", "t", "console", cli.FormatStringFlagLabel("Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpTopLevelResource("instance", toComplete)
