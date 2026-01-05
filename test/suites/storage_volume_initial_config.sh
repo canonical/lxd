@@ -84,7 +84,6 @@ test_storage_volume_initial_config() {
     # > Overwrite zfs.block_mode with initial configuration in profile.
 
     # Verify instance "initial.zfs.block_mode=true" configuration is applied.
-    lxc storage set "${pool}" volume.zfs.block_mode=false
     lxc profile device set "${profile}" root initial.zfs.block_mode=true
 
     lxc init c --empty --profile "${profile}"
