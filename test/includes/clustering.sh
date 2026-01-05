@@ -25,18 +25,21 @@ teardown_clustering_bridge() {
 
 setup_clustering_netns() {
   local id="${1}"
-  shift
-
-  local prefix="lxd$$"
+  # shellcheck disable=SC2154
   local ns="${prefix}${id}"
+  local ns_dir="${TEST_DIR}/ns/${ns}"
+  local veth1="v${ns}1"
+  local veth2="v${ns}2"
+  local nsbridge="br$$"
+  local netns_link="/run/netns/${ns}"
 
   echo "==> Setup clustering netns ${ns}"
 
-  cat << EOF | unshare -m -n /bin/sh
+  TEST_DIR="${TEST_DIR}" ns="${ns}" ns_dir="${ns_dir}" unshare -m -n /bin/sh <<'EOF'
 set -e
-mkdir -p "${TEST_DIR}/ns/${ns}"
-touch "${TEST_DIR}/ns/${ns}/net"
-mount -o bind /proc/self/ns/net "${TEST_DIR}/ns/${ns}/net"
+mkdir -p "${ns_dir}"
+touch "${ns_dir}/net"
+mount -o bind /proc/self/ns/net "${ns_dir}/net"
 mount --move /sys /mnt
 umount -l /proc
 mount -t sysfs sysfs /sys
@@ -52,47 +55,43 @@ touch /run/netns/hostns
 mount --bind /proc/1/ns/net /run/netns/hostns
 
 mount -t tmpfs tmpfs /usr/local/bin
-cat << EOE > /usr/local/bin/in-hostnetns
+cat <<'EOE' > /usr/local/bin/in-hostnetns
 #!/bin/sh
-exec ip netns exec hostns /usr/bin/\\\$(basename \\\$0) "\\\$@"
+exec ip netns exec hostns /usr/bin/$(basename "$0") "$@"
 EOE
 chmod +x /usr/local/bin/in-hostnetns
 # Setup ceph
 ln -s in-hostnetns /usr/local/bin/ceph
 ln -s in-hostnetns /usr/local/bin/rbd
 
-sleep 300&
-echo \$! > "${TEST_DIR}/ns/${ns}/PID"
+sleep 300 & echo $! > "${ns_dir}/PID"
 EOF
 
-  local veth1="v${ns}1"
-  local veth2="v${ns}2"
   local nspid
-  nspid=$(< "${TEST_DIR}/ns/${ns}/PID")
+  nspid="$(< "${ns_dir}/PID")"
 
-  ip link add "${veth1}" type veth peer name "${veth2}"
-  ip link set "${veth2}" netns "${nspid}"
-
-  local nsbridge="br$$"
-  ip link set dev "${veth1}" master "${nsbridge}" up
-  cat << EOF | nsenter -n -m -t "${nspid}" /bin/sh
-set -e
-
-ip link set dev lo up
-ip link set dev "${veth2}" name eth0
-ip link set eth0 up
-ip addr add "100.64.1.10${id}/16" dev eth0
-ip route add default via 100.64.1.1
-ip link add localBridge${id} type bridge
+  ip -batch - <<EOF
+link add ${veth1} type veth peer name ${veth2}
+link set dev ${veth2} netns ${nspid}
+link set dev ${veth1} master ${nsbridge}
+link set dev ${veth1} up
+EOF
+  mkdir -p /run/netns
+  ln -snf "/proc/${nspid}/ns/net" "${netns_link}"
+  ip -n "${ns}" -batch - <<EOF
+link set dev lo up
+link set dev ${veth2} name eth0
+link set dev eth0 up
+addr add 100.64.1.10${id}/16 dev eth0
+route add default via 100.64.1.1
+link add localBridge${id} type bridge
 EOF
 }
 
 teardown_clustering_netns() {
-  local prefix="lxd$$"
-  local nsbridge="br$$"
-  local ns veth1 pid
+  [ -d "${TEST_DIR}/ns/" ] || return 0
 
-  [ -d "${TEST_DIR}/ns/" ] || return
+  local ns veth1
 
   # shellcheck disable=SC2045
   for ns in $(ls -1 "${TEST_DIR}/ns/"); do
@@ -103,82 +102,84 @@ teardown_clustering_netns() {
         ip link del "${veth1}"
       fi
 
-      pid="$(< "${TEST_DIR}/ns/${ns}/PID")"
-      kill -9 "${pid}" 2>/dev/null || true
+      kill -9 "$(< "${TEST_DIR}/ns/${ns}/PID")" 2>/dev/null || true
 
       umount -l "${TEST_DIR}/ns/${ns}/net" >/dev/null 2>&1 || true
       rm -Rf "${TEST_DIR}/ns/${ns}"
+      rm -f "/run/netns/${ns}"
   done
 }
 
 spawn_lxd_and_bootstrap_cluster() {
-  set -e
+  local driver="${1:-dir}"
+  local port="${2:-}"
 
-  ns="${1}"
-  bridge="${2}"
-  LXD_DIR="${3}"
-  driver="dir"
-  port=""
-  if [ "$#" -ge  "4" ]; then
-      driver="${4}"
+  setup_clustering_bridge
+  setup_clustering_netns 1
+
+  if [ "${LXD_DIR_KEEP:-""}" = "" ]; then
+    LXD_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  else
+    LXD_DIR="${LXD_DIR_KEEP}"
+    mkdir -p "${LXD_DIR}"
   fi
-  if [ "$#" -ge  "5" ]; then
-      port="${5}"
-  fi
+  # shellcheck disable=SC2154
+  local ns="${bridge}1"
 
   echo "==> Spawn bootstrap cluster node in ${ns} with storage driver ${driver}"
 
   LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
-  (
-    set -e
 
-    cat > "${LXD_DIR}/preseed.yaml" <<EOF
-config:
-  core.https_address: 100.64.1.101:8443
-EOF
+  # shellcheck disable=SC2034
+  LXD_ONE_DIR="${LXD_DIR}" ns1="${ns}"
+
+  local preseed
+  preseed="config:
+  core.https_address: 100.64.1.101:8443"
+
     if [ "${port}" != "" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  cluster.https_address: 100.64.1.101:${port}
-EOF
+    preseed+="
+  cluster.https_address: 100.64.1.101:${port}"
     fi
-    cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+
+  preseed+="
   images.auto_update_interval: 0
 storage_pools:
 - name: data
-  driver: $driver
-EOF
+  driver: ${driver}"
+
     if [ "${driver}" = "btrfs" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    preseed+="
   config:
-    size: 1GiB
-EOF
+    size: 1GiB"
     fi
+
     if [ "${driver}" = "zfs" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    preseed+="
   config:
     size: 1GiB
-    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
+    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}"
     fi
+
     if [ "${driver}" = "lvm" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    preseed+="
   config:
     volume.size: 25MiB
     size: 1GiB
-    lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
+    lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}"
     fi
+
     if [ "${driver}" = "ceph" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    preseed+="
   config:
     source: lxdtest-$(basename "${TEST_DIR}")
     volume.size: 25MiB
-    ceph.osd.pg_num: 16
-EOF
+    ceph.osd.pg_num: 16"
     fi
-    cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+
+  preseed+="
 networks:
-- name: $bridge
+- name: ${bridge}
   type: bridge
   config:
     ipv4.address: none
@@ -192,115 +193,133 @@ profiles:
       type: disk
 cluster:
   server_name: node1
-  enabled: true
-EOF
+  enabled: true"
 
   # Print the preseed for debugging purposes.
-  cat "${LXD_DIR}/preseed.yaml"
+  echo "${preseed}"
 
-  lxd init --preseed < "${LXD_DIR}/preseed.yaml"
-  )
+  lxd init --preseed <<< "${preseed}"
 }
 
 spawn_lxd_and_join_cluster() {
-  set -e
+  local cert="${1}"
+  local index="${2}"
+  local target="${3}"
+  local token="${4}"
+  if [ -d "${4}" ]; then
+    token="$(LXD_DIR=${4} lxc cluster add --quiet "node${index}")"
+  fi
+  local driver="${5:-dir}"
+  local port="${6:-8443}"
+  local source="${7:-}"
+  local source_recover="${8:-false}"
 
-  ns="${1}"
-  bridge="${2}"
-  cert="${3}"
-  index="${4}"
-  target="${5}"
-  LXD_DIR="${6}"
-  if [ -d "${7}" ]; then
-    token="$(LXD_DIR=${7} lxc cluster add --quiet "node${index}")"
+  [ "${LXD_NETNS_KEEP:-""}" = "" ] && setup_clustering_netns "${index}"
+
+  if [ "${LXD_DIR_KEEP:-""}" = "" ]; then
+    LXD_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
   else
-    token="${7}"
+    LXD_DIR="${LXD_DIR_KEEP}"
+    mkdir -p "${LXD_DIR}"
   fi
-  driver="dir"
-  port="8443"
-  source=""
-  source_recover="false"
-  if [ "$#" -ge  "8" ]; then
-      driver="${8}"
-  fi
-  if [ "$#" -ge  "9" ]; then
-      port="${9}"
-  fi
-  if [ "$#" -ge  "10" ]; then
-      source="${10}"
-  fi
-  if [ "$#" -ge  "11" ]; then
-      source_recover="${11}"
-  fi
+  ns="${bridge}${index}"
+
+  case "${index}" in
+    2)
+      # shellcheck disable=SC2034
+      LXD_TWO_DIR="${LXD_DIR}" ns2="${ns}";;
+    3)
+      # shellcheck disable=SC2034
+      LXD_THREE_DIR="${LXD_DIR}" ns3="${ns}";;
+    4)
+      # shellcheck disable=SC2034
+      LXD_FOUR_DIR="${LXD_DIR}" ns4="${ns}";;
+    5)
+      # shellcheck disable=SC2034
+      LXD_FIVE_DIR="${LXD_DIR}" ns5="${ns}";;
+    6)
+      # shellcheck disable=SC2034
+      LXD_SIX_DIR="${LXD_DIR}" ns6="${ns}";;
+    7)
+      # shellcheck disable=SC2034
+      LXD_SEVEN_DIR="${LXD_DIR}" ns7="${ns}";;
+    8)
+      # shellcheck disable=SC2034
+      LXD_EIGHT_DIR="${LXD_DIR}" ns8="${ns}";;
+    9)
+      # shellcheck disable=SC2034
+      LXD_NINE_DIR="${LXD_DIR}" ns9="${ns}";;
+    *)
+      echo "spawn_lxd_and_join_cluster: Unsupported index ${index}"
+      false
+      ;;
+  esac
 
   echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
 
   LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
-  (
-    set -e
 
-    # If a custom cluster port was given, we need to first set the REST
-    # API address.
-    if [ "${port}" != "8443" ]; then
-      lxc config set core.https_address "100.64.1.10${index}:8443"
-    fi
+  # If a custom cluster port was given, we need to first set the REST
+  # API address.
+  if [ "${port}" != "8443" ]; then
+    lxc config set core.https_address "100.64.1.10${index}:8443"
+  fi
 
-    cat > "${LXD_DIR}/preseed.yaml" <<EOF
-cluster:
+  local preseed
+  preseed="cluster:
   enabled: true
   server_name: node${index}
   server_address: 100.64.1.10${index}:${port}
   cluster_address: 100.64.1.10${target}:8443
-  cluster_certificate: "$cert"
+  cluster_certificate: |
+${cert}
   cluster_token: ${token}
-  member_config:
-EOF
+  member_config:"
+
     # Declare the pool only if the driver is not ceph, because
     # the ceph pool doesn't need to be created on the joining
     # node (it's shared with the bootstrap one).
     if [ "${driver}" != "ceph" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+    preseed+="
   - entity: storage-pool
     name: data
     key: source
-    value: "${source}"
+    value: \"${source}\"
   - entity: storage-pool
     name: data
     key: source.recover
-    value: ${source_recover}
-EOF
+    value: ${source_recover}"
+
       if [ "${driver}" = "zfs" ]; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+      preseed+="
   - entity: storage-pool
     name: data
     key: zfs.pool_name
-    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
+    value: lxdtest-$(basename "${TEST_DIR}")-${ns}"
       fi
+
       if [ "${driver}" = "lvm" ]; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+      preseed+="
   - entity: storage-pool
     name: data
     key: lvm.vg_name
-    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
+    value: lxdtest-$(basename "${TEST_DIR}")-${ns}"
       fi
+
       # shellcheck disable=SC2235
       if [ "${source}" = "" ] && { [ "${driver}" = "btrfs" ] || [ "${driver}" = "zfs" ] || [ "${driver}" = "lvm" ]; }; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+      preseed+="
   - entity: storage-pool
     name: data
     key: size
-    value: 1GiB
-EOF
+    value: 1GiB"
       fi
     fi
 
     # Print the preseed for debugging purposes.
-    cat "${LXD_DIR}/preseed.yaml"
+  echo "${preseed}"
 
-    lxd init --preseed < "${LXD_DIR}/preseed.yaml"
-  )
+  lxd init --preseed <<< "${preseed}"
 }
 
 respawn_lxd_cluster_member() {
