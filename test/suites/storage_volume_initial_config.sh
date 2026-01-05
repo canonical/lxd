@@ -24,8 +24,7 @@ test_storage_volume_initial_config() {
   lxc profile create "${profile}"
   lxc profile device add "${profile}" root disk path=/ pool="${pool}"
 
-  lxc storage set "${pool}" volume.size=128MiB
-  lxc storage set "${pool}" volume.block.filesystem=ext4
+  lxc storage set "${pool}" volume.size=128MiB volume.block.filesystem=ext4
 
   # Test default configuration (without initial configuration).
   lxc init "${image}" c --profile "${profile}"
@@ -64,15 +63,12 @@ test_storage_volume_initial_config() {
 
   if [ "$lxd_backend" = "zfs" ]; then
     # Clear profile and storage options.
-    lxc storage unset "${pool}" volume.block.filesystem
-    lxc storage unset "${pool}" volume.zfs.block_mode
+    lxc storage set "${pool}" volume.block.filesystem= volume.zfs.block_mode=true
     lxc profile device unset "${profile}" root initial.block.filesystem
 
     # > Verify zfs.block_mode without initial configuration.
 
     # Verify "zfs.block_mode=true" is applied from pool configuration.
-    lxc storage set "${pool}" volume.zfs.block_mode=true
-
     lxc init c --empty --profile "${profile}"
     [ "$(lxc storage volume get "${pool}" container/c zfs.block_mode)" = "true" ]
     lxc delete c
