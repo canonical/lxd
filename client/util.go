@@ -3,6 +3,7 @@ package lxd
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -23,11 +24,49 @@ import (
 // a boolean for skipping verification, a boolean for including only legacy curves in ClientHello, a
 // proxy function, and a transport wrapper function.
 // It returns the HTTP client with the provided configurations and handles any errors that might occur during the setup process.
-func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, legacyCurvesOnly bool, proxy func(req *http.Request) (*url.URL, error), transportWrapper func(t *http.Transport) HTTPTransporter) (*http.Client, error) {
+func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, legacyCurvesOnly bool, proxy func(req *http.Request) (*url.URL, error), transportWrapper func(t *http.Transport) HTTPTransporter, serverCertFingerprint string) (*http.Client, error) {
 	// Get the TLS configuration
 	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, tlsCA, tlsServerCert, insecureSkipVerify)
 	if err != nil {
 		return nil, err
+	}
+
+	if !insecureSkipVerify && tlsServerCert == "" && serverCertFingerprint != "" {
+		// If a server fingerprint is provided, we disable default verification and rely on our own
+		// verification logic to confirm the server's identity.
+		// We need to verify that the server's certificate matches the expected fingerprint and that
+		// the certificate is currently valid (not expired).
+		tlsConfig.InsecureSkipVerify = true
+		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+			// Ensure at least one certificate is provided.
+			if len(rawCerts) == 0 {
+				return errors.New("Server did not provide any certificate")
+			}
+
+			// Parse the server certificate.
+			serverCert, err := x509.ParseCertificate(rawCerts[0])
+			if err != nil {
+				return fmt.Errorf("Failed to parse server certificate: %w", err)
+			}
+
+			// Verify cert is valid.
+			now := time.Now()
+			if now.Before(serverCert.NotBefore) {
+				return fmt.Errorf("Server certificate is not valid at %q (valid after %q)", now.Format(time.RFC3339), serverCert.NotBefore.Format(time.RFC3339))
+			}
+
+			if now.After(serverCert.NotAfter) {
+				return fmt.Errorf("Server certificate is not valid at %q (expired at %q)", now.Format(time.RFC3339), serverCert.NotAfter.Format(time.RFC3339))
+			}
+
+			// Verify fingerprint.
+			fingerprint := shared.CertFingerprint(serverCert)
+			if !strings.EqualFold(fingerprint, serverCertFingerprint) {
+				return fmt.Errorf("Server certificate fingerprint mismatch: got %q, want %q", fingerprint, serverCertFingerprint)
+			}
+
+			return nil
+		}
 	}
 
 	// If legacyCurvesOnly is true, don't include the post-quantum curve
