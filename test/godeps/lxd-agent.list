@@ -43,6 +43,7 @@ github.com/go-jose/go-jose/v4/json
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
 github.com/go-logr/stdr
+github.com/golang-jwt/jwt/v5
 github.com/google/uuid
 github.com/gorilla/securecookie
 github.com/gorilla/websocket
