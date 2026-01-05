@@ -36,8 +36,6 @@ lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
 lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB
     Create and start a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB`)
 
-	cmd.Hidden = false
-
 	cmd.RunE = c.run
 
 	cmd.Flags().StringVar(&c.flagConsole, "console", "", cli.FormatStringFlagLabel("Immediately attach to the console"))
