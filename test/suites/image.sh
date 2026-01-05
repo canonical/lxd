@@ -405,8 +405,7 @@ run_images_public() {
   query /1.0/images/"${fingerprint}"?secret="${secret}" | jq --exit-status '.status_code == 200'
 
   # All callers can export the image with a valid secret.
-  query /1.0/images/"${fingerprint}"/export?secret="${secret}" -o "${TEST_DIR}/private.img"
-  rm "${TEST_DIR}/private.img"
+  query /1.0/images/"${fingerprint}"/export?secret="${secret}" -o /dev/null
 
   # Get a secret for "foo-img" (in the foo project).
   secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret?project=foo" | jq --exit-status --raw-output '.metadata.secret')"
@@ -415,8 +414,7 @@ run_images_public() {
   query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq --exit-status '.status_code == 200'
 
   # All callers can export the image with a valid secret.
-  query /1.0/images/"${fingerprint}"/export?project=foo\&secret="${secret}" -o "${TEST_DIR}/private.img"
-  rm "${TEST_DIR}/private.img"
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret="${secret}" -o /dev/null
 
   # The secrets do not work 5 seconds after being used.
   sleep 5
@@ -452,10 +450,9 @@ run_images_public() {
   query "/1.0/images/${fingerprint:0:11}/export" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
   query "/1.0/images/%25${fingerprint:0:11}/export" | jq --exit-status '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
   query "/1.0/images/${fingerprint}abc/export" | jq --exit-status '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
-  query "/1.0/images/${fingerprint}/export" -o "${TEST_DIR}/public1.img"
-  query "/1.0/images/${fingerprint}/export?project=default" -o "${TEST_DIR}/public2.img"
-  query "/1.0/images/${fingerprint:0:12}/export?project=default" -o "${TEST_DIR}/public3.img"
-  rm "${TEST_DIR}"/public{1,2,3}.img
+  query "/1.0/images/${fingerprint}/export" -o /dev/null
+  query "/1.0/images/${fingerprint}/export?project=default" -o /dev/null
+  query "/1.0/images/${fingerprint:0:12}/export?project=default" -o /dev/null
 
   # Clean up.
   lxc image delete "${fingerprint}" --project foo
