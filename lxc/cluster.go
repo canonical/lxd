@@ -18,7 +18,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -29,9 +28,8 @@ type cmdCluster struct {
 func (c *cmdCluster) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("cluster")
-	cmd.Short = i18n.G("Manage cluster members")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage cluster members`))
+	cmd.Short = "Manage cluster members"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// List
 	clusterListCmd := cmdClusterList{global: c.global, cluster: c}
@@ -120,12 +118,11 @@ type cmdClusterList struct {
 
 func (c *cmdClusterList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List all the cluster members")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List all the cluster members`))
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Short = "List all the cluster members"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	cmd.RunE = c.run
 
@@ -167,7 +164,7 @@ func (c *cmdClusterList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return errors.New(i18n.G("LXD server isn't part of a cluster"))
+		return errors.New("LXD server isn't part of a cluster")
 	}
 
 	// Get the cluster members
@@ -192,14 +189,14 @@ func (c *cmdClusterList) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("NAME"),
-		i18n.G("URL"),
-		i18n.G("ROLES"),
-		i18n.G("ARCHITECTURE"),
-		i18n.G("FAILURE DOMAIN"),
-		i18n.G("DESCRIPTION"),
-		i18n.G("STATE"),
-		i18n.G("MESSAGE"),
+		"NAME",
+		"URL",
+		"ROLES",
+		"ARCHITECTURE",
+		"FAILURE DOMAIN",
+		"DESCRIPTION",
+		"STATE",
+		"MESSAGE",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, members)
@@ -213,10 +210,9 @@ type cmdClusterShow struct {
 
 func (c *cmdClusterShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<member>"))
-	cmd.Short = i18n.G("Show details of a cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show details of a cluster member`))
+	cmd.Use = usage("show", "[<remote>:]<member>")
+	cmd.Short = "Show details of a cluster member"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -270,10 +266,9 @@ type cmdClusterInfo struct {
 
 func (c *cmdClusterInfo) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("info", i18n.G("[<remote>:]<member>"))
-	cmd.Short = i18n.G("Show useful information about a cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show useful information about a cluster member`))
+	cmd.Use = usage("info", "[<remote>:]<member>")
+	cmd.Short = "Show useful information about a cluster member"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -329,11 +324,11 @@ type cmdClusterGet struct {
 
 func (c *cmdClusterGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("get", i18n.G("[<remote>:]<member> <key>"))
-	cmd.Short = i18n.G("Get values for cluster member configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
+	cmd.Use = usage("get", "[<remote>:]<member> <key>")
+	cmd.Short = "Get values for cluster member configuration key"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
-	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a cluster property"))
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as a cluster property")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -376,7 +371,7 @@ func (c *cmdClusterGet) run(cmd *cobra.Command, args []string) error {
 		w := member.Writable()
 		res, err := getFieldByJSONTag(&w, args[1])
 		if err != nil {
-			return fmt.Errorf(i18n.G("The property %q does not exist on the cluster member %q: %v"), args[1], resource.name, err)
+			return fmt.Errorf("The property %q does not exist on the cluster member %q: %v", args[1], resource.name, err)
 		}
 
 		fmt.Printf("%v\n", res)
@@ -385,7 +380,7 @@ func (c *cmdClusterGet) run(cmd *cobra.Command, args []string) error {
 
 	value, ok := member.Config[args[1]]
 	if !ok {
-		return fmt.Errorf(i18n.G("The key %q does not exist on cluster member %q"), args[1], resource.name)
+		return fmt.Errorf("The key %q does not exist on cluster member %q", args[1], resource.name)
 	}
 
 	fmt.Printf("%s\n", value)
@@ -402,11 +397,11 @@ type cmdClusterSet struct {
 
 func (c *cmdClusterSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("set", i18n.G("[<remote>:]<member> <key>=<value>..."))
-	cmd.Short = i18n.G("Set a cluster member's configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
+	cmd.Use = usage("set", "[<remote>:]<member> <key>=<value>...")
+	cmd.Short = "Set a cluster member's configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
-	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a cluster property"))
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Set the key as a cluster property")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -457,13 +452,13 @@ func (c *cmdClusterSet) run(cmd *cobra.Command, args []string) error {
 			for k := range keys {
 				err := unsetFieldByJSONTag(&writable, k)
 				if err != nil {
-					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+					return fmt.Errorf("Error unsetting property: %v", err)
 				}
 			}
 		} else {
 			err := unpackKVToWritable(&writable, keys)
 			if err != nil {
-				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+				return fmt.Errorf("Error setting properties: %v", err)
 			}
 		}
 	} else {
@@ -484,11 +479,11 @@ type cmdClusterUnset struct {
 
 func (c *cmdClusterUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("unset", i18n.G("[<remote>:]<member> <key>"))
-	cmd.Short = i18n.G("Unset a cluster member's configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
+	cmd.Use = usage("unset", "[<remote>:]<member> <key>")
+	cmd.Short = "Unset a cluster member's configuration key"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
-	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a cluster property"))
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Unset the key as a cluster property")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -527,11 +522,10 @@ type cmdClusterRename struct {
 
 func (c *cmdClusterRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("rename", i18n.G("[<remote>:]<member> <new-name>"))
+	cmd.Use = usage("rename", "[<remote>:]<member> <new-name>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = i18n.G("Rename a cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Rename a cluster member`))
+	cmd.Short = "Rename a cluster member"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -568,7 +562,7 @@ func (c *cmdClusterRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Member %s renamed to %s")+"\n", resource.name, args[1])
+		fmt.Printf("Member %s renamed to %s\n", resource.name, args[1])
 	}
 
 	return nil
@@ -585,15 +579,14 @@ type cmdClusterRemove struct {
 
 func (c *cmdClusterRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<member>"))
+	cmd.Use = usage("remove", "[<remote>:]<member>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Remove a member from the cluster")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove a member from the cluster`))
+	cmd.Short = "Remove a member from the cluster"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force removing a member, even if degraded"))
-	cmd.Flags().BoolVar(&c.flagNonInteractive, "yes", false, i18n.G("Don't require user confirmation for using --force"))
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Force removing a member, even if degraded")
+	cmd.Flags().BoolVar(&c.flagNonInteractive, "yes", false, "Don't require user confirmation for using --force")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -608,7 +601,7 @@ func (c *cmdClusterRemove) command() *cobra.Command {
 
 func (c *cmdClusterRemove) promptConfirmation(name string) error {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf(i18n.G(`Forcefully removing a server from the cluster should only be done as a last
+	fmt.Printf(`Forcefully removing a server from the cluster should only be done as a last
 resort.
 
 The removed server will not be functional after this action and will require a
@@ -622,12 +615,12 @@ the server being cleanly removed from the cluster.
 The --force flag should only be used if the server has died, been reinstalled
 or is otherwise never expected to come back up.
 
-Are you really sure you want to force removing %s? (yes/no): `), name)
+Are you really sure you want to force removing %s? (yes/no): `, name)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSuffix(input, "\n")
 
-	if !slices.Contains([]string{i18n.G("yes")}, strings.ToLower(input)) {
-		return errors.New(i18n.G("User aborted delete operation"))
+	if !slices.Contains([]string{"yes"}, strings.ToLower(input)) {
+		return errors.New("User aborted delete operation")
 	}
 
 	return nil
@@ -663,7 +656,7 @@ func (c *cmdClusterRemove) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Member %s removed")+"\n", resource.name)
+		fmt.Printf("Member %s removed\n", resource.name)
 	}
 
 	return nil
@@ -677,10 +670,9 @@ type cmdClusterEnable struct {
 
 func (c *cmdClusterEnable) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("enable", i18n.G("[<remote>:] <name>"))
-	cmd.Short = i18n.G("Enable clustering on a single non-clustered LXD server")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Enable clustering on a single non-clustered LXD server
+	cmd.Use = usage("enable", "[<remote>:] <name>")
+	cmd.Short = "Enable clustering on a single non-clustered LXD server"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
   This command turns a non-clustered LXD server into the first member of a new
   LXD cluster, which will have the given name.
@@ -688,7 +680,7 @@ func (c *cmdClusterEnable) command() *cobra.Command {
   It's required that LXD is already available on the network. You can check
   this by running 'lxc config get core.https_address'. If either an IP address
   and port is displayed, or both, LXD is already available on the network. If
-  no value is set, use 'lxc config set core.https_address' to set it.`))
+  no value is set, use 'lxc config set core.https_address' to set it.`)
 
 	cmd.RunE = c.run
 
@@ -732,7 +724,7 @@ func (c *cmdClusterEnable) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if server.Config["core.https_address"] == "" && server.Config["cluster.https_address"] == "" {
-		return errors.New(i18n.G("This LXD server is not available on the network"))
+		return errors.New("This LXD server is not available on the network")
 	}
 
 	// Check if already enabled
@@ -742,7 +734,7 @@ func (c *cmdClusterEnable) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if currentCluster.Enabled {
-		return errors.New(i18n.G("This LXD server is already clustered"))
+		return errors.New("This LXD server is already clustered")
 	}
 
 	// Enable clustering.
@@ -759,7 +751,7 @@ func (c *cmdClusterEnable) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed configuring cluster: %w", err)
 	}
 
-	fmt.Println(i18n.G("Clustering enabled"))
+	fmt.Println("Clustering enabled")
 	return nil
 }
 
@@ -771,13 +763,11 @@ type cmdClusterEdit struct {
 
 func (c *cmdClusterEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<member>"))
-	cmd.Short = i18n.G("Edit cluster member configurations as YAML")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit cluster member configurations as YAML`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc cluster edit <cluster member> < member.yaml
-    Update a cluster member using the content of member.yaml`))
+	cmd.Use = usage("edit", "[<remote>:]<member>")
+	cmd.Short = "Edit cluster member configurations as YAML"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc cluster edit <cluster member> < member.yaml
+    Update a cluster member using the content of member.yaml`)
 
 	cmd.RunE = c.run
 
@@ -793,9 +783,8 @@ func (c *cmdClusterEdit) command() *cobra.Command {
 }
 
 func (c *cmdClusterEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a yaml representation of the cluster member.
-### Any line starting with a '# will be ignored.`)
+	return `### This is a yaml representation of the cluster member.
+### Any line starting with a '# will be ignored.`
 }
 
 func (c *cmdClusterEdit) run(cmd *cobra.Command, args []string) error {
@@ -814,7 +803,7 @@ func (c *cmdClusterEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster member name"))
+		return errors.New("Missing cluster member name")
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -862,8 +851,8 @@ func (c *cmdClusterEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -894,10 +883,9 @@ type cmdClusterAdd struct {
 
 func (c *cmdClusterAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[[<remote>:]<member>]"))
-	cmd.Short = i18n.G("Request a join token for adding a cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Request a join token for adding a cluster member`))
-	cmd.Flags().StringVar(&c.flagName, "name", "", i18n.G("Cluster member name (alternative to passing it as an argument)")+"``")
+	cmd.Use = usage("add", "[[<remote>:]<member>]")
+	cmd.Short = "Request a join token for adding a cluster member"
+	cmd.Flags().StringVar(&c.flagName, "name", "", cli.FormatStringFlagLabel("Cluster member name (alternative to passing it as an argument)"))
 
 	cmd.RunE = c.run
 
@@ -929,12 +917,12 @@ func (c *cmdClusterAdd) run(cmd *cobra.Command, args []string) error {
 
 	// Determine the machine name.
 	if resource.name != "" && c.flagName != "" && resource.name != c.flagName {
-		return errors.New(i18n.G("Cluster member name was provided as both a flag and as an argument"))
+		return errors.New("Cluster member name was provided as both a flag and as an argument")
 	}
 
 	if resource.name == "" {
 		if c.flagName == "" {
-			resource.name, err = c.global.asker.AskString(i18n.G("Please provide cluster member name: "), "", nil)
+			resource.name, err = c.global.asker.AskString("Please provide cluster member name: ", "", nil)
 			if err != nil {
 				return err
 			}
@@ -960,7 +948,7 @@ func (c *cmdClusterAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Member %s join token:")+"\n", resource.name)
+		fmt.Printf("Member %s join token:\n", resource.name)
 	}
 
 	fmt.Println(joinToken.String())
@@ -978,10 +966,9 @@ type cmdClusterListTokens struct {
 
 func (c *cmdClusterListTokens) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list-tokens", i18n.G("[<remote>:]"))
-	cmd.Short = i18n.G("List all active cluster member join tokens")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`List all active cluster member join tokens`))
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Use = usage("list-tokens", "[<remote>:]")
+	cmd.Short = "List all active cluster member join tokens"
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	cmd.RunE = c.run
 
@@ -1023,7 +1010,7 @@ func (c *cmdClusterListTokens) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return errors.New(i18n.G("LXD server isn't part of a cluster"))
+		return errors.New("LXD server isn't part of a cluster")
 	}
 
 	// Get the cluster member join tokens. Use default project as join tokens are created in default project.
@@ -1072,9 +1059,9 @@ func (c *cmdClusterListTokens) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("NAME"),
-		i18n.G("TOKEN"),
-		i18n.G("EXPIRES AT"),
+		"NAME",
+		"TOKEN",
+		"EXPIRES AT",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, displayTokens)
@@ -1088,9 +1075,8 @@ type cmdClusterRevokeToken struct {
 
 func (c *cmdClusterRevokeToken) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("revoke-token", i18n.G("[<remote>:]<member>"))
-	cmd.Short = i18n.G("Revoke cluster member join token")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
+	cmd.Use = usage("revoke-token", "[<remote>:]<member>")
+	cmd.Short = "Revoke cluster member join token"
 
 	cmd.RunE = c.run
 
@@ -1126,7 +1112,7 @@ func (c *cmdClusterRevokeToken) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return errors.New(i18n.G("LXD server isn't part of a cluster"))
+		return errors.New("LXD server isn't part of a cluster")
 	}
 
 	// Get the cluster member join tokens. Use default project as join tokens are created in default project.
@@ -1157,14 +1143,14 @@ func (c *cmdClusterRevokeToken) run(cmd *cobra.Command, args []string) error {
 			}
 
 			if !c.global.flagQuiet {
-				fmt.Printf(i18n.G("Cluster join token for %s:%s deleted")+"\n", resource.remote, resource.name)
+				fmt.Printf("Cluster join token for %s:%s deleted\n", resource.remote, resource.name)
 			}
 
 			return nil
 		}
 	}
 
-	return fmt.Errorf(i18n.G("No cluster join token for member %s on remote: %s"), resource.name, resource.remote)
+	return fmt.Errorf("No cluster join token for member %s on remote: %s", resource.name, resource.remote)
 }
 
 // Update Certificates.
@@ -1175,11 +1161,11 @@ type cmdClusterUpdateCertificate struct {
 
 func (c *cmdClusterUpdateCertificate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("update-certificate", i18n.G("[<remote>:] <cert.crt> <cert.key>"))
+	cmd.Use = usage("update-certificate", "[<remote>:] <cert.crt> <cert.key>")
 	cmd.Aliases = []string{"update-cert"}
-	cmd.Short = i18n.G("Update cluster certificate")
-	cmd.Long = cli.FormatSection(i18n.G("Description"),
-		i18n.G("Update cluster certificate with PEM certificate and key read from input files."))
+	cmd.Short = "Update cluster certificate"
+	cmd.Long = cli.FormatSection("Description",
+		"Update cluster certificate with PEM certificate and key read from input files.")
 
 	cmd.RunE = c.run
 
@@ -1234,25 +1220,25 @@ func (c *cmdClusterUpdateCertificate) run(cmd *cobra.Command, args []string) err
 	}
 
 	if !cluster.Enabled {
-		return errors.New(i18n.G("LXD server isn't part of a cluster"))
+		return errors.New("LXD server isn't part of a cluster")
 	}
 
 	if !shared.PathExists(certFile) {
-		return fmt.Errorf(i18n.G("Could not find certificate file path: %s"), certFile)
+		return fmt.Errorf("Could not find certificate file path: %s", certFile)
 	}
 
 	if !shared.PathExists(keyFile) {
-		return fmt.Errorf(i18n.G("Could not find certificate key file path: %s"), keyFile)
+		return fmt.Errorf("Could not find certificate key file path: %s", keyFile)
 	}
 
 	cert, err := os.ReadFile(certFile)
 	if err != nil {
-		return fmt.Errorf(i18n.G("Could not read certificate file: %s with error: %v"), certFile, err)
+		return fmt.Errorf("Could not read certificate file: %s with error: %v", certFile, err)
 	}
 
 	key, err := os.ReadFile(keyFile)
 	if err != nil {
-		return fmt.Errorf(i18n.G("Could not read certificate key file: %s with error: %v"), keyFile, err)
+		return fmt.Errorf("Could not read certificate key file: %s with error: %v", keyFile, err)
 	}
 
 	certificates := api.ClusterCertificatePut{
@@ -1269,12 +1255,12 @@ func (c *cmdClusterUpdateCertificate) run(cmd *cobra.Command, args []string) err
 	if shared.PathExists(certf) {
 		err = os.WriteFile(certf, cert, 0644)
 		if err != nil {
-			return fmt.Errorf(i18n.G("Could not write new remote certificate for remote '%s' with error: %v"), resource.remote, err)
+			return fmt.Errorf("Could not write new remote certificate for remote '%s' with error: %v", resource.remote, err)
 		}
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Successfully updated cluster certificates for remote %s")+"\n", resource.remote)
+		fmt.Printf("Successfully updated cluster certificates for remote %s\n", resource.remote)
 	}
 
 	return nil
@@ -1300,19 +1286,18 @@ func (c *cmdClusterEvacuate) command() *cobra.Command {
 
 	cmd := c.action.command()
 	cmd.Aliases = []string{"evac"}
-	cmd.Use = usage("evacuate", i18n.G("[<remote>:]<member>"))
-	cmd.Short = i18n.G("Evacuate cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Evacuate cluster member
+	cmd.Use = usage("evacuate", "[<remote>:]<member>")
+	cmd.Short = "Evacuate cluster member"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 Evacuation actions:
  - stop: stop all instances on the member
  - migrate: migrate all instances on the member to other members
  - live-migrate: live migrate all instances on the member to other members
-`))
+`)
 
-	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, i18n.G(`Force evacuation without user confirmation`)+"``")
-	cmd.Flags().StringVar(&c.action.flagAction, "action", "", i18n.G(`Force a particular instance evacuation action. One of stop, migrate or live-migrate`)+"``")
+	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, "Force evacuation without user confirmation")
+	cmd.Flags().StringVar(&c.action.flagAction, "action", "", cli.FormatStringFlagLabel("Force a particular instance evacuation action. One of stop, migrate or live-migrate"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -1337,12 +1322,11 @@ func (c *cmdClusterRestore) command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.command()
-	cmd.Use = usage("restore", i18n.G("[<remote>:]<member>"))
-	cmd.Short = i18n.G("Restore cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Restore cluster member`))
+	cmd.Use = usage("restore", "[<remote>:]<member>")
+	cmd.Short = "Restore cluster member"
 
-	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, i18n.G(`Force restoration without user confirmation`)+"``")
-	cmd.Flags().StringVar(&c.action.flagAction, "action", "", i18n.G(`Force a particular instance restore action. Use "skip" to restore only the cluster member status without starting local instances or migrating back evacuated instances`)+"``")
+	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, "Force restoration without user confirmation")
+	cmd.Flags().StringVar(&c.action.flagAction, "action", "", cli.FormatStringFlagLabel("Force a particular instance restore action. Use \"skip\" to restore only the cluster member status without starting local instances or migrating back evacuated instances"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -1378,11 +1362,11 @@ func (c *cmdClusterEvacuateAction) run(cmd *cobra.Command, args []string) error 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster member name"))
+		return errors.New("Missing cluster member name")
 	}
 
 	if !c.flagForce {
-		evacuate, err := c.global.asker.AskBool(fmt.Sprintf(i18n.G("Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "), cmd.Name(), resource.name), "no")
+		evacuate, err := c.global.asker.AskBool(fmt.Sprintf("Are you sure you want to %s cluster member %q? (yes/no) [default=no]: ", cmd.Name(), resource.name), "no")
 		if err != nil {
 			return err
 		}
@@ -1411,9 +1395,9 @@ func (c *cmdClusterEvacuateAction) run(cmd *cobra.Command, args []string) error 
 	var format string
 
 	if cmd.Name() == "restore" {
-		format = i18n.G("Restoring cluster member: %s")
+		format = "Restoring cluster member: %s"
 	} else {
-		format = i18n.G("Evacuating cluster member: %s")
+		format = "Evacuating cluster member: %s"
 	}
 
 	progress := cli.ProgressRenderer{
