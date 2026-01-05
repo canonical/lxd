@@ -246,6 +246,7 @@ See {ref}`preseed-yaml-file-fields` for the complete fields of the preseed YAML 
 ## Use MicroCloud
 
 ```{youtube} https://www.youtube.com/watch?v=M0y0hQ16YuE
+:title: MicroCloud LTS Demo
 ```
 
 Instead of setting up your LXD cluster manually, you can use [MicroCloud](https://canonical.com/microcloud) to get a fully highly available LXD cluster with OVN and with Ceph storage up and running.

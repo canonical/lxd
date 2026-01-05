@@ -10,6 +10,7 @@ Network zones are available for the {ref}`network-ovn` and the {ref}`network-bri
 ```
 
 ```{youtube} https://www.youtube.com/watch?v=2MqpJOogNVQ
+:title: LXD network zones
 ```
 
 Network zones can be used to serve DNS records for LXD networks.

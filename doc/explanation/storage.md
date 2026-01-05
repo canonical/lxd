@@ -104,6 +104,7 @@ In the default profile, this pool is set to the storage pool that was created du
 ## Storage volumes
 
 ```{youtube} https://www.youtube.com/watch?v=dvQ111pbqtk
+:title: Custom storage volumes in LXD
 ```
 
 When you create an instance, LXD automatically creates the required storage volumes for it.
@@ -172,6 +173,7 @@ Each storage volume uses one of the following content types:
 ## Storage buckets
 
 ```{youtube} https://www.youtube.com/watch?v=T1EeXPrjkEY
+:title: LXD's S3 API
 ```
 
 Storage buckets provide object storage functionality via the S3 protocol.

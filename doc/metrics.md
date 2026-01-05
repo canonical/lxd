@@ -6,6 +6,7 @@ discourse: lxc:[Retrieve&#32;LXD&#32;metrics&#32;with&#32;Telegraf&#32;and&#32;I
 # How to monitor metrics
 
 ```{youtube} https://www.youtube.com/watch?v=EthK-8hm_fY
+:title: LXD metrics with Prometheus and Grafana
 ```
 
 <!-- Include start metrics intro -->
