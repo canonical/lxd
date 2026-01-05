@@ -20,7 +20,7 @@ func (c *cmdLaunch) command() *cobra.Command {
 	cmd := c.init.command()
 	cmd.Use = usage("launch", "[<remote>:]<image> [<remote>:][<name>]")
 	cmd.Short = "Create and start instances from images"
-	cmd.Long = cli.FormatSection("Description", `Create and start instances from images`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc launch ubuntu:24.04 u1
     Create and start a container
 
@@ -40,7 +40,7 @@ lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,si
 
 	cmd.RunE = c.run
 
-	cmd.Flags().StringVar(&c.flagConsole, "console", "", "Immediately attach to the console"+"``")
+	cmd.Flags().StringVar(&c.flagConsole, "console", "", cli.FormatStringFlagLabel("Immediately attach to the console"))
 	cmd.Flags().Lookup("console").NoOptDefVal = "console"
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
