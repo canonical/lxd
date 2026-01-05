@@ -225,7 +225,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 			config.Cluster.ClusterToken = clusterJoinToken
 
 			// Confirm wiping
-			clusterWipeMember, err := c.global.asker.AskBool("All existing data is lost when joining a cluster, continue? (yes/no) [default=no] ", "no")
+			clusterWipeMember, err := c.global.asker.AskBool("All existing data in the local database is lost when joining a cluster, continue? (yes/no) [default=no] ", "no")
 			if err != nil {
 				return err
 			}
@@ -302,13 +302,13 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 				// If a specific source was provided, it could be that it already contains an existing storage pool.
 				// In this case ask for recovery.
 				if config.Key == "source" && configValue != "" {
-					configValue, err := c.global.asker.AskBool("Are you recovering an existing source? (yes/no) [default=no]: ", "no")
+					recoverSource, err := c.global.asker.AskBool(fmt.Sprintf("Does source %q contain an existing LXD storage pool? (yes/no) [default=no]: ", configValue), "no")
 					if err != nil {
 						return err
 					}
 
 					// Only populate the value if it set to true.
-					if configValue {
+					if recoverSource {
 						cluster.MemberConfig = append(cluster.MemberConfig, api.ClusterMemberConfigKey{
 							Entity: config.Entity,
 							Name:   config.Name,
