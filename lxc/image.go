@@ -19,7 +19,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -35,9 +34,8 @@ type cmdImage struct {
 func (c *cmdImage) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("image")
-	cmd.Short = i18n.G("Manage images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage images
+	cmd.Short = "Manage images"
+	cmd.Long = cli.FormatSection("Description", `Manage images
 
 In LXD instances are created from images. Those images were themselves
 either generated from an existing instance or downloaded from an image
@@ -51,7 +49,7 @@ as a compressed tarball (or for split images, the concatenation of the
 metadata and rootfs tarballs).
 
 Images can be referenced by their full hash, shortest unique partial
-hash or alias name (if one is set).`))
+hash or alias name (if one is set).`)
 
 	// Alias
 	imageAliasCmd := cmdImageAlias{global: c.global, image: c}
@@ -122,7 +120,7 @@ func (c *cmdImage) dereferenceAlias(d lxd.ImageServer, imageType string, inName 
 		// Maybe that inName is a fingerprint and can't be found as an alias
 		image, etag, errImage := d.GetImage(inName)
 		if errImage != nil {
-			return nil, "", fmt.Errorf(i18n.G("Failed fetching fingerprint %q: %w"), inName, errImage)
+			return nil, "", fmt.Errorf("Failed fetching fingerprint %q: %w", inName, errImage)
 		}
 
 		return image, etag, nil
@@ -131,7 +129,7 @@ func (c *cmdImage) dereferenceAlias(d lxd.ImageServer, imageType string, inName 
 	// Alias could be resolved, return its image
 	image, etag, err = d.GetImage(result.Target)
 	if err != nil {
-		return nil, "", fmt.Errorf(i18n.G("Failed fetching fingerprint %q for alias %q: %w"), result.Target, inName, err)
+		return nil, "", fmt.Errorf("Failed fetching fingerprint %q for alias %q: %w", result.Target, inName, err)
 	}
 
 	return image, etag, nil
@@ -154,23 +152,22 @@ type cmdImageCopy struct {
 
 func (c *cmdImageCopy) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("copy", i18n.G("[<remote>:]<image> <remote>:"))
+	cmd.Use = usage("copy", "[<remote>:]<image> <remote>:")
 	cmd.Aliases = []string{"cp"}
-	cmd.Short = i18n.G("Copy images between servers")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Copy images between servers
+	cmd.Short = "Copy images between servers"
+	cmd.Long = cli.FormatSection("Description", `Copy images between servers
 
 The auto-update flag instructs the server to keep this image up to date.
-It requires the source to be an alias and for it to be public.`))
+It requires the source to be an alias and for it to be public.`)
 
-	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Make image public"))
-	cmd.Flags().BoolVar(&c.flagCopyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
-	cmd.Flags().BoolVar(&c.flagAutoUpdate, "auto-update", false, i18n.G("Keep the image up to date after initial copy"))
-	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New aliases to add to the image")+"``")
-	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Copy virtual machine images"))
-	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay")+"``")
-	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
-	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new image")+"``")
+	cmd.Flags().BoolVar(&c.flagPublic, "public", false, "Make image public")
+	cmd.Flags().BoolVar(&c.flagCopyAliases, "copy-aliases", false, "Copy aliases from source")
+	cmd.Flags().BoolVar(&c.flagAutoUpdate, "auto-update", false, "Keep the image up to date after initial copy")
+	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, "New aliases to add to the image"+"``")
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, "Copy virtual machine images")
+	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", "Transfer mode. One of pull (default), push or relay"+"``")
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", "Copy to a project different from the source"+"``")
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, "Profile to apply to the new image"+"``")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -198,7 +195,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagMode != "pull" && c.flagAutoUpdate {
-		return errors.New(i18n.G("Auto update is only available in pull mode"))
+		return errors.New("Auto update is only available in pull mode")
 	}
 
 	// Parse source remote
@@ -231,7 +228,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	destinationServer := resources[0].server
 
 	if resources[0].name != "" {
-		return errors.New(i18n.G("Can't provide a name for the target image"))
+		return errors.New("Can't provide a name for the target image")
 	}
 
 	// Resolve image type
@@ -286,7 +283,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 
 	// Register progress handler
 	progress := cli.ProgressRenderer{
-		Format: i18n.G("Copying the image: %s"),
+		Format: "Copying the image: %s",
 		Quiet:  c.global.flagQuiet,
 	}
 
@@ -303,7 +300,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	progress.Done(i18n.G("Image copied successfully!"))
+	progress.Done("Image copied successfully!")
 
 	// Ensure aliases
 	aliases := make([]api.ImageAlias, len(c.flagAliases))
@@ -332,11 +329,10 @@ type cmdImageDelete struct {
 
 func (c *cmdImageDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<image> [[<remote>:]<image>...]"))
+	cmd.Use = usage("delete", "[<remote>:]<image> [[<remote>:]<image>...]")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete images`))
+	cmd.Short = "Delete images"
+	cmd.Long = cli.FormatSection("Description", `Delete images`)
 
 	cmd.RunE = c.run
 
@@ -362,7 +358,7 @@ func (c *cmdImageDelete) run(cmd *cobra.Command, args []string) error {
 
 	for _, resource := range resources {
 		if resource.name == "" {
-			return errors.New(i18n.G("Image identifier missing"))
+			return errors.New("Image identifier missing")
 		}
 
 		image, _, err := c.image.dereferenceAlias(resource.server, "", resource.name)
@@ -392,16 +388,14 @@ type cmdImageEdit struct {
 
 func (c *cmdImageEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<image>"))
-	cmd.Short = i18n.G("Edit image properties")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit image properties`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc image edit <image>
+	cmd.Use = usage("edit", "[<remote>:]<image>")
+	cmd.Short = "Edit image properties"
+	cmd.Long = cli.FormatSection("Description", `Edit image properties`)
+	cmd.Example = cli.FormatSection("", `lxc image edit <image>
     Launch a text editor to edit the properties
 
 lxc image edit <image> < image.yaml
-    Load the image properties from a YAML file`))
+    Load the image properties from a YAML file`)
 
 	cmd.RunE = c.run
 
@@ -417,13 +411,12 @@ lxc image edit <image> < image.yaml
 }
 
 func (c *cmdImageEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a YAML representation of the image properties.
+	return `### This is a YAML representation of the image properties.
 ### Any line starting with a '# will be ignored.
 ###
 ### Each property is represented by a single line:
 ### An example would be:
-###  description: My custom image`)
+###  description: My custom image`
 }
 
 func (c *cmdImageEdit) run(cmd *cobra.Command, args []string) error {
@@ -442,7 +435,7 @@ func (c *cmdImageEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Image identifier missing: %s"), args[0])
+		return fmt.Errorf("Image identifier missing: %s", args[0])
 	}
 
 	// Resolve any aliases
@@ -489,8 +482,8 @@ func (c *cmdImageEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s"+"\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -521,14 +514,13 @@ type cmdImageExport struct {
 
 func (c *cmdImageExport) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("export", i18n.G("[<remote>:]<image> [<target>]"))
-	cmd.Short = i18n.G("Export and download images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Export and download images
+	cmd.Use = usage("export", "[<remote>:]<image> [<target>]")
+	cmd.Short = "Export and download images"
+	cmd.Long = cli.FormatSection("Description", `Export and download images
 
-The output target is optional and defaults to the working directory.`))
+The output target is optional and defaults to the working directory.`)
 
-	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Query virtual machine images"))
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, "Query virtual machine images")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -602,7 +594,7 @@ func (c *cmdImageExport) run(cmd *cobra.Command, args []string) error {
 
 	// Prepare the download request
 	progress := cli.ProgressRenderer{
-		Format: i18n.G("Exporting the image: %s"),
+		Format: "Exporting the image: %s",
 		Quiet:  c.global.flagQuiet,
 	}
 
@@ -678,7 +670,7 @@ func (c *cmdImageExport) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	progress.Done(i18n.G("Image exported successfully!"))
+	progress.Done("Image exported successfully!")
 	return nil
 }
 
@@ -693,17 +685,16 @@ type cmdImageImport struct {
 
 func (c *cmdImageImport) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("import", i18n.G("<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"))
-	cmd.Short = i18n.G("Import images into the image store")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Import image into the image store
+	cmd.Use = usage("import", "<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]")
+	cmd.Short = "Import images into the image store"
+	cmd.Long = cli.FormatSection("Description", `Import image into the image store
 
 Directory import is only available on Linux and must be performed as root.
 
-Descriptive properties can be set by providing key=value pairs. Example: os=Ubuntu release=noble variant=cloud.`))
+Descriptive properties can be set by providing key=value pairs. Example: os=Ubuntu release=noble variant=cloud.`)
 
-	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Make image public"))
-	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New aliases to add to the image")+"``")
+	cmd.Flags().BoolVar(&c.flagPublic, "public", false, "Make image public")
+	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, "New aliases to add to the image"+"``")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -724,9 +715,9 @@ Descriptive properties can be set by providing key=value pairs. Example: os=Ubun
 func (c *cmdImageImport) packImageDir(path string) (string, error) {
 	// Quick checks.
 	if os.Geteuid() == -1 {
-		return "", errors.New(i18n.G("Directory import is not available on this platform"))
+		return "", errors.New("Directory import is not available on this platform")
 	} else if os.Geteuid() != 0 {
-		return "", errors.New(i18n.G("Must run as root to import from directory"))
+		return "", errors.New("Must run as root to import from directory")
 	}
 
 	outFile, err := os.CreateTemp("", "lxd_image_")
@@ -803,7 +794,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if strings.HasPrefix(imageFile, "http://") {
-		return errors.New(i18n.G("Only https:// is supported for remote image import"))
+		return errors.New("Only https:// is supported for remote image import")
 	}
 
 	var createArgs *lxd.ImageCreateArgs
@@ -814,7 +805,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 	for _, entry := range properties {
 		fields := strings.SplitN(entry, "=", 2)
 		if len(fields) < 2 {
-			return fmt.Errorf(i18n.G("Bad property: %s"), entry)
+			return fmt.Errorf("Bad property: %s", entry)
 		}
 
 		if image.Properties == nil {
@@ -825,7 +816,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	progress := cli.ProgressRenderer{
-		Format: i18n.G("Transferring image: %s"),
+		Format: "Transferring image: %s",
 		Quiet:  c.global.flagQuiet,
 	}
 
@@ -916,7 +907,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(`Invalid type %T for "fingerprint" key in operation metadata`, fingerprint)
 	}
 
-	progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
+	progress.Done("Image imported with fingerprint: " + fingerprint)
 
 	// Add the aliases
 	if len(c.flagAliases) > 0 {
@@ -944,12 +935,11 @@ type cmdImageInfo struct {
 
 func (c *cmdImageInfo) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("info", i18n.G("[<remote>:]<image>"))
-	cmd.Short = i18n.G("Show useful information about images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show useful information about images`))
+	cmd.Use = usage("info", "[<remote>:]<image>")
+	cmd.Short = "Show useful information about images"
+	cmd.Long = cli.FormatSection("Description", `Show useful information about images`)
 
-	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Query virtual machine images"))
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, "Query virtual machine images")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -992,19 +982,19 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	public := i18n.G("no")
+	public := "no"
 	if info.Public {
-		public = i18n.G("yes")
+		public = "yes"
 	}
 
-	cached := i18n.G("no")
+	cached := "no"
 	if info.Cached {
-		cached = i18n.G("yes")
+		cached = "yes"
 	}
 
-	autoUpdate := i18n.G("disabled")
+	autoUpdate := "disabled"
 	if info.AutoUpdate {
-		autoUpdate = i18n.G("enabled")
+		autoUpdate = "enabled"
 	}
 
 	imgType := "container"
@@ -1012,38 +1002,38 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 		imgType = info.Type
 	}
 
-	fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
-	fmt.Printf(i18n.G("Size: %.2fMiB")+"\n", float64(info.Size)/1024.0/1024.0)
-	fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
-	fmt.Printf(i18n.G("Type: %s")+"\n", imgType)
-	fmt.Printf(i18n.G("Public: %s")+"\n", public)
-	fmt.Print(i18n.G("Timestamps:") + "\n")
+	fmt.Printf("Fingerprint: %s"+"\n", info.Fingerprint)
+	fmt.Printf("Size: %.2fMiB"+"\n", float64(info.Size)/1024.0/1024.0)
+	fmt.Printf("Architecture: %s"+"\n", info.Architecture)
+	fmt.Printf("Type: %s"+"\n", imgType)
+	fmt.Printf("Public: %s"+"\n", public)
+	fmt.Print("Timestamps:" + "\n")
 
 	const layout = "2006/01/02 15:04 UTC"
 	if shared.TimeIsSet(info.CreatedAt) {
-		fmt.Printf("    "+i18n.G("Created: %s")+"\n", info.CreatedAt.UTC().Format(layout))
+		fmt.Printf("    "+"Created: %s"+"\n", info.CreatedAt.UTC().Format(layout))
 	}
 
-	fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", info.UploadedAt.UTC().Format(layout))
+	fmt.Printf("    "+"Uploaded: %s"+"\n", info.UploadedAt.UTC().Format(layout))
 
 	if shared.TimeIsSet(info.ExpiresAt) {
-		fmt.Printf("    "+i18n.G("Expires: %s")+"\n", info.ExpiresAt.UTC().Format(layout))
+		fmt.Printf("    "+"Expires: %s"+"\n", info.ExpiresAt.UTC().Format(layout))
 	} else {
-		fmt.Print("    " + i18n.G("Expires: never") + "\n")
+		fmt.Print("    " + "Expires: never" + "\n")
 	}
 
 	if shared.TimeIsSet(info.LastUsedAt) {
-		fmt.Printf("    "+i18n.G("Last used: %s")+"\n", info.LastUsedAt.UTC().Format(layout))
+		fmt.Printf("    "+"Last used: %s"+"\n", info.LastUsedAt.UTC().Format(layout))
 	} else {
-		fmt.Print("    " + i18n.G("Last used: never") + "\n")
+		fmt.Print("    " + "Last used: never" + "\n")
 	}
 
-	fmt.Println(i18n.G("Properties:"))
+	fmt.Println("Properties:")
 	for key, value := range info.Properties {
 		fmt.Printf("    %s: %s\n", key, value)
 	}
 
-	fmt.Println(i18n.G("Aliases:"))
+	fmt.Println("Aliases:")
 	for _, alias := range info.Aliases {
 		if alias.Description != "" {
 			fmt.Printf("    - %s (%s)\n", alias.Name, alias.Description)
@@ -1052,20 +1042,20 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf(i18n.G("Cached: %s")+"\n", cached)
-	fmt.Printf(i18n.G("Auto update: %s")+"\n", autoUpdate)
+	fmt.Printf("Cached: %s"+"\n", cached)
+	fmt.Printf("Auto update: %s"+"\n", autoUpdate)
 
 	if info.UpdateSource != nil {
-		fmt.Println(i18n.G("Source:"))
+		fmt.Println("Source:")
 		fmt.Printf("    Server: %s\n", info.UpdateSource.Server)
 		fmt.Printf("    Protocol: %s\n", info.UpdateSource.Protocol)
 		fmt.Printf("    Alias: %s\n", info.UpdateSource.Alias)
 	}
 
 	if len(info.Profiles) == 0 {
-		fmt.Print(i18n.G("Profiles: ") + "[]\n")
+		fmt.Print("Profiles: " + "[]\n")
 	} else {
-		fmt.Println(i18n.G("Profiles:"))
+		fmt.Println("Profiles:")
 		for _, name := range info.Profiles {
 			fmt.Printf("    - %s\n", name)
 		}
@@ -1086,11 +1076,10 @@ type cmdImageList struct {
 
 func (c *cmdImageList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:] [<filter>...]"))
+	cmd.Use = usage("list", "[<remote>:] [<filter>...]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List images
+	cmd.Short = "List images"
+	cmd.Long = cli.FormatSection("Description", `List images
 
 Filters may be of the <key>=<value> form for property based filtering,
 or part of the image hash or part of the image alias name.
@@ -1113,11 +1102,11 @@ Column shorthand chars:
     a - Architecture
     s - Size
     u - Upload date
-    t - Type`))
+    t - Type`)
 
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultImagesColumns, i18n.G("Columns")+"``")
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
-	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Display images from all projects"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultImagesColumns, "Columns"+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display images from all projects")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -1136,17 +1125,17 @@ const defaultImagesColumnsAllProjects = "elfpdatsu"
 
 func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
 	columnsShorthandMap := map[rune]imageColumn{
-		'a': {i18n.G("ARCHITECTURE"), c.architectureColumnData},
-		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData},
-		'e': {i18n.G("PROJECT"), c.projectColumnData},
-		'f': {i18n.G("FINGERPRINT"), c.fingerprintColumnData},
-		'F': {i18n.G("FINGERPRINT"), c.fingerprintFullColumnData},
-		'l': {i18n.G("ALIAS"), c.aliasColumnData},
-		'L': {i18n.G("ALIASES"), c.aliasesColumnData},
-		'p': {i18n.G("PUBLIC"), c.publicColumnData},
-		's': {i18n.G("SIZE"), c.sizeColumnData},
-		't': {i18n.G("TYPE"), c.typeColumnData},
-		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
+		'a': {"ARCHITECTURE", c.architectureColumnData},
+		'd': {"DESCRIPTION", c.descriptionColumnData},
+		'e': {"PROJECT", c.projectColumnData},
+		'f': {"FINGERPRINT", c.fingerprintColumnData},
+		'F': {"FINGERPRINT", c.fingerprintFullColumnData},
+		'l': {"ALIAS", c.aliasColumnData},
+		'L': {"ALIASES", c.aliasesColumnData},
+		'p': {"PUBLIC", c.publicColumnData},
+		's': {"SIZE", c.sizeColumnData},
+		't': {"TYPE", c.typeColumnData},
+		'u': {"UPLOAD DATE", c.uploadDateColumnData},
 	}
 
 	// Add project column if --all-projects flag specified and custom columns are not specified.
@@ -1159,13 +1148,13 @@ func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
 
 	for _, columnEntry := range columnList {
 		if columnEntry == "" {
-			return nil, fmt.Errorf(i18n.G("Empty column entry (redundant, leading or trailing command) in '%s'"), c.flagColumns)
+			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in %q", c.flagColumns)
 		}
 
 		for _, columnRune := range columnEntry {
 			column, ok := columnsShorthandMap[columnRune]
 			if !ok {
-				return nil, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)
+				return nil, fmt.Errorf("Unknown column shorthand char '%c' in %q", columnRune, columnEntry)
 			}
 
 			columns = append(columns, column)
@@ -1178,7 +1167,7 @@ func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
 func (c *cmdImageList) aliasColumnData(image api.Image) string {
 	shortest := c.shortestAlias(image.Aliases)
 	if len(image.Aliases) > 1 {
-		shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
+		shortest = fmt.Sprintf("%s (%d more)", shortest, len(image.Aliases)-1)
 	}
 
 	return shortest
@@ -1204,10 +1193,10 @@ func (c *cmdImageList) fingerprintFullColumnData(image api.Image) string {
 
 func (c *cmdImageList) publicColumnData(image api.Image) string {
 	if image.Public {
-		return i18n.G("yes")
+		return "yes"
 	}
 
-	return i18n.G("no")
+	return "no"
 }
 
 func (c *cmdImageList) descriptionColumnData(image api.Image) string {
@@ -1447,10 +1436,9 @@ type cmdImageRefresh struct {
 
 func (c *cmdImageRefresh) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("refresh", i18n.G("[<remote>:]<image> [[<remote>:]<image>...]"))
-	cmd.Short = i18n.G("Refresh images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Refresh images`))
+	cmd.Use = usage("refresh", "[<remote>:]<image> [[<remote>:]<image>...]")
+	cmd.Short = "Refresh images"
+	cmd.Long = cli.FormatSection("Description", `Refresh images`)
 
 	cmd.RunE = c.run
 
@@ -1480,7 +1468,7 @@ func (c *cmdImageRefresh) run(cmd *cobra.Command, args []string) error {
 
 	for _, resource := range resources {
 		if resource.name == "" {
-			return errors.New(i18n.G("Image identifier missing"))
+			return errors.New("Image identifier missing")
 		}
 
 		image, _, err := c.image.dereferenceAlias(resource.server, "", resource.name)
@@ -1489,7 +1477,7 @@ func (c *cmdImageRefresh) run(cmd *cobra.Command, args []string) error {
 		}
 
 		progress := cli.ProgressRenderer{
-			Format: i18n.G("Refreshing the image: %s"),
+			Format: "Refreshing the image: %s",
 			Quiet:  c.global.flagQuiet,
 		}
 
@@ -1523,9 +1511,9 @@ func (c *cmdImageRefresh) run(cmd *cobra.Command, args []string) error {
 		}
 
 		if refreshed {
-			progress.Done(i18n.G("Image refreshed successfully!"))
+			progress.Done("Image refreshed successfully!")
 		} else {
-			progress.Done(i18n.G("Image already up to date."))
+			progress.Done("Image already up to date.")
 		}
 	}
 
@@ -1542,12 +1530,11 @@ type cmdImageShow struct {
 
 func (c *cmdImageShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<image>"))
-	cmd.Short = i18n.G("Show image properties")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show image properties`))
+	cmd.Use = usage("show", "[<remote>:]<image>")
+	cmd.Short = "Show image properties"
+	cmd.Long = cli.FormatSection("Description", `Show image properties`)
 
-	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Query virtual machine images"))
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, "Query virtual machine images")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -1608,10 +1595,9 @@ type cmdImageGetProp struct {
 
 func (c *cmdImageGetProp) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("get-property", i18n.G("[<remote>:]<image> <key>"))
-	cmd.Short = i18n.G("Get image properties")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Get image properties`))
+	cmd.Use = usage("get-property", "[<remote>:]<image> <key>")
+	cmd.Short = "Get image properties"
+	cmd.Long = cli.FormatSection("Description", `Get image properties`)
 
 	cmd.RunE = c.run
 
@@ -1657,7 +1643,7 @@ func (c *cmdImageGetProp) run(cmd *cobra.Command, args []string) error {
 
 	prop, propFound := image.Properties[args[1]]
 	if !propFound {
-		return errors.New(i18n.G("Property not found"))
+		return errors.New("Property not found")
 	}
 
 	fmt.Println(prop)
@@ -1672,10 +1658,9 @@ type cmdImageSetProp struct {
 
 func (c *cmdImageSetProp) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("set-property", i18n.G("[<remote>:]<image> <key> <value>"))
-	cmd.Short = i18n.G("Set image properties")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set image properties`))
+	cmd.Use = usage("set-property", "[<remote>:]<image> <key> <value>")
+	cmd.Short = "Set image properties"
+	cmd.Long = cli.FormatSection("Description", `Set image properties`)
 
 	cmd.RunE = c.run
 
@@ -1706,7 +1691,7 @@ func (c *cmdImageSetProp) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Image identifier missing: %s"), args[0])
+		return fmt.Errorf("Image identifier missing: %s", args[0])
 	}
 
 	// Show properties
@@ -1735,10 +1720,9 @@ type cmdImageUnsetProp struct {
 
 func (c *cmdImageUnsetProp) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("unset-property", i18n.G("[<remote>:]<image> <key>"))
-	cmd.Short = i18n.G("Unset image properties")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Unset image properties`))
+	cmd.Use = usage("unset-property", "[<remote>:]<image> <key>")
+	cmd.Short = "Unset image properties"
+	cmd.Long = cli.FormatSection("Description", `Unset image properties`)
 
 	cmd.RunE = c.run
 
