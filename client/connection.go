@@ -283,7 +283,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	// Do not include modern post-quantum curves in the ClientHello to avoid
 	// compatibility issues (connection resets) with broken middleboxes that
 	// can't handle large ClientHello messages split over multiple TCP packets.
-	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, true, args.Proxy, args.TransportWrapper)
+	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, true, args.Proxy, args.TransportWrapper, "")
 	if err != nil {
 		return nil, err
 	}
@@ -457,8 +457,21 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 		server.RequireAuthenticated(true)
 	}
 
+	var serverFingerprint string
+	if args.TLSServerCert == "" && args.BearerToken != "" {
+		// If server certificate is not provided and bearer token is used for authentication,
+		// try to extract the server certificate fingerprint from the token.
+		var claims ClientBearerTokenClaims
+		_, _, err := jwt.NewParser().ParseUnverified(args.BearerToken, &claims)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse bearer token: %w", err)
+		}
+
+		serverFingerprint = claims.ServerFingerprint
+	}
+
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, false, args.Proxy, args.TransportWrapper)
+	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, false, args.Proxy, args.TransportWrapper, serverFingerprint)
 	if err != nil {
 		return nil, err
 	}
