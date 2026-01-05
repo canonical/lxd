@@ -270,6 +270,8 @@ jobs:
             backends: fast
           - group: cluster_storage
             backends: all
+          - group: image
+            backends: fast
           - group: instance
             backends: fast
           - group: network
