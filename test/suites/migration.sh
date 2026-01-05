@@ -5,8 +5,8 @@ test_migration() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   if [ "${lxd_backend}" = "dir" ] && uname -r | grep -- -kvm$; then
-    echo "==> SKIP: the -kvm kernel flavor is does not work for this test on ${lxd_backend}"
-    return
+    export TEST_UNMET_REQUIREMENT="The -kvm kernel flavor does not work for this test on ${lxd_backend}"
+    return 0
   fi
 
   ensure_import_testimage

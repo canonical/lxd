@@ -13,8 +13,8 @@ _secureboot_csm_boot() {
 
 test_vm_empty() {
   if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
-    echo "==> SKIP: QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
-    return
+    export TEST_UNMET_REQUIREMENT="QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
+    return 0
   fi
 
   echo "==> Test randomly named VM creation"

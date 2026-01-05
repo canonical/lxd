@@ -1759,12 +1759,12 @@ test_clustering_profiles() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 -p default -p web testimage c2
 
   # Edit the profile.
-  source=$(mktemp -d -p "${TEST_DIR}" XXX)
+  local source
+  source="$(mktemp -d -p "${TEST_DIR}" XXX)"
   touch "${source}/hello"
   chmod 755 "${source}"
   chmod 644 "${source}/hello"
-  (
-    cat <<EOF
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile edit web <<EOF
 config: {}
 description: ""
 devices:
@@ -1777,13 +1777,14 @@ used_by:
 - /1.0/instances/c1
 - /1.0/instances/c2
 EOF
-  ) | LXD_DIR="${LXD_TWO_DIR}" lxc profile edit web
 
-  LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 -- ls /mnt | grep -xF hello
-  LXD_DIR="${LXD_TWO_DIR}" lxc exec c2 -- ls /mnt | grep -xF hello
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 -- test -e /mnt/hello
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec c2 -- test -e /mnt/hello
 
   LXD_DIR="${LXD_TWO_DIR}" lxc stop c1 --force
   LXD_DIR="${LXD_ONE_DIR}" lxc stop c2 --force
+
+  rm -rf "${source}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -1811,6 +1812,7 @@ test_clustering_update_cert() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
+  local cert_path key_path
   cert_path=$(mktemp -p "${TEST_DIR}" XXX)
   key_path=$(mktemp -p "${TEST_DIR}" XXX)
 
@@ -1859,6 +1861,8 @@ test_clustering_update_cert() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -F "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -F "server_name: node1"
+
+  rm "${cert_path}" "${key_path}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -1949,6 +1953,8 @@ test_clustering_update_cert_reversion() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc warning list | grep -F "Unable to update cluster certificate"
 
+  rm "${cert_path}" "${key_path}"
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
@@ -1975,6 +1981,7 @@ test_clustering_update_cert_token() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
+  local cert_path key_path
   cert_path=$(mktemp -p "${TEST_DIR}" XXX)
   key_path=$(mktemp -p "${TEST_DIR}" XXX)
 
@@ -2036,6 +2043,8 @@ test_clustering_update_cert_token() {
   lxc remote add cluster "${token}"
   lxc cluster list cluster:
   lxc remote remove cluster
+
+  rm "${cert_path}" "${key_path}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -2591,7 +2600,7 @@ test_clustering_dns() {
   forkdns_pid2=$!
 
   # Let the processes come up
-  sleep 1
+  sleep 0.1
 
   # Create servers list file for forkdns1 pointing at forkdns2 (should be live reloaded)
   echo "127.0.1.2${ipRand}" > "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf.tmp
@@ -2663,13 +2672,12 @@ test_clustering_fan() {
   # Import the test image on node1
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
-  fanbridge="${prefix}f"
+  local fanbridge="${prefix}f"
 
   echo "Create a fan bridge"
   LXD_DIR="${LXD_ONE_DIR}" lxc network create --target node1 "${fanbridge}"
   LXD_DIR="${LXD_ONE_DIR}" lxc network create --target node2 "${fanbridge}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${fanbridge}" bridge.mode=fan
-  LXD_DIR="${LXD_ONE_DIR}" lxc network set "${fanbridge}" dns.domain=fantastic
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${fanbridge}" bridge.mode=fan dns.domain=fantastic
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${fanbridge}"
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" bridge.mode)" = "fan" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${fanbridge}" dns.domain)" = "fantastic" ]
@@ -3229,10 +3237,8 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
 
   # The preseeded network bridge exists on all nodes.
-  ns1_pid="$(< "${TEST_DIR}/ns/${ns1}/PID")"
-  ns2_pid="$(< "${TEST_DIR}/ns/${ns2}/PID")"
-  nsenter -m -n -t "${ns1_pid}" -- ip link show "${bridge}" > /dev/null
-  nsenter -m -n -t "${ns2_pid}" -- ip link show "${bridge}" > /dev/null
+  nsenter -m -n -t "$(< "${TEST_DIR}/ns/${ns1}/PID")" -- ip link show "${bridge}" > /dev/null
+  nsenter -m -n -t "$(< "${TEST_DIR}/ns/${ns2}/PID")" -- ip link show "${bridge}" > /dev/null
 
   # Create a pending network and pool, to show that they are not
   # considered when checking if the joining node has all the required
@@ -3433,8 +3439,7 @@ test_clustering_image_refresh() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.images_minimal_replica 1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set images.auto_update_interval 1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.images_minimal_replica=1 images.auto_update_interval=1
 
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
@@ -3505,7 +3510,7 @@ test_clustering_image_refresh() {
   done
 
   # Modify public testimage
-  dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
+  echo "${RANDOM}" | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
   LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --reuse --public
   new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
 
@@ -3588,7 +3593,7 @@ test_clustering_image_refresh() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   # Modify public testimage
-  dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
+  echo "${RANDOM}" | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
   LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --reuse --public
   new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
 
@@ -5651,12 +5656,12 @@ test_clustering_recovery() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}" "${pool_driver}"
 
   # Spawn a third node using a custom loop device outside of LXD's directory.
-  configure_loop_device loop_file_1 loop_device_1
+  configure_loop_device loop_file_1 loop_device_1 128M  # 128M to accommodate for btrfs
   # shellcheck disable=SC2154
   source="${loop_device_1}"
   if [ "${pool_driver}" = "dir" ]; then
     # The dir driver is special as it requires the source to be a directory.
-    mkfs.ext4 "${source}"
+    mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${source}"
     mkdir -p "${TEST_DIR}/pools/data"
     mount "${source}" "${TEST_DIR}/pools/data"
     source="${TEST_DIR}/pools/data"

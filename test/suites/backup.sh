@@ -6,8 +6,8 @@ test_storage_volume_recover() {
   poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
 
   if [ "${poolDriver}" = "pure" ]; then
-    echo "==> SKIP: Storage driver does not support recovery"
-    return
+    export TEST_UNMET_REQUIREMENT="pure driver does not support recovery"
+    return 0
   fi
 
   # Create custom block volume.
@@ -42,7 +42,7 @@ test_storage_volume_recover() {
   fi
 
   # Recover custom block volume.
-  cat <<EOF | lxd recover
+  lxd recover <<EOF
 yes
 yes
 EOF
@@ -115,7 +115,7 @@ test_storage_volume_recover_by_container() {
   ! lxc info c1 || false
 
   # Recover the instance.
-  cat <<EOF | lxd recover
+  lxd recover <<EOF
 yes
 yes
 EOF
@@ -136,7 +136,7 @@ EOF
   ! lxc storage volume show "${poolName2}" vol2 || false
 
   # Recover custom volumes.
-  cat <<EOF | lxd recover
+  lxd recover <<EOF
 yes
 yes
 EOF
@@ -165,7 +165,7 @@ EOF
   ! lxc storage volume show "${poolName2}" vol2 || false
 
   # Recover custom volumes.
-  cat <<EOF | lxd recover
+  lxd recover <<EOF
 yes
 yes
 EOF
@@ -271,20 +271,20 @@ EOF
 }
 
 test_container_recover() {
-  LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  local LXD_IMPORT_DIR
+  LXD_IMPORT_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
   spawn_lxd "${LXD_IMPORT_DIR}" true
+
+  if [ "$(storage_backend "$LXD_IMPORT_DIR")" = "pure" ]; then
+    export TEST_UNMET_REQUIREMENT="Storage driver does not support recovery"
+    return 0
+  fi
 
   (
     set -e
 
     # shellcheck disable=SC2030
     LXD_DIR=${LXD_IMPORT_DIR}
-    lxd_backend=$(storage_backend "$LXD_DIR")
-
-    if [ "${lxd_backend}" = "pure" ]; then
-      echo "==> SKIP: Storage driver does not support recovery"
-      return
-    fi
 
     ensure_import_testimage
 
@@ -298,7 +298,7 @@ test_container_recover() {
     lxc project switch test
 
     # Basic no-op check.
-    cat <<EOF | lxd recover | grep "No unknown storage volumes found. Nothing to do."
+    lxd recover <<EOF | grep "No unknown storage volumes found. Nothing to do."
 yes
 EOF
 
@@ -368,7 +368,7 @@ EOF
 
     respawn_lxd "${LXD_DIR}" true
 
-    cat <<EOF | lxd recover
+    lxd recover <<EOF
 yes
 yes
 EOF
@@ -415,7 +415,7 @@ EOF
     shutdown_lxd "${LXD_DIR}"
     respawn_lxd "${LXD_DIR}" true
 
-    cat <<EOF | lxd recover
+    lxd recover <<EOF
 yes
 yes
 EOF
@@ -1190,7 +1190,7 @@ test_backup_export_import_recover() {
     lxd sql global "DELETE FROM storage_volumes WHERE name = 'c2'"
 
     # Recover removed instance.
-    cat <<EOF | lxd recover
+    lxd recover <<EOF
 yes
 yes
 EOF

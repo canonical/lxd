@@ -10,11 +10,11 @@ test_init_interactive() {
 
     # XXX We need to remove the eth0 device from the default profile, which
     #     is typically attached by spawn_lxd.
-    if lxc profile device list default | grep -xF "eth0" >/dev/null; then
+    if lxc profile device get default eth0 name; then
       lxc profile device remove default eth0
     fi
 
-    cat <<EOF | lxd init
+    lxd init <<EOF
 no
 yes
 my-storage-pool

@@ -1,8 +1,8 @@
 test_container_devices_tpm() {
   if ! modprobe tpm_vtpm_proxy; then
     if [[ "$(uname -r)" =~ -azure$ ]]; then
-      echo "==> SKIP: Required tpm_vtpm_proxy.ko is missing"
-      return
+      export TEST_UNMET_REQUIREMENT="Required tpm_vtpm_proxy.ko is missing"
+      return 0
     fi
 
     install_packages "linux-modules-extra-$(uname -r)"

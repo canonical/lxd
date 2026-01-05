@@ -18,13 +18,14 @@ test_storage_driver_dir() {
 }
 
 do_dir_on_empty_fs() {
-  # Create and mount a small ext4 filesystem.
-  tmp_file="$(mktemp -p "${TEST_DIR}" disk.XXX)"
-  fallocate -l 64MiB "${tmp_file}"
-  mkfs.ext4 "${tmp_file}"
+  echo "==> Create and mount a small ext4 filesystem."
+
+  configure_loop_device tmp_file tmp_device
+  # shellcheck disable=SC2154
+  mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${tmp_device}"
 
   mount_point="$(mktemp -d -p "${TEST_DIR}" mountpoint.XXX)"
-  mount -o loop "${tmp_file}" "${mount_point}"
+  mount "${tmp_device}" "${mount_point}"
 
   if [ ! -d "${mount_point}/lost+found" ]; then
     echo "Error: Expected ${mount_point}/lost+found subdirectory to exist"
@@ -44,20 +45,21 @@ do_dir_on_empty_fs() {
 
   # Cleanup.
   umount "${mount_point}"
-  rm -rf "${mount_point}"
-  rm -f "${tmp_file}"
+  rmdir "${mount_point}"
+  # shellcheck disable=SC2154
+  deconfigure_loop_device "${tmp_file}" "${tmp_device}"
 }
 
 do_dir_xfs_project_quotas() {
   echo "==> Create and mount a small XFS filesystem with project quotas."
 
   # XFS filesystem must be larger than 300MB.
-  tmp_file="$(mktemp -p "${TEST_DIR}" disk.XXX)"
-  fallocate -l 1G "${tmp_file}"
-  mkfs.xfs "${tmp_file}"
+  configure_loop_device tmp_file tmp_device 300M
+  # shellcheck disable=SC2154
+  mkfs.xfs "${tmp_device}"
 
   mount_point="$(mktemp -d -p "${TEST_DIR}" mountpoint.XXX)"
-  mount -o loop -o prjquota "${tmp_file}" "${mount_point}"
+  mount -o prjquota "${tmp_device}" "${mount_point}"
 
   echo "==> Verify that the filesystem is mounted and project quotas are enabled."
   if ! mount | grep -E -w "${mount_point}.*prjquota" ; then
@@ -70,9 +72,9 @@ do_dir_xfs_project_quotas() {
   echo "==> Create LXD dir storage pool backed by XFS."
   lxc storage create xfs_pool dir source="${mount_point}"
 
-  echo "==> Create a profile that uses xfs_pool as root disk. Limit the root disk to 850MiB."
+  echo "==> Create a profile that uses xfs_pool as root disk. Limit the root disk to 160MiB."
   lxc profile create xfs_profile
-  lxc profile device add xfs_profile root disk pool=xfs_pool path=/ size=850MiB
+  lxc profile device add xfs_profile root disk pool=xfs_pool path=/ size=160MiB
 
   echo "==> Launch a container using the dir storage pool backed by XFS."
   lxc launch images:alpine/edge foo -p default -p xfs_profile
@@ -85,7 +87,7 @@ do_dir_xfs_project_quotas() {
   if [ -z "${project_hard_quota}" ]; then
      echo "Error: XFS project size hard quota not found"
      return 1
-  elif [ "${project_hard_quota}" != "850M" ]; then
+  elif [ "${project_hard_quota}" != "160M" ]; then
      echo "Error: XFS project size hard quota not matching the container's root disk size limit"
      return 1
   fi
@@ -101,6 +103,6 @@ do_dir_xfs_project_quotas() {
 
   echo "==> Cleanup the loopback file."
   umount "${mount_point}"
-  rm -rf "${mount_point}"
-  rm -f "${tmp_file}"
+  rmdir "${mount_point}"
+  deconfigure_loop_device "${tmp_file}" "${tmp_device}"
 }

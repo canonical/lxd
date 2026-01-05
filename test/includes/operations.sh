@@ -1,6 +1,5 @@
 # lxd_websocket_operation simulates a websocket operation on an LXD instance through.
 # The operation runs for a specified duration and then terminates
-# shellcheck disable=SC2034
 lxd_websocket_operation() {
   local instance_name="$1"
   local duration="$2"
@@ -11,7 +10,6 @@ lxd_websocket_operation() {
 
 # lxd_volume_operation simulates a custom volume operation.
 # The operation runs for a specified duration and then terminates.
-# shellcheck disable=SC2034
 lxd_volume_operation() {
   local pool_name="$1"
   local volume_name="$2"

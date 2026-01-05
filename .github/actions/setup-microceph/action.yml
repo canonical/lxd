@@ -143,6 +143,7 @@ runs:
               sudo microceph disk add --wipe "${ephemeral_disk}"
           fi
 
+          sudo rm -f /snap/bin/rbd
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
           sudo microceph enable rgw
@@ -150,18 +151,6 @@ runs:
           sudo microceph.ceph osd pool create cephfs_data 32
           sudo microceph.ceph fs new cephfs cephfs_meta cephfs_data
           sudo microceph.ceph fs ls
-          sleep 30
-          sudo microceph.ceph status
-          # Wait until there are no more "unknowns" pgs
-          for _ in $(seq 60); do
-            if sudo microceph.ceph pg stat | grep -wF unknown; then
-              sleep 1
-            else
-              break
-            fi
-          done
-          sudo microceph.ceph status
-          sudo rm -f /snap/bin/rbd
 
     - name: Install ceph-common package
       shell: bash
@@ -172,3 +161,19 @@ runs:
           sudo apt-get install --no-install-recommends -y ceph-common
           # reclaim some space
           sudo apt-get clean
+
+    - name: Wait for MicroCeph to be ready
+      shell: bash
+      run: |
+          set -eux
+
+          sudo microceph.ceph status
+          # Wait until there are no more "unknowns" pgs
+          for _ in $(seq 60); do
+            if sudo microceph.ceph pg stat | grep -wF unknown; then
+              sleep 1
+            else
+              break
+            fi
+          done
+          sudo microceph.ceph status
