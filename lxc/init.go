@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -40,10 +39,10 @@ type cmdInit struct {
 
 func (c *cmdInit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("init", i18n.G("[<remote>:]<image> [<remote>:][<name>]"))
-	cmd.Short = i18n.G("Create instances from images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create instances from images`))
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:24.04 u1
+	cmd.Use = usage("init", "[<remote>:]<image> [<remote>:][<name>]")
+	cmd.Short = "Create instances from images"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc init ubuntu:24.04 u1
     Create a container (but do not start it)
 
 lxc init ubuntu:24.04 u1 < config.yaml
@@ -59,21 +58,21 @@ Note: The --project flag sets the project for both the image remote and the inst
 If the image remote is a public remote (e.g. simplestreams) then this project is ignored by the image remote.
 If the image remote is another LXD server, specify the source project for the image remote 
 with --project and the instance remote with --target-project (if different from --project).
-`))
+`)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
-	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new instance")+"``")
-	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
-	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, i18n.G("Ephemeral instance"))
-	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", i18n.G("Network name")+"``")
-	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
-	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", i18n.G("Instance type")+"``")
-	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Project to create the instance in (if different from --project)")+"``")
-	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the instance with no profiles applied"))
-	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Create an empty instance"))
-	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Create a virtual machine"))
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, cli.FormatStringFlagLabel("Config key/value to apply to the new instance"))
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, cli.FormatStringFlagLabel("Profile to apply to the new instance"))
+	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, cli.FormatStringFlagLabel("New key/value to apply to a specific device"))
+	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, "Ephemeral instance")
+	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", cli.FormatStringFlagLabel("Network name"))
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", cli.FormatStringFlagLabel("Storage pool name"))
+	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", cli.FormatStringFlagLabel("Instance type"))
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", cli.FormatStringFlagLabel("Project to create the instance in (if different from --project)"))
+	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied")
+	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, "Create an empty instance")
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, "Create a virtual machine")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) > 1 {
@@ -155,7 +154,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 	if c.flagEmpty {
 		if len(args) > 1 {
-			return nil, "", errors.New(i18n.G("--empty cannot be combined with an image name"))
+			return nil, "", errors.New("--empty cannot be combined with an image name")
 		}
 
 		if len(args) == 0 {
@@ -187,15 +186,15 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	if !c.global.flagQuiet {
 		if d.HasExtension("instance_create_start") && launch {
 			if name == "" {
-				fmt.Print(i18n.G("Launching the instance") + "\n")
+				fmt.Print("Launching the instance\n")
 			} else {
-				fmt.Printf(i18n.G("Launching %s")+"\n", name)
+				fmt.Printf("Launching %s\n", name)
 			}
 		} else {
 			if name == "" {
-				fmt.Print(i18n.G("Creating the instance") + "\n")
+				fmt.Print("Creating the instance\n")
 			} else {
-				fmt.Printf(i18n.G("Creating %s")+"\n", name)
+				fmt.Printf("Creating %s\n", name)
 			}
 		}
 	}
@@ -250,7 +249,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	for _, entry := range c.flagConfig {
 		key, value, found := strings.Cut(entry, "=")
 		if !found {
-			return nil, "", fmt.Errorf(i18n.G("Bad key=value pair: %q"), entry)
+			return nil, "", fmt.Errorf("Bad key=value pair: %q", entry)
 		}
 
 		configMap[key] = value
@@ -362,7 +361,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 		if conf.Remotes[iremote].Protocol != "simplestreams" {
 			if imgInfo.Type != "virtual-machine" && c.flagVM {
-				return nil, "", errors.New(i18n.G("Asked for a VM but image is of type container"))
+				return nil, "", errors.New("Asked for a VM but image is of type container")
 			}
 
 			req.Type = api.InstanceType(imgInfo.Type)
@@ -376,7 +375,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 		// Watch the background operation.
 		progress := cli.ProgressRenderer{
-			Format: i18n.G("Retrieving image: %s"),
+			Format: "Retrieving image: %s",
 			Quiet:  c.global.flagQuiet,
 		}
 
@@ -422,7 +421,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		// Try using the older "containers" field.
 		instances, ok = opInfo.Resources["containers"]
 		if !ok || len(instances) == 0 {
-			return nil, "", errors.New(i18n.G("Didn't get any affected image, instance or snapshot from server"))
+			return nil, "", errors.New("Didn't get any affected image, instance or snapshot from server")
 		}
 	}
 
@@ -433,7 +432,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		}
 
 		name = path.Base(url.Path)
-		fmt.Printf(i18n.G("Instance name is: %s")+"\n", name)
+		fmt.Printf("Instance name is: %s\n", name)
 	}
 
 	// Validate the network setup.
@@ -454,7 +453,7 @@ func (c *cmdInit) checkNetwork(d lxd.InstanceServer, name string) {
 		}
 	}
 
-	fmt.Fprint(os.Stderr, "\n"+i18n.G("The instance you are starting doesn't have any network attached to it.")+"\n")
-	fmt.Fprint(os.Stderr, "  "+i18n.G("To create a new network, use: lxc network create")+"\n")
-	fmt.Fprint(os.Stderr, "  "+i18n.G("To attach a network to an instance, use: lxc network attach")+"\n\n")
+	fmt.Fprint(os.Stderr, "\n"+"The instance you are starting doesn't have any network attached to it.\n")
+	fmt.Fprint(os.Stderr, "  "+"To create a new network, use: lxc network create\n")
+	fmt.Fprint(os.Stderr, "  "+"To attach a network to an instance, use: lxc network attach\n\n")
 }
