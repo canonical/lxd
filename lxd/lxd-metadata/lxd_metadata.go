@@ -229,7 +229,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 				for _, entity := range entities {
 					_, ok := uniqueEntities[entity]
 					if ok {
-						return fmt.Errorf("Duplicate entity '%s' found at %s", entity, fset.Position(cg.Pos()).String())
+						return fmt.Errorf("Duplicate entity %q found at %s", entity, fset.Position(cg.Pos()).String())
 					}
 
 					uniqueEntities[entity] = struct{}{}
@@ -240,7 +240,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 					mdKeyHash := fmt.Sprintf("%s/%s/%s", entityKey, groupKey, simpleKey)
 					_, ok := docKeys[mdKeyHash]
 					if ok {
-						return fmt.Errorf("Duplicate key '%s' found at %s", mdKeyHash, fset.Position(cg.Pos()).String())
+						return fmt.Errorf("Duplicate key %q found at %s", mdKeyHash, fset.Position(cg.Pos()).String())
 					}
 
 					docKeys[mdKeyHash] = struct{}{}

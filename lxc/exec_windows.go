@@ -43,7 +43,7 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, windows.SIGINT)
 			if err != nil {
-				logger.Debugf("Failed to forward signal '%s'.", windows.SIGINT)
+				logger.Debugf("Failed to forward signal %q.", windows.SIGINT)
 				return
 			}
 

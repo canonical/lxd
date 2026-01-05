@@ -100,7 +100,7 @@ func getObfuscatedTimeValuesForSubject(subjectID int64) (minuteResult string, ho
 func cronSpecIsNow(spec string) (bool, error) {
 	sched, err := cron.ParseStandard(spec)
 	if err != nil {
-		return false, fmt.Errorf("Could not parse cron '%s'", spec)
+		return false, fmt.Errorf("Could not parse cron %q", spec)
 	}
 
 	// Check if it's time to snapshot

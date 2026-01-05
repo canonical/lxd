@@ -58,7 +58,7 @@ func (d *infinibandSRIOV) validateEnvironment() error {
 	}
 
 	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
-		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
 	}
 
 	return nil
@@ -286,7 +286,7 @@ func (d *infinibandSRIOV) postStop() error {
 		// Remove infiniband host files for this device.
 		err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), IBDevPrefix, d.name, "")
 		if err != nil {
-			return fmt.Errorf("Failed to delete files for device '%s': %w", d.name, err)
+			return fmt.Errorf("Failed to delete files for device %q: %w", d.name, err)
 		}
 	}
 
