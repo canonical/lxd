@@ -1,9 +1,7 @@
 test_storage_volume_recover() {
-  LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_IMPORT_DIR}" true
-
+  local poolName poolDriver
   poolName=$(lxc profile device get default root pool)
-  poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
+  poolDriver="$(storage_backend "${LXD_DIR}")"
 
   if [ "${poolDriver}" = "pure" ]; then
     export TEST_UNMET_REQUIREMENT="pure driver does not support recovery"
@@ -65,7 +63,6 @@ EOF
   rm -f foo.iso
   lxc storage volume delete "${poolName}" vol1
   lxc storage volume delete "${poolName}" vol2
-  shutdown_lxd "${LXD_IMPORT_DIR}"
 }
 
 test_storage_volume_recover_by_container() {
