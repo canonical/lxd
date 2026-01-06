@@ -282,26 +282,6 @@ func (c *cmdAgent) mountHostShares() {
 			continue
 		}
 
-		if mount.FSType == "9p" {
-			// Before mounting with 9p, try virtio-fs and use 9p as the fallback.
-			args := []string{"-t", "virtiofs", mount.Source, mount.Target}
-
-			for _, opt := range mount.Options {
-				// Ignore the transport and msize mount option as they are specific to 9p.
-				if strings.HasPrefix(opt, "trans=") || strings.HasPrefix(opt, "msize=") {
-					continue
-				}
-
-				args = append(args, "-o", opt)
-			}
-
-			_, err = shared.RunCommandContext(context.TODO(), "mount", args...)
-			if err == nil {
-				l.Info("Mounted", logger.Ctx{"type": "virtiofs"})
-				continue
-			}
-		}
-
 		args := []string{"-t", mount.FSType, mount.Source, mount.Target}
 
 		for _, opt := range mount.Options {
