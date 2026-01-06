@@ -586,17 +586,6 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		revert.Add(func() { _ = d.DeleteVolume(fsVol.Volume, op) })
 	}
 
-	var err error
-
-	// Retrieve snapshots on the source.
-	snapshots := []string{}
-	if !srcVol.IsSnapshot() && len(vol.Snapshots) > 0 {
-		snapshots, err = d.VolumeSnapshots(srcVol.Volume, op)
-		if err != nil {
-			return err
-		}
-	}
-
 	if vol.contentType == ContentTypeFS {
 		// Create mountpoint.
 		err := vol.EnsureMountPath()
@@ -606,6 +595,8 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 		revert.Add(func() { _ = os.Remove(vol.MountPath()) })
 	}
+
+	var err error
 
 	// When not allowing inconsistent copies and the volume has a mounted filesystem, we must ensure it is
 	// consistent by syncing and freezing the filesystem to ensure unwritten pages are flushed and that no
@@ -625,7 +616,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 	rebase := d.config["zfs.clone_copy"] == "rebase" && (srcVol.volType == VolumeTypeContainer || srcVol.volType == VolumeTypeVM)
 
 	// Use full copy mode when zfs.clone_copy is false or rebase mode is enabled or source volume has snapshots.
-	fullCopy := shared.IsFalse(d.config["zfs.clone_copy"]) || rebase || len(snapshots) > 0
+	fullCopy := shared.IsFalse(d.config["zfs.clone_copy"]) || rebase || len(vol.Snapshots) > 0
 
 	var srcSnapshot string
 	if srcVol.volType == VolumeTypeImage {
@@ -687,7 +678,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		args := []string{"send"} // Use send mode when doing full copy.
 
 		// Handle transferring snapshots.
-		if len(snapshots) > 0 {
+		if len(vol.Snapshots) > 0 {
 			// The `--replicate` mode will cause the destination to be based on the source's origin.
 			args = append(args, "--replicate")
 
@@ -802,16 +793,23 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		}
 
 		// Cleanup unexpected snapshots.
-		if len(snapshots) > 0 {
+		if len(vol.Snapshots) > 0 {
 			children, err := d.getDatasets(d.dataset(vol.Volume, false), "snapshot")
 			if err != nil {
 				return err
 			}
 
+			expectedSnapNames := make(map[string]struct{}, len(vol.Snapshots))
+			for _, snap := range vol.Snapshots {
+				_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
+				expectedSnapNames[snapName] = struct{}{}
+			}
+
 			for _, entry := range children {
 				// Check if expected snapshot.
 				_, name, found := strings.Cut(entry, "@snapshot-")
-				if found && slices.Contains(snapshots, name) {
+				_, expected := expectedSnapNames[name]
+				if found && expected {
 					continue
 				}
 
