@@ -566,21 +566,9 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
 func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
-	var err error
-
 	// Revert handling
 	revert := revert.New()
 	defer revert.Fail()
-
-	if vol.contentType == ContentTypeFS {
-		// Create mountpoint.
-		err = vol.EnsureMountPath()
-		if err != nil {
-			return err
-		}
-
-		revert.Add(func() { _ = os.Remove(vol.MountPath()) })
-	}
 
 	// For VMs, also copy the filesystem dataset.
 	if vol.IsVMBlock() {
@@ -589,7 +577,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcVol.Snapshots...)
 		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), vol.Snapshots...)
 
-		err = d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
+		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
 		if err != nil {
 			return err
 		}
@@ -598,6 +586,8 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		revert.Add(func() { _ = d.DeleteVolume(fsVol.Volume, op) })
 	}
 
+	var err error
+
 	// Retrieve snapshots on the source.
 	snapshots := []string{}
 	if !srcVol.IsSnapshot() && len(vol.Snapshots) > 0 {
@@ -605,6 +595,16 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		if err != nil {
 			return err
 		}
+	}
+
+	if vol.contentType == ContentTypeFS {
+		// Create mountpoint.
+		err := vol.EnsureMountPath()
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { _ = os.Remove(vol.MountPath()) })
 	}
 
 	// When not allowing inconsistent copies and the volume has a mounted filesystem, we must ensure it is
