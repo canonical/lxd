@@ -35,3 +35,10 @@ func FormatSection(header string, content string) string {
 
 	return out.String()
 }
+
+// FormatStringFlagLabel formats a command flag label to include the “ at the end of
+// the string to signal cobra to not include the type ("string") in the help
+// output.
+func FormatStringFlagLabel(flag string) string {
+	return flag + "``"
+}
