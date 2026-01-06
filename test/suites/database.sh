@@ -43,9 +43,8 @@ EOF
 }
 
 test_database_no_disk_space() {
-  local LXD_DIR
-
-  LXD_NOSPACE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  local LXD_NOSPACE_DIR
+  LXD_NOSPACE_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
 
   # Mount a tmpfs with limited space in the global database directory and create
   # a very big file in it, which will eventually cause database transactions to
@@ -85,7 +84,9 @@ test_database_no_disk_space() {
     lxc delete -f c
   )
 
-  shutdown_lxd "${LXD_NOSPACE_DIR}"
-  umount "${GLOBAL_DB_DIR}"
+  # XXX: forcibly kill LXD as it takes a long time to shut down due to
+  # LXD/dqlite recovery from the out of disk space condition.
+  # Use lazy umount to allow umounting before LXD is killed.
+  umount --lazy "${GLOBAL_DB_DIR}"
   kill_lxd "${LXD_NOSPACE_DIR}"
 }
