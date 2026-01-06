@@ -81,7 +81,7 @@ test_database_no_disk_space() {
     # Removing the big file makes the database happy again.
     rm "${BIG_FILE}"
     lxc config set c "user.propZ" - < "${DATA}"
-    lxc delete -f c
+    lxc delete c
   )
 
   # XXX: forcibly kill LXD as it takes a long time to shut down due to
