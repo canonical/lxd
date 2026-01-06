@@ -287,9 +287,7 @@ do_storage_driver_zfs() {
   lxc storage volume attach lxdtest-"$(basename "${LXD_DIR}")" vol1 c3 /mnt
   lxc storage volume attach lxdtest-"$(basename "${LXD_DIR}")" vol1 c21 /mnt
 
-  lxc start c1
-  lxc start c3
-  lxc start c21
+  lxc start c1 c3 c21
 
   lxc exec c3 -- touch /mnt/foo
   lxc exec c21 -- ls /mnt/foo
