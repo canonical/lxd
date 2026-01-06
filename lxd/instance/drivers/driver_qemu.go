@@ -9518,11 +9518,7 @@ func (d *qemu) generateAgentMountsFile() error {
 			Target: drive.Config["path"],
 
 			// Used by the agent to determine the type of mount (but it tries mounting virtiofs first).
-			FSType: "9p",
-
-			// Ask agent to use the 9p virtio transport for 9p mounts to support more VM guest OSes.
-			// Also set the msize to 32MB to allow for reasonably fast 9p access.
-			Options: []string{"trans=virtio,msize=33554432"},
+			FSType: "virtiofs",
 		}
 
 		// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this
