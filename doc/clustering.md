@@ -6,41 +6,35 @@ relatedlinks: "[MicroCloud](https://canonical.com/microcloud)"
 (clustering)=
 # Clustering
 
-```{only} diataxis
 The following how-to guides cover common operations related to clustering.
 
 How to create and configure a cluster:
-```
 
-```{filtered-toctree}
+```{toctree}
 :titlesonly:
 
-:diataxis:Form a cluster </howto/cluster_form>
-:diataxis:Manage a cluster </howto/cluster_manage>
-:diataxis:Configure networks </howto/cluster_config_networks>
-:diataxis:Configure storage </howto/cluster_config_storage>
+Form a cluster </howto/cluster_form>
+Manage a cluster </howto/cluster_manage>
+Configure networks </howto/cluster_config_networks>
+Configure storage </howto/cluster_config_storage>
 ```
 
-```{only} diataxis
 How to work with a cluster:
-```
 
-```{filtered-toctree}
+```{toctree}
 :titlesonly:
 
-:diataxis:Manage instances </howto/cluster_manage_instance>
-:diataxis:Set up cluster groups </howto/cluster_groups>
-:diataxis:Use placement groups </howto/cluster_placement_groups>
+Manage instances </howto/cluster_manage_instance>
+Set up cluster groups </howto/cluster_groups>
+Use placement groups </howto/cluster_placement_groups>
 ```
 
-```{only} diataxis
 How to recover a cluster:
-```
 
-```{filtered-toctree}
+```{toctree}
 :titlesonly:
 
-:diataxis:Recover a cluster </howto/cluster_recover>
+Recover a cluster </howto/cluster_recover>
 ```
 
 How to set up a highly available virtual IP for clusters:
@@ -53,24 +47,6 @@ Set up a highly available virtual IP </howto/cluster_vip>
 
 ## Related topics
 
-```{only} diataxis
 {{clustering_exp}}
 
 {{clustering_ref}}
-```
-
-```{filtered-toctree}
-:titlesonly:
-
-:topical:/explanation/clustering.md
-:topical:Form a cluster </howto/cluster_form>
-:topical:Manage a cluster </howto/cluster_manage>
-:topical:Recover a cluster </howto/cluster_recover>
-:topical:Manage instances </howto/cluster_manage_instance>
-:topical:Configure storage </howto/cluster_config_storage>
-:topical:Configure networks </howto/cluster_config_networks>
-:topical:Set up cluster groups </howto/cluster_groups>
-:topical:Use placement groups </howto/cluster_placement_groups>
-:topical:/reference/cluster_member_config
-:topical:/reference/placement_groups
-```
