@@ -1,16 +1,12 @@
 # Test restore database backups after a failed upgrade.
 test_database_restore() {
-  LXD_RESTORE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  local LXD_RESTORE_DIR
+  LXD_RESTORE_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
 
   spawn_lxd "${LXD_RESTORE_DIR}" true
 
   # Set a config value before the broken upgrade.
-  (
-    set -e
-    # shellcheck disable=SC2034
-    LXD_DIR=${LXD_RESTORE_DIR}
-    lxc config set "core.https_allowed_credentials" "true"
-  )
+  LXD_DIR="${LXD_RESTORE_DIR}" lxc config set core.https_allowed_credentials=true
 
   shutdown_lxd "${LXD_RESTORE_DIR}"
 
@@ -32,12 +28,7 @@ EOF
 
   # Restart the daemon and check that our previous settings are still there
   respawn_lxd "${LXD_RESTORE_DIR}" true
-  (
-    set -e
-    # shellcheck disable=SC2034
-    LXD_DIR=${LXD_RESTORE_DIR}
-    [ "$(lxc config get "core.https_allowed_credentials")" = "true" ]
-  )
+  [ "$(LXD_DIR="${LXD_RESTORE_DIR}" lxc config get core.https_allowed_credentials)" = "true" ]
 
   kill_lxd "${LXD_RESTORE_DIR}"
 }
