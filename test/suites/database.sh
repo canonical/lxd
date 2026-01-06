@@ -74,8 +74,10 @@ test_database_no_disk_space() {
         fi
     done
 
+    # Ensure the for loop broke out early due to `lxc config set` failing.
+    [ "${i}" -lt 20 ]
+
     # Commands that involve writing to the database keep failing.
-    ! lxc config set c "user.propX" - < "${DATA}" || false
     ! lxc config set c "user.propY" - < "${DATA}" || false
 
     # Removing the big file makes the database happy again.
