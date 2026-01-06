@@ -397,7 +397,7 @@ do_recursive_copy_snapshot_cleanup() {
   storage_pool="lxdtest-$(basename "${LXD_DIR}")"
 
   echo "Create the first container."
-  lxc init testimage t1
+  lxc init --empty t1
 
   echo "Make two copies."
   lxc copy t1 t2
@@ -446,7 +446,7 @@ do_recursive_copy_snapshot_cleanup() {
   echo "Test chain copy snapshot cleanup."
 
   echo "Create base container."
-  lxc init testimage base
+  lxc init --empty base
 
   echo "Create chain of copies."
   lxc copy base chain1
