@@ -1334,7 +1334,7 @@ test_projects_before_init() {
   LXD_DIR=${LXD_INIT_DIR} lxc project create foo --config user.foo=bar
   [ "$(LXD_DIR=${LXD_INIT_DIR} lxc project get foo user.foo)" = "bar" ]
 
-  shutdown_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_INIT_DIR}"
 }
 
 test_projects_images_volume() {
