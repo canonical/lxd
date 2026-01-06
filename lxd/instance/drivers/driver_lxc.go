@@ -5139,7 +5139,10 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		return fmt.Errorf("Failed receiving migration offer from source: %w", err)
 	}
 
-	if args.Live || offerHeader.Criu != nil {
+	// Reject live migration attempts.
+	// Older LXD versions (5.21 and earlier) send Criu=NONE for stateless migrations of running
+	// containers, so we must allow NONE for backward compatibility while rejecting other CRIU types.
+	if args.Live || (offerHeader.Criu != nil && *offerHeader.Criu != migration.CRIUType_NONE) {
 		return api.StatusErrorf(http.StatusBadRequest, "Live migration is not supported for containers")
 	}
 
