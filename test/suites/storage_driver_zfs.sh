@@ -360,7 +360,7 @@ do_storage_driver_zfs() {
   done
 
   # Delete the dependent clone to allow restoration
-  lxc delete -f c9
+  lxc delete c9
 
   # Now restore should work since dependency is gone
   lxc restore c8 snap0
