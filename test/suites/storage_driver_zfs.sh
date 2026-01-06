@@ -185,12 +185,7 @@ do_zfs_rebase() {
 }
 
 do_storage_driver_zfs() {
-  filesystem="$1"
-
-  local LXD_STORAGE_DIR
-
-  LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
-  spawn_lxd "${LXD_STORAGE_DIR}" false
+  local filesystem="${1}"
 
   # Import image into default storage pool.
   ensure_import_testimage
@@ -377,9 +372,6 @@ do_storage_driver_zfs() {
   # Regular (no block mode) storage pool shouldn't be allowed to set block.*.
   ! lxc storage set lxdtest-"$(basename "${LXD_DIR}")" block.filesystem=ext4 || false
   ! lxc storage set lxdtest-"$(basename "${LXD_DIR}")" block.mount_options=rw || false
-
-  # shellcheck disable=SC2031
-  kill_lxd "${LXD_STORAGE_DIR}"
 }
 
 do_recursive_copy_snapshot_cleanup() {
