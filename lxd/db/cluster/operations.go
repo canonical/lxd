@@ -105,6 +105,27 @@ func UpdateOperationStatus(ctx context.Context, tx *sql.Tx, opReference string, 
 	return nil
 }
 
+// UpdateOperationUpdatedAt updates only the updatedAt timestamp. This is used when operation metadata changes.
+func UpdateOperationUpdatedAt(ctx context.Context, tx *sql.Tx, opReference string, updatedAt time.Time) error {
+	stmt := `UPDATE operations SET updated_at = ? WHERE reference = ?`
+
+	result, err := tx.ExecContext(ctx, stmt, updatedAt, opReference)
+	if err != nil {
+		return fmt.Errorf("Failed updating operation updated_at: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	return nil
+}
+
 // GetDurableOperationMetadata retrieves metadata key/value pairs for a durable operation from the cluster db.
 func GetDurableOperationMetadata(ctx context.Context, tx *sql.Tx, opID int64) (map[string]string, error) {
 	stmt := `SELECT key, value FROM operations_metadata WHERE operation_id = ?`
