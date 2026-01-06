@@ -1,11 +1,9 @@
 (network-bridge-resolved)=
 # How to integrate with `systemd-resolved`
 
-````{only} diataxis
 ```{important}
 This guide applies to managed bridge networks only.
 ```
-````
 
 If the system that runs LXD uses `systemd-resolved` to perform DNS lookups, you should notify `resolved` of the domains that LXD can resolve.
 To do so, add the DNS servers and domains provided by a LXD network bridge to the `resolved` configuration.
