@@ -467,22 +467,18 @@ test_basic_usage() {
   # Create and start a container
   lxc launch testimage foo
   [ "$(lxc list -f csv -c ns)" = "foo,RUNNING" ]
-  lxc stop foo --force
+  # Record the MAC address
+  mac1=$(lxc exec foo -- cat /sys/class/net/eth0/address)
 
   if lxc info | grep -F 'unpriv_binfmt: "true"'; then
     # Test binfmt_misc support
-    lxc start foo
     lxc exec foo -- mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
     [ "$(lxc exec foo -- cat /proc/sys/fs/binfmt_misc/status)" = "enabled" ]
-    lxc stop -f foo
   fi
 
-  # cycle it a few times
-  lxc start foo
-  mac1=$(lxc exec foo -- cat /sys/class/net/eth0/address)
+  # Reboot to check if the MAC persists across restarts
   lxc restart foo --force
   mac2=$(lxc exec foo -- cat /sys/class/net/eth0/address)
-
   if [ -n "${mac1}" ] && [ -n "${mac2}" ] && [ "${mac1}" != "${mac2}" ]; then
     echo "==> MAC addresses didn't match across restarts (${mac1} vs ${mac2})"
     false
