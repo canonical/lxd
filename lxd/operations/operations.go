@@ -257,10 +257,8 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		op.onRun = runHook
 	}
 
-	operationsLock.Lock()
-	operations[op.id] = &op
-	operationsLock.Unlock()
-
+	// Register the operation in the database.
+	// The db does few more checks, so we update the db before we insert into the internal map.
 	if args.Reference == "" {
 		// New operation, register it in the database.
 		err = registerDBOperation(&op, args.Type)
@@ -277,6 +275,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	_, md, _ := op.Render()
 
 	operationsLock.Lock()
+	operations[op.id] = &op
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
