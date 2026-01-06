@@ -206,7 +206,7 @@ do_storage_driver_zfs() {
   fingerprint=$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')
 
   # Create non-block container
-  lxc launch testimage c1
+  lxc init testimage c1
 
   # Check created container and image volumes
   zfs list lxdtest-"$(basename "${LXD_DIR}")/containers/c1"
@@ -259,7 +259,7 @@ do_storage_driver_zfs() {
   zfs list lxdtest-"$(basename "${LXD_DIR}")/images/${fingerprint}_${filesystem}@readonly"
   [ "$(zfs get -H -o value type lxdtest-"$(basename "${LXD_DIR}")/containers/c7")" = "volume" ]
 
-  lxc stop -f c1 c2
+  lxc stop -f c2
 
   # Try renaming instance
   lxc rename c2 c3
