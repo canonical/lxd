@@ -264,10 +264,6 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
-	operationsLock.Lock()
-	operations[op.id] = &op
-	operationsLock.Unlock()
-
 	err = registerDBOperation(&op)
 	if err != nil {
 		return nil, err
@@ -277,6 +273,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	_, md, _ := op.Render()
 
 	operationsLock.Lock()
+	operations[op.id] = &op
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
