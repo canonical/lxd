@@ -109,6 +109,8 @@ class LXD:
             boundary = str(uuid.uuid1())
             filename_entry = " filename=%s" % filename if filename else ""
 
+            if not isinstance(self.workdir, str) or not self.workdir:
+                raise RuntimeError("Temporary working directory is not available")
             upload_path = os.path.join(self.workdir, "upload")
             body = open(upload_path, "wb+")
             for name, path in [("metadata", meta_path), ("rootfs", rootfs_path)]:
@@ -156,7 +158,10 @@ class BusyBox:
     def __init__(self):
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
-        self.binary_path = shutil.which("busybox")
+        binary_path = shutil.which("busybox")
+        if not binary_path:
+            raise RuntimeError("Unable to locate busybox binary in PATH")
+        self.binary_path = binary_path
         atexit.register(self.cleanup)
 
     def cleanup(self):
@@ -164,18 +169,48 @@ class BusyBox:
             shutil.rmtree(self.workdir)
 
     def create_tarball(self, split=False, template=[]):
+        if self.workdir is None:
+            raise RuntimeError("Temporary working directory is not available")
+        workdir = self.workdir
+
+        if self.binary_path is None:
+            raise RuntimeError("BusyBox binary path is not set")
+        binary_path = self.binary_path
+
         xz = "pxz" if shutil.which("pxz") else "xz"
 
-        destination_tar = os.path.join(self.workdir, "busybox.tar")
+        destination_tar = os.path.join(workdir, "busybox.tar")
         target_tarball = tarfile.open(destination_tar, "w:")
 
+        destination_tar_rootfs = None
+        target_tarball_rootfs = None
         if split:
-            destination_tar_rootfs = os.path.join(self.workdir, "busybox.rootfs.tar")
+            destination_tar_rootfs = os.path.join(workdir, "busybox.rootfs.tar")
             target_tarball_rootfs = tarfile.open(destination_tar_rootfs, "w:")
+
+        source_date_epoch = int(os.environ.get("SOURCE_DATE_EPOCH", "0"))
+        busybox_stat = os.stat(binary_path)
+        creation_date = (
+            source_date_epoch if source_date_epoch else int(busybox_stat.st_mtime)
+        )
+
+        def normalized_tarinfo(name, *, mode=0o644, type_=tarfile.REGTYPE, linkname=None, size=0):
+            info = tarfile.TarInfo(name)
+            info.mtime = creation_date
+            info.uid = 0
+            info.gid = 0
+            info.uname = ""
+            info.gname = ""
+            info.mode = mode
+            info.type = type_
+            info.size = size
+            if linkname is not None:
+                info.linkname = linkname
+            return info
 
         metadata = {
             "architecture": os.uname()[4],
-            "creation_date": int(os.stat(self.binary_path).st_ctime),
+            "creation_date": creation_date,
             "properties": {
                 "os": "BusyBox",
                 "architecture": os.uname()[4],
@@ -185,49 +220,58 @@ class BusyBox:
         }
 
         # Add busybox
-        with open(self.binary_path, "rb") as fd:
-            busybox_file = tarfile.TarInfo()
-            busybox_file.size = os.stat(self.binary_path).st_size
-            busybox_file.mode = 0o755
+        with open(binary_path, "rb") as fd:
+            busybox_file = normalized_tarinfo(
+                "bin/busybox" if split else "rootfs/bin/busybox",
+                mode=0o755,
+                size=busybox_stat.st_size,
+            )
             if split:
-                busybox_file.name = "bin/busybox"
+                assert target_tarball_rootfs is not None
                 target_tarball_rootfs.addfile(busybox_file, fd)
             else:
-                busybox_file.name = "rootfs/bin/busybox"
                 target_tarball.addfile(busybox_file, fd)
 
         # Add symlinks
         busybox = subprocess.Popen(
-            [self.binary_path, "--list-full"],
+            [binary_path, "--list-full"],
             stdout=subprocess.PIPE,
             universal_newlines=True,
         )
-        busybox.wait()
+        output, _ = busybox.communicate()
 
-        for path in busybox.stdout.read().split("\n"):
-            # Prevent filesystem loop
-            if not path.strip() or path.strip() == "bin/busybox":
-                continue
+        symlinks = sorted(
+            {
+                path.strip()
+                for path in output.splitlines()
+                if path.strip() and path.strip() != "bin/busybox"
+            }
+        )
 
-            symlink_file = tarfile.TarInfo()
-            symlink_file.type = tarfile.SYMTYPE
-            symlink_file.linkname = "/bin/busybox"
+        for path in symlinks:
+            symlink_name = path if split else f"rootfs/{path}"
+            symlink_file = normalized_tarinfo(
+                symlink_name,
+                mode=0o777,
+                type_=tarfile.SYMTYPE,
+                linkname="/bin/busybox",
+            )
             if split:
-                symlink_file.name = "%s" % path.strip()
+                assert target_tarball_rootfs is not None
                 target_tarball_rootfs.addfile(symlink_file)
             else:
-                symlink_file.name = "rootfs/%s" % path.strip()
                 target_tarball.addfile(symlink_file)
 
         # Add directories
-        for path in ("dev", "mnt", "proc", "root", "sys", "tmp"):
-            directory_file = tarfile.TarInfo()
-            directory_file.type = tarfile.DIRTYPE
+        for path in sorted(("dev", "mnt", "proc", "root", "sys", "tmp")):
+            directory_name = path if split else f"rootfs/{path}"
+            directory_file = normalized_tarinfo(
+                directory_name, mode=0o755, type_=tarfile.DIRTYPE
+            )
             if split:
-                directory_file.name = "%s" % path
+                assert target_tarball_rootfs is not None
                 target_tarball_rootfs.addfile(directory_file)
             else:
-                directory_file.name = "rootfs/%s" % path
                 target_tarball.addfile(directory_file)
 
         # Deal with templating
@@ -236,12 +280,12 @@ class BusyBox:
                 "/template": {"when": template, "template": "template.tpl"}
             }
 
-            directory_file = tarfile.TarInfo()
-            directory_file.type = tarfile.DIRTYPE
-            directory_file.name = "templates"
+            directory_file = normalized_tarinfo(
+                "templates", mode=0o755, type_=tarfile.DIRTYPE
+            )
             target_tarball.addfile(directory_file)
 
-            template = """name: {{ container.name }}
+            template_content = """name: {{ container.name }}
 architecture: {{ container.architecture }}
 privileged: {{ container.privileged }}
 ephemeral: {{ container.ephemeral }}
@@ -250,10 +294,14 @@ path: {{ path }}
 user.foo: {{ config_get("user.foo", "_unset_") }}
 """
 
-            template_file = tarfile.TarInfo()
-            template_file.size = len(template)
-            template_file.name = "templates/template.tpl"
-            target_tarball.addfile(template_file, io.BytesIO(template.encode()))
+            template_file = normalized_tarinfo(
+                "templates/template.tpl",
+                mode=0o644,
+                size=len(template_content),
+            )
+            target_tarball.addfile(
+                template_file, io.BytesIO(template_content.encode())
+            )
 
         # Add the metadata file
         metadata_yaml = (
@@ -267,23 +315,39 @@ user.foo: {{ config_get("user.foo", "_unset_") }}
             + b"\n"
         )
 
-        metadata_file = tarfile.TarInfo()
-        metadata_file.size = len(metadata_yaml)
-        metadata_file.name = "metadata.yaml"
+        metadata_file = normalized_tarinfo(
+            "metadata.yaml", mode=0o644, size=len(metadata_yaml)
+        )
         target_tarball.addfile(metadata_file, io.BytesIO(metadata_yaml))
 
         target_tarball.close()
+        os.utime(destination_tar, (creation_date, creation_date))
         if split:
+            assert target_tarball_rootfs is not None
+            assert destination_tar_rootfs is not None
             target_tarball_rootfs.close()
+            os.utime(destination_tar_rootfs, (creation_date, creation_date))
 
-        # Compress the tarball
-        r = subprocess.call([xz, "-1", destination_tar])
-        if r:
+        env = os.environ.copy()
+        env.setdefault("SOURCE_DATE_EPOCH", str(creation_date))
+
+        # Compress the tarball deterministically
+        r = subprocess.run(
+            [xz, "-1", "--threads=1", destination_tar],
+            check=False,
+            env=env,
+        )
+        if r.returncode:
             raise Exception("Failed to compress: %s" % destination_tar)
 
         if split:
-            r = subprocess.call([xz, "-1", destination_tar_rootfs])
-            if r:
+            assert destination_tar_rootfs is not None
+            r = subprocess.run(
+                [xz, "-1", "--threads=1", destination_tar_rootfs],
+                check=False,
+                env=env,
+            )
+            if r.returncode:
                 raise Exception("Failed to compress: %s" % destination_tar_rootfs)
             return destination_tar + ".xz", destination_tar_rootfs + ".xz"
         else:
@@ -337,9 +401,13 @@ if __name__ == "__main__":
             path = busybox.create_tarball(template=args.template.split(","))
 
             if args.save_image:
+                if not isinstance(path, str):
+                    raise RuntimeError("Unexpected tarball path type")
                 shutil.copy(path, "busybox.tar.xz")
                 return
 
+            if not isinstance(path, str):
+                raise RuntimeError("Unexpected tarball path type")
             with open(path, "rb") as fd:
                 fingerprint = hashlib.sha256(fd.read()).hexdigest()
 
@@ -400,4 +468,4 @@ if __name__ == "__main__":
     try:
         args.func(parser, args)
     except Exception as e:
-        parser.error(e)
+        parser.error(str(e))
