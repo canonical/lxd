@@ -95,45 +95,42 @@ test_vm_pcie_bus() {
   [ "$(lxc config get v1 volatile.aaa0.bus)" = "5" ]
   [ "$(lxc config get v1 volatile.root.bus)" = "6" ]
 
-  # Check hotplugging block volume.
-  poolDriver=$(lxc storage show "${pool}" | awk '/^driver:/ {print $2}')
+  # Check hotplugging volume using PCIe based virtio-blk.
+  lxc storage volume create "${pool}" v1block --type=block size=1MiB
+  lxc config device add v1 v1block disk source=v1block pool="${pool}"
+  [ "$(lxc config get v1 volatile.eth0.bus)" = "4" ]
+  [ "$(lxc config get v1 volatile.aaa0.bus)" = "5" ]
+  [ "$(lxc config get v1 volatile.root.bus)" = "6" ]
+  [ "$(lxc config get v1 volatile.v1block.bus || echo fail)" = "" ] # Uses virtio-scsi by default so no PCIe bus number
+  lxc config device set v1 v1block io.bus=virtio-blk
+  [ "$(lxc config get v1 volatile.eth0.bus)" = "4" ]
+  [ "$(lxc config get v1 volatile.aaa0.bus)" = "5" ]
+  [ "$(lxc config get v1 volatile.root.bus)" = "6" ]
+  [ "$(lxc config get v1 volatile.v1block.bus)" = "7" ]
+  lxc stop -f v1
+  lxc config device remove v1 v1block
+  lxc storage volume delete "${pool}" v1block
 
-  if [ "$(lxc config get --expanded v1 migration.stateful || echo fail)" = "" ] || [ "${poolDriver}" = "ceph" ]; then
-    # Check using PCIe based virtio-blk when using shared storage or migration.stateful disabled.
-    lxc storage volume create "${pool}" v1block --type=block size=1MiB
-    lxc config device add v1 v1block disk source=v1block pool="${pool}"
-    [ "$(lxc config get v1 volatile.eth0.bus)" = "4" ]
-    [ "$(lxc config get v1 volatile.aaa0.bus)" = "5" ]
-    [ "$(lxc config get v1 volatile.root.bus)" = "6" ]
-    [ "$(lxc config get v1 volatile.v1block.bus || echo fail)" = "" ] # Uses virtio-scsi by default so no PCIe bus number
-    lxc config device set v1 v1block io.bus=virtio-blk
-    [ "$(lxc config get v1 volatile.eth0.bus)" = "4" ]
-    [ "$(lxc config get v1 volatile.aaa0.bus)" = "5" ]
-    [ "$(lxc config get v1 volatile.root.bus)" = "6" ]
-    [ "$(lxc config get v1 volatile.v1block.bus)" = "7" ]
-    lxc stop -f v1
-    lxc config device remove v1 v1block
-    lxc storage volume delete "${pool}" v1block
-  fi
+  lxc storage volume create "${pool}" v1dir --type=filesystem size=1MiB
+  lxc start v1
+  lxc config device add v1 mydir disk source=v1dir pool="${pool}" path=/mnt
+  [ "$(lxc config get v1 volatile.mydir.bus)" = "7" ]
+  waitInstanceReady v1
+  lxc exec v1 -- findmnt /mnt -t virtiofs # Check dir is mounted after boot when immediately hot plugged after starting.
+  lxc restart -f v1 # Check directory share survive a restart.
+  waitInstanceReady v1
+  lxc exec v1 -- findmnt /mnt -t virtiofs # Check directory is mounted after boot when added before starting.
+  lxc config device remove v1 mydir
+  [ "$(lxc config get v1 volatile.mydir.bus || echo fail)" = "" ] # Check hot unplug removes bus number.
+  ! lxc exec v1 -- findmnt /mnt -t virtiofs || false # Check hot unplug unmounts inside the VM.
+  lxc storage volume delete "${pool}" v1dir
 
-  if [ "$(lxc config get --expanded v1 migration.stateful || echo fail)" = "" ]; then
-    lxc storage volume create "${pool}" v1dir --type=filesystem size=1MiB
-    lxc start v1
-    lxc config device add v1 mydir disk source=v1dir pool="${pool}" path=/mnt
-    [ "$(lxc config get v1 volatile.mydir.bus)" = "7" ]
-    waitInstanceReady v1
-    lxc exec v1 -- findmnt /mnt -t virtiofs # Check dir is mounted after boot when immediately hot plugged after starting.
-    lxc restart -f v1 # Check directory share survive a restart.
-    waitInstanceReady v1
-    lxc exec v1 -- findmnt /mnt -t virtiofs # Check directory is mounted after boot when added before starting.
-    lxc exec v1 -- mkdir /tmp/foo
-    lxc exec v1 -- mount -t 9p lxd_mydir /tmp/foo # Check directory is exported over 9p at boot.
-    lxc exec v1 -- umount /tmp/foo
-    lxc config device remove v1 mydir
-    [ "$(lxc config get v1 volatile.mydir.bus || echo fail)" = "" ] # Check hot unplug removes bus number.
-    ! lxc exec v1 -- findmnt /mnt -t virtiofs || false # Check hot unplug unmounts inside the VM.
-    lxc storage volume delete "${pool}" v1dir
-  fi
+  # Check config drive is exported over 9p and virtiofs at boot and check is readonly even when mounted writable.
+  lxc exec v1 -- mount -t 9p config /mnt
+  ! lxc exec v1 -- touch /mnt/foo || false
+  lxc exec v1 -- umount /mnt
+  lxc exec v1 -- mount -t virtiofs config /mnt
+  ! lxc exec v1 -- touch /mnt/foo || false
 
   lxc delete --force v1
 
