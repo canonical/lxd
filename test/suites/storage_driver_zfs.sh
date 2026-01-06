@@ -60,11 +60,6 @@ do_zfs_delegate() {
 }
 
 do_zfs_cross_pool_copy() {
-  local LXD_STORAGE_DIR
-
-  LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
-  spawn_lxd "${LXD_STORAGE_DIR}" false
-
   # Import image into default storage pool.
   ensure_import_testimage
 
@@ -112,9 +107,6 @@ do_zfs_cross_pool_copy() {
   lxc delete c1 c2 c3 c4 c5 c6
   lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-dir
   lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-zfs
-
-  # shellcheck disable=SC2031
-  kill_lxd "${LXD_STORAGE_DIR}"
 }
 
 do_zfs_rebase() {
