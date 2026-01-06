@@ -251,6 +251,9 @@ cleanup() {
 
   # Allow for failures
   set +e
+
+  # Run cleanup commands silently
+  local ORIG_CLIENT_DEBUG="${CLIENT_DEBUG}" ORIG_SERVER_DEBUG="${SERVER_DEBUG}" ORIG_SHELL_TRACING="${SHELL_TRACING}"
   unset CLIENT_DEBUG SERVER_DEBUG SHELL_TRACING
 
   # Check if we failed and if so, provide debug info and possibly an inspection shell.
@@ -325,6 +328,9 @@ cleanup() {
     echo "==> FAILED TEST: ${TEST_CURRENT#test_}"
   fi
   echo "==> Test result: ${TEST_RESULT}"
+
+  # Restore original debug/tracing settings
+  CLIENT_DEBUG="${ORIG_CLIENT_DEBUG}" SERVER_DEBUG="${ORIG_SERVER_DEBUG}" SHELL_TRACING="${ORIG_SHELL_TRACING}"
 }
 
 # Must be set before cleanup()
