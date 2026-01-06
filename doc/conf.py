@@ -212,7 +212,6 @@ extensions = [
     'sphinxext.opengraph',
     'sphinx_copybutton',
     'sphinx_config_options',
-    'sphinx_filtered_toctree',
     'sphinx_related_links',
     'sphinx_roles',
     'sphinx_terminal',
@@ -546,11 +545,3 @@ for folder, subfolders, files in os.walk('.sphinx/deps/manpages'):
             os.system('cp ' + sourcefile + ' ' + targetfile)
 
 ### End MAN PAGES ###
-
-
-exclude_patterns.extend(['security.md', 'external_resources.md', 'reference/network_external.md'])
-redirects['security/index'] = '../explanation/security/'
-tags.add('diataxis')
-toc_filter_exclude = ['topical']
-
-sys.path.append(os.path.abspath('.sphinx/_extensions/'))
