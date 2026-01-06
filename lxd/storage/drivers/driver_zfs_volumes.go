@@ -1667,6 +1667,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  shortdesc: Whether to delegate the ZFS dataset
 		//  scope: global
 		"zfs.delegate": validate.Optional(validate.IsBool),
+		"zfs.promote":  validate.Optional(validate.IsBool),
 	}
 }
 
