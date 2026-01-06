@@ -66,11 +66,9 @@ EOF
 }
 
 test_storage_volume_recover_by_container() {
-  LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_IMPORT_DIR}" true
-
+  local poolName poolName2 poolDriver
   poolName=$(lxc profile device get default root pool)
-  poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
+  poolDriver="$(storage_backend "${LXD_DIR}")"
 
   # Create another storage pool.
   poolName2="${poolName}-2"
@@ -205,8 +203,8 @@ EOF
   ! lxc storage volume show "${poolName3}" vol3 || false
   ! lxc storage show "${poolName3}" || false
 
-  in_pipe="${LXD_IMPORT_DIR}/in.pipe"
-  out_pipe="${LXD_IMPORT_DIR}/out.pipe"
+  in_pipe="${LXD_DIR}/in.pipe"
+  out_pipe="${LXD_DIR}/out.pipe"
   mkfifo "${in_pipe}" "${out_pipe}"
   lxd recover < "${in_pipe}" > "${out_pipe}" &
   lxd_recover_pid="$!"
@@ -264,7 +262,6 @@ EOF
   lxc delete c1
   lxc storage delete "${poolName2}"
   lxc storage delete "${poolName3}"
-  shutdown_lxd "${LXD_IMPORT_DIR}"
 }
 
 test_container_recover() {
