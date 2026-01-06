@@ -299,6 +299,7 @@ do_storage_driver_zfs() {
 
   ! lxc exec c3 -- ls /mnt/foo || false
   ! lxc exec c21 -- ls /mnt/foo || false
+  ! lxc exec c1 -- ls /mnt/foo || false
 
   # Backup and import
   lxc launch testimage c4
