@@ -352,11 +352,11 @@ do_storage_driver_zfs() {
 
   # Verify that snapshots are still visible in LXD after failed restore
   snap_list_after=$(lxc info c8 | awk '/^\s+snap/ {print $2}')
-  [ "$snap_list_before" = "$snap_list_after" ] || return 1
+  [ "$snap_list_before" = "$snap_list_after" ]
 
   # Also verify that the ZFS snapshots still exist
   for snap in snap0 snap1 snap2; do
-    zfs list -H -o name "lxdtest-$(basename "${LXD_DIR}")/containers/c8@snapshot-${snap}" 2>&1 || return 1
+    zfs list -H -o name "lxdtest-$(basename "${LXD_DIR}")/containers/c8@snapshot-${snap}" 2>&1
   done
 
   # Delete the dependent clone to allow restoration
