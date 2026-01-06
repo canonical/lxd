@@ -1218,6 +1218,12 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	vol := b.GetNewVolume(volType, contentType, volStorageName, rootVol.Config)
 
+	// Apply any initial config values from new instance's root disk device to the new volume.
+	err = b.applyInstanceRootDiskInitialValues(inst, vol.Config())
+	if err != nil {
+		return err
+	}
+
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
 		return err
