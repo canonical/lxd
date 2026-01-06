@@ -205,10 +205,6 @@ func initOperation(s *state.State, requestor *request.Requestor, args OperationA
 		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
-	operationsLock.Lock()
-	operations[op.id] = &op
-	operationsLock.Unlock()
-
 	return &op, nil
 }
 
@@ -228,6 +224,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	_, md, _ := op.Render()
 
 	operationsLock.Lock()
+	operations[op.id] = op
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
