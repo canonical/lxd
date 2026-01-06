@@ -7,26 +7,23 @@ relatedlinks: "[Running&#32;LXD&#32;in&#32;production&#32;-&#32;YouTube](https:/
 
 To get started with LXD, see the documentation in this section.
 
-```{only} diataxis
 How to install and initialize LXD:
-```
 
-```{filtered-toctree}
+
+```{toctree}
 :maxdepth: 1
 
-:diataxis:Install LXD </installing>
-:diataxis:Initialize LXD </howto/initialize>
+Install LXD </installing>
+Initialize LXD </howto/initialize>
 ```
 
-```{only} diataxis
 How to access the UI and the local, offline copy of the documentation:
-```
 
-```{filtered-toctree}
+```{toctree}
 :maxdepth: 1
 
-:diataxis:Access the UI </howto/access_ui>
-:diataxis:Access documentation locally </howto/access_documentation>
+Access the UI </howto/access_ui>
+Access documentation locally </howto/access_documentation>
 ```
 
 In addition, the following clip gives a quick and easy introduction for standard use cases:

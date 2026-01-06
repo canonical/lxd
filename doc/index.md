@@ -22,8 +22,6 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 ```{rubric} In this documentation
 ```
 
-`````{only} diataxis
-
 ````{grid} 1 1 2 2
 
 ```{grid-item-card} [Tutorial](tutorial/first_steps)
@@ -68,29 +66,6 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ````
 
-`````
-
-```{filtered-toctree}
-:titlesonly:
-:maxdepth: 1
-
-:topical:self
-:topical:getting_started
-:topical:Server and client <operation>
-:topical:security
-:topical:instances
-:topical:images
-:topical:storage
-:topical:networks
-:topical:projects
-:topical:clustering
-:topical:production-setup
-:topical:migration
-:topical:restapi_landing
-:topical:Internals & debugging <internals>
-:topical:external_resources
-```
-
 ---
 
 ```{rst-class} hclass2
@@ -113,13 +88,13 @@ The LXD project is sponsored by [Canonical Ltd](https://canonical.com/).
 - [Discuss on IRC](https://web.libera.chat/#lxd) (see [Getting started with IRC](https://discourse.ubuntu.com/t/getting-started-with-irc/37907) if needed)
 - [Ask and answer questions on the forum](https://discourse.ubuntu.com/c/lxd/126)
 
-```{filtered-toctree}
+```{toctree}
 :hidden:
 :titlesonly:
 
-:diataxis:self
-:diataxis:Tutorial <tutorial/first_steps>
-:diataxis:howto/index
-:diataxis:explanation/index
-:diataxis:reference/index
+self
+Tutorial <tutorial/first_steps>
+howto/index
+explanation/index
+reference/index
 ```

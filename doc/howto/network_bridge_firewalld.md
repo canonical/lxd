@@ -5,11 +5,9 @@ discourse: lxc:[Lxd&#32;bridge&#32;doesn't&#32;work&#32;with&#32;IPv4&#32;and&#3
 (network-bridge-firewall)=
 # How to configure your firewall
 
-````{only} diataxis
 ```{important}
 This guide applies to managed bridge networks only.
 ```
-````
 
 Linux firewalls are based on `netfilter`.
 LXD uses the same subsystem, which can lead to connectivity issues.
