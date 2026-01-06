@@ -265,15 +265,16 @@ EOF
 }
 
 test_container_recover() {
-  local LXD_IMPORT_DIR
-  LXD_IMPORT_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
-  spawn_lxd "${LXD_IMPORT_DIR}" true
-
-  if [ "$(storage_backend "$LXD_IMPORT_DIR")" = "pure" ]; then
-    export TEST_UNMET_REQUIREMENT="Storage driver does not support recovery"
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_DIR}")"
+  if [ "${poolDriver}" = "pure" ]; then
+    export TEST_UNMET_REQUIREMENT="pure does not support recovery"
     return 0
   fi
 
+  local LXD_IMPORT_DIR
+  LXD_IMPORT_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  spawn_lxd "${LXD_IMPORT_DIR}" true
   (
     set -e
 
@@ -283,7 +284,6 @@ test_container_recover() {
     ensure_import_testimage
 
     poolName=$(lxc profile device get default root pool)
-    poolDriver="$(storage_backend "$LXD_DIR")"
 
     lxc storage set "${poolName}" user.foo=bah
     lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
@@ -427,9 +427,10 @@ EOF
     lxc project delete test
   )
 
-  # shellcheck disable=SC2031,2269
-  LXD_DIR=${LXD_DIR}
   kill_lxd "${LXD_IMPORT_DIR}"
+
+  # Reset LXD_DIR
+  LXD_DIR="${LXD_INITIAL_DIR}"
 }
 
 test_bucket_recover() {
