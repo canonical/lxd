@@ -5,91 +5,60 @@ relatedlinks: "[How&#32;to&#32;install&#32;a&#32;Windows&#32;11&#32;VM&#32;using
 (instances)=
 # Instances
 
-```{only} diataxis
 The following how-to guides cover common operations related to instances.
 
 How to create and manage instances:
-```
 
-```{filtered-toctree}
+```{toctree}
 :titlesonly:
 
-:diataxis:Create instances </howto/instances_create.md>
-:diataxis:Configure instances </howto/instances_configure.md>
-:diataxis:Manage instances </howto/instances_manage.md>
-:diataxis:Use profiles </profiles.md>
-:diataxis:Troubleshoot errors </howto/instances_troubleshoot.md>
-:diataxis:Auto attach Ubuntu Pro </howto/instances_ubuntu_pro_attach.md>
+Create instances </howto/instances_create.md>
+Configure instances </howto/instances_configure.md>
+Manage instances </howto/instances_manage.md>
+Use profiles </profiles.md>
+Troubleshoot errors </howto/instances_troubleshoot.md>
+Auto attach Ubuntu Pro </howto/instances_ubuntu_pro_attach.md>
 ```
 
-```{only} diataxis
 How to work with instances:
-```
 
-```{filtered-toctree}
+```{toctree}
 :titlesonly:
 
-:diataxis:Access files </howto/instances_access_files.md>
-:diataxis:Access the console </howto/instances_console.md>
-:diataxis:Run commands </instance-exec.md>
-:diataxis:Use cloud-init </cloud-init>
-:diataxis:Add a routed NIC to a VM </howto/instances_routed_nic_vm.md>
+Access files </howto/instances_access_files.md>
+Access the console </howto/instances_console.md>
+Run commands </instance-exec.md>
+Use cloud-init </cloud-init>
+Add a routed NIC to a VM </howto/instances_routed_nic_vm.md>
 ```
 
-```{only} diataxis
 How to export and move instances:
-```
 
-```{filtered-toctree}
+```{toctree}
 :titlesonly:
 
-:diataxis:Back up instances </howto/instances_backup.md>
-:diataxis:Migrate instances </howto/instances_migrate>
+Back up instances </howto/instances_backup.md>
+Migrate instances </howto/instances_migrate>
 ```
 
-```{only} diataxis
 How to import instances:
-```
 
-```{filtered-toctree}
+```{toctree}
 :titlesonly:
 
-:diataxis:Import existing machines </howto/import_machines_to_instances>
+Import existing machines </howto/import_machines_to_instances>
 ```
 
-```{only} diataxis
 How to pass an NVIDIA GPU to a container with a Docker workload:
-```
 
-```{filtered-toctree}
+```{toctree}
 :titlesonly:
 
-:diataxis:Pass NVIDIA GPUs </howto/container_gpu_passthrough_with_docker>
+Pass NVIDIA GPUs </howto/container_gpu_passthrough_with_docker>
 ```
 
 ## Related topics
 
-```{only} diataxis
 {{instances_exp}}
 
 {{instances_ref}}
-```
-
-```{filtered-toctree}
-:titlesonly:
-
-:topical:/explanation/instances.md
-:topical:Create instances </howto/instances_create.md>
-:topical:Manage instances </howto/instances_manage.md>
-:topical:Configure instances </howto/instances_configure.md>
-:topical:Back up instances </howto/instances_backup.md>
-:topical:Use profiles </profiles.md>
-:topical:Use cloud-init </cloud-init>
-:topical:Run commands </instance-exec.md>
-:topical:Access the console </howto/instances_console.md>
-:topical:Access files </howto/instances_access_files.md>
-:topical:Add a routed NIC to a VM </howto/instances_routed_nic_vm.md>
-:topical:Troubleshoot errors </howto/instances_troubleshoot.md>
-:topical:/explanation/instance_config.md
-:topical:Container environment </container-environment>
-```
