@@ -587,6 +587,26 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		revert.Add(func() { _ = d.DeleteVolume(fsVol.Volume, op) })
 	}
 
+	// Rebase mode is only used for instance copies when enabled.
+	rebase := d.config["zfs.clone_copy"] == "rebase" && (srcVol.volType == VolumeTypeContainer || srcVol.volType == VolumeTypeVM)
+
+	// Use full copy mode when zfs.clone_copy is false or rebase mode is enabled or source volume has snapshots.
+	fullCopy := shared.IsFalse(d.config["zfs.clone_copy"]) || rebase || len(vol.Snapshots) > 0
+
+	// Validate that promotion can be done if requested.
+	if shared.IsTrue(vol.config["zfs.promote"]) {
+		// Don't allow promotion when source volume has snapshots as zfs promote will move them under the
+		// promoted volume, which we do not want as it would mess up snapshot ownership.
+		if len(srcVol.Snapshots) > 0 || srcVol.IsSnapshot() {
+			return errors.New("Cannot promote volume when source volume has snapshots or is a snapshot")
+		}
+
+		// Promotion doesn't make sense when doing full copy and not a clone.
+		if fullCopy {
+			return errors.New("Cannot promote volume when using full copy mode")
+		}
+	}
+
 	if vol.contentType == ContentTypeFS {
 		// Create mountpoint.
 		err := vol.EnsureMountPath()
@@ -612,12 +632,6 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 		revert.Add(func() { _ = unfreezeFS() })
 	}
-
-	// Rebase mode is only used for instance copies when enabled.
-	rebase := d.config["zfs.clone_copy"] == "rebase" && (srcVol.volType == VolumeTypeContainer || srcVol.volType == VolumeTypeVM)
-
-	// Use full copy mode when zfs.clone_copy is false or rebase mode is enabled or source volume has snapshots.
-	fullCopy := shared.IsFalse(d.config["zfs.clone_copy"]) || rebase || len(vol.Snapshots) > 0
 
 	var srcSnapshot string
 	if srcVol.volType == VolumeTypeImage {
@@ -830,12 +844,21 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 			args = append(args, "-o", "volmode=none")
 		}
 
-		args = append(args, srcSnapshot, d.dataset(vol.Volume, false))
+		dataset := d.dataset(vol.Volume, false)
+		args = append(args, srcSnapshot, dataset)
 
 		// Clone the snapshot.
 		_, err := shared.RunCommand(context.TODO(), "zfs", args...)
 		if err != nil {
 			return err
+		}
+
+		// Promote the volume if needed.
+		if shared.IsTrue(vol.config["zfs.promote"]) {
+			_, err := shared.RunCommand(context.TODO(), "zfs", "promote", dataset)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1650,6 +1673,15 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 		//  shortdesc: Whether to delegate the ZFS dataset
 		//  scope: global
 		"zfs.delegate": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.promote)
+		// This option controls whether to promote the ZFS dataset at volume create/refresh time.
+		// When enabled, if the source volume is a clone, the new volume will be promoted to be a parent.
+		// ---
+		//  type: bool
+		//  defaultdesc: false
+		//  shortdesc: Whether to promote the ZFS dataset
+		//  scope: global
+		"zfs.promote": validate.Optional(validate.IsBool),
 	}
 }
 
