@@ -395,6 +395,21 @@ func (op *Operation) done() {
 		return
 	}
 
+	// For durable operations, we just remove it from the internal map.
+	// The database record will be cleared later by pruneExpiredDurableOperationsTask().
+	if op.class == OperationClassDurable {
+		operationsLock.Lock()
+		_, ok := operations[op.id]
+		if !ok {
+			operationsLock.Unlock()
+			return
+		}
+
+		delete(operations, op.id)
+		operationsLock.Unlock()
+		return
+	}
+
 	go func() {
 		shutdownCtx := context.Background()
 		if op.state != nil {

@@ -2121,6 +2121,9 @@ func (d *Daemon) startClusterTasks() {
 	// Remove orphaned operations
 	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d.State))
 
+	// Prune expired durable operations from the database (hourly)
+	d.clusterTasks.Add(pruneExpiredDurableOperationsTask(d.State))
+
 	// Perform automatic evacuation for offline cluster members
 	d.clusterTasks.Add(autoHealClusterTask(d.State, d.gateway))
 

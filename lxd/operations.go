@@ -1280,6 +1280,55 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	return nil
 }
 
+// PruneExpiredDurableOperationsTask returns a task function and schedule that
+// is used to prune expired durable operations from the database.
+func pruneExpiredDurableOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		s := stateFunc()
+
+		leaderInfo, err := s.LeaderInfo()
+		if err != nil {
+			logger.Error("Failed getting leader cluster member address", logger.Ctx{"err": err})
+			return
+		}
+
+		if !leaderInfo.Leader {
+			logger.Debug("Skipping pruning expired durable operations since we're not leader")
+			return
+		}
+
+		opRun := func(ctx context.Context, op *operations.Operation) error {
+			return operations.PruneExpiredDurableOperations(ctx, s)
+		}
+
+		args := operations.OperationArgs{
+			Type:    operationtype.PruneExpiredDurableOperations,
+			Class:   operations.OperationClassTask,
+			RunHook: opRun,
+		}
+
+		op, err := operations.CreateServerOperation(s, args)
+		if err != nil {
+			logger.Error("Failed creating prune expired durable operations operation", logger.Ctx{"err": err})
+			return
+		}
+
+		err = op.Start()
+		if err != nil {
+			logger.Error("Failed starting prune expired durable operations operation", logger.Ctx{"err": err})
+			return
+		}
+
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed pruning expired durable operations", logger.Ctx{"err": err})
+			return
+		}
+	}
+
+	return f, task.Hourly()
+}
+
 // operationWaitPost represents the fields of a request to register a dummy operation.
 type operationWaitPost struct {
 	Duration  string                    `json:"duration" yaml:"duration"`

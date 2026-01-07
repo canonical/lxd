@@ -87,6 +87,7 @@ const (
 	ClusterMemberRestore
 	CertificateAddToken
 	RemoveOrphanedOperations
+	PruneExpiredDurableOperations
 	RenewServerCertificate
 	RemoveExpiredTokens
 	ClusterHeal
@@ -230,6 +231,8 @@ func (t Type) Description() string {
 		return "Restoring cluster member"
 	case RemoveOrphanedOperations:
 		return "Remove orphaned operations"
+	case PruneExpiredDurableOperations:
+		return "Pruning expired durable operations"
 	case RenewServerCertificate:
 		return "Renewing server certificate"
 	case RemoveExpiredTokens:
@@ -258,7 +261,7 @@ func (t Type) EntityType() entity.Type {
 		ImagesSynchronize, RemoveExpiredOIDCSessions, RemoveExpiredTokens, RemoveOrphanedOperations,
 		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
-		ClusterHeal, ImagesUpdate:
+		ClusterHeal, ImagesUpdate, PruneExpiredDurableOperations:
 		return entity.TypeServer
 
 	// Project level operations.
