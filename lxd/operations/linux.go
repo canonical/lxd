@@ -252,6 +252,41 @@ func NewDurableOperation(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *
 	return &op, nil
 }
 
+// PruneExpiredDurableOperations deletes database entries of all durable operations which finished more than 24 hours ago.
+func PruneExpiredDurableOperations(ctx context.Context, s *state.State) {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		durableClass := (int64)(OperationClassDurable)
+		filter := cluster.OperationFilter{Class: &durableClass}
+		dbOps, err := cluster.GetOperations(ctx, tx.Tx(), filter)
+		if err != nil {
+			return fmt.Errorf("Failed loading durable operations: %w", err)
+		}
+
+		for _, dbOp := range dbOps {
+			if !api.StatusCode(dbOp.Status).IsFinal() {
+				continue
+			}
+
+			if dbOp.UpdatedAt.Add(24 * time.Hour).After(time.Now()) {
+				continue
+			}
+
+			err = cluster.DeleteOperation(ctx, tx.Tx(), dbOp.Reference)
+			if err != nil {
+				logger.Warn("Failed deleting expired durable operation", logger.Ctx{"operation": dbOp.Reference, "err": err})
+			} else {
+				logger.Info("Pruned expired durable operation", logger.Ctx{"operation": dbOp.Reference})
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		logger.Warn("Failed pruning expired durable operations", logger.Ctx{"err": err})
+		return
+	}
+}
+
 // GetDurableOperationsOnNode returns all durable operations from the db that exist on given node.
 func GetDurableOperationsOnNode(ctx context.Context, s *state.State, nodeID int64) ([]*Operation, error) {
 	var result []*Operation

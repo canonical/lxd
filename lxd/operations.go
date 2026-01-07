@@ -1300,6 +1300,18 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	return nil
 }
 
+// PruneExpiredDurableOperationsTask returns a task function and schedule that
+// is used to prune expired durable operations from the database.
+func pruneExpiredDurableOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		s := stateFunc()
+
+		operations.PruneExpiredDurableOperations(ctx, s)
+	}
+
+	return f, task.Every(time.Hour)
+}
+
 // operationWaitPost represents the fields of a request to register a dummy operation.
 type operationWaitPost struct {
 	Duration  string                    `json:"duration" yaml:"duration"`

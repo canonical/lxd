@@ -2023,6 +2023,9 @@ func (d *Daemon) init() error {
 
 		// Remove expired tokens (hourly)
 		d.tasks.Add(autoRemoveExpiredTokensTask(d.State))
+
+		// Prune expired durable operations from the database (hourly)
+		d.tasks.Add(pruneExpiredDurableOperationsTask(d.State))
 	}
 
 	// Start all background tasks
