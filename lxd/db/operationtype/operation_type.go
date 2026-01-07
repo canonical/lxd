@@ -73,6 +73,7 @@ const (
 	ClusterMemberRestore
 	CertificateAddToken
 	RemoveOrphanedOperations
+	PruneExpiredDurableOperations
 	RenewServerCertificate
 	RemoveExpiredTokens
 	ClusterHeal
@@ -204,6 +205,8 @@ func (t Type) Description() string {
 		return "Restoring cluster member"
 	case RemoveOrphanedOperations:
 		return "Remove orphaned operations"
+	case PruneExpiredDurableOperations:
+		return "Prune expired durable operations"
 	case RenewServerCertificate:
 		return "Renewing server certificate"
 	case RemoveExpiredTokens:
