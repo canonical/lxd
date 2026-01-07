@@ -201,6 +201,16 @@ hooks:
 
 parts:
   # Dependencies
+  amd-ctk:
+    source: https://github.com/ROCm/container-toolkit
+    source-depth: 1
+    source-type: git
+    plugin: go
+    build-snaps:
+      - go
+    prime:
+      - bin/amd-ctk
+
   btrfs:
     plugin: nil
     stage-packages:
