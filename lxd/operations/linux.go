@@ -4,12 +4,20 @@ package operations
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 func registerDBOperation(op *Operation) error {
@@ -142,4 +150,109 @@ func conflictingOperationExists(op *Operation, conflictReference string) (bool, 
 	}
 
 	return false, nil
+}
+
+// NewDurableOperation is a constructor of the Operation object based on its database representation.
+func NewDurableOperation(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *cluster.Operation, projectName string) (*Operation, error) {
+	if dbOp.Class != int64(OperationClassDurable) {
+		return nil, fmt.Errorf("Operation %s is not of durable class", dbOp.UUID)
+	}
+
+	op := Operation{
+		projectName: projectName,
+		id:          dbOp.UUID,
+		class:       OperationClass(dbOp.Class),
+		createdAt:   dbOp.CreatedAt,
+		updatedAt:   dbOp.CreatedAt,
+		status:      api.StatusCode(dbOp.Status),
+		url:         api.NewURL().Path(version.APIVersion, "operations", dbOp.UUID).String(),
+		description: dbOp.Type.Description(),
+		dbOpType:    dbOp.Type,
+		finished:    cancel.New(),
+		running:     cancel.New(),
+		state:       s,
+	}
+
+	if dbOp.Error != "" {
+		op.err = errors.New(dbOp.Error)
+	}
+
+	op.entityType, op.entitlement = dbOp.Type.Permission()
+	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+
+	if s != nil {
+		op.SetEventServer(s.Events)
+	}
+
+	// Load operation inputs.
+	var inputs map[string]any
+	var err error
+	err = json.Unmarshal([]byte(dbOp.Inputs), &inputs)
+	if err != nil {
+		return nil, fmt.Errorf("Failed unmarshalling operation inputs for operation %d: %w", dbOp.ID, err)
+	}
+
+	op.inputs = inputs
+
+	// Load operation resources.
+	op.resources, err = cluster.GetOperationResources(ctx, tx, dbOp.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading operation resources for operation %d: %w", dbOp.ID, err)
+	}
+
+	// Load operation metadata.
+	var metadata map[string]any
+	err = json.Unmarshal([]byte(dbOp.Metadata), &metadata)
+	if err != nil {
+		return nil, fmt.Errorf("Failed unmarshalling operation metadata for operation %d: %w", dbOp.ID, err)
+	}
+
+	op.metadata = metadata
+
+	// Load the requestor identity if provided.
+	if dbOp.RequestorIdentityID != nil {
+		identityFilter := cluster.IdentityFilter{ID: dbOp.RequestorIdentityID}
+		clusterIdentities, err := cluster.GetIdentitys(ctx, tx, identityFilter)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.ID, err)
+		}
+
+		if len(clusterIdentities) != 1 {
+			return nil, fmt.Errorf("Unexpected number of identities (%d) found for id %d", len(clusterIdentities), dbOp.ID)
+		}
+
+		// We need to construct the requestor object to hold the identity information.
+		// The standard way is to construct it through the http request, but in this case we have no real http request.
+		// We'll just use an empty one temporarily.
+		r := &http.Request{}
+		protocol := ""
+		if dbOp.RequestorProtocol != nil {
+			protocol = string(*dbOp.RequestorProtocol)
+		}
+
+		args := request.RequestorArgs{
+			Trusted:  true,
+			Username: clusterIdentities[0].Identifier,
+			Protocol: protocol,
+		}
+
+		err = request.SetRequestor(r, requestorHook, args)
+		if err != nil {
+			return nil, fmt.Errorf("Failed setting requestor for operation %d: %w", dbOp.ID, err)
+		}
+
+		op.requestor, err = request.GetRequestor(r.Context())
+		if err != nil {
+			return nil, fmt.Errorf("Failed constructing requestor for operation %d: %w", dbOp.ID, err)
+		}
+	}
+
+	runHook, ok := durableOperations[op.dbOpType]
+	if !ok {
+		return nil, fmt.Errorf("No durable operation handlers defined for operation type %d (%q)", op.dbOpType, op.dbOpType.Description())
+	}
+
+	op.onRun = runHook
+
+	return &op, nil
 }
