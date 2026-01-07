@@ -4,8 +4,8 @@ description: Installs LXD runtime dependencies
 inputs:
   optional:
     description: Whether to install optional dependencies
-    default: false
-    type: boolean
+    default: "false"
+    required: false
 
 runs:
   using: composite
