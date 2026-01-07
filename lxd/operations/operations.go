@@ -438,6 +438,30 @@ func (op *Operation) done() {
 		return
 	}
 
+	// If this is a parent operation of a bulk operation, we clear the entries from the internal map, but leave the database records in place.
+	// The database records will be cleared later by the pruneExpiredOperationsTask().
+	if len(op.children) > 0 {
+		operationsLock.Lock()
+		_, ok := operations[op.id]
+		if !ok {
+			operationsLock.Unlock()
+			return
+		}
+
+		delete(operations, op.id)
+
+		// Clear child operations
+		for _, childOp := range op.children {
+			_, ok := operations[childOp.id]
+			if ok {
+				delete(operations, childOp.id)
+			}
+		}
+
+		operationsLock.Unlock()
+		return
+	}
+
 	go func() {
 		shutdownCtx := context.Background()
 		if op.state != nil {
@@ -458,15 +482,6 @@ func (op *Operation) done() {
 		}
 
 		delete(operations, op.id)
-
-		// Clear the child operations
-		for _, childOp := range op.children {
-			_, ok := operations[childOp.id]
-			if ok {
-				delete(operations, childOp.id)
-			}
-		}
-
 		operationsLock.Unlock()
 
 		if op.state == nil {

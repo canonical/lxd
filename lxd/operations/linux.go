@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -279,4 +280,49 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 	}
 
 	return &op, nil
+}
+
+// PruneExpiredOperations deletes database entries of all operations which finished more than 24 hours ago.
+// Normally, operations are cleared 5 seconds after they finish. However, more complex operations, such as bulk operations,
+// are only cleared by this task, to allow more time to inspect their results.
+func PruneExpiredOperations(ctx context.Context, s *state.State) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbOps, err := cluster.GetOperations(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed loading operations: %w", err)
+		}
+
+		for _, dbOp := range dbOps {
+			// Don't prune operations which are still running.
+			if !api.StatusCode(dbOp.Status).IsFinal() {
+				continue
+			}
+
+			// Don't delete child operations. These will be deleted by the foreign key constraint when the parent operation is deleted.
+			if dbOp.Parent != nil {
+				continue
+			}
+
+			// Prune operations which were last updated more than 24 hours ago.
+			if dbOp.UpdatedAt.Add(24 * time.Hour).After(time.Now()) {
+				continue
+			}
+
+			err = cluster.DeleteOperation(ctx, tx.Tx(), dbOp.UUID)
+			if err != nil {
+				return fmt.Errorf("Failed deleting expired operation: %w", err)
+			}
+
+			logger.Info("Pruned expired operation", logger.Ctx{"operation": dbOp.UUID})
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	logger.Debug("Done pruning expired operations")
+
+	return nil
 }
