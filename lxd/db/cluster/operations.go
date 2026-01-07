@@ -26,6 +26,7 @@ import (
 //go:generate mapper stmt -e operation objects-by-ConflictReference
 //go:generate mapper stmt -e operation objects-by-NodeID
 //go:generate mapper stmt -e operation objects-by-NodeID-and-Class
+//go:generate mapper stmt -e operation objects-by-Class
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-UUID
 //go:generate mapper stmt -e operation create
