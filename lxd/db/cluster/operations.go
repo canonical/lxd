@@ -23,6 +23,7 @@ import (
 //go:generate mapper stmt -e operation objects-by-Type-and-EntityID
 //go:generate mapper stmt -e operation objects-by-NodeID
 //go:generate mapper stmt -e operation objects-by-NodeID-and-Class
+//go:generate mapper stmt -e operation objects-by-Class
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-Reference
 //go:generate mapper stmt -e operation create
