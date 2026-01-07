@@ -41,6 +41,14 @@ SELECT operations.id, operations.reference, nodes.address AS node_address, opera
   ORDER BY operations.id, operations.reference
 `)
 
+var operationObjectsByClass = RegisterStmt(`
+SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status, operations.error, operations.stage
+  FROM operations
+  JOIN nodes ON operations.node_id = nodes.id
+  WHERE ( operations.class = ? )
+  ORDER BY operations.id, operations.reference
+`)
+
 var operationObjectsByID = RegisterStmt(`
 SELECT operations.id, operations.reference, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status, operations.error, operations.stage
   FROM operations
@@ -223,6 +231,30 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 			}
 
 			query, err := StmtString(operationObjectsByID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Class != nil && filter.ID == nil && filter.NodeID == nil && filter.Reference == nil {
+			args = append(args, []any{filter.Class}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, operationObjectsByClass)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"operationObjectsByClass\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(operationObjectsByClass)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
 			}
