@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -96,10 +97,13 @@ If the certificate is omitted, a token will be generated and returned. A client
 providing a valid token will have its client certificate added to the trusted list
 and the consumed token will be invalidated. Similar to certificates, tokens can be
 restricted to one or more projects.
+
+Note: The --projects flag requires --restricted to be set. Projects can only be
+used to restrict certificate access when the certificate is marked as restricted.
 `))
 
 	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, i18n.G("Restrict the certificate to one or more projects"))
-	cmd.Flags().StringVar(&c.flagProjects, "projects", "", i18n.G("List of projects to restrict the certificate to")+"``")
+	cmd.Flags().StringVar(&c.flagProjects, "projects", "", i18n.G("List of projects to restrict the certificate to (requires --restricted)")+"``")
 	cmd.Flags().StringVar(&c.flagName, "name", "", i18n.G("Alternative certificate name")+"``")
 	cmd.Flags().StringVar(&c.flagType, "type", "client", i18n.G("Type of certificate")+"``")
 
@@ -135,6 +139,16 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 
 	if c.flagType == "metrics" && !resource.server.HasExtension("metrics") {
 		return errors.New("The server doesn't implement metrics")
+	}
+
+	// Reject --projects without --restricted to prevent creating certificates that appear restricted but aren't.
+	if c.flagProjects != "" && !c.flagRestricted {
+		return errors.New("The --projects flag requires --restricted to be set.\nProjects can only be used to restrict certificate access when the certificate is marked as restricted")
+	}
+
+	// Warn users that a restricted certificate with no projects will have zero access.
+	if c.flagRestricted && c.flagProjects == "" && !c.global.flagQuiet {
+		logger.Warn("Certificate is restricted but no projects specified. This certificate will have no project access.\n")
 	}
 
 	cert := api.CertificatesPost{}
