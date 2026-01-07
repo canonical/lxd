@@ -4,14 +4,20 @@ package operations
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 func registerDBOperation(op *Operation) error {
@@ -148,4 +154,105 @@ func (op *Operation) sendEvent(eventMessage any) {
 	}
 
 	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
+}
+
+// ConstructOperationFromDB is a constructor of a single Operation object based on its database representation.
+// ConstructOperationFromDB doesn't populate the parent field, as that would require loading all other operations from the DB. Instead,
+// the caller is expected to set the parent field on the returned Operation object based on other loaded operations, if needed.
+func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *cluster.Operation, projectName string) (*Operation, error) {
+	op := Operation{
+		projectName: projectName,
+		id:          dbOp.UUID,
+		class:       OperationClass(dbOp.Class),
+		createdAt:   dbOp.CreatedAt,
+		updatedAt:   dbOp.UpdatedAt,
+		status:      api.StatusCode(dbOp.Status),
+		url:         api.NewURL().Path(version.APIVersion, "operations", dbOp.UUID).String(),
+		description: dbOp.Type.Description(),
+		dbOpType:    dbOp.Type,
+		finished:    cancel.New(),
+		running:     cancel.New(),
+		state:       s,
+	}
+
+	if dbOp.Error != "" {
+		op.err = errors.New(dbOp.Error)
+	}
+
+	// If operation is already in final state, cancel both contexts, there's no point in running any hook.
+	if op.status.IsFinal() {
+		op.running.Cancel()
+		op.finished.Cancel()
+	}
+
+	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+
+	if s != nil {
+		op.SetEventServer(s.Events)
+	}
+
+	// Load operation inputs.
+	var inputs map[string]any
+	var err error
+	err = json.Unmarshal([]byte(dbOp.Inputs), &inputs)
+	if err != nil {
+		return nil, fmt.Errorf("Failed unmarshalling operation inputs for operation %d: %w", dbOp.ID, err)
+	}
+
+	op.inputs = inputs
+
+	// Load operation entity URL.
+	// Note that we rely on the entity_type of the operation and the entityURL being the same. This is enforced by a check in the initOperation().
+	entityURL, err := cluster.GetEntityURL(ctx, tx, dbOp.Type.EntityType(), dbOp.EntityID)
+	if err == nil {
+		op.entityURL = entityURL
+	} else {
+		// Fail for all errors other than the not found (see below)
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil, fmt.Errorf("Failed loading entity URL for operation: %w", err)
+		}
+
+		// For various delete operations, these operations actually delete the entity somewhere in the operation code, which means that we might not be able to load the entity URL after the entity was deleted.
+		// If this is the case, the entity URL will simply be empty.
+		logger.Debug("Failed loading entity URL for operation, leaving it empty on the operation struct", logger.Ctx{"operationID": dbOp.UUID, "entityType": dbOp.Type.EntityType(), "entityID": dbOp.EntityID})
+	}
+
+	// Load operation resources.
+	op.resources, err = cluster.GetOperationResources(ctx, tx, dbOp.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading operation resources for operation %d: %w", dbOp.ID, err)
+	}
+
+	// Load operation metadata.
+	var metadata map[string]any
+	err = json.Unmarshal([]byte(dbOp.Metadata), &metadata)
+	if err != nil {
+		return nil, fmt.Errorf("Failed unmarshalling operation metadata for operation %d: %w", dbOp.ID, err)
+	}
+
+	op.metadata = metadata
+
+	// Load the requestor identity if provided.
+	if dbOp.RequestorIdentityID != nil {
+		identity, err := cluster.GetIdentityByID(ctx, tx, *dbOp.RequestorIdentityID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.ID, err)
+		}
+
+		// Reconstruct the requestor.
+		protocol := ""
+		if dbOp.RequestorProtocol != nil {
+			protocol = string(*dbOp.RequestorProtocol)
+		}
+
+		op.requestor = &opRequestor{
+			identityID: *dbOp.RequestorIdentityID,
+			r: &api.OperationRequestor{
+				Username: identity.Identifier,
+				Protocol: protocol,
+			},
+		}
+	}
+
+	return &op, nil
 }
