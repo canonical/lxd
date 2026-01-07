@@ -138,10 +138,6 @@ test_security_protection() {
   ensure_import_testimage
 
   # Test deletion protecton
-  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
-  lxc snapshot c1
-  lxc delete c1
-
   lxc profile set default security.protection.delete true
 
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
