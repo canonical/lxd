@@ -4,12 +4,20 @@ package operations
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 func registerDBOperation(op *Operation) error {
@@ -172,4 +180,103 @@ func conflictingOperationExists(op *Operation, constraint OperationUniquenessCon
 	}
 
 	return false, nil
+}
+
+// NewDurableOperation is a constructor of the Operation object based on its database representation.
+func NewDurableOperation(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *cluster.Operation, projectName string) (*Operation, error) {
+	if dbOp.Class != int64(OperationClassDurable) {
+		return nil, fmt.Errorf("Operation %s is not of durable class", dbOp.Reference)
+	}
+
+	op := Operation{
+		projectName: projectName,
+		id:          dbOp.Reference,
+		class:       OperationClass(dbOp.Class),
+		createdAt:   dbOp.CreatedAt,
+		updatedAt:   dbOp.CreatedAt,
+		status:      api.StatusCode(dbOp.Status),
+		url:         api.NewURL().Path(version.APIVersion, "operations", dbOp.Reference).String(),
+		description: dbOp.Type.Description(),
+		dbOpType:    dbOp.Type,
+		inputs:      dbOp.Inputs,
+		finished:    cancel.New(),
+		running:     cancel.New(),
+		state:       s,
+	}
+
+	if dbOp.Error != nil {
+		op.err = errors.New(*dbOp.Error)
+	}
+
+	op.entityType, op.entitlement = dbOp.Type.Permission()
+	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+
+	if s != nil {
+		op.SetEventServer(s.Events)
+	}
+
+	// Load the resource URL if entity ID is provided.
+	if dbOp.EntityID != nil {
+		entityType, _ := dbOp.Type.Permission()
+		entityURL, err := cluster.GetEntityURL(ctx, tx, entityType, *dbOp.EntityID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting entity URL for entity type %q and ID %d: %w", entityType.String(), *dbOp.EntityID, err)
+		}
+
+		op.resources = map[string][]api.URL{string(entityType): {*entityURL}}
+	}
+
+	// Load the metadata of the durable operation.
+	metadata, err := cluster.GetDurableOperationMetadata(ctx, tx, dbOp.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading durable operation metadata for operation %d: %w", dbOp.ID, err)
+	}
+
+	// We have to convert metadata from map[string]string to map[string]any.
+	op.metadata = make(map[string]any)
+	for k, v := range metadata {
+		op.metadata[k] = v
+	}
+
+	// Load the requestor identity if provided.
+	if dbOp.RequestorIdentityID != nil {
+		identityFilter := cluster.IdentityFilter{ID: dbOp.RequestorIdentityID}
+		clusterIdentities, err := cluster.GetIdentitys(ctx, tx, identityFilter)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.ID, err)
+		}
+
+		if len(clusterIdentities) != 1 {
+			return nil, fmt.Errorf("Unexpected number of identities (%d) found for id %d", len(clusterIdentities), dbOp.ID)
+		}
+
+		// We need to construct the requestor object to hold the identity information.
+		// The standard way is to construct it through the http request, but in this case we have no real http request.
+		// We'll just use an empty one temporarily.
+		r := &http.Request{}
+		args := request.RequestorArgs{
+			Trusted:  true,
+			Username: clusterIdentities[0].Identifier,
+			Protocol: dbOp.RequestorProtocol,
+		}
+
+		err = request.SetRequestor(r, requestorHook, args)
+		if err != nil {
+			return nil, fmt.Errorf("Failed setting requestor for operation %d: %w", dbOp.ID, err)
+		}
+
+		op.requestor, err = request.GetRequestor(r.Context())
+		if err != nil {
+			return nil, fmt.Errorf("Failed constructing requestor for operation %d: %w", dbOp.ID, err)
+		}
+	}
+
+	runHook, ok := durableOperations[op.dbOpType]
+	if !ok {
+		return nil, fmt.Errorf("No durable operation handlers defined for operation type %d (%q)", op.dbOpType, op.dbOpType.Description())
+	}
+
+	op.onRun = runHook
+
+	return &op, nil
 }
