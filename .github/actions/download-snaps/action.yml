@@ -4,13 +4,11 @@ description: Download snaps and their assertion files for "offline" installation
 inputs:
   prime-cache-only:
     description: 'Set to true to only populate cache on miss without restoring files. When false (default), cache will be restored if available.'
-    default: false
+    default: "false"
     required: false
-    type: boolean
   snap-cache-dir:
     description: Where to save the snap dependencies
     required: true
-    type: string
 
 runs:
   using: composite
@@ -41,7 +39,7 @@ runs:
         # Some jobs only want to prime the cache if not populated already.
         # Those jobs don't need the files otherwise so they should not restore
         # from the cache.
-        lookup-only: ${{ inputs.prime-cache-only }}
+        lookup-only: ${{ inputs.prime-cache-only == 'true' }}
 
     - name: Download snaps
       if: ${{ steps.cache-snaps.outputs.cache-hit != 'true' }}
