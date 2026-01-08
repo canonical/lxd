@@ -168,6 +168,7 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 		}
 	}
 
+	//nolint:prealloc
 	allChangedKeys := make([]string, 0)
 	for key, d := range addlist {
 		srcOldDevice := rmlist[key]
