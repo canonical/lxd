@@ -264,7 +264,8 @@ func generateSANNames(commonName string, additionalNames ...string) ([]string, e
 		commonName = h
 	}
 
-	names := []string{commonName}
+	names := make([]string, 0, 1+len(additionalNames)+2)
+	names = append(names, commonName)
 	names = append(names, additionalNames...)
 	names = append(names, "127.0.0.1/8", "::1/128")
 
