@@ -659,8 +659,8 @@ func (c *cmdImageExport) run(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else if resp.RootfsSize == 0 && len(args) > 1 {
-		if resp.MetaName != "" {
-			extension := strings.SplitN(resp.MetaName, ".", 2)[1]
+		_, extension, _ := strings.Cut(resp.MetaName, ".")
+		if extension != "" {
 			err := os.Rename(targetMeta, targetMeta+"."+extension)
 			if err != nil {
 				_ = os.Remove(targetMeta)
