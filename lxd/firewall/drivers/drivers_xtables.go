@@ -381,19 +381,19 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddres
 	var rules [][]string
 	switch ipVersion {
 	case 4:
-		rules = [][]string{
-			{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "67", "-j", "ACCEPT"},
-			// Prevent DNS requests to the bridge's dnsmasq except from lo and the bridge
-			// `rules` is reversed when applied (iptablesPrepend(...)), so the drop rules come first
-			{"4", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "udp", "--dport", "53", "-j", "DROP"},
-			{"4", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "tcp", "--dport", "53", "-j", "DROP"},
-			{"4", networkName, "filter", "INPUT", "-i", "lo", "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
-			{"4", networkName, "filter", "INPUT", "-i", "lo", "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
-			{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
-			{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
-			{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "67", "-j", "ACCEPT"},
-			{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
-			{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
+		rules = make([][]string, 0, 16)
+		rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "67", "-j", "ACCEPT"})
+		// Prevent DNS requests to the bridge's dnsmasq except from lo and the bridge
+		// `rules` is reversed when applied (iptablesPrepend(...)), so the drop rules come first
+		rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "udp", "--dport", "53", "-j", "DROP"})
+		rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "tcp", "--dport", "53", "-j", "DROP"})
+		rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", "lo", "-p", "udp", "--dport", "53", "-j", "ACCEPT"})
+		rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", "lo", "-p", "tcp", "--dport", "53", "-j", "ACCEPT"})
+		rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "53", "-j", "ACCEPT"})
+		rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"})
+		rules = append(rules, []string{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "67", "-j", "ACCEPT"})
+		rules = append(rules, []string{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "53", "-j", "ACCEPT"})
+		rules = append(rules, []string{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"})
 
 		// Allow core ICMPv4 to/from LXD host.
 		for _, icmpType := range []int{3, 11, 12} {
@@ -402,17 +402,17 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddres
 		}
 
 	case 6:
-		rules = [][]string{
-			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "547", "-j", "ACCEPT"},
-			{"6", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "udp", "--dport", "53", "-j", "DROP"},
-			{"6", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "tcp", "--dport", "53", "-j", "DROP"},
-			{"6", networkName, "filter", "INPUT", "-i", "lo", "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
-			{"6", networkName, "filter", "INPUT", "-i", "lo", "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
-			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
-			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
-			{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "547", "-j", "ACCEPT"},
-			{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
-			{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
+		rules = make([][]string, 0, 27)
+		rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "547", "-j", "ACCEPT"})
+		rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "udp", "--dport", "53", "-j", "DROP"})
+		rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "tcp", "--dport", "53", "-j", "DROP"})
+		rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", "lo", "-p", "udp", "--dport", "53", "-j", "ACCEPT"})
+		rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", "lo", "-p", "tcp", "--dport", "53", "-j", "ACCEPT"})
+		rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "53", "-j", "ACCEPT"})
+		rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"})
+		rules = append(rules, []string{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "547", "-j", "ACCEPT"})
+		rules = append(rules, []string{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "53", "-j", "ACCEPT"})
+		rules = append(rules, []string{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"})
 
 		// Allow core ICMPv6 to/from LXD host.
 		for _, icmpType := range []int{1, 2, 3, 4, 133, 135, 136, 143} {
@@ -1236,7 +1236,8 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 		return fmt.Errorf("Asked to setup IPv%d firewalling but %s can't be found", ipVersion, cmd)
 	}
 
-	args := []string{"-w", "-t", table, method, chain}
+	args := make([]string, 0, 5+len(rule)+4)
+	args = append(args, "-w", "-t", table, method, chain)
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", iptablesCommentPrefix+" "+comment)
 
