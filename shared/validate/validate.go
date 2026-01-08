@@ -298,19 +298,19 @@ func IsNetworkAddressCIDR(value string) error {
 
 // IsNetworkRange validates an IP range in the format "start-end".
 func IsNetworkRange(value string) error {
-	ips := strings.SplitN(value, "-", 2)
-	if len(ips) != 2 {
+	start, end, found := strings.Cut(value, "-")
+	if !found {
 		return errors.New("IP range must contain start and end IP addresses")
 	}
 
-	startIP := net.ParseIP(ips[0])
+	startIP := net.ParseIP(start)
 	if startIP == nil {
-		return fmt.Errorf("Start not an IP address %q", ips[0])
+		return fmt.Errorf("Start not an IP address %q", start)
 	}
 
-	endIP := net.ParseIP(ips[1])
+	endIP := net.ParseIP(end)
 	if endIP == nil {
-		return fmt.Errorf("End not an IP address %q", ips[1])
+		return fmt.Errorf("End not an IP address %q", end)
 	}
 
 	if (startIP.To4() != nil) != (endIP.To4() != nil) {
