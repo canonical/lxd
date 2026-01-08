@@ -168,7 +168,7 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 		}
 	}
 
-	allChangedKeys := []string{}
+	allChangedKeys := make([]string, 0)
 	for key, d := range addlist {
 		srcOldDevice := rmlist[key]
 		oldDevice := srcOldDevice.Clone()
