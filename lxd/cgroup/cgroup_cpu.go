@@ -59,17 +59,17 @@ func ParseCPU(cpuAllowance string, cpuPriority string) (cpuShares int64, cpuCfsQ
 			cpuShares += int64(float64(maxShares) / float64(100) * float64(percent))
 		} else {
 			// Time based allocation
-			fields := strings.SplitN(cpuAllowance, "/", 2)
-			if len(fields) != 2 {
+			quotaStr, periodStr, found := strings.Cut(cpuAllowance, "/")
+			if !found {
 				return -1, -1, -1, fmt.Errorf("Invalid allowance: %s", cpuAllowance)
 			}
 
-			quota, err := strconv.Atoi(strings.TrimSuffix(fields[0], "ms"))
+			quota, err := strconv.Atoi(strings.TrimSuffix(quotaStr, "ms"))
 			if err != nil {
 				return -1, -1, -1, err
 			}
 
-			period, err := strconv.Atoi(strings.TrimSuffix(fields[1], "ms"))
+			period, err := strconv.Atoi(strings.TrimSuffix(periodStr, "ms"))
 			if err != nil {
 				return -1, -1, -1, err
 			}
