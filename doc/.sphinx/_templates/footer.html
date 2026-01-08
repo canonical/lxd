@@ -71,8 +71,8 @@
     {%- endif %}
   </div>
   <div>
-    {% if github_url and github_folder and pagename and page_source_suffix and display_contributors %}
-        {% set contributors = get_contribs(github_url, github_folder, pagename, page_source_suffix, display_contributors_since) %}
+    {% if display_contributors and pagename and page_source_suffix %}
+        {% set contributors = get_contributors_for_file(pagename, page_source_suffix) %}
         {% if contributors %}
           {% if contributors | length > 1 %}
               <a class="display-contributors">Thanks to the {{ contributors |length }} contributors!</a>
@@ -81,14 +81,14 @@
           {% endif %}
           <div id="overlay"></div>
           <ul class="all-contributors">
-              {% for contributor in contributors %}
+              {% for name, github_url in contributors %}
                   <li>
-                      <a href="{{ contributor['github_page'] }}" class="contributor">{{ contributor['name'] }}</a>
+                      <a href="{{ github_url }}" class="contributor">{{ name }}</a>
                   </li>
               {% endfor %}
           </ul>
-        {% endif %}
-    {% endif %}
+       {% endif %}
+   {% endif %}
   </div>
   <div class="right-details">
 
