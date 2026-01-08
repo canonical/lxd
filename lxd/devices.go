@@ -116,12 +116,12 @@ func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUS
 
 				ueventLen += len(part) + 1
 
-				fields := strings.SplitN(part, "=", 2)
-				if len(fields) != 2 {
+				key, value, found := strings.Cut(part, "=")
+				if !found {
 					continue
 				}
 
-				props[fields[0]] = fields[1]
+				props[key] = value
 			}
 
 			ueventLen--
