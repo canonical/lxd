@@ -1759,18 +1759,14 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 		}
 
 		for _, eventParts := range runConf.Uevents {
-			ueventArray := make([]string, 6)
-			ueventArray[0] = "forkuevent"
-			ueventArray[1] = "inject"
-			ueventArray[2] = "--"
-			ueventArray[3] = strconv.Itoa(d.InitPID())
-			ueventArray[4] = strconv.Itoa(pidFdNr)
+			ueventArray := make([]string, 0, 6+len(eventParts))
+			ueventArray = append(ueventArray, "forkuevent", "inject", "--", strconv.Itoa(d.InitPID()), strconv.Itoa(pidFdNr))
 			length := 0
 			for _, part := range eventParts {
 				length = length + len(part) + 1
 			}
 
-			ueventArray[5] = strconv.Itoa(length)
+			ueventArray = append(ueventArray, strconv.Itoa(length))
 			ueventArray = append(ueventArray, eventParts...)
 			_, _, err := shared.RunCommandSplit(context.TODO(), nil, []*os.File{pidFd}, d.state.OS.ExecPath, ueventArray...)
 			if err != nil {
