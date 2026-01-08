@@ -552,7 +552,8 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Apply host-side routes to bridge interface.
-	routes := make([]string, 0)
+	//nolint:prealloc
+	routes := []string{}
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
@@ -733,8 +734,8 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		}
 
 		// Remove old host-side routes from bridge interface.
-
-		oldRoutes := make([]string, 0)
+		//nolint:prealloc
+		oldRoutes := []string{}
 		oldRoutes = append(oldRoutes, shared.SplitNTrimSpace(oldConfig["ipv4.routes"], ",", -1, true)...)
 		oldRoutes = append(oldRoutes, shared.SplitNTrimSpace(oldConfig["ipv6.routes"], ",", -1, true)...)
 		oldRoutes = append(oldRoutes, shared.SplitNTrimSpace(oldConfig["ipv4.routes.external"], ",", -1, true)...)
@@ -742,7 +743,8 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		networkNICRouteDelete(oldConfig["parent"], oldRoutes...)
 
 		// Apply host-side routes to bridge interface.
-		routes := make([]string, 0)
+		//nolint:prealloc
+		routes := []string{}
 		routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
 		routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
 		routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
@@ -861,7 +863,8 @@ func (d *nicBridged) postStop() error {
 	}
 
 	// Remove host-side routes from bridge interface.
-	routes := make([]string, 0)
+	//nolint:prealloc
+	routes := []string{}
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
