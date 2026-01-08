@@ -69,7 +69,7 @@ func reverse6(slice []string) string {
 		slice[i], slice[j] = slice[j], slice[i]
 	}
 
-	slice6 := []string{}
+	slice6 := make([]string, 0, len(slice)/4)
 	for i := range len(slice) / 4 {
 		slice6 = append(slice6, strings.Join(slice[i*4:i*4+4], ""))
 	}
