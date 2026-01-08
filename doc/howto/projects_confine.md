@@ -38,6 +38,10 @@ To add the client certificate directly:
 
     lxc config trust add <certificate_file> --projects <project_name> --restricted
 
+```{important}
+The `--projects` flag requires `--restricted` to be set. Projects can only be used to restrict certificate access when the certificate is marked as restricted.
+```
+
 The client can then add the server as a remote in the usual way ([`lxc remote add <server_name> <token>`](lxc_remote_add.md) or [`lxc remote add <server_name> <server_address>`](lxc_remote_add.md)) and can only access the project or projects that have been specified.
 ```{note}
 You can specify the `--project` flag when adding a remote.
