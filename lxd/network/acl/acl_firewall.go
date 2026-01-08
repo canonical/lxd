@@ -85,7 +85,7 @@ func FirewallApplyACLRules(ctx context.Context, s *state.State, aclProjectName s
 		}
 	}
 
-	var rules []firewallDrivers.ACLRule
+	var rules = make([]firewallDrivers.ACLRule, 0, len(dropRules)+len(rejectRules)+len(allowRules)+2)
 	rules = append(rules, dropRules...)
 	rules = append(rules, rejectRules...)
 	rules = append(rules, allowRules...)
