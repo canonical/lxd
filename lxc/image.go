@@ -803,8 +803,8 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 
 	// Handle properties
 	for _, entry := range properties {
-		fields := strings.SplitN(entry, "=", 2)
-		if len(fields) < 2 {
+		key, value, found := strings.Cut(entry, "=")
+		if !found {
 			return fmt.Errorf("Bad property: %s", entry)
 		}
 
@@ -812,7 +812,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 			image.Properties = map[string]string{}
 		}
 
-		image.Properties[strings.TrimSpace(fields[0])] = strings.TrimSpace(fields[1])
+		image.Properties[strings.TrimSpace(key)] = strings.TrimSpace(value)
 	}
 
 	progress := cli.ProgressRenderer{
