@@ -47,7 +47,7 @@ func TestMetricSet_FilterSamples(t *testing.T) {
 	m.Merge(n)
 
 	for _, sample := range m.set[CPUSecondsTotal] {
-		hasKeys := []string{}
+		hasKeys := make([]string, 0, len(sample.Labels))
 
 		for k := range sample.Labels {
 			hasKeys = append(hasKeys, k)
