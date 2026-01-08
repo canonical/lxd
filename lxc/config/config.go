@@ -45,9 +45,9 @@ type Config struct {
 
 // GlobalConfigPath returns a joined path of the global configuration directory and passed arguments.
 func (c *Config) GlobalConfigPath(paths ...string) string {
-	configDir := "/etc/lxd"
-	if os.Getenv("LXD_GLOBAL_CONF") != "" {
-		configDir = os.Getenv("LXD_GLOBAL_CONF")
+	configDir := os.Getenv("LXD_GLOBAL_CONF")
+	if configDir == "" {
+		configDir = "/etc/lxd"
 	}
 
 	path := []string{configDir}
