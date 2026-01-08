@@ -29,9 +29,10 @@ func getUserAgent() string {
 		panic(err)
 	}
 
-	osTokens := []string{cases.Title(language.English).String(runtime.GOOS), arch}
-	osTokens = append(osTokens, getPlatformVersionStrings()...)
-
+	versionInfo := getPlatformVersionStrings()
+	osTokens := make([]string, 0, 2+len(versionInfo))
+	osTokens = append(osTokens, cases.Title(language.English).String(runtime.GOOS), arch)
+	osTokens = append(osTokens, versionInfo...)
 	// Initial version string
 	agent := "LXD " + Version
 	if IsLTSVersion {
