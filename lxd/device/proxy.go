@@ -579,7 +579,7 @@ func (d *proxy) rewriteHostAddr(addr string) string {
 		addr = shared.HostPath(addr)
 	}
 
-	return fmt.Sprintf("%s:%s", proto, addr)
+	return proto + ":" + addr
 }
 
 func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
