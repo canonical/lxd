@@ -433,19 +433,17 @@ func IsNetworkAddressCIDRV6(value string) error {
 
 // IsNetworkRangeV6 validates an IPv6 range in the format "start-end".
 func IsNetworkRangeV6(value string) error {
-	ips := strings.SplitN(value, "-", 2)
-	if len(ips) != 2 {
+	start, end, found := strings.Cut(value, "-")
+	if !found {
 		return errors.New("IP range must contain start and end IP addresses")
 	}
 
-	for _, ip := range ips {
-		err := IsNetworkAddressV6(ip)
-		if err != nil {
-			return err
-		}
+	err := IsNetworkAddressV6(start)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return IsNetworkAddressV6(end)
 }
 
 // IsNetworkVLAN validates a VLAN ID.
