@@ -251,7 +251,7 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, []extende
 
 	architectureName, _ := osarch.ArchitectureGetLocal()
 
-	newImages := []api.Image{}
+	newImages := make([]api.Image, 0, len(images))
 	for _, image := range images {
 		if image.Aliases != nil {
 			// Build a new list of aliases from the provided ones
