@@ -777,15 +777,9 @@ func IsRequestURL(value string) error {
 
 // IsCloudInitUserData checks value is valid cloud-init user data.
 func IsCloudInitUserData(value string) error {
-	if value == "#cloud-config" || strings.HasPrefix(value, "#cloud-config\n") {
-		lines := strings.SplitN(value, "\n", 2)
-
-		// If value only contains the cloud-config header, it is valid.
-		if len(lines) == 1 {
-			return nil
-		}
-
-		return IsYAML(lines[1])
+	content, found := strings.CutPrefix(value, "#cloud-config\n")
+	if found {
+		return IsYAML(content)
 	}
 
 	// Since there are various other user-data formats besides cloud-config, consider those valid.
