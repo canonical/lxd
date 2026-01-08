@@ -837,23 +837,19 @@ func IsValidCPUSet(value string) error {
 		return errors.New("Invalid CPU limit syntax")
 	}
 
-	cpus := make(map[int64]int)
+	cpus := make(map[int]int)
 	chunks := strings.SplitSeq(value, ",")
 
 	for chunk := range chunks {
-		if strings.Contains(chunk, "-") {
+		lowStr, highStr, found := strings.Cut(chunk, "-")
+		if found {
 			// Range
-			fields := strings.SplitN(chunk, "-", 2)
-			if len(fields) != 2 {
-				return fmt.Errorf("Invalid cpuset value: %s", value)
-			}
-
-			low, err := strconv.ParseInt(fields[0], 10, 64)
+			low, err := strconv.Atoi(lowStr)
 			if err != nil {
 				return fmt.Errorf("Invalid cpuset value: %s", value)
 			}
 
-			high, err := strconv.ParseInt(fields[1], 10, 64)
+			high, err := strconv.Atoi(highStr)
 			if err != nil {
 				return fmt.Errorf("Invalid cpuset value: %s", value)
 			}
@@ -863,7 +859,7 @@ func IsValidCPUSet(value string) error {
 			}
 		} else {
 			// Simple entry
-			nr, err := strconv.ParseInt(chunk, 10, 64)
+			nr, err := strconv.Atoi(chunk)
 			if err != nil {
 				return fmt.Errorf("Invalid cpuset value: %s", value)
 			}
