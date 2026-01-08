@@ -785,7 +785,7 @@ parts:
       - libatomic
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
-    source-commit: 39c97e9014101799b4c942e22af322d9ae84f6c0 # import/1%8.2.2+ds-0ubuntu1.11
+    source-commit: e4d56a8af1739abbc298b92dc4d777d281ea278a # import/1%10.1.0+ds-5ubuntu4
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -809,7 +809,6 @@ parts:
       - --disable-nettle
       - --disable-oss
       - --disable-parallels
-      - --disable-pvrdma
       - --disable-qed
       - --disable-sdl
       - --disable-slirp
@@ -840,7 +839,6 @@ parts:
       - --enable-vhost-kernel
       - --enable-vhost-net
       - --enable-vhost-user
-      - --enable-virtfs
       - --firmwarepath=/snap/lxd/current/share/qemu/
       - --localstatedir=/var/
       - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
@@ -861,6 +859,7 @@ parts:
         - liburing-dev
         - libusb-1.0-0-dev
         - libusbredirparser-dev
+        - python3-pip
         - quilt
         - librbd-dev
     stage-packages:
@@ -889,6 +888,16 @@ parts:
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
+
+      set -eux
+
+      # Download meson and pycotap Python wheels (normally shipped in upstream tarballs)
+      pip download --dest python/wheels meson==1.8.1 pycotap==1.3.1
+
+      # Ensure the wheels were downloaded
+      [ "$(sha256sum python/wheels/meson-1.8.1-py3-none-any.whl | awk '{print $1}')" = "374bbf71247e629475fc10b0bd2ef66fc418c2d8f4890572f74de0f97d0d42da" ] || { echo "Invalid sha256sum for meson"; exit 1; }
+      [ "$(sha256sum python/wheels/pycotap-1.3.1-py3-none-any.whl | awk '{print $1}')" = "1c3a25b3ff89e48f4e00f1f71dbbc1642b4f65c65d416524d07e73492fff25ea" ] || { echo "Invalid sha256sum for pycotap"; exit 1; }
+
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
@@ -899,12 +908,6 @@ parts:
 
       # Apply patches from Ubuntu sources.
       QUILT_PATCHES=debian/patches quilt push -a
-
-      # Apply custom patches
-      # These patches enable more accurate error message returned in case of CPU registers mismatches.
-      # This is backported from QEMU v9.2.2.
-      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/qemu-0001-kvm-Allow-kvm_arch_get-put_registers-to-accept-Error.patch"
-      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/qemu-0002-target-i386-kvm-Report-which-action-failed-in-kvm_ar.patch"
 
       sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
@@ -926,7 +929,6 @@ parts:
       usr/local/share/: share/
       usr/share/qemu/kvmvapic.bin: share/qemu/
       usr/share/qemu/s390-ccw.img: share/qemu/
-      usr/share/qemu/s390-netboot.img: share/qemu/
       usr/share/qemu/slof.bin: share/qemu/
       usr/share/seabios/bios-256k.bin: share/qemu/
       usr/share/seabios/vgabios-*: share/qemu/
@@ -935,7 +937,6 @@ parts:
       - bin/mkisofs*
       - bin/qemu-system-*
       - bin/qemu-img*
-      - bin/virtfs-proxy-helper*
       - lib/*/libatomic.so*
       - lib/*/libmagic*so*
       - lib/*/libnuma*so*
@@ -949,7 +950,6 @@ parts:
       - share/qemu/efi-virtio.rom
       - share/qemu/kvmvapic.bin
       - share/qemu/s390-ccw.img
-      - share/qemu/s390-netboot.img
       - share/qemu/slof.bin
       - share/qemu/vgabios-bochs-display.bin
       - share/qemu/vgabios-qxl.bin
