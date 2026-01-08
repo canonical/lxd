@@ -1792,7 +1792,7 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 			Header: "ENTITLEMENTS ==> (GROUPS)",
 			DataFunc: func(a any) (string, error) {
 				p, _ := a.(*displayPermission)
-				var rowsAssigned []string
+				rowsAssigned := make([]string, 0, len(p.entitlementsAssigned))
 				for k, v := range p.entitlementsAssigned {
 					// Pretty format for tables.
 					var assignedRow string
