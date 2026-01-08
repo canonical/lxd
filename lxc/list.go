@@ -170,17 +170,8 @@ func (c *cmdList) shouldShow(filters []string, inst *api.Instance, state *api.In
 	c.mapShorthandFilters()
 
 	for _, filter := range filters {
-		if strings.Contains(filter, "=") {
-			membs := strings.SplitN(filter, "=", 2)
-
-			key := membs[0]
-			var value string
-			if len(membs) < 2 {
-				value = ""
-			} else {
-				value = membs[1]
-			}
-
+		key, value, ok := strings.Cut(filter, "=")
+		if ok {
 			if initial || c.evaluateShorthandFilter(key, value, inst, state) {
 				continue
 			}
