@@ -1262,15 +1262,7 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 	for _, filter := range filters {
 		found := false
 		if strings.Contains(filter, "=") {
-			membs := strings.SplitN(filter, "=", 2)
-
-			key := membs[0]
-			var value string
-			if len(membs) < 2 {
-				value = ""
-			} else {
-				value = membs[1]
-			}
+			key, value, _ := strings.Cut(filter, "=")
 
 			for configKey, configValue := range state.Properties {
 				list := cmdList{}
