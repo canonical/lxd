@@ -572,9 +572,7 @@ func (d *proxy) setupNAT() error {
 }
 
 func (d *proxy) rewriteHostAddr(addr string) string {
-	fields := strings.SplitN(addr, ":", 2)
-	proto := fields[0]
-	addr = fields[1]
+	proto, addr, _ := strings.Cut(addr, ":")
 	if proto == "unix" && !strings.HasPrefix(addr, "@") {
 		// Unix non-abstract sockets need to be addressed to the host
 		// filesystem, not be scoped inside the LXD snap.
