@@ -76,7 +76,7 @@ func (m *MetricSet) Merge(metricSet *MetricSet) {
 
 func (m *MetricSet) String() string {
 	var out strings.Builder
-	metricTypes := []MetricType{}
+	metricTypes := make([]MetricType, 0, len(m.set))
 
 	// Sort output by metric type name
 	for metricType := range m.set {
