@@ -353,7 +353,7 @@ func (n *ovn) validateExternalSubnet(uplinkRoutes []*net.IPNet, projectRestricte
 func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnetUsage, error) {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
-	var externalSubnets []externalSubnetUsage
+	var externalSubnets = make([]externalSubnetUsage, 0)
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
@@ -5242,7 +5242,7 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 
 // loadBalancerFlattenVIPs flattens port maps into format compatible with OVN load balancers.
 func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBalancerPortMap) []openvswitch.OVNLoadBalancerVIP {
-	var vips []openvswitch.OVNLoadBalancerVIP
+	var vips = make([]openvswitch.OVNLoadBalancerVIP, 0)
 
 	for _, portMap := range portMaps {
 		for i, lp := range portMap.listenPorts {
