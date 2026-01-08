@@ -68,6 +68,8 @@ defaults:
 
 jobs:
   code-tests:
+    outputs:
+      fast-backend: ${{ steps.pick-fast-backend.outputs.fast-backend }}
     env:
       CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
       CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
@@ -185,6 +187,8 @@ jobs:
       - name: Run golangci-lint
         if: github.event_name == 'pull_request' || github.event_name == 'schedule'
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v8
+        with:
+          version: v2.7.2
 
       - name: Run static analysis
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
@@ -247,6 +251,16 @@ jobs:
             /home/runner/go/bin/sysinfo
           retention-days: 1
 
+      - name: Pick fast backend for system tests
+        id: pick-fast-backend
+        run: |
+          set -eux
+          fast_backend="btrfs"
+          if [ $(( "${GITHUB_RUN_ID:-"${RANDOM}"}" % 2 )) -eq 0 ]; then
+            fast_backend="dir"
+          fi
+          echo "fast-backend=${fast_backend}" >> "$GITHUB_OUTPUT"
+
   system-tests:
     env:
       LXD_CEPH_CLUSTER: "ceph"
@@ -267,19 +281,39 @@ jobs:
       matrix:
         include:
           - group: cluster
-            backends: fast
+            backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: cluster_storage
-            backends: all
+            backends: btrfs
+          - group: cluster_storage
+            backends: ceph
+          - group: cluster_storage
+            backends: dir
+          - group: cluster_storage
+            backends: lvm
+          - group: cluster_storage
+            backends: zfs
+          - group: cluster_storage
+            backends: random
           - group: image
-            backends: fast
+            backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: instance
-            backends: fast
+            backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: network
-            backends: fast
+            backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: standalone
-            backends: fast
+            backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: snap
-            backends: all
+            backends: btrfs
+          - group: snap
+            backends: ceph
+          - group: snap
+            backends: dir
+          - group: snap
+            backends: lvm
+          - group: snap
+            backends: zfs
+          - group: snap
+            backends: random
           - group: standalone_storage
             backends: btrfs
           - group: standalone_storage
@@ -372,16 +406,11 @@ jobs:
           set -eux
           echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
 
-      - name: "Run system tests (${{ matrix.group }}, ${{ matrix.backends }})"
-        env:
-          LXD_BACKENDS: ${{ matrix.backends }}
-          GROUP: ${{ matrix.group }}
+      - name: System Environment Setup
         run: |
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
-          cd test
-          export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
 
           # Check if there are existing coredumps
           if [ -n "$(ls -A /var/crash/)" ]; then
@@ -389,7 +418,82 @@ jobs:
             sudo rm /var/crash/*
           fi
 
-          # Run the tests for the selected backends
+      - name: "Run system tests (${{ matrix.group }}, btrfs)"
+        if: matrix.backends == 'all' || matrix.backends == 'btrfs'
+        env:
+          LXD_BACKENDS: btrfs
+          GROUP: ${{ matrix.group }}
+        working-directory: test
+        run: |
+          set -eux
+          export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
+
+          # Run the tests for the selected backend
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+
+      - name: "Run system tests (${{ matrix.group }}, ceph)"
+        if: matrix.backends == 'all' || matrix.backends == 'ceph'
+        env:
+          LXD_BACKENDS: ceph
+          GROUP: ${{ matrix.group }}
+        working-directory: test
+        run: |
+          set -eux
+          export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
+
+          # Run the tests for the selected backend
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+
+      - name: "Run system tests (${{ matrix.group }}, dir)"
+        if: matrix.backends == 'all' || matrix.backends == 'dir'
+        env:
+          LXD_BACKENDS: dir
+          GROUP: ${{ matrix.group }}
+        working-directory: test
+        run: |
+          set -eux
+          export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
+
+          # Run the tests for the selected backend
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+
+      - name: "Run system tests (${{ matrix.group }}, lvm)"
+        if: matrix.backends == 'all' || matrix.backends == 'lvm'
+        env:
+          LXD_BACKENDS: lvm
+          GROUP: ${{ matrix.group }}
+        working-directory: test
+        run: |
+          set -eux
+          export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
+
+          # Run the tests for the selected backend
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+
+      - name: "Run system tests (${{ matrix.group }}, zfs)"
+        if: matrix.backends == 'all' || matrix.backends == 'zfs'
+        env:
+          LXD_BACKENDS: zfs
+          GROUP: ${{ matrix.group }}
+        working-directory: test
+        run: |
+          set -eux
+          export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
+
+          # Run the tests for the selected backend
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+
+      - name: "Run system tests (${{ matrix.group }}, random)"
+        if: matrix.backends == 'all' || matrix.backends == 'random'
+        env:
+          LXD_BACKENDS: random
+          GROUP: ${{ matrix.group }}
+        working-directory: test
+        run: |
+          set -eux
+          export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
+
+          # Run the tests for the selected backend
           sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
 
       - name: Upload crash dumps

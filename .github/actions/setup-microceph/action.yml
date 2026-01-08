@@ -5,15 +5,15 @@ inputs:
   microceph-channel:
     description: MicroCeph snap channel to install
     default: "latest/edge"
-    type: string
+    required: false
   osd-count:
     description: Number of OSDs to add to MicroCeph
-    default: 1
-    type: integer
+    default: "1"
+    required: false
   snap-cache-dir:
     description: Directory to use for snap cache
     default: "/home/runner/snap-cache"
-    type: string
+    required: false
 
 runs:
   using: composite

@@ -14,7 +14,6 @@ description: |
 inputs:
   ssh-key:
     description: The private SSH key for pulling/pushing to Launchpad and commit signing.
-    type: string
     required: true
 
 runs:
