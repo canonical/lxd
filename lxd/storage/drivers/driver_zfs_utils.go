@@ -68,7 +68,8 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 }
 
 func (d *zfs) createDataset(dataset string, options ...string) error {
-	args := []string{"create"}
+	args := make([]string, 1, 1+2*len(options)+1)
+	args[0] = "create"
 	for _, option := range options {
 		args = append(args, "-o", option)
 	}
@@ -84,7 +85,11 @@ func (d *zfs) createDataset(dataset string, options ...string) error {
 }
 
 func (d *zfs) createVolume(dataset string, size int64, options ...string) error {
-	args := []string{"create", "-s", "-V", strconv.FormatInt(size, 10)}
+	args := make([]string, 4, 4+2*len(options)+1)
+	args[0] = "create"
+	args[1] = "-s"
+	args[2] = "-V"
+	args[3] = strconv.FormatInt(size, 10)
 	for _, option := range options {
 		args = append(args, "-o", option)
 	}
@@ -268,7 +273,8 @@ func (d *zfs) filterRedundantOptions(dataset string, options ...string) ([]strin
 }
 
 func (d *zfs) setDatasetProperties(dataset string, options ...string) error {
-	args := []string{"set"}
+	args := make([]string, 1, 1+len(options)+1)
+	args[0] = "set"
 	args = append(args, options...)
 	args = append(args, dataset)
 
