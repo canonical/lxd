@@ -57,7 +57,7 @@ func New(updates []Update) *Schema {
 // see also PR #3704.
 func NewFromMap(versionsToUpdates map[int]Update) *Schema {
 	// Collect all version keys.
-	versions := []int{}
+	versions := make([]int, 0, len(versionsToUpdates))
 	for version := range versionsToUpdates {
 		versions = append(versions, version)
 	}
@@ -66,7 +66,7 @@ func NewFromMap(versionsToUpdates map[int]Update) *Schema {
 	sort.Ints(versions)
 
 	// Build the updates slice.
-	updates := []Update{}
+	updates := make([]Update, 0, len(versions))
 	for i, version := range versions {
 		// Assert that we start from 1 and there are no gaps.
 		if version != i+1 {
@@ -204,6 +204,7 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 // It requires that all patches in this schema have been applied, otherwise an
 // error will be returned.
 func (s *Schema) Dump(db *sql.DB) (string, error) {
+	//nolint:prealloc
 	var statements []string
 	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		err := checkAllUpdatesAreApplied(ctx, tx, s.updates)
