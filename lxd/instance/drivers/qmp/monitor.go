@@ -287,8 +287,8 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 	return monitor, nil
 }
 
-// AgenStarted indicates whether an agent has been detected.
-func (m *Monitor) AgenStarted() bool {
+// AgentStarted indicates whether an agent has been detected.
+func (m *Monitor) AgentStarted() bool {
 	m.agentStartedMu.Lock()
 	defer m.agentStartedMu.Unlock()
 
