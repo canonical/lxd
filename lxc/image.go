@@ -168,6 +168,12 @@ It requires the source to be an alias and for it to be public.`)
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", cli.FormatStringFlagLabel("Transfer mode. One of pull (default), push or relay"))
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", cli.FormatStringFlagLabel("Copy to a project different from the source"))
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, cli.FormatStringFlagLabel("Profile to apply to the new image"))
+
+	// Shadow the global "project" flag to update its description for this command.
+	// For "lxc image copy", the --project flag dictates the destination (target) project,
+	// making it functionally equivalent to --target-project.
+	cmd.Flags().StringVar(&c.global.flagProject, "project", "", cli.FormatStringFlagLabel("Copy to a project different from the source"))
+
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
