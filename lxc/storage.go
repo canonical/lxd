@@ -644,7 +644,7 @@ func (c *cmdStorageList) command() *cobra.Command {
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = "List available storage pools"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel(("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel(("Format (csv|json|table|yaml|compact)")))
 
 	cmd.RunE = c.run
 
@@ -732,7 +732,7 @@ func (c *cmdStorageSet) command() *cobra.Command {
 For backward compatibility, a single configuration key may still be set with:
     lxc storage set [<remote>:]<pool> <key> <value>`)
 
-	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", cli.FormatStringLabel("Cluster member name"))
+	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Set the key as a storage property")
 	cmd.RunE = c.run
 
@@ -831,7 +831,7 @@ func (c *cmdStorageShow) command() *cobra.Command {
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().BoolVar(&c.flagResources, "resources", false, "Show the resources available to the storage pool")
-	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", cli.FormatStringLabel("Cluster member name"))
+	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -923,7 +923,7 @@ func (c *cmdStorageUnset) command() *cobra.Command {
 	cmd.Short = "Unset storage pool configuration key"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
-	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", cli.FormatStringLabel("Cluster member name"))
+	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Unset the key as a storage property")
 	cmd.RunE = c.run
 
