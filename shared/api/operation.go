@@ -63,7 +63,7 @@ type Operation struct {
 	// Example: Some error message
 	Err string `json:"err" yaml:"err"`
 
-	// What cluster member this record was found on
+	// Which cluster member this record was found on
 	// Example: lxd01
 	//
 	// API extension: operation_location
