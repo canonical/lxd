@@ -62,13 +62,35 @@ To add or remove a {ref}`member role <clustering-member-roles>` for a cluster me
 
     lxc cluster role add <member-name> <role>
 
-Example:
+Examples:
 
     lxc cluster role add server1 event-hub
+    lxc cluster role add server1 control-plane
 
 ```{note}
-You can add or remove only those roles that are not assigned automatically by LXD. To find out which roles are automatically assigned, see: {ref}`clustering-member-roles`.
+You can add or remove only those roles that are not assigned automatically by LXD. Database roles (`database-voter`, `database-standby`, `database-leader`) are automatically assigned and cannot be added or removed manually.
+
+To find out more about which roles are automatically assigned, see: {ref}`clustering-member-roles`.
 ```
+
+(cluster-manage-control-plane)=
+### Use control plane mode
+
+The `control-plane` role is useful for auto-scaling clusters where you want fixed database members and dynamic worker members. To use it:
+
+1. Assign the role to at least 3 members:
+
+       lxc cluster role add <member1> control-plane
+       lxc cluster role add <member2> control-plane
+       lxc cluster role add <member3> control-plane
+
+2. Verify activation by running `lxc cluster list` — only members with the `control-plane` role will display database roles.
+
+3. New members join the cluster as spares by default. To make them eligible for database roles, assign the `control-plane` role to them.
+
+You can assign `control-plane` to more members than {config:option}`server-cluster:cluster.max_voters` to create a pool of eligible candidates. For example, having 5 `control-plane` members when {config:option}`server-cluster:cluster.max_voters` is 3 means 3 of the 5 candidates become voters. If one of the voters becomes unavailable, one of the remaining two candidates takes its place.
+
+For more information, see: {ref}`clustering-control-plane`.
 
 (cluster-manage-failure-domains)=
 ### Manage failure domains

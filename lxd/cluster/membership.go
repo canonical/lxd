@@ -311,10 +311,40 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		return nil, errors.New("Cannot convert maximum standby cluster members to int: Upper bound exceeded")
 	}
 
-	if count > 1 && voters < int(maxVoters) {
-		node.Role = db.RaftVoter
-	} else if standbys < int(maxStandBy) {
-		node.Role = db.RaftStandBy
+	// Check if the new member is eligible for promotion.
+	// Members are always eligible unless control plane mode is active and they lack the control-plane role.
+	var canPromote bool
+	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get the new member (it's still pending at this point).
+		newMember, err := tx.GetPendingNodeByAddress(ctx, address)
+		if err != nil {
+			return fmt.Errorf("Failed getting new member %q: %w", address, err)
+		}
+
+		canPromote = slices.Contains(newMember.Roles, db.ClusterRoleControlPlane)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// If member doesn't have control-plane role, check if control plane mode is active.
+	if !canPromote {
+		memberRoles, err := getMemberRoles(context.TODO(), state)
+		if err != nil {
+			return nil, err
+		}
+
+		// Member is only eligible if control plane mode is not active.
+		canPromote = !IsControlPlaneActive(memberRoles)
+	}
+
+	if canPromote {
+		if count > 1 && voters < int(maxVoters) {
+			node.Role = db.RaftVoter
+		} else if standbys < int(maxStandBy) {
+			node.Role = db.RaftStandBy
+		}
 	}
 
 	nodes = append(nodes, node)
@@ -722,13 +752,78 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	wg.Wait()
 }
 
+// getMemberRoles retrieves all cluster members and returns a map of their roles keyed by address.
+func getMemberRoles(ctx context.Context, state *state.State) (map[string][]db.ClusterRole, error) {
+	var members []db.NodeInfo
+	err := state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		members, err = tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build memberRoles map.
+	memberRoles := make(map[string][]db.ClusterRole, len(members))
+	for _, member := range members {
+		memberRoles[member.Address] = member.Roles
+	}
+
+	return memberRoles, nil
+}
+
+// IsControlPlaneActive returns true if control plane mode is active.
+// Control plane mode is active when 3 or more members have the control-plane role.
+func IsControlPlaneActive(memberRoles map[string][]db.ClusterRole) bool {
+	controlPlaneCount := 0
+	for _, roles := range memberRoles {
+		if slices.Contains(roles, db.ClusterRoleControlPlane) {
+			controlPlaneCount++
+		}
+	}
+
+	return controlPlaneCount >= 3
+}
+
+// filterPromotionCandidates returns the subset of candidates that are eligible for
+// promotion based on control plane mode and member roles. When controlPlaneActive
+// is true, only candidates with the control-plane role are eligible.
+func filterPromotionCandidates(candidates []client.NodeInfo, memberRoles map[string][]db.ClusterRole, controlPlaneActive bool) []client.NodeInfo {
+	if !controlPlaneActive {
+		return candidates
+	}
+
+	eligible := make([]client.NodeInfo, 0, len(candidates))
+	for _, candidate := range candidates {
+		roles, ok := memberRoles[candidate.Address]
+		if !ok {
+			continue
+		}
+
+		if slices.Contains(roles, db.ClusterRoleControlPlane) {
+			eligible = append(eligible, candidate)
+		}
+	}
+
+	return eligible
+}
+
 // Rebalance the raft cluster, trying to see if we have a spare online node
 // that we can promote to voter node if we are below membershipMaxRaftVoters,
 // or to standby if we are below membershipMaxStandBys.
 //
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
-func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
+//
+// The optional memberRoles parameter can be provided to avoid redundant database
+// queries when the caller already has this data (e.g., from heartbeats). If
+// memberRoles is nil, member data will be fetched from the database.
+func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string, memberRoles map[string][]db.ClusterRole) (string, []db.RaftNode, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
 		return "", nil, nil
@@ -736,9 +831,62 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return "", nil, fmt.Errorf("Get current raft nodes: %w", err)
+		return "", nil, fmt.Errorf("Failed getting current raft nodes: %w", err)
 	}
 
+	localClusterAddress := state.LocalConfig.ClusterAddress()
+
+	// If memberRoles is not provided, fetch from database.
+	if memberRoles == nil {
+		memberRoles, err = getMemberRoles(state.ShutdownCtx, state)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+
+	controlPlaneActive := IsControlPlaneActive(memberRoles)
+
+	// If control plane mode is active, demote non-control-plane members with database roles to spare.
+	// This must happen before checking for promotions because roles.Adjust() counts existing
+	// voters/standbys to determine available slots. By demoting ineligible members first, we
+	// create vacancies that roles.Adjust() can detect and fill with eligible control plane members.
+	if controlPlaneActive {
+		for _, node := range nodes {
+			// Skip spares
+			if node.Role == db.RaftSpare {
+				continue
+			}
+
+			// Skip offline/unavailable members
+			if slices.Contains(unavailableMembers, node.Address) {
+				continue
+			}
+
+			// Check if this member has the control-plane role
+			roles, ok := memberRoles[node.Address]
+			if !ok {
+				continue
+			}
+
+			// If member doesn't have control-plane role but has a database role, demote it
+			if !slices.Contains(roles, db.ClusterRoleControlPlane) {
+				logger.Info("Found non-control-plane member with database role requiring demotion", logger.Ctx{"address": node.Address, "currentRole": node.Role, "local": localClusterAddress})
+
+				// Set target role to spare. The Assign() function will handle the two-phase
+				// voter -> standby -> spare transition automatically if needed.
+				for i := range nodes {
+					if nodes[i].Address == node.Address {
+						nodes[i].Role = db.RaftSpare
+						break
+					}
+				}
+
+				return node.Address, nodes, nil
+			}
+		}
+	}
+
+	// Check if there are role adjustments needed (promotions).
 	roles, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
 	if err != nil {
 		return "", nil, err
@@ -751,11 +899,14 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 		return "", nodes, nil
 	}
 
-	localClusterAddress := state.LocalConfig.ClusterAddress()
+	// Filter candidates to only those eligible for promotion.
+	candidates = filterPromotionCandidates(candidates, memberRoles, controlPlaneActive)
+	if len(candidates) == 0 {
+		return "", nodes, nil
+	}
 
-	// Check if we have a spare node that we can promote to the missing role.
 	candidateAddress := candidates[0].Address
-	logger.Info("Found cluster member whose role needs to be changed", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
+	logger.Info("Found cluster member requiring role change", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
 
 	for i, node := range nodes {
 		if node.Address == candidateAddress {
@@ -1079,6 +1230,18 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 
 	role, candidates := roles.Handover(nodeID)
 	if role == -1 {
+		return "", nil, nil
+	}
+
+	var memberRoles map[string][]db.ClusterRole
+	memberRoles, err = getMemberRoles(state.ShutdownCtx, state)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Filter candidates to only those eligible for promotion.
+	candidates = filterPromotionCandidates(candidates, memberRoles, IsControlPlaneActive(memberRoles))
+	if len(candidates) == 0 {
 		return "", nil, nil
 	}
 
