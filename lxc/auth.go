@@ -33,7 +33,7 @@ func (c *cmdAuth) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("auth")
 	cmd.Short = "Manage user authorization"
-	cmd.Long = cli.FormatSection("Description", `Manage user authorization`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	groupCmd := cmdGroup{global: c.global}
 	cmd.AddCommand(groupCmd.command())
@@ -64,7 +64,7 @@ func (c *cmdGroup) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("group")
 	cmd.Short = "Manage groups"
-	cmd.Long = cli.FormatSection("Description", `Manage groups`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	groupCreateCmd := cmdGroupCreate{global: c.global}
 	cmd.AddCommand(groupCreateCmd.command())
@@ -101,8 +101,8 @@ type cmdGroupCreate struct {
 func (c *cmdGroupCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", "[<remote>:]<group>")
-	cmd.Short = "Create groups"
-	cmd.Long = cli.FormatSection("Description", `Create groups`)
+	cmd.Short = "Create group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagDescription, "description", "d", "", "Group description")
 	cmd.RunE = c.run
 
@@ -154,8 +154,8 @@ func (c *cmdGroupDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", "[<remote>:]<group>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = "Delete groups"
-	cmd.Long = cli.FormatSection("Description", `Delete groups`)
+	cmd.Short = "Delete group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -203,7 +203,7 @@ func (c *cmdGroupEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", "[<remote>:]<group>")
 	cmd.Short = "Edit groups as YAML"
-	cmd.Long = cli.FormatSection("Description", `Edit groups as YAML`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc auth group edit <group> < group.yaml
    Update a group using the content of group.yaml`)
 
@@ -329,10 +329,10 @@ func (c *cmdGroupList) command() *cobra.Command {
 	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = "List groups"
-	cmd.Long = cli.FormatSection("Description", `List groups`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	return cmd
 }
@@ -387,8 +387,8 @@ func (c *cmdGroupRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", "[<remote>:]<group> <new_name>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = "Rename groups"
-	cmd.Long = cli.FormatSection("Description", `Rename groups`)
+	cmd.Short = "Rename group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -436,7 +436,7 @@ func (c *cmdGroupShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", "[<remote>:]<group>")
 	cmd.Short = "Show group configurations"
-	cmd.Long = cli.FormatSection("Description", `Show group configurations`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -487,7 +487,7 @@ func (c *cmdGroupPermission) command() *cobra.Command {
 	cmd.Use = usage("permission")
 	cmd.Aliases = []string{"perm"}
 	cmd.Short = "Manage permissions"
-	cmd.Long = cli.FormatSection("Description", `Manage permissions`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	groupCreateCmd := cmdGroupPermissionAdd{global: c.global}
 	cmd.AddCommand(groupCreateCmd.command())
@@ -509,7 +509,7 @@ func (c *cmdGroupPermissionAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", "[<remote>:]<group> <entity_type> [<entity_name>] <entitlement> [<key>=<value>...]")
 	cmd.Short = "Add permissions to groups"
-	cmd.Long = cli.FormatSection("Description", `Add permissions to groups`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -567,7 +567,7 @@ func (c *cmdGroupPermissionRemove) command() *cobra.Command {
 	cmd.Use = usage("remove", "[<remote>:]<group> <entity_type> [<entity_name>] <entitlement> [<key>=<value>...]")
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = "Remove permissions from groups"
-	cmd.Long = cli.FormatSection("Description", `Remove permissions from groups`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -760,7 +760,7 @@ func (c *cmdIdentity) command() *cobra.Command {
 	cmd.Use = usage("identity")
 	cmd.Aliases = []string{"user"}
 	cmd.Short = "Manage identities"
-	cmd.Long = cli.FormatSection("Description", `Manage identities`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	identityCreateCmd := cmdIdentityCreate{global: c.global, identity: c}
 	cmd.AddCommand(identityCreateCmd.command())
@@ -1001,10 +1001,10 @@ func (c *cmdIdentityList) command() *cobra.Command {
 	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = "List identities"
-	cmd.Long = cli.FormatSection("Description", `List identities`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	return cmd
 }
@@ -1188,7 +1188,7 @@ func (c *cmdIdentityEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", "[<remote>:]<group>")
 	cmd.Short = "Edit an identity as YAML"
-	cmd.Long = cli.FormatSection("Description", `Edit an identity as YAML`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc auth identity edit <type>/<name_or_identifier> < identity.yaml
    Update an identity using the content of identity.yaml`)
 
@@ -1312,7 +1312,7 @@ func (c *cmdIdentityDelete) command() *cobra.Command {
 	cmd.Use = usage("delete", "[<remote>:]<type>/<name_or_identifier>")
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = "Delete an identity"
-	cmd.Long = cli.FormatSection("Description", `Delete an identity`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc auth identity delete oidc/jane.doe@example.com
 	Delete the OIDC identity with email address "jane.doe@example.com" in the default remote.
 
@@ -1368,7 +1368,7 @@ func (c *cmdIdentityGroup) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("group")
 	cmd.Short = "Manage groups for the identity"
-	cmd.Long = cli.FormatSection("Description", `Manage groups for the identity`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	identityGroupAddCmd := cmdIdentityGroupAdd{global: c.global, identity: c.identity}
 	cmd.AddCommand(identityGroupAddCmd.command())
@@ -1391,7 +1391,7 @@ func (c *cmdIdentityGroupAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", "[<remote>:]<type>/<name_or_identifier> <group>")
 	cmd.Short = "Add a group to an identity"
-	cmd.Long = cli.FormatSection("Description", `Add a group to an identity`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1442,7 +1442,7 @@ func (c *cmdIdentityGroupRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", "[<remote>:]<type>/<name_or_identifier> <group>")
 	cmd.Short = "Remove a group from an identity"
-	cmd.Long = cli.FormatSection("Description", `Remove a group from an identity`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1495,8 +1495,7 @@ func (c *cmdIdentityToken) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("token")
 	cmd.Short = "Manage bearer identity tokens"
-	cmd.Long = cli.FormatSection("Description", `Issue and revoke tokens for bearer identities
-`)
+	cmd.Long = cli.FormatSection("Description", "Issue and revoke tokens for bearer identities")
 
 	tokenIssueCmd := cmdIdentityTokenIssue{global: c.global, identity: c.identity}
 	cmd.AddCommand(tokenIssueCmd.command())
@@ -1520,7 +1519,7 @@ func (c *cmdIdentityTokenIssue) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("issue", "[<remote>:]<type>/<name>")
 	cmd.Short = "Issue a token for a bearer identity"
-	cmd.Long = cli.FormatSection("Description", `Issue a token for a bearer identity
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 Note that this revokes the current token if one is issued`)
 
@@ -1581,7 +1580,7 @@ func (c *cmdIdentityTokenRevoke) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("revoke", "[<remote>:]<authentication_method>/<name_or_identifier>")
 	cmd.Short = "Revoke the current token for a bearer identity"
-	cmd.Long = cli.FormatSection("Description", `Revoke the current token for a bearer identity`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1638,7 +1637,7 @@ func (c *cmdPermission) command() *cobra.Command {
 	cmd.Use = usage("permission")
 	cmd.Aliases = []string{"perm"}
 	cmd.Short = "Inspect permissions"
-	cmd.Long = cli.FormatSection("Description", `Inspect permissions`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	permissionListCmd := cmdPermissionList{global: c.global}
 	cmd.AddCommand(permissionListCmd.command())
@@ -1659,7 +1658,7 @@ func (c *cmdPermissionList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", "[<remote>:] [project=<project_name>] [entity_type=<entity_type>]")
 	cmd.Short = "List permissions"
-	cmd.Long = cli.FormatSection("Description", `List permissions`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().IntVar(&c.flagMaxEntitlements, "max-entitlements", 3, "Maximum number of unassigned entitlements to display before overflowing (set to zero to display all)")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", cli.TableFormatTable, "Display format (json, yaml, table, compact, csv)")
@@ -1840,7 +1839,7 @@ func (c *cmdIdentityProviderGroup) command() *cobra.Command {
 	cmd.Use = usage("identity-provider-group")
 	cmd.Aliases = []string{"idp-group"}
 	cmd.Short = "Manage groups"
-	cmd.Long = cli.FormatSection("Description", `Manage groups`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	idpGroupCreateCmd := cmdIdentityProviderGroupCreate{global: c.global}
 	cmd.AddCommand(idpGroupCreateCmd.command())
@@ -1876,8 +1875,8 @@ type cmdIdentityProviderGroupCreate struct {
 func (c *cmdIdentityProviderGroupCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", "[<remote>:]<group>")
-	cmd.Short = "Create identity provider groups"
-	cmd.Long = cli.FormatSection("Description", `Create identity provider groups`)
+	cmd.Short = "Create identity provider group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.RunE = c.run
 
 	return cmd
@@ -1927,8 +1926,8 @@ func (c *cmdIdentityProviderGroupDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", "[<remote>:]<identity_provider_group>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = "Delete identity provider groups"
-	cmd.Long = cli.FormatSection("Description", `Delete identity provider groups`)
+	cmd.Short = "Delete identity provider group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1976,7 +1975,7 @@ func (c *cmdIdentityProviderGroupEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", "[<remote>:]<identity_provider_group>")
 	cmd.Short = "Edit identity provider groups as YAML"
-	cmd.Long = cli.FormatSection("Description", `Edit identity provider groups as YAML`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc auth identity-provider-group edit <identity_provider_group> < identity-provider-group.yaml
    Update an identity provider group using the content of identity-provider-group.yaml`)
 
@@ -2092,10 +2091,10 @@ func (c *cmdIdentityProviderGroupList) command() *cobra.Command {
 	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = "List identity provider groups"
-	cmd.Long = cli.FormatSection("Description", `List identity provider groups`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	return cmd
 }
@@ -2150,8 +2149,8 @@ func (c *cmdIdentityProviderGroupRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", "[<remote>:]<identity_provider_group> <new_name>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = "Rename identity provider groups"
-	cmd.Long = cli.FormatSection("Description", `Rename identity provider groups`)
+	cmd.Short = "Rename identity provider group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -2199,7 +2198,7 @@ func (c *cmdIdentityProviderGroupShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", "[<remote>:]<identity_provider_group>")
 	cmd.Short = "Show an identity provider group"
-	cmd.Long = cli.FormatSection("Description", `Show an identity provider group`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -2249,7 +2248,7 @@ func (c *cmdIdentityProviderGroupGroup) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("group")
 	cmd.Short = "Manage identity provider group mappings"
-	cmd.Long = cli.FormatSection("Description", `Manage identity provider group mappings`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	identityProviderGroupGroupAddCmd := cmdIdentityProviderGroupGroupAdd{global: c.global}
 	cmd.AddCommand(identityProviderGroupGroupAddCmd.command())
@@ -2271,7 +2270,7 @@ func (c *cmdIdentityProviderGroupGroupAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", "[<remote>:]<identity_provider_group> <group>")
 	cmd.Short = "Add a group to an identity provider group"
-	cmd.Long = cli.FormatSection("Description", `Add a group to an identity provider group`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -2323,7 +2322,7 @@ func (c *cmdIdentityProviderGroupGroupRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", "[<remote>:]<identity_provider_group> <group>")
 	cmd.Short = "Remove a LXD group from an identity provider group"
-	cmd.Long = cli.FormatSection("Description", `Remove a LXD group from an identity provider group`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -2385,7 +2384,7 @@ func (c *cmdOIDCSession) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("oidc-session")
 	cmd.Short = "Manage OIDC sessions"
-	cmd.Long = cli.FormatSection("Description", `Manage OIDC sessions`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	sessionDeleteCmd := cmdOIDCSessionDelete{global: c.global}
 	cmd.AddCommand(sessionDeleteCmd.command())
@@ -2410,7 +2409,7 @@ func (c *cmdOIDCSessionShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", "[<remote>:]<session ID>")
 	cmd.Short = "Show OIDC session"
-	cmd.Long = cli.FormatSection("Description", `Show an OIDC session`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -2462,10 +2461,10 @@ func (c *cmdOIDCSessionList) command() *cobra.Command {
 	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = "List OIDC sessions"
-	cmd.Long = cli.FormatSection("Description", `List OIDC sessions`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	return cmd
 }
@@ -2532,8 +2531,8 @@ func (c *cmdOIDCSessionDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", "[<remote>:]<session_id>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = "Delete OIDC sessions"
-	cmd.Long = cli.FormatSection("Description", `Delete an OIDC session`)
+	cmd.Short = "Delete OIDC session"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 

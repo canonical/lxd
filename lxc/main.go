@@ -82,7 +82,7 @@ func main() {
 	app := &cobra.Command{}
 	app.Use = "lxc"
 	app.Short = "Command line client for LXD"
-	app.Long = cli.FormatSection("Description", `Command line client for LXD
+	app.Long = cli.FormatSection("Description", app.Short+`
 
 All of LXD's features can be driven through the various commands below.
 For help with any of those, simply call them with --help.`)
@@ -94,7 +94,7 @@ For help with any of those, simply call them with --help.`)
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, "Print help")
 	app.PersistentFlags().BoolVar(&globalCmd.flagForceLocal, "force-local", false, "Force using the local unix socket")
-	app.PersistentFlags().StringVar(&globalCmd.flagProject, "project", "", "Override the source project"+"``")
+	app.PersistentFlags().StringVar(&globalCmd.flagProject, "project", "", cli.FormatStringFlagLabel("Override the source project"))
 	app.PersistentFlags().BoolVar(&globalCmd.flagLogDebug, "debug", false, "Show all debug messages")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagLogVerbose, "verbose", "v", false, "Show all information messages")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagQuiet, "quiet", "q", false, "Don't show progress information")
