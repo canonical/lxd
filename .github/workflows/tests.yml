@@ -187,8 +187,6 @@ jobs:
       - name: Run golangci-lint
         if: github.event_name == 'pull_request' || github.event_name == 'schedule'
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v8
-        with:
-          version: v2.7.2
 
       - name: Run static analysis
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
