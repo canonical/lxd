@@ -68,6 +68,9 @@ const (
 
 	// identityTypeBearerDevLXD is the code for [api.IdentityTypeBearerTokenDevLXD].
 	identityTypeBearerDevLXD int64 = 9
+
+	// identityTypeBearerLXD is the code for [api.IdentityTypeBearerTokenLXD].
+	identityTypeBearerLXD int64 = 10
 )
 
 // types is a slice of all identity types that implement the [Type] interface.
@@ -81,6 +84,7 @@ var types = []Type{
 	CertificateMetricsUnrestricted{},
 	CertificateServer{},
 	DevLXDTokenBearer{},
+	LXDTokenBearer{},
 }
 
 var nameToType = make(map[string]Type, len(types))
