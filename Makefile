@@ -97,7 +97,7 @@ lxd-client:
 
 .PHONY: fuidshift
 fuidshift:
-	go install -v -trimpath -buildvcs=false $(COVER) ./fuidshift
+	CGO_ENABLED=1 go install -v -trimpath -buildvcs=false $(COVER) ./fuidshift
 	@echo "$@ built successfully"
 
 .PHONY: mini-oidc
