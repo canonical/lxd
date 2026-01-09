@@ -26,6 +26,7 @@ import (
 //go:generate mapper stmt -e operation objects-by-Class
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-Reference
+//go:generate mapper stmt -e operation objects-by-ProjectID
 //go:generate mapper stmt -e operation create
 //go:generate mapper stmt -e operation create-or-replace
 //go:generate mapper stmt -e operation delete-by-Reference
@@ -64,6 +65,7 @@ type Operation struct {
 // OperationFilter specifies potential query parameter fields.
 type OperationFilter struct {
 	ID        *int64
+	ProjectID *int64
 	NodeID    *int64
 	Reference *string
 	Type      *operationtype.Type
