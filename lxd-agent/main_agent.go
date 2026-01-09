@@ -184,7 +184,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// startStatusNotifier sends status of agent to vserial ring buffer every 10s or when context is done.
+// startStatusNotifier sends status of agent to vserial ring buffer every 5s or when context is done.
 // Returns a function that can be used to update the running status to STOPPED in the ring buffer.
 func (c *cmdAgent) startStatusNotifier(ctx context.Context, chConnected <-chan struct{}) context.CancelFunc {
 	// Write initial started status.
