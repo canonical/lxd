@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"time"
@@ -231,4 +232,57 @@ func (o *NB) nbctl(extraArgs ...string) (string, error) {
 
 	args = append(args, extraArgs...)
 	return shared.RunCommandInheritFds(context.Background(), files, "ovn-nbctl", args...)
+}
+
+// get is used to perform a libovsdb Get call while also making use of the custom defined indexes.
+// The libovsdb Get() function only uses the built-in indices rather than considering the user provided ones.
+// This seems to be by design but makes it harder to fetch records from some tables.
+func (o *NB) get(ctx context.Context, m ovsdbModel.Model) error {
+	var collection any
+
+	// Check if the model is one of the types with custom defined index.
+	switch m.(type) {
+	case *ovnNB.LoadBalancer:
+		s := []ovnNB.LoadBalancer{}
+		collection = &s
+	case *ovnNB.LogicalRouter:
+		s := []ovnNB.LogicalRouter{}
+		collection = &s
+	case *ovnNB.LogicalSwitch:
+		s := []ovnNB.LogicalSwitch{}
+		collection = &s
+	case *ovnNB.LogicalSwitchPort:
+		s := []ovnNB.LogicalSwitchPort{}
+		collection = &s
+	default:
+		// Fallback to normal Get.
+		return o.client.Get(ctx, m)
+	}
+
+	// Check and assign the resulting value.
+	err := o.client.Where(m).List(ctx, collection)
+	if err != nil {
+		return err
+	}
+
+	rVal := reflect.ValueOf(collection)
+	if rVal.Kind() != reflect.Pointer {
+		return errors.New("Bad collection type")
+	}
+
+	rVal = rVal.Elem()
+	if rVal.Kind() != reflect.Slice {
+		return errors.New("Bad collection type")
+	}
+
+	if rVal.Len() == 0 {
+		return ovsdbClient.ErrNotFound
+	}
+
+	if rVal.Len() > 1 {
+		return ErrTooMany
+	}
+
+	reflect.ValueOf(m).Elem().Set(rVal.Index(0))
+	return nil
 }
