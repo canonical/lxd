@@ -248,21 +248,21 @@ func getConfig(args ...string) (map[string]string, error) {
 	values := map[string]string{}
 
 	for _, arg := range args {
-		fields := strings.SplitN(arg, "=", 2)
-		if len(fields) != 2 {
+		key, value, found := strings.Cut(arg, "=")
+		if !found {
 			return nil, fmt.Errorf("Invalid key=value configuration: %s", arg)
 		}
 
-		if fields[1] == "-" && !termios.IsTerminal(getStdinFd()) {
+		if value == "-" && !termios.IsTerminal(getStdinFd()) {
 			buf, err := io.ReadAll(os.Stdin)
 			if err != nil {
 				return nil, fmt.Errorf("Can't read from stdin: %w", err)
 			}
 
-			fields[1] = string(buf[:])
+			value = string(buf[:])
 		}
 
-		values[fields[0]] = fields[1]
+		values[key] = value
 	}
 
 	return values, nil
