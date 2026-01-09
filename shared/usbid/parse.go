@@ -79,30 +79,30 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 	classes := make(map[ClassCode]*Class) // TODO(kevlar): count
 
 	split := func(s string) (kind string, level int, id uint16, name string, err error) {
-		pieces := strings.SplitN(s, "  ", 2)
-		if len(pieces) != 2 {
+		left, right, found := strings.Cut(s, "  ")
+		if !found {
 			err = fmt.Errorf("malformatted line %q", s)
 			return kind, level, id, name, err
 		}
 
 		// Save the name
-		name = pieces[1]
+		name = right
 
 		// Parse out the level
-		for len(pieces[0]) > 0 && pieces[0][0] == '\t' {
-			level, pieces[0] = level+1, pieces[0][1:]
+		for len(left) > 0 && left[0] == '\t' {
+			level, left = level+1, left[1:]
 		}
 
 		// Parse the first piece to see if it has a kind
-		first := strings.SplitN(pieces[0], " ", 2)
-		if len(first) == 2 {
-			kind, pieces[0] = first[0], first[1]
+		firstKind, firstRest, found := strings.Cut(left, " ")
+		if found {
+			kind, left = firstKind, firstRest
 		}
 
 		// Parse the ID
-		i, err := strconv.ParseUint(pieces[0], 16, 16)
+		i, err := strconv.ParseUint(left, 16, 16)
 		if err != nil {
-			err = fmt.Errorf("malformatted id %q: %w", pieces[0], err)
+			err = fmt.Errorf("malformatted id %q: %w", left, err)
 			return kind, level, id, name, err
 		}
 
