@@ -2890,22 +2890,19 @@ test_clustering_failure_domains() {
   # Default failure domain
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "failure_domain: default"
 
-  # Set failure domains
+  # Test the new failure-domain subcommand by setting failure domains
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain set node1 az1
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain set node2 az2
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain set node3 az3
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain set node4 az1
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain set node5 az2
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain set node6 az3
 
-  # shellcheck disable=SC2039
-  printf 'roles: ["database-leader"]\nfailure_domain: "az1"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node1
-  # shellcheck disable=SC2039
-  printf 'roles: ["database-voter"]\nfailure_domain: "az2"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node2
-  # shellcheck disable=SC2039
-  printf 'roles: ["database-voter"]\nfailure_domain: "az3"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node3
-  # shellcheck disable=SC2039
-  printf 'roles: []\nfailure_domain: "az1"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node4
-  # shellcheck disable=SC2039
-  printf 'roles: []\nfailure_domain: "az2"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node5
-  # shellcheck disable=SC2039
-  printf 'roles: []\nfailure_domain: "az3"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node6
-
+  # Verify failure domain was set
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "failure_domain: az2"
+
+  # Test the get subcommand
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain get node2)" = "az2" ]
 
   # Shutdown a node in az2, its replacement is picked from az2.
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
