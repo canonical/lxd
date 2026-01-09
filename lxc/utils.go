@@ -35,7 +35,7 @@ func runBatch(names []string, action func(name string) error) []batchResult {
 		}(name)
 	}
 
-	results := []batchResult{}
+	results := make([]batchResult, 0, len(names))
 	for range names {
 		results = append(results, <-chResult)
 	}

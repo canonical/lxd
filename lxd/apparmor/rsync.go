@@ -117,7 +117,8 @@ func RsyncWrapper(sysOS *sys.OS, cmd *exec.Cmd, sourcePath string, dstPath strin
 	}
 
 	// Override the command.
-	newArgs := []string{"aa-exec", "-p", profileName}
+	newArgs := make([]string, 0, 3+len(cmd.Args))
+	newArgs = append(newArgs, "aa-exec", "-p", profileName)
 	newArgs = append(newArgs, cmd.Args...)
 	cmd.Args = newArgs
 	cmd.Path = execPath

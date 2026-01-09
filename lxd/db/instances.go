@@ -756,7 +756,9 @@ func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, de
 	// Insert/update keys
 	if len(changes) > 0 {
 		query := insertSQL
+		//nolint:prealloc
 		exprs := []string{}
+		//nolint:prealloc
 		params := []any{}
 		for key, value := range changes {
 			exprs = append(exprs, "(?, ?, ?)")
@@ -894,7 +896,10 @@ SELECT storage_pools.name FROM storage_pools
    AND storage_volumes_all.type IN (?,?)
    AND storage_volumes_all.project_id = instances.project_id
    AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
+
+	//nolint:prealloc
 	inargs := []any{projectName, instanceName, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, c.nodeID}
+	//nolint:prealloc
 	outargs := []any{&poolName}
 
 	for _, driver := range remoteDrivers {

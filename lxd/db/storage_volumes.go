@@ -379,7 +379,8 @@ func (c *ClusterTx) GetLocalStoragePoolVolumeSnapshotsWithType(ctx context.Conte
     AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)
   ORDER BY storage_volumes_snapshots.creation_date, storage_volumes_snapshots.id`
 
-	args := []any{poolID, volumeType, volumeName, projectName, c.nodeID}
+	args := make([]any, 0, 5+len(remoteDrivers))
+	args = append(args, poolID, volumeType, volumeName, projectName, c.nodeID)
 	for _, driver := range remoteDrivers {
 		args = append(args, driver)
 	}
@@ -592,8 +593,8 @@ SELECT storage_volumes_all.id
 	AND storage_volumes_all.type=?
 	AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
 
-	args := []any{project, poolID, volumeName, volumeType, nodeID}
-
+	args := make([]any, 0, 5+len(remoteDrivers))
+	args = append(args, project, poolID, volumeName, volumeType, nodeID)
 	for _, driver := range remoteDrivers {
 		args = append(args, driver)
 	}
@@ -760,7 +761,8 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
    AND storage_pools.name=?
    AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
 
-	inargs := []any{typ, name, pool, c.nodeID}
+	inargs := make([]any, 0, 4+len(remoteDrivers))
+	inargs = append(inargs, typ, name, pool, c.nodeID)
 	for _, driver := range remoteDrivers {
 		inargs = append(inargs, driver)
 	}

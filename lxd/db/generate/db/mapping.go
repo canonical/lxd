@@ -543,7 +543,7 @@ func (f Field) ScalarTableColumn() (tableName string, columnName string, err err
 
 // FieldNames returns the names of the given fields.
 func FieldNames(fields []*Field) []string {
-	names := []string{}
+	names := make([]string, 0, len(fields))
 	for _, f := range fields {
 		names = append(names, f.Name)
 	}
