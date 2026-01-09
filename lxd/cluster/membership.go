@@ -722,6 +722,67 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	wg.Wait()
 }
 
+// getMemberRoles retrieves all cluster members and returns a map of their roles keyed by address.
+func getMemberRoles(ctx context.Context, state *state.State) (map[string][]db.ClusterRole, error) {
+	var members []db.NodeInfo
+	err := state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		members, err = tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build memberRoles map.
+	memberRoles := make(map[string][]db.ClusterRole, len(members))
+	for _, member := range members {
+		memberRoles[member.Address] = member.Roles
+	}
+
+	return memberRoles, nil
+}
+
+// IsControlPlaneActive returns true if control plane mode is active.
+// Control plane mode is active when 3 or more members have the control-plane role.
+func IsControlPlaneActive(memberRoles map[string][]db.ClusterRole) bool {
+	controlPlaneCount := 0
+	for _, roles := range memberRoles {
+		if slices.Contains(roles, db.ClusterRoleControlPlane) {
+			controlPlaneCount++
+		}
+	}
+
+	return controlPlaneCount >= 3
+}
+
+// filterPromotionCandidates returns the subset of candidates that are eligible for
+// promotion based on control plane mode and member roles. When controlPlaneActive
+// is true, only candidates with the control-plane role are eligible.
+func filterPromotionCandidates(candidates []client.NodeInfo, memberRoles map[string][]db.ClusterRole, controlPlaneActive bool) []client.NodeInfo {
+	if !controlPlaneActive {
+		return candidates
+	}
+
+	eligible := make([]client.NodeInfo, 0, len(candidates))
+	for _, candidate := range candidates {
+		roles, ok := memberRoles[candidate.Address]
+		if !ok {
+			continue
+		}
+
+		if slices.Contains(roles, db.ClusterRoleControlPlane) {
+			eligible = append(eligible, candidate)
+		}
+	}
+
+	return eligible
+}
+
 // Rebalance the raft cluster, trying to see if we have a spare online node
 // that we can promote to voter node if we are below membershipMaxRaftVoters,
 // or to standby if we are below membershipMaxStandBys.
