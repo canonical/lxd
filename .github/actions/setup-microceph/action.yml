@@ -56,7 +56,7 @@ runs:
           if [ -e test/includes/snap.sh ]; then
             sudo --preserve-env=SNAP_CACHE_DIR bash -c "
               . test/includes/snap.sh; \
-              install_snap snapd latest/candidate; \
+              install_snap snapd latest/beta; \
               install_snap core24 latest/stable; \
               install_snap microceph \"${SNAP_CHANNEL}\"; \
             "
