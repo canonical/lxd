@@ -19,6 +19,12 @@ var monitorsLock sync.Mutex
 // RingbufSize is the size of the agent serial ringbuffer in bytes.
 var RingbufSize = 16
 
+// ringbufReadInterval is the regular polling interval for ringbuffer reads.
+var ringbufReadInterval = 10 * time.Second
+
+// ringbufReadMinInterval limits how often ringbuffer reads can happen.
+var ringbufReadMinInterval = time.Second
+
 // EventAgentStarted is the event sent once the lxd-agent has started.
 var EventAgentStarted = "LXD-AGENT-STARTED"
 
@@ -44,6 +50,8 @@ type Monitor struct {
 
 // start handles the background goroutines for event handling and monitoring the ringbuffer.
 func (m *Monitor) start() error {
+	ringbufCheckCh := make(chan struct{}, 1)
+
 	// Ringbuffer monitoring function.
 	checkBuffer := func() {
 		// Prepare the response.
@@ -84,6 +92,62 @@ func (m *Monitor) start() error {
 		}
 	}
 
+	triggerRingbufCheck := func() {
+		select {
+		case ringbufCheckCh <- struct{}{}:
+		default:
+		}
+	}
+
+	// Start ringbuffer monitoring go routine.
+	go func() {
+		var lastRead time.Time
+		ticker := time.NewTicker(ringbufReadInterval)
+		defer ticker.Stop()
+		timer := time.NewTimer(0)
+		if !timer.Stop() {
+			<-timer.C
+		}
+
+		check := func() {
+			if !lastRead.IsZero() {
+				elapsed := time.Since(lastRead)
+				if elapsed < ringbufReadMinInterval {
+					if !timer.Stop() {
+						select {
+						case <-timer.C:
+						default:
+						}
+					}
+					timer.Reset(ringbufReadMinInterval - elapsed)
+					select {
+					case <-timer.C:
+					case <-m.chDisconnect:
+						timer.Stop()
+						return
+					}
+				}
+			}
+
+			checkBuffer()
+			lastRead = time.Now()
+		}
+
+		// Perform an immediate initial read; subsequent reads are rate-limited via ringbufReadMinInterval.
+		check()
+
+		for {
+			select {
+			case <-m.chDisconnect:
+				return
+			case <-ticker.C:
+				check()
+			case <-ringbufCheckCh:
+				check()
+			}
+		}
+	}()
+
 	// Start event monitoring go routine.
 	chEvents, err := m.qmp.getEvents(context.Background())
 	if err != nil {
@@ -93,9 +157,6 @@ func (m *Monitor) start() error {
 	go func() {
 		logger.Debug("QMP monitor started", logger.Ctx{"path": m.path})
 		defer logger.Debug("QMP monitor stopped", logger.Ctx{"path": m.path})
-
-		// Initial read from the ringbuffer.
-		go checkBuffer()
 
 		for {
 			// Wait for an event, disconnection or timeout.
@@ -133,12 +194,7 @@ func (m *Monitor) start() error {
 				}
 
 				// Check if the ringbuffer was updated (non-blocking).
-				go checkBuffer()
-			case <-time.After(10 * time.Second):
-				// Check if the ringbuffer was updated (non-blocking).
-				go checkBuffer()
-
-				continue
+				triggerRingbufCheck()
 			}
 		}
 	}()
