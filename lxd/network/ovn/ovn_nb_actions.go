@@ -1,6 +1,7 @@
 package ovn
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -8,6 +9,10 @@ import (
 	"strings"
 	"time"
 
+	ovsdbClient "github.com/ovn-kubernetes/libovsdb/client"
+	"github.com/ovn-kubernetes/libovsdb/ovsdb"
+
+	ovnNB "github.com/canonical/lxd/lxd/network/ovn/schema/ovn-nb"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/dnsutil"
 )
@@ -178,23 +183,58 @@ type OVNRouterPeering struct {
 }
 
 // LogicalRouterAdd adds a named logical router.
-func (o *NB) LogicalRouterAdd(routerName OVNRouter, mayExist bool) error {
-	args := []string{}
-
-	if mayExist {
-		args = append(args, "--may-exist")
+// If mayExist is true, then an existing resource of the same name is not treated as an error.
+func (o *NB) LogicalRouterAdd(ctx context.Context, routerName OVNRouter, mayExist bool) error {
+	logicalRouter := ovnNB.LogicalRouter{
+		Name: string(routerName),
 	}
 
-	// Create a logical router.
-	args = append(args, "lr-add", string(routerName), "--")
+	// Check if already exists.
+	err := o.get(ctx, &logicalRouter)
+	if err != nil && !errors.Is(err, ovsdbClient.ErrNotFound) {
+		return err
+	}
 
-	// Set its properties.
-	args = append(args, "set", "logical_router", string(routerName),
-		"options:always_learn_from_arp_request=false",
-		"options:dynamic_neigh_routers=true",
-	)
+	if logicalRouter.UUID != "" {
+		if !mayExist {
+			return ErrExists
+		}
 
-	_, err := o.nbctl(args...)
+		if logicalRouter.Options != nil {
+			return nil
+		}
+	}
+
+	// Set options for the logical router to limit the number of
+	// unnecessary MAC_Binding entries in the OVN Southbound database.
+	logicalRouter.Options = map[string]string{
+		"always_learn_from_arp_request": "false",
+		"dynamic_neigh_routers":         "true",
+	}
+
+	var operations []ovsdb.Operation
+
+	if logicalRouter.UUID == "" {
+		// Create the record if it does not exist.
+		operations, err = o.client.Create(&logicalRouter)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Update the record.
+		operations, err = o.client.Where(&logicalRouter).Update(&logicalRouter)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Apply the changes.
+	resp, err := o.client.Transact(ctx, operations...)
+	if err != nil {
+		return err
+	}
+
+	_, err = ovsdb.CheckOperationResults(resp, operations)
 	if err != nil {
 		return err
 	}
