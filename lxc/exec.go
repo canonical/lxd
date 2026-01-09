@@ -14,7 +14,6 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/termios"
 )
@@ -36,10 +35,9 @@ type cmdExec struct {
 
 func (c *cmdExec) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("exec", i18n.G("[<remote>:]<instance> [flags] [--] <command line>"))
-	cmd.Short = i18n.G("Execute commands in instances")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Execute commands in instances
+	cmd.Use = usage("exec", "[<remote>:]<instance> [flags] [--] <command line>")
+	cmd.Short = "Execute command in instance"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 The command is executed directly using exec, so there is no shell and
 shell patterns (variables, file redirects, ...) won't be understood.
@@ -59,17 +57,17 @@ This 'shell' alias is a shorthand for:
 
 Note: due to using 'su -l', most environment variables will be reset.
 
-Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`))
+Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringArrayVar(&c.flagEnvironment, "env", nil, i18n.G("Environment variable to set (e.g. HOME=/home/foo)")+"``")
-	cmd.Flags().StringVar(&c.flagMode, "mode", "auto", i18n.G("Override the terminal mode (auto, interactive or non-interactive)")+"``")
-	cmd.Flags().BoolVarP(&c.flagForceInteractive, "force-interactive", "t", false, i18n.G("Force pseudo-terminal allocation"))
-	cmd.Flags().BoolVarP(&c.flagForceNonInteractive, "force-noninteractive", "T", false, i18n.G("Disable pseudo-terminal allocation"))
-	cmd.Flags().BoolVarP(&c.flagDisableStdin, "disable-stdin", "n", false, i18n.G("Disable stdin (reads from /dev/null)"))
-	cmd.Flags().Uint32Var(&c.flagUser, "user", 0, i18n.G("User ID to run the command as (default 0)")+"``")
-	cmd.Flags().Uint32Var(&c.flagGroup, "group", 0, i18n.G("Group ID to run the command as (default 0)")+"``")
-	cmd.Flags().StringVar(&c.flagCwd, "cwd", "", i18n.G("Directory to run the command in (default /root)")+"``")
+	cmd.Flags().StringArrayVar(&c.flagEnvironment, "env", nil, cli.FormatStringFlagLabel("Environment variable to set (e.g. HOME=/home/foo)"))
+	cmd.Flags().StringVar(&c.flagMode, "mode", "auto", cli.FormatStringFlagLabel("Override the terminal mode (auto, interactive or non-interactive)"))
+	cmd.Flags().BoolVarP(&c.flagForceInteractive, "force-interactive", "t", false, "Force pseudo-terminal allocation")
+	cmd.Flags().BoolVarP(&c.flagForceNonInteractive, "force-noninteractive", "T", false, "Disable pseudo-terminal allocation")
+	cmd.Flags().BoolVarP(&c.flagDisableStdin, "disable-stdin", "n", false, "Disable stdin (reads from /dev/null)")
+	cmd.Flags().Uint32Var(&c.flagUser, "user", 0, cli.FormatStringFlagLabel("User ID to run the command as (default 0)"))
+	cmd.Flags().Uint32Var(&c.flagGroup, "group", 0, cli.FormatStringFlagLabel("Group ID to run the command as (default 0)"))
+	cmd.Flags().StringVar(&c.flagCwd, "cwd", "", cli.FormatStringFlagLabel("Directory to run the command in (default /root)"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -109,11 +107,11 @@ func (c *cmdExec) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagForceInteractive && c.flagForceNonInteractive {
-		return errors.New(i18n.G("You can't pass -t and -T at the same time"))
+		return errors.New("You can't pass -t and -T at the same time")
 	}
 
 	if c.flagMode != "auto" && (c.flagForceInteractive || c.flagForceNonInteractive) {
-		return errors.New(i18n.G("You can't pass -t or -T at the same time as --mode"))
+		return errors.New("You can't pass -t or -T at the same time as --mode")
 	}
 
 	// Connect to the daemon
