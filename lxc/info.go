@@ -511,14 +511,14 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 			for entry, disk := range inst.State.Disk {
 				// Only show usage when supported.
 				if disk.Usage != -1 {
-					diskUsage.WriteString(fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2)))
+					fmt.Fprintf(&diskUsage, "    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
 				}
 			}
 
 			for entry, disk := range inst.State.Disk {
 				// Only show total for disks that are bounded within the pool.
 				if disk.Total != -1 {
-					diskTotal.WriteString(fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2)))
+					fmt.Fprintf(&diskTotal, "    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
 				}
 			}
 		}
@@ -534,7 +534,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 		// CPU usage
 		var cpuInfo strings.Builder
 		if inst.State.CPU.Usage != 0 {
-			cpuInfo.WriteString(fmt.Sprintf("    CPU usage (in seconds): %v\n", inst.State.CPU.Usage/1000000000))
+			fmt.Fprintf(&cpuInfo, "    CPU usage (in seconds): %v\n", inst.State.CPU.Usage/1000000000)
 		}
 
 		if cpuInfo.Len() > 0 {
@@ -545,19 +545,19 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 		// Memory usage
 		var memoryInfo strings.Builder
 		if inst.State.Memory.Usage != 0 {
-			memoryInfo.WriteString(fmt.Sprintf("    Memory (current): %s\n", units.GetByteSizeStringIEC(inst.State.Memory.Usage, 2)))
+			fmt.Fprintf(&memoryInfo, "    Memory (current): %s\n", units.GetByteSizeStringIEC(inst.State.Memory.Usage, 2))
 		}
 
 		if inst.State.Memory.UsagePeak != 0 {
-			memoryInfo.WriteString(fmt.Sprintf("    Memory (peak): %s\n", units.GetByteSizeStringIEC(inst.State.Memory.UsagePeak, 2)))
+			fmt.Fprintf(&memoryInfo, "    Memory (peak): %s\n", units.GetByteSizeStringIEC(inst.State.Memory.UsagePeak, 2))
 		}
 
 		if inst.State.Memory.SwapUsage != 0 {
-			memoryInfo.WriteString(fmt.Sprintf("    Swap (current): %s\n", units.GetByteSizeStringIEC(inst.State.Memory.SwapUsage, 2)))
+			fmt.Fprintf(&memoryInfo, "    Swap (current): %s\n", units.GetByteSizeStringIEC(inst.State.Memory.SwapUsage, 2))
 		}
 
 		if inst.State.Memory.SwapUsagePeak != 0 {
-			memoryInfo.WriteString(fmt.Sprintf("    Swap (peak): %s\n", units.GetByteSizeStringIEC(inst.State.Memory.SwapUsagePeak, 2)))
+			fmt.Fprintf(&memoryInfo, "    Swap (peak): %s\n", units.GetByteSizeStringIEC(inst.State.Memory.SwapUsagePeak, 2))
 		}
 
 		if memoryInfo.Len() > 0 {
@@ -569,33 +569,33 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 		var networkInfo strings.Builder
 		if inst.State.Network != nil {
 			for netName, net := range inst.State.Network {
-				networkInfo.WriteString(fmt.Sprintf("    %s:\n", netName))
-				networkInfo.WriteString(fmt.Sprintf("      Type: %s\n", net.Type))
-				networkInfo.WriteString(fmt.Sprintf("      State: %s\n", strings.ToUpper(net.State)))
+				fmt.Fprintf(&networkInfo, "    %s:\n", netName)
+				fmt.Fprintf(&networkInfo, "      Type: %s\n", net.Type)
+				fmt.Fprintf(&networkInfo, "      State: %s\n", strings.ToUpper(net.State))
 				if net.HostName != "" {
-					networkInfo.WriteString(fmt.Sprintf("      Host interface: %s\n", net.HostName))
+					fmt.Fprintf(&networkInfo, "      Host interface: %s\n", net.HostName)
 				}
 
 				if net.Hwaddr != "" {
-					networkInfo.WriteString(fmt.Sprintf("      MAC address: %s\n", net.Hwaddr))
+					fmt.Fprintf(&networkInfo, "      MAC address: %s\n", net.Hwaddr)
 				}
 
 				if net.Mtu != 0 {
-					networkInfo.WriteString(fmt.Sprintf("      MTU: %d\n", net.Mtu))
+					fmt.Fprintf(&networkInfo, "      MTU: %d\n", net.Mtu)
 				}
 
-				networkInfo.WriteString(fmt.Sprintf("      Bytes received: %s\n", units.GetByteSizeString(net.Counters.BytesReceived, 2)))
-				networkInfo.WriteString(fmt.Sprintf("      Bytes sent: %s\n", units.GetByteSizeString(net.Counters.BytesSent, 2)))
-				networkInfo.WriteString(fmt.Sprintf("      Packets received: %d\n", net.Counters.PacketsReceived))
-				networkInfo.WriteString(fmt.Sprintf("      Packets sent: %d\n", net.Counters.PacketsSent))
+				fmt.Fprintf(&networkInfo, "      Bytes received: %s\n", units.GetByteSizeString(net.Counters.BytesReceived, 2))
+				fmt.Fprintf(&networkInfo, "      Bytes sent: %s\n", units.GetByteSizeString(net.Counters.BytesSent, 2))
+				fmt.Fprintf(&networkInfo, "      Packets received: %d\n", net.Counters.PacketsReceived)
+				fmt.Fprintf(&networkInfo, "      Packets sent: %d\n", net.Counters.PacketsSent)
 
-				networkInfo.WriteString(fmt.Sprintf("      IP addresses:\n"))
+				fmt.Fprintf(&networkInfo, "      IP addresses:\n")
 
 				for _, addr := range net.Addresses {
 					if addr.Family == "inet" {
-						networkInfo.WriteString(fmt.Sprintf("        %s:  %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope))
+						fmt.Fprintf(&networkInfo, "        %s:  %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope)
 					} else {
-						networkInfo.WriteString(fmt.Sprintf("        %s: %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope))
+						fmt.Fprintf(&networkInfo, "        %s: %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope)
 					}
 				}
 			}
