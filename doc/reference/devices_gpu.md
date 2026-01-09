@@ -72,6 +72,14 @@ If your machine has an NVIDIA iGPU (integrated GPU) located at index 0, you can 
 
     lxc config device add <instance_name> <device_name> gpu gputype=physical id=nvidia.com/igpu=0
 
+Similarly, for AMD GPUs using CDI, you can add the first available discrete GPU or all GPUs:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=physical id=amd.com/gpu=0
+
+Or pass all AMD GPUs from the host:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=physical id=amd.com/gpu=all
+
 For a complete example on how to use a GPU CDI pass-through, see {ref}`container-gpu-passthrough-with-docker`.
 
 (gpu-mdev)=
