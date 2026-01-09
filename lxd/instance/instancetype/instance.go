@@ -301,8 +301,8 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 			return err
 		}
 
-		if num == 0 {
-			return errors.New("Memory limit can't be 0")
+		if num < 1024*1024 {
+			return errors.New("Memory limit is too low (minimum 1MiB)")
 		}
 
 		return nil
