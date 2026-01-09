@@ -14,7 +14,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdCopy struct {
@@ -37,11 +36,10 @@ type cmdCopy struct {
 
 func (c *cmdCopy) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("copy", i18n.G("[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"))
+	cmd.Use = usage("copy", "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]")
 	cmd.Aliases = []string{"cp"}
-	cmd.Short = i18n.G("Copy instances within or in between LXD servers")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Copy instances within or in between LXD servers
+	cmd.Short = "Copy instance within or in between LXD servers"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 Transfer modes (--mode):
  - pull: Target server pulls the data from the source server (source must listen on network)
@@ -49,23 +47,22 @@ Transfer modes (--mode):
  - relay: The CLI connects to both source and server and proxies the data (both source and target must listen on network)
 
 The pull transfer mode is the default as it is compatible with all LXD versions.
-`))
+`)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
-	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
-	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new instance")+"``")
-	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, i18n.G("Ephemeral instance"))
-	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull, push or relay")+"``")
-	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false, i18n.G("Copy the instance without its snapshots"))
-	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful instance stateless"))
-	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
-	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
-	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the instance with no profiles applied"))
-	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Perform an incremental copy"))
-	cmd.Flags().BoolVar(&c.flagAllowInconsistent, "allow-inconsistent", false, i18n.G("Ignore copy errors for volatile files"))
-
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, cli.FormatStringFlagLabel("Config key/value to apply to the new instance"))
+	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, cli.FormatStringFlagLabel("New key/value to apply to a specific device"))
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, cli.FormatStringFlagLabel("Profile to apply to the new instance"))
+	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, "Ephemeral instance")
+	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", cli.FormatStringFlagLabel("Transfer mode. One of pull, push or relay"))
+	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false, "Copy the instance without its snapshots")
+	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, "Copy a stateful instance stateless")
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", cli.FormatStringFlagLabel("Storage pool name"))
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", cli.FormatStringFlagLabel("Copy to a project different from the source"))
+	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied")
+	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, "Perform an incremental copy")
+	cmd.Flags().BoolVar(&c.flagAllowInconsistent, "allow-inconsistent", false, "Ignore copy errors for volatile files")
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			return c.global.cmpTopLevelResource("instance", toComplete)
@@ -96,12 +93,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 	// Make sure we have an instance or snapshot name
 	if sourceName == "" {
-		return errors.New(i18n.G("You must specify a source instance name"))
+		return errors.New("You must specify a source instance name")
 	}
 
 	// Don't allow refreshing without profiles.
 	if c.flagRefresh && c.flagNoProfiles {
-		return errors.New(i18n.G("--no-profiles cannot be used with --refresh"))
+		return errors.New("--no-profiles cannot be used with --refresh")
 	}
 
 	// If the instance is being copied to a different remote and no destination name is
@@ -113,7 +110,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 	// Ensure that a destination name is provided.
 	if destName == "" {
-		return errors.New(i18n.G("You must specify a destination instance name"))
+		return errors.New("You must specify a destination instance name")
 	}
 
 	// Connect to the source host
@@ -142,7 +139,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 	// Confirm that --target is only used with a cluster
 	if c.flagTarget != "" && !dest.IsClustered() {
-		return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
+		return errors.New("To use --target, the destination remote must be a cluster")
 	}
 
 	// Parse the config overrides
@@ -150,7 +147,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	for _, entry := range c.flagConfig {
 		key, value, found := strings.Cut(entry, "=")
 		if !found {
-			return fmt.Errorf(i18n.G("Bad key=value pair: %q"), entry)
+			return fmt.Errorf("Bad key=value pair: %q", entry)
 		}
 
 		configMap[key] = value
@@ -167,7 +164,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 	if shared.IsSnapshot(sourceName) {
 		if instanceOnly {
-			return errors.New(i18n.G("--instance-only can't be passed when the source is a snapshot"))
+			return errors.New("--instance-only can't be passed when the source is a snapshot")
 		}
 
 		// Prepare the instance creation request
@@ -178,7 +175,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		if c.flagRefresh {
-			return errors.New(i18n.G("--refresh can only be used with instances"))
+			return errors.New("--refresh can only be used with instances")
 		}
 
 		// Copy of a snapshot into a new instance
@@ -387,7 +384,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 	// Watch the background operation
 	progress := cli.ProgressRenderer{
-		Format: i18n.G("Transferring instance: %s"),
+		Format: "Transferring instance: %s",
 		Quiet:  c.global.flagQuiet,
 	}
 
@@ -409,7 +406,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	if c.flagRefresh {
 		inst, etag, err := dest.GetInstance(destName)
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to refresh target instance '%s': %v"), destName, err)
+			return fmt.Errorf("Failed to refresh target instance %q: %v", destName, err)
 		}
 
 		// Ensure we don't change the target's volatile.idmap.next value.
@@ -431,7 +428,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 		// Watch the background operation
 		progress := cli.ProgressRenderer{
-			Format: i18n.G("Refreshing instance: %s"),
+			Format: "Refreshing instance: %s",
 			Quiet:  c.global.flagQuiet,
 		}
 

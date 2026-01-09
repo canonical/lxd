@@ -11,7 +11,6 @@ import (
 
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdOperation struct {
@@ -21,9 +20,8 @@ type cmdOperation struct {
 func (c *cmdOperation) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("operation")
-	cmd.Short = i18n.G("List, show and delete background operations")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List, show and delete background operations`))
+	cmd.Short = "Manage background operations"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Delete
 	operationDeleteCmd := cmdOperationDelete{global: c.global, operation: c}
@@ -51,11 +49,10 @@ type cmdOperationDelete struct {
 
 func (c *cmdOperationDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<operation>"))
+	cmd.Use = usage("delete", "[<remote>:]<operation>")
 	cmd.Aliases = []string{"cancel", "rm"}
-	cmd.Short = i18n.G("Delete a background operation (will attempt to cancel)")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete a background operation (will attempt to cancel)`))
+	cmd.Short = "Delete a background operation (will attempt to cancel)"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -84,7 +81,7 @@ func (c *cmdOperationDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Operation %s deleted")+"\n", resource.name)
+		fmt.Printf("Operation %s deleted\n", resource.name)
 	}
 
 	return nil
@@ -101,13 +98,13 @@ type cmdOperationList struct {
 
 func (c *cmdOperationList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List background operations")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List background operations`))
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
-	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("List operations from all projects")+"``")
+	cmd.Short = "List background operations"
+	cmd.Long = cli.FormatSection("Description", "List background operations")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "List operations from all projects")
 
 	cmd.RunE = c.run
 
@@ -134,7 +131,7 @@ func (c *cmdOperationList) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name != "" {
-		return errors.New(i18n.G("Filtering isn't supported yet"))
+		return errors.New("Filtering isn't supported yet")
 	}
 
 	// Get operations
@@ -152,9 +149,9 @@ func (c *cmdOperationList) run(cmd *cobra.Command, args []string) error {
 	// Render the table
 	data := [][]string{}
 	for _, op := range operations {
-		cancelable := i18n.G("NO")
+		cancelable := "NO"
 		if op.MayCancel {
-			cancelable = i18n.G("YES")
+			cancelable = "YES"
 		}
 
 		entry := []string{op.ID, strings.ToUpper(op.Class), op.Description, strings.ToUpper(op.Status), cancelable, op.CreatedAt.UTC().Format("2006/01/02 15:04 UTC")}
@@ -168,14 +165,14 @@ func (c *cmdOperationList) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("ID"),
-		i18n.G("TYPE"),
-		i18n.G("DESCRIPTION"),
-		i18n.G("STATUS"),
-		i18n.G("CANCELABLE"),
-		i18n.G("CREATED")}
+		"ID",
+		"TYPE",
+		"DESCRIPTION",
+		"STATUS",
+		"CANCELABLE",
+		"CREATED"}
 	if resource.server.IsClustered() {
-		header = append(header, i18n.G("LOCATION"))
+		header = append(header, "LOCATION")
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, operations)
@@ -189,13 +186,11 @@ type cmdOperationShow struct {
 
 func (c *cmdOperationShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<operation>"))
-	cmd.Short = i18n.G("Show details on a background operation")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show details on a background operation`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc operation show 344a79e4-d88a-45bf-9c39-c72c26f6ab8a
-    Show details on that operation UUID`))
+	cmd.Use = usage("show", "[<remote>:]<operation>")
+	cmd.Short = "Show details of a background operation"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc operation show 344a79e4-d88a-45bf-9c39-c72c26f6ab8a
+    Show details on that operation UUID`)
 
 	cmd.RunE = c.run
 

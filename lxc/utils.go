@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -60,7 +59,7 @@ func getProfileDevices(destRemote lxd.InstanceServer, serverSideProfiles []strin
 	for _, profileName := range profiles {
 		profile, _, err := destRemote.GetProfile(profileName)
 		if err != nil {
-			return nil, fmt.Errorf(i18n.G("Failed loading profile %q: %w"), profileName, err)
+			return nil, fmt.Errorf("Failed loading profile %q: %w", profileName, err)
 		}
 
 		maps.Copy(profileDevices, profile.Devices)
@@ -80,7 +79,7 @@ func instanceDeviceAdd(client lxd.InstanceServer, name string, devName string, d
 	// Check if the device already exists
 	_, ok := inst.Devices[devName]
 	if ok {
-		return fmt.Errorf(i18n.G("Device already exists: %s"), devName)
+		return fmt.Errorf("Device already exists: %s", devName)
 	}
 
 	inst.Devices[devName] = dev
@@ -104,7 +103,7 @@ func profileDeviceAdd(client lxd.InstanceServer, name string, devName string, de
 	// Check if the device already exists
 	_, ok := profile.Devices[devName]
 	if ok {
-		return fmt.Errorf(i18n.G("Device already exists: %s"), devName)
+		return fmt.Errorf("Device already exists: %s", devName)
 	}
 
 	// Add the device to the instance
@@ -124,17 +123,17 @@ func parseDeviceOverrides(deviceOverrideArgs []string) (map[string]map[string]st
 	deviceMap := map[string]map[string]string{}
 	for _, entry := range deviceOverrideArgs {
 		if !strings.Contains(entry, "=") || !strings.Contains(entry, ",") {
-			return nil, fmt.Errorf(i18n.G("Bad device override syntax, expecting <device>,<key>=<value>: %s"), entry)
+			return nil, fmt.Errorf("Bad device override syntax, expecting <device>,<key>=<value>: %s", entry)
 		}
 
-		deviceFields := strings.SplitN(entry, ",", 2)
-		keyFields := strings.SplitN(deviceFields[1], "=", 2)
+		deviceName, deviceOverride, _ := strings.Cut(entry, ",")
 
-		if deviceMap[deviceFields[0]] == nil {
-			deviceMap[deviceFields[0]] = map[string]string{}
+		if deviceMap[deviceName] == nil {
+			deviceMap[deviceName] = map[string]string{}
 		}
 
-		deviceMap[deviceFields[0]][keyFields[0]] = keyFields[1]
+		key, value, _ := strings.Cut(deviceOverride, "=")
+		deviceMap[deviceName][key] = value
 	}
 
 	return deviceMap, nil
@@ -201,7 +200,7 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 	for _, alias := range GetExistingAliases(names, resp) {
 		err := client.DeleteImageAlias(alias.Name)
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to remove alias %s: %w"), alias.Name, err)
+			return fmt.Errorf("Failed to remove alias %s: %w", alias.Name, err)
 		}
 	}
 
@@ -212,7 +211,7 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 		aliasPost.Target = fingerprint
 		err := client.CreateImageAlias(aliasPost)
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to create alias %s: %w"), alias.Name, err)
+			return fmt.Errorf("Failed to create alias %s: %w", alias.Name, err)
 		}
 	}
 
@@ -237,7 +236,7 @@ func getConfig(args ...string) (map[string]string, error) {
 		if args[1] == "-" && !termios.IsTerminal(getStdinFd()) {
 			buf, err := io.ReadAll(os.Stdin)
 			if err != nil {
-				return nil, fmt.Errorf(i18n.G("Can't read from stdin: %w"), err)
+				return nil, fmt.Errorf("Can't read from stdin: %w", err)
 			}
 
 			args[1] = string(buf[:])
@@ -249,21 +248,21 @@ func getConfig(args ...string) (map[string]string, error) {
 	values := map[string]string{}
 
 	for _, arg := range args {
-		fields := strings.SplitN(arg, "=", 2)
-		if len(fields) != 2 {
-			return nil, fmt.Errorf(i18n.G("Invalid key=value configuration: %s"), arg)
+		key, value, found := strings.Cut(arg, "=")
+		if !found {
+			return nil, fmt.Errorf("Invalid key=value configuration: %s", arg)
 		}
 
-		if fields[1] == "-" && !termios.IsTerminal(getStdinFd()) {
+		if value == "-" && !termios.IsTerminal(getStdinFd()) {
 			buf, err := io.ReadAll(os.Stdin)
 			if err != nil {
-				return nil, fmt.Errorf(i18n.G("Can't read from stdin: %w"), err)
+				return nil, fmt.Errorf("Can't read from stdin: %w", err)
 			}
 
-			fields[1] = string(buf[:])
+			value = string(buf[:])
 		}
 
-		values[fields[0]] = fields[1]
+		values[key] = value
 	}
 
 	return values, nil
@@ -286,7 +285,7 @@ func instancesExist(resources []remoteResource) error {
 
 			_, _, err := resource.server.GetInstanceSnapshot(parent, snap)
 			if err != nil {
-				return fmt.Errorf(i18n.G("Failed checking instance snapshot exists \"%s:%s\": %w"), resource.remote, resource.name, err)
+				return fmt.Errorf("Failed checking instance snapshot exists \"%s:%s\": %w", resource.remote, resource.name, err)
 			}
 
 			continue
@@ -294,7 +293,7 @@ func instancesExist(resources []remoteResource) error {
 
 		_, _, err := resource.server.GetInstance(resource.name)
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed checking instance exists \"%s:%s\": %w"), resource.remote, resource.name, err)
+			return fmt.Errorf("Failed checking instance exists \"%s:%s\": %w", resource.remote, resource.name, err)
 		}
 	}
 
@@ -370,11 +369,11 @@ func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, im
 	}
 
 	if len(fields) == 1 {
-		fmt.Fprintf(os.Stderr, i18n.G("The local image '%q' couldn't be found, trying '%q:' instead.")+"\n", imageRef, fields[0])
+		fmt.Fprintf(os.Stderr, "The local image '%s' couldn't be found, trying '%s:' instead.\n", imageRef, fields[0])
 		return fields[0], "default"
 	}
 
-	fmt.Fprintf(os.Stderr, i18n.G("The local image '%q' couldn't be found, trying '%q:%q' instead.")+"\n", imageRef, fields[0], fields[1])
+	fmt.Fprintf(os.Stderr, "The local image '%s' couldn't be found, trying '%s:%s' instead.\n", imageRef, fields[0], fields[1])
 	return fields[0], fields[1]
 }
 
@@ -412,7 +411,7 @@ func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, ins
 		// Get the image info
 		imgInfo, _, err = imgRemoteServer.GetImage(imageRef)
 		if err != nil {
-			return nil, nil, fmt.Errorf(i18n.G("Failed to find image %q on remote %q"), imageRef, imgRemote)
+			return nil, nil, fmt.Errorf("Failed to find image %q on remote %q", imageRef, imgRemote)
 		}
 	}
 
@@ -425,7 +424,7 @@ func getExportVersion(d lxd.InstanceServer, flag string) (uint32, error) {
 
 	// Don't allow explicitly setting 0 as it will implicitly create a backup using version 1.
 	if flag == "0" {
-		return 0, fmt.Errorf(i18n.G("Invalid export version %q"), "0")
+		return 0, errors.New(`Invalid export version "0"`)
 	}
 
 	// In case no version is set, default to 0 so we can convert it to an uint32.
@@ -435,7 +434,7 @@ func getExportVersion(d lxd.InstanceServer, flag string) (uint32, error) {
 
 	versionUint, err := strconv.ParseUint(flag, 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf(i18n.G("Invalid export version %q: %w"), flag, err)
+		return 0, fmt.Errorf("Invalid export version %q: %w", flag, err)
 	}
 
 	versionUint32 := uint32(versionUint)
@@ -449,7 +448,7 @@ func getExportVersion(d lxd.InstanceServer, flag string) (uint32, error) {
 		}
 	} else if !backupVersionSupported && versionUint32 > api.BackupMetadataVersion1 {
 		// Any version beyond 1 isn't supported by an older server without the backup_metadata_version extension.
-		return 0, errors.New(i18n.G("The server doesn't support setting the metadata format version"))
+		return 0, errors.New("The server doesn't support setting the metadata format version")
 	}
 
 	// No export version was provided.

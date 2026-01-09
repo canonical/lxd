@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdQuery struct {
@@ -30,19 +29,17 @@ type cmdQuery struct {
 
 func (c *cmdQuery) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("query", i18n.G("[<remote>:]<API path>"))
-	cmd.Short = i18n.G("Send a raw query to LXD")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Send a raw query to LXD`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc query -X DELETE --wait /1.0/instances/c1
-    Delete local instance "c1".`))
+	cmd.Use = usage("query", "[<remote>:]<API path>")
+	cmd.Short = "Send a raw query to LXD"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc query -X DELETE --wait /1.0/instances/c1
+    Delete local instance "c1".`)
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVar(&c.flagRespWait, "wait", false, i18n.G("Wait for the operation to complete"))
-	cmd.Flags().BoolVar(&c.flagRespRaw, "raw", false, i18n.G("Print the raw response"))
-	cmd.Flags().StringVarP(&c.flagAction, "request", "X", "GET", i18n.G("Action")+"``")
-	cmd.Flags().StringVarP(&c.flagData, "data", "d", "", i18n.G("Input data")+"``")
+	cmd.Flags().BoolVar(&c.flagRespWait, "wait", false, "Wait for the operation to complete")
+	cmd.Flags().BoolVar(&c.flagRespRaw, "raw", false, "Print the raw response")
+	cmd.Flags().StringVarP(&c.flagAction, "request", "X", "GET", cli.FormatStringFlagLabel("Action"))
+	cmd.Flags().StringVarP(&c.flagData, "data", "d", "", cli.FormatStringFlagLabel("Input data"))
 
 	return cmd
 }
@@ -70,11 +67,11 @@ func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.global.flagProject != "" {
-		return errors.New(i18n.G("--project cannot be used with the query command"))
+		return errors.New("--project cannot be used with the query command")
 	}
 
 	if !slices.Contains([]string{"GET", "PUT", "POST", "PATCH", "DELETE"}, c.flagAction) {
-		return fmt.Errorf(i18n.G("Action %q isn't supported by this tool"), c.flagAction)
+		return fmt.Errorf("Action %q isn't supported by this tool", c.flagAction)
 	}
 
 	// Parse the remote
@@ -85,7 +82,7 @@ func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 
 	// Validate path
 	if !strings.HasPrefix(path, "/") {
-		return errors.New(i18n.G("Query path must start with /"))
+		return errors.New("Query path must start with /")
 	}
 
 	// Setup client
