@@ -15,6 +15,8 @@ type Vendor string
 const (
 	// NVIDIA represents the Nvidia CDI vendor.
 	NVIDIA Vendor = "nvidia.com"
+	// AMD represents the AMD CDI vendor.
+	AMD Vendor = "amd.com"
 )
 
 // ToVendor converts a string to a CDI vendor.
@@ -22,6 +24,8 @@ func ToVendor(vendor string) (Vendor, error) {
 	switch vendor {
 	case string(NVIDIA):
 		return NVIDIA, nil
+	case string(AMD):
+		return AMD, nil
 	default:
 		return "", fmt.Errorf("Invalid CDI vendor (%q)", vendor)
 	}
