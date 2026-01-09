@@ -571,19 +571,23 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 				return clusterCopyContainerInternal(ctx, s, source, projectName, profiles, req)
 			}
 
-			var pool *api.StoragePool
-
-			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-				_, pool, _, err = tx.GetStoragePoolInAnyState(ctx, sourcePoolName)
-
-				return err
-			})
+			pool, err := storagePools.LoadByName(s, sourcePoolName)
 			if err != nil {
-				err = fmt.Errorf("Failed to fetch instance's pool info: %w", err)
-				return response.SmartError(err)
+				return response.SmartError(fmt.Errorf("Failed loading pool %q of instance %q: %w", sourcePoolName, source.Name(), err))
 			}
 
-			if pool.Driver != "ceph" {
+			// 1) If a remote driver does not support optimized volume copy on the storage array, this means
+			// LXD mounts both the source and target volume and copies the contents from one volume to the other.
+			// In case the instance is running and the volume is mounted on the source, the target LXD cannot
+			// also mount the source volume so we have to fall back to internal copy (migration).
+			// If LXD ever supports migration-like communication between the source and target we might want to check
+			// specifically if the storage array supports optimized volume copy and can ignore if the instance is running.
+			// 2) If we are clustered and use a remote driver which supports optimized copy of volumes,
+			// we mostly don't want to use the migration protocol but instead rely on the standard instance copy
+			// as it's cheaper to perform the copy on the storage array directly.
+			// In case the instance is still running on the source, we still have to rely on the migration protocol
+			// as it ensures freezing the source instance or performing a live copy.
+			if !pool.Driver().Info().Remote || source.IsRunning() {
 				// Redirect to migration
 				return clusterCopyContainerInternal(ctx, s, source, projectName, profiles, req)
 			}
