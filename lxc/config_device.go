@@ -10,7 +10,6 @@ import (
 	"go.yaml.in/yaml/v2"
 
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdConfigDevice struct {
@@ -22,9 +21,8 @@ type cmdConfigDevice struct {
 func (c *cmdConfigDevice) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("device")
-	cmd.Short = i18n.G("Manage devices")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage devices`))
+	cmd.Short = "Manage devices"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Add
 	configDeviceAddCmd := cmdConfigDeviceAdd{global: c.global, config: c.config, profile: c.profile, configDevice: c}
@@ -169,25 +167,22 @@ type cmdConfigDeviceAdd struct {
 
 func (c *cmdConfigDeviceAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Short = i18n.G("Add instance devices")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add instance devices`))
+	cmd.Short = "Add instance devices"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	if c.config != nil {
-		cmd.Use = usage("add", i18n.G("[<remote>:]<instance> <device> <type> [key=value...]"))
-		cmd.Example = cli.FormatSection("", i18n.G(
-			`lxc config device add [<remote>:]instance1 <device-name> disk source=/share/c1 path=/opt
+		cmd.Use = usage("add", "[<remote>:]<instance> <device> <type> [key=value...]")
+		cmd.Example = cli.FormatSection("", `lxc config device add [<remote>:]instance1 <device-name> disk source=/share/c1 path=/opt
     Will mount the host's /share/c1 onto /opt in the instance.
 
 lxc config device add [<remote>:]instance1 <device-name> disk pool=some-pool source=some-volume path=/opt
-    Will mount the some-volume volume on some-pool onto /opt in the instance.`))
+    Will mount the some-volume volume on some-pool onto /opt in the instance.`)
 	} else if c.profile != nil {
-		cmd.Use = usage("add", i18n.G("[<remote>:]<profile> <device> <type> [key=value...]"))
-		cmd.Example = cli.FormatSection("", i18n.G(
-			`lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/c1 path=/opt
+		cmd.Use = usage("add", "[<remote>:]<profile> <device> <type> [key=value...]")
+		cmd.Example = cli.FormatSection("", `lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/c1 path=/opt
     Will mount the host's /share/c1 onto /opt in the instance.
 
 lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool source=some-volume path=/opt
-    Will mount the some-volume volume on some-pool onto /opt in the instance.`))
+    Will mount the some-volume volume on some-pool onto /opt in the instance.`)
 	}
 
 	cmd.RunE = c.run
@@ -212,7 +207,7 @@ func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing name"))
+		return errors.New("Missing name")
 	}
 
 	// Add the device
@@ -223,7 +218,7 @@ func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 		for _, prop := range args[3:] {
 			results := strings.SplitN(prop, "=", 2)
 			if len(results) != 2 {
-				return fmt.Errorf(i18n.G("No value found in %q"), prop)
+				return fmt.Errorf("No value found in %q", prop)
 			}
 
 			k := results[0]
@@ -244,7 +239,7 @@ func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 
 		_, ok := profile.Devices[devname]
 		if ok {
-			return errors.New(i18n.G("The device already exists"))
+			return errors.New("The device already exists")
 		}
 
 		profile.Devices[devname] = device
@@ -266,7 +261,7 @@ func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 
 		_, ok := inst.Devices[devname]
 		if ok {
-			return errors.New(i18n.G("The device already exists"))
+			return errors.New("The device already exists")
 		}
 
 		inst.Devices[devname] = device
@@ -283,7 +278,7 @@ func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Device %s added to %s")+"\n", devname, resource.name)
+		fmt.Printf("Device %s added to %s\n", devname, resource.name)
 	}
 
 	return nil
@@ -300,14 +295,13 @@ type cmdConfigDeviceGet struct {
 func (c *cmdConfigDeviceGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
-		cmd.Use = usage("get", i18n.G("[<remote>:]<instance> <device> <key>"))
+		cmd.Use = usage("get", "[<remote>:]<instance> <device> <key>")
 	} else if c.profile != nil {
-		cmd.Use = usage("get", i18n.G("[<remote>:]<profile> <device> <key>"))
+		cmd.Use = usage("get", "[<remote>:]<profile> <device> <key>")
 	}
 
-	cmd.Short = i18n.G("Get values for device configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Get values for device configuration keys`))
+	cmd.Short = "Get values for device configuration key"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -350,7 +344,7 @@ func (c *cmdConfigDeviceGet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing name"))
+		return errors.New("Missing name")
 	}
 
 	// Get the config key
@@ -365,7 +359,7 @@ func (c *cmdConfigDeviceGet) run(cmd *cobra.Command, args []string) error {
 
 		dev, ok := profile.Devices[devname]
 		if !ok {
-			return errors.New(i18n.G("Device doesn't exist"))
+			return errors.New("Device doesn't exist")
 		}
 
 		fmt.Println(dev[key])
@@ -379,10 +373,10 @@ func (c *cmdConfigDeviceGet) run(cmd *cobra.Command, args []string) error {
 		if !ok {
 			_, ok = inst.ExpandedDevices[devname]
 			if !ok {
-				return errors.New(i18n.G("Device doesn't exist"))
+				return errors.New("Device doesn't exist")
 			}
 
-			return errors.New(i18n.G("Device from profile(s) cannot be retrieved for individual instance"))
+			return errors.New("Device from profile(s) cannot be retrieved for individual instance")
 		}
 
 		fmt.Println(dev[key])
@@ -402,13 +396,12 @@ type cmdConfigDeviceList struct {
 func (c *cmdConfigDeviceList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List instance devices")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List instance devices`))
+	cmd.Short = "List instance devices"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	if c.config != nil {
-		cmd.Use = usage("list", i18n.G("[<remote>:]<instance>"))
+		cmd.Use = usage("list", "[<remote>:]<instance>")
 	} else if c.profile != nil {
-		cmd.Use = usage("list", i18n.G("[<remote>:]<profile>"))
+		cmd.Use = usage("list", "[<remote>:]<profile>")
 	}
 
 	cmd.RunE = c.run
@@ -444,7 +437,7 @@ func (c *cmdConfigDeviceList) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing name"))
+		return errors.New("Missing name")
 	}
 
 	// List the devices
@@ -484,10 +477,9 @@ type cmdConfigDeviceOverride struct {
 
 func (c *cmdConfigDeviceOverride) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("override", i18n.G("[<remote>:]<instance> <device> [key=value...]"))
-	cmd.Short = i18n.G("Copy profile inherited devices and override configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Copy profile inherited devices and override configuration keys`))
+	cmd.Use = usage("override", "[<remote>:]<instance> <device> [key=value...]")
+	cmd.Short = "Copy profile inherited devices and override configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -512,7 +504,7 @@ func (c *cmdConfigDeviceOverride) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing name"))
+		return errors.New("Missing name")
 	}
 
 	// Override the device
@@ -524,19 +516,19 @@ func (c *cmdConfigDeviceOverride) run(cmd *cobra.Command, args []string) error {
 	devname := args[1]
 	_, ok := inst.Devices[devname]
 	if ok {
-		return errors.New(i18n.G("The device already exists"))
+		return errors.New("The device already exists")
 	}
 
 	device, ok := inst.ExpandedDevices[devname]
 	if !ok {
-		return errors.New(i18n.G("The profile device doesn't exist"))
+		return errors.New("The profile device doesn't exist")
 	}
 
 	if len(args) > 2 {
 		for _, prop := range args[2:] {
 			results := strings.SplitN(prop, "=", 2)
 			if len(results) != 2 {
-				return fmt.Errorf(i18n.G("No value found in %q"), prop)
+				return fmt.Errorf("No value found in %q", prop)
 			}
 
 			k := results[0]
@@ -558,7 +550,7 @@ func (c *cmdConfigDeviceOverride) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Device %s overridden for %s")+"\n", devname, resource.name)
+		fmt.Printf("Device %s overridden for %s\n", devname, resource.name)
 	}
 
 	return nil
@@ -575,15 +567,14 @@ type cmdConfigDeviceRemove struct {
 func (c *cmdConfigDeviceRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
-		cmd.Use = usage("remove", i18n.G("[<remote>:]<instance> <name>..."))
+		cmd.Use = usage("remove", "[<remote>:]<instance> <name>...")
 	} else if c.profile != nil {
-		cmd.Use = usage("remove", i18n.G("[<remote>:]<profile> <name>..."))
+		cmd.Use = usage("remove", "[<remote>:]<profile> <name>...")
 	}
 
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Remove instance devices")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove instance devices`))
+	cmd.Short = "Remove instance devices"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -624,7 +615,7 @@ func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing name"))
+		return errors.New("Missing name")
 	}
 
 	// Remove the device
@@ -637,7 +628,7 @@ func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 		for _, devname := range args[1:] {
 			_, ok := profile.Devices[devname]
 			if !ok {
-				return errors.New(i18n.G("Device doesn't exist"))
+				return errors.New("Device doesn't exist")
 			}
 
 			delete(profile.Devices, devname)
@@ -663,10 +654,10 @@ func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 			if !ok {
 				_, ok := inst.ExpandedDevices[devname]
 				if !ok {
-					return errors.New(i18n.G("Device doesn't exist"))
+					return errors.New("Device doesn't exist")
 				}
 
-				return errors.New(i18n.G("Device from profile(s) cannot be removed from individual instance. Override device or modify profile instead"))
+				return errors.New("Device from profile(s) cannot be removed from individual instance. Override device or modify profile instead")
 			}
 
 			delete(inst.Devices, devname)
@@ -684,7 +675,7 @@ func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Device %s removed from %s")+"\n", strings.Join(args[1:], ", "), resource.name)
+		fmt.Printf("Device %s removed from %s\n", strings.Join(args[1:], ", "), resource.name)
 	}
 
 	return nil
@@ -700,21 +691,19 @@ type cmdConfigDeviceSet struct {
 
 func (c *cmdConfigDeviceSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Short = i18n.G("Set device configuration keys")
+	cmd.Short = "Set device configuration keys"
 	if c.config != nil {
-		cmd.Use = usage("set", i18n.G("[<remote>:]<instance> <device> <key>=<value>..."))
-		cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-			`Set device configuration keys
+		cmd.Use = usage("set", "[<remote>:]<instance> <device> <key>=<value>...")
+		cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 For backward compatibility, a single configuration key may still be set with:
-    lxc config device set [<remote>:]<instance> <device> <key> <value>`))
+    lxc config device set [<remote>:]<instance> <device> <key> <value>`)
 	} else if c.profile != nil {
-		cmd.Use = usage("set", i18n.G("[<remote>:]<profile> <device> <key>=<value>..."))
-		cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-			`Set device configuration keys
+		cmd.Use = usage("set", "[<remote>:]<profile> <device> <key>=<value>...")
+		cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 For backward compatibility, a single configuration key may still be set with:
-    lxc profile device set [<remote>:]<profile> <device> <key> <value>`))
+    lxc profile device set [<remote>:]<profile> <device> <key> <value>`)
 	}
 
 	cmd.RunE = c.run
@@ -758,7 +747,7 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing name"))
+		return errors.New("Missing name")
 	}
 
 	// Set the device config key
@@ -777,7 +766,7 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 
 		dev, ok := profile.Devices[devname]
 		if !ok {
-			return errors.New(i18n.G("Device doesn't exist"))
+			return errors.New("Device doesn't exist")
 		}
 
 		maps.Copy(dev, keys)
@@ -803,10 +792,10 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 		if !ok {
 			_, ok = inst.ExpandedDevices[devname]
 			if !ok {
-				return errors.New(i18n.G("Device doesn't exist"))
+				return errors.New("Device doesn't exist")
 			}
 
-			return fmt.Errorf("Device %q from profile(s) %q cannot be modified for individual instance %q: %w", devname, inst.Profiles, inst.Name, errors.New(i18n.G("Override device or modify profile instead")))
+			return fmt.Errorf("Device %q from profile(s) %q cannot be modified for individual instance %q: %w", devname, inst.Profiles, inst.Name, errors.New("Override device or modify profile instead"))
 		}
 
 		maps.Copy(dev, keys)
@@ -838,14 +827,13 @@ type cmdConfigDeviceShow struct {
 func (c *cmdConfigDeviceShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
-		cmd.Use = usage("show", i18n.G("[<remote>:]<instance>"))
+		cmd.Use = usage("show", "[<remote>:]<instance>")
 	} else if c.profile != nil {
-		cmd.Use = usage("show", i18n.G("[<remote>:]<profile>"))
+		cmd.Use = usage("show", "[<remote>:]<profile>")
 	}
 
-	cmd.Short = i18n.G("Show full device configuration")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show full device configuration`))
+	cmd.Short = "Show full device configuration"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -886,7 +874,7 @@ func (c *cmdConfigDeviceShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing name"))
+		return errors.New("Missing name")
 	}
 
 	// Show the devices
@@ -929,14 +917,13 @@ type cmdConfigDeviceUnset struct {
 func (c *cmdConfigDeviceUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
-		cmd.Use = usage("unset", i18n.G("[<remote>:]<instance> <device> <key>"))
+		cmd.Use = usage("unset", "[<remote>:]<instance> <device> <key>")
 	} else if c.profile != nil {
-		cmd.Use = usage("unset", i18n.G("[<remote>:]<profile> <device> <key>"))
+		cmd.Use = usage("unset", "[<remote>:]<profile> <device> <key>")
 	}
 
-	cmd.Short = i18n.G("Unset device configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Unset device configuration keys`))
+	cmd.Short = "Unset device configuration key"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 

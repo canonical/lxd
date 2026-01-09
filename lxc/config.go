@@ -15,7 +15,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -30,9 +29,8 @@ type cmdConfig struct {
 func (c *cmdConfig) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("config")
-	cmd.Short = i18n.G("Manage instance and server configuration options")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage instance and server configuration options`))
+	cmd.Short = "Manage instance and server configuration options"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Device
 	configDeviceCmd := cmdConfigDevice{global: c.global, config: c}
@@ -54,7 +52,7 @@ func (c *cmdConfig) command() *cobra.Command {
 	configProfileCmd := cmdProfile{global: c.global}
 	profileCmd := configProfileCmd.command()
 	profileCmd.Hidden = true
-	profileCmd.Deprecated = i18n.G("please use `lxc profile`")
+	profileCmd.Deprecated = "please use `lxc profile`"
 	cmd.AddCommand(profileCmd)
 
 	// Set
@@ -137,15 +135,13 @@ type cmdConfigEdit struct {
 // command creates a Cobra command to edit instance or server configurations using YAML, with optional flags for targeting cluster members.
 func (c *cmdConfigEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:][<instance>[/<snapshot>]]"))
-	cmd.Short = i18n.G("Edit instance or server configurations as YAML")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit instance or server configurations as YAML`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc config edit <instance> < instance.yaml
-    Update the instance configuration from config.yaml.`))
+	cmd.Use = usage("edit", "[<remote>:][<instance>[/<snapshot>]]")
+	cmd.Short = "Edit instance or server configurations as YAML"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc config edit <instance> < instance.yaml
+    Update the instance configuration from config.yaml.`)
 
-	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -161,8 +157,7 @@ func (c *cmdConfigEdit) command() *cobra.Command {
 
 // helpTemplate returns a sample YAML configuration and guidelines for editing instance configurations.
 func (c *cmdConfigEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a YAML representation of the configuration.
+	return `### This is a YAML representation of the configuration.
 ### Any line starting with a '# will be ignored.
 ###
 ### A sample configuration looks like:
@@ -178,7 +173,7 @@ func (c *cmdConfigEdit) helpTemplate() string {
 ###     type: disk
 ### ephemeral: false
 ###
-### Note that the name is shown but cannot be changed`)
+### Note that the name is shown but cannot be changed`
 }
 
 // run executes the config edit command, allowing users to edit instance or server configurations via an interactive YAML editor.
@@ -213,7 +208,7 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 	if resource.name != "" {
 		// Quick checks.
 		if c.config.flagTarget != "" {
-			return errors.New(i18n.G("--target cannot be used with instances"))
+			return errors.New("--target cannot be used with instances")
 		}
 
 		// If stdin isn't a terminal, read text from it
@@ -325,7 +320,7 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 				}
 
 				// Respawn the editor for any error condition.
-				fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+				fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 				_, err := os.Stdin.Read(make([]byte, 1))
 				if err != nil {
 					return err
@@ -352,7 +347,7 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 				}
 
 				// Respawn the editor for any error condition.
-				fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+				fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 				_, err = os.Stdin.Read(make([]byte, 1))
 				if err != nil {
 					return err
@@ -371,7 +366,7 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 	// Targeting
 	if c.config.flagTarget != "" {
 		if !resource.server.IsClustered() {
-			return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
+			return errors.New("To use --target, the destination remote must be a cluster")
 		}
 
 		resource.server = resource.server.UseTarget(c.config.flagTarget)
@@ -422,7 +417,7 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 		// Respawn the editor
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -456,14 +451,13 @@ type cmdConfigGet struct {
 // with optional flags for expanded configuration and cluster targeting.
 func (c *cmdConfigGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("get", i18n.G("[<remote>:][<instance>] <key>"))
-	cmd.Short = i18n.G("Get values for instance or server configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Get values for instance or server configuration keys`))
+	cmd.Use = usage("get", "[<remote>:][<instance>] <key>")
+	cmd.Short = "Get value for instance or server configuration key"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
-	cmd.Flags().BoolVarP(&c.flagExpanded, "expanded", "e", false, i18n.G("Access the expanded configuration"))
-	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as an instance property"))
-	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagExpanded, "expanded", "e", false, "Access the expanded configuration")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as an instance property")
+	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -506,7 +500,7 @@ func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 	if resource.name != "" {
 		// Quick checks.
 		if c.config.flagTarget != "" {
-			return errors.New(i18n.G("--target cannot be used with instances"))
+			return errors.New("--target cannot be used with instances")
 		}
 
 		if isSnapshot {
@@ -518,7 +512,7 @@ func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 			if c.flagIsProperty {
 				res, err := getFieldByJSONTag(inst, args[len(args)-1])
 				if err != nil {
-					return fmt.Errorf(i18n.G("The property %q does not exist on the instance snapshot %s/%s: %v"), args[len(args)-1], fields[0], fields[1], err)
+					return fmt.Errorf("The property %q does not exist on the instance snapshot %s/%s: %v", args[len(args)-1], fields[0], fields[1], err)
 				}
 
 				fmt.Printf("%v\n", res)
@@ -542,7 +536,7 @@ func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 			w := resp.Writable()
 			res, err := getFieldByJSONTag(&w, args[len(args)-1])
 			if err != nil {
-				return fmt.Errorf(i18n.G("The property %q does not exist on the instance %q: %v"), args[len(args)-1], resource.name, err)
+				return fmt.Errorf("The property %q does not exist on the instance %q: %v", args[len(args)-1], resource.name, err)
 			}
 
 			fmt.Printf("%v\n", res)
@@ -556,13 +550,13 @@ func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 	} else {
 		// Quick check.
 		if c.flagExpanded {
-			return errors.New(i18n.G("--expanded cannot be used with a server"))
+			return errors.New("--expanded cannot be used with a server")
 		}
 
 		// Targeting
 		if c.config.flagTarget != "" {
 			if !resource.server.IsClustered() {
-				return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
+				return errors.New("To use --target, the destination remote must be a cluster")
 			}
 
 			resource.server = resource.server.UseTarget(c.config.flagTarget)
@@ -600,22 +594,20 @@ type cmdConfigSet struct {
 // command creates a new Cobra command to set instance or server configuration keys and returns it.
 func (c *cmdConfigSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("set", i18n.G("[<remote>:][<instance>] <key>=<value>..."))
-	cmd.Short = i18n.G("Set instance or server configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set instance or server configuration keys
+	cmd.Use = usage("set", "[<remote>:][<instance>] <key>=<value>...")
+	cmd.Short = "Set instance or server configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 For backward compatibility, a single configuration key may still be set with:
-    lxc config set [<remote>:][<instance>] <key> <value>`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc config set [<remote>:]<instance> limits.cpu=2
+    lxc config set [<remote>:][<instance>] <key> <value>`)
+	cmd.Example = cli.FormatSection("", `lxc config set [<remote>:]<instance> limits.cpu=2
     Will set a CPU limit of "2" for the instance.
 
 lxc config set core.https_address=[::]:8443
-    Will have LXD listen on IPv4 and IPv6 port 8443.`))
+    Will have LXD listen on IPv4 and IPv6 port 8443.`)
 
-	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as an instance property"))
+	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Set the key as an instance property")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = c.config.configSetValidArgsFunc
@@ -681,7 +673,7 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 	if resource.name != "" {
 		// Quick checks.
 		if c.config.flagTarget != "" {
-			return errors.New(i18n.G("--target cannot be used with instances"))
+			return errors.New("--target cannot be used with instances")
 		}
 
 		keys, err := getConfig(args[1:]...)
@@ -701,13 +693,13 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 					for k := range keys {
 						err := unsetFieldByJSONTag(&writable, k)
 						if err != nil {
-							return fmt.Errorf(i18n.G("Error unsetting properties: %v"), err)
+							return fmt.Errorf("Error unsetting properties: %v", err)
 						}
 					}
 				} else {
 					err := unpackKVToWritable(&writable, keys)
 					if err != nil {
-						return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+						return fmt.Errorf("Error setting properties: %v", err)
 					}
 				}
 
@@ -719,7 +711,7 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 				return op.Wait()
 			}
 
-			return errors.New(i18n.G("There is no config key to set on an instance snapshot."))
+			return errors.New("There is no config key to set on an instance snapshot.")
 		}
 
 		inst, etag, err := resource.server.GetInstance(resource.name)
@@ -733,13 +725,13 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 				for k := range keys {
 					err := unsetFieldByJSONTag(&writable, k)
 					if err != nil {
-						return fmt.Errorf(i18n.G("Error unsetting properties: %v"), err)
+						return fmt.Errorf("Error unsetting properties: %v", err)
 					}
 				}
 			} else {
 				err := unpackKVToWritable(&writable, keys)
 				if err != nil {
-					return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+					return fmt.Errorf("Error setting properties: %v", err)
 				}
 			}
 		} else {
@@ -747,7 +739,7 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 				if cmd.Name() == "unset" {
 					_, ok := writable.Config[k]
 					if !ok {
-						return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set"), k)
+						return fmt.Errorf("Can't unset key %q, it's not currently set", k)
 					}
 
 					delete(writable.Config, k)
@@ -768,7 +760,7 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 	// Targeting
 	if c.config.flagTarget != "" {
 		if !resource.server.IsClustered() {
-			return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
+			return errors.New("To use --target, the destination remote must be a cluster")
 		}
 
 		resource.server = resource.server.UseTarget(c.config.flagTarget)
@@ -815,13 +807,12 @@ type cmdConfigShow struct {
 // command sets up the "show" command, which displays instance or server configurations based on the provided arguments.
 func (c *cmdConfigShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:][<instance>[/<snapshot>]]"))
-	cmd.Short = i18n.G("Show instance or server configurations")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show instance or server configurations`))
+	cmd.Use = usage("show", "[<remote>:][<instance>[/<snapshot>]]")
+	cmd.Short = "Show instance or server configurations"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
-	cmd.Flags().BoolVarP(&c.flagExpanded, "expanded", "e", false, i18n.G("Show the expanded configuration"))
-	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagExpanded, "expanded", "e", false, "Show the expanded configuration")
+	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -862,13 +853,13 @@ func (c *cmdConfigShow) run(cmd *cobra.Command, args []string) error {
 	if resource.name == "" {
 		// Quick check.
 		if c.flagExpanded {
-			return errors.New(i18n.G("--expanded cannot be used with a server"))
+			return errors.New("--expanded cannot be used with a server")
 		}
 
 		// Targeting
 		if c.config.flagTarget != "" {
 			if !resource.server.IsClustered() {
-				return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
+				return errors.New("To use --target, the destination remote must be a cluster")
 			}
 
 			resource.server = resource.server.UseTarget(c.config.flagTarget)
@@ -888,7 +879,7 @@ func (c *cmdConfigShow) run(cmd *cobra.Command, args []string) error {
 	} else {
 		// Quick checks.
 		if c.config.flagTarget != "" {
-			return errors.New(i18n.G("--target cannot be used with instances"))
+			return errors.New("--target cannot be used with instances")
 		}
 
 		// Instance or snapshot config
@@ -947,13 +938,12 @@ type cmdConfigUnset struct {
 // command generates a new "unset" command to remove specific configuration keys for an instance or server.
 func (c *cmdConfigUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("unset", i18n.G("[<remote>:][<instance>] <key>"))
-	cmd.Short = i18n.G("Unset instance or server configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Unset instance or server configuration keys`))
+	cmd.Use = usage("unset", "[<remote>:][<instance>] <key>")
+	cmd.Short = "Unset instance or server configuration key"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
-	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as an instance property"))
+	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Unset the key as an instance property")
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -1019,9 +1009,8 @@ type cmdConfigUefi struct {
 func (c *cmdConfigUefi) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("uefi")
-	cmd.Short = i18n.G("Manage instance UEFI variables")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage instance UEFI variables`))
+	cmd.Short = "Manage instance UEFI variables"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Get
 	configUefiGetCmd := cmdConfigUefiGet{global: c.global, configUefi: c}
@@ -1058,10 +1047,9 @@ type cmdConfigUefiGet struct {
 // command creates a Cobra command to fetch virtual machine instance UEFI variables.
 func (c *cmdConfigUefiGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("get", i18n.G("[<remote>:]<instance> <key>"))
-	cmd.Short = i18n.G("Get UEFI variables for instance")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Get UEFI variables for instance`))
+	cmd.Use = usage("get", "[<remote>:]<instance> <key>")
+	cmd.Short = "Get UEFI variable for instance"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1085,7 +1073,7 @@ func (c *cmdConfigUefiGet) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return errors.New(i18n.G("Instance name must be specified"))
+		return errors.New("Instance name must be specified")
 	}
 
 	// Get the UEFI variable
@@ -1096,7 +1084,7 @@ func (c *cmdConfigUefiGet) run(cmd *cobra.Command, args []string) error {
 
 	efiVariable, ok := resp.Variables[args[len(args)-1]]
 	if !ok {
-		return errors.New(i18n.G("Requested UEFI variable does not exist"))
+		return errors.New("Requested UEFI variable does not exist")
 	}
 
 	fmt.Println(efiVariable.Data)
@@ -1113,13 +1101,11 @@ type cmdConfigUefiSet struct {
 // command creates a new Cobra command to set virtual machine instance UEFI variables.
 func (c *cmdConfigUefiSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("set", i18n.G("[<remote>:]<instance> <key>=<value>..."))
-	cmd.Short = i18n.G("Set UEFI variables for instance")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set UEFI variables for instance`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc config uefi set [<remote>:]<instance> testvar-9073e4e0-60ec-4b6e-9903-4c223c260f3c=aabb
-    Set a UEFI variable with name "testvar", GUID 9073e4e0-60ec-4b6e-9903-4c223c260f3c and value "aabb" (HEX-encoded) for the instance.`))
+	cmd.Use = usage("set", "[<remote>:]<instance> <key>=<value>...")
+	cmd.Short = "Set UEFI variable for instance"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc config uefi set [<remote>:]<instance> testvar-9073e4e0-60ec-4b6e-9903-4c223c260f3c=aabb
+    Set a UEFI variable with name "testvar", GUID 9073e4e0-60ec-4b6e-9903-4c223c260f3c and value "aabb" (HEX-encoded) for the instance.`)
 
 	cmd.RunE = c.run
 
@@ -1143,7 +1129,7 @@ func (c *cmdConfigUefiSet) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return errors.New(i18n.G("Instance name must be specified"))
+		return errors.New("Instance name must be specified")
 	}
 
 	// Set the config keys
@@ -1161,7 +1147,7 @@ func (c *cmdConfigUefiSet) run(cmd *cobra.Command, args []string) error {
 		if cmd.Name() == "unset" {
 			_, ok := instUEFI.Variables[k]
 			if !ok {
-				return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set"), k)
+				return fmt.Errorf("Can't unset key %q, it's not currently set", k)
 			}
 
 			delete(instUEFI.Variables, k)
@@ -1204,10 +1190,9 @@ type cmdConfigUefiUnset struct {
 // command generates a new "unset" command to remove specific virtual machine instance UEFI variable.
 func (c *cmdConfigUefiUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("unset", i18n.G("[<remote>:]<instance> <key>"))
-	cmd.Short = i18n.G("Unset UEFI variables for instance")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Unset UEFI variables for instance`))
+	cmd.Use = usage("unset", "[<remote>:]<instance> <key>")
+	cmd.Short = "Unset UEFI variable for instance"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1235,10 +1220,9 @@ type cmdConfigUefiShow struct {
 // command sets up the "show" command, which displays virtual machine instance UEFI variables based on the provided arguments.
 func (c *cmdConfigUefiShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<instance>"))
-	cmd.Short = i18n.G("Show instance UEFI variables")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show instance UEFI variables`))
+	cmd.Use = usage("show", "[<remote>:]<instance>")
+	cmd.Short = "Show instance UEFI variables"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1262,7 +1246,7 @@ func (c *cmdConfigUefiShow) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return errors.New(i18n.G("Instance name must be specified"))
+		return errors.New("Instance name must be specified")
 	}
 
 	instEFI, _, err := resource.server.GetInstanceUEFIVars(resource.name)
@@ -1289,13 +1273,11 @@ type cmdConfigUefiEdit struct {
 // command creates a Cobra command to edit virtual machine instance UEFI variables.
 func (c *cmdConfigUefiEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>"))
-	cmd.Short = i18n.G("Edit instance UEFI variables")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit instance UEFI variables`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc config uefi edit <instance> < instance_uefi_vars.yaml
-    Set the instance UEFI variables from instance_uefi_vars.yaml.`))
+	cmd.Use = usage("edit", "[<remote>:]<instance>")
+	cmd.Short = "Edit instance UEFI variables"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc config uefi edit <instance> < instance_uefi_vars.yaml
+    Set the instance UEFI variables from instance_uefi_vars.yaml.`)
 
 	cmd.RunE = c.run
 
@@ -1304,8 +1286,7 @@ func (c *cmdConfigUefiEdit) command() *cobra.Command {
 
 // helpTemplate returns a sample YAML UEFI variables configuration.
 func (c *cmdConfigUefiEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a YAML representation of the UEFI variables configuration.
+	return `### This is a YAML representation of the UEFI variables configuration.
 ### Any line starting with a '# will be ignored.
 ###
 ### A sample UEFI variables configuration looks like:
@@ -1334,7 +1315,7 @@ func (c *cmdConfigUefiEdit) helpTemplate() string {
 ### Note that the format of the key in the variables map is "<EFI variable name>-<UUID>".
 ### Fields "data", "timestamp", "digest" are HEX-encoded.
 ### Field "attr" is an unsigned 32-bit integer.
-###`)
+###`
 }
 
 // run executes the config edit command, allowing users to edit virtual machine instance UEFI variables via an interactive YAML editor.
@@ -1354,7 +1335,7 @@ func (c *cmdConfigUefiEdit) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return errors.New(i18n.G("Instance name must be specified"))
+		return errors.New("Instance name must be specified")
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -1404,8 +1385,8 @@ func (c *cmdConfigUefiEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {

@@ -35,7 +35,7 @@ func (c *cmdImage) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("image")
 	cmd.Short = "Manage images"
-	cmd.Long = cli.FormatSection("Description", `Manage images
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 In LXD instances are created from images. Those images were themselves
 either generated from an existing instance or downloaded from an image
@@ -154,8 +154,8 @@ func (c *cmdImageCopy) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("copy", "[<remote>:]<image> <remote>:")
 	cmd.Aliases = []string{"cp"}
-	cmd.Short = "Copy images between servers"
-	cmd.Long = cli.FormatSection("Description", `Copy images between servers
+	cmd.Short = "Copy image between servers"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 The auto-update flag instructs the server to keep this image up to date.
 It requires the source to be an alias and for it to be public.`)
@@ -163,11 +163,11 @@ It requires the source to be an alias and for it to be public.`)
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, "Make image public")
 	cmd.Flags().BoolVar(&c.flagCopyAliases, "copy-aliases", false, "Copy aliases from source")
 	cmd.Flags().BoolVar(&c.flagAutoUpdate, "auto-update", false, "Keep the image up to date after initial copy")
-	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, "New aliases to add to the image"+"``")
+	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, cli.FormatStringFlagLabel("New aliases to add to the image"))
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, "Copy virtual machine images")
-	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", "Transfer mode. One of pull (default), push or relay"+"``")
-	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", "Copy to a project different from the source"+"``")
-	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, "Profile to apply to the new image"+"``")
+	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", cli.FormatStringFlagLabel("Transfer mode. One of pull (default), push or relay"))
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", cli.FormatStringFlagLabel("Copy to a project different from the source"))
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, cli.FormatStringFlagLabel("Profile to apply to the new image"))
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -332,7 +332,7 @@ func (c *cmdImageDelete) command() *cobra.Command {
 	cmd.Use = usage("delete", "[<remote>:]<image> [[<remote>:]<image>...]")
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = "Delete images"
-	cmd.Long = cli.FormatSection("Description", `Delete images`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -390,7 +390,7 @@ func (c *cmdImageEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", "[<remote>:]<image>")
 	cmd.Short = "Edit image properties"
-	cmd.Long = cli.FormatSection("Description", `Edit image properties`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc image edit <image>
     Launch a text editor to edit the properties
 
@@ -516,7 +516,7 @@ func (c *cmdImageExport) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("export", "[<remote>:]<image> [<target>]")
 	cmd.Short = "Export and download images"
-	cmd.Long = cli.FormatSection("Description", `Export and download images
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 The output target is optional and defaults to the working directory.`)
 
@@ -686,15 +686,15 @@ type cmdImageImport struct {
 func (c *cmdImageImport) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("import", "<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]")
-	cmd.Short = "Import images into the image store"
-	cmd.Long = cli.FormatSection("Description", `Import image into the image store
+	cmd.Short = "Import image into the image store"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 Directory import is only available on Linux and must be performed as root.
 
 Descriptive properties can be set by providing key=value pairs. Example: os=Ubuntu release=noble variant=cloud.`)
 
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, "Make image public")
-	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, "New aliases to add to the image"+"``")
+	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, cli.FormatStringFlagLabel("New aliases to add to the image"))
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -936,8 +936,8 @@ type cmdImageInfo struct {
 func (c *cmdImageInfo) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", "[<remote>:]<image>")
-	cmd.Short = "Show useful information about images"
-	cmd.Long = cli.FormatSection("Description", `Show useful information about images`)
+	cmd.Short = "Show useful information about image"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, "Query virtual machine images")
 	cmd.RunE = c.run
@@ -1079,7 +1079,7 @@ func (c *cmdImageList) command() *cobra.Command {
 	cmd.Use = usage("list", "[<remote>:] [<filter>...]")
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = "List images"
-	cmd.Long = cli.FormatSection("Description", `List images
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 Filters may be of the <key>=<value> form for property based filtering,
 or part of the image hash or part of the image alias name.
@@ -1104,8 +1104,8 @@ Column shorthand chars:
     u - Upload date
     t - Type`)
 
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultImagesColumns, "Columns"+"``")
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultImagesColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display images from all projects")
 	cmd.RunE = c.run
 
@@ -1430,7 +1430,7 @@ func (c *cmdImageRefresh) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("refresh", "[<remote>:]<image> [[<remote>:]<image>...]")
 	cmd.Short = "Refresh images"
-	cmd.Long = cli.FormatSection("Description", `Refresh images`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1524,7 +1524,7 @@ func (c *cmdImageShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", "[<remote>:]<image>")
 	cmd.Short = "Show image properties"
-	cmd.Long = cli.FormatSection("Description", `Show image properties`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, "Query virtual machine images")
 	cmd.RunE = c.run
@@ -1588,8 +1588,8 @@ type cmdImageGetProp struct {
 func (c *cmdImageGetProp) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get-property", "[<remote>:]<image> <key>")
-	cmd.Short = "Get image properties"
-	cmd.Long = cli.FormatSection("Description", `Get image properties`)
+	cmd.Short = "Get image property"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1651,8 +1651,8 @@ type cmdImageSetProp struct {
 func (c *cmdImageSetProp) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set-property", "[<remote>:]<image> <key> <value>")
-	cmd.Short = "Set image properties"
-	cmd.Long = cli.FormatSection("Description", `Set image properties`)
+	cmd.Short = "Set image property"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1713,8 +1713,8 @@ type cmdImageUnsetProp struct {
 func (c *cmdImageUnsetProp) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset-property", "[<remote>:]<image> <key>")
-	cmd.Short = "Unset image properties"
-	cmd.Long = cli.FormatSection("Description", `Unset image properties`)
+	cmd.Short = "Unset image property"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 

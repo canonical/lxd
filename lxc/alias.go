@@ -25,7 +25,7 @@ func (c *cmdAlias) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("alias")
 	cmd.Short = "Manage command aliases"
-	cmd.Long = cli.FormatSection("Description", `Manage command aliases`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Add
 	aliasAddCmd := cmdAliasAdd{global: c.global, alias: c}
@@ -68,8 +68,8 @@ type cmdAliasAdd struct {
 func (c *cmdAliasAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", "<alias> <target>")
-	cmd.Short = "Add new aliases"
-	cmd.Long = cli.FormatSection("Description", `Add new aliases`)
+	cmd.Short = "Add new alias"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc alias add list "list -c ns46S"
     Overwrite the "list" command to pass -c ns46S.`)
 
@@ -117,8 +117,8 @@ func (c *cmdAliasList) command() *cobra.Command {
 	cmd.Use = usage("list")
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = "List aliases"
-	cmd.Long = cli.FormatSection("Description", `List aliases`)
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	cmd.RunE = c.run
 
@@ -164,8 +164,8 @@ func (c *cmdAliasRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", "<old alias> <new alias>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = "Rename aliases"
-	cmd.Long = cli.FormatSection("Description", `Rename aliases`)
+	cmd.Short = "Rename alias"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc alias rename list my-list
     Rename existing alias "list" to "my-list".`)
 
@@ -217,8 +217,8 @@ func (c *cmdAliasRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", "<alias>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = "Remove aliases"
-	cmd.Long = cli.FormatSection("Description", `Remove aliases`)
+	cmd.Short = "Remove alias"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc alias remove my-list
     Remove the "my-list" alias.`)
 
@@ -262,7 +262,7 @@ func (c *cmdAliasShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show")
 	cmd.Short = "Show aliases in YAML format"
-	cmd.Long = cli.FormatSection("Description", `Show aliases in YAML format`)
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.RunE = c.run
 
 	return cmd
