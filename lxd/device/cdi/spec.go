@@ -13,6 +13,7 @@ import (
 
 	"github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi"
 	"github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi/transform"
+	"github.com/stretchr/testify/assert/yaml"
 	"tags.cncf.io/container-device-interface/specs-go"
 
 	"github.com/canonical/lxd/lxd/instance"
@@ -158,11 +159,67 @@ func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.S
 	return spec, nil
 }
 
+func generateAmdSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "cdiID": cdiID.String()})
+
+	// Determine which binary to use based on snap mode.
+	amdCTKBinary := "amd-ctk"
+	rootPath := ""
+	if shared.InSnap() {
+		amdCTKBinary = "amd-ctk-wrapper"
+		rootPath = "/var/lib/snapd/hostfs"
+	}
+
+	amdCTKPath, err := exec.LookPath(amdCTKBinary)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to find the %s binary: %w", amdCTKBinary, err)
+	}
+
+	// No stdout support, not custom file name support from amd-ctk. The spec
+	// must be named amd.json.
+	specFile := filepath.Join(inst.LogPath(), "amd.json")
+
+	cmd := []string{
+		amdCTKPath,
+		"cdi",
+		"generate",
+		"--output",
+		specFile,
+	}
+
+	// Add root path for snap mode.
+	if shared.InSnap() {
+		cmd = append(cmd, "--root", rootPath)
+	}
+
+	_, err = shared.RunCommand(context.TODO(), cmd[0], cmd[1:]...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate AMD CDI spec: %w", err)
+	}
+
+	l.Debug("CDI spec has been successfully generated", logger.Ctx{"specPath": specFile})
+
+	specRaw, err := os.ReadFile(specFile)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read AMD CDI spec: %w", err)
+	}
+
+	var spec specs.Spec
+	err = yaml.Unmarshal([]byte(specRaw), &spec)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal AMD CDI spec: %w", err)
+	}
+
+	return &spec, nil
+}
+
 // generateSpec generates a CDI spec for the given CDI ID.
 var generateSpec = func(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
 	switch cdiID.Vendor {
 	case NVIDIA:
 		return generateNvidiaSpec(isCore, cdiID, inst)
+	case AMD:
+		return generateAmdSpec(isCore, cdiID, inst)
 	default:
 		return nil, fmt.Errorf("Unsupported CDI vendor (%q) for the spec generation", cdiID.Vendor)
 	}
