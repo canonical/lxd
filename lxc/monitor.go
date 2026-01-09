@@ -14,7 +14,6 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdMonitor struct {
@@ -29,28 +28,26 @@ type cmdMonitor struct {
 
 func (c *cmdMonitor) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("monitor", i18n.G("[<remote>:]"))
-	cmd.Short = i18n.G("Monitor a local or remote LXD server")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Monitor a local or remote LXD server
+	cmd.Use = usage("monitor", "[<remote>:]")
+	cmd.Short = "Monitor a local or remote LXD server"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
-By default the monitor will listen to all message types.`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc monitor --type=logging
+By default the monitor will listen to all message types.`)
+	cmd.Example = cli.FormatSection("", `lxc monitor --type=logging
     Only show log messages.
 
 lxc monitor --pretty --type=logging --loglevel=info
     Show a pretty log of messages with info level or higher.
 
 lxc monitor --type=lifecycle
-    Only show lifecycle events.`))
+    Only show lifecycle events.`)
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVar(&c.flagPretty, "pretty", false, i18n.G("Pretty rendering (short for --format=pretty)"))
-	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Show events from all projects"))
-	cmd.Flags().StringArrayVar(&c.flagType, "type", nil, i18n.G("Event type to listen for")+"``")
-	cmd.Flags().StringVar(&c.flagLogLevel, "loglevel", "", i18n.G("Minimum level for log messages (only available when using pretty format)")+"``")
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "yaml", i18n.G("Format (json|pretty|yaml)")+"``")
+	cmd.Flags().BoolVar(&c.flagPretty, "pretty", false, "Pretty rendering (short for --format=pretty)")
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Show events from all projects")
+	cmd.Flags().StringArrayVar(&c.flagType, "type", nil, cli.FormatStringFlagLabel("Event type to listen for"))
+	cmd.Flags().StringVar(&c.flagLogLevel, "loglevel", "", cli.FormatStringFlagLabel("Minimum level for log messages (only available when using pretty format)"))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "yaml", cli.FormatStringFlagLabel("Format (json|pretty|yaml)"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 		if len(args) > 0 {
@@ -76,7 +73,7 @@ func (c *cmdMonitor) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !slices.Contains([]string{"json", "pretty", "yaml"}, c.flagFormat) {
-		return fmt.Errorf(i18n.G("Invalid format: %s"), c.flagFormat)
+		return fmt.Errorf("Invalid format: %s", c.flagFormat)
 	}
 
 	// Setup format.
@@ -85,7 +82,7 @@ func (c *cmdMonitor) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagFormat != "pretty" && c.flagLogLevel != "" {
-		return errors.New(i18n.G("Log level filtering can only be used with pretty formatting"))
+		return errors.New("Log level filtering can only be used with pretty formatting")
 	}
 
 	// Connect to the event source.
