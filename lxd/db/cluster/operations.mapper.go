@@ -73,6 +73,14 @@ SELECT operations.id, operations.uuid, coalesce(nodes.address, '') AS node_addre
   ORDER BY operations.id, operations.uuid
 `)
 
+var operationObjectsByProjectID = RegisterStmt(`
+SELECT operations.id, operations.uuid, coalesce(nodes.address, '') AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
+  FROM operations
+  LEFT JOIN nodes ON operations.node_id = nodes.id
+  WHERE ( operations.project_id = ? )
+  ORDER BY operations.id, operations.uuid
+`)
+
 var operationCreate = RegisterStmt(`
 INSERT INTO operations (uuid, project_id, node_id, type, requestor_protocol, requestor_identity_id, entity_id, metadata, class, created_at, updated_at, inputs, status_code, conflict_reference, error, parent, stage)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -160,7 +168,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 	}
 
 	for i, filter := range filters {
-		if filter.NodeID != nil && filter.Class != nil && filter.ID == nil && filter.UUID == nil && filter.ConflictReference == nil {
+		if filter.NodeID != nil && filter.Class != nil && filter.ID == nil && filter.ProjectID == nil && filter.UUID == nil && filter.ConflictReference == nil {
 			args = append(args, []any{filter.NodeID, filter.Class}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByNodeIDAndClass)
@@ -184,7 +192,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil && filter.ConflictReference == nil && filter.Class == nil {
+		} else if filter.UUID != nil && filter.ID == nil && filter.ProjectID == nil && filter.NodeID == nil && filter.ConflictReference == nil && filter.Class == nil {
 			args = append(args, []any{filter.UUID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByUUID)
@@ -208,7 +216,31 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil && filter.ConflictReference == nil && filter.Class == nil {
+		} else if filter.ProjectID != nil && filter.ID == nil && filter.NodeID == nil && filter.UUID == nil && filter.ConflictReference == nil && filter.Class == nil {
+			args = append(args, []any{filter.ProjectID}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, operationObjectsByProjectID)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"operationObjectsByProjectID\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(operationObjectsByProjectID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.NodeID != nil && filter.ID == nil && filter.ProjectID == nil && filter.UUID == nil && filter.ConflictReference == nil && filter.Class == nil {
 			args = append(args, []any{filter.NodeID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByNodeID)
@@ -232,7 +264,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil && filter.ConflictReference == nil && filter.Class == nil {
+		} else if filter.ID != nil && filter.ProjectID == nil && filter.NodeID == nil && filter.UUID == nil && filter.ConflictReference == nil && filter.Class == nil {
 			args = append(args, []any{filter.ID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByID)
@@ -256,7 +288,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ConflictReference != nil && filter.ID == nil && filter.NodeID == nil && filter.UUID == nil && filter.Class == nil {
+		} else if filter.ConflictReference != nil && filter.ID == nil && filter.ProjectID == nil && filter.NodeID == nil && filter.UUID == nil && filter.Class == nil {
 			args = append(args, []any{filter.ConflictReference}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByConflictReference)
@@ -280,7 +312,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.Class != nil && filter.ID == nil && filter.NodeID == nil && filter.UUID == nil && filter.ConflictReference == nil {
+		} else if filter.Class != nil && filter.ID == nil && filter.ProjectID == nil && filter.NodeID == nil && filter.UUID == nil && filter.ConflictReference == nil {
 			args = append(args, []any{filter.Class}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByClass)
@@ -304,7 +336,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil && filter.ConflictReference == nil && filter.Class == nil {
+		} else if filter.ID == nil && filter.ProjectID == nil && filter.NodeID == nil && filter.UUID == nil && filter.ConflictReference == nil && filter.Class == nil {
 			return nil, errors.New("Cannot filter on empty OperationFilter")
 		} else {
 			return nil, errors.New("No statement exists for the given Filter")
