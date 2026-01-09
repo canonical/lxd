@@ -70,6 +70,25 @@ Example:
 You can add or remove only those roles that are not assigned automatically by LXD. To find out which roles are automatically assigned, see: {ref}`clustering-member-roles`.
 ```
 
+(cluster-manage-failure-domains)=
+### Manage failure domains
+
+To manage the {ref}`failure domain <clustering-failure-domains>` for a cluster member, use the [`lxc cluster failure-domain`](lxc_cluster_failure-domain.md) command:
+
+    lxc cluster failure-domain set <member-name> <domain>
+
+Example:
+
+    lxc cluster failure-domain set server1 rack1
+
+To view the current failure domain:
+
+    lxc cluster failure-domain get <member-name>
+
+To reset the failure domain to the default:
+
+    lxc cluster failure-domain unset <member-name>
+
 (cluster-edit)=
 ### Edit the cluster member configuration
 

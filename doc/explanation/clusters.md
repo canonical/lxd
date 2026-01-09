@@ -84,12 +84,13 @@ To automatically {ref}`evacuate <cluster-evacuate>` instances from an offline me
 
 See {ref}`cluster-recover` for more information.
 
+(clustering-failure-domains)=
 #### Failure domains
 
 You can use failure domains to indicate which cluster members should be given preference when assigning roles to a cluster member that has gone offline.
 For example, if a cluster member that currently has the database role gets shut down, LXD tries to assign its database role to another cluster member in the same failure domain, if one is available.
 
-To update the failure domain of a cluster member, use the [`lxc cluster edit <member>`](lxc_cluster_edit.md) command and change the `failure_domain` property from `default` to another string.
+See {ref}`cluster-manage-failure-domains` for more information.
 
 (clustering-member-config)=
 ### Member configuration
