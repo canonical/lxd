@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -83,9 +84,9 @@ type cmdConfigTrustAdd struct {
 
 func (c *cmdConfigTrustAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:] [<cert>]"))
+	cmd.Use = usage("add", "[<remote>:] [<cert>]")
 	cmd.Short = i18n.G("Add new trusted client")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+	cmd.Long = cli.FormatSection("Description",
 		`Add new trusted client
 
 The following certificate types are supported:
@@ -96,12 +97,15 @@ If the certificate is omitted, a token will be generated and returned. A client
 providing a valid token will have its client certificate added to the trusted list
 and the consumed token will be invalidated. Similar to certificates, tokens can be
 restricted to one or more projects.
-`))
 
-	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, i18n.G("Restrict the certificate to one or more projects"))
-	cmd.Flags().StringVar(&c.flagProjects, "projects", "", i18n.G("List of projects to restrict the certificate to")+"``")
-	cmd.Flags().StringVar(&c.flagName, "name", "", i18n.G("Alternative certificate name")+"``")
-	cmd.Flags().StringVar(&c.flagType, "type", "client", i18n.G("Type of certificate")+"``")
+Note: The --projects flag requires --restricted to be set. Projects can only be
+used to restrict certificate access when the certificate is marked as restricted.
+`)
+
+	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, "Restrict the certificate to one or more projects")
+	cmd.Flags().StringVar(&c.flagProjects, "projects", "", "List of projects to restrict the certificate to (requires --restricted)")
+	cmd.Flags().StringVar(&c.flagName, "name", "", "Alternative certificate name")
+	cmd.Flags().StringVar(&c.flagType, "type", "client", "Type of certificate")
 
 	cmd.RunE = c.run
 
@@ -137,6 +141,11 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 		return errors.New("The server doesn't implement metrics")
 	}
 
+	// Warn users that a restricted certificate with no projects will have zero access.
+	if c.flagRestricted && c.flagProjects == "" && !c.global.flagQuiet {
+		logger.Warn("Certificate is restricted but no projects specified. This certificate will have no project access.")
+	}
+
 	cert := api.CertificatesPost{}
 
 	// Check if remote is the first argument
@@ -150,7 +159,7 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 		if c.flagName != "" {
 			cert.Name = c.flagName
 		} else {
-			cert.Name, err = c.global.asker.AskString(i18n.G("Please provide client name: "), "", nil)
+			cert.Name, err = c.global.asker.AskString("Please provide client name: ", "", nil)
 			if err != nil {
 				return err
 			}
@@ -206,11 +215,11 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 		opAPI := op.Get()
 		certificateToken, err := opAPI.ToCertificateAddToken()
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed converting token operation to certificate add token: %w"), err)
+			return fmt.Errorf("Failed converting token operation to certificate add token: %w", err)
 		}
 
 		if !c.global.flagQuiet {
-			fmt.Printf(i18n.G("Client %s certificate add token:")+"\n", cert.Name)
+			fmt.Printf("Client %s certificate add token:"+"\n", cert.Name)
 		}
 
 		fmt.Println(certificateToken.String())

@@ -110,7 +110,7 @@ test_remote_url_with_token() {
   [[ "${expiresAt}" =~ UTC$ ]]
 
   # Add valid token but override projects
-  CERTNAME="token-client" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' -d '{"trust_token": "'"${token}"'","projects":["default","foo"],"restricted":false}' "https://${LXD_ADDR}/1.0/certificates"
+  CERTNAME="token-client" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' -d '{"trust_token": "'"${token}"'","projects":["default","foo"],"restricted":true}' "https://${LXD_ADDR}/1.0/certificates"
 
   # Check if we can see instances in the foo project
   [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances?project=foo" | jq -r '.status_code')" -eq 200 ]
