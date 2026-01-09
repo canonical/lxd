@@ -97,9 +97,7 @@ func (c *cmdSnapshot) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Invalid instance name: %s"), name)
 		}
 
-		fields := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		name = fields[0]
-		snapname = fields[1]
+		name, snapname, _ = strings.Cut(name, shared.SnapshotDelimiter)
 	}
 
 	d, err := conf.GetInstanceServer(remote)

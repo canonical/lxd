@@ -659,8 +659,8 @@ func (c *cmdImageExport) run(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else if resp.RootfsSize == 0 && len(args) > 1 {
-		if resp.MetaName != "" {
-			extension := strings.SplitN(resp.MetaName, ".", 2)[1]
+		_, extension, _ := strings.Cut(resp.MetaName, ".")
+		if extension != "" {
 			err := os.Rename(targetMeta, targetMeta+"."+extension)
 			if err != nil {
 				_ = os.Remove(targetMeta)
@@ -803,8 +803,8 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 
 	// Handle properties
 	for _, entry := range properties {
-		fields := strings.SplitN(entry, "=", 2)
-		if len(fields) < 2 {
+		key, value, found := strings.Cut(entry, "=")
+		if !found {
 			return fmt.Errorf("Bad property: %s", entry)
 		}
 
@@ -812,7 +812,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 			image.Properties = map[string]string{}
 		}
 
-		image.Properties[strings.TrimSpace(fields[0])] = strings.TrimSpace(fields[1])
+		image.Properties[strings.TrimSpace(key)] = strings.TrimSpace(value)
 	}
 
 	progress := cli.ProgressRenderer{
@@ -1262,15 +1262,7 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 	for _, filter := range filters {
 		found := false
 		if strings.Contains(filter, "=") {
-			membs := strings.SplitN(filter, "=", 2)
-
-			key := membs[0]
-			var value string
-			if len(membs) < 2 {
-				value = ""
-			} else {
-				value = membs[1]
-			}
+			key, value, _ := strings.Cut(filter, "=")
 
 			for configKey, configValue := range state.Properties {
 				list := cmdList{}

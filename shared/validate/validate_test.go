@@ -733,3 +733,144 @@ func Test_IsNetworkPortRange(t *testing.T) {
 		}
 	}
 }
+
+func TestIsCloudInitUserData(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		value   string
+		wantErr bool
+	}{
+		{
+			name:    "Valid cloud-init user data with valid content",
+			value:   "#cloud-config\nfoo: bar",
+			wantErr: false,
+		},
+		{
+			name:    "Valid cloud-init user data without content",
+			value:   "#cloud-config\n",
+			wantErr: false,
+		},
+		{
+			name:    "Valid cloud-init user data without newline after header",
+			value:   "#cloud-config",
+			wantErr: false,
+		},
+		{
+			name:    "Non-cloud-init user data",
+			value:   "some other user data format",
+			wantErr: false,
+		},
+		{
+			name:    "Empty user data",
+			value:   "",
+			wantErr: false,
+		},
+		{
+			name:    "Invalid YAML after cloud-config header",
+			value:   "#cloud-config\nfoo: [bar",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotErr := validate.IsCloudInitUserData(tt.value)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("IsCloudInitUserData() failed: %v", gotErr)
+				}
+
+				return
+			}
+
+			if tt.wantErr {
+				t.Fatal("IsCloudInitUserData() succeeded unexpectedly")
+			}
+		})
+	}
+}
+
+func Benchmark_IsCloudInitUserData(b *testing.B) {
+	tests := []string{
+		"#cloud-config\nfoo: bar",
+		"#cloud-config",
+		"some other user data format",
+		"#cloud-config\nfoo: [bar",
+	}
+
+	for _, v := range tests {
+		b.Run(v, func(b *testing.B) {
+			for b.Loop() {
+				_ = validate.IsCloudInitUserData(v)
+			}
+		})
+	}
+}
+
+func TestIsUserSSHKey(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		value   string
+		wantErr bool
+	}{
+		{
+			name:    "Bare key",
+			value:   "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFkaKP6A7cY9vJzCNNeasbzzbG0Caqijse+UOkta9bSX foo",
+			wantErr: true,
+		},
+		{
+			name:    "Missing user",
+			value:   ":ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFkaKP6A7cY9vJzCNNeasbzzbG0Caqijse+UOkta9bSX foo",
+			wantErr: true,
+		},
+		{
+			name:    "Valid user and key",
+			value:   "foo:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFkaKP6A7cY9vJzCNNeasbzzbG0Caqijse+UOkta9bSX foo",
+			wantErr: false,
+		},
+		{
+			name:    "Valid user and key with no comment",
+			value:   "foo:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFkaKP6A7cY9vJzCNNeasbzzbG0Caqijse+UOkta9bSX",
+			wantErr: false,
+		},
+		{
+			name:    "Missing key",
+			value:   "foo:",
+			wantErr: true,
+		},
+		{
+			name:    "Key from Launchpad",
+			value:   "foo:lp:someuser",
+			wantErr: false,
+		},
+		{
+			name:    "Key from GitHub",
+			value:   "foo:gh:someuser",
+			wantErr: false,
+		},
+		{
+			name:    "Override profile with none",
+			value:   "none",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotErr := validate.IsUserSSHKey(tt.value)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("IsUserSSHKey() failed: %v", gotErr)
+				}
+
+				return
+			}
+
+			if tt.wantErr {
+				t.Fatal("IsUserSSHKey() succeeded unexpectedly")
+			}
+		})
+	}
+}

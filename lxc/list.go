@@ -170,17 +170,8 @@ func (c *cmdList) shouldShow(filters []string, inst *api.Instance, state *api.In
 	c.mapShorthandFilters()
 
 	for _, filter := range filters {
-		if strings.Contains(filter, "=") {
-			membs := strings.SplitN(filter, "=", 2)
-
-			key := membs[0]
-			var value string
-			if len(membs) < 2 {
-				value = ""
-			} else {
-				value = membs[1]
-			}
-
+		key, value, ok := strings.Cut(filter, "=")
+		if ok {
 			if initial || c.evaluateShorthandFilter(key, value, inst, state) {
 				continue
 			}
@@ -687,14 +678,14 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 			}
 			if colType == deviceColumnType {
 				column.Data = func(cInfo api.InstanceFull) string {
-					d := strings.SplitN(k, ".", 2)
-					if len(d) == 1 || len(d) > 2 {
+					deviceName, deviceKey, found := strings.Cut(k, ".")
+					if !found {
 						return ""
 					}
 
-					v, ok := cInfo.Devices[d[0]][d[1]]
+					v, ok := cInfo.Devices[deviceName][deviceKey]
 					if !ok {
-						v = cInfo.ExpandedDevices[d[0]][d[1]]
+						v = cInfo.ExpandedDevices[deviceName][deviceKey]
 					}
 
 					// Truncate the data according to the max width.  A negative max width

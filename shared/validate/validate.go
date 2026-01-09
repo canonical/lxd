@@ -298,19 +298,19 @@ func IsNetworkAddressCIDR(value string) error {
 
 // IsNetworkRange validates an IP range in the format "start-end".
 func IsNetworkRange(value string) error {
-	ips := strings.SplitN(value, "-", 2)
-	if len(ips) != 2 {
+	start, end, found := strings.Cut(value, "-")
+	if !found {
 		return errors.New("IP range must contain start and end IP addresses")
 	}
 
-	startIP := net.ParseIP(ips[0])
+	startIP := net.ParseIP(start)
 	if startIP == nil {
-		return fmt.Errorf("Start not an IP address %q", ips[0])
+		return fmt.Errorf("Start not an IP address %q", start)
 	}
 
-	endIP := net.ParseIP(ips[1])
+	endIP := net.ParseIP(end)
 	if endIP == nil {
-		return fmt.Errorf("End not an IP address %q", ips[1])
+		return fmt.Errorf("End not an IP address %q", end)
 	}
 
 	if (startIP.To4() != nil) != (endIP.To4() != nil) {
@@ -372,19 +372,17 @@ func IsNetworkAddressCIDRV4(value string) error {
 
 // IsNetworkRangeV4 validates an IPv4 range in the format "start-end".
 func IsNetworkRangeV4(value string) error {
-	ips := strings.SplitN(value, "-", 2)
-	if len(ips) != 2 {
+	start, end, found := strings.Cut(value, "-")
+	if !found {
 		return errors.New("IP range must contain start and end IP addresses")
 	}
 
-	for _, ip := range ips {
-		err := IsNetworkAddressV4(ip)
-		if err != nil {
-			return err
-		}
+	err := IsNetworkAddressV4(start)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return IsNetworkAddressV4(end)
 }
 
 // IsNetworkV6 validates an IPv6 CIDR string.
@@ -435,19 +433,17 @@ func IsNetworkAddressCIDRV6(value string) error {
 
 // IsNetworkRangeV6 validates an IPv6 range in the format "start-end".
 func IsNetworkRangeV6(value string) error {
-	ips := strings.SplitN(value, "-", 2)
-	if len(ips) != 2 {
+	start, end, found := strings.Cut(value, "-")
+	if !found {
 		return errors.New("IP range must contain start and end IP addresses")
 	}
 
-	for _, ip := range ips {
-		err := IsNetworkAddressV6(ip)
-		if err != nil {
-			return err
-		}
+	err := IsNetworkAddressV6(start)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return IsNetworkAddressV6(end)
 }
 
 // IsNetworkVLAN validates a VLAN ID.
@@ -781,15 +777,9 @@ func IsRequestURL(value string) error {
 
 // IsCloudInitUserData checks value is valid cloud-init user data.
 func IsCloudInitUserData(value string) error {
-	if value == "#cloud-config" || strings.HasPrefix(value, "#cloud-config\n") {
-		lines := strings.SplitN(value, "\n", 2)
-
-		// If value only contains the cloud-config header, it is valid.
-		if len(lines) == 1 {
-			return nil
-		}
-
-		return IsYAML(lines[1])
+	content, found := strings.CutPrefix(value, "#cloud-config\n")
+	if found {
+		return IsYAML(content)
 	}
 
 	// Since there are various other user-data formats besides cloud-config, consider those valid.
@@ -837,23 +827,19 @@ func IsValidCPUSet(value string) error {
 		return errors.New("Invalid CPU limit syntax")
 	}
 
-	cpus := make(map[int64]int)
+	cpus := make(map[int]int)
 	chunks := strings.SplitSeq(value, ",")
 
 	for chunk := range chunks {
-		if strings.Contains(chunk, "-") {
+		lowStr, highStr, found := strings.Cut(chunk, "-")
+		if found {
 			// Range
-			fields := strings.SplitN(chunk, "-", 2)
-			if len(fields) != 2 {
-				return fmt.Errorf("Invalid cpuset value: %s", value)
-			}
-
-			low, err := strconv.ParseInt(fields[0], 10, 64)
+			low, err := strconv.Atoi(lowStr)
 			if err != nil {
 				return fmt.Errorf("Invalid cpuset value: %s", value)
 			}
 
-			high, err := strconv.ParseInt(fields[1], 10, 64)
+			high, err := strconv.Atoi(highStr)
 			if err != nil {
 				return fmt.Errorf("Invalid cpuset value: %s", value)
 			}
@@ -863,7 +849,7 @@ func IsValidCPUSet(value string) error {
 			}
 		} else {
 			// Simple entry
-			nr, err := strconv.ParseInt(chunk, 10, 64)
+			nr, err := strconv.Atoi(chunk)
 			if err != nil {
 				return fmt.Errorf("Invalid cpuset value: %s", value)
 			}

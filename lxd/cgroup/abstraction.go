@@ -410,34 +410,29 @@ func parseCPUSet(set string) (int, error) {
 
 	fields := strings.SplitSeq(strings.TrimSpace(set), ",")
 	for value := range fields {
-		// Parse non-range values.
-		if !strings.Contains(value, "-") {
+		startStr, endStr, found := strings.Cut(value, "-")
+		if found {
+			// Parse ranges.
+			startRange, err := strconv.Atoi(startStr)
+			if err != nil {
+				return -1, fmt.Errorf("Failed parsing %q: %w", startStr, err)
+			}
+
+			endRange, err := strconv.Atoi(endStr)
+			if err != nil {
+				return -1, fmt.Errorf("Failed parsing %q: %w", endStr, err)
+			}
+
+			for i := startRange; i <= endRange; i++ {
+				out++
+			}
+		} else {
+			// Parse non-range values.
 			_, err := strconv.Atoi(value)
 			if err != nil {
 				return -1, fmt.Errorf("Failed parsing %q: %w", value, err)
 			}
 
-			out++
-			continue
-		}
-
-		// Parse ranges (should be made of two elements only).
-		valueFields := strings.Split(value, "-")
-		if len(valueFields) != 2 {
-			return -1, fmt.Errorf("Failed parsing %q: Invalid range format", value)
-		}
-
-		startRange, err := strconv.Atoi(valueFields[0])
-		if err != nil {
-			return -1, fmt.Errorf("Failed parsing %q: %w", valueFields[0], err)
-		}
-
-		endRange, err := strconv.Atoi(valueFields[1])
-		if err != nil {
-			return -1, fmt.Errorf("Failed parsing %q: %w", valueFields[1], err)
-		}
-
-		for i := startRange; i <= endRange; i++ {
 			out++
 		}
 	}
