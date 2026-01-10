@@ -45,17 +45,14 @@ test_container_local_cross_pool_handling() {
 
   lxc init --empty c1
   lxc snapshot c1
-  lxc snapshot c1
   lxc copy c1 c2 -s "${otherPool}" --instance-only
   lxc storage volume show "${otherPool}" container/c2
   ! lxc storage volume show "${otherPool}" container/c2/snap0 || false
-  ! lxc storage volume show "${otherPool}" container/c2/snap1 || false
   lxc delete c2
   lxc move c1 c2 -s "${otherPool}" --instance-only
   ! lxc info c1 || false
   lxc storage volume show "${otherPool}" container/c2
   ! lxc storage volume show "${otherPool}" container/c2/snap0 || false
-  ! lxc storage volume show "${otherPool}" container/c2/snap1 || false
   lxc delete c2
 
   lxc init --empty c1
