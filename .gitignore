@@ -6,6 +6,7 @@ tags
 **/*.bak
 
 test/busybox.tar.xz.cache
+test/.durations.*
 
 # Sphinx
 doc/html/
