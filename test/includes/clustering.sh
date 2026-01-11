@@ -199,6 +199,9 @@ cluster:
   echo "${preseed}"
 
   lxd init --preseed <<< "${preseed}"
+
+  # Retrieve the cluster certificate
+  LXD_CLUSTER_CERT="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 }
 
 spawn_lxd_and_join_cluster() {
