@@ -117,6 +117,9 @@ LXD_NETNS=""
 export LXD_ONE_DIR="" LXD_TWO_DIR="" LXD_THREE_DIR="" LXD_FOUR_DIR="" LXD_FIVE_DIR="" LXD_SIX_DIR="" LXD_SEVEN_DIR="" LXD_EIGHT_DIR="" LXD_NINE_DIR=""
 # nsX variables for multiple network namespaces
 export ns1="" ns2="" ns3="" ns4="" ns5="" ns6="" ns7="" ns8="" ns9=""
+# LXD_CLUSTER_CERT is set by spawn_lxd_and_bootstrap_cluster to the cluster cert
+# in YAML format for joining nodes using spawn_lxd_and_join_cluster
+export LXD_CLUSTER_CERT=""
 
 export prefix="lxd$$"
 export bridge="${prefix}"
