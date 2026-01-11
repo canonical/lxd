@@ -124,6 +124,7 @@ spawn_lxd_and_bootstrap_cluster() {
   else
     LXD_DIR="${LXD_DIR_KEEP}"
     mkdir -p "${LXD_DIR}"
+    unset LXD_DIR_KEEP
   fi
   # shellcheck disable=SC2154
   local ns="${bridge}1"
@@ -225,6 +226,7 @@ spawn_lxd_and_join_cluster() {
   else
     LXD_DIR="${LXD_DIR_KEEP}"
     mkdir -p "${LXD_DIR}"
+    unset LXD_DIR_KEEP
   fi
   ns="${bridge}${index}"
 
