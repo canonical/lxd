@@ -2424,7 +2424,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	if len(extRouterIPs) > 0 {
-		err = client.LogicalSwitchAdd(n.getExtSwitchName(), update)
+		err = client.LogicalSwitchAdd(context.TODO(), n.getExtSwitchName(), update)
 		if err != nil {
 			return fmt.Errorf("Failed adding external switch: %w", err)
 		}
@@ -2627,7 +2627,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Create internal logical switch if not updating.
-	err = client.LogicalSwitchAdd(n.getIntSwitchName(), update)
+	err = client.LogicalSwitchAdd(context.TODO(), n.getIntSwitchName(), update)
 	if err != nil {
 		return fmt.Errorf("Failed adding internal switch: %w", err)
 	}
