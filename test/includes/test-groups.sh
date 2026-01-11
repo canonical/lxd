@@ -64,8 +64,6 @@ readonly test_group_instance=(
     "console"
     "console_vm"
     "container_devices_gpu"
-    "container_devices_infiniband_physical"
-    "container_devices_infiniband_sriov"
     "container_devices_none"
     "container_devices_proxy"
     "container_devices_tpm"
@@ -98,6 +96,8 @@ readonly test_group_image=(
 )
 
 readonly test_group_network=(
+    "container_devices_infiniband_physical"
+    "container_devices_infiniband_sriov"
     "container_devices_nic_bridged"
     "container_devices_nic_bridged_acl"
     "container_devices_nic_bridged_filtering"
