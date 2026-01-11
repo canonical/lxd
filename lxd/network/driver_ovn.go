@@ -2386,7 +2386,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Create chassis group.
-	err = client.ChassisGroupAdd(n.getChassisGroupName(), update)
+	err = client.ChassisGroupAdd(context.TODO(), n.getChassisGroupName(), update)
 	if err != nil {
 		return err
 	}
