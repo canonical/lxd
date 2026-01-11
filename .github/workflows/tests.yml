@@ -283,17 +283,7 @@ jobs:
           - group: cluster
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: cluster_storage
-            backends: btrfs
-          - group: cluster_storage
-            backends: ceph
-          - group: cluster_storage
-            backends: dir
-          - group: cluster_storage
-            backends: lvm
-          - group: cluster_storage
-            backends: zfs
-          - group: cluster_storage
-            backends: random
+            backends: all
           - group: image
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: instance
@@ -303,17 +293,7 @@ jobs:
           - group: standalone
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: snap
-            backends: btrfs
-          - group: snap
-            backends: ceph
-          - group: snap
-            backends: dir
-          - group: snap
-            backends: lvm
-          - group: snap
-            backends: zfs
-          - group: snap
-            backends: random
+            backends: all
           - group: standalone_storage
             backends: btrfs
           - group: standalone_storage
