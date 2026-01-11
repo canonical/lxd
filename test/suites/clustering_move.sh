@@ -5,14 +5,11 @@ test_clustering_move() {
 
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Preparation
 
