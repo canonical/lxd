@@ -401,7 +401,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, btrfs)"
         if: matrix.backends == 'all' || matrix.backends == 'btrfs'
         env:
-          LXD_BACKENDS: btrfs
+          LXD_BACKEND: btrfs
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
@@ -414,7 +415,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, ceph)"
         if: matrix.backends == 'all' || matrix.backends == 'ceph'
         env:
-          LXD_BACKENDS: ceph
+          LXD_BACKEND: ceph
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
@@ -427,7 +429,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, dir)"
         if: matrix.backends == 'all' || matrix.backends == 'dir'
         env:
-          LXD_BACKENDS: dir
+          LXD_BACKEND: dir
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
@@ -440,7 +443,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, lvm)"
         if: matrix.backends == 'all' || matrix.backends == 'lvm'
         env:
-          LXD_BACKENDS: lvm
+          LXD_BACKEND: lvm
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
@@ -453,7 +457,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, zfs)"
         if: matrix.backends == 'all' || matrix.backends == 'zfs'
         env:
-          LXD_BACKENDS: zfs
+          LXD_BACKEND: zfs
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
@@ -466,7 +471,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, random)"
         if: matrix.backends == 'all' || matrix.backends == 'random'
         env:
-          LXD_BACKENDS: random
+          LXD_BACKEND: random
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
