@@ -126,12 +126,9 @@ test_clustering_enable() {
 test_clustering_membership() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  # shellcheck disable=SC2153
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  # shellcheck disable=SC2153
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Neither server certificate can be deleted
   LXD_ONE_FINGERPRINT="$(cert_fingerprint "${LXD_ONE_DIR}/server.crt")"
@@ -158,13 +155,13 @@ test_clustering_membership() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create net1 --target node2
 
   # Spawn a third node, using the non-leader node2 as join target.
-  spawn_lxd_and_join_cluster "${cert}" 3 2 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 2 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node, this will be a non-database node.
-  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node, using non-database node4 as join target.
-  spawn_lxd_and_join_cluster "${cert}" 5 4 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 5 4 "${LXD_ONE_DIR}"
 
   # Wait a bit for raft roles to update.
   sleep 5
@@ -219,7 +216,7 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 | grep "${token}"
 
   # Spawn a sixth node, using join token.
-  spawn_lxd_and_join_cluster "${cert}" 6 2 "${token}"
+  spawn_lxd_and_join_cluster 6 2 "${token}"
 
   # Check token has been deleted after join.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
@@ -245,7 +242,7 @@ test_clustering_membership() {
   token_valid="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node8)"
 
   # Spawn an eigth node, using join token.
-  spawn_lxd_and_join_cluster "${cert}" 8 2 "${token_valid}"
+  spawn_lxd_and_join_cluster 8 2 "${token_valid}"
 
   # This will cause the token to expire
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=2S
@@ -253,7 +250,7 @@ test_clustering_membership() {
   sleep 2
 
   # Spawn a ninth node, using join token.
-  ! spawn_lxd_and_join_cluster "${cert}" 9 2 "${token_expired}" || false
+  ! spawn_lxd_and_join_cluster 9 2 "${token_expired}" || false
 
   # Unset join_token_expiry which will set it to the default value of 3h
   LXD_DIR="${LXD_ONE_DIR}" lxc config unset cluster.join_token_expiry
@@ -292,14 +289,11 @@ test_clustering_containers() {
   echo "Create cluster with 3 nodes."
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   echo "Init a container on node2, using a client connected to node1."
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
@@ -455,11 +449,8 @@ test_clustering_storage() {
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # The state of the preseeded storage pool is still CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
@@ -973,9 +964,6 @@ test_clustering_network() {
   # The state of the preseeded network shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep -F "${bridge}" | grep -wF CREATED
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Create a project with restricted.networks.subnets set to check the default networks are created before projects
   # when a member joins the cluster.
   LXD_DIR="${LXD_ONE_DIR}" lxc network set "${bridge}" ipv4.routes=192.0.2.0/24
@@ -985,7 +973,7 @@ test_clustering_network() {
     -c restricted.networks.subnets="${bridge}":192.0.2.0/24
 
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # The state of the preseeded network is still CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep -F "${bridge}" | grep -wF CREATED
@@ -1219,14 +1207,11 @@ test_clustering_heal_networks_stop() {
   echo "Create a cluster with 3 nodes"
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   echo "Create bridge network to start BGP listener on"
   bgpbr="${prefix}bgpbr"
@@ -1304,11 +1289,8 @@ test_clustering_heal_networks_stop() {
 test_clustering_upgrade() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Respawn the second node, making it believe it has an higher
   # version than it actually has.
@@ -1334,7 +1316,7 @@ test_clustering_upgrade() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -c "Fully operational")" -eq 2 ]
 
   # Now spawn a third node and test the upgrade with a 3-node cluster.
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Respawn the second node, making it believe it has an higher
   # version than it actually has.
@@ -1380,11 +1362,8 @@ test_clustering_upgrade() {
 test_clustering_downgrade() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Respawn the second node, making it believe it has an lower version than it actually has.
   export LXD_ARTIFICIALLY_BUMP_API_EXTENSIONS=-1
@@ -1408,7 +1387,7 @@ test_clustering_downgrade() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -c "Fully operational")" -eq 2 ]
 
   # Now spawn a third node and test the upgrade with a 3-node cluster.
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Respawn the second node, making it believe it has an lower version than it actually has.
   export LXD_ARTIFICIALLY_BUMP_API_EXTENSIONS=-2
@@ -1455,11 +1434,8 @@ test_clustering_upgrade_large() {
 
   LXD_DIR_KEEP="${LXD_CLUSTER_DIR}/1" spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   for i in $(seq 2 "${N}"); do
-    LXD_DIR_KEEP="${LXD_CLUSTER_DIR}/${i}" spawn_lxd_and_join_cluster "${cert}" "${i}" 1 "${LXD_ONE_DIR}"
+    LXD_DIR_KEEP="${LXD_CLUSTER_DIR}/${i}" spawn_lxd_and_join_cluster "${i}" 1 "${LXD_ONE_DIR}"
   done
 
   # Respawn all nodes in sequence, as if their version had been upgrade.
@@ -1491,11 +1467,8 @@ test_clustering_upgrade_large() {
 test_clustering_publish() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Give LXD a couple of seconds to get event API connected properly
   sleep 2
@@ -1528,11 +1501,8 @@ test_clustering_publish() {
 test_clustering_profiles() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
   # TODO: Fix known race in importing small images that complete before event listener is setup.
@@ -1613,11 +1583,8 @@ test_clustering_update_cert() {
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
   ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Send update request
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster update-cert "${cert_path}" "${key_path}" -q
@@ -1673,14 +1640,11 @@ test_clustering_update_cert_reversion() {
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
   ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Shutdown third node
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
@@ -1744,11 +1708,8 @@ test_clustering_update_cert_token() {
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
   ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Get a token embedding the current cluster cert fingerprint
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
@@ -1837,14 +1798,11 @@ test_clustering_join_api() {
 test_clustering_shutdown_nodes() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Init a container on node1, using a client connected to node1
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
@@ -1890,11 +1848,8 @@ test_clustering_shutdown_nodes() {
 test_clustering_projects() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Create a test project
   LXD_DIR="${LXD_ONE_DIR}" lxc project create p1
@@ -1936,11 +1891,8 @@ test_clustering_projects() {
 test_clustering_metrics() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Create one running container in each node and a stopped one on the leader.
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
@@ -2013,11 +1965,8 @@ test_clustering_address() {
   lxc remote add cluster --token "${token}" "${url}"
   lxc storage list cluster: | grep -F data
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node using a custom cluster port
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "dir" "8444"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}" "dir" "8444"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F node2
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -xF "database: true"
@@ -2063,11 +2012,8 @@ test_clustering_address() {
 test_clustering_image_replication() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Image replication will be performed across all nodes in the cluster by default
   images_minimal_replica1=$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster.images_minimal_replica)
@@ -2092,7 +2038,7 @@ test_clustering_image_replication() {
   [ -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/images/${fingerprint}" ]
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Wait for the test image to be synced into the joined node on the background
   retries=10
@@ -2300,11 +2246,8 @@ test_clustering_dns() {
 test_clustering_fan() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Import the test image on node1
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
@@ -2369,14 +2312,11 @@ test_clustering_fan() {
 test_clustering_recover() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Wait a bit for raft roles to update.
   sleep 5
@@ -2443,11 +2383,8 @@ test_clustering_ha() {
 
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   echo "Get IP:port of all cluster members"
   LXD_ONE_ADDR="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get core.https_address)"
@@ -2556,21 +2493,18 @@ test_clustering_handover() {
 
   echo "Launched member 1"
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   echo "Launched member 2"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   echo "Launched member 3"
 
   # Spawn a fourth node, this will be a non-voter, stand-by node.
-  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 4 1 "${LXD_ONE_DIR}"
 
   echo "Launched member 4"
 
@@ -2649,17 +2583,14 @@ test_clustering_handover() {
 test_clustering_rebalance() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node
-  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 4 1 "${LXD_ONE_DIR}"
 
   # Wait a bit for raft roles to update.
   sleep 5
@@ -2714,11 +2645,8 @@ test_clustering_rebalance_remove_leader() {
   echo "Create two node cluster"
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   echo "Verify clustering enabled on both nodes"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F node1
@@ -2772,11 +2700,8 @@ test_clustering_rebalance_remove_leader() {
 test_clustering_remove_raft_node() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Configuration keys can be changed on any node.
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
@@ -2794,10 +2719,10 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create net1 --target node2
 
   # Spawn a third node, using the non-leader node2 as join target.
-  spawn_lxd_and_join_cluster "${cert}" 3 2 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 2 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node, this will be a database-standby node.
-  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 4 1 "${LXD_ONE_DIR}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
 
@@ -2869,23 +2794,20 @@ test_clustering_remove_raft_node() {
 test_clustering_failure_domains() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node, using the non-leader node2 as join target.
-  spawn_lxd_and_join_cluster "${cert}" 3 2 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 2 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node, this will be a non-database node.
-  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node, using non-database node4 as join target.
-  spawn_lxd_and_join_cluster "${cert}" 5 4 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 5 4 "${LXD_ONE_DIR}"
 
   # Spawn a sixth node, using non-database node4 as join target.
-  spawn_lxd_and_join_cluster "${cert}" 6 4 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 6 4 "${LXD_ONE_DIR}"
 
   # Default failure domain
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "failure_domain: default"
@@ -2950,14 +2872,11 @@ test_clustering_image_refresh() {
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn public node which has a public testimage
   setup_clustering_netns 4
@@ -3178,14 +3097,11 @@ test_clustering_evacuation() {
   echo "Check the state of the preseeded storage pool shows up as CREATED"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   echo "Create local pool"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node1
@@ -3532,11 +3448,8 @@ test_clustering_evacuation_restore_operations() {
   # Spawn first node
   spawn_lxd_and_bootstrap_cluster "${poolDriver}"
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
@@ -3598,20 +3511,17 @@ test_clustering_evacuation_restore_operations() {
 test_clustering_edit_configuration() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn 6 nodes in total for role coverage.
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
-  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 4 1 "${LXD_ONE_DIR}"
 
-  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 5 1 "${LXD_ONE_DIR}"
 
-  spawn_lxd_and_join_cluster "${cert}" 6 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 6 1 "${LXD_ONE_DIR}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
 
@@ -3724,23 +3634,20 @@ test_clustering_remove_members() {
   # Bootstrap the first node
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node
-  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node
-  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 5 1 "${LXD_ONE_DIR}"
 
   # Spawn a sixth node
-  spawn_lxd_and_join_cluster "${cert}" 6 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 6 1 "${LXD_ONE_DIR}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -F "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -F "server_name: node1"
@@ -3786,7 +3693,7 @@ test_clustering_remove_members() {
   LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -xF -- "- database-leader"
 
   # Spawn a seventh node
-  spawn_lxd_and_join_cluster "${cert}" 7 6 "${LXD_SIX_DIR}"
+  spawn_lxd_and_join_cluster 7 6 "${LXD_SIX_DIR}"
 
   # Ensure the remaining node is working by join a new node7
   LXD_DIR="${LXD_SIX_DIR}" lxc info --target node7 | grep -F "server_name: node7"
@@ -3824,11 +3731,8 @@ test_clustering_remove_members() {
 test_clustering_autotarget() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Use node1 for all cluster actions.
   LXD_DIR="${LXD_ONE_DIR}"
@@ -3861,14 +3765,11 @@ test_clustering_groups() {
   echo 'Create cluster with 3 nodes'
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
   lxc remote add cluster --token "${token}" "https://100.64.1.101:8443"
@@ -4122,20 +4023,17 @@ EOF
 test_clustering_events() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node.
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node.
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node.
-  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node.
-  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 5 1 "${LXD_ONE_DIR}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
@@ -4299,20 +4197,17 @@ test_clustering_events() {
 test_clustering_roles() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node.
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node.
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node.
-  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node.
-  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 5 1 "${LXD_ONE_DIR}"
 
   # Configure cluster with max_voters=3 and max_standby=1
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.max_voters=3 cluster.max_standby=1 cluster.offline_threshold=11
@@ -4400,10 +4295,7 @@ test_clustering_roles() {
 test_clustering_uuid() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # spawn an instance on the first LXD node
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 --target=node1
@@ -4438,10 +4330,7 @@ test_clustering_uuid() {
 test_clustering_trust_add() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Check using token that is expired
 
@@ -4519,11 +4408,8 @@ test_clustering_trust_add() {
 test_clustering_projects_force_delete() {
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   echo "Capture baseline state before creating project."
   VOLUMES_BEFORE="$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list -f csv --all-projects)"
@@ -4616,20 +4502,17 @@ test_clustering_placement_groups() {
   echo "Create cluster with 5 members."
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node.
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Spawn a fourth node.
-  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 4 1 "${LXD_ONE_DIR}"
 
   # Spawn a fifth node.
-  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 5 1 "${LXD_ONE_DIR}"
 
   echo "==> Test spread/strict: initial placement"
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-spread-strict policy=spread rigor=strict
@@ -4845,14 +4728,11 @@ test_clustering_force_removal() {
   echo "Create cluster with 3 members."
   spawn_lxd_and_bootstrap_cluster
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}"
 
   # Spawn a third node.
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}"
 
   # Spawn an instance on the third node.
   LXD_DIR="${LXD_THREE_DIR}" ensure_import_testimage
@@ -4922,11 +4802,8 @@ test_clustering_recovery() {
 
   spawn_lxd_and_bootstrap_cluster "${poolDriver}"
 
-  local cert
-  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
-
   # Spawn a second node.
-  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn a third node using a custom loop device outside of LXD's directory.
   configure_loop_device loop_file_1 loop_device_1 128M  # 128M to accommodate for btrfs
@@ -4939,7 +4816,7 @@ test_clustering_recovery() {
     mount "${source}" "${TEST_DIR}/pools/data"
     source="${TEST_DIR}/pools/data"
   fi
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}"
+  spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}"
 
   # Create an instance and custom volume on the third node's data pool.
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -s data --target node3
@@ -4966,7 +4843,7 @@ test_clustering_recovery() {
   fi
   # Recreate the original directory of the third cluster member.
   # We reuse the name (path) to ensure the same name of the underlying storage artifacts.
-  LXD_DIR_KEEP="${LXD_THREE_DIR}" LXD_NETNS_KEEP="${ns3}" spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}" true
+  LXD_DIR_KEEP="${LXD_THREE_DIR}" LXD_NETNS_KEEP="${ns3}" spawn_lxd_and_join_cluster 3 1 "${LXD_ONE_DIR}" "${poolDriver}" 8443 "${source}" true
 
   # Recover instance and custom volume from the third node's data pool.
   # We also require recovery for remote drivers as the DB entries got purged when force removing the cluster member.

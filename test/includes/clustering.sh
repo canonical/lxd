@@ -122,6 +122,7 @@ spawn_lxd_and_bootstrap_cluster() {
   else
     LXD_DIR="${LXD_DIR_KEEP}"
     mkdir -p "${LXD_DIR}"
+    unset LXD_DIR_KEEP
   fi
   # shellcheck disable=SC2154
   local ns="${bridge}1"
@@ -199,20 +200,22 @@ cluster:
   echo "${preseed}"
 
   lxd init --preseed <<< "${preseed}"
+
+  # Retrieve the cluster certificate
+  LXD_CLUSTER_CERT="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 }
 
 spawn_lxd_and_join_cluster() {
-  local cert="${1}"
-  local index="${2}"
-  local target="${3}"
-  local token="${4}"
-  if [ -d "${4}" ]; then
-    token="$(LXD_DIR=${4} lxc cluster add --quiet "node${index}")"
+  local index="${1}"
+  local target="${2}"
+  local token="${3}"
+  if [ -d "${3}" ]; then
+    token="$(LXD_DIR=${3} lxc cluster add --quiet "node${index}")"
   fi
-  local driver="${5:-dir}"
-  local port="${6:-8443}"
-  local source="${7:-}"
-  local source_recover="${8:-false}"
+  local driver="${4:-dir}"
+  local port="${5:-8443}"
+  local source="${6:-}"
+  local source_recover="${7:-false}"
 
   [ "${LXD_NETNS_KEEP:-""}" = "" ] && setup_clustering_netns "${index}"
 
@@ -221,6 +224,7 @@ spawn_lxd_and_join_cluster() {
   else
     LXD_DIR="${LXD_DIR_KEEP}"
     mkdir -p "${LXD_DIR}"
+    unset LXD_DIR_KEEP
   fi
   ns="${bridge}${index}"
 
@@ -272,7 +276,7 @@ spawn_lxd_and_join_cluster() {
   server_address: 100.64.1.10${index}:${port}
   cluster_address: 100.64.1.10${target}:8443
   cluster_certificate: |
-${cert}
+${LXD_CLUSTER_CERT}
   cluster_token: ${token}
   member_config:"
 
