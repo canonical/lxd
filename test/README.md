@@ -1,14 +1,20 @@
-# How to run
+# LXD tests
+
+## How to run
 
 To run all tests, including the Go tests, run from repository root:
 
-    sudo -E make check
+```sh
+sudo -E make check
+```
 
 To run only the integration tests, run from the test directory:
 
-    sudo -E ./main.sh
+```sh
+sudo -E ./main.sh
+```
 
-# Environment variables
+## Environment variables
 
 Name                           | Default                   | Description
 :--                            | :---                      | :----------
@@ -34,9 +40,9 @@ Name                           | Default                   | Description
 `LXD_REQUIRED_TESTS`           | ""                        | Space-delimited list of test names that must not be skipped if their prerequisites are not met
 `LXD_VM_TESTS`                 | 1                         | Enables tests using VMs and the on-demand installation of the needed tools
 
-# Recommendations
+## Recommendations
 
-## `echo` context
+### `echo` context
 
 Add `echo` to provide context during the test execution instead of using code comments.
 
@@ -72,7 +78,7 @@ Good:
 
 This way, debug logs will be easier to read.
 
-## Expected failure
+### Expected failure
 
 If a command is expected to fail, special care needs to be used in testing.
 
