@@ -150,8 +150,12 @@ func (r *Requestor) CallerIdentity() *identity.CacheEntry {
 }
 
 // CallerIdentityType returns the identity.Type corresponding to the CallerIdentity. It may be nil (e.g. if the protocol is ProtocolUnix).
-func (r *Requestor) CallerIdentityType() identity.Type {
-	return r.identityType
+func (r *Requestor) CallerIdentityType() (identity.Type, error) {
+	if r.identityType == nil {
+		return nil, errors.New("No identity type present in request details")
+	}
+
+	return r.identityType, nil
 }
 
 // IsForwarded returns true if the request was forwarded from another cluster member and false otherwise.
