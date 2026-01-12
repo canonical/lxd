@@ -2753,15 +2753,16 @@ test_clustering_rebalance_remove_leader() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list -f csv | wc -l)" = "1" ]
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -F "database: true"
 
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   echo "Clean up"
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
 
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
 }
