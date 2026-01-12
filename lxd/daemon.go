@@ -496,23 +496,18 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
 // client that has been authenticated (cluster, unix, oidc or tls).
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.RequestorArgs, error) {
-	// Perform mTLS check against server certificates. If this passes, the request was made by another cluster member
-	// and the protocol is [request.ProtocolCluster].
-	if r.TLS != nil {
-		for _, i := range r.TLS.PeerCertificates {
-			trusted, fingerprint := util.CheckMutualTLS(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer))
-			if trusted {
-				return &request.RequestorArgs{
-					Trusted:  true,
-					Username: fingerprint,
-					Protocol: request.ProtocolCluster,
-				}, nil
-			}
+	if r.TLS == nil {
+		// For a socket, the server is listening on a file, but the client does not have an address.
+		// Since there is no address, the kernel uses an unnamed unix socket address.
+		// An unnamed or abstract Unix socket address is rendered as '@'.
+		// Without TLS, we only accept unix socket access.
+		if r.RemoteAddr != "@" {
+			return nil, errors.New("Bad/missing TLS on network query")
 		}
-	}
 
-	// Local unix socket queries.
-	if r.RemoteAddr == "@" && r.TLS == nil {
+		// Get user credentials from the connection.
+		// This is only to populate the username.
+		// The caller already has permission by way of file permissions on the socket.
 		cred, err := ucred.GetCredFromContext(r.Context())
 		if err != nil {
 			return nil, err
@@ -533,20 +528,104 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 		}, nil
 	}
 
-	// Bad query, no TLS found.
-	if r.TLS == nil {
-		return nil, errors.New("Bad/missing TLS on network query")
+	// Request has TLS. If client sent a peer certificate, check mTLS and CA.
+	if len(r.TLS.PeerCertificates) > 0 {
+		// Convert list of peer certificates to map.
+		peerCertificateFingerprints := make([]string, 0, len(r.TLS.PeerCertificates))
+		peerCertificates := make(map[string]x509.Certificate, len(r.TLS.PeerCertificates))
+		for _, c := range r.TLS.PeerCertificates {
+			f := shared.CertFingerprint(c)
+			peerCertificates[f] = *c
+			peerCertificateFingerprints = append(peerCertificateFingerprints, f)
+		}
+
+		// Anonymous function to call for each certificate type and it's associated protocol.
+		authTLS := func(protocol string, certGetter func(...string) map[string]x509.Certificate) (*request.RequestorArgs, error) {
+			// Did the client send any certificates we recognise?
+			matchedCerts := certGetter(peerCertificateFingerprints...)
+			if len(matchedCerts) == 0 {
+				// If not, they are not authenticated, but there is no error.
+				return nil, nil
+			} else if len(matchedCerts) > 1 {
+				// If they matched more than one, we don't know who to authenticate the caller as, so return an error.
+				return nil, api.StatusErrorf(http.StatusBadRequest, "Client sent too many credentials")
+			}
+
+			// Get the recognised fingerprint (there is only one).
+			var matchedFingerprint string
+			for k := range matchedCerts {
+				matchedFingerprint = k
+			}
+
+			// We've recognised the fingerprint of the caller certificate, but now we need to perform a full mTLS check.
+			trusted, _ := util.CheckMutualTLS(peerCertificates[matchedFingerprint], matchedCerts)
+			if trusted {
+				// If there is a server.ca file, then all client certificates must be signed by it.
+				// This does not apply to server certificates.
+				if protocol != request.ProtocolCluster && d.endpoints.NetworkCert().CA() != nil {
+					trusted, _, _ = util.CheckCASignature(peerCertificates[matchedFingerprint], d.endpoints.NetworkCert())
+					if !trusted {
+						return nil, nil
+					}
+				}
+
+				return &request.RequestorArgs{
+					Trusted:  trusted,
+					Protocol: protocol,
+					Username: matchedFingerprint,
+				}, nil
+			}
+
+			return nil, nil
+		}
+
+		// Check server certificates.
+		requestor, err := authTLS(request.ProtocolCluster, d.identityCache.GetServerCertificates)
+		if err != nil {
+			return nil, err
+		} else if requestor != nil {
+			return requestor, nil
+		}
+
+		// Check client certificates.
+		requestor, err = authTLS(api.AuthenticationMethodTLS, d.identityCache.GetClientCertificates)
+		if err != nil {
+			return nil, err
+		} else if requestor != nil {
+			return requestor, nil
+		}
+
+		// Only check metrics certificates if it is a metrics API route.
+		if strings.HasPrefix(r.URL.Path, "/1.0/metrics") {
+			requestor, err = authTLS(api.AuthenticationMethodTLS, d.identityCache.GetMetricsCertificates)
+			if err != nil {
+				return nil, err
+			} else if requestor != nil {
+				return requestor, nil
+			}
+		}
+
+		// Lastly, check if core.trust_ca_certificates is true. If so, allow all CA signed certificates without checking
+		// mTLS.
+		if d.endpoints.NetworkCert().CA() != nil && d.globalConfig.TrustCACertificates() {
+			for f, cert := range peerCertificates {
+				trusted, _, _ := util.CheckCASignature(cert, d.endpoints.NetworkCert())
+				if trusted {
+					return &request.RequestorArgs{
+						Trusted:  true,
+						Username: f,
+						Protocol: request.ProtocolPKI,
+					}, nil
+				}
+			}
+		}
 	}
 
+	// Lastly, check OIDC authentication using the verifier.
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
 		result, err := d.oidcVerifier.Auth(w, r)
 		if err != nil {
 			return nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
-		}
-
-		err = d.handleOIDCAuthenticationResult(result)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to process OIDC authentication result: %w", err)
 		}
 
 		return &request.RequestorArgs{
@@ -555,78 +634,6 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 			Protocol:               api.AuthenticationMethodOIDC,
 			IdentityProviderGroups: result.IdentityProviderGroups,
 		}, nil
-	}
-
-	isMetricsRequest := func(u url.URL) bool {
-		return strings.HasPrefix(u.Path, "/1.0/metrics")
-	}
-
-	// List of candidate identity types for this request. We have already checked server certificates at the beginning of this method
-	// so we only need to consider client and metrics certificates. (OIDC auth was completed above).
-	candidateIdentityTypes := []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClient}
-	if isMetricsRequest(*r.URL) {
-		// Metrics certificates can only authenticate when calling metrics related endpoints.
-		candidateIdentityTypes = append(candidateIdentityTypes, api.IdentityTypeCertificateMetricsUnrestricted, api.IdentityTypeCertificateMetricsRestricted)
-	}
-
-	// Map of candidate certificates of mTLS check.
-	candidateCertificates := make(map[string]x509.Certificate)
-
-	// If the network cert has a CA, validate the peer certificates against it.
-	if d.endpoints.NetworkCert().CA() != nil {
-		trustCACertificates := d.globalConfig.TrustCACertificates()
-		for _, peerCertificate := range r.TLS.PeerCertificates {
-			trusted, _, fingerprint := util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
-			if !trusted {
-				return &request.RequestorArgs{Trusted: false}, nil
-			}
-
-			// Check if a matching certificate is present in the identity cache.
-			id, err := d.identityCache.Get(api.AuthenticationMethodTLS, fingerprint)
-			if err != nil {
-				if !api.StatusErrorCheck(err, http.StatusNotFound) {
-					return nil, err
-				}
-
-				// If we have a not found error and `core.trust_ca_certificates` is true, then the identity is implicitly
-				// trusted because their certificate was signed by the CA.
-				if trustCACertificates {
-					return &request.RequestorArgs{
-						Trusted:  true,
-						Username: fingerprint,
-						Protocol: request.ProtocolPKI,
-					}, nil
-				}
-
-				// If we don't implicitly trust CA signed certificates, then the identity is not trusted because they
-				// are not present in the identity cache.
-				return &request.RequestorArgs{Trusted: false}, nil
-			}
-
-			// The identity type must be in our list of candidate types (e.g. if this certificate is a metrics certificate
-			// and we're on a non-metrics related route).
-			if !slices.Contains(candidateIdentityTypes, id.IdentityType) {
-				return &request.RequestorArgs{Trusted: false}, nil
-			}
-
-			// In CA mode we only consider if this exact certificate is valid via mTLS checks below.
-			candidateCertificates[id.Identifier] = *id.Certificate
-		}
-	} else {
-		// In non-CA mode we consider all certificates that would be valid for this API route.
-		candidateCertificates = d.identityCache.X509Certificates(candidateIdentityTypes...)
-	}
-
-	// Perform mTLS check on candidates.
-	for _, i := range r.TLS.PeerCertificates {
-		trusted, fingerprint := util.CheckMutualTLS(*i, candidateCertificates)
-		if trusted {
-			return &request.RequestorArgs{
-				Trusted:  true,
-				Username: fingerprint,
-				Protocol: api.AuthenticationMethodTLS,
-			}, nil
-		}
 	}
 
 	// Reject unauthorized.
