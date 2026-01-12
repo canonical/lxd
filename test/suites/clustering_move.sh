@@ -103,36 +103,36 @@ test_clustering_move() {
   # - c3 is deployed on node3
 
   echo "c1 can be moved to node2 by group targeting."
-  lxc move cluster:c1 --target=@foobar2
+  LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c1 --target=@foobar2
   [ "$(lxc list -f csv -c L cluster:c1)" = "node2" ]
 
   echo "c2 can be moved to node1 by manual targeting."
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c2 can_edit project=default
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c2 can_view project=default
-  lxc move cluster:c2 --target=node1
-  [ "$(lxc list -f csv -c L cluster:c2)" = "node1" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c2 --target=node1
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c2)" = "node1" ]
 
   echo "c1 cannot be moved to node3 by group targeting."
-  ! lxc move cluster:c1 --target=@foobar3 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c1 --target=@foobar3 || false
 
   echo "c2 can be moved to node2 by manual targeting."
-  lxc move cluster:c2 --target=node2
-  [ "$(lxc list -f csv -c L cluster:c2)" = "node2" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c2 --target=node2
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c2)" = "node2" ]
 
   echo "c3 can be moved to node1 by manual targeting."
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c3 can_edit project=default
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c3 can_view project=default
-  lxc move cluster:c3 --target=node1
-  [ "$(lxc list -f csv -c L cluster:c3)" = "node1" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c3 --target=node1
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c3)" = "node1" ]
 
   echo "c3 can be moved back to node by manual targeting."
-  lxc move cluster:c3 --target=node3
-  [ "$(lxc list -f csv -c L cluster:c3)" = "node3" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c3 --target=node3
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c3)" = "node3" ]
 
   echo "Clean up for next test phase."
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster unset node2 scheduler.instance
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster unset node3 scheduler.instance
-  lxc move cluster:c1 --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c1 --target node1
 
   echo "==> Project restriction tests"
   # At this stage we have:
@@ -147,26 +147,26 @@ test_clustering_move() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project set default restricted.cluster.groups=foobar1,foobar2
 
   echo "Moving to an unlisted group fails."
-  ! lxc move cluster:c1 --target @foobar3 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c1 --target @foobar3 || false
 
   echo "Moving directly to another node within the cluster group fails because the caller does not have can_override_cluster_target_restriction on server."
-  ! lxc move cluster:c2 --target node2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c2 --target node2 || false
 
   echo "After adding the entitlement, moving to a cluster member that is not in the list of restricted cluster groups will fail."
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add instance-movers server can_override_cluster_target_restriction
-  ! lxc move cluster:c2 --target node3 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c2 --target node3 || false
 
   echo "Moving instances in between the restricted groups (note that targeting members directly now works after adding the entitlement)."
-  lxc move cluster:c1 --target node2
-  lxc move cluster:c2 --target @foobar1
-  lxc move cluster:c3 --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c1 --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c2 --target @foobar1
+  LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c3 --target node1
 
   echo "c4 can be migrated from local cluster to remote cluster"
-  lxc init --empty c4
-  lxc move c4 cluster:c5 --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c4
+  LXD_DIR="${LXD_ONE_DIR}" lxc move c4 cluster:c5 --target node1
 
   echo "Clean up."
-  lxc remote remove cluster
+  LXD_DIR="${LXD_ONE_DIR}" lxc remote remove cluster
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c5
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group delete instance-movers
   LXD_DIR="${LXD_ONE_DIR}" lxc auth identity delete tls/test
