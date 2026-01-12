@@ -559,7 +559,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		// Always set [request.ProtocolDevLXD] to identify this request as coming from the /dev/lxd socket.
 		requestor.Protocol = request.ProtocolDevLXD
 
-		err := request.SetRequestor(r, d.identityCache, requestor)
+		err := request.SetRequestor(r, d.requestorHook, requestor)
 		if err != nil {
 			_ = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "%v", err)).Render(w, r)
 			return

@@ -854,7 +854,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Initialise the request info.
-		err = request.SetRequestor(r, d.identityCache, *requestor)
+		err = request.SetRequestor(r, d.requestorHook, *requestor)
 		if err != nil {
 			_ = response.SmartError(err).Render(w, r)
 			return
