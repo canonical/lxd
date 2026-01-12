@@ -164,11 +164,81 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var body *api.Operation
-
 	// First check if the query is for a local operation from this node
+	var body *api.Operation
+	var address string
+	var dbLocation *string
+	opFound := false
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
+		opFound = true
+	} else {
+		var operation dbCluster.Operation
+		// If it's not running on this node, load the operation from the database.
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			filter := dbCluster.OperationFilter{UUID: &id}
+			ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+			if err != nil {
+				return err
+			}
+
+			// Make sure we have loaded exactly one operation from the DB.
+			switch len(ops) {
+			case 0:
+				return api.StatusErrorf(http.StatusNotFound, "Operation not found")
+			case 1:
+				operation = ops[0]
+			default:
+				return errors.New("More than one operation matches")
+			}
+
+			address = operation.NodeAddress
+
+			// If it's durable operation, try to load it from the database.
+			if operation.Class == int64(operations.OperationClassDurable) {
+				projectID := int(*operation.ProjectID)
+				filter := dbCluster.ProjectFilter{ID: &projectID}
+				projects, err := dbCluster.GetProjects(r.Context(), tx.Tx(), filter)
+				if err != nil {
+					return err
+				}
+
+				// Make sure we have loaded exactly one project from the DB.
+				var project dbCluster.Project
+				switch len(projects) {
+				case 0:
+					return api.StatusErrorf(http.StatusNotFound, "Project not found")
+				case 1:
+					project = projects[0]
+				default:
+					return errors.New("More than one project matches")
+				}
+
+				ni, err := tx.GetNodeByID(ctx, operation.NodeID)
+				if err != nil {
+					return err
+				}
+
+				dbLocation = &ni.Name
+
+				op, err = operations.NewDurableOperation(r.Context(), tx.Tx(), s, &operation, project.Name)
+				if err == nil {
+					opFound = true
+				}
+
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	// If we found the operation locally, or we were able to reconstruct a durable operation from the db,
+	// render and return it.
+	if opFound {
 		err := checkOperationViewAccess(r.Context(), op, s.Authorizer, "")
 		if err != nil {
 			return response.SmartError(err)
@@ -179,35 +249,16 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
+		// The [operations.Operation] doesn't contain the node where the operation is running.
+		// If we're loading durable operations from the DB, we need to set the location here.
+		if dbLocation != nil {
+			body.Location = *dbLocation
+		}
+
 		return response.SyncResponse(true, body)
 	}
 
-	// Then check if the query is from an operation on another node, and, if so, forward it
-	var address string
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.OperationFilter{UUID: &id}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
-		if err != nil {
-			return err
-		}
-
-		if len(ops) < 1 {
-			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
-		}
-
-		if len(ops) > 1 {
-			return errors.New("More than one operation matches")
-		}
-
-		operation := ops[0]
-
-		address = operation.NodeAddress
-		return nil
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	// Otherwise forward the request to the node running the operation.
 	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
