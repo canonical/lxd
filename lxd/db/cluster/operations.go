@@ -232,3 +232,15 @@ func DeleteDurableOperationMetadata(ctx context.Context, tx *sql.Tx, reference s
 
 	return nil
 }
+
+// DeleteNonDurableOperations deletes the operations on given node which are not durable.
+func DeleteNonDurableOperations(ctx context.Context, tx *sql.Tx, nodeID int64) error {
+	stmt := "DELETE FROM operations WHERE node_id = ? AND class != 4"
+
+	_, err := tx.ExecContext(ctx, stmt, nodeID)
+	if err != nil {
+		return fmt.Errorf("Delete \"operations\": %w", err)
+	}
+
+	return nil
+}
