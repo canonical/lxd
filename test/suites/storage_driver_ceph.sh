@@ -110,12 +110,12 @@ test_storage_driver_ceph() {
     lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2 c4pool2-renamed
     lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2-renamed c4pool2
 
-    lxc delete -f c1pool1
+    lxc delete c1pool1
     lxc delete -f c3pool1
-    lxc delete -f c5pool1
+    lxc delete c5pool1
 
     lxc delete -f c4pool2
-    lxc delete -f c2pool2
+    lxc delete c2pool2
 
     lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 size 500MiB
     lxc storage volume unset "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 size
