@@ -19,7 +19,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 
 func removeDBOperation(op *Operation) error {
 	if op.state != nil {
-		return fmt.Errorf("registerDBOperation not supported on this platform")
+		return fmt.Errorf("removeDBOperation not supported on this platform")
 	}
 
 	return nil
