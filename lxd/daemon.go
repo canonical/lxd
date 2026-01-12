@@ -2284,7 +2284,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		if d.db.Cluster != nil {
 			// Remove remaining operations before closing the database.
 			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				err := dbCluster.DeleteOperations(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
+				err := dbCluster.DeleteEphemeralOperationsFromNodes(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
 				if err != nil {
 					logger.Error("Failed cleaning up operations")
 				}
@@ -2651,7 +2651,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		// It can't be performed at startup in case of stale member state, which can lead to operations being erroneously removed.
 		if mode == cluster.HeartbeatInitial && len(offlineMemberIDs) > 0 {
 			err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-				return dbCluster.DeleteOperationsFromNodes(ctx, tx.Tx(), offlineMemberIDs...)
+				return dbCluster.DeleteEphemeralOperationsFromNodes(ctx, tx.Tx(), offlineMemberIDs...)
 			})
 			if err != nil {
 				logger.Warn("Could not remove orphaned operations from offline members after initial heartbeat round", logger.Ctx{"err": err, "local": localClusterAddress})

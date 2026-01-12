@@ -279,9 +279,18 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 	return nil
 }
 
-// DeleteOperationsFromNodes deletes operations from nodes with the given list of IDs.
-func DeleteOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
-	_, err := tx.ExecContext(ctx, "DELETE FROM operations WHERE node_id IN "+query.IntParams(nodeIDs...))
+// DeleteEphemeralOperationsFromNodes deletes ephemeral operations from nodes with the given list of IDs.
+// Ephemeral operations are operations which are normally cleared few seconds after they finish. In other words, these are:
+// - Operations with class Task, Websocket or Token (class between 1 and 3), and
+// - Operations which are not bulk operations (parent is NULL and id not in parent column of any operation).
+func DeleteEphemeralOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	stmt := `DELETE FROM operations
+WHERE class BETWEEN 1 AND 3
+AND parent IS NULL
+AND id NOT IN (SELECT parent FROM operations WHERE parent IS NOT NULL)
+AND node_id IN ` + query.IntParams(nodeIDs...)
+
+	_, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return fmt.Errorf("Failed deleting operations from nodes: %w", err)
 	}

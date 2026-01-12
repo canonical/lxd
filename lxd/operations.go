@@ -1252,7 +1252,7 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 			offlineMembers = append(offlineMembers, member.ID)
 		}
 
-		err = dbCluster.DeleteOperationsFromNodes(ctx, tx.Tx(), offlineMembers...)
+		err = dbCluster.DeleteEphemeralOperationsFromNodes(ctx, tx.Tx(), offlineMembers...)
 		if err != nil {
 			return fmt.Errorf("Failed deleting operations from offline members: %w", err)
 		}
