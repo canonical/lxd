@@ -2339,9 +2339,9 @@ test_clustering_fan() {
 
   echo "Check that the DHCP leases are cleaned up post-migration"
   grep -qF " c1 " "${LXD_ONE_DIR}/networks/${fanbridge}/dnsmasq.leases"
-  lxc stop -f c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop -f c1
   LXD_DIR="${LXD_ONE_DIR}" lxc move c1 --target node2
-  lxc start c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc start c1
   if grep -qF " c1 " "${LXD_ONE_DIR}/networks/${fanbridge}/dnsmasq.leases" ; then
     echo "DHCP lease not released"
     false
