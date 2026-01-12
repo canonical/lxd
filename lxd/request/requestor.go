@@ -47,7 +47,9 @@ type Requestor struct {
 	forwardedProtocol               string
 	forwardedIdentityProviderGroups []string
 	clientType                      ClientType
-	identity                        *identity.CacheEntry
+	authGroups                      []string
+	mappedAuthGroups                []string
+	projects                        []string
 	identityType                    identity.Type
 }
 
@@ -103,6 +105,28 @@ func (r *Requestor) CallerProtocol() string {
 	return r.protocol
 }
 
+// CallerAuthorizationGroupNames returns the LXD authorization groups that the requestor belongs to.
+func (r *Requestor) CallerAuthorizationGroupNames() []string {
+	return r.authGroups
+}
+
+// CallerEffectiveAuthorizationGroupNames returns a list of all authorization groups that the identity belongs to either directly or via a mapped identity provider group.
+func (r *Requestor) CallerEffectiveAuthorizationGroupNames() []string {
+	effectiveGroups := r.CallerAuthorizationGroupNames()
+	for _, mappedGroup := range r.mappedAuthGroups {
+		if !slices.Contains(effectiveGroups, mappedGroup) {
+			effectiveGroups = append(effectiveGroups, mappedGroup)
+		}
+	}
+
+	return effectiveGroups
+}
+
+// CallerAllowedProjectNames returns a list of names of projects that the caller has access to.
+func (r *Requestor) CallerAllowedProjectNames() []string {
+	return r.projects
+}
+
 // CallerIdentityProviderGroups returns the original caller identity provider groups.
 func (r *Requestor) CallerIdentityProviderGroups() []string {
 	if r.forwardedIdentityProviderGroups != nil {
@@ -142,11 +166,6 @@ func (r *Requestor) OperationRequestor() *api.OperationRequestor {
 		Protocol: r.CallerProtocol(),
 		Address:  r.OriginAddress(),
 	}
-}
-
-// CallerIdentity returns the identity.CacheEntry for the caller. It may be nil (e.g. if the protocol is ProtocolUnix).
-func (r *Requestor) CallerIdentity() *identity.CacheEntry {
-	return r.identity
 }
 
 // CallerIdentityType returns the identity.Type corresponding to the CallerIdentity. It may be nil (e.g. if the protocol is ProtocolUnix).
