@@ -10,9 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -350,22 +348,6 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	s.UpdateIdentityCache()
-
 	// Send a lifecycle event for the IDP group creation.
 	lc := lifecycle.IdentityProviderGroupCreated.Event(idpGroup.Name, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle("", lc)
@@ -422,26 +404,6 @@ func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 
 		return response.SmartError(err)
 	}
-
-	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Send a lifecycle event for the IDP group rename.
-	lc := lifecycle.IdentityProviderGroupRenamed.Event(idpGroupPost.Name, request.CreateRequestor(r.Context()), map[string]any{"old_name": idpGroupName})
-	s.Events.SendLifecycle("", lc)
-
-	s.UpdateIdentityCache()
 
 	return response.SyncResponseLocation(true, nil, entity.IdentityProviderGroupURL(idpGroupPost.Name).String())
 }
@@ -511,26 +473,6 @@ func updateIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Send a lifecycle event for the IDP group update.
-	lc := lifecycle.IdentityProviderGroupUpdated.Event(idpGroupName, request.CreateRequestor(r.Context()), nil)
-	s.Events.SendLifecycle("", lc)
-
-	s.UpdateIdentityCache()
 
 	return response.EmptySyncResponse
 }
@@ -608,26 +550,6 @@ func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Send a lifecycle event for the IDP group update.
-	lc := lifecycle.IdentityProviderGroupUpdated.Event(idpGroupName, request.CreateRequestor(r.Context()), nil)
-	s.Events.SendLifecycle("", lc)
-
-	s.UpdateIdentityCache()
-
 	return response.EmptySyncResponse
 }
 
@@ -662,26 +584,6 @@ func deleteIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Send a lifecycle event for the IDP group deletion.
-	lc := lifecycle.IdentityProviderGroupDeleted.Event(idpGroupName, request.CreateRequestor(r.Context()), nil)
-	s.Events.SendLifecycle("", lc)
-
-	s.UpdateIdentityCache()
 
 	return response.EmptySyncResponse
 }
