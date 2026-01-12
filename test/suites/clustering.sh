@@ -2140,12 +2140,12 @@ test_clustering_image_replication() {
 
   # Import the image from the container
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
-  lxc launch testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1
 
   # Modify the container's rootfs and create a new image from the container
-  lxc exec c1 -- touch /a
-  lxc stop c1 --force
-  lxc publish c1 --alias new-image
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- touch /a
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop c1 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc publish c1 --alias new-image
 
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info new-image | awk '/^Fingerprint/ {print $2}')
   [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
@@ -2160,7 +2160,7 @@ test_clustering_image_replication() {
   [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
 
   # Delete the container
-  lxc delete c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1
 
   # Delete the imported image
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
