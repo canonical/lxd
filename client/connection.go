@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/shared"
@@ -20,6 +21,16 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/simplestreams"
 )
+
+// ClientBearerTokenClaims represents the claims of a client bearer token.
+// They extend standard [jwt.RegisteredClaims] with custom LXD claims.
+type ClientBearerTokenClaims struct {
+	jwt.RegisteredClaims
+
+	// Optional server certificate fingerprint used when connecting with a bearer token.
+	// If provided, the fingerprint is compared against the server's certificate during the TLS handshake.
+	ServerFingerprint string `json:"server_cert_fingerprint,omitempty"`
+}
 
 // ConnectionArgs represents a set of common connection properties.
 type ConnectionArgs struct {
