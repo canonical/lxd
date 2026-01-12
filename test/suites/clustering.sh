@@ -6,11 +6,10 @@ test_clustering_enable() {
 
   # Test specified core.https_address with no cluster.https_address
   [[ "$(lxc config get core.https_address)" =~ ^127\.0\.0\.1:[0-9]{4,5}$ ]]
-  # Launch a container.
-  ensure_import_testimage
+  # Create a container.
   lxc storage create default dir
   lxc profile device add default root disk path="/" pool="default"
-  lxc launch testimage c1
+  lxc init --empty c1
 
   # Enable clustering.
   lxc cluster enable node1
@@ -23,14 +22,14 @@ test_clustering_enable() {
   lxc cluster list | grep -wF node1
 
   # The container is still there and now shows up as
-  # running on node 1.
+  # being on node 1.
   [ "$(lxc list -f csv -c nL c1)" = "c1,node1" ]
 
   # Clustering can't be enabled on an already clustered instance.
   ! lxc cluster enable node2 || false
 
   # Delete the container
-  lxc delete --force c1
+  lxc delete c1
 
   kill_lxd "${LXD_DIR}"
 
