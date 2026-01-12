@@ -4446,7 +4446,7 @@ test_clustering_trust_add() {
   # Check using token that is expired
 
   # Set token expiry to 1 seconds
-  lxc config set core.remote_token_expiry 1S
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set core.remote_token_expiry 1S
 
   # Get a certificate add token from LXD_ONE. The operation will run on LXD_ONE locally.
   lxd_one_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
@@ -4472,7 +4472,7 @@ test_clustering_trust_add() {
   LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,CANCELLED"
 
   # Set token expiry to 1 hour
-  lxc config set core.remote_token_expiry 1H
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set core.remote_token_expiry 1H
 
   # Check using token that isn't expired
 
@@ -4499,9 +4499,6 @@ test_clustering_trust_add() {
 
   # Clean up
   lxc remote rm lxd_two
-
-  # Unset token expiry
-  lxc config unset core.remote_token_expiry
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
