@@ -283,17 +283,7 @@ jobs:
           - group: cluster
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: cluster_storage
-            backends: btrfs
-          - group: cluster_storage
-            backends: ceph
-          - group: cluster_storage
-            backends: dir
-          - group: cluster_storage
-            backends: lvm
-          - group: cluster_storage
-            backends: zfs
-          - group: cluster_storage
-            backends: random
+            backends: all
           - group: image
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: instance
@@ -303,17 +293,7 @@ jobs:
           - group: standalone
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: snap
-            backends: btrfs
-          - group: snap
-            backends: ceph
-          - group: snap
-            backends: dir
-          - group: snap
-            backends: lvm
-          - group: snap
-            backends: zfs
-          - group: snap
-            backends: random
+            backends: all
           - group: standalone_storage
             backends: btrfs
           - group: standalone_storage
@@ -421,7 +401,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, btrfs)"
         if: matrix.backends == 'all' || matrix.backends == 'btrfs'
         env:
-          LXD_BACKENDS: btrfs
+          LXD_BACKEND: btrfs
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
@@ -434,7 +415,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, ceph)"
         if: matrix.backends == 'all' || matrix.backends == 'ceph'
         env:
-          LXD_BACKENDS: ceph
+          LXD_BACKEND: ceph
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
@@ -447,7 +429,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, dir)"
         if: matrix.backends == 'all' || matrix.backends == 'dir'
         env:
-          LXD_BACKENDS: dir
+          LXD_BACKEND: dir
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
@@ -460,7 +443,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, lvm)"
         if: matrix.backends == 'all' || matrix.backends == 'lvm'
         env:
-          LXD_BACKENDS: lvm
+          LXD_BACKEND: lvm
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
@@ -473,7 +457,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, zfs)"
         if: matrix.backends == 'all' || matrix.backends == 'zfs'
         env:
-          LXD_BACKENDS: zfs
+          LXD_BACKEND: zfs
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
@@ -486,7 +471,8 @@ jobs:
       - name: "Run system tests (${{ matrix.group }}, random)"
         if: matrix.backends == 'all' || matrix.backends == 'random'
         env:
-          LXD_BACKENDS: random
+          LXD_BACKEND: random
+          LXD_BACKENDS: ${{ matrix.backends }}
           GROUP: ${{ matrix.group }}
         working-directory: test
         run: |
