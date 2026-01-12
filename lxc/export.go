@@ -14,7 +14,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdExport struct {
@@ -28,22 +27,19 @@ type cmdExport struct {
 
 func (c *cmdExport) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("export", i18n.G("[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"))
-	cmd.Short = i18n.G("Export instance backups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Export instances as backup tarballs.`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc export u1 backup0.tar.gz
-    Download a backup tarball of the u1 instance.`))
+	cmd.Use = usage("export", "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]")
+	cmd.Short = "Export instance backups"
+	cmd.Long = cli.FormatSection("Description", `Export instances as backup tarballs.`)
+	cmd.Example = cli.FormatSection("", `lxc export u1 backup0.tar.gz
+    Download a backup tarball of the u1 instance.`)
 
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false,
-		i18n.G("Whether or not to only backup the instance (without snapshots)"))
-	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
-		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
-	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Compression algorithm to use (none for uncompressed)")+"``")
+		"Whether or not to only backup the instance (without snapshots)")
+	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false, "Use storage driver optimized format (can only be restored on a similar pool)")
+	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", cli.FormatStringFlagLabel(`Compression algorithm to use (none for uncompressed)`))
 	cmd.Flags().StringVar(&c.flagExportVersion, "export-version", "",
-		i18n.G("Use a different metadata format version than the latest one supported by the server (to support imports on older LXD versions)")+"``")
+		cli.FormatStringFlagLabel("Use a different metadata format version than the latest one supported by the server (to support imports on older LXD versions)"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 		if len(args) > 0 {
@@ -119,7 +115,7 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 
 	// Watch the background operation
 	progress := cli.ProgressRenderer{
-		Format: i18n.G("Backing up instance: %s"),
+		Format: "Backing up instance: %s",
 		Quiet:  c.global.flagQuiet,
 	}
 
@@ -166,7 +162,7 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 	// Prepare the download request.
 	// Assign the renderer to a new variable to not interfer with the old one.
 	exportProgress := cli.ProgressRenderer{
-		Format: i18n.G("Exporting the backup: %s"),
+		Format: "Exporting the backup: %s",
 		Quiet:  c.global.flagQuiet,
 	}
 
@@ -206,6 +202,6 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to close export file: %w", err)
 	}
 
-	exportProgress.Done(i18n.G("Backup exported successfully!"))
+	exportProgress.Done("Backup exported successfully!")
 	return nil
 }

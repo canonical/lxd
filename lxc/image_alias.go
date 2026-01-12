@@ -9,7 +9,6 @@ import (
 
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdImageAlias struct {
@@ -20,9 +19,8 @@ type cmdImageAlias struct {
 func (c *cmdImageAlias) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("alias")
-	cmd.Short = i18n.G("Manage image aliases")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage image aliases`))
+	cmd.Short = "Manage image aliases"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Create
 	imageAliasCreateCmd := cmdImageAliasCreate{global: c.global, image: c.image, imageAlias: c}
@@ -55,10 +53,9 @@ type cmdImageAliasCreate struct {
 
 func (c *cmdImageAliasCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<alias> <fingerprint>"))
-	cmd.Short = i18n.G("Create aliases for existing images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create aliases for existing images`))
+	cmd.Use = usage("create", "[<remote>:]<alias> <fingerprint>")
+	cmd.Short = "Create alias for an image"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -98,7 +95,7 @@ func (c *cmdImageAliasCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Alias name missing"))
+		return errors.New("Alias name missing")
 	}
 
 	// Create the alias
@@ -118,11 +115,10 @@ type cmdImageAliasDelete struct {
 
 func (c *cmdImageAliasDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<alias>"))
+	cmd.Use = usage("delete", "[<remote>:]<alias>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete image aliases")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete image aliases`))
+	cmd.Short = "Delete image alias"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -153,7 +149,7 @@ func (c *cmdImageAliasDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Alias name missing"))
+		return errors.New("Alias name missing")
 	}
 
 	// Delete the alias
@@ -171,15 +167,14 @@ type cmdImageAliasList struct {
 
 func (c *cmdImageAliasList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:] [<filters>...]"))
+	cmd.Use = usage("list", "[<remote>:] [<filters>...]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List image aliases")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List image aliases
+	cmd.Short = "List image aliases"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 Filters may be part of the image hash or part of the image alias name.
-`))
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+`)
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	cmd.RunE = c.run
 
@@ -264,10 +259,10 @@ func (c *cmdImageAliasList) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.StringList(data))
 
 	header := []string{
-		i18n.G("ALIAS"),
-		i18n.G("FINGERPRINT"),
-		i18n.G("TYPE"),
-		i18n.G("DESCRIPTION"),
+		"ALIAS",
+		"FINGERPRINT",
+		"TYPE",
+		"DESCRIPTION",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, aliases)
@@ -282,11 +277,10 @@ type cmdImageAliasRename struct {
 
 func (c *cmdImageAliasRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("rename", i18n.G("[<remote>:]<alias> <new-name>"))
+	cmd.Use = usage("rename", "[<remote>:]<alias> <new-name>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = i18n.G("Rename aliases")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Rename aliases`))
+	cmd.Short = "Rename alias"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -317,7 +311,7 @@ func (c *cmdImageAliasRename) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Alias name missing"))
+		return errors.New("Alias name missing")
 	}
 
 	// Rename the alias
