@@ -5,7 +5,7 @@ test_clustering_enable() {
   spawn_lxd "${LXD_DIR}" false
 
   # Test specified core.https_address with no cluster.https_address
-  lxc config show | grep -xE "\s+core\.https_address: 127\.0\.0\.1:[0-9]{4,5}"
+  [[ "$(lxc config get core.https_address)" =~ ^127\.0\.0\.1:[0-9]{4,5}$ ]]
   # Launch a container.
   ensure_import_testimage
   lxc storage create default dir
