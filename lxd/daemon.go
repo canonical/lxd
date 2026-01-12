@@ -2267,7 +2267,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		if d.db.Cluster != nil {
 			// Remove remaining operations before closing the database.
 			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				err := dbCluster.DeleteOperations(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
+				err := dbCluster.DeleteNonDurableOperations(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
 				if err != nil {
 					logger.Error("Failed cleaning up operations")
 				}

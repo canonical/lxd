@@ -1402,7 +1402,7 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 				continue
 			}
 
-			err = dbCluster.DeleteOperations(ctx, tx.Tx(), member.ID)
+			err = dbCluster.DeleteNonDurableOperations(ctx, tx.Tx(), member.ID)
 			if err != nil {
 				return fmt.Errorf("Failed to delete operations: %w", err)
 			}
