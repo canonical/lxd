@@ -56,13 +56,7 @@ type embeddedOpenFGA struct {
 var dummyDatastoreULID = ulid.Make().String()
 
 // load sets up the authorizer.
-func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cache, opts Opts) error {
-	if identityCache == nil {
-		return errors.New("Must provide certificate cache")
-	}
-
-	e.identityCache = identityCache
-
+func (e *embeddedOpenFGA) load(ctx context.Context, opts Opts) error {
 	// Use the TLS driver for TLS authenticated users for now.
 	tlsDriver := &tls{
 		commonAuthorizer: commonAuthorizer{
@@ -70,7 +64,7 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 		},
 	}
 
-	err := tlsDriver.load(ctx, identityCache, opts)
+	err := tlsDriver.load(ctx, opts)
 	if err != nil {
 		return err
 	}
