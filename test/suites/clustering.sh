@@ -4319,7 +4319,7 @@ test_clustering_roles() {
 
   sleep 12 # Wait a bit for cluster to stabilize.
 
-  lxc cluster ls
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls
 
   # Get cluster list once and reuse it for all queries.
   cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
