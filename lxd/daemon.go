@@ -338,9 +338,9 @@ func allowProjectResourceList(allowAllProjects bool) func(d *Daemon, r *http.Req
 			return response.InternalError(errors.New("No identity present in request details"))
 		}
 
-		idType := requestor.CallerIdentityType()
-		if idType == nil {
-			return response.InternalError(errors.New("No identity type present in request details"))
+		idType, err := requestor.CallerIdentityType()
+		if err != nil {
+			return response.SmartError(err)
 		}
 
 		requestProjectName, allProjects, err := request.ProjectParams(r)
@@ -407,9 +407,9 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, entityT
 	}
 
 	// Any other requestor should have an identity type present.
-	identityType := requestor.CallerIdentityType()
-	if identityType == nil {
-		return errors.New("No identity type present in request details")
+	identityType, err := requestor.CallerIdentityType()
+	if err != nil {
+		return err
 	}
 
 	// Check the identity type is fine-grained (it could be a restricted client certificate).
