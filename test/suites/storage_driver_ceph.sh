@@ -138,13 +138,13 @@ test_storage_driver_ceph() {
     pool1="lxdtest-$(basename "${LXD_DIR}")-pool1"
     pool2="lxdtest-$(basename "${LXD_DIR}")-pool2"
     lxc storage create "${pool1}" ceph volume.size="${DEFAULT_VOLUME_SIZE}" ceph.osd.pg_num=8 ceph.osd.pool_size=1
-    [[ "$(ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get "${pool1}" size --format json | jq '.size')" = "1" ]]
-    [[ "$(ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get ".mgr" size --format json | jq '.size')" = "3" ]]
+    ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get "${pool1}" size --format json | jq --exit-status '.size == 1'
+    ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get ".mgr" size --format json | jq --exit-status '.size == 3'
 
     lxc storage create "${pool2}" ceph volume.size="${DEFAULT_VOLUME_SIZE}" ceph.osd.pg_num=8 ceph.osd.pool_size=2
-    [[ "$(ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get "${pool1}" size --format json | jq '.size')" = "1" ]]
-    [[ "$(ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get "${pool2}" size --format json | jq '.size')" = "2" ]]
-    [[ "$(ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get ".mgr" size --format json | jq '.size')" = "3" ]]
+    ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get "${pool1}" size --format json | jq --exit-status '.size == 1'
+    ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get "${pool2}" size --format json | jq --exit-status '.size == 2'
+    ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool get ".mgr" size --format json | jq --exit-status '.size == 3'
 
     lxc storage delete "${pool1}"
     lxc storage delete "${pool2}"
