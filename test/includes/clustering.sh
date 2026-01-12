@@ -117,6 +117,8 @@ spawn_lxd_and_bootstrap_cluster() {
   setup_clustering_bridge
   setup_clustering_netns 1
 
+  # Avoid overwriting the global LXD_DIR
+  local LXD_DIR
   if [ "${LXD_DIR_KEEP:-""}" = "" ]; then
     LXD_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
   else
@@ -216,6 +218,8 @@ spawn_lxd_and_join_cluster() {
 
   [ "${LXD_NETNS_KEEP:-""}" = "" ] && setup_clustering_netns "${index}"
 
+  # Avoid overwriting the global LXD_DIR
+  local LXD_DIR
   if [ "${LXD_DIR_KEEP:-""}" = "" ]; then
     LXD_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
   else
