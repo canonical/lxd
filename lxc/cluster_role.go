@@ -9,7 +9,6 @@ import (
 
 	"github.com/canonical/lxd/shared"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdClusterRole struct {
@@ -21,8 +20,8 @@ type cmdClusterRole struct {
 func (c *cmdClusterRole) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("role")
-	cmd.Short = i18n.G("Manage cluster roles")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Manage cluster roles`))
+	cmd.Short = "Manage cluster roles"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Add
 	clusterRoleAddCmd := cmdClusterRoleAdd{global: c.global, cluster: c.cluster, clusterRole: c}
@@ -47,10 +46,9 @@ type cmdClusterRoleAdd struct {
 // Setting up the usage, short description, and long description of the command, as well as its RunE method.
 func (c *cmdClusterRoleAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:]<member> <role[,role...]>"))
-	cmd.Short = i18n.G("Add roles to a cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add roles to a cluster member`))
+	cmd.Use = usage("add", "[<remote>:]<member> <role[,role...]>")
+	cmd.Short = "Add roles to a cluster member"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -80,7 +78,7 @@ func (c *cmdClusterRoleAdd) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster member name"))
+		return errors.New("Missing cluster member name")
 	}
 
 	// Extract the current value
@@ -93,7 +91,7 @@ func (c *cmdClusterRoleAdd) run(cmd *cobra.Command, args []string) error {
 	newRoles := shared.SplitNTrimSpace(args[1], ",", -1, false)
 	for _, newRole := range newRoles {
 		if slices.Contains(memberWritable.Roles, newRole) {
-			return fmt.Errorf(i18n.G("Member %q already has role %q"), resource.name, newRole)
+			return fmt.Errorf("Member %q already has role %q", resource.name, newRole)
 		}
 	}
 
@@ -111,10 +109,9 @@ type cmdClusterRoleRemove struct {
 // Removing the roles from a cluster member, setting up usage, descriptions, and the RunE method.
 func (c *cmdClusterRoleRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<member> <role[,role...]>"))
-	cmd.Short = i18n.G("Remove roles from a cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove roles from a cluster member`))
+	cmd.Use = usage("remove", "[<remote>:]<member> <role[,role...]>")
+	cmd.Short = "Remove roles from a cluster member"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -148,7 +145,7 @@ func (c *cmdClusterRoleRemove) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster member name"))
+		return errors.New("Missing cluster member name")
 	}
 
 	// Extract the current value
@@ -161,7 +158,7 @@ func (c *cmdClusterRoleRemove) run(cmd *cobra.Command, args []string) error {
 	rolesToRemove := shared.SplitNTrimSpace(args[1], ",", -1, false)
 	for _, roleToRemove := range rolesToRemove {
 		if !slices.Contains(memberWritable.Roles, roleToRemove) {
-			return fmt.Errorf(i18n.G("Member %q does not have role %q"), resource.name, roleToRemove)
+			return fmt.Errorf("Member %q does not have role %q", resource.name, roleToRemove)
 		}
 	}
 

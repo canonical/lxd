@@ -13,7 +13,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdPublish struct {
@@ -29,18 +28,17 @@ type cmdPublish struct {
 
 func (c *cmdPublish) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("publish", i18n.G("[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"))
-	cmd.Short = i18n.G("Publish instances as images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Publish instances as images`))
+	cmd.Use = usage("publish", "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]")
+	cmd.Short = "Publish instance as images"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVar(&c.flagMakePublic, "public", false, i18n.G("Make the image public (accessible to unauthenticated clients as well)"))
-	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New alias to define at target")+"``")
-	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Stop the instance if currently running"))
-	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Compression algorithm to use (`none` for uncompressed)"))
-	cmd.Flags().StringVar(&c.flagExpiresAt, "expire", "", i18n.G("Image expiration date (format: rfc3339)")+"``")
-	cmd.Flags().BoolVar(&c.flagReuse, "reuse", false, i18n.G("If the image alias already exists, delete and create a new one"))
+	cmd.Flags().BoolVar(&c.flagMakePublic, "public", false, "Make the image public (accessible to unauthenticated clients as well)")
+	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, cli.FormatStringFlagLabel("New alias to define at target"))
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Stop the instance if currently running")
+	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", cli.FormatStringFlagLabel("Compression algorithm to use (`none` for uncompressed)"))
+	cmd.Flags().StringVar(&c.flagExpiresAt, "expire", "", cli.FormatStringFlagLabel("Image expiration date (format: rfc3339)"))
+	cmd.Flags().BoolVar(&c.flagReuse, "reuse", false, "If the image alias already exists, delete and create a new one")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -90,11 +88,11 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if cName == "" {
-		return errors.New(i18n.G("Instance name is mandatory"))
+		return errors.New("Instance name is mandatory")
 	}
 
 	if iName != "" {
-		return errors.New(i18n.G("There is no \"image name\".  Did you want an alias?"))
+		return errors.New("There is no \"image name\".  Did you want an alias?")
 	}
 
 	d, err := conf.GetInstanceServer(iRemote)
@@ -121,7 +119,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 
 		if wasRunning {
 			if !c.flagForce {
-				return errors.New(i18n.G("The instance is currently running. Use --force to have it stopped and restarted"))
+				return errors.New("The instance is currently running. Use --force to have it stopped and restarted")
 			}
 
 			if ct.Ephemeral {
@@ -152,7 +150,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 
 			err = op.Wait()
 			if err != nil {
-				return errors.New(i18n.G("Stopping instance failed!"))
+				return errors.New("Stopping instance failed!")
 			}
 
 			// Start the instance back up on exit.
@@ -190,7 +188,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 	for i := firstprop; i < len(args); i++ {
 		entry := strings.SplitN(args[i], "=", 2)
 		if len(entry) < 2 {
-			return fmt.Errorf(i18n.G("Bad key=value pair: %s"), entry)
+			return fmt.Errorf("Bad key=value pair: %s", entry)
 		}
 
 		properties[entry[0]] = entry[1]
@@ -244,7 +242,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 
 	existingAliases, err := GetCommonAliases(d, aliases...)
 	if err != nil {
-		return fmt.Errorf(i18n.G("Error retrieving aliases: %w"), err)
+		return fmt.Errorf("Error retrieving aliases: %w", err)
 	}
 
 	if !c.flagReuse && len(existingAliases) > 0 {
@@ -253,7 +251,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 			names = append(names, alias.Name)
 		}
 
-		return fmt.Errorf(i18n.G("Aliases already exists: %s"), strings.Join(names, ", "))
+		return fmt.Errorf("Aliases already exists: %s", strings.Join(names, ", "))
 	}
 
 	op, err := s.CreateImage(req, nil)
@@ -263,7 +261,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 
 	// Watch the background operation
 	progress := cli.ProgressRenderer{
-		Format: i18n.G("Publishing instance: %s"),
+		Format: "Publishing instance: %s",
 		Quiet:  c.global.flagQuiet,
 	}
 
@@ -360,6 +358,6 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Instance published with fingerprint: %s")+"\n", fingerprint)
+	fmt.Printf("Instance published with fingerprint: %s\n", fingerprint)
 	return nil
 }

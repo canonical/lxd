@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdClusterFailureDomain struct {
@@ -18,8 +17,8 @@ type cmdClusterFailureDomain struct {
 func (c *cmdClusterFailureDomain) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("failure-domain")
-	cmd.Short = i18n.G("Manage cluster member failure domains")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Manage cluster member failure domains`))
+	cmd.Short = "Manage cluster member failure domains"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Get
 	clusterFailureDomainGetCmd := cmdClusterFailureDomainGet{global: c.global, cluster: c.cluster, clusterFailureDomain: c}
@@ -47,10 +46,9 @@ type cmdClusterFailureDomainGet struct {
 
 func (c *cmdClusterFailureDomainGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("get", i18n.G("[<remote>:]<member>"))
-	cmd.Short = i18n.G("Get the failure domain for a cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Get the failure domain for a cluster member`))
+	cmd.Use = usage("get", "[<remote>:]<member>")
+	cmd.Short = "Get the failure domain for a cluster member"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -79,7 +77,7 @@ func (c *cmdClusterFailureDomainGet) run(cmd *cobra.Command, args []string) erro
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster member name"))
+		return errors.New("Missing cluster member name")
 	}
 
 	member, _, err := resource.server.GetClusterMember(resource.name)
@@ -99,10 +97,9 @@ type cmdClusterFailureDomainSet struct {
 
 func (c *cmdClusterFailureDomainSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("set", i18n.G("[<remote>:]<member> <domain>"))
-	cmd.Short = i18n.G("Set the failure domain for a cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set the failure domain for a cluster member`))
+	cmd.Use = usage("set", "[<remote>:]<member> <domain>")
+	cmd.Short = "Set the failure domain for a cluster member"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -131,7 +128,7 @@ func (c *cmdClusterFailureDomainSet) run(cmd *cobra.Command, args []string) erro
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster member name"))
+		return errors.New("Missing cluster member name")
 	}
 
 	member, etag, err := resource.server.GetClusterMember(resource.name)
@@ -148,7 +145,7 @@ func (c *cmdClusterFailureDomainSet) run(cmd *cobra.Command, args []string) erro
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Failure domain set to %q for member %s")+"\n", args[1], resource.name)
+		fmt.Printf("Failure domain set to %q for member %s\n", args[1], resource.name)
 	}
 
 	return nil
@@ -162,10 +159,9 @@ type cmdClusterFailureDomainUnset struct {
 
 func (c *cmdClusterFailureDomainUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("unset", i18n.G("[<remote>:]<member>"))
-	cmd.Short = i18n.G("Unset the failure domain for a cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Unset the failure domain for a cluster member (resets to "default")`))
+	cmd.Use = usage("unset", "[<remote>:]<member>")
+	cmd.Short = "Unset the failure domain for a cluster member"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+` (resets to "default")`)
 
 	cmd.RunE = c.run
 
@@ -194,7 +190,7 @@ func (c *cmdClusterFailureDomainUnset) run(cmd *cobra.Command, args []string) er
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing cluster member name"))
+		return errors.New("Missing cluster member name")
 	}
 
 	member, etag, err := resource.server.GetClusterMember(resource.name)
@@ -211,7 +207,7 @@ func (c *cmdClusterFailureDomainUnset) run(cmd *cobra.Command, args []string) er
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Failure domain unset for member %s")+"\n", resource.name)
+		fmt.Printf("Failure domain unset for member %s\n", resource.name)
 	}
 
 	return nil

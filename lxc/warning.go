@@ -12,7 +12,6 @@ import (
 
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type warningColumn struct {
@@ -27,9 +26,8 @@ type cmdWarning struct {
 func (c *cmdWarning) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("warning")
-	cmd.Short = i18n.G("Manage warnings")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage warnings`))
+	cmd.Short = "Manage warnings"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// List
 	warningListCmd := cmdWarningList{global: c.global, warning: c}
@@ -67,11 +65,10 @@ const defaultWarningColumns = "utSscpLl"
 
 func (c *cmdWarningList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List warnings")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List warnings
+	cmd.Short = "List warnings"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 The -c option takes a (optionally comma-separated) list of arguments
 that control which warning attributes to output when displaying in table
@@ -89,11 +86,11 @@ Column shorthand chars:
     s - Severity
     S - Status
     u - UUID
-    t - Type`))
+    t - Type`)
 
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultWarningColumns, i18n.G("Columns")+"``")
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
-	cmd.Flags().BoolVarP(&c.flagAll, "all", "a", false, i18n.G("List all warnings")+"``")
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultWarningColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().BoolVarP(&c.flagAll, "all", "a", false, "List all warnings")
 
 	cmd.RunE = c.run
 
@@ -208,22 +205,22 @@ func (c *cmdWarningList) uuidColumnData(warning api.Warning) string {
 
 func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 	columnsShorthandMap := map[rune]warningColumn{
-		'c': {i18n.G("COUNT"), c.countColumnData},
-		'f': {i18n.G("FIRST SEEN"), c.firstSeenColumnData},
-		'l': {i18n.G("LAST SEEN"), c.lastSeenColumnData},
-		'p': {i18n.G("PROJECT"), c.projectColumnData},
-		's': {i18n.G("SEVERITY"), c.severityColumnData},
-		'S': {i18n.G("STATUS"), c.statusColumnData},
-		't': {i18n.G("TYPE"), c.typeColumnData},
-		'u': {i18n.G("UUID"), c.uuidColumnData},
+		'c': {"COUNT", c.countColumnData},
+		'f': {"FIRST SEEN", c.firstSeenColumnData},
+		'l': {"LAST SEEN", c.lastSeenColumnData},
+		'p': {"PROJECT", c.projectColumnData},
+		's': {"SEVERITY", c.severityColumnData},
+		'S': {"STATUS", c.statusColumnData},
+		't': {"TYPE", c.typeColumnData},
+		'u': {"UUID", c.uuidColumnData},
 	}
 
 	if clustered {
-		columnsShorthandMap['L'] = warningColumn{i18n.G("LOCATION"), c.locationColumnData}
+		columnsShorthandMap['L'] = warningColumn{"LOCATION", c.locationColumnData}
 	} else {
 		if c.flagColumns != defaultWarningColumns {
 			if strings.ContainsAny(c.flagColumns, "L") {
-				return nil, errors.New(i18n.G("Can't specify column L when not clustered"))
+				return nil, errors.New("Can't specify column L when not clustered")
 			}
 		}
 		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
@@ -234,13 +231,13 @@ func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 	columns := []warningColumn{}
 	for _, columnEntry := range columnList {
 		if columnEntry == "" {
-			return nil, fmt.Errorf(i18n.G("Empty column entry (redundant, leading or trailing command) in '%s'"), c.flagColumns)
+			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in %q", c.flagColumns)
 		}
 
 		for _, columnRune := range columnEntry {
 			column, ok := columnsShorthandMap[columnRune]
 			if !ok {
-				return nil, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)
+				return nil, fmt.Errorf("Unknown column shorthand char '%c' in %q", columnRune, columnEntry)
 			}
 
 			columns = append(columns, column)
@@ -258,12 +255,10 @@ type cmdWarningAcknowledge struct {
 
 func (c *cmdWarningAcknowledge) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("acknowledge", i18n.G("[<remote>:]<warning-uuid>"))
+	cmd.Use = usage("acknowledge", "[<remote>:]<warning-uuid>")
 	cmd.Aliases = []string{"ack"}
-	cmd.Short = i18n.G("Acknowledge warning")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Acknowledge warning`))
-
+	cmd.Short = "Acknowledge warning"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.RunE = c.run
 
 	return cmd
@@ -300,10 +295,9 @@ type cmdWarningShow struct {
 
 func (c *cmdWarningShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<warning-uuid>"))
-	cmd.Short = i18n.G("Show warning")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show warning`))
+	cmd.Use = usage("show", "[<remote>:]<warning-uuid>")
+	cmd.Short = "Show warning"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -353,13 +347,11 @@ type cmdWarningDelete struct {
 
 func (c *cmdWarningDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:][<warning-uuid>]"))
+	cmd.Use = usage("delete", "[<remote>:][<warning-uuid>]")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete warning")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete warning`))
-
-	cmd.Flags().BoolVarP(&c.flagAll, "all", "a", false, i18n.G("Delete all warnings")+"``")
+	cmd.Short = "Delete warning"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Flags().BoolVarP(&c.flagAll, "all", "a", false, "Delete all warnings")
 
 	cmd.RunE = c.run
 
@@ -374,7 +366,7 @@ func (c *cmdWarningDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.flagAll && len(args) < 1 {
-		return errors.New(i18n.G("Specify a warning UUID or use --all"))
+		return errors.New("Specify a warning UUID or use --all")
 	}
 
 	var remoteName string
@@ -391,7 +383,7 @@ func (c *cmdWarningDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if UUID != "" && c.flagAll {
-		return errors.New(i18n.G("No need to specify a warning UUID when using --all"))
+		return errors.New("No need to specify a warning UUID when using --all")
 	}
 
 	remoteServer, err := c.global.conf.GetInstanceServer(remoteName)
