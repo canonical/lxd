@@ -3872,114 +3872,114 @@ test_clustering_groups() {
   spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
 
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
-  lxc remote add cluster --token "${token}" "https://100.64.1.101:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxc remote add cluster --token "${token}" "https://100.64.1.101:8443"
 
   echo 'Initially, there is only the default group'
-  lxc cluster group show cluster:default
-  lxc query cluster:/1.0/cluster/groups | jq --exit-status 'length == 1'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group show cluster:default
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/groups | jq --exit-status 'length == 1'
 
   echo 'All nodes initially belong to the default group'
-  lxc query cluster:/1.0/cluster/groups/default | jq --exit-status '.members | length == 3'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/groups/default | jq --exit-status '.members | length == 3'
 
   echo 'Renaming the default group is not allowed'
-  ! lxc cluster group rename cluster:default foobar || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster group rename cluster:default foobar || false
 
   lxc cluster list cluster:
   echo 'Nodes need to belong to at least one group, removing it from the default group should therefore fail'
-  ! lxc cluster group remove cluster:node1 default || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster group remove cluster:node1 default || false
 
   echo 'Check duplicates cannot be created'
-  lxc cluster group create cluster:foo
-  [ "$(! "${_LXC}" cluster group create cluster:foo 2>&1 1>/dev/null)" = 'Error: Cluster group "foo" already exists' ]
-  lxc cluster group create cluster:bar
-  [ "$(! "${_LXC}" cluster group rename cluster:bar foo 2>&1 1>/dev/null)" = 'Error: Name "foo" already in use' ]
-  lxc cluster group delete cluster:foo
-  lxc cluster group delete cluster:bar
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create cluster:foo
+  [ "$(! LXD_DIR="${LXD_ONE_DIR}" "${_LXC}" cluster group create cluster:foo 2>&1 1>/dev/null)" = 'Error: Cluster group "foo" already exists' ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create cluster:bar
+  [ "$(! LXD_DIR="${LXD_ONE_DIR}" "${_LXC}" cluster group rename cluster:bar foo 2>&1 1>/dev/null)" = 'Error: Name "foo" already in use' ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group delete cluster:foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group delete cluster:bar
 
   echo 'Create new cluster group which should be empty'
-  lxc cluster group create cluster:foobar
-  lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.members == []'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create cluster:foobar
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.members == []'
 
   echo 'Copy both description and members from default group'
-  lxc cluster group show cluster:default | lxc cluster group edit cluster:foobar
-  lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.description == "Default cluster group"'
-  lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.members | length == 3'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group show cluster:default | LXD_DIR="${LXD_ONE_DIR}" lxc cluster group edit cluster:foobar
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.description == "Default cluster group"'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.members | length == 3'
 
   echo 'Delete all members from new group'
-  lxc cluster group remove cluster:node1 foobar
-  lxc cluster group remove cluster:node2 foobar
-  lxc cluster group remove cluster:node3 foobar
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group remove cluster:node1 foobar
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group remove cluster:node2 foobar
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group remove cluster:node3 foobar
 
   echo 'Add second node to new group. Node2 will now belong to both groups.'
-  lxc cluster group assign cluster:node2 default,foobar
-  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "default")'
-  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "foobar")'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign cluster:node2 default,foobar
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "default")'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "foobar")'
 
   echo 'Deleting the "foobar" group should fail as it still has members'
-  ! lxc cluster group delete cluster:foobar || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster group delete cluster:foobar || false
 
   echo 'Since node2 now belongs to two groups, it can be removed from the default group'
-  lxc cluster group remove cluster:node2 default
-  lxc query cluster:/1.0/cluster/members/node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group remove cluster:node2 default
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/members/node2
 
-  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | all(. != "default")'
-  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "foobar")'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | all(. != "default")'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "foobar")'
 
   echo 'Remove node2 from "foobar" group should fail as node2 is not in any other group'
-  ! lxc cluster group remove cluster:node2 foobar || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster group remove cluster:node2 foobar || false
 
   echo 'Rename group "foobar" to "blah"'
-  lxc cluster group rename cluster:foobar blah
-  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "blah")'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group rename cluster:foobar blah
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "blah")'
 
-  lxc cluster group create cluster:foobar2
-  lxc cluster group assign cluster:node3 default,foobar2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create cluster:foobar2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign cluster:node3 default,foobar2
 
   echo 'Create a new group "newgroup"'
-  lxc cluster group create cluster:newgroup
-  lxc query cluster:/1.0/cluster/groups/newgroup | jq --exit-status '.members == []'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create cluster:newgroup
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/groups/newgroup | jq --exit-status '.members == []'
 
   echo 'Add node1 to the "newgroup" group'
-  lxc cluster group add cluster:node1 newgroup
-  lxc query cluster:/1.0/cluster/members/node1 | jq --exit-status '.groups | any(. == "newgroup")'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group add cluster:node1 newgroup
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/members/node1 | jq --exit-status '.groups | any(. == "newgroup")'
 
   echo 'remove node1 from "newgroup"'
-  lxc cluster group remove cluster:node1 newgroup
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group remove cluster:node1 newgroup
 
   echo 'delete cluster group "newgroup"'
-  lxc cluster group delete cluster:newgroup
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group delete cluster:newgroup
 
   echo "Try to create a cluster group using yaml"
-  lxc cluster group create cluster:yamlgroup <<EOF
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create cluster:yamlgroup <<EOF
 description: foo
 EOF
 
-  lxc query cluster:/1.0/cluster/groups/yamlgroup | jq --exit-status '.description == "foo"'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/groups/yamlgroup | jq --exit-status '.description == "foo"'
   echo 'Delete the cluster group "yamlgroup"'
-  lxc cluster group delete cluster:yamlgroup
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group delete cluster:yamlgroup
 
   echo "Try to initialize a cluster group with multiple nodes"
-  lxc query cluster:/1.0/cluster/groups -X POST -d '{"name":"multi-node-group","description":"","members":["node1","node2","node3"]}'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/groups -X POST -d '{"name":"multi-node-group","description":"","members":["node1","node2","node3"]}'
 
   echo "Ensure cluster group created with requested members"
-  lxc query cluster:/1.0/cluster/groups/multi-node-group | jq --exit-status '.members | length == 3'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query cluster:/1.0/cluster/groups/multi-node-group | jq --exit-status '.members | length == 3'
 
   echo "Remove nodes and delete cluster group"
-  lxc cluster group remove cluster:node1 multi-node-group
-  lxc cluster group remove cluster:node2 multi-node-group
-  lxc cluster group remove cluster:node3 multi-node-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group remove cluster:node1 multi-node-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group remove cluster:node2 multi-node-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group remove cluster:node3 multi-node-group
 
-  lxc cluster group delete cluster:multi-node-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group delete cluster:multi-node-group
 
   # With these settings:
   # - node1 will receive instances unless a different node is directly targeted (not via group)
   # - node2 will receive instances if either targeted by group or directly
   # - node3 will only receive instances if targeted directly
-  lxc cluster set cluster:node2 scheduler.instance=group
-  lxc cluster set cluster:node3 scheduler.instance=manual
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster set cluster:node2 scheduler.instance=group
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster set cluster:node3 scheduler.instance=manual
 
   echo 'Cluster group "foobar" does not exist and should therefore fail'
-  ! lxc init --empty cluster:c1 --target=@foobar || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c1 --target=@foobar || false
 
   # At this stage we have:
   # - node1 in group default accepting all instances
@@ -3987,120 +3987,121 @@ EOF
   # - node3 in group default accepting direct targeting only
 
   echo "c1 should go to node1"
-  lxc init --empty cluster:c1
-  [ "$(lxc list -f csv -c L cluster:c1)" = "node1" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c1
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c1)" = "node1" ]
 
   echo "c2 should go to node2. Additionally it should be possible to specify the network."
-  lxc init --empty cluster:c2 --target=@blah --network "${bridge}"
-  [ "$(lxc list -f csv -c L cluster:c2)" = "node2" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c2 --target=@blah --network "${bridge}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c2)" = "node2" ]
 
   echo "c3 should go to node2 again. Additionally it should be possible to specify the storage pool."
-  lxc init --empty cluster:c3 --target=@blah --storage data
-  [ "$(lxc list -f csv -c L cluster:c3)" = "node2" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c3 --target=@blah --storage data
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c3)" = "node2" ]
 
   echo "Direct targeting of node2 should work"
-  lxc init --empty cluster:c4 --target=node2
-  [ "$(lxc list -f csv -c L cluster:c4)" = "node2" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c4 --target=node2
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c4)" = "node2" ]
 
   echo "Direct targeting of node3 should work"
-  lxc init --empty cluster:c5 --target=node3
-  [ "$(lxc list -f csv -c L cluster:c5)" = "node3" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c5 --target=node3
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c5)" = "node3" ]
 
   echo 'Check "volatile.cluster.group" is set correctly.'
-  [ "$(lxc config get cluster:c1 volatile.cluster.group || echo fail)" = "" ]
-  [ "$(lxc config get cluster:c2 volatile.cluster.group)" = "blah" ]
-  [ "$(lxc config get cluster:c3 volatile.cluster.group)" = "blah" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster:c1 volatile.cluster.group || echo fail)" = "" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster:c2 volatile.cluster.group)" = "blah" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster:c3 volatile.cluster.group)" = "blah" ]
 
   echo 'Setting a "placement.group" on an instance should clear "volatile.cluster.group"'
-  lxc placement-group create pg-test policy=spread rigor=permissive
-  lxc config set cluster:c2 placement.group=pg-test
-  [ "$(lxc config get cluster:c2 volatile.cluster.group || echo fail)" = "" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-test policy=spread rigor=permissive
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster:c2 placement.group=pg-test
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster:c2 volatile.cluster.group || echo fail)" = "" ]
 
   echo 'Verify that instances with "volatile.cluster.group" are reported in used_by for the blah group'
-  lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | .[] == "/1.0/instances/c3"'
+  LXD_DIR="${LXD_ONE_DIR}" lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | .[] == "/1.0/instances/c3"'
 
   echo "Check deleting an in use cluster group fails"
-  ! lxc cluster group delete blah || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster group delete blah || false
 
   echo 'Clean up for restricted project tests'
-  lxc delete c1 c2 c3 c4 c5
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c4 c5
 
   echo '==> Restricted project tests'
 
   echo 'Create an empty cluster group and reference it from project config'
-  lxc cluster group create cluster:fizz
-  lxc project create cluster:buzz -c restricted=true -c restricted.cluster.groups=fizz
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create cluster:fizz
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create cluster:buzz -c restricted=true -c restricted.cluster.groups=fizz
 
   echo 'Cannot launch an instance because fizz has no members'
-  ! lxc init --empty cluster:c1 --project buzz || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c1 --project buzz || false
 
   echo 'Group fizz has no members, but it cannot be deleted because it is referenced by project buzz.'
-  lxc_remote query cluster:/1.0/cluster/groups/fizz | jq --exit-status '.used_by | .[] == "/1.0/projects/buzz"'
-  ! lxc cluster group delete cluster:fizz || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc_remote query cluster:/1.0/cluster/groups/fizz | jq --exit-status '.used_by | .[] == "/1.0/projects/buzz"'
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster group delete cluster:fizz || false
 
   echo 'Restricted certificate does not see project fizz in cluster group used by URLs'
-  token1="$(lxc config trust add cluster: --name cg-cert1 --quiet --restricted --projects default)"
+  token1="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add cluster: --name cg-cert1 --quiet --restricted --projects default)"
   LXD_CONF1=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF1}" gen_cert_and_key "client"
   LXD_CONF="${LXD_CONF1}" lxc remote add cluster_remote "${token1}"
   LXD_CONF="${LXD_CONF1}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq --exit-status '.used_by == []'
 
   echo 'Fine-grained TLS identity does not see project fizz in cluster group used by URLs unless any groups it is a member of have can_view on the project.'
-  lxc auth group create cluster:test-group
-  token2="$(lxc auth identity create cluster:tls/gc-cert2 --group test-group --quiet)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group create cluster:test-group
+  token2="$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity create cluster:tls/gc-cert2 --group test-group --quiet)"
   LXD_CONF2=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
   LXD_CONF="${LXD_CONF2}" lxc remote add cluster_remote "${token2}"
   LXD_CONF="${LXD_CONF2}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq --exit-status '.used_by == []'
-  lxc auth group permission add cluster:test-group project buzz can_view
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add cluster:test-group project buzz can_view
   LXD_CONF="${LXD_CONF2}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq --exit-status '.used_by | .[] == "/1.0/projects/buzz"'
 
   echo 'Clean up.'
-  lxc config trust remove "cluster:$(cert_fingerprint "${LXD_CONF1}/client.crt")"
-  lxc auth identity delete cluster:tls/gc-cert2
-  lxc auth group delete cluster:test-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc config trust remove "cluster:$(cert_fingerprint "${LXD_CONF1}/client.crt")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth identity delete cluster:tls/gc-cert2
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group delete cluster:test-group
   rm -rf "${LXD_CONF1}" "${LXD_CONF2}"
-  lxc project delete cluster:buzz
-  lxc cluster group delete cluster:fizz
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete cluster:buzz
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group delete cluster:fizz
 
-  lxc project create foo -c features.images=false -c restricted=true -c restricted.cluster.groups=blah
-  lxc profile show default | lxc profile edit default --project foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create foo -c features.images=false -c restricted=true -c restricted.cluster.groups=blah
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile show default | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default --project foo
 
   echo 'Check cannot create instance in restricted project that only allows blah group, when the only member that exists in the blah group also has scheduler.instance=group set (so it must be targeted via group or directly).'
-  ! lxc init --empty cluster:c1 --project foo || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c1 --project foo || false
 
   echo "Check cannot create instance in restricted project when targeting a member that isn't in the restricted project's allowed cluster groups list."
-  ! lxc init --empty cluster:c1 --project foo --target=node1 || false
-  ! lxc init --empty cluster:c1 --project foo --target=@foobar2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c1 --project foo --target=node1 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c1 --project foo --target=@foobar2 || false
 
   echo "Check can create instance in restricted project when not targeting any specific member, but that it will only be created on members within the project's allowed cluster groups list."
-  lxc cluster unset cluster:node2 scheduler.instance
-  lxc init --empty cluster:c1 --project foo
-  lxc init --empty cluster:c2 --project foo
-  [ "$(lxc list -f csv -c L cluster:c1 --project foo)" = "node2" ]
-  [ "$(lxc list -f csv -c L cluster:c2 --project foo)" = "node2" ]
-  lxc delete -f c1 c2 --project foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster unset cluster:node2 scheduler.instance
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c1 --project foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c2 --project foo
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c1 --project foo)" = "node2" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c2 --project foo)" = "node2" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 --project foo
 
   echo 'Check can specify any member or group when "restricted.cluster.groups" is empty.'
-  lxc project unset foo restricted.cluster.groups
-  lxc init --empty cluster:c1 --project foo --target=node1
-  [ "$(lxc list -f csv -c L cluster:c1 --project foo)" = "node1" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc project unset foo restricted.cluster.groups
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c1 --project foo --target=node1
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c1 --project foo)" = "node1" ]
 
-  lxc init --empty cluster:c2 --project foo --target=@blah
-  [ "$(lxc list -f csv -c L cluster:c2 --project foo)" = "node2" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c2 --project foo --target=@blah
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L cluster:c2 --project foo)" = "node2" ]
 
   echo 'Check "volatile.cluster.group" is set correctly.'
-  [ "$(lxc config get cluster:c2 --project foo volatile.cluster.group)" = "blah" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster:c2 --project foo volatile.cluster.group)" = "blah" ]
 
   echo 'Re-set "restricted.cluster.groups" so we can verify both project and instance are in used_by'
-  lxc project set foo restricted.cluster.groups=blah
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set foo restricted.cluster.groups=blah
 
   echo 'Verify that both project foo and instance c2 with "volatile.cluster.group" are reported in used_by'
-  lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | contains(["/1.0/instances/c2?project=foo", "/1.0/projects/foo"])'
+  LXD_DIR="${LXD_ONE_DIR}" lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | contains(["/1.0/instances/c2?project=foo", "/1.0/projects/foo"])'
 
   echo "Clean up."
-  lxc delete -f c1 c2 --project foo
-  lxc project delete foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 --project foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc remote rm cluster
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
@@ -4116,8 +4117,6 @@ EOF
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
-
-  lxc remote rm cluster
 }
 
 test_clustering_events() {
