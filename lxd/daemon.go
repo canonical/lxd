@@ -333,11 +333,6 @@ func allowProjectResourceList(allowAllProjects bool) func(d *Daemon, r *http.Req
 			return response.EmptySyncResponse
 		}
 
-		id := requestor.CallerIdentity()
-		if id == nil {
-			return response.InternalError(errors.New("No identity present in request details"))
-		}
-
 		idType, err := requestor.CallerIdentityType()
 		if err != nil {
 			return response.SmartError(err)
@@ -380,7 +375,7 @@ func allowProjectResourceList(allowAllProjects bool) func(d *Daemon, r *http.Req
 		}
 
 		// Disallow listing resources in projects the caller does not have access to.
-		if !slices.Contains(id.Projects, requestProjectName) {
+		if !slices.Contains(requestor.CallerAllowedProjectNames(), requestProjectName) {
 			return response.Forbidden(errors.New("Certificate is restricted"))
 		}
 
