@@ -23,7 +23,6 @@ LXD requires Go 1.25.4 or higher and is only tested with the Golang compiler.
 │   ├── lint/               # Linting scripts
 │   └── main.sh             # Test runner
 ├── doc/                    # Documentation (Sphinx)
-├── po/                     # Internationalization files
 └── scripts/                # Utility scripts
 ```
 
@@ -39,7 +38,6 @@ LXD requires Go 1.25.4 or higher and is only tested with the Golang compiler.
 ### Generated Files (Do Not Edit Manually)
 
 Files that are auto-generated and should be updated via make targets:
-- `po/*.pot` - Updated via `make update-po` or `make update-pot`
 - `doc/metadata.txt` - Updated via `make update-metadata`
 - `lxd/metadata/configuration.json` - Updated via `make update-metadata`
 - `lxd/auth/entitlements_generated.go` - Updated via `make update-auth`
