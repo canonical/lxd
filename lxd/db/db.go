@@ -280,8 +280,8 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		// Set the local member ID
 		clusterDB.NodeID(memberID)
 
-		// Delete any operation tied to this member
-		err = cluster.DeleteOperations(ctx, tx.tx, memberID)
+		// Clear any operation tied to this member
+		err = cluster.ClearStaleOperationsFromNodes(ctx, tx.tx, memberID)
 		if err != nil {
 			return err
 		}

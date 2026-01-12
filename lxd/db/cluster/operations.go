@@ -308,11 +308,55 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 	return nil
 }
 
-// DeleteOperationsFromNodes deletes operations from nodes with the given list of IDs.
-func DeleteOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
-	_, err := tx.ExecContext(ctx, "DELETE FROM operations WHERE node_id IN "+query.IntParams(nodeIDs...))
+// deleteEphemeralOperationsFromNodes deletes ephemeral operations from nodes with the given list of IDs.
+// Ephemeral operations are operations which are normally cleared few seconds after they finish. In other words, these are:
+// - Operations with class Task, Websocket or Token (class between 1 and 3), and
+// - Operations which are not bulk operations (parent is NULL and id not in parent column of any operation).
+func deleteEphemeralOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	stmt := `DELETE FROM operations
+WHERE class BETWEEN 1 AND 3
+AND parent IS NULL
+AND id NOT IN (SELECT parent FROM operations WHERE parent IS NOT NULL)
+AND node_id IN ` + query.IntParams(nodeIDs...)
+
+	_, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return fmt.Errorf("Failed deleting operations from nodes: %w", err)
+	}
+
+	return nil
+}
+
+// failRunningBulkOperationsFromNodes marks all running bulk operations on target nodes as failed.
+// Bulk operations are persisted in the database for 24 hours, thus are not ephemeral. Yet, if a node crashes or shuts down,
+// the bulk operations which were not running on the node previously are not going to finish and need to be marked accordingly.
+func failRunningBulkOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, error = ?, error_code = ?
+WHERE class BETWEEN 1 AND 3
+AND status_code < 200
+AND (parent IS NOT NULL OR id IN (SELECT parent FROM operations WHERE parent IS NOT NULL))
+AND node_id IN ` + query.IntParams(nodeIDs...)
+
+	_, err := tx.ExecContext(ctx, stmt, time.Now(), api.Failure, "Node shut down", http.StatusServiceUnavailable)
+	if err != nil {
+		return fmt.Errorf("Failed marking bulk operations as failed: %w", err)
+	}
+
+	return nil
+}
+
+// ClearStaleOperationsFromNodes clears all stale operation records from the database for the given node IDs. This includes:
+// - Deleting ephemeral operations, which are operations that are normally cleared few seconds after they finish.
+// - Marking running bulk operations as failed.
+func ClearStaleOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	err := deleteEphemeralOperationsFromNodes(ctx, tx, nodeIDs...)
+	if err != nil {
+		return fmt.Errorf("Failed deleting ephemeral operations from nodes: %w", err)
+	}
+
+	err = failRunningBulkOperationsFromNodes(ctx, tx, nodeIDs...)
+	if err != nil {
+		return fmt.Errorf("Failed failing running bulk operations from nodes: %w", err)
 	}
 
 	return nil
