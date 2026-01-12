@@ -2042,6 +2042,68 @@ func (d *Daemon) init() error {
 	return nil
 }
 
+// requestorHook runs for all authenticated (trusted) client requests to the remote API or to the DevLXD API (via bearer auth).
+// It gets the identity by the authentication method (protocol) and identifier (username) and returns authorization details.
+func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (idType identity.Type, authGroups []string, mappedAuthGroups []string, projects []string, err error) {
+	err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(authenticationMethod), identifier)
+		if err != nil {
+			return fmt.Errorf("Failed to get identity: %w", err)
+		}
+
+		idType, err = identity.New(string(id.Type))
+		if err != nil {
+			return fmt.Errorf("Failed to determine type of identity: %w", err)
+		}
+
+		// If client is an admin, there are no groups or projects to get.
+		if idType.IsAdmin() || idType.Name() == api.IdentityTypeCertificateMetricsUnrestricted {
+			return nil
+		}
+
+		// If not fine-grained, get the project list.
+		if !idType.IsFineGrained() {
+			dbProjects, err := dbCluster.GetIdentityProjects(ctx, tx.Tx(), id.ID)
+			if err != nil {
+				return fmt.Errorf("Failed to get projects for identity: %w", err)
+			}
+
+			projects = make([]string, 0, len(dbProjects))
+			for _, p := range dbProjects {
+				projects = append(projects, p.Name)
+			}
+
+			return nil
+		}
+
+		// Otherwise get the authorization groups.
+		dbGroups, err := dbCluster.GetAuthGroupsByIdentityID(ctx, tx.Tx(), id.ID)
+		if err != nil {
+			return fmt.Errorf("Failed to get groups for identity: %w", err)
+		}
+
+		authGroups = make([]string, 0, len(dbGroups))
+		for _, g := range dbGroups {
+			authGroups = append(authGroups, g.Name)
+		}
+
+		if len(idpGroups) > 0 {
+			// If IdP groups are set, map them to LXD auth groups.
+			mappedAuthGroups, err = dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), idpGroups)
+			if err != nil {
+				return fmt.Errorf("Failed to map identity provider groups to authorization groups: %w", err)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	return idType, authGroups, mappedAuthGroups, projects, nil
+}
+
 func (d *Daemon) startClusterTasks() {
 	// Add initial event listeners from global database members.
 	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
