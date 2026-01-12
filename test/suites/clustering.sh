@@ -4481,7 +4481,7 @@ test_clustering_trust_add() {
 
   # Get a certificate add token from LXD_ONE. The operation will run on LXD_ONE locally.
   lxd_one_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
-  sleep 2
+  sleep 1.1
 
   # Expect one running token operation.
   operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
