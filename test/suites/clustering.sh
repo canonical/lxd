@@ -2036,7 +2036,7 @@ test_clustering_address() {
 
   # Create a container using the REST API exposed over core.https_address.
   lxc init --target node2 --empty cluster:c1
-  lxc list cluster: | grep -wF c1
+  [ "$(lxc list -f csv -c nL cluster:)" = "c1,node2" ]
 
   # The core.https_address config value can be set to a wildcard address if
   # the port is the same as cluster.https_address.
