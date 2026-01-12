@@ -10,7 +10,6 @@ import (
 	"slices"
 
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -30,7 +29,7 @@ type tls struct {
 	commonAuthorizer
 }
 
-func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts) error {
+func (t *tls) load(ctx context.Context, opts Opts) error {
 	return nil
 }
 
