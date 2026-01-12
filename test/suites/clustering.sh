@@ -780,7 +780,7 @@ test_clustering_storage() {
     # Manually send the join request.
     local cert_json
     cert_json="$(cert_to_json "${LXD_ONE_DIR}/cluster.crt")"
-    token="$(lxc cluster add node3 --quiet)"
+    token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node3 --quiet)"
     op="$(curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node3","enabled":true,"member_config":['"${member_config}"'],"server_address":"100.64.1.103:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":'"${cert_json}"',"cluster_token":"'"${token}"'"}' | jq --exit-status --raw-output '.operation')"
     curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body "lxd${op}/wait"
 
