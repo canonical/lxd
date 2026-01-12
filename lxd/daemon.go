@@ -633,29 +633,6 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 	return &request.RequestorArgs{Trusted: false}, nil
 }
 
-// handleOIDCAuthenticationResult checks the identity cache for the OIDC identity by their email address.
-// If no identity is found, the cache is refreshed.
-// This is for new OIDC logins and is currently required for authorization to work because group membership is saved to the cache.
-// The [oidc.Verifier] has already handled adding the identity to the database via the [oidc.SessionHandler].
-//
-// Note that in this case we do not need to notify other cluster members about the new identity.
-// This is because the cache is not required for authentication.
-// If this identity makes a request to another cluster member, that cluster member will call this same function to refresh
-// their cache if the identity is missing.
-func (d *Daemon) handleOIDCAuthenticationResult(result *oidc.AuthenticationResult) error {
-	s := d.State()
-	_, err := s.IdentityCache.Get(api.AuthenticationMethodOIDC, result.Email)
-	if err == nil {
-		return nil
-	} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return err
-	}
-
-	s.UpdateIdentityCache()
-
-	return nil
-}
-
 // getCoreAuthSecrets gets a copy of the current, cluster-wide secrets. The approach can be summarized as follows:
 // 1. Check if the current in-memory value is valid. If valid, return a copy.
 // 2. Check if the current in-database value is valid. If valid, replace in-memory value and return a copy.
