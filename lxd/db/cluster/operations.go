@@ -33,13 +33,11 @@ import (
 //go:generate mapper stmt -e operation create
 //go:generate mapper stmt -e operation create-or-replace
 //go:generate mapper stmt -e operation delete-by-UUID
-//go:generate mapper stmt -e operation delete-by-NodeID
 //
 //go:generate mapper method -i -e operation GetMany
 //go:generate mapper method -i -e operation Create
 //go:generate mapper method -i -e operation CreateOrReplace
 //go:generate mapper method -i -e operation DeleteOne-by-UUID
-//go:generate mapper method -i -e operation DeleteMany-by-NodeID
 //go:generate goimports -w operations.mapper.go
 //go:generate goimports -w operations.interface.mapper.go
 

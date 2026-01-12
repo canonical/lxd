@@ -95,10 +95,6 @@ var operationDeleteByUUID = RegisterStmt(`
 DELETE FROM operations WHERE uuid = ?
 `)
 
-var operationDeleteByNodeID = RegisterStmt(`
-DELETE FROM operations WHERE node_id = ?
-`)
-
 // getOperations can be used to run handwritten sql.Stmts to return a slice of objects.
 func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operation, error) {
 	objects := make([]Operation, 0)
@@ -476,27 +472,6 @@ func DeleteOperation(ctx context.Context, tx *sql.Tx, uuid string) error {
 		return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 	} else if n > 1 {
 		return fmt.Errorf("Query deleted %d Operation rows instead of 1", n)
-	}
-
-	return nil
-}
-
-// DeleteOperations deletes the operation matching the given key parameters.
-// generator: operation DeleteMany-by-NodeID
-func DeleteOperations(ctx context.Context, tx *sql.Tx, nodeID int64) error {
-	stmt, err := Stmt(tx, operationDeleteByNodeID)
-	if err != nil {
-		return fmt.Errorf("Failed to get \"operationDeleteByNodeID\" prepared statement: %w", err)
-	}
-
-	result, err := stmt.ExecContext(ctx, nodeID)
-	if err != nil {
-		return fmt.Errorf("Delete \"operations\": %w", err)
-	}
-
-	_, err = result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	return nil
