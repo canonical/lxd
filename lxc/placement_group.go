@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -27,8 +26,8 @@ type cmdPlacementGroup struct {
 func (c *cmdPlacementGroup) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("placement-group")
-	cmd.Short = i18n.G("Manage placement groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage placement groups"))
+	cmd.Short = "Manage placement groups"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// List.
 	placementGroupListCmd := cmdPlacementGroupList{global: c.global, placementGroup: c}
@@ -83,14 +82,14 @@ type cmdPlacementGroupList struct {
 
 func (c *cmdPlacementGroupList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List available placement groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("List available placement group"))
+	cmd.Short = "List available placement groups"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
-	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Display placement groups from all projects"))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display placement groups from all projects")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -125,7 +124,7 @@ func (c *cmdPlacementGroupList) run(cmd *cobra.Command, args []string) error {
 
 	// List the placement groups.
 	if resource.name != "" {
-		return errors.New(i18n.G("Filtering isn't supported yet"))
+		return errors.New("Filtering isn't supported yet")
 	}
 
 	var placementGroups []api.PlacementGroup
@@ -161,15 +160,15 @@ func (c *cmdPlacementGroupList) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("NAME"),
-		i18n.G("DESCRIPTION"),
-		i18n.G("POLICY"),
-		i18n.G("RIGOR"),
-		i18n.G("USED BY"),
+		"NAME",
+		"DESCRIPTION",
+		"POLICY",
+		"RIGOR",
+		"USED BY",
 	}
 
 	if c.flagAllProjects {
-		header = append([]string{i18n.G("PROJECT")}, header...)
+		header = append([]string{"PROJECT"}, header...)
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, placementGroups)
@@ -183,9 +182,9 @@ type cmdPlacementGroupShow struct {
 
 func (c *cmdPlacementGroupShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<placement_group>"))
-	cmd.Short = i18n.G("Show placement group configurations")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show placement group configurations"))
+	cmd.Use = usage("show", "[<remote>:]<placement_group>")
+	cmd.Short = "Show placement group configurations"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -215,7 +214,7 @@ func (c *cmdPlacementGroupShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing placement group name"))
+		return errors.New("Missing placement group name")
 	}
 
 	// Show the placement group config.
@@ -246,18 +245,18 @@ type cmdPlacementGroupCreate struct {
 
 func (c *cmdPlacementGroupCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<placement_group> [key=value...]"))
-	cmd.Short = i18n.G("Create new placement groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new placement groups"))
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc placement-group create pg1 policy=spread rigor=strict
+	cmd.Use = usage("create", "[<remote>:]<placement_group> [key=value...]")
+	cmd.Short = "Create new placement groups"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc placement-group create pg1 policy=spread rigor=strict
 
 lxc placement-group create pg1 policy=compact rigor=permissive
 
 lxc placement-group create pg1 < config.yaml
-    Create placement group pg1 with configuration from config.yaml`))
+    Create placement group pg1 with configuration from config.yaml`)
 
-	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new placement group")+"``")
-	cmd.Flags().StringVar(&c.flagDescription, "description", "", i18n.G("Description of the placement group")+"``")
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, cli.FormatStringFlagLabel("Config key/value to apply to the new placement group"))
+	cmd.Flags().StringVar(&c.flagDescription, "description", "", cli.FormatStringFlagLabel("Description of the placement group"))
 	cmd.RunE = c.run
 
 	return cmd
@@ -294,7 +293,7 @@ func (c *cmdPlacementGroupCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing placement group name"))
+		return errors.New("Missing placement group name")
 	}
 
 	// Create the placement group.
@@ -310,7 +309,7 @@ func (c *cmdPlacementGroupCreate) run(cmd *cobra.Command, args []string) error {
 	for _, entry := range args[1:] {
 		key, value, found := strings.Cut(entry, "=")
 		if !found {
-			return fmt.Errorf(i18n.G("Bad key=value pair: %q"), entry)
+			return fmt.Errorf("Bad key=value pair: %q", entry)
 		}
 
 		placementGroup.Config[key] = value
@@ -320,7 +319,7 @@ func (c *cmdPlacementGroupCreate) run(cmd *cobra.Command, args []string) error {
 	for _, entry := range c.flagConfig {
 		key, value, found := strings.Cut(entry, "=")
 		if !found {
-			return fmt.Errorf(i18n.G("Bad key=value pair: %q"), entry)
+			return fmt.Errorf("Bad key=value pair: %q", entry)
 		}
 
 		placementGroup.Config[key] = value
@@ -336,7 +335,7 @@ func (c *cmdPlacementGroupCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Placement group %s created")+"\n", resource.name)
+		fmt.Printf("Placement group %s created\n", resource.name)
 	}
 
 	return nil
@@ -350,9 +349,9 @@ type cmdPlacementGroupEdit struct {
 
 func (c *cmdPlacementGroupEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<placement_group>"))
-	cmd.Short = i18n.G("Edit placement group configurations as YAML")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Edit placement group configurations as YAML"))
+	cmd.Use = usage("edit", "[<remote>:]<placement_group>")
+	cmd.Short = "Edit placement group configurations as YAML"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -368,8 +367,7 @@ func (c *cmdPlacementGroupEdit) command() *cobra.Command {
 }
 
 func (c *cmdPlacementGroupEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a YAML representation of the placement group.
+	return `### This is a YAML representation of the placement group.
 ### Any line starting with a '# will be ignored.
 ###
 ### An example placement group structure is shown below.
@@ -385,7 +383,7 @@ func (c *cmdPlacementGroupEdit) helpTemplate() string {
 ### - /1.0/instances/c1
 ### - /1.0/instances/c2
 ### - /1.0/profiles/p1
-`)
+`
 }
 
 func (c *cmdPlacementGroupEdit) run(cmd *cobra.Command, args []string) error {
@@ -404,7 +402,7 @@ func (c *cmdPlacementGroupEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing placement group name"))
+		return errors.New("Missing placement group name")
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -452,8 +450,8 @@ func (c *cmdPlacementGroupEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor.
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -482,10 +480,9 @@ type cmdPlacementGroupGet struct {
 
 func (c *cmdPlacementGroupGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("get", i18n.G("[<remote>:]<placement_group> <key>"))
-	cmd.Short = i18n.G("Get values for placement group configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Get values for placement group configuration keys`))
+	cmd.Use = usage("get", "[<remote>:]<placement_group> <key>")
+	cmd.Short = "Get values for placement group configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -520,7 +517,7 @@ func (c *cmdPlacementGroupGet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing placement group name"))
+		return errors.New("Missing placement group name")
 	}
 
 	// Get the configuration key.
@@ -542,13 +539,12 @@ type cmdPlacementGroupSet struct {
 
 func (c *cmdPlacementGroupSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("set", i18n.G("[<remote>:]<placement_group> <key>=<value>..."))
-	cmd.Short = i18n.G("Set placement group configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set placement group configuration keys
+	cmd.Use = usage("set", "[<remote>:]<placement_group> <key>=<value>...")
+	cmd.Short = "Set placement group configuration keys"
+	cmd.Long = cli.FormatSection("Description", `Set placement group configuration keys
 
 For backward compatibility, a single configuration key may still be set with:
-    lxc placement-group set [<remote>:]<placement_group> <key> <value>`))
+    lxc placement-group set [<remote>:]<placement_group> <key> <value>`)
 
 	cmd.RunE = c.run
 
@@ -579,7 +575,7 @@ func (c *cmdPlacementGroupSet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing placement group name"))
+		return errors.New("Missing placement group name")
 	}
 
 	// Get the placement group.
@@ -609,10 +605,9 @@ type cmdPlacementGroupUnset struct {
 
 func (c *cmdPlacementGroupUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("unset", i18n.G("[<remote>:]<placement_group> <key>"))
-	cmd.Short = i18n.G("Unset placement group configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Unset placement group configuration keys`))
+	cmd.Use = usage("unset", "[<remote>:]<placement_group> <key>")
+	cmd.Short = "Unset placement group configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -650,10 +645,10 @@ type cmdPlacementGroupDelete struct {
 
 func (c *cmdPlacementGroupDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<placement_group>"))
+	cmd.Use = usage("delete", "[<remote>:]<placement_group>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete placement groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Delete placement groups"))
+	cmd.Short = "Delete placement groups"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -683,7 +678,7 @@ func (c *cmdPlacementGroupDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing placement group name"))
+		return errors.New("Missing placement group name")
 	}
 
 	// Delete the placement group.
@@ -693,7 +688,7 @@ func (c *cmdPlacementGroupDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Placement group %s deleted")+"\n", resource.name)
+		fmt.Printf("Placement group %s deleted\n", resource.name)
 	}
 
 	return nil
@@ -707,10 +702,10 @@ type cmdPlacementGroupRename struct {
 
 func (c *cmdPlacementGroupRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("rename", i18n.G("[<remote>:]<old_name> <new_name>"))
+	cmd.Use = usage("rename", "[<remote>:]<old_name> <new_name>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = i18n.G("Rename placement groups")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Rename a placement group"))
+	cmd.Short = "Rename placement groups"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -740,7 +735,7 @@ func (c *cmdPlacementGroupRename) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing placement group name"))
+		return errors.New("Missing placement group name")
 	}
 
 	// Delete the placement group.
@@ -750,7 +745,7 @@ func (c *cmdPlacementGroupRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Placement group %s renamed to %s")+"\n", resource.name, args[1])
+		fmt.Printf("Placement group %s renamed to %s\n", resource.name, args[1])
 	}
 
 	return nil
