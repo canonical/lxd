@@ -4448,7 +4448,7 @@ test_clustering_uuid() {
   fi
 
   # cleanup
-  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 -f
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
