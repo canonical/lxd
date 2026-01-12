@@ -5,7 +5,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -240,6 +242,59 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	err = initDataClusterApply(d, config.Cluster)
 	if err != nil {
 		return err
+	}
+
+	if c.flagUITemporaryAccessLink {
+		// Refresh server info.
+		server, _, err := d.GetServer()
+		if err != nil {
+			return fmt.Errorf("Failed to refresh LXD server info: %w", err)
+		}
+
+		var serverAddress string
+		if len(server.Environment.Addresses) > 0 {
+			serverAddress = server.Environment.Addresses[0]
+		}
+
+		if serverAddress == "" {
+			return errors.New("LXD server address is not set, can't create UI temporary access link")
+		}
+
+		uiAdminIdentityName := "ui-admin-temporary"
+
+		// Check if identity already exists.
+		uiAdminIdentity, _, err := d.GetIdentity(api.AuthenticationMethodBearer, uiAdminIdentityName)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed to check for existing temporary UI identity: %w", err)
+		}
+
+		// Create identity if it doesn't exist.
+		if uiAdminIdentity == nil {
+			uiAdminIdentityReq := api.IdentitiesBearerPost{
+				Name:   uiAdminIdentityName,
+				Type:   api.IdentityTypeBearerTokenClient,
+				Groups: []string{"admins"},
+			}
+
+			err := d.CreateIdentityBearer(uiAdminIdentityReq)
+			if err != nil {
+				return fmt.Errorf("Failed to create temporary UI identity: %w", err)
+			}
+		}
+
+		// Issue bearer token for the identity (validity 1 day).
+		tokenRequest := api.IdentityBearerTokenPost{
+			Expiry: "1d",
+		}
+
+		token, err := d.IssueBearerIdentityToken(uiAdminIdentityName, tokenRequest)
+		if err != nil {
+			return fmt.Errorf("Failed to issue bearer token for temporary UI access link: %w", err)
+		}
+
+		tokenExpiry := time.Now().Add(24 * time.Hour).Format("2006-01-02 15:04")
+		fmt.Println("UI temporary identity (type: Client token bearer): " + uiAdminIdentityName)
+		fmt.Println("UI temporary access link (expires: " + tokenExpiry + "): https://" + serverAddress + "/?token=" + token.Token)
 	}
 
 	revert.Success()
