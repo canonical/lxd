@@ -165,52 +165,66 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Load the operation from the database.
 	var body *api.Operation
-
-	// First check if the query is for a local operation from this node
-	op, err := operations.OperationGetInternal(id)
-	if err == nil {
-		err := checkOperationViewAccess(r.Context(), op, s.Authorizer, "")
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		_, body = op.Render()
-		return response.SyncResponse(true, body)
-	}
-
-	// Then check if the query is from an operation on another node, and, if so, forward it
-	var address string
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	var dbLocation *string
+	var operation dbCluster.Operation
+	var op *operations.Operation
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
 
-		if len(ops) < 1 {
+		// Make sure we have loaded exactly one operation from the DB.
+		switch len(ops) {
+		case 0:
 			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
-		}
-
-		if len(ops) > 1 {
+		case 1:
+			operation = ops[0]
+		default:
 			return errors.New("More than one operation matches")
 		}
 
-		operation := ops[0]
+		var projectName string
+		if operation.ProjectID != nil {
+			project, err := dbCluster.GetProjectByID(ctx, tx.Tx(), int(*operation.ProjectID))
+			if err != nil {
+				return err
+			}
 
-		address = operation.NodeAddress
-		return nil
+			projectName = project.Name
+		}
+
+		ni, err := tx.GetNodeByID(ctx, operation.NodeID)
+		if err != nil {
+			return err
+		}
+
+		dbLocation = &ni.Name
+
+		op, err = operations.ConstructOperationFromDB(ctx, tx.Tx(), s, &operation, projectName)
+		return err
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	err = checkOperationViewAccess(r.Context(), op, s.Authorizer, "")
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.ForwardedResponse(client)
+	_, body = op.Render()
+
+	// The [operations.Operation] doesn't contain the node where the operation is running.
+	// If we're loading operations from the DB, we need to set the location here.
+	if dbLocation != nil {
+		body.Location = *dbLocation
+	}
+
+	return response.SyncResponse(true, body)
 }
 
 // swagger:operation DELETE /1.0/operations/{id} operations operation_delete
