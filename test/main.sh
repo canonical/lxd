@@ -177,7 +177,8 @@ export MAIN_DIR
 export LXD_BACKEND="${LXD_BACKEND:-"dir"}"
 
 # Support multiple backends selection
-LXD_BACKENDS="${LXD_BACKENDS:-"${LXD_BACKEND}"}"
+# Expand LXD_BACKENDS
+LXD_BACKENDS="${LXD_BACKENDS:-"${LXD_BACKEND:-}"}"
 if [ "${LXD_BACKENDS}" = "all" ]; then
   LXD_BACKENDS="btrfs ceph dir lvm zfs random"
 elif [ "${LXD_BACKENDS}" = "fasts" ]; then
@@ -191,6 +192,11 @@ elif [ "${LXD_BACKENDS}" = "fast" ]; then
   echo "::notice::fast backend=${LXD_BACKENDS}"
 fi
 readonly LXD_BACKENDS
+
+# Determine active tests
+# If LXD_BACKEND is set, we only run that one.
+# Otherwise, we run all backends in LXD_BACKENDS.
+active_backends="${LXD_BACKEND:-${LXD_BACKENDS}}"
 
 import_subdir_files includes
 
@@ -234,6 +240,16 @@ check_coredumps() {
   echo "::notice::==> CORE: QEMU core dump ignored"
 
   return 0
+}
+
+# Check if the current backend is the last one to be tested in the current context
+is_matrix_final_step() {
+  local last_expected_backend
+  # shellcheck disable=SC2086
+  set -- ${LXD_BACKENDS}
+  eval "last_expected_backend=\${$#}"
+
+  [ "${LXD_BACKEND}" = "${last_expected_backend}" ]
 }
 
 cleanup() {
@@ -302,8 +318,8 @@ cleanup() {
     fi
   fi
 
-  if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    echo "==> Skipping cleanup (GitHub Action runner detected)"
+  if [ -n "${GITHUB_ACTIONS:-}" ] && is_matrix_final_step; then
+    echo "==> Skipping cleanup (final step)"
   else
     echo "==> Cleaning up"
 
@@ -325,6 +341,9 @@ cleanup() {
   echo ""
   echo ""
   if [ "${TEST_RESULT}" != "success" ]; then
+    # Generate the duration table on failure as it won't be generated at the end
+    # of the script
+    generate_duration_table
     echo "==> FAILED TEST: ${TEST_CURRENT#test_}"
   fi
   echo "==> Test result: ${TEST_RESULT}"
@@ -345,6 +364,15 @@ declare -A durations
 
 # Generate markdown table with test durations across backends
 generate_duration_table() {
+    if [ -n "${GITHUB_ACTIONS:-}" ]; then
+        for f in "${MAIN_DIR}"/.durations.*; do
+            [ -e "${f}" ] || continue
+            while IFS='=' read -r key value; do
+                durations["${key}"]="${value}"
+            done < "${f}"
+        done
+    fi
+
     # Collect all unique test names
     local -a test_names=()
     for key in "${!durations[@]}"; do
@@ -539,6 +567,9 @@ run_test() {
   # output duration in blue
   echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION:-"-1"}s\033[0m)"
   durations["${TEST_CURRENT#test_},${LXD_BACKEND}"]="${DURATION}"
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    echo "${TEST_CURRENT#test_},${LXD_BACKEND}=${DURATION}" >> "${MAIN_DIR}/.durations.${LXD_BACKEND}"
+  fi
   cd "${cwd}"
 }
 
@@ -615,7 +646,7 @@ if [ "$#" -eq 0 ]; then
 fi
 
 # Run tests against all requested backends
-for LXD_BACKEND in ${LXD_BACKENDS}; do
+for LXD_BACKEND in ${active_backends}; do
   spawn_initial_lxd
 
   for arg in "$@"; do
@@ -643,5 +674,8 @@ done
 # Avoid running cleanup again
 trap - EXIT HUP INT TERM
 
+# If in CI, wait for the final step before printing the summary table
 # Build a markdown table with the duration of each test
-generate_duration_table
+if [ -z "${GITHUB_ACTIONS:-}" ] || is_matrix_final_step; then
+    generate_duration_table
+fi
