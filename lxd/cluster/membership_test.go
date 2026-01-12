@@ -287,15 +287,9 @@ func TestJoin(t *testing.T) {
 	trustedAltServerCert, _ := x509.ParseCertificate(altServerCert.KeyPair().Certificate[0])
 
 	identityCache := &identity.Cache{}
-	err := identityCache.ReplaceAll([]identity.CacheEntry{
-		{
-			AuthenticationMethod: api.AuthenticationMethodTLS,
-			IdentityType:         api.IdentityTypeCertificateServer,
-			Identifier:           altServerCert.Fingerprint(),
-			Certificate:          trustedAltServerCert,
-		},
-	}, nil)
-	require.NoError(t, err)
+	identityCache.ReplaceAll(map[string]*x509.Certificate{
+		altServerCert.Fingerprint(): trustedAltServerCert,
+	}, nil, nil, nil)
 
 	for path, handler := range targetGateway.HandlerFuncs(nil, identityCache) {
 		targetMux.HandleFunc(path, handler)
