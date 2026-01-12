@@ -24,8 +24,4 @@ type OperationGenerated interface {
 	// DeleteOperation deletes the operation matching the given key parameters.
 	// generator: operation DeleteOne-by-UUID
 	DeleteOperation(ctx context.Context, tx *sql.Tx, uuid string) error
-
-	// DeleteOperations deletes the operation matching the given key parameters.
-	// generator: operation DeleteMany-by-NodeID
-	DeleteOperations(ctx context.Context, tx *sql.Tx, nodeID int64) error
 }
