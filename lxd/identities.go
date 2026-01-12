@@ -1403,16 +1403,18 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if requestor.CallerUsername() == "" {
+	username := requestor.CallerUsername()
+	if username == "" {
 		return response.SmartError(errors.New("Failed to get identity identifier from request info"))
 	}
 
-	if requestor.CallerProtocol() == "" {
+	protocol := requestor.CallerProtocol()
+	if protocol == "" {
 		return response.SmartError(errors.New("Failed to get authentication method from request info"))
 	}
 
 	// Must be a remote API request.
-	err = identity.ValidateAuthenticationMethod(requestor.CallerProtocol())
+	err = identity.ValidateAuthenticationMethod(protocol)
 	if err != nil {
 		return response.BadRequest(errors.New("Current identity information must be requested via the HTTPS API"))
 	}
@@ -1434,18 +1436,7 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed to populate LXD groups: %w", err)
 		}
 
-		effectiveGroups = apiIdentity.Groups
-		mappedGroups, err := dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), requestor.CallerIdentityProviderGroups())
-		if err != nil {
-			return fmt.Errorf("Failed to get effective groups: %w", err)
-		}
-
-		for _, mappedGroup := range mappedGroups {
-			if !slices.Contains(effectiveGroups, mappedGroup) {
-				effectiveGroups = append(effectiveGroups, mappedGroup)
-			}
-		}
-
+		effectiveGroups = requestor.CallerEffectiveAuthorizationGroupNames()
 		permissions, err := dbCluster.GetDistinctPermissionsByGroupNames(ctx, tx.Tx(), effectiveGroups)
 		if err != nil {
 			return fmt.Errorf("Failed to get effective permissions: %w", err)
