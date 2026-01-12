@@ -3019,9 +3019,9 @@ test_clustering_image_refresh() {
   if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records exist.
     if [ "${poolDriver}" = "ceph" ]; then
-      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
+      [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
     else
-      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 3 ]
+      [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 3 ]
     fi
   fi
 
@@ -3051,11 +3051,11 @@ test_clustering_image_refresh() {
   if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records actually removed from relevant members and replaced with new fingerprint.
     if [ "${poolDriver}" = "ceph" ]; then
-      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 0 ]
-      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 1 ]
+      [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 0 ]
+      [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 1 ]
     else
-      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
-      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 2 ]
+      [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
+      [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 2 ]
     fi
   fi
 
