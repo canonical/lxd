@@ -845,7 +845,7 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 		if len(candidates) > 0 {
 			// We have a spare node that we can promote to the missing role.
 			candidateAddress := candidates[0].Address
-			logger.Info("Found cluster member whose role needs to be changed", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
+			logger.Info("Found cluster member requiring role change", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
 
 			for i, node := range nodes {
 				if node.Address == candidateAddress {
