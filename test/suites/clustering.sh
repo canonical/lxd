@@ -3541,50 +3541,51 @@ test_clustering_evacuation_restore_operations() {
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
   echo "Launch 3 containers on node1"
-  for c in c{1..3}; do lxc launch testimage "${c}" --target node1; done
+  for c in c{1..3}; do LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage "${c}" --target node1; done
 
   echo "Start node1 evacuation in background"
-  lxc cluster evacuate node1 --quiet --force &
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --quiet --force &
   evac_pid=$!
   sleep 1 # Wait a bit for the operation to start
 
   echo "Check restore fails while evacuation operation in progress"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc cluster restore node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot restore \"node1\" while an evacuate operation is in progress" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot restore \"node1\" while an evacuate operation is in progress" ]
 
   echo "Wait for all containers to be evacuated"
   wait "${evac_pid}"
 
   echo "Verify all containers are no longer on node1 and have been evacuated to node2"
   for c in c{1..3}; do
-    [ "$(lxc list -f csv -c L "${c}")" = "node2" ]
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L "${c}")" = "node2" ]
   done
 
   echo "Start node1 restore in background"
-  lxc cluster restore node1 --quiet --force &
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --quiet --force &
   restore_pid=$!
   sleep 1 # Wait a bit for the operation to start
 
   echo "Check evacuation fails while restore operation in progress"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc cluster evacuate node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot evacuate \"node1\" while a restore operation is in progress" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot evacuate \"node1\" while a restore operation is in progress" ]
 
   echo "Wait for all containers to be restored to node1"
   wait "${restore_pid}"
 
   echo "Verify all containers are no longer on node2 and have been restored to node1"
   for c in c{1..3}; do
-    [ "$(lxc list -f csv -c L "${c}")" = "node1" ]
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L "${c}")" = "node1" ]
   done
 
   echo "Clean up"
-  lxc delete c{1..3} --force
-  lxc network delete "${bridge}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c{1..3} --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${bridge}"
 
   # Ensure cleanup of the cluster's data pool to not leave any traces behind when we are using a different driver besides dir.
-  printf 'config: {}\ndevices: {}' | lxc profile edit default
-  lxc storage delete data
+  printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
 
   shutdown_lxd "${LXD_ONE_DIR}"
   shutdown_lxd "${LXD_TWO_DIR}"
+
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
 
