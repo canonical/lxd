@@ -785,7 +785,7 @@ parts:
       - libatomic
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
-    source-commit: e4d56a8af1739abbc298b92dc4d777d281ea278a # import/1%10.1.0+ds-5ubuntu4
+    source-commit: 261f8b1458c5341d3cb5a424d110ff5bc92d1b9d # import/1%10.2.0+ds-1
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -892,10 +892,10 @@ parts:
       set -eux
 
       # Download meson and pycotap Python wheels (normally shipped in upstream tarballs)
-      pip download --dest python/wheels meson==1.8.1 pycotap==1.3.1
+      pip download --dest python/wheels meson==1.9.0 pycotap==1.3.1
 
       # Ensure the wheels were downloaded
-      [ "$(sha256sum python/wheels/meson-1.8.1-py3-none-any.whl | awk '{print $1}')" = "374bbf71247e629475fc10b0bd2ef66fc418c2d8f4890572f74de0f97d0d42da" ] || { echo "Invalid sha256sum for meson"; exit 1; }
+      [ "$(sha256sum python/wheels/meson-1.9.0-py3-none-any.whl | awk '{print $1}')" = "45e51ddc41e37d961582d06e78c48e0f9039011587f3495c4d6b0781dad92357" ] || { echo "Invalid sha256sum for meson"; exit 1; }
       [ "$(sha256sum python/wheels/pycotap-1.3.1-py3-none-any.whl | awk '{print $1}')" = "1c3a25b3ff89e48f4e00f1f71dbbc1642b4f65c65d416524d07e73492fff25ea" ] || { echo "Invalid sha256sum for pycotap"; exit 1; }
 
     override-build: |-
