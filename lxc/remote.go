@@ -23,7 +23,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 )
 
 type cmdRemote struct {
@@ -34,9 +33,8 @@ type cmdRemote struct {
 func (c *cmdRemote) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remote")
-	cmd.Short = i18n.G("Manage the list of remote servers")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage the list of remote servers`))
+	cmd.Short = "Manage the list of remote servers"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Add
 	remoteAddCmd := cmdRemoteAdd{global: c.global, remote: c}
@@ -89,25 +87,24 @@ type cmdRemoteAdd struct {
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>] <IP|FQDN|URL|token>"))
-	cmd.Short = i18n.G("Add new remote servers")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add new remote servers
+	cmd.Use = usage("add", "[<remote>] <IP|FQDN|URL|token>")
+	cmd.Short = "Add new remote servers"
+	cmd.Long = cli.FormatSection("Description", `Add new remote servers
 
 URL for remote resources must be HTTPS (https://).
 
 Basic authentication can be used when combined with the "simplestreams" protocol:
   lxc remote add some-name https://LOGIN:PASSWORD@example.com/some/path --protocol=simplestreams
-`))
+`)
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVar(&c.flagAcceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
-	cmd.Flags().StringVar(&c.flagPassword, "password", "", i18n.G("Remote admin password")+"``")
-	cmd.Flags().StringVar(&c.flagToken, "token", "", i18n.G("Remote trust token")+"``")
-	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)")+"``")
-	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls or oidc)")+"``")
-	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Public image server"))
-	cmd.Flags().StringVar(&c.flagProject, "project", "", i18n.G("Project to use for the remote")+"``")
+	cmd.Flags().BoolVar(&c.flagAcceptCert, "accept-certificate", false, "Accept certificate")
+	cmd.Flags().StringVar(&c.flagPassword, "password", "", cli.FormatStringFlagLabel("Remote admin password"))
+	cmd.Flags().StringVar(&c.flagToken, "token", "", cli.FormatStringFlagLabel("Remote trust token"))
+	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", cli.FormatStringFlagLabel("Server protocol (lxd or simplestreams)"))
+	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", cli.FormatStringFlagLabel("Server authentication type (tls or oidc)"))
+	cmd.Flags().BoolVar(&c.flagPublic, "public", false, "Public image server")
+	cmd.Flags().StringVar(&c.flagProject, "project", "", cli.FormatStringFlagLabel("Project to use for the remote"))
 
 	return cmd
 }
@@ -137,12 +134,12 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 			}
 
 			// Let's ask the user.
-			fmt.Println(i18n.G("Available projects:"))
+			fmt.Println("Available projects:")
 			for _, name := range names {
 				fmt.Println(" - " + name)
 			}
 
-			return c.global.asker.AskChoice(i18n.G("Name of the project to use for this remote:")+" ", names, "")
+			return c.global.asker.AskChoice("Name of the project to use for this remote: ", names, "")
 		}
 
 		return "", nil
@@ -161,11 +158,11 @@ func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawTok
 
 	// Certificate cannot be blindly accepted when using a trust token.
 	if c.flagAcceptCert {
-		return errors.New(i18n.G("The --accept-certificate flag is not supported when adding a remote using a trust token"))
+		return errors.New("The --accept-certificate flag is not supported when adding a remote using a trust token")
 	}
 
 	if !conf.HasClientCertificate() {
-		fmt.Fprint(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
+		fmt.Fprint(os.Stderr, "Generating a client certificate. This may take a minute...\n")
 		err := conf.GenerateClientCertificate()
 		if err != nil {
 			return err
@@ -194,8 +191,8 @@ func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawTok
 	}
 
 	// Finally, fallback to manual input.
-	fmt.Println(i18n.G("All server addresses are unavailable"))
-	fmt.Print(i18n.G("Please provide an alternate server address (empty to abort):") + " ")
+	fmt.Println("All server addresses are unavailable")
+	fmt.Print("Please provide an alternate server address (empty to abort): ")
 
 	line, err := shared.ReadStdin()
 	if err != nil {
@@ -203,7 +200,7 @@ func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawTok
 	}
 
 	if len(line) == 0 {
-		return errors.New(i18n.G("Failed to add remote"))
+		return errors.New("Failed to add remote")
 	}
 
 	err = c.addRemoteFromToken(string(line), server, token, *rawToken)
@@ -226,41 +223,41 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 	if err != nil {
 		certificate, err = shared.GetRemoteCertificate(context.Background(), addr, c.global.conf.UserAgent)
 		if err != nil {
-			return api.StatusErrorf(http.StatusServiceUnavailable, "%s: %w", i18n.G("Unavailable remote server"), err)
+			return api.StatusErrorf(http.StatusServiceUnavailable, "%s: %w", "Unavailable remote server", err)
 		}
 
 		certDigest := shared.CertFingerprint(certificate)
 		if rawToken.Fingerprint != certDigest {
-			return fmt.Errorf(i18n.G("Certificate fingerprint mismatch between certificate token and server %q"), addr)
+			return fmt.Errorf("Certificate fingerprint mismatch between certificate token and server %q", addr)
 		}
 
 		dnam := conf.ConfigPath("servercerts")
 		err := os.MkdirAll(dnam, 0750)
 		if err != nil {
-			return errors.New(i18n.G("Could not create server cert dir"))
+			return errors.New("Could not create server cert dir")
 		}
 
 		certf := conf.ServerCertPath(server)
 
 		certOut, err := os.Create(certf)
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to create %q: %w"), certf, err)
+			return fmt.Errorf("Failed to create %q: %w", certf, err)
 		}
 
 		err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to write server cert file %q: %w"), certf, err)
+			return fmt.Errorf("Failed to write server cert file %q: %w", certf, err)
 		}
 
 		err = certOut.Close()
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to close server cert file %q: %w"), certf, err)
+			return fmt.Errorf("Failed to close server cert file %q: %w", certf, err)
 		}
 	}
 
 	d, err := conf.GetInstanceServer(server)
 	if err != nil {
-		return api.StatusErrorf(http.StatusServiceUnavailable, "%s: %w", i18n.G("Unavailable remote server"), err)
+		return api.StatusErrorf(http.StatusServiceUnavailable, "%s: %w", "Unavailable remote server", err)
 	}
 
 	// Add client certificate to trust store. Even if we are already trusted (src.Auth == api.AuthTrusted),
@@ -299,14 +296,14 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 	}
 
 	if srv.Auth != api.AuthTrusted {
-		return errors.New(i18n.G("Server doesn't trust us after authentication"))
+		return errors.New("Server doesn't trust us after authentication")
 	}
 
 	// Handle project.
 	remote := conf.Remotes[server]
 	project, err := c.findProject(d, c.flagProject)
 	if err != nil {
-		return fmt.Errorf(i18n.G("Failed to find project: %w"), err)
+		return fmt.Errorf("Failed to find project: %w", err)
 	}
 
 	remote.Project = project
@@ -333,33 +330,33 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(addr) == 0 {
-		return errors.New(i18n.G("Remote address must not be empty"))
+		return errors.New("Remote address must not be empty")
 	}
 
 	// Trust token cannot be used when auth type is set to OIDC.
 	if c.flagToken != "" && c.flagAuthType == "oidc" {
-		return errors.New(i18n.G("Trust token cannot be used with OIDC authentication"))
+		return errors.New("Trust token cannot be used with OIDC authentication")
 	}
 
 	// Trust token cannot be used for public remotes.
 	if c.flagToken != "" && c.flagPublic {
-		return errors.New(i18n.G("Trust token cannot be used for public remotes"))
+		return errors.New("Trust token cannot be used for public remotes")
 	}
 
 	// Certificate cannot be blindly accepted when using a trust token.
 	if c.flagToken != "" && c.flagAcceptCert {
-		return errors.New(i18n.G("The --accept-certificate flag is not supported when adding a remote using a trust token"))
+		return errors.New("The --accept-certificate flag is not supported when adding a remote using a trust token")
 	}
 
 	// Validate the server name.
 	if strings.Contains(server, ":") {
-		return errors.New(i18n.G("Remote names may not contain colons"))
+		return errors.New("Remote names may not contain colons")
 	}
 
 	// Check for existing remote
 	remote, ok := conf.Remotes[server]
 	if ok {
-		return fmt.Errorf(i18n.G("Remote %s exists as <%s>"), server, remote.Addr)
+		return fmt.Errorf("Remote %s exists as <%s>", server, remote.Addr)
 	}
 
 	// Parse the URL
@@ -392,13 +389,13 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	// Fast track simplestreams
 	if c.flagProtocol == "simplestreams" {
 		if remoteURL.Scheme != "https" {
-			return errors.New(i18n.G("Only https URLs are supported for simplestreams"))
+			return errors.New("Only https URLs are supported for simplestreams")
 		}
 
 		conf.Remotes[server] = config.Remote{Addr: addr, Public: true, Protocol: c.flagProtocol}
 		return conf.SaveConfig(c.global.confPath)
 	} else if c.flagProtocol != "lxd" {
-		return fmt.Errorf(i18n.G("Invalid protocol: %s"), c.flagProtocol)
+		return fmt.Errorf("Invalid protocol: %s", c.flagProtocol)
 	}
 
 	// Fix broken URL parser
@@ -409,7 +406,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 
 	if remoteURL.Scheme != "" {
 		if remoteURL.Scheme != "unix" && remoteURL.Scheme != "https" {
-			return fmt.Errorf(i18n.G("Invalid URL scheme \"%s\" in \"%s\""), remoteURL.Scheme, addr)
+			return fmt.Errorf("Invalid URL scheme \"%s\" in \"%s\"", remoteURL.Scheme, addr)
 		}
 
 		rScheme = remoteURL.Scheme
@@ -457,7 +454,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	// adding the remote server.
 	if rScheme != "unix" && !c.flagPublic && (c.flagAuthType == api.AuthenticationMethodTLS || c.flagAuthType == "") {
 		if !conf.HasClientCertificate() {
-			fmt.Fprint(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
+			fmt.Fprint(os.Stderr, "Generating a client certificate. This may take a minute...\n")
 			err = conf.GenerateClientCertificate()
 			if err != nil {
 				return err
@@ -500,7 +497,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	if c.flagToken != "" {
 		rawToken, err := shared.CertificateTokenDecode(c.flagToken)
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to decode trust token: %w"), err)
+			return fmt.Errorf("Failed to decode trust token: %w", err)
 		}
 
 		return c.runToken(addr, server, c.flagToken, rawToken)
@@ -523,8 +520,8 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		if !c.flagAcceptCert {
 			digest := shared.CertFingerprint(certificate)
 
-			fmt.Printf("%s: %s\n", i18n.G("Certificate fingerprint"), digest)
-			fmt.Print(i18n.G("ok (y/n/[fingerprint])?") + " ")
+			fmt.Printf("%s: %s\n", "Certificate fingerprint", digest)
+			fmt.Print("ok (y/n/[fingerprint])?" )
 			for {
 				line, err := shared.ReadStdin()
 				if err != nil {
@@ -534,7 +531,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 				// Check length before accessing line to prevent runtime panic.
 				// Continue with adding the remote if digest matches, or the user
 				// confirmed a fingerprint.
-				if string(line) == digest || (len(line) > 0 && strings.ToLower(string(line[0])) == i18n.G("y")) {
+				if string(line) == digest || (len(line) > 0 && strings.ToLower(string(line[0])) == "y") {
 					break
 				}
 
@@ -542,23 +539,23 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 				// but the fingerprints do not match, return an error. This ensures
 				// the scripts do not hang if incorrect fingerprint is provided.
 				if len(line) == len(digest) {
-					return errors.New(i18n.G("The provided fingerprint does not match the server certificate fingerprint"))
+					return errors.New("The provided fingerprint does not match the server certificate fingerprint")
 				}
 
 				// Error out if the user didn't confirm the fingerprint.
-				if len(line) == 0 || strings.ToLower(string(line[0])) == i18n.G("n") {
-					return errors.New(i18n.G("Server certificate NACKed by user"))
+				if len(line) == 0 || strings.ToLower(string(line[0])) == "n" {
+					return errors.New("Server certificate NACKed by user")
 				}
 
 				// Ask again for any other invalid input.
-				fmt.Print(i18n.G("Please type 'y', 'n' or the fingerprint: "))
+				fmt.Print("Please type 'y', 'n' or the fingerprint: ")
 			}
 		}
 
 		dnam := conf.ConfigPath("servercerts")
 		err := os.MkdirAll(dnam, 0750)
 		if err != nil {
-			return errors.New(i18n.G("Could not create server cert dir"))
+			return errors.New("Could not create server cert dir")
 		}
 
 		certf := conf.ServerCertPath(server)
@@ -569,12 +566,12 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 
 		err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
 		if err != nil {
-			return fmt.Errorf(i18n.G("Could not write server cert file %q: %w"), certf, err)
+			return fmt.Errorf("Could not write server cert file %q: %w", certf, err)
 		}
 
 		err = certOut.Close()
 		if err != nil {
-			return fmt.Errorf(i18n.G("Could not close server cert file %q: %w"), certf, err)
+			return fmt.Errorf("Could not close server cert file %q: %w", certf, err)
 		}
 
 		// Setup a new connection, this time with the remote certificate
@@ -636,7 +633,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !srv.Public && !slices.Contains(srv.AuthMethods, c.flagAuthType) {
-		return fmt.Errorf(i18n.G("Authentication type '%s' not supported by server"), c.flagAuthType)
+		return fmt.Errorf("Authentication type '%s' not supported by server", c.flagAuthType)
 	}
 
 	// Detect public remotes
@@ -654,7 +651,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 			// use the token instead and prompt for it if not present.
 			if d.(lxd.InstanceServer).HasExtension("explicit_trust_token") && c.flagPassword == "" {
 				// Prompt for trust token.
-				token, err := c.global.asker.AskString(fmt.Sprintf(i18n.G("Trust token for %s: "), server), "", nil)
+				token, err := c.global.asker.AskString(fmt.Sprintf("Trust token for %s: ", server), "", nil)
 				if err != nil {
 					return err
 				}
@@ -681,7 +678,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 			} else {
 				// Prompt for trust password if token is not supported by the server.
 				if c.flagPassword == "" {
-					fmt.Printf(i18n.G("Admin password (or token) for %s:")+" ", server)
+					fmt.Printf("Admin password (or token) for %s: ", server)
 					pwd, err := term.ReadPassword(0)
 					if err != nil {
 						// We got an error, maybe this isn't a terminal, let's try to read it as a file.
@@ -718,11 +715,11 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		}
 
 		if srv.Auth != api.AuthTrusted {
-			return errors.New(i18n.G("Server doesn't trust us after authentication"))
+			return errors.New("Server doesn't trust us after authentication")
 		}
 
 		if c.flagAuthType == api.AuthenticationMethodTLS {
-			fmt.Println(i18n.G("Client certificate now trusted by server:"), server)
+			fmt.Println("Client certificate now trusted by server:", server)
 		}
 	}
 
@@ -749,9 +746,8 @@ type cmdRemoteGetDefault struct {
 func (c *cmdRemoteGetDefault) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get-default")
-	cmd.Short = i18n.G("Show the default remote")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show the default remote`))
+	cmd.Short = "Show the default remote"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -787,12 +783,11 @@ func (c *cmdRemoteList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List the available remotes")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List the available remotes`))
+	cmd.Short = "List the available remotes"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	return cmd
 }
@@ -810,19 +805,19 @@ func (c *cmdRemoteList) run(cmd *cobra.Command, args []string) error {
 	// List the remotes
 	data := [][]string{}
 	for name, rc := range conf.Remotes {
-		strPublic := i18n.G("NO")
+		strPublic := "NO"
 		if rc.Public {
-			strPublic = i18n.G("YES")
+			strPublic = "YES"
 		}
 
-		strStatic := i18n.G("NO")
+		strStatic := "NO"
 		if rc.Static {
-			strStatic = i18n.G("YES")
+			strStatic = "YES"
 		}
 
-		strGlobal := i18n.G("NO")
+		strGlobal := "NO"
 		if rc.Global {
-			strGlobal = i18n.G("YES")
+			strGlobal = "YES"
 		}
 
 		if rc.Protocol == "" {
@@ -841,7 +836,7 @@ func (c *cmdRemoteList) run(cmd *cobra.Command, args []string) error {
 
 		strName := name
 		if name == conf.DefaultRemote {
-			strName = name + " (" + i18n.G("current") + ")"
+			strName = name + " (current)"
 		}
 
 		data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic, strGlobal})
@@ -850,13 +845,13 @@ func (c *cmdRemoteList) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("NAME"),
-		i18n.G("URL"),
-		i18n.G("PROTOCOL"),
-		i18n.G("AUTH TYPE"),
-		i18n.G("PUBLIC"),
-		i18n.G("STATIC"),
-		i18n.G("GLOBAL"),
+		"NAME",
+		"URL",
+		"PROTOCOL",
+		"AUTH TYPE",
+		"PUBLIC",
+		"STATIC",
+		"GLOBAL",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, conf.Remotes)
@@ -871,11 +866,10 @@ type cmdRemoteRename struct {
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("rename", i18n.G("<remote> <new-name>"))
+	cmd.Use = usage("rename", "<remote> <new-name>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = i18n.G("Rename remotes")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Rename remotes`))
+	cmd.Short = "Rename remotes"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -903,16 +897,16 @@ func (c *cmdRemoteRename) run(cmd *cobra.Command, args []string) error {
 	// Rename the remote
 	rc, ok := conf.Remotes[args[0]]
 	if !ok {
-		return fmt.Errorf(i18n.G("Remote %s doesn't exist"), args[0])
+		return fmt.Errorf("Remote %s doesn't exist", args[0])
 	}
 
 	if rc.Static {
-		return fmt.Errorf(i18n.G("Remote %s is static and cannot be modified"), args[0])
+		return fmt.Errorf("Remote %s is static and cannot be modified", args[0])
 	}
 
 	_, ok = conf.Remotes[args[1]]
 	if ok {
-		return fmt.Errorf(i18n.G("Remote %s already exists"), args[1])
+		return fmt.Errorf("Remote %s already exists", args[1])
 	}
 
 	// Rename the certificate file
@@ -952,11 +946,10 @@ type cmdRemoteRemove struct {
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("<remote>"))
+	cmd.Use = usage("remove", "<remote>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Remove remotes")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove remotes`))
+	cmd.Short = "Remove remotes"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -984,19 +977,19 @@ func (c *cmdRemoteRemove) run(cmd *cobra.Command, args []string) error {
 	// Remove the remote
 	rc, ok := conf.Remotes[args[0]]
 	if !ok {
-		return fmt.Errorf(i18n.G("Remote %s doesn't exist"), args[0])
+		return fmt.Errorf("Remote %s doesn't exist", args[0])
 	}
 
 	if rc.Static {
-		return fmt.Errorf(i18n.G("Remote %s is static and cannot be modified"), args[0])
+		return fmt.Errorf("Remote %s is static and cannot be modified", args[0])
 	}
 
 	if rc.Global {
-		return fmt.Errorf(i18n.G("Remote %s is global and cannot be removed"), args[0])
+		return fmt.Errorf("Remote %s is global and cannot be removed", args[0])
 	}
 
 	if conf.DefaultRemote == args[0] {
-		return errors.New(i18n.G("Can't remove the default remote"))
+		return errors.New("Can't remove the default remote")
 	}
 
 	delete(conf.Remotes, args[0])
@@ -1018,10 +1011,9 @@ type cmdRemoteSwitch struct {
 func (c *cmdRemoteSwitch) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Aliases = []string{"set-default"}
-	cmd.Use = usage("switch", i18n.G("<remote>"))
-	cmd.Short = i18n.G("Switch the default remote")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Switch the default remote`))
+	cmd.Use = usage("switch", "<remote>")
+	cmd.Short = "Switch the default remote"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1050,7 +1042,7 @@ func (c *cmdRemoteSwitch) run(cmd *cobra.Command, args []string) error {
 	// Set the default remote
 	_, ok := conf.Remotes[args[0]]
 	if !ok {
-		return fmt.Errorf(i18n.G("Remote %s doesn't exist"), args[0])
+		return fmt.Errorf("Remote %s doesn't exist", args[0])
 	}
 
 	conf.DefaultRemote = args[0]
@@ -1067,10 +1059,9 @@ type cmdRemoteSetURL struct {
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteSetURL) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("set-url", i18n.G("<remote> <URL>"))
-	cmd.Short = i18n.G("Set the URL for the remote")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set the URL for the remote`))
+	cmd.Use = usage("set-url", "<remote> <URL>")
+	cmd.Short = "Set the URL for the remote"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -1098,11 +1089,11 @@ func (c *cmdRemoteSetURL) run(cmd *cobra.Command, args []string) error {
 	// Set the URL
 	rc, ok := conf.Remotes[args[0]]
 	if !ok {
-		return fmt.Errorf(i18n.G("Remote %s doesn't exist"), args[0])
+		return fmt.Errorf("Remote %s doesn't exist", args[0])
 	}
 
 	if rc.Static {
-		return fmt.Errorf(i18n.G("Remote %s is static and cannot be modified"), args[0])
+		return fmt.Errorf("Remote %s is static and cannot be modified", args[0])
 	}
 
 	remote := conf.Remotes[args[0]]
