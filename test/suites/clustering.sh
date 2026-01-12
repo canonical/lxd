@@ -4511,9 +4511,6 @@ test_clustering_trust_add() {
   LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,RUNNING"
   is_uuid_v4 "${operation_uuid}"
 
-  # Get the address of LXD_TWO.
-  lxd_two_address="https://$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
-
   # Test adding the remote using the address of LXD_TWO with the token operation running on LXD_ONE.
   # LXD_TWO does not have the operation running locally, so it should find the UUID of the operation in the database
   # and query LXD_ONE for it. LXD_TWO should cancel the operation by sending a DELETE /1.0/operations/{uuid} to LXD_ONE
