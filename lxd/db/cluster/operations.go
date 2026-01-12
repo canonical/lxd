@@ -179,3 +179,15 @@ func CreateOrInsertDurableOperationMetadata(ctx context.Context, tx *sql.Tx, opI
 
 	return nil
 }
+
+// DeleteDurableOperationMetadata deletes all metadata key/value pairs for a durable operation from the cluster db.
+func DeleteDurableOperationMetadata(ctx context.Context, tx *sql.Tx, reference string) error {
+	stmt := `DELETE FROM operations_metadata WHERE operation_id = (SELECT id FROM operations WHERE reference = ?)`
+
+	_, err := tx.ExecContext(ctx, stmt, reference)
+	if err != nil {
+		return fmt.Errorf("Failed deleting operation metadata: %w", err)
+	}
+
+	return nil
+}
