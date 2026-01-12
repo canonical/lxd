@@ -328,7 +328,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
-	var address string
+	var operation dbCluster.Operation
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
@@ -344,16 +344,23 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			return errors.New("More than one operation matches")
 		}
 
-		operation := ops[0]
-
-		address = operation.NodeAddress
+		operation = ops[0]
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	// Don't forward the request if we don't have where to forward it to.
+	if operation.NodeAddress == "" || operation.NodeAddress == s.LocalConfig.ClusterAddress() {
+		if operation.Class == int64(operations.OperationClassDurable) && api.StatusCode(operation.Status).IsFinal() {
+			return response.BadRequest(errors.New("Durable operation is already finalized"))
+		}
+
+		return response.SmartError(fmt.Errorf("Operation ID %q is not running on this node", id))
+	}
+
+	client, err := cluster.Connect(r.Context(), operation.NodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
