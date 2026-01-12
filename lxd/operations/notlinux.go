@@ -40,6 +40,14 @@ func removeDBOperation(op *Operation) error {
 	return nil
 }
 
+func removeDBOperationMetadata(op *Operation) error {
+	if op.state != nil {
+		return fmt.Errorf("removeDBOperationMetadata not supported on this platform")
+	}
+
+	return nil
+}
+
 func (op *Operation) sendEvent(eventMessage any) {
 	if op.events == nil {
 		return

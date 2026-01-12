@@ -210,6 +210,16 @@ func removeDBOperation(op *Operation) error {
 	return err
 }
 
+func removeDBOperationMetadata(op *Operation) error {
+	if op.state == nil {
+		return nil
+	}
+
+	return op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return cluster.DeleteDurableOperationMetadata(ctx, tx.Tx(), op.id)
+	})
+}
+
 func (op *Operation) sendEvent(eventMessage any) {
 	if op.events == nil {
 		return

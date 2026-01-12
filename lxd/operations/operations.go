@@ -343,7 +343,7 @@ func (op *Operation) done() {
 	op.finished.Cancel()
 	op.lock.Unlock()
 
-	// For durable operations, we just remove it from the internal map.
+	// For durable operations, we just remove it from the internal map and clear metadata from the db.
 	// The database record will be cleared later by pruneExpiredDurableOperationsTask().
 	if op.class == OperationClassDurable {
 		operationsLock.Lock()
@@ -355,6 +355,12 @@ func (op *Operation) done() {
 
 		delete(operations, op.id)
 		operationsLock.Unlock()
+
+		err := removeDBOperationMetadata(op)
+		if err != nil {
+			op.logger.Warn("Failed to delete durable operation metadata", logger.Ctx{"err": err})
+		}
+
 		return
 	}
 
