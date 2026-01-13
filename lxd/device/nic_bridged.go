@@ -552,6 +552,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Apply host-side routes to bridge interface.
+	//nolint:prealloc
 	routes := []string{}
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
@@ -733,7 +734,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		}
 
 		// Remove old host-side routes from bridge interface.
-
+		//nolint:prealloc
 		oldRoutes := []string{}
 		oldRoutes = append(oldRoutes, shared.SplitNTrimSpace(oldConfig["ipv4.routes"], ",", -1, true)...)
 		oldRoutes = append(oldRoutes, shared.SplitNTrimSpace(oldConfig["ipv6.routes"], ",", -1, true)...)
@@ -742,7 +743,8 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		networkNICRouteDelete(oldConfig["parent"], oldRoutes...)
 
 		// Apply host-side routes to bridge interface.
-		routes := []string{}
+		//nolint:prealloc
+		routes := make([]string, 0)
 		routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
 		routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
 		routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
@@ -861,6 +863,7 @@ func (d *nicBridged) postStop() error {
 	}
 
 	// Remove host-side routes from bridge interface.
+	//nolint:prealloc
 	routes := []string{}
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
@@ -1494,7 +1497,7 @@ func (d *nicBridged) networkDHCPv6Release(srcDUID string, srcIAID string, srcIP 
 
 // networkDHCPv6CreateIANA creates a DHCPv6 Identity Association for Non-temporary Address (rfc3315 IA_NA) option.
 func (d *nicBridged) networkDHCPv6CreateIANA(IAID uint32, IAAddr []byte) []byte {
-	data := make([]byte, 12)
+	data := make([]byte, 12, 12+len(IAAddr))
 	binary.BigEndian.PutUint32(data[0:4], IAID)       // Identity Association Identifier
 	binary.BigEndian.PutUint32(data[4:8], uint32(0))  // T1
 	binary.BigEndian.PutUint32(data[8:12], uint32(0)) // T2
@@ -1724,7 +1727,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 	}
 
 	// Convert IPs to InstanceStateNetworkAddresses.
-	addresses := []api.InstanceStateNetworkAddress{}
+	addresses := make([]api.InstanceStateNetworkAddress, 0, len(ips))
 	for _, ip := range ips {
 		addr := api.InstanceStateNetworkAddress{}
 		addr.Address = ip.String()

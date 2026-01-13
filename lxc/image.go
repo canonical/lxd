@@ -1174,7 +1174,7 @@ func (c *cmdImageList) aliasColumnData(image api.Image) string {
 }
 
 func (c *cmdImageList) aliasesColumnData(image api.Image) string {
-	aliases := []string{}
+	aliases := make([]string, 0, len(image.Aliases))
 	for _, alias := range image.Aliases {
 		aliases = append(aliases, alias.Name)
 	}

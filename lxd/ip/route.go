@@ -87,7 +87,8 @@ func (r *Route) Flush() error {
 
 // Replace changes or adds new route.
 func (r *Route) Replace(routes []string) error {
-	cmd := []string{r.Family, "route", "replace", "dev", r.DevName, "proto", r.Proto}
+	cmd := make([]string, 0, 7+len(routes))
+	cmd = append(cmd, r.Family, "route", "replace", "dev", r.DevName, "proto", r.Proto)
 	cmd = append(cmd, routes...)
 	_, err := shared.RunCommandContext(context.TODO(), "ip", cmd...)
 	if err != nil {

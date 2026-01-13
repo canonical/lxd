@@ -236,6 +236,7 @@ func VarPath(path ...string) string {
 		varDir = "/var/lib/lxd"
 	}
 
+	//nolint:prealloc
 	items := []string{varDir}
 	items = append(items, path...)
 	return filepath.Join(items...)
@@ -250,7 +251,8 @@ func CachePath(path ...string) string {
 		cacheDir = filepath.Join(varDir, "cache")
 	}
 
-	items := []string{cacheDir}
+	items := make([]string, 0, 1+len(path))
+	items = append(items, cacheDir)
 	items = append(items, path...)
 	return filepath.Join(items...)
 }
@@ -264,7 +266,8 @@ func LogPath(path ...string) string {
 		logDir = filepath.Join(varDir, "logs")
 	}
 
-	items := []string{logDir}
+	items := make([]string, 0, 1+len(path))
+	items = append(items, logDir)
 	items = append(items, path...)
 	return filepath.Join(items...)
 }

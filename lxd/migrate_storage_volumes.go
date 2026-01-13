@@ -494,7 +494,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 }
 
 func volumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *migration.Snapshot {
-	config := []*migration.Config{}
+	config := make([]*migration.Config, 0, len(vol.Config))
 	for k, v := range vol.Config {
 		kCopy := string(k)
 		vCopy := string(v)

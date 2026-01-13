@@ -27,7 +27,7 @@ func (c *cmdNetworkListAllocations) pretty(allocs []api.NetworkAllocations) erro
 		"HARDWARE ADDRESS",
 	}
 
-	data := [][]string{}
+	data := make([][]string, 0, len(allocs))
 	for _, alloc := range allocs {
 		row := []string{
 			alloc.UsedBy,

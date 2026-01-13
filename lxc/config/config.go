@@ -50,7 +50,8 @@ func (c *Config) GlobalConfigPath(paths ...string) string {
 		configDir = "/etc/lxd"
 	}
 
-	path := []string{configDir}
+	path := make([]string, 0, 1+len(paths))
+	path = append(path, configDir)
 	path = append(path, paths...)
 
 	return filepath.Join(path...)
@@ -58,7 +59,8 @@ func (c *Config) GlobalConfigPath(paths ...string) string {
 
 // ConfigPath returns a joined path of the configuration directory and passed arguments.
 func (c *Config) ConfigPath(paths ...string) string {
-	path := []string{c.ConfigDir}
+	path := make([]string, 0, 1+len(paths))
+	path = append(path, c.ConfigDir)
 	path = append(path, paths...)
 
 	return filepath.Join(path...)

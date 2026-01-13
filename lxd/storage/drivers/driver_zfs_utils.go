@@ -68,7 +68,8 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 }
 
 func (d *zfs) createDataset(dataset string, options ...string) error {
-	args := []string{"create"}
+	args := make([]string, 0, 1+2*len(options)+1)
+	args = append(args, "create")
 	for _, option := range options {
 		args = append(args, "-o", option)
 	}
@@ -84,7 +85,8 @@ func (d *zfs) createDataset(dataset string, options ...string) error {
 }
 
 func (d *zfs) createVolume(dataset string, size int64, options ...string) error {
-	args := []string{"create", "-s", "-V", strconv.FormatInt(size, 10)}
+	args := make([]string, 0, 4+2*len(options)+1)
+	args = append(args, "create", "-s", "-V", strconv.FormatInt(size, 10))
 	for _, option := range options {
 		args = append(args, "-o", option)
 	}
@@ -268,7 +270,8 @@ func (d *zfs) filterRedundantOptions(dataset string, options ...string) ([]strin
 }
 
 func (d *zfs) setDatasetProperties(dataset string, options ...string) error {
-	args := []string{"set"}
+	args := make([]string, 0, 1+len(options)+1)
+	args = append(args, "set")
 	args = append(args, options...)
 	args = append(args, dataset)
 
@@ -363,7 +366,8 @@ func (d *zfs) version() (string, error) {
 
 // initialDatasets returns the list of all expected datasets.
 func (d *zfs) initialDatasets() []string {
-	entries := []string{"deleted"}
+	entries := make([]string, 0, 1+len(d.Info().VolumeTypes)*2)
+	entries = append(entries, "deleted")
 
 	// Iterate over the listed supported volume types.
 	for _, volType := range d.Info().VolumeTypes {
