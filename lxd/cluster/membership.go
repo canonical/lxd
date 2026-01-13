@@ -722,13 +722,13 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	wg.Wait()
 }
 
-// Rebalance the raft cluster, trying to see if we have a spare online node
-// that we can promote to voter node if we are below membershipMaxRaftVoters,
-// or to standby if we are below membershipMaxStandBys.
+// GetNextRoleChange determines the next raft cluster member role change needed for rebalancing.
+// It checks if there's a spare online node that can be promoted to voter (if below membershipMaxRaftVoters)
+// or to standby (if below membershipMaxStandBys).
 //
-// If there's such spare node, return its address as well as the new list of
-// raft nodes.
-func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
+// If a role change is needed, returns the address of the candidate node and the updated list of raft nodes.
+// If no changes are needed, returns an empty address.
+func GetNextRoleChange(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
 		return "", nil, nil
