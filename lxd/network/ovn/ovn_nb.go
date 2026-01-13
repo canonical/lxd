@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"runtime"
@@ -16,6 +17,7 @@ import (
 	"github.com/go-logr/logr"
 	ovsdbClient "github.com/ovn-kubernetes/libovsdb/client"
 	ovsdbModel "github.com/ovn-kubernetes/libovsdb/model"
+	"github.com/ovn-kubernetes/libovsdb/ovsdb"
 
 	"github.com/canonical/lxd/lxd/linux"
 	ovnNB "github.com/canonical/lxd/lxd/network/ovn/schema/ovn-nb"
@@ -285,4 +287,75 @@ func (o *NB) get(ctx context.Context, m ovsdbModel.Model) error {
 
 	reflect.ValueOf(m).Elem().Set(rVal.Index(0))
 	return nil
+}
+
+// transactAndWaitSB wraps a normal libovsdb transaction with the `nb_cfg` increment and logic to wait for
+// configuration changes to be applied in the Southbound database.
+func (o *NB) transactAndWaitSB(ctx context.Context, operations ...ovsdb.Operation) error {
+	// Get the current NB_Global row.
+	// We need this to know the current `nb_cfg` value.
+	nbGlobalList := []ovnNB.NBGlobal{}
+	err := o.client.List(ctx, &nbGlobalList)
+	if err != nil {
+		return fmt.Errorf("Failed listing NB_Global: %w", err)
+	}
+
+	if len(nbGlobalList) == 0 {
+		return errors.New("NB_Global table is empty")
+	}
+
+	// There is only ever one row in the NB_Global table.
+	nbGlobal := nbGlobalList[0]
+
+	// Increment `nb_cfg` to signify the ovn-northd that we want to wait until the configuration changes take place.
+	// (see https://manpages.ubuntu.com/manpages/noble/en/man5/ovn-nb.5.html)
+	targetCfg := nbGlobal.NbCfg + 1
+
+	incrementOp, err := o.client.Where(&nbGlobal).Update(&ovnNB.NBGlobal{
+		NbCfg: targetCfg,
+	})
+	if err != nil {
+		return fmt.Errorf("Failed preparing update operation: %w", err)
+	}
+
+	operations = append(operations, incrementOp...)
+
+	// Apply the database changes.
+	resp, err := o.client.Transact(ctx, operations...)
+	if err != nil {
+		return fmt.Errorf("Failed applying transaction: %w", err)
+	}
+
+	_, err = ovsdb.CheckOperationResults(resp, operations)
+	if err != nil {
+		return fmt.Errorf("OVN operation failed: %w", err)
+	}
+
+	return o.waitForSB(ctx, targetCfg)
+}
+
+// waitForSB implements a polling logic to wait until the configuration changes have
+// been applied in the Southbound database according to `targetCfg` value or the context expired.
+func (o *NB) waitForSB(ctx context.Context, targetCfg int) error {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return errors.New("Timeout waiting for OVN to sync")
+		case <-ticker.C:
+			var list []ovnNB.NBGlobal
+
+			// This read is done from in-memory cache, so it is fast.
+			err := o.client.List(ctx, &list)
+			if err != nil {
+				continue
+			}
+
+			if len(list) > 0 && list[0].SbCfg >= targetCfg {
+				return nil
+			}
+		}
+	}
 }
