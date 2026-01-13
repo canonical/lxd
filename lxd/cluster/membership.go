@@ -311,10 +311,41 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		return nil, errors.New("Cannot convert maximum standby cluster members to int: Upper bound exceeded")
 	}
 
-	if count > 1 && voters < int(maxVoters) {
-		node.Role = db.RaftVoter
-	} else if standbys < int(maxStandBy) {
-		node.Role = db.RaftStandBy
+	// Check if the new member is eligible for promotion.
+	// Members are always eligible unless control plane mode is active and they lack the control-plane role.
+	var canPromote bool
+	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get the new member (it's still pending at this point).
+		newMember, err := tx.GetPendingNodeByAddress(ctx, address)
+		if err != nil {
+			return fmt.Errorf("Failed getting new member %q: %w", address, err)
+		}
+
+		canPromote = slices.Contains(newMember.Roles, db.ClusterRoleControlPlane)
+
+		// If member doesn't have control-plane role, check if control plane mode is active.
+		if !canPromote {
+			memberRoles, err := GetMemberRoles(ctx, tx)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster member %q roles: %w", address, err)
+			}
+
+			// Member is only eligible if control plane mode is not active.
+			canPromote = !IsControlPlaneActive(memberRoles)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if canPromote {
+		if count > 1 && voters < int(maxVoters) {
+			node.Role = db.RaftVoter
+		} else if standbys < int(maxStandBy) {
+			node.Role = db.RaftStandBy
+		}
 	}
 
 	nodes = append(nodes, node)
@@ -722,13 +753,69 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	wg.Wait()
 }
 
-// Rebalance the raft cluster, trying to see if we have a spare online node
-// that we can promote to voter node if we are below membershipMaxRaftVoters,
-// or to standby if we are below membershipMaxStandBys.
+// GetMemberRoles retrieves all cluster members and returns a map of their roles keyed by address.
+func GetMemberRoles(ctx context.Context, tx *db.ClusterTx) (map[string][]db.ClusterRole, error) {
+	members, err := tx.GetNodes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting cluster members: %w", err)
+	}
+
+	// Build memberRoles map.
+	memberRoles := make(map[string][]db.ClusterRole, len(members))
+	for _, member := range members {
+		memberRoles[member.Address] = member.Roles
+	}
+
+	return memberRoles, nil
+}
+
+// IsControlPlaneActive returns true if control plane mode is active.
+// Control plane mode is active when 3 or more members have the control-plane role.
+func IsControlPlaneActive(memberRoles map[string][]db.ClusterRole) bool {
+	controlPlaneCount := 0
+	for _, roles := range memberRoles {
+		if slices.Contains(roles, db.ClusterRoleControlPlane) {
+			controlPlaneCount++
+		}
+	}
+
+	return controlPlaneCount >= 3
+}
+
+// filterPromotionCandidates returns the subset of candidates that are eligible for
+// promotion based on control plane mode and member roles. When controlPlaneActive
+// is true, only candidates with the control-plane role are eligible.
+func filterPromotionCandidates(candidates []client.NodeInfo, memberRoles map[string][]db.ClusterRole) []client.NodeInfo {
+	if !IsControlPlaneActive(memberRoles) {
+		return candidates
+	}
+
+	eligible := make([]client.NodeInfo, 0, len(candidates))
+	for _, candidate := range candidates {
+		roles, ok := memberRoles[candidate.Address]
+		if !ok {
+			continue
+		}
+
+		if slices.Contains(roles, db.ClusterRoleControlPlane) {
+			eligible = append(eligible, candidate)
+		}
+	}
+
+	return eligible
+}
+
+// Rebalance adjusts raft cluster roles by promoting spares to fill vacancies or
+// demoting members to enforce control-plane policy. Returns the address of the member
+// whose role should change and the updated node list, or empty string if no changes needed.
 //
-// If there's such spare node, return its address as well as the new list of
-// raft nodes.
-func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
+// The memberRoles parameter enforces control-plane restrictions during rebalancing.
+//
+// Called repeatedly by rebalanceMemberRoles, returning one change per call to naturally
+// interleave promotions and demotions. Promotions are checked first to fill vacancies
+// before creating new ones, maintaining quorum throughout. When control-plane mode is
+// active, non-control-plane members are demoted via voter -> standby -> spare to prevent quorum loss.
+func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string, memberRoles map[string][]db.ClusterRole) (string, []db.RaftNode, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
 		return "", nil, nil
@@ -736,9 +823,15 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return "", nil, fmt.Errorf("Get current raft nodes: %w", err)
+		return "", nil, fmt.Errorf("Failed getting current raft nodes: %w", err)
 	}
 
+	localClusterAddress := state.LocalConfig.ClusterAddress()
+
+	// Check if there are role adjustments needed (promotions).
+	// We check promotions first to ensure control-plane members get promoted to fill
+	// any vacancies before we create new vacancies via demotions. This maintains
+	// quorum throughout the transition.
 	roles, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
 	if err != nil {
 		return "", nil, err
@@ -746,25 +839,148 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 
 	role, candidates := roles.Adjust(gateway.info.ID)
 
-	if role == -1 {
-		// No node to promote
-		return "", nodes, nil
-	}
+	if role != -1 {
+		// Filter candidates to only those eligible for promotion.
+		candidates = filterPromotionCandidates(candidates, memberRoles)
+		if len(candidates) > 0 {
+			// We have a spare node that we can promote to the missing role.
+			candidateAddress := candidates[0].Address
+			logger.Info("Found cluster member requiring role change", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
 
-	localClusterAddress := state.LocalConfig.ClusterAddress()
+			for i, node := range nodes {
+				if node.Address == candidateAddress {
+					nodes[i].Role = role
+					break
+				}
+			}
 
-	// Check if we have a spare node that we can promote to the missing role.
-	candidateAddress := candidates[0].Address
-	logger.Info("Found cluster member whose role needs to be changed", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": localClusterAddress})
-
-	for i, node := range nodes {
-		if node.Address == candidateAddress {
-			nodes[i].Role = role
-			break
+			return candidateAddress, nodes, nil
 		}
 	}
 
-	return candidateAddress, nodes, nil
+	// If control plane mode is active, demote non-control-plane members with database roles.
+	// We use a two-phase approach: first demote voters to standby (creating vacancies that will
+	// be filled in the next iteration), then after all voters are control-plane members, demote
+	// standbys to spare. This ensures we maintain quorum throughout the transition.
+	if IsControlPlaneActive(memberRoles) {
+		hasNonControlPlaneVoter := false
+		for _, node := range nodes {
+			if node.Role != db.RaftVoter {
+				continue
+			}
+
+			roles, ok := memberRoles[node.Address]
+			if !ok {
+				continue
+			}
+
+			if !slices.Contains(roles, db.ClusterRoleControlPlane) {
+				hasNonControlPlaneVoter = true
+				break
+			}
+		}
+
+		if hasNonControlPlaneVoter {
+			// Control plane mode remains active, but avoid demotions unless a control-plane replacement is available.
+			hasEligiblePromotion := false
+			for _, node := range nodes {
+				if node.Role == db.RaftVoter {
+					continue
+				}
+
+				if slices.Contains(unavailableMembers, node.Address) {
+					continue
+				}
+
+				if !HasConnectivity(gateway.networkCert, gateway.state().ServerCert(), node.Address) {
+					continue
+				}
+
+				roles, ok := memberRoles[node.Address]
+				if !ok {
+					continue
+				}
+
+				if slices.Contains(roles, db.ClusterRoleControlPlane) {
+					hasEligiblePromotion = true
+					break
+				}
+			}
+
+			if !hasEligiblePromotion {
+				logger.Info("Skipping control-plane voter demotion; no eligible control-plane promotion candidates", logger.Ctx{"local": localClusterAddress})
+				return "", nodes, nil
+			}
+		}
+
+		// Phase 1: Demote non-control-plane voters to standby
+		for _, node := range nodes {
+			// Only look at voters
+			if node.Role != db.RaftVoter {
+				continue
+			}
+
+			// Skip offline/unavailable members
+			if slices.Contains(unavailableMembers, node.Address) {
+				continue
+			}
+
+			// Check if this member has the control-plane role
+			roles, ok := memberRoles[node.Address]
+			if !ok {
+				continue
+			}
+
+			// If voter doesn't have control-plane role, demote to standby
+			if !slices.Contains(roles, db.ClusterRoleControlPlane) {
+				logger.Info("Demoting non-control-plane voter to standby", logger.Ctx{"address": node.Address, "local": localClusterAddress})
+
+				for i := range nodes {
+					if nodes[i].Address == node.Address {
+						nodes[i].Role = db.RaftStandBy
+						break
+					}
+				}
+
+				return node.Address, nodes, nil
+			}
+		}
+
+		// Phase 2: After all voters are control-plane members, demote non-control-plane standbys to spare
+		for _, node := range nodes {
+			// Only look at standbys
+			if node.Role != db.RaftStandBy {
+				continue
+			}
+
+			// Skip offline/unavailable members
+			if slices.Contains(unavailableMembers, node.Address) {
+				continue
+			}
+
+			// Check if this member has the control-plane role
+			roles, ok := memberRoles[node.Address]
+			if !ok {
+				continue
+			}
+
+			// If standby doesn't have control-plane role, demote to spare
+			if !slices.Contains(roles, db.ClusterRoleControlPlane) {
+				logger.Info("Demoting non-control-plane standby to spare", logger.Ctx{"address": node.Address, "local": localClusterAddress})
+
+				for i := range nodes {
+					if nodes[i].Address == node.Address {
+						nodes[i].Role = db.RaftSpare
+						break
+					}
+				}
+
+				return node.Address, nodes, nil
+			}
+		}
+	}
+
+	return "", nodes, nil
 }
 
 // Assign a new role to the local dqlite node.
@@ -1079,6 +1295,25 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 
 	role, candidates := roles.Handover(nodeID)
 	if role == -1 {
+		return "", nil, nil
+	}
+
+	var memberRoles map[string][]db.ClusterRole
+	err = state.DB.Cluster.Transaction(state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		memberRoles, err = GetMemberRoles(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("Failed loading cluster member roles: %w", err)
+		}
+
+		return err
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Filter candidates to only those eligible for promotion.
+	candidates = filterPromotionCandidates(candidates, memberRoles)
+	if len(candidates) == 0 {
 		return "", nil, nil
 	}
 
