@@ -2685,7 +2685,7 @@ func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.
 	}
 
 	for {
-		address, nodes, err := cluster.Rebalance(s, gateway, unavailableMembers)
+		address, nodes, err := cluster.GetNextRoleChange(s, gateway, unavailableMembers)
 		if err != nil {
 			return err
 		}
