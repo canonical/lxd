@@ -112,6 +112,9 @@ type Operation struct {
 	onRun     func(context.Context, *Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 
+	// Inputs for the operation, which are stored in the database.
+	inputs map[string]any
+
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
@@ -139,6 +142,7 @@ type OperationArgs struct {
 	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
 	requestor       *request.Requestor
 	metricsCallback func(result metrics.RequestResult)
+	Inputs          map[string]any
 }
 
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
@@ -232,6 +236,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op.requestor = args.requestor
 	op.metricsCallback = args.metricsCallback
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+	op.inputs = args.Inputs
 
 	if s != nil {
 		op.SetEventServer(s.Events)
@@ -729,6 +734,11 @@ func (op *Operation) Class() OperationClass {
 // Type returns the db operation type.
 func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
+}
+
+// Inputs returns the operation inputs from the database.
+func (op *Operation) Inputs() map[string]any {
+	return op.inputs
 }
 
 // validateMetadata is used to enforce some consistency in operation metadata.
