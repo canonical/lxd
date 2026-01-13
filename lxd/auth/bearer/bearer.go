@@ -102,13 +102,13 @@ func isLXDToken(token string, clusterUUID string, expectedAudience string) (stri
 // not expired.
 func Authenticate(token string, subject string, identityCache *identity.Cache) (*request.RequestorArgs, error) {
 	// Get the identity from the cache by the subject.
-	entry, err := identityCache.Get(api.AuthenticationMethodBearer, subject)
+	secret, err := identityCache.GetSecret(subject)
 	if err != nil {
-		return nil, err
+		return nil, api.StatusErrorf(http.StatusForbidden, "Unrecognized token subject: %w", err)
 	}
 
 	err = verifyToken(token, func() ([]byte, error) {
-		return entry.Secret, nil
+		return secret, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to authenticate bearer token: %w", err)
@@ -117,7 +117,7 @@ func Authenticate(token string, subject string, identityCache *identity.Cache) (
 	return &request.RequestorArgs{
 		Trusted:  true,
 		Protocol: api.AuthenticationMethodBearer,
-		Username: entry.Identifier,
+		Username: subject,
 	}, nil
 }
 

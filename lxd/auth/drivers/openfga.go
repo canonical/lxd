@@ -23,7 +23,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -48,7 +47,6 @@ type embeddedOpenFGA struct {
 	commonAuthorizer
 	tlsAuthorizer *tls
 	server        openfgav1.OpenFGAServiceServer
-	identityCache *identity.Cache
 }
 
 // The OpenFGA server requires a ULID to specify the store that we are querying against.
@@ -56,13 +54,7 @@ type embeddedOpenFGA struct {
 var dummyDatastoreULID = ulid.Make().String()
 
 // load sets up the authorizer.
-func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cache, opts Opts) error {
-	if identityCache == nil {
-		return errors.New("Must provide certificate cache")
-	}
-
-	e.identityCache = identityCache
-
+func (e *embeddedOpenFGA) load(ctx context.Context, opts Opts) error {
 	// Use the TLS driver for TLS authenticated users for now.
 	tlsDriver := &tls{
 		commonAuthorizer: commonAuthorizer{
@@ -70,7 +62,7 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 		},
 	}
 
-	err := tlsDriver.load(ctx, identityCache, opts)
+	err := tlsDriver.load(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -254,16 +246,11 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 		return nil
 	}
 
-	id := requestor.CallerIdentity()
-	if id == nil {
-		return errors.New("No identity is set in the request details")
-	}
-
-	logCtx["username"] = id.Identifier
-	logCtx["protocol"] = id.AuthenticationMethod
+	logCtx["username"] = requestor.CallerUsername()
+	logCtx["protocol"] = requestor.CallerProtocol()
 	l := e.logger.AddContext(logCtx)
 
-	identityType, err := identity.New(id.IdentityType)
+	identityType, err := requestor.CallerIdentityType()
 	if err != nil {
 		return err
 	}
@@ -274,22 +261,7 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 	}
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
-	groups := id.Groups
-	for _, idpGroup := range requestor.CallerIdentityProviderGroups() {
-		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return fmt.Errorf("Failed to get identity provider group mapping for group %q: %w", idpGroup, err)
-		} else if err != nil {
-			continue
-		}
-
-		for _, lxdGroup := range lxdGroups {
-			if !slices.Contains(groups, lxdGroup) {
-				groups = append(groups, lxdGroup)
-			}
-		}
-	}
-
+	groups := requestor.CallerEffectiveAuthorizationGroupNames()
 	if checkEffectiveProject {
 		// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
 		// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
@@ -306,7 +278,7 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 		return fmt.Errorf("Failed to standardize entity URL: %w", err)
 	}
 
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(id.AuthenticationMethod, id.Identifier).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(requestor.CallerProtocol(), requestor.CallerUsername()).String())
 	entityObject := fmt.Sprintf("%s:%s", entityType, entityURL.String())
 
 	// Construct an OpenFGA check request.
@@ -470,16 +442,11 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 		return allowFunc(true), nil
 	}
 
-	id := requestor.CallerIdentity()
-	if id == nil {
-		return nil, errors.New("No identity is set in the request details")
-	}
-
-	logCtx["username"] = id.Identifier
-	logCtx["protocol"] = id.AuthenticationMethod
+	logCtx["username"] = requestor.CallerUsername()
+	logCtx["protocol"] = requestor.CallerProtocol()
 	l := e.logger.AddContext(logCtx)
 
-	identityType, err := identity.New(id.IdentityType)
+	identityType, err := requestor.CallerIdentityType()
 	if err != nil {
 		return nil, err
 	}
@@ -490,24 +457,10 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 	}
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
-	groups := id.Groups
-	for _, idpGroup := range requestor.CallerIdentityProviderGroups() {
-		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return nil, fmt.Errorf("Failed to get identity provider group mapping for group %q: %w", idpGroup, err)
-		} else if err != nil {
-			continue
-		}
-
-		for _, lxdGroup := range lxdGroups {
-			if !slices.Contains(groups, lxdGroup) {
-				groups = append(groups, lxdGroup)
-			}
-		}
-	}
+	groups := requestor.CallerEffectiveAuthorizationGroupNames()
 
 	// Construct an OpenFGA list objects request.
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(id.AuthenticationMethod, id.Identifier).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(requestor.CallerProtocol(), requestor.CallerUsername()).String())
 	req := &openfgav1.ListObjectsRequest{
 		StoreId:  dummyDatastoreULID,
 		Type:     entityType.String(),
@@ -560,7 +513,7 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 		}
 
 		l.Error("Failed to list OpenFGA Objects", errLogCtx)
-		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, id.Identifier, err)
+		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, requestor.CallerUsername(), err)
 	}
 
 	objects := resp.GetObjects()
