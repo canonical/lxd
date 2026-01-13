@@ -47,6 +47,13 @@ func registerDBOperation(op *Operation) error {
 			}
 		}
 
+		inputsJSON, err := json.Marshal(op.inputs)
+		if err != nil {
+			return fmt.Errorf("Failed marshalling operation inputs: %w", err)
+		}
+
+		opInfo.Inputs = string(inputsJSON)
+
 		metadataJSON, err := json.Marshal(op.metadata)
 		if err != nil {
 			return fmt.Errorf("Failed marshalling operation metadata: %w", err)

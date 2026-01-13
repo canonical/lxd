@@ -101,6 +101,9 @@ type Operation struct {
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 	onDone    func(*Operation)
 
+	// Inputs for the operation, which are stored in the database.
+	inputs map[string]any
+
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
@@ -125,6 +128,7 @@ type OperationArgs struct {
 	Metadata    map[string]any
 	RunHook     func(ctx context.Context, op *Operation) error
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
+	Inputs      map[string]any
 }
 
 // CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
@@ -171,6 +175,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.state = s
 	op.requestor = requestor
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+	op.inputs = args.Inputs
 
 	if s != nil {
 		op.SetEventServer(s.Events)
@@ -658,6 +663,11 @@ func (op *Operation) Class() OperationClass {
 // Type returns the db operation type.
 func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
+}
+
+// Inputs returns the operation inputs from the database.
+func (op *Operation) Inputs() map[string]any {
+	return op.inputs
 }
 
 // validateMetadata is used to enforce some consistency in operation metadata.
