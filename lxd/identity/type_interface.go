@@ -83,7 +83,7 @@ var types = []Type{
 	CertificateMetricsRestricted{},
 	CertificateMetricsUnrestricted{},
 	CertificateServer{},
-	DevLXDTokenBearer{},
+	TokenBearerDevLXD{},
 	TokenBearerClient{},
 }
 
