@@ -116,8 +116,8 @@ func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get identity from the request context.
-	identity, err := request.GetCallerIdentityFromContext(r.Context())
-	if identity == nil {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
@@ -158,7 +158,7 @@ func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) response.Res
 
 	respVols := make([]api.DevLXDStorageVolume, 0, len(vols))
 	for _, vol := range vols {
-		if !isDevLXDVolumeOwner(vol.Config, identity.Identifier) {
+		if !isDevLXDVolumeOwner(vol.Config, requestor.CallerUsername()) {
 			// Skip volumes not owned by the caller.
 			continue
 		}
@@ -198,8 +198,8 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 	}
 
 	// Get identity from the request context.
-	identity, err := request.GetCallerIdentityFromContext(r.Context())
-	if identity == nil {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
@@ -229,7 +229,7 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 
 	// Set the caller's identity ID as the volume owner, as volume updates or removal through DevLXD
 	// are only allowed for volumes owned by the caller.
-	vol.Config["volatile.devlxd.owner"] = identity.Identifier
+	vol.Config["volatile.devlxd.owner"] = requestor.CallerUsername()
 
 	// Create storage volume.
 	reqBody := api.StorageVolumesPost{
@@ -294,7 +294,7 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 		}
 
 		// Ensure the source volume is owned by the caller.
-		if !isDevLXDVolumeOwner(sourceVol.Config, identity.Identifier) {
+		if !isDevLXDVolumeOwner(sourceVol.Config, requestor.CallerUsername()) {
 			return response.DevLXDErrorResponse(api.NewStatusError(http.StatusNotFound, "Source volume not found"))
 		}
 
@@ -334,8 +334,8 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 // If the volume is not found or not owned by the caller, it returns a generic not found error.
 func devLXDStoragePoolVolumeGet(ctx context.Context, d *Daemon, target string, project string, poolName string, volName string, volType string) (*api.DevLXDStorageVolume, string, error) {
 	// Get identity from the request context.
-	identity, err := request.GetCallerIdentityFromContext(ctx)
-	if identity == nil {
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
 		return nil, "", err
 	}
 
@@ -364,7 +364,7 @@ func devLXDStoragePoolVolumeGet(ctx context.Context, d *Daemon, target string, p
 	}
 
 	// If the volume does not belong to the caller, return not found.
-	if !isDevLXDVolumeOwner(vol.Config, identity.Identifier) {
+	if !isDevLXDVolumeOwner(vol.Config, requestor.CallerUsername()) {
 		return nil, "", api.NewGenericStatusError(http.StatusNotFound)
 	}
 
@@ -427,8 +427,8 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Get identity from the request context.
-	identity, err := request.GetCallerIdentityFromContext(r.Context())
-	if identity == nil {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
@@ -445,12 +445,12 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Resp
 
 	// Ensure the volume owner cannot be changed.
 	_, ok := vol.Config["volatile.devlxd.owner"]
-	if ok && !isDevLXDVolumeOwner(vol.Config, identity.Identifier) {
+	if ok && !isDevLXDVolumeOwner(vol.Config, requestor.CallerUsername()) {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Volume owner cannot be changed"))
 	}
 
 	// Ensure caller's identity ID is retained as the volume owner.
-	vol.Config["volatile.devlxd.owner"] = identity.Identifier
+	vol.Config["volatile.devlxd.owner"] = requestor.CallerUsername()
 
 	//nolint:staticcheck // Explicitly copying fields to avoid future issues if the types diverge.
 	reqBody := api.StorageVolumePut{

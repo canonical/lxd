@@ -14,6 +14,10 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// RequestorHook is the signature of a hook that is passed into calls to [SetRequestor].
+// This allows the caller to specify how to get authorization information about an identity that has successfully authenticated.
+type RequestorHook func(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (idType identity.Type, authGroups []string, effectiveAuthGroups []string, projects []string, err error)
+
 // RequestorArgs contains information that is gathered when the requestor is initially authenticated.
 type RequestorArgs struct {
 	// Trusted indicates whether the request was authenticated or not. This is always set (and is false by default).
@@ -47,7 +51,9 @@ type Requestor struct {
 	forwardedProtocol               string
 	forwardedIdentityProviderGroups []string
 	clientType                      ClientType
-	identity                        *identity.CacheEntry
+	authGroups                      []string
+	mappedAuthGroups                []string
+	projects                        []string
 	identityType                    identity.Type
 }
 
@@ -65,7 +71,7 @@ func (r *Requestor) IsTrusted() bool {
 
 // IsAdmin returns true if the caller is an administrator and false otherwise.
 func (r *Requestor) IsAdmin() bool {
-	if slices.Contains([]string{ProtocolUnix, ProtocolPKI}, r.CallerProtocol()) {
+	if slices.Contains([]string{ProtocolUnix, ProtocolCluster, ProtocolPKI}, r.CallerProtocol()) {
 		return true
 	}
 
@@ -101,6 +107,28 @@ func (r *Requestor) CallerProtocol() string {
 	}
 
 	return r.protocol
+}
+
+// CallerAuthorizationGroupNames returns the LXD authorization groups that the requestor belongs to.
+func (r *Requestor) CallerAuthorizationGroupNames() []string {
+	return r.authGroups
+}
+
+// CallerEffectiveAuthorizationGroupNames returns a list of all authorization groups that the identity belongs to either directly or via a mapped identity provider group.
+func (r *Requestor) CallerEffectiveAuthorizationGroupNames() []string {
+	effectiveGroups := r.CallerAuthorizationGroupNames()
+	for _, mappedGroup := range r.mappedAuthGroups {
+		if !slices.Contains(effectiveGroups, mappedGroup) {
+			effectiveGroups = append(effectiveGroups, mappedGroup)
+		}
+	}
+
+	return effectiveGroups
+}
+
+// CallerAllowedProjectNames returns a list of names of projects that the caller has access to.
+func (r *Requestor) CallerAllowedProjectNames() []string {
+	return r.projects
 }
 
 // CallerIdentityProviderGroups returns the original caller identity provider groups.
@@ -144,14 +172,13 @@ func (r *Requestor) OperationRequestor() *api.OperationRequestor {
 	}
 }
 
-// CallerIdentity returns the identity.CacheEntry for the caller. It may be nil (e.g. if the protocol is ProtocolUnix).
-func (r *Requestor) CallerIdentity() *identity.CacheEntry {
-	return r.identity
-}
-
 // CallerIdentityType returns the identity.Type corresponding to the CallerIdentity. It may be nil (e.g. if the protocol is ProtocolUnix).
-func (r *Requestor) CallerIdentityType() identity.Type {
-	return r.identityType
+func (r *Requestor) CallerIdentityType() (identity.Type, error) {
+	if r.identityType == nil {
+		return nil, errors.New("No identity type present in request details")
+	}
+
+	return r.identityType, nil
 }
 
 // IsForwarded returns true if the request was forwarded from another cluster member and false otherwise.
@@ -230,35 +257,14 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 
 // setIdentity validates and sets the [identity.CacheEntry] in the Requestor.
 // It must only be called when Requestor.trusted is true, and after setForwardingDetails has been called.
-func (r *Requestor) setIdentity(cache *identity.Cache) error {
-	callerProtocol := r.CallerProtocol()
-	callerUsername := r.CallerUsername()
-
-	// No identity cache entry for ProtocolUnix
-	if callerProtocol == ProtocolUnix {
+func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
+	// If the caller is already an admin by virtue of their protocol, there is no reason to run the DB hook.
+	if r.IsAdmin() {
 		return nil
 	}
 
-	// Validate identity is not present if using PKI.
-	if callerProtocol == ProtocolPKI {
-		_, err := cache.Get(api.AuthenticationMethodTLS, callerUsername)
-		if err == nil {
-			// If the protocol is PKI but a matching identity is found in the cache, TLS authentication has not fulfilled
-			// its contract of only setting this protocol when `core.trust_ca_certifates` is true and the identity is not
-			// present in the cache. It is also possible that the identity was not present on another cluster member, but
-			// is present on this one.
-			return errors.New("Caller authenticated as a trusted CA certificate but an identity cache entry was found")
-		}
-
-		return nil
-	}
-
-	method := callerProtocol
-	switch callerProtocol {
-	case ProtocolCluster:
-		// If the protocol was cluster, the authentication method is TLS (e.g. mTLS between cluster members).
-		method = api.AuthenticationMethodTLS
-	case ProtocolDevLXD:
+	method := r.CallerProtocol()
+	if method == ProtocolDevLXD {
 		// For a trusted devlxd request, the only authentication method that can have been used is a bearer token.
 		method = api.AuthenticationMethodBearer
 	}
@@ -266,29 +272,30 @@ func (r *Requestor) setIdentity(cache *identity.Cache) error {
 	// Expect the method to a remote API method at this point.
 	err := identity.ValidateAuthenticationMethod(method)
 	if err != nil {
-		return fmt.Errorf("Received unexpected caller protocol %q: %w", callerProtocol, err)
+		return fmt.Errorf("Received unexpected caller protocol %q: %w", r.CallerProtocol(), err)
 	}
 
-	// Get the identity.
-	id, err := cache.Get(method, callerUsername)
+	if hook == nil {
+		return errors.New("Requestor hook must be set")
+	}
+
+	// Get the identity details.
+	idType, authGroups, mappedAuthGroups, projects, err := hook(ctx, method, r.CallerUsername(), r.CallerIdentityProviderGroups())
 	if err != nil {
-		return fmt.Errorf("Failed to get caller identity: %w", err)
+		return fmt.Errorf("Failed to get identity details: %w", err)
 	}
 
-	idType, err := identity.New(id.IdentityType)
-	if err != nil {
-		return fmt.Errorf("Invalid identity type %q found in identity cache", id.IdentityType)
-	}
-
-	r.identity = id
 	r.identityType = idType
+	r.authGroups = authGroups
+	r.mappedAuthGroups = mappedAuthGroups
+	r.projects = projects
 
 	return nil
 }
 
 // SetRequestor validates the given RequestorArgs against the request, then populates the additional fields
 // that requestor contains and sets a requestor in the context.
-func SetRequestor(req *http.Request, identityCache *identity.Cache, args RequestorArgs) error {
+func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) error {
 	clientType := userAgentClientType(req.Header.Get("User-Agent"))
 
 	// Cluster notification with wrong certificate.
@@ -343,7 +350,7 @@ func SetRequestor(req *http.Request, identityCache *identity.Cache, args Request
 		return errors.New("Caller is trusted but no username was set")
 	}
 
-	err = r.setIdentity(identityCache)
+	err = r.setIdentity(req.Context(), hook)
 	if err != nil {
 		return err
 	}
