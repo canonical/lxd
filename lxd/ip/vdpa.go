@@ -394,13 +394,12 @@ func AddVDPADevice(pciDevSlotName string, volatile map[string]string) (*VDPADev,
 
 // DeleteVDPADevice deletes a vDPA management device.
 func DeleteVDPADevice(vDPADevName string) error {
-	header := []*nl.RtAttr{}
 	devName, err := newNetlinkAttribute(vDPAAttrDevName, vDPADevName)
 	if err != nil {
 		return fmt.Errorf("Failed creating vDPA `vDPADevName` netlink attr : %v", err)
 	}
 
-	header = append(header, devName)
+	header := []*nl.RtAttr{devName}
 
 	_, err = runVDPANetlinkCmd(vDPACmdDevDel, 0, header)
 	if err != nil {

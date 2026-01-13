@@ -1263,8 +1263,8 @@ func (o *OVN) LogicalSwitchPortLocationGet(portName OVNSwitchPort) (string, erro
 
 // LogicalSwitchPortOptionsSet sets the options for a logical switch port.
 func (o *OVN) LogicalSwitchPortOptionsSet(portName OVNSwitchPort, options map[string]string) error {
-	args := []string{"lsp-set-options", string(portName)}
-
+	args := make([]string, 0, 2+len(options))
+	args = append(args, "lsp-set-options", string(portName))
 	for key, value := range options {
 		args = append(args, key+"="+value)
 	}
@@ -2135,8 +2135,8 @@ func (o *OVN) AddressSetDelete(addressSetPrefix OVNAddressSet) error {
 
 // LogicalRouterPolicyApply removes any existing policies and applies the new policies to the specified router.
 func (o *OVN) LogicalRouterPolicyApply(routerName OVNRouter, policies ...OVNRouterPolicy) error {
-	args := []string{"lr-policy-del", string(routerName)}
-
+	args := make([]string, 0, 2+6*len(policies))
+	args = append(args, "lr-policy-del", string(routerName))
 	for _, policy := range policies {
 		args = append(args, "--", "lr-policy-add", string(routerName), strconv.Itoa(policy.Priority), policy.Match, policy.Action)
 	}

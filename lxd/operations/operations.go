@@ -480,7 +480,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 	if resources != nil {
 		tmpResources := make(map[string][]string)
 		for key, value := range resources {
-			var values []string
+			var values = make([]string, 0, len(value))
 			for _, c := range value {
 				values = append(values, c.Project(op.Project()).String())
 			}

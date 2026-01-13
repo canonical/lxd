@@ -3880,7 +3880,9 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 		}
 
 		// Prepare the NUMA map.
+		//nolint:prealloc
 		numa := []qemuNumaEntry{}
+		//nolint:prealloc
 		numaIDs := []uint64{}
 		numaNode := uint64(0)
 		for hostNode, entry := range cpuInfo.nodes {
