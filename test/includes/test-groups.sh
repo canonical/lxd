@@ -123,6 +123,7 @@ readonly test_group_standalone=(
     "basic_usage"
     "basic_version"
     "certificate_edit"
+    "certificate_project_restrictions"
     "completions"
     "config_edit"
     "config_edit_container_snapshot_pool_config"

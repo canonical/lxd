@@ -19,7 +19,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -31,9 +31,8 @@ type cmdConfigTrust struct {
 func (c *cmdConfigTrust) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("trust")
-	cmd.Short = i18n.G("Manage trusted clients")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage trusted clients`))
+	cmd.Short = "Manage trusted clients"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Add
 	configTrustAddCmd := cmdConfigTrustAdd{global: c.global, config: c.config, configTrust: c}
@@ -83,10 +82,9 @@ type cmdConfigTrustAdd struct {
 
 func (c *cmdConfigTrustAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:] [<cert>]"))
-	cmd.Short = i18n.G("Add new trusted client")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add new trusted client
+	cmd.Use = usage("add", "[<remote>:] [<cert>]")
+	cmd.Short = "Add new trusted client"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 The following certificate types are supported:
 - client (default)
@@ -96,12 +94,15 @@ If the certificate is omitted, a token will be generated and returned. A client
 providing a valid token will have its client certificate added to the trusted list
 and the consumed token will be invalidated. Similar to certificates, tokens can be
 restricted to one or more projects.
-`))
 
-	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, i18n.G("Restrict the certificate to one or more projects"))
-	cmd.Flags().StringVar(&c.flagProjects, "projects", "", i18n.G("List of projects to restrict the certificate to")+"``")
-	cmd.Flags().StringVar(&c.flagName, "name", "", i18n.G("Alternative certificate name")+"``")
-	cmd.Flags().StringVar(&c.flagType, "type", "client", i18n.G("Type of certificate")+"``")
+Note: The --projects flag requires --restricted to be set. Projects can only be
+used to restrict certificate access when the certificate is marked as restricted.
+`)
+
+	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, "Restrict the certificate to one or more projects")
+	cmd.Flags().StringVar(&c.flagProjects, "projects", "", cli.FormatStringFlagLabel("List of projects to restrict the certificate to (requires --restricted)"))
+	cmd.Flags().StringVar(&c.flagName, "name", "", cli.FormatStringFlagLabel("Alternative certificate name"))
+	cmd.Flags().StringVar(&c.flagType, "type", "client", cli.FormatStringFlagLabel("Type of certificate"))
 
 	cmd.RunE = c.run
 
@@ -117,7 +118,7 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 
 	// Validate flags.
 	if !slices.Contains([]string{"client", "metrics"}, c.flagType) {
-		return fmt.Errorf(i18n.G("Unknown certificate type %q"), c.flagType)
+		return fmt.Errorf("Unknown certificate type %q", c.flagType)
 	}
 
 	// Parse remote
@@ -137,6 +138,11 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 		return errors.New("The server doesn't implement metrics")
 	}
 
+	// Warn users that a restricted certificate with no projects will have zero access.
+	if c.flagRestricted && c.flagProjects == "" && !c.global.flagQuiet {
+		logger.Warn("Certificate is restricted but no projects specified. This certificate will have no project access.")
+	}
+
 	cert := api.CertificatesPost{}
 
 	// Check if remote is the first argument
@@ -150,7 +156,7 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 		if c.flagName != "" {
 			cert.Name = c.flagName
 		} else {
-			cert.Name, err = c.global.asker.AskString(i18n.G("Please provide client name: "), "", nil)
+			cert.Name, err = c.global.asker.AskString("Please provide client name: ", "", nil)
 			if err != nil {
 				return err
 			}
@@ -186,7 +192,7 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 		cert.Type = api.CertificateTypeClient
 	case "metrics":
 		if cert.Token {
-			return errors.New(i18n.G("Cannot use metrics type certificate when using a token"))
+			return errors.New("Cannot use metrics type certificate when using a token")
 		}
 
 		cert.Type = api.CertificateTypeMetrics
@@ -206,11 +212,11 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 		opAPI := op.Get()
 		certificateToken, err := opAPI.ToCertificateAddToken()
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed converting token operation to certificate add token: %w"), err)
+			return fmt.Errorf("Failed converting token operation to certificate add token: %w", err)
 		}
 
 		if !c.global.flagQuiet {
-			fmt.Printf(i18n.G("Client %s certificate add token:")+"\n", cert.Name)
+			fmt.Printf("Client %s certificate add token:"+"\n", cert.Name)
 		}
 
 		fmt.Println(certificateToken.String())
@@ -230,10 +236,9 @@ type cmdConfigTrustEdit struct {
 
 func (c *cmdConfigTrustEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<fingerprint>"))
-	cmd.Short = i18n.G("Edit trust configurations as YAML")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit trust configurations as YAML`))
+	cmd.Use = usage("edit", "[<remote>:]<fingerprint>")
+	cmd.Short = "Edit trust configurations as YAML"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -241,11 +246,10 @@ func (c *cmdConfigTrustEdit) command() *cobra.Command {
 }
 
 func (c *cmdConfigTrustEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a YAML representation of the certificate.
+	return `### This is a YAML representation of the certificate.
 ### Any line starting with a '# will be ignored.
 ###
-### Note that the fingerprint is shown but cannot be changed`)
+### Note that the fingerprint is shown but cannot be changed`
 }
 
 func (c *cmdConfigTrustEdit) run(cmd *cobra.Command, args []string) error {
@@ -264,7 +268,7 @@ func (c *cmdConfigTrustEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing certificate fingerprint"))
+		return errors.New("Missing certificate fingerprint")
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -310,8 +314,8 @@ func (c *cmdConfigTrustEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -343,12 +347,11 @@ type cmdConfigTrustList struct {
 
 func (c *cmdConfigTrustList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List trusted clients")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List trusted clients`))
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Short = "List trusted clients"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	cmd.RunE = c.run
 
@@ -387,7 +390,7 @@ func (c *cmdConfigTrustList) run(cmd *cobra.Command, args []string) error {
 
 		certBlock, _ := pem.Decode([]byte(cert.Certificate))
 		if certBlock == nil {
-			return errors.New(i18n.G("Invalid certificate"))
+			return errors.New("Invalid certificate")
 		}
 
 		tlsCert, err := x509.ParseCertificate(certBlock.Bytes)
@@ -403,14 +406,7 @@ func (c *cmdConfigTrustList) run(cmd *cobra.Command, args []string) error {
 
 	sort.Sort(cli.StringList(data))
 
-	header := []string{
-		i18n.G("TYPE"),
-		i18n.G("NAME"),
-		i18n.G("COMMON NAME"),
-		i18n.G("FINGERPRINT"),
-		i18n.G("ISSUE DATE"),
-		i18n.G("EXPIRY DATE"),
-	}
+	header := []string{"TYPE", "NAME", "COMMON NAME", "FINGERPRINT", "ISSUE DATE", "EXPIRY DATE"}
 
 	return cli.RenderTable(c.flagFormat, header, data, trust)
 }
@@ -426,11 +422,10 @@ type cmdConfigTrustListTokens struct {
 
 func (c *cmdConfigTrustListTokens) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list-tokens", i18n.G("[<remote>:]"))
-	cmd.Short = i18n.G("List all active certificate add tokens")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List all active certificate add tokens`))
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Use = usage("list-tokens", "[<remote>:]")
+	cmd.Short = "List all active certificate add tokens"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	cmd.RunE = c.run
 
@@ -509,11 +504,7 @@ func (c *cmdConfigTrustListTokens) run(cmd *cobra.Command, args []string) error 
 
 	sort.Sort(cli.SortColumnsNaturally(data))
 
-	header := []string{
-		i18n.G("NAME"),
-		i18n.G("TOKEN"),
-		i18n.G("EXPIRES AT"),
-	}
+	header := []string{"NAME", "TOKEN", "EXPIRES AT"}
 
 	return cli.RenderTable(c.flagFormat, header, data, displayTokens)
 }
@@ -527,11 +518,10 @@ type cmdConfigTrustRemove struct {
 
 func (c *cmdConfigTrustRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<fingerprint>"))
+	cmd.Use = usage("remove", "[<remote>:]<fingerprint>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Remove trusted client")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove trusted client`))
+	cmd.Short = "Remove trusted client"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -574,10 +564,9 @@ type cmdConfigTrustRevokeToken struct {
 
 func (c *cmdConfigTrustRevokeToken) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("revoke-token", i18n.G("[<remote>:] <name>"))
-	cmd.Short = i18n.G("Revoke certificate add token")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Revoke certificate add token`))
+	cmd.Use = usage("revoke-token", "[<remote>:] <name>")
+	cmd.Short = "Revoke certificate add token"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -626,14 +615,14 @@ func (c *cmdConfigTrustRevokeToken) run(cmd *cobra.Command, args []string) error
 			}
 
 			if !c.global.flagQuiet {
-				fmt.Printf(i18n.G("Certificate add token for %s deleted")+"\n", resource.name)
+				fmt.Printf("Certificate add token for %s deleted\n", resource.name)
 			}
 
 			return nil
 		}
 	}
 
-	return fmt.Errorf(i18n.G("No certificate add token for member %s on remote: %s"), resource.name, resource.remote)
+	return fmt.Errorf("No certificate add token for member %s on remote: %s", resource.name, resource.remote)
 }
 
 // Show.
@@ -645,10 +634,9 @@ type cmdConfigTrustShow struct {
 
 func (c *cmdConfigTrustShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<fingerprint>"))
-	cmd.Short = i18n.G("Show trust configurations")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show trust configurations`))
+	cmd.Use = usage("show", "[<remote>:]<fingerprint>")
+	cmd.Short = "Show trust configurations"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -672,7 +660,7 @@ func (c *cmdConfigTrustShow) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing certificate fingerprint"))
+		return errors.New("Missing certificate fingerprint")
 	}
 
 	// Show the certificate configuration

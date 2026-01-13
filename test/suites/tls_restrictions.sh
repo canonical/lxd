@@ -455,10 +455,20 @@ test_tls_restrictions() {
   # The restricted client can delete the storage bucket.
   lxc_remote storage bucket delete localhost:s3 blah-bucket --project blah
 
+  echo "Trying to set restricted=false while projects is non-empty should fail."
+  ! lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}" || false
+
   # Cleanup
   delete_object_storage_pool s3
   rm "${TEST_DIR}/${test_image_fingerprint}.tar.xz"
+
+  # First clear projects (while still restricted=true, so validation allows it).
+  lxc config trust show "${FINGERPRINT}" | sed -e '/^- blah$/d' -e 's/^projects:$/projects: []/' | lxc config trust edit "${FINGERPRINT}"
+
+  # Then set restricted=false (now projects is already empty, validation passes).
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}"
+
+  # Delete project first (while cert still has access).
   lxc project delete blah
 }
 
@@ -519,10 +529,15 @@ test_certificate_edit() {
 
   my_curl -X PATCH -H 'Content-Type: application/json' -d '{"projects": []}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq --exit-status '.error_code == 403'
 
-  # Cleanup
-  lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}"
+  echo "Trying to set restricted=false while projects is non-empty should fail."
+  ! lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}" || false
 
-  lxc config trust show "${FINGERPRINT}" | sed -e ':a;N;$!ba;s/projects:\n- blah/projects: \[\]/' | lxc config trust edit "${FINGERPRINT}"
+  # Clean up.
+  # First clear projects (while still restricted=true, so validation allows it).
+  lxc config trust show "${FINGERPRINT}" | sed -e '/^- blah$/d' -e 's/^projects:$/projects: []/' | lxc config trust edit "${FINGERPRINT}"
+
+  # Then set restricted=false (now projects is already empty, validation passes).
+  lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}"
 
   lxc project delete blah
 }

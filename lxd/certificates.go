@@ -490,6 +490,11 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
+	// Reject projects list without restricted flag to prevent misleading configurations.
+	if len(req.Projects) > 0 && !req.Restricted {
+		return response.BadRequest(errors.New("Projects can only be specified for restricted certificates. Set restricted=true or remove projects"))
+	}
+
 	// Validate request for creating certificate add token.
 	if req.Token {
 		if req.Certificate != "" {
@@ -1062,6 +1067,11 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 		if err != nil {
 			return response.BadRequest(err)
 		}
+	}
+
+	// Reject projects list without restricted flag to prevent misleading configurations.
+	if len(req.Projects) > 0 && !req.Restricted {
+		return response.BadRequest(errors.New("Projects can only be specified for restricted certificates"))
 	}
 
 	// Update the database record.

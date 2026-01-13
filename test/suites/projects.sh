@@ -1627,3 +1627,107 @@ EOF
   echo "Clean up object storage pool."
   delete_object_storage_pool s3
 }
+
+test_certificate_project_restrictions() {
+  echo "Testing certificate project restrictions validation."
+
+  echo "Create a test project."
+  lxc project create test-cert-project
+
+  echo "Test 1: Verify that --projects without --restricted fails."
+  ! lxc config trust add --name test-fail --projects test-cert-project || false
+
+  echo "Test 2: Verify that --projects with --restricted succeeds."
+  trust_token1="$(lxc config trust add --name test-success --projects test-cert-project --restricted --quiet)"
+
+  echo "Verify the certificate was created with the correct settings."
+  LXD_CONF_TEST1=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF_TEST1}" gen_cert_and_key "client1"
+  LXD_CONF="${LXD_CONF_TEST1}" lxc remote add test-restricted "${trust_token1}"
+
+  # The restricted client should only see the test-cert-project project.
+  fingerprint1="$(cert_fingerprint "${LXD_CONF_TEST1}/client.crt")"
+  cert_info="$(lxc config trust show "${fingerprint1}")"
+
+  # Verify restricted is true.
+  echo "${cert_info}" | grep -xF "restricted: true"
+
+  # Verify projects list contains test-cert-project.
+  echo "${cert_info}" | grep -xF -- "- test-cert-project"
+
+  echo "Test 3: Verify that --restricted without --projects succeeds but warns."
+  # This should succeed but the certificate will have no project access.
+
+  # Create temporary files for stdout and stderr.
+  temp_stdout=$(mktemp)
+  temp_stderr=$(mktemp)
+
+  # Run command, redirecting stdout and stderr separately.
+  lxc config trust add --name test-no-projects --restricted >"$temp_stdout" 2>"$temp_stderr"
+
+  # Read the outputs.
+  # Extract just the token from stdout, it's on the last line.
+  trust_token2="$(tail -n1 "${temp_stdout}")"
+
+  # Now verify the warning is in stderr.
+  grep -F "Certificate is restricted but no projects specified." "${temp_stderr}"
+
+  # Clean up temp files.
+  rm -f "$temp_stdout" "$temp_stderr"
+
+  LXD_CONF_TEST2=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF_TEST2}" gen_cert_and_key "client2"
+
+  # Use the extracted token.
+  LXD_CONF="${LXD_CONF_TEST2}" lxc remote add test-restricted-empty "${trust_token2}"
+
+  fingerprint2="$(cert_fingerprint "${LXD_CONF_TEST2}/client.crt")"
+  cert_info2="$(lxc config trust show "${fingerprint2}")"
+
+  # Verify restricted is true.
+  echo "${cert_info2}" | grep -xF "restricted: true"
+
+  # Verify projects list is empty.
+  echo "${cert_info2}" | grep -xF "projects: []"
+
+  echo "Test 4: Verify that updating a certificate with projects requires restricted."
+  # Create an unrestricted certificate first.
+  LXD_CONF_TEST3=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF_TEST3}" gen_cert_and_key "client3"
+  trust_token3="$(lxc config trust add --name test-update --quiet)"
+  LXD_CONF="${LXD_CONF_TEST3}" lxc remote add test-unrestricted "${trust_token3}"
+
+  fingerprint3="$(cert_fingerprint "${LXD_CONF_TEST3}/client.crt")"
+
+  echo "Try to update it with projects but without restricted, should fail."
+  ! lxc query -X PATCH -d '{"projects": ["test-cert-project"], "restricted": false}' "/1.0/certificates/${fingerprint3}" || false
+
+  echo "Update it with both projects and restricted, should succeed."
+  lxc query -X PATCH -d '{"projects": ["test-cert-project"], "restricted": true}' "/1.0/certificates/${fingerprint3}"
+
+  # Verify the update
+  cert_info3="$(lxc config trust show "${fingerprint3}")"
+  echo "${cert_info3}" | grep -xF "restricted: true"
+  echo "${cert_info3}" | grep -xF -- "- test-cert-project"
+
+  echo "Test 5: Verify token creation with projects requires restricted."
+
+  echo "Test 5.1: Create token with projects but without restricted, should fail."
+  ! lxc config trust add --name test-token-fail --projects test-cert-project || false
+
+  echo "Test 5.2: Create token with both projects and restricted, should succeed."
+  lxc config trust add --name test-token-success --projects test-cert-project --restricted
+
+  echo "Test 5.3: Create regular certificate with projects but without restricted, should fail."
+  LXD_CONF_TEST4=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF_TEST4}" gen_cert_and_key "client4"
+  ! lxc config trust add --name test-cert-fail --projects test-cert-project "${LXD_CONF_TEST4}/client.crt" || false
+  rm -rf "${LXD_CONF_TEST4}"
+
+  echo "Cleanup"
+  lxc config trust remove "${fingerprint1}"
+  lxc config trust remove "${fingerprint2}"
+  lxc config trust remove "${fingerprint3}"
+  rm -rf "${LXD_CONF_TEST1}" "${LXD_CONF_TEST2}" "${LXD_CONF_TEST3}"
+  lxc project delete test-cert-project
+}
