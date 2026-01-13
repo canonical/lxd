@@ -17,6 +17,10 @@ var ErrCannotBeShrunk = errors.New("Cannot be shrunk")
 // ErrInUse indicates operation cannot proceed as resource is in use.
 var ErrInUse = errors.New("In use")
 
+// ErrResourceBusy indicates that a device or resource is still busy, while from the perspective of LXD
+// it should not be. For example, when trying to unmap a device that is still in use by another process.
+var ErrResourceBusy = errors.New("Device or resource busy")
+
 // ErrSnapshotDoesNotMatchIncrementalSource in the "Snapshot does not match incremental source" error.
 var ErrSnapshotDoesNotMatchIncrementalSource = errors.New("Snapshot does not match incremental source")
 
