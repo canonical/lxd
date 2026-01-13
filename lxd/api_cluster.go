@@ -2684,44 +2684,49 @@ func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.
 		return nil
 	}
 
-again:
-	address, nodes, err := cluster.Rebalance(s, gateway, unavailableMembers)
-	if err != nil {
-		return err
-	}
-
-	if address == "" {
-		// Nothing to do.
-		return nil
-	}
-
-	// Process demotions of offline nodes immediately.
-	for _, node := range nodes {
-		if node.Address != address || node.Role != db.RaftSpare {
-			continue
+	for {
+		address, nodes, err := cluster.Rebalance(s, gateway, unavailableMembers)
+		if err != nil {
+			return err
 		}
 
-		if cluster.HasConnectivity(s.Endpoints.NetworkCert(), s.ServerCert(), address) {
+		if address == "" {
+			// Nothing to do.
+			return nil
+		}
+
+		// Process demotions of offline nodes immediately.
+		demoted := false
+		for _, node := range nodes {
+			if node.Address != address || node.Role != db.RaftSpare {
+				continue
+			}
+
+			if cluster.HasConnectivity(s.Endpoints.NetworkCert(), s.ServerCert(), address) {
+				break
+			}
+
+			logger.Info("Demoting offline member during rebalance", logger.Ctx{"candidateAddress": node.Address})
+			err := gateway.DemoteOfflineNode(node.ID)
+			if err != nil {
+				return fmt.Errorf("Demote offline node %s: %w", node.Address, err)
+			}
+
+			demoted = true
 			break
 		}
 
-		logger.Info("Demoting offline member during rebalance", logger.Ctx{"candidateAddress": node.Address})
-		err := gateway.DemoteOfflineNode(node.ID)
-		if err != nil {
-			return fmt.Errorf("Demote offline node %s: %w", node.Address, err)
+		if demoted {
+			continue
 		}
 
-		goto again
+		// Tell the node to promote itself.
+		logger.Info("Promoting member during rebalance", logger.Ctx{"candidateAddress": address})
+		err = changeMemberRole(ctx, s, address, nodes)
+		if err != nil {
+			return err
+		}
 	}
-
-	// Tell the node to promote itself.
-	logger.Info("Promoting member during rebalance", logger.Ctx{"candidateAddress": address})
-	err = changeMemberRole(ctx, s, address, nodes)
-	if err != nil {
-		return err
-	}
-
-	goto again
 }
 
 // Check if there are nodes not part of the raft configuration and add them in
