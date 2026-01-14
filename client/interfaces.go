@@ -172,6 +172,8 @@ type InstanceServer interface {
 	GetInstancesFullWithFilter(instanceType api.InstanceType, filters []string) (instances []api.InstanceFull, err error)
 	GetInstancesAllProjectsWithFilter(instanceType api.InstanceType, filters []string) (instances []api.Instance, err error)
 	GetInstancesFullAllProjectsWithFilter(instanceType api.InstanceType, filters []string) (instances []api.InstanceFull, err error)
+	GetInstancesFullWithFilterAndFields(instanceType api.InstanceType, filters []string, fields []string) (instances []api.InstanceFull, err error)
+	GetInstancesFullAllProjectsWithFilterAndFields(instanceType api.InstanceType, filters []string, fields []string) (instances []api.InstanceFull, err error)
 	GetInstance(name string) (instance *api.Instance, ETag string, err error)
 	GetInstanceFull(name string) (instance *api.InstanceFull, ETag string, err error)
 	CreateInstance(instance api.InstancesPost) (op Operation, err error)
