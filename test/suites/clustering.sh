@@ -375,19 +375,17 @@ test_clustering_containers() {
 
   echo "Move the container on node3 to node1, using a client connected to node2 and a different container name than the original one."
   echo "Verify volatile.apply_template config key is preserved."
-  apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get bar volatile.apply_template)
+  local initial_template
+  initial_template="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get bar volatile.apply_template)"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node2
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L egg)" = "node2" ]
-  apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
-  [ "${apply_template1}" =  "${apply_template2}" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)" = "${initial_template}" ]
 
   echo "Move back to node3 the container on node1, keeping the same name."
-  apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node3
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
-  apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
-  [ "${apply_template1}" =  "${apply_template2}" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)" = "${initial_template}" ]
 
   echo "Live migration is not supported for containers."
   LXD_DIR="${LXD_TWO_DIR}" lxc start egg
