@@ -164,6 +164,7 @@ type DurableOperationTable map[operationtype.Type]RunHook
 
 var (
 	durableOperations     DurableOperationTable
+	requestorHook         request.RequestorHook
 	durableOperationsOnce sync.Once
 )
 
@@ -172,9 +173,10 @@ var (
 // Therefore we maintain a static map of durable operation handlers based on operation type.
 // As this map contains handlers from across many packages, the table itself is defined in the main package.
 // Because this table needs to be accessible from the operations package, we provide this Init function to set it.
-func InitDurableOperations(opTable DurableOperationTable) {
+func InitDurableOperations(opTable DurableOperationTable, hook request.RequestorHook) {
 	durableOperationsOnce.Do(func() {
 		durableOperations = opTable
+		requestorHook = hook
 	})
 }
 
