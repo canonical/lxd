@@ -128,6 +128,7 @@ func TestParseRecursionFields(t *testing.T) {
 				if err == nil {
 					t.Errorf("Expected error but got none")
 				}
+
 				return
 			}
 
