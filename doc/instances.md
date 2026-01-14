@@ -15,6 +15,7 @@ How to create and manage instances:
 Create instances </howto/instances_create.md>
 Configure instances </howto/instances_configure.md>
 Manage instances </howto/instances_manage.md>
+Optimize instance queries </howto/instances_selective_state_fields.md>
 Use profiles </profiles.md>
 Troubleshoot errors </howto/instances_troubleshoot.md>
 Auto attach Ubuntu Pro </howto/instances_ubuntu_pro_attach.md>
