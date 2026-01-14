@@ -28,7 +28,9 @@ func specDevToInstanceDev(configDevices *ConfigDevices, d specs.DeviceNode) erro
 		hostPath = d.Path // When the hostPath is empty, the path is the device path in the container.
 	}
 
-	if d.Major == 0 || d.Minor == 0 {
+	// Only fetch major/minor from device if both are unspecified (0).
+	// Some devices legitimately have minor=0, so we can't treat 0 as "unspecified" individually.
+	if d.Major == 0 && d.Minor == 0 {
 		stat := unix.Stat_t{}
 		err := unix.Stat(hostPath, &stat)
 		if err != nil {

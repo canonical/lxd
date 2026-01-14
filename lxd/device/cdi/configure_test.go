@@ -165,7 +165,7 @@ func TestGenerateFromCDI(t *testing.T) {
 									Path:     "/dev/dri/card0",
 									HostPath: hostDevicePath,
 									Major:    226,
-									Minor:    1,
+									Minor:    0,
 									UID:      &uid,
 									GID:      &gid,
 								},
@@ -187,7 +187,7 @@ func TestGenerateFromCDI(t *testing.T) {
 		assert.Len(t, config.UnixCharDevs, 1)
 		assert.Equal(t, "/dev/dri/card0", config.UnixCharDevs[0]["path"])
 		assert.Equal(t, "226", config.UnixCharDevs[0]["major"])
-		assert.Equal(t, "1", config.UnixCharDevs[0]["minor"])
+		assert.Equal(t, "0", config.UnixCharDevs[0]["minor"])
 		assert.Equal(t, "1000", config.UnixCharDevs[0]["uid"])
 		assert.Equal(t, "44", config.UnixCharDevs[0]["gid"])
 	})
@@ -206,7 +206,7 @@ func TestGenerateFromCDI(t *testing.T) {
 									Path:     "/dev/kfd",
 									HostPath: hostDevicePath,
 									Major:    509,
-									Minor:    1,
+									Minor:    0,
 									// No UID or GID set
 								},
 							},
@@ -229,7 +229,7 @@ func TestGenerateFromCDI(t *testing.T) {
 		assert.NotContains(t, config.UnixCharDevs[0], "uid")
 		assert.NotContains(t, config.UnixCharDevs[0], "gid")
 		assert.Equal(t, "509", config.UnixCharDevs[0]["major"])
-		assert.Equal(t, "1", config.UnixCharDevs[0]["minor"])
+		assert.Equal(t, "0", config.UnixCharDevs[0]["minor"])
 	})
 
 	t.Run("Multiple Devices with Mixed UID/GID", func(t *testing.T) {
