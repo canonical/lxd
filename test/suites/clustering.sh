@@ -4192,7 +4192,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
-  sleep 1
+  sleep 0.1
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -4211,7 +4211,7 @@ test_clustering_events() {
     [ "$(grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "2" ]
   done
 
-  sleep 2 # Wait for notification heartbeat to distribute new roles.
+  sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
@@ -4221,7 +4221,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
-  sleep 1
+  sleep 0.1
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -4255,7 +4255,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
-  sleep 1
+  sleep 0.1
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -4268,7 +4268,7 @@ test_clustering_events() {
   LXD_DIR="${LXD_FOUR_DIR}" lxc cluster role add node4 event-hub
   LXD_DIR="${LXD_FIVE_DIR}" lxc cluster role add node5 event-hub
 
-  sleep 2 # Wait for notification heartbeat to distribute new roles.
+  sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
@@ -4282,13 +4282,13 @@ test_clustering_events() {
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
 
-  sleep 12
+  sleep 11
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls
 
   # Confirm that local operations are not blocked by having no event hubs running, but that events are not being
   # distributed.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
-  sleep 1
+  sleep 0.1
 
   [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node1.log")" = "7" ]
   for i in 2 3; do
