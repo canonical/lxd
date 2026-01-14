@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -210,17 +211,22 @@ func isHpeErrorNotFound(err error) bool {
 
 // request issues a HTTP request against Alletra Storage WSAPI.
 func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]any, reqHeaders map[string]string, respBody any, respHeaders map[string]string) error {
-	// Extract scheme and host from the gateway URL.
-	scheme, host, found := strings.Cut(p.url, "://")
-	if !found {
-		return fmt.Errorf("Invalid Alletra Storage WSAPI URL: %q", p.url)
+	gw := p.url
+	if !strings.Contains(gw, "://") {
+		return fmt.Errorf("Invalid Alletra Storage WSAPI URL %q: Missing protocol", gw)
 	}
 
-	// Set request URL scheme and host.
-	url.Scheme = scheme
-	url.Host = host
+	gwURL, err := url.Parse(gw)
+	if err != nil {
+		return fmt.Errorf("Failed to parse Pure Storage gateway URL %q: %w", gw, err)
+	}
 
-	var err error
+	url.Scheme = gwURL.Scheme
+	url.Host = gwURL.Host
+
+	// Prepand gateway path with the request path in case Pure Storage is served on a sub-path.
+	url.Path = path.Join(gwURL.Path, url.Path)
+
 	var reqBodyReader io.Reader
 
 	if reqBody != nil {
