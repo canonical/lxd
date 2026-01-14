@@ -1865,7 +1865,7 @@ test_clustering_shutdown_nodes() {
   wait "${daemon_pid3}"
 
   # Wait for raft election to take place and become aware that quorum has been lost (should take 3-6s).
-  sleep 10
+  sleep 7
 
   # Make sure the database is not available to the first node
   ! LXD_DIR="${LXD_ONE_DIR}" timeout -k 5 5 lxc cluster ls || false
