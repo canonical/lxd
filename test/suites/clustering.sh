@@ -410,7 +410,7 @@ test_clustering_containers() {
   echo "Shutdown node 2, wait for it to be considered offline, and list containers."
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 12
+  sleep 11
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c ns)" = "foo,ERROR" ]
 
   echo "For an instance on an offline member, we can get its config but not use recursion nor get instance state."
