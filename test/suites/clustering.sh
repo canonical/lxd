@@ -393,10 +393,11 @@ test_clustering_containers() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c sL egg)" = "RUNNING,node3" ]
   LXD_DIR="${LXD_TWO_DIR}" lxc stop -f egg
 
-  echo "Create backup and attempt to move container. Move should fail and container should remain on node1."
-  LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{"name":"foo"}' /1.0/instances/egg/backups
-  ! LXD_DIR="${LXD_THREE_DIR}" lxc move egg --target node2 || false
-  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
+  echo "Create backup that will make the instance impossible to move."
+  LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{"name":"eggroll"}' /1.0/instances/egg/backups
+  echo "Move should fail and container should remain on node3."
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" CLIENT_DEBUG="" SHELL_TRACING="" lxc move egg --target node2 2>&1)" = "Error: Migration API failure: Instance has backups" ]
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c nsL egg)" = "egg,STOPPED,node3" ]
 
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
 
