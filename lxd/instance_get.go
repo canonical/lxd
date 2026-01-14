@@ -76,6 +76,11 @@ import (
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: recursion
+//	    description: Recursion level (0, 1) or selective recursion ([state.disk,state.network])
+//	    type: string
+//	    example: 1
 //	responses:
 //	  "200":
 //	    description: Instance
