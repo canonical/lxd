@@ -3658,13 +3658,9 @@ test_clustering_edit_configuration() {
   daemon_pid=$(< "${LXD_SIX_DIR}/lxd.pid")
   kill -9 "${daemon_pid}" 2>/dev/null || true
 
-  config=$(mktemp -p "${TEST_DIR}" XXX)
   # Update the cluster configuration with new port numbers
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster show > "${config}"
-
   # lxd cluster edit generates ${LXD_DIR}/database/lxd_recovery_db.tar.gz
-  sed -e "s/:8443/:9393/" -i "${config}"
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster edit < "${config}"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster show | sed -e "s/:8443/:9393/" | LXD_DIR="${LXD_ONE_DIR}" lxd cluster edit
 
   for other_dir in "${LXD_TWO_DIR}" "${LXD_THREE_DIR}" "${LXD_FOUR_DIR}" "${LXD_FIVE_DIR}" "${LXD_SIX_DIR}"; do
     cp "${LXD_ONE_DIR}/database/lxd_recovery_db.tar.gz" "${other_dir}/database/"
