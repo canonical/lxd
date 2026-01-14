@@ -401,6 +401,42 @@ func (r *ProtocolLXD) GetInstancesFullWithFilter(instanceType api.InstanceType, 
 	return instances, nil
 }
 
+// GetInstancesFullWithFilterAndRecursion returns a filtered list of instances including snapshots, backups and selective state recursion.
+// The recursion parameter specifies the recursion level or selective fields (e.g., "2", "[state.disk,state.network]", "[]").
+// Use "[]" to fetch instance data without any expensive state fields.
+func (r *ProtocolLXD) GetInstancesFullWithFilterAndRecursion(instanceType api.InstanceType, filters []string, recursion string) ([]api.InstanceFull, error) {
+	err := r.CheckExtension("instances_state_selective_fields")
+	if err != nil {
+		return r.GetInstancesFullWithFilter(instanceType, filters)
+	}
+
+	instances := []api.InstanceFull{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set recursion parameter directly (e.g., "2", "[state.disk]", "[]").
+	v.Set("recursion", recursion)
+
+	if len(filters) > 0 {
+		err = r.CheckExtension("api_filtering")
+		if err != nil {
+			return nil, err
+		}
+
+		v.Set("filter", parseFilters(filters))
+	}
+
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
 // GetInstancesFullAllProjects returns a list of instances including snapshots, backups and state from all projects.
 func (r *ProtocolLXD) GetInstancesFullAllProjects(instanceType api.InstanceType) ([]api.InstanceFull, error) {
 	instances := []api.InstanceFull{}
@@ -461,6 +497,49 @@ func (r *ProtocolLXD) GetInstancesFullAllProjectsWithFilter(instanceType api.Ins
 	}
 
 	// Fetch the raw value
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
+// GetInstancesFullAllProjectsWithFilterAndRecursion returns a filtered list of instances from all projects including snapshots, backups and selective state recursion.
+// The recursion parameter specifies the recursion level or selective fields (e.g., "2", "[state.disk,state.network]", "[]").
+// Use "[]" to fetch instance data without any expensive state fields.
+func (r *ProtocolLXD) GetInstancesFullAllProjectsWithFilterAndRecursion(instanceType api.InstanceType, filters []string, recursion string) ([]api.InstanceFull, error) {
+	err := r.CheckExtension("instances_state_selective_fields")
+	if err != nil {
+		return r.GetInstancesFullAllProjectsWithFilter(instanceType, filters)
+	}
+
+	instances := []api.InstanceFull{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set recursion parameter directly (e.g., "2", "[state.disk]", "[]").
+	v.Set("recursion", recursion)
+
+	v.Set("all-projects", "true")
+
+	if len(filters) > 0 {
+		err = r.CheckExtension("api_filtering")
+		if err != nil {
+			return nil, err
+		}
+
+		v.Set("filter", parseFilters(filters))
+	}
+
+	err = r.CheckExtension("instance_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
 	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
