@@ -197,7 +197,7 @@ test_clustering_membership() {
   # detected as down.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 12
+  sleep 11
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -xF "status: Offline"
 
@@ -248,9 +248,9 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${cert}" 8 2 "${token_valid}"
 
   # This will cause the token to expire
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=2S
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=1S
   token_expired="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node9)"
-  sleep 2
+  sleep 1.1
 
   # Spawn a ninth node, using join token.
   ! spawn_lxd_and_join_cluster "${cert}" 9 2 "${token_expired}" || false
