@@ -3696,7 +3696,7 @@ test_clustering_edit_configuration() {
   LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
 
   # Let the heartbeats catch up
-  sleep 12
+  sleep 11
 
   # Sanity check of the automated backup
   # We can't check that the backup has the same files as even LXD_ONE_DIR, because
