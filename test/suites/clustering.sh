@@ -200,10 +200,10 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -xF "status: Offline"
 
   # Gracefully remove a node and check trust certificate is removed.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node4
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM identities WHERE type = 3 and name = "node4"')" = 1 ]
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node4
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node4 || false
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM identities WHERE type = 3 and name = "node4"')" = 0 ]
 
   # The node isn't clustered anymore.
@@ -214,20 +214,20 @@ test_clustering_membership() {
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node6)"
 
   # Check token is associated to correct name.
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 | grep "${token}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep -wF node6 | grep -wF "${token}"
 
   # Spawn a sixth node, using join token.
   spawn_lxd_and_join_cluster "${cert}" 6 2 "${token}"
 
   # Check token has been deleted after join.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep -wF node6 || false
 
   # Generate a join token for a seventh node
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node7)"
 
   # Check token is associated to correct name
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node7 | grep "${token}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep -wF node7 | grep -wF "${token}"
 
   # Revoke the token
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster revoke-token node7
@@ -1055,8 +1055,8 @@ test_clustering_network() {
 [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'")" = "node2,1" ]
 
   # Check interfaces are expected types (dummy on node1 and bridge on node2).
-  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep dummy
-  nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep bridge
+  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep -wF dummy
+  nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep -wF bridge
 
   # Check we cannot update network global config while in pending state on either node.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network set "${net}" ipv4.dhcp false || false
@@ -1065,19 +1065,19 @@ test_clustering_network() {
   # Check we can update node-specific config on the node that has been created (and that it is applied).
   nsenter -n -t "${LXD_PID2}" -- ip link add "ext-${net}" type dummy # Create dummy interface to add to bridge.
   LXD_DIR="${LXD_TWO_DIR}" lxc network set "${net}" bridge.external_interfaces "ext-${net}" --target node2
-  nsenter -n -t "${LXD_PID2}" -- ip link show "ext-${net}" | grep "master ${net}"
+  nsenter -n -t "${LXD_PID2}" -- ip link show "ext-${net}" | grep -wF "master ${net}"
 
   # Check we can update node-specific config on the node that hasn't been created (and that only DB is updated).
   nsenter -n -t "${LXD_PID1}" -- ip link add "ext-${net}" type dummy # Create dummy interface to add to bridge.
   nsenter -n -t "${LXD_PID1}" -- ip address add 192.0.2.1/32 dev "ext-${net}" # Add address to prevent attach.
   LXD_DIR="${LXD_ONE_DIR}" lxc network set "${net}" bridge.external_interfaces "ext-${net}" --target node1
-  ! nsenter -n -t "${LXD_PID1}" -- ip link show "ext-${net}" | grep "master ${net}" || false  # Don't expect to be attached.
+  ! nsenter -n -t "${LXD_PID1}" -- ip link show "ext-${net}" | grep -wF "master ${net}" || false  # Don't expect to be attached.
 
   # Delete partially created network and check nodes that were created are cleaned up.
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net}"
   ! nsenter -n -t "${LXD_PID2}" -- ip link show "${net}" || false # Check bridge is removed.
   nsenter -n -t "${LXD_PID2}" -- ip link show "ext-${net}" # Check external interface still exists.
-  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep dummy # Check node1 conflict still exists.
+  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep -wF dummy # Check node1 conflict still exists.
 
   # Create new partially created network and check we can fix it.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
@@ -1088,8 +1088,8 @@ test_clustering_network() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.dhcp=false || false # Check supplying global config on re-create is blocked.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" # Check re-create succeeds.
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Created # Check is created after fix.
-  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
-  nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
+  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep -wF bridge # Check bridge exists.
+  nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep -wF bridge # Check bridge exists.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64 || false # Check re-create is blocked after success.
 
   # Check both nodes marked created.
@@ -1131,10 +1131,10 @@ test_clustering_network() {
 
   # Check networks local to a cluster member show up when targeting that member
   # and hidden when targeting other cluster members. Setup is in includes/clustering.sh
-  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep localBridge1
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep localBridge2 || false
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep localBridge1 || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep localBridge2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep -wF localBridge1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep -wF localBridge2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep -wF localBridge1 || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep -wF localBridge2
 
   # Cleanup instances and image.
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3
@@ -1237,9 +1237,9 @@ test_clustering_heal_networks_stop() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=fd42:4242:4242:1010::1/64
 
   echo "Verify the network exists on all nodes"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network list -f csv | grep -c "${net}")" = "1" ]
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc network list -f csv | grep -c "${net}")" = "1" ]
-  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc network list -f csv | grep -c "${net}")" = "1" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network list -f csv | grep -cwF "${net}")" = "1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc network list -f csv | grep -cwF "${net}")" = "1" ]
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc network list -f csv | grep -cwF "${net}")" = "1" ]
 
   echo "Create network forward"
   LXD_DIR="${LXD_ONE_DIR}" lxc network forward create "${net}" 198.51.100.1
@@ -4176,7 +4176,7 @@ test_clustering_events() {
   # Check events were distributed.
   for i in 1 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "2" ]
+    [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "2" ]
   done
 
   # Switch into event-hub mode.
@@ -4187,7 +4187,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
-    [ "$(grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "2" ]
+    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "2" ]
   done
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
@@ -4205,14 +4205,14 @@ test_clustering_events() {
   # Check events were distributed.
   for i in 1 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "4" ]
+    [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "4" ]
   done
 
   # Launch container on node3 to check image distribution events work during event-hub mode.
   LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage c3 --target=node3
 
   for i in 1 2 3; do
-    [ "$(grep -Fc "instance-created" "${TEST_DIR}/node${i}.log")" = "1" ]
+    [ "$(grep -wFc "instance-created" "${TEST_DIR}/node${i}.log")" = "1" ]
   done
 
   # Switch into full-mesh mode by removing one event-hub role so there is <2 in the cluster.
@@ -4228,7 +4228,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
-    [ "$(grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "3" ]
+    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "3" ]
   done
 
   # Restart instance generating restart lifecycle event.
@@ -4239,7 +4239,7 @@ test_clustering_events() {
   # Check events were distributed.
   for i in 1 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
+    [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
   done
 
   # Switch back into event-hub mode by giving the role to node4 and node5.
@@ -4269,10 +4269,10 @@ test_clustering_events() {
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   sleep 0.1
 
-  [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node1.log")" = "7" ]
+  [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node1.log")" = "7" ]
   for i in 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
+    [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
   done
 
   # Kill monitors.
