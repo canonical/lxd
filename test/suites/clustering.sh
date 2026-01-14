@@ -4208,8 +4208,8 @@ test_clustering_events() {
     [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "4" ]
   done
 
-  # Launch container on node3 to check image distribution events work during event-hub mode.
-  LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage c3 --target=node3
+  # Init container on node3 to check image distribution events work during event-hub mode.
+  LXD_DIR="${LXD_THREE_DIR}" lxc init testimage c3 --target=node3
 
   for i in 1 2 3; do
     [ "$(grep -wFc "instance-created" "${TEST_DIR}/node${i}.log")" = "1" ]
@@ -4285,7 +4285,7 @@ test_clustering_events() {
   # `No active cluster event listener clients` and `Failed heartbeat`
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c2
-  LXD_DIR="${LXD_THREE_DIR}" lxc delete -f c3
+  LXD_DIR="${LXD_THREE_DIR}" lxc delete c3
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
