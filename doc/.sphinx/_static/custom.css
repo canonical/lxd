@@ -302,7 +302,8 @@ a {
     text-decoration: none;
 }
 
-a:hover, a:visited:hover {
+a:hover,
+a:visited:hover {
     text-decoration: underline;
 }
 
@@ -343,6 +344,14 @@ details summary {
    opacity: 0;
 }
 
+/* For sidebar documentation title, match text color and underline color on hover */
+.sidebar-brand:hover {
+    text-decoration-color: var(--color-sidebar-brand-text);
+}
+.sidebar-brand:visited:hover {
+    text-decoration-color: var(--color-sidebar-brand-text);
+}
+
 /* Mimicking the 'Give feedback' button for UX consistency */
 .sidebar-search-container input[type=submit] {
     color: #FFFFFF;
@@ -369,7 +378,9 @@ p code.literal {
     font-size: var(--admonition-font-size);
 }
 
-.highlight .s, .highlight .s1, .highlight .s2 {
+.highlight .s,
+.highlight .s1,
+.highlight .s2 {
     color: #3F8100;
 }
 
@@ -377,7 +388,9 @@ p code.literal {
     color: #BB5400;
 }
 
-.rubric > .hclass2, .rubric.hclass2 {
+/* Only relevant for specific PDF generation issues */
+
+.rubric>.hclass2 {
     display: block;
     font-size: 2em;
     border-radius: .5rem;
