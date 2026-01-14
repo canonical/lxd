@@ -147,7 +147,7 @@ type OperationArgs struct {
 
 // CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
 func CreateUserOperation(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
-	if requestor == nil || requestor.OriginAddress() == "" {
+	if requestor == nil {
 		return nil, errors.New("Cannot create user operation, the requestor must be set")
 	}
 
