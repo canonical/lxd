@@ -30,15 +30,28 @@ func DefaultStateRenderOptions() StateRenderOptions {
 	}
 }
 
-// ParseRecursionFields parses the recursion parameter and optional fields parameter,
+// ParseRecursionFields parses the recursion parameter with optional semicolon-separated fields,
 // returning the recursion level and state render options.
-// If fieldsStr is nil, default options (all fields) are returned.
-// If fieldsStr is non-nil but empty, no expensive fields are included.
-func ParseRecursionFields(recursionStr string, fieldsStr *string) (int, StateRenderOptions, error) {
+// Format: "2" or "2;fields=state.disk" or "2;fields=state.disk,state.network"
+// If no fields are specified, default options (all fields) are returned.
+func ParseRecursionFields(recursionStr string, fields []string) (int, StateRenderOptions, error) {
 	opts := DefaultStateRenderOptions()
 
 	if recursionStr == "" {
 		return 0, opts, nil
+	}
+
+	// Check if recursion string contains semicolon-separated fields
+	var fieldsStr string
+	usedSemicolonSyntax := strings.Contains(recursionStr, ";")
+
+	if usedSemicolonSyntax {
+		parts := strings.SplitN(recursionStr, ";", 2)
+		recursionStr = parts[0]
+
+		if len(parts) == 2 && strings.HasPrefix(parts[1], "fields=") {
+			fieldsStr = strings.TrimPrefix(parts[1], "fields=")
+		}
 	}
 
 	// Parse recursion level
@@ -47,21 +60,24 @@ func ParseRecursionFields(recursionStr string, fieldsStr *string) (int, StateRen
 		return 0, opts, fmt.Errorf("Invalid recursion value: %q", recursionStr)
 	}
 
-	// If no fields parameter provided, return default options (all fields)
-	if fieldsStr == nil {
+	// Determine which fields to use
+	var fieldsList []string
+
+	if usedSemicolonSyntax {
+		// Semicolon syntax was used
+		if fieldsStr != "" {
+			fieldsList = strings.Split(fieldsStr, ",")
+		}
+		// If fieldsStr is empty string (recursion=2;fields=), fieldsList remains nil/empty
+	} else if len(fields) > 0 {
+		// Separate fields parameter was used (backward compatibility)
+		fieldsList = fields
+	}
+
+	// If no fields specified, return default options (all fields)
+	if len(fieldsList) == 0 && !usedSemicolonSyntax {
 		return recursion, opts, nil
 	}
-
-	// Empty fields string means no expensive state fields
-	if *fieldsStr == "" {
-		return recursion, StateRenderOptions{
-			IncludeDisk:    false,
-			IncludeNetwork: false,
-		}, nil
-	}
-
-	// Parse comma-separated fields
-	fields := strings.Split(*fieldsStr, ",")
 
 	opts = StateRenderOptions{
 		IncludeDisk:    false,
@@ -73,7 +89,7 @@ func ParseRecursionFields(recursionStr string, fieldsStr *string) (int, StateRen
 		StateFieldNetwork: true,
 	}
 
-	for _, field := range fields {
+	for _, field := range fieldsList {
 		stateField := StateField(field)
 
 		if !validFields[stateField] {

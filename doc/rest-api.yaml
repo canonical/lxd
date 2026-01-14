@@ -12538,7 +12538,7 @@ paths:
 
                 recursion=1 also includes information about state, snapshots and backups.
 
-                Selective state field rendering is supported using the syntax:
+                Selective recursion is supported using bracket notation in the recursion parameter:
                 recursion=[state.disk,state.network] to fetch only specific state fields.
                 Valid fields are: state.disk, state.network.
                 Use recursion=[] to fetch instance data without any state fields.
