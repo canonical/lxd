@@ -3977,10 +3977,10 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	})
 
 	// Prevent adding or updating device initial configuration.
-	if shared.StringPrefixInSlice("initial.", allUpdatedKeys) {
+	if shared.StringPrefixInSlice(deviceConfig.ConfigInitialPrefix, allUpdatedKeys) {
 		for devName, newDev := range addDevices {
 			for k, newVal := range newDev {
-				if !strings.HasPrefix(k, "initial.") {
+				if !strings.HasPrefix(k, deviceConfig.ConfigInitialPrefix) {
 					continue
 				}
 
