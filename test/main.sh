@@ -208,8 +208,15 @@ readonly _LXC
 export _LXC
 
 # Set ulimit to ensure core dump is outputted.
-ulimit -c unlimited
-echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
+if ulimit -c unlimited 2>/dev/null; then
+  if [ -w /proc/sys/kernel/core_pattern ]; then
+    echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
+  else
+    echo "Skipping core_pattern setup (not writable in this container)"
+  fi
+else
+  echo "Skipping ulimit setup (operation not permitted in this container)"
+fi
 
 # Check for core dumps, ignoring qemu crashes (known issue)
 check_coredumps() {
