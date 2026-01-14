@@ -3210,30 +3210,23 @@ test_clustering_evacuation() {
 
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1 -c boot.host_shutdown_timeout=1
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node1 -c cluster.evacuate=auto -s pool1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c2 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node1 -c boot.host_shutdown_timeout=1 -c cluster.evacuate=auto -s pool1
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c3 --target=node1 -c cluster.evacuate=stop
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c3 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c3 --target=node1 -c boot.host_shutdown_timeout=1 -c cluster.evacuate=stop
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c4 --target=node1 -c cluster.evacuate=migrate -s pool1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c4 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c4 --target=node1 -c boot.host_shutdown_timeout=1 -c cluster.evacuate=migrate -s pool1
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c5 --target=node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c5 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c5 -c boot.host_shutdown_timeout=1 --target=node1
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c6 --target=node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c6 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c6 --target=node2 -c boot.host_shutdown_timeout=1
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create foo
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign node3 default,foo
 
-  echo 'Create c7 on node1 and manually set "volatile.cluster.group" to "foo" to test evacuation respects the group constraint.'
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c7 --target=node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c7 volatile.cluster.group foo
+  echo 'Create c7 on node1 with "volatile.cluster.group" set to "foo" to test evacuation respects the group constraint.'
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c7 --target=node1 -c volatile.cluster.group=foo
   [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc config get c7 volatile.cluster.group)" = "foo" ]
   # "volatile.cluster.group" is only checked during scheduling events (creation, migration, evacuation).
   # Expected: c7 created on node1.
