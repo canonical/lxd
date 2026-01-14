@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -192,6 +191,11 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //      name: all-projects
 //      description: Retrieve instances from all projects
 //      type: boolean
+//    - in: query
+//      name: recursion
+//      description: Recursion level (0, 1, 2)
+//      type: string
+//      example: 2
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -216,6 +220,8 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //            description: List of instances
 //            items:
 //              $ref: "#/definitions/InstanceFull"
+//    "400":
+//      $ref: "#/responses/BadRequest"
 //    "403":
 //      $ref: "#/responses/Forbidden"
 //    "500":
@@ -232,10 +238,10 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Parse the recursion field.
-	recursion, err := strconv.Atoi(r.FormValue("recursion"))
+	recursionStr := r.FormValue("recursion")
+	recursion, stateOpts, err := instance.ParseRecursionFields(recursionStr)
 	if err != nil {
-		recursion = 0
+		return response.BadRequest(err)
 	}
 
 	// Parse filter value.
@@ -461,7 +467,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 							continue
 						}
 
-						c, _, err := inst.RenderFull(hostInterfaces)
+						c, _, err := inst.RenderFull(hostInterfaces, stateOpts)
 						if err != nil {
 							resultErrListAppend(dbInst, err)
 						} else {
