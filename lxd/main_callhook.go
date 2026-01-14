@@ -131,6 +131,12 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 	// Updating the linker cache
 	l := len(hooks.LDCacheUpdates)
 	if l > 0 {
+		ldConfDirPath := filepath.Join(containerRootFSMount, "etc", "ld.so.conf.d")
+		err = os.MkdirAll(ldConfDirPath, 0755)
+		if err != nil {
+			return fmt.Errorf("Failed to create the linker conf directory at %q: %w\n", ldConfDirPath, err)
+		}
+
 		ldConfFilePath := containerRootFSMount + "/etc/ld.so.conf.d/" + customCDILinkerConfFile
 		_, err = os.Stat(ldConfFilePath)
 		if err == nil {
@@ -182,23 +188,24 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 		} else {
 			return fmt.Errorf("Could not stat the linker conf file to add CDI linker entries at %q: %w\n", ldConfFilePath, err)
 		}
-	}
 
-	// Then remove the linker cache and regenerate it
-	linkerCachePath := filepath.Join(containerRootFSMount, "/etc/ld.so.cache")
-	err = os.Remove(linkerCachePath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove the ld.so.cache file: %w\n", err)
+		// Then remove the linker cache and regenerate it
+		linkerCachePath := filepath.Join(containerRootFSMount, "etc", "ld.so.cache")
+		err = os.Remove(linkerCachePath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("Failed to remove the ld.so.cache file: %w\n", err)
+			}
+
+			fmt.Printf("Linker cache not found in %q, skipping removal\n", linkerCachePath)
 		}
 
-		fmt.Printf("Linker cache not found in %q, skipping removal\n", linkerCachePath)
-	}
-
-	// Run `ldconfig` on the HOST (but targeting the container rootFS) to reduce the risk of running untrusted code in the container.
-	err = exec.Command("/sbin/ldconfig", "-r", containerRootFSMount).Run()
-	if err != nil {
-		return fmt.Errorf("Failed to run ldconfig in the container rootfs: %w\n", err)
+		// Run `ldconfig` on the HOST (but targeting the container rootFS) to reduce the risk of running untrusted code in the container.
+		ldexec := exec.Command("/sbin/ldconfig", "-r", containerRootFSMount)
+		output, err := ldexec.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed to run ldconfig in the container rootfs: %w: %s", err, string(output))
+		}
 	}
 
 	return nil
