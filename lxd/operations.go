@@ -722,8 +722,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Merge with existing data.
-		for _, o := range ops {
-			op := o // Local var for pointer.
+		for _, op := range ops {
 			status := strings.ToLower(op.Status)
 
 			_, ok := md[status]
@@ -843,9 +842,7 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 			continue
 		}
 
-		for _, o := range remoteOps {
-			op := o // Local var for pointer.
-
+		for _, op := range remoteOps {
 			// Exclude remote operations that don't have the desired type.
 			if memberOps[memberAddress][op.ID].Type != opType {
 				continue
