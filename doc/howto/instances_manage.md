@@ -45,28 +45,30 @@ For example:
 
 See [`GET /1.0/instances`](swagger:/instances/instances_get) for more information.
 
-## Optimize queries with selective state fields
+## Optimize queries with selective recursion
 
-To improve performance when querying many instances, you can use the `fields` query parameter to selectively fetch only the state fields you need.
+To improve performance when querying many instances, you can use semicolon-separated syntax in the `recursion` parameter to selectively fetch only the state fields you need.
 This avoids expensive disk and network queries when they are not required.
 
 Fetch only disk usage information:
 
-    lxc query --request GET '/1.0/instances?recursion=2&fields=state.disk'
+    lxc query --request GET '/1.0/instances?recursion=2%3Bfields%3Dstate.disk'
 
 Fetch only network information:
 
-    lxc query --request GET '/1.0/instances?recursion=2&fields=state.network'
+    lxc query --request GET '/1.0/instances?recursion=2%3Bfields%3Dstate.network'
 
 Fetch both disk and network information:
 
-    lxc query --request GET '/1.0/instances?recursion=2&fields=state.disk,state.network'
+    lxc query --request GET '/1.0/instances?recursion=2%3Bfields%3Dstate.disk%2Cstate.network'
 
 Skip all expensive state fields (fastest option):
 
-    lxc query --request GET '/1.0/instances?recursion=2&fields='
+    lxc query --request GET '/1.0/instances?recursion=2%3Bfields%3D'
 
-This selective field syntax works with both `/1.0/instances` (list) and `/1.0/instances/{name}` (single instance) endpoints.
+Note: The semicolon (`;`), equals (`=`), and comma (`,`) must be URL-encoded as `%3B`, `%3D`, and `%2C` respectively.
+
+This selective recursion syntax works with both `/1.0/instances` (list) and `/1.0/instances/{name}` (single instance) endpoints.
 
 See {ref}`extension-instances-state-selective-recursion` for more information.
 ```

@@ -12549,7 +12549,7 @@ paths:
                   in: query
                   name: project
                   type: string
-                - description: Recursion level (0, 1) or selective fields ([state.disk,state.network])
+                - description: Recursion level (0, 1) or selective recursion ([state.disk,state.network])
                   example: 1
                   in: query
                   name: recursion
