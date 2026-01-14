@@ -462,3 +462,112 @@ run_images_public() {
   lxc project delete foo
   lxc image delete "${fingerprint}"
 }
+
+test_image_cached() {
+  echo "==> Test that images are being cached consistently between projects."
+
+  if lxc image alias list testimage | grep -wF "testimage"; then
+    lxc image delete testimage
+  fi
+
+  echo "==> Set up a local LXD server as an image remote."
+  local LXD2_DIR LXD2_ADDR
+  LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD2_DIR}" true
+  LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
+
+  echo "==> Use busybox image for testing."
+  LXD_DIR="${LXD2_DIR}" deps/import-busybox --alias testimage --public
+
+  token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
+  lxc remote add l2 "${LXD2_ADDR}" --token "${token}"
+
+  echo "==> Create a new instance in the default project with a remote image that is not stored locally."
+  lxc init l2:testimage c1
+
+  local fingerprint
+  fingerprint="$(lxc config get c1 volatile.base_image)"
+
+  echo "==> Delete the instance."
+  lxc delete c1
+
+  echo "==> Check that the locally saved image is marked as cached."
+  lxc image info "${fingerprint}" | grep -xF "Cached: yes"
+
+  echo "==> Explicitly copy the same remote image to local storage."
+  lxc image copy l2:testimage local:
+
+  echo "==> Check that the locally saved image is now marked as non-cached."
+  lxc image info "${fingerprint}" | grep -xF "Cached: no"
+
+  echo "==> Delete the local image."
+  lxc image delete "${fingerprint}"
+
+  echo "==> Create a new project p1. It has features.images=true by default."
+  defaultPoolName="$(lxc profile device get default root pool)"
+  lxc project create --storage "${defaultPoolName}" p1
+
+  echo "==> Create a new instance in the p1 project with a remote image that is not stored locally."
+  lxc init l2:testimage c1 --project p1
+
+  echo "==> Delete the instance."
+  lxc delete c1 --project p1
+
+  echo "==> Check that the locally saved image is marked as cached."
+  lxc image info "${fingerprint}" --project p1 | grep -xF "Cached: yes"
+
+  echo "==> Explicitly copy the same remote image to local storage."
+  lxc image copy l2:testimage local: --target-project p1
+
+  echo "==> Check that the locally saved image is now marked as non-cached."
+  lxc image info "${fingerprint}" --project p1 | grep -xF "Cached: no"
+
+  echo "==> Delete the local image."
+  lxc image delete "${fingerprint}" --project p1
+
+  echo "==> Set features.images=false for project p1."
+  lxc project set p1 features.images=false
+
+  echo "==> Create a new instance in the p1 project with a remote image that is not stored locally."
+  lxc init l2:testimage c1 --project p1
+
+  echo "==> Delete the instance."
+  lxc delete c1 --project p1
+
+  echo "==> Check that the locally saved image is marked as cached."
+  lxc image info "${fingerprint}" --project p1 | grep -xF "Cached: yes"
+
+  echo "==> Explicitly copy the same remote image to local storage."
+  lxc image copy l2:testimage local: --target-project p1
+
+  echo "==> Check that the locally saved image is now marked as non-cached."
+  lxc image info "${fingerprint}" --project p1 | grep -xF "Cached: no"
+
+  echo "==> Delete the local image."
+  lxc image delete "${fingerprint}" --project p1
+
+  echo "==> Set features.images=true for project p1."
+  lxc project set p1 features.images=true
+
+  echo "==> Create a new instance in the default project with a remote image that is not stored locally."
+  lxc init l2:testimage c1
+
+  echo "==> Delete the instance."
+  lxc delete c1
+
+  echo "==> Explicitly copy the same remote image to local storage in project p1."
+  lxc image copy l2:testimage local: --target-project p1
+
+  echo "==> Check that the locally saved image in the default project is marked as cached."
+  lxc image info "${fingerprint}" | grep -xF "Cached: yes"
+
+  echo "==> Check that the locally saved image in the p1 project is marked as non-cached."
+  lxc image info "${fingerprint}" --project p1 | grep -xF "Cached: no"
+
+  echo "==> Clean up."
+  lxc image delete "${fingerprint}" --project p1
+  lxc image delete "${fingerprint}"
+  lxc project delete p1
+  lxc remote remove l2
+  kill_lxd "${LXD2_DIR}"
+}
