@@ -2023,12 +2023,14 @@ func (d *Daemon) init() error {
 
 // requestorHook runs for all authenticated (trusted) client requests to the remote API or to the DevLXD API (via bearer auth).
 // It gets the identity by the authentication method (protocol) and identifier (username) and returns authorization details.
-func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (idType identity.Type, authGroups []string, mappedAuthGroups []string, projects []string, err error) {
+func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (identityID int, idType identity.Type, authGroups []string, mappedAuthGroups []string, projects []string, err error) {
 	err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(authenticationMethod), identifier)
 		if err != nil {
 			return fmt.Errorf("Failed to get identity: %w", err)
 		}
+
+		identityID = id.ID
 
 		idType, err = identity.New(string(id.Type))
 		if err != nil {
@@ -2077,10 +2079,10 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 		return nil
 	})
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return -1, nil, nil, nil, nil, err
 	}
 
-	return idType, authGroups, mappedAuthGroups, projects, nil
+	return identityID, idType, authGroups, mappedAuthGroups, projects, nil
 }
 
 func (d *Daemon) startClusterTasks() {
