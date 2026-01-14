@@ -1,5 +1,7 @@
 # LXD tests
 
+For a description of where and how LXD is tested, please refer to the [overview](./overview.md) document.
+
 ## How to run
 
 To run all tests, including the Go tests, run from repository root:
