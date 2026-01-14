@@ -49,6 +49,11 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
   ORDER BY operations.id, operations.uuid
 `)
 
+var operationCreate = RegisterStmt(`
+INSERT INTO operations (uuid, project_id, node_id, type)
+  VALUES (?, ?, ?, ?)
+`)
+
 var operationCreateOrReplace = RegisterStmt(`
 INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type)
  VALUES (?, ?, ?, ?)
@@ -223,6 +228,41 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 	}
 
 	return objects, nil
+}
+
+// CreateOperation adds a new operation to the database.
+// generator: operation Create
+func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
+	args := make([]any, 4)
+
+	// Populate the statement arguments.
+	args[0] = object.UUID
+	args[1] = object.ProjectID
+	args[2] = object.NodeID
+	args[3] = object.Type
+
+	// Prepared statement to use.
+	stmt, err := Stmt(tx, operationCreate)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get \"operationCreate\" prepared statement: %w", err)
+	}
+
+	// Execute the statement.
+	result, err := stmt.ExecContext(ctx, args...)
+	if err != nil {
+		if query.IsConflictErr(err) {
+			return -1, api.NewStatusError(http.StatusConflict, "This \"operations\" entry already exists")
+		}
+
+		return -1, fmt.Errorf("Failed to create \"operations\" entry: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return -1, fmt.Errorf("Failed to fetch \"operations\" entry ID: %w", err)
+	}
+
+	return id, nil
 }
 
 // CreateOrReplaceOperation adds a new operation to the database.
