@@ -16,7 +16,7 @@ import (
 
 // RequestorHook is the signature of a hook that is passed into calls to [SetRequestor].
 // This allows the caller to specify how to get authorization information about an identity that has successfully authenticated.
-type RequestorHook func(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (idType identity.Type, authGroups []string, effectiveAuthGroups []string, projects []string, err error)
+type RequestorHook func(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (identityID int, idType identity.Type, authGroups []string, effectiveAuthGroups []string, projects []string, err error)
 
 // RequestorArgs contains information that is gathered when the requestor is initially authenticated.
 type RequestorArgs struct {
@@ -51,6 +51,7 @@ type Requestor struct {
 	forwardedProtocol               string
 	forwardedIdentityProviderGroups []string
 	clientType                      ClientType
+	identityID                      int
 	authGroups                      []string
 	mappedAuthGroups                []string
 	projects                        []string
@@ -181,6 +182,12 @@ func (r *Requestor) CallerIdentityType() (identity.Type, error) {
 	return r.identityType, nil
 }
 
+// CallerIdentityID returns the database ID of the calling identity (it is always zero if the calling identity is using
+// an admin protocol - cluster, unix, pki).
+func (r *Requestor) CallerIdentityID() int {
+	return r.identityID
+}
+
 // IsForwarded returns true if the request was forwarded from another cluster member and false otherwise.
 func (r *Requestor) IsForwarded() bool {
 	return r.forwardedOriginAddress != ""
@@ -280,11 +287,12 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 	}
 
 	// Get the identity details.
-	idType, authGroups, mappedAuthGroups, projects, err := hook(ctx, method, r.CallerUsername(), r.CallerIdentityProviderGroups())
+	identityID, idType, authGroups, mappedAuthGroups, projects, err := hook(ctx, method, r.CallerUsername(), r.CallerIdentityProviderGroups())
 	if err != nil {
 		return fmt.Errorf("Failed to get identity details: %w", err)
 	}
 
+	r.identityID = identityID
 	r.identityType = idType
 	r.authGroups = authGroups
 	r.mappedAuthGroups = mappedAuthGroups
