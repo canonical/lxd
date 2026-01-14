@@ -2906,3 +2906,17 @@ The field is only included when a resource is being created asynchronously (oper
 For synchronous resource creation, clients should inspect the `Location` header.
 
 The `resources` field should no longer be relied upon for this information.
+
+(extension-instances-state-selective-fields)=
+## `instances_state_selective_fields`
+
+Adds support for selective recursion when querying instances.
+
+The API now supports bracket notation in the recursion parameter to specify which state fields to fetch:
+
+* `recursion=[state.disk]` - Fetch only disk information
+* `recursion=[state.network]` - Fetch only network information
+* `recursion=[state.disk,state.network]` - Fetch both
+* `recursion=[]` - Fetch no state fields
+
+The `lxc list` command automatically optimizes queries based on requested columns.
