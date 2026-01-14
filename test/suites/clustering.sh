@@ -2674,7 +2674,7 @@ test_clustering_rebalance() {
 
   # Wait for the second node to be considered offline and be replaced by the
   # fourth node.
-  sleep 15
+  sleep 11
 
   # The second node is offline and has been demoted.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Offline"
