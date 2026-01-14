@@ -1092,8 +1092,8 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 	return "", nil, nil
 }
 
-// Build an app.RolesChanges object feeded with the current cluster state.
-func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, unavailableMembers []string) (*app.RolesChanges, error) {
+// Build an [app.RolesChanges] object from the current cluster state and return a connectivity map keyed by member address.
+func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, unavailableMembers []string) (*app.RolesChanges, map[string]bool, error) {
 	var domains map[string]uint64
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
@@ -1106,13 +1106,16 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	cluster := map[client.NodeInfo]*client.NodeMetadata{}
+	connectivity := make(map[string]bool, len(nodes))
 
 	for _, node := range nodes {
-		if !slices.Contains(unavailableMembers, node.Address) && HasConnectivity(gateway.networkCert, gateway.state().ServerCert(), node.Address) {
+		connected := !slices.Contains(unavailableMembers, node.Address) && HasConnectivity(gateway.networkCert, gateway.state().ServerCert(), node.Address)
+		connectivity[node.Address] = connected
+		if connected {
 			cluster[node.NodeInfo] = &client.NodeMetadata{
 				FailureDomain: domains[node.Address],
 			}
@@ -1123,12 +1126,12 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 
 	maxVoters := state.GlobalConfig.MaxVoters()
 	if maxVoters > math.MaxInt {
-		return nil, errors.New("Cannot convert maximum voter nodes to int: Upper bound exceeded")
+		return nil, nil, errors.New("Cannot convert maximum voter nodes to int: Upper bound exceeded")
 	}
 
 	maxStandBy := state.GlobalConfig.MaxStandBy()
 	if maxStandBy > math.MaxInt {
-		return nil, errors.New("Cannot convert maximum standby nodes to int: Upper bound exceeded")
+		return nil, nil, errors.New("Cannot convert maximum standby nodes to int: Upper bound exceeded")
 	}
 
 	roles := &app.RolesChanges{
@@ -1139,7 +1142,7 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 		State: cluster,
 	}
 
-	return roles, nil
+	return roles, connectivity, nil
 }
 
 // Purge removes a node entirely from the cluster database.
