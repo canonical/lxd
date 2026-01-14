@@ -2818,7 +2818,7 @@ test_clustering_remove_raft_node() {
   fi
 
   # Let the heartbeats catch up.
-  sleep 12
+  sleep 11
 
   # The node does not appear anymore in the cluster list.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node2" || false
@@ -2837,7 +2837,7 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "100.64.1.102"
 
   # Wait for a heartbeat to propagate and a rebalance to be performed.
-  sleep 12
+  sleep 11
 
   # We're back to 3 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
