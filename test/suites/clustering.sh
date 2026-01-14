@@ -805,7 +805,7 @@ test_clustering_storage() {
     # Shutdown node 3, and wait for it to be considered offline.
     LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
     LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-    sleep 12
+    sleep 11
 
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
