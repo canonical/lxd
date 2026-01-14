@@ -52,7 +52,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			return err
 		}
 
-		return fmt.Errorf("failed to add %q Operation %s to database: %w", opType.Description(), op.id, err)
+		return fmt.Errorf("Failed adding %q Operation %s to database: %w", opType.Description(), op.id, err)
 	}
 
 	return nil
