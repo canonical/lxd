@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -491,11 +491,41 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 
 		serverFilters, clientFilters := getServerSupportedFilters(filters, api.InstanceFull{})
 
-		if c.flagAllProjects {
-			instances, err = d.GetInstancesFullAllProjectsWithFilter(api.InstanceTypeAny, serverFilters)
-		} else {
-			instances, err = d.GetInstancesFullWithFilter(api.InstanceTypeAny, serverFilters)
+		// Determine which state fields are needed based on requested columns.
+		var recursionFields []string
+		if d.HasExtension("instances_state_selective_recursion") {
+			needsDisk := false
+			needsNetwork := false
+
+			for _, col := range columns {
+				if col.NeedsState {
+					// Check if this column needs disk or network data
+					// by looking at the column name
+					switch col.Name {
+					case "D", "DISK USAGE":
+						needsDisk = true
+					case "4", "6", "IPV4", "IPV6":
+						needsNetwork = true
+					}
+				}
+			}
+
+			if needsDisk {
+				recursionFields = append(recursionFields, "state.disk")
+			}
+
+			if needsNetwork {
+				recursionFields = append(recursionFields, "state.network")
+			}
 		}
+
+		// Use the unified GetInstancesFull API.
+		instances, err = d.GetInstancesFull(lxd.GetInstancesFullArgs{
+			InstanceType: api.InstanceTypeAny,
+			Filters:      serverFilters,
+			AllProjects:  c.flagAllProjects,
+			Fields:       recursionFields,
+		})
 
 		if err != nil {
 			return err

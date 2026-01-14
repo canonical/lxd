@@ -345,117 +345,71 @@ func (r *ProtocolLXD) RebuildInstance(instanceName string, instance api.Instance
 	return r.rebuildInstance(instanceName, instance)
 }
 
+// GetInstancesFullArgs represents the arguments for GetInstancesFull.
+type GetInstancesFullArgs struct {
+	// InstanceType filters instances by type (container, virtual-machine, or any).
+	InstanceType api.InstanceType
+
+	// Filters is a list of filter expressions to apply (requires api_filtering extension).
+	Filters []string
+
+	// AllProjects indicates whether to query instances from all projects (requires instance_all_projects extension).
+	AllProjects bool
+
+	// Fields specifies which state fields to fetch (requires instances_state_selective_recursion extension).
+	// Examples: []string{"state.disk"}, []string{"state.network"}, []string{"state.disk", "state.network"}.
+	// If nil or empty, fetches all fields (default behavior).
+	Fields []string
+}
+
 // GetInstancesFull returns a list of instances including snapshots, backups and state.
-func (r *ProtocolLXD) GetInstancesFull(instanceType api.InstanceType) ([]api.InstanceFull, error) {
+func (r *ProtocolLXD) GetInstancesFull(args GetInstancesFullArgs) ([]api.InstanceFull, error) {
 	instances := []api.InstanceFull{}
 
-	path, v, err := r.instanceTypeToPath(instanceType)
+	path, v, err := r.instanceTypeToPath(args.InstanceType)
 	if err != nil {
 		return nil, err
 	}
 
-	v.Set("recursion", "2")
+	// Set recursion level with optional fields
+	recursionValue := "2"
 
+	// Handle selective fields if specified
+	if len(args.Fields) > 0 {
+		err = r.CheckExtension("instances_state_selective_recursion")
+		if err == nil {
+			// Use selective recursion if extension is available
+			// Format: recursion=2;fields=state.disk,state.network
+			fieldsStr := strings.Join(args.Fields, ",")
+			recursionValue = "2;fields=" + fieldsStr
+		}
+		// If extension not available, fall back to regular recursion (all fields)
+	}
+
+	v.Set("recursion", recursionValue)
+
+	// Handle all-projects
+	if args.AllProjects {
+		err = r.CheckExtension("instance_all_projects")
+		if err != nil {
+			return nil, err
+		}
+
+		v.Set("all-projects", "true")
+	}
+
+	// Handle filters
+	if len(args.Filters) > 0 {
+		err = r.CheckExtension("api_filtering")
+		if err != nil {
+			return nil, err
+		}
+
+		v.Set("filter", parseFilters(args.Filters))
+	}
+
+	// Check for container_full extension
 	err = r.CheckExtension("container_full")
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch the raw value
-	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
-	if err != nil {
-		return nil, err
-	}
-
-	return instances, nil
-}
-
-// GetInstancesFullWithFilter returns a filtered list of instances including snapshots, backups and state.
-func (r *ProtocolLXD) GetInstancesFullWithFilter(instanceType api.InstanceType, filters []string) ([]api.InstanceFull, error) {
-	err := r.CheckExtension("api_filtering")
-	if err != nil {
-		return nil, err
-	}
-
-	instances := []api.InstanceFull{}
-
-	path, v, err := r.instanceTypeToPath(instanceType)
-	if err != nil {
-		return nil, err
-	}
-
-	v.Set("recursion", "2")
-	v.Set("filter", parseFilters(filters))
-
-	err = r.CheckExtension("container_full")
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch the raw value
-	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
-	if err != nil {
-		return nil, err
-	}
-
-	return instances, nil
-}
-
-// GetInstancesFullAllProjects returns a list of instances including snapshots, backups and state from all projects.
-func (r *ProtocolLXD) GetInstancesFullAllProjects(instanceType api.InstanceType) ([]api.InstanceFull, error) {
-	instances := []api.InstanceFull{}
-
-	path, v, err := r.instanceTypeToPath(instanceType)
-	if err != nil {
-		return nil, err
-	}
-
-	v.Set("recursion", "2")
-	v.Set("all-projects", "true")
-
-	err = r.CheckExtension("container_full")
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.CheckExtension("instance_all_projects")
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch the raw value
-	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
-	if err != nil {
-		return nil, err
-	}
-
-	return instances, nil
-}
-
-// GetInstancesFullAllProjectsWithFilter returns a filtered list of instances including snapshots, backups and state from all projects.
-func (r *ProtocolLXD) GetInstancesFullAllProjectsWithFilter(instanceType api.InstanceType, filters []string) ([]api.InstanceFull, error) {
-	err := r.CheckExtension("api_filtering")
-	if err != nil {
-		return nil, err
-	}
-
-	instances := []api.InstanceFull{}
-
-	path, v, err := r.instanceTypeToPath(instanceType)
-	if err != nil {
-		return nil, err
-	}
-
-	v.Set("recursion", "2")
-	v.Set("all-projects", "true")
-	v.Set("filter", parseFilters(filters))
-
-	err = r.CheckExtension("container_full")
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.CheckExtension("instance_all_projects")
 	if err != nil {
 		return nil, err
 	}
