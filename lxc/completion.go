@@ -934,7 +934,9 @@ func (g *cmdGlobal) cmpNetworkForwardPortTargetAddresses(networkName string, lis
 	}
 
 	resource := resources[0]
-	instances, err := resource.server.GetInstancesFull(api.InstanceTypeAny)
+	instances, err := resource.server.GetInstancesFull(lxd.GetInstancesFullArgs{
+		InstanceType: api.InstanceTypeAny,
+	})
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
