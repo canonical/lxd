@@ -1,6 +1,7 @@
 canonical-sphinx-extensions
 
-myst-parser
+# External extensions
+myst-parser==4.0.1
 sphinx-autobuild
 sphinx-design
 sphinx-notfound-page
