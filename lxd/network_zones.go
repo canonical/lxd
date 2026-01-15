@@ -272,9 +272,9 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			var netzone zone.NetworkZone
 			if !allProjects {
-				netzone, err = zone.LoadByNameAndProject(s, effectiveProjectName, zoneName)
+				netzone, err = zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, zoneName)
 			} else {
-				netzone, err = zone.LoadByNameAndProject(s, projectName, zoneName)
+				netzone, err = zone.LoadByNameAndProject(r.Context(), s, projectName, zoneName)
 			}
 
 			if err != nil {
@@ -282,7 +282,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			netzoneInfo := netzone.Info()
-			netzoneInfo.UsedBy, _ = netzone.UsedBy() // Ignore errors in UsedBy, will return nil.
+			netzoneInfo.UsedBy, _ = netzone.UsedBy(r.Context()) // Ignore errors in UsedBy, will return nil.
 			netzoneInfo.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, netzoneInfo.UsedBy)
 			netzoneInfo.Project = projectName
 
@@ -354,17 +354,17 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Create the zone.
-	err = zone.Exists(s, req.Name)
+	err = zone.Exists(r.Context(), s, req.Name)
 	if err == nil {
 		return response.BadRequest(errors.New("The network zone already exists"))
 	}
 
-	err = zone.Create(s, projectName, &req)
+	err = zone.Create(r.Context(), s, projectName, &req)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	netzone, err := zone.LoadByNameAndProject(s, projectName, req.Name)
+	netzone, err := zone.LoadByNameAndProject(r.Context(), s, projectName, req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -422,12 +422,12 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkZoneDelete deletes the named network zone in the given project.
 func doNetworkZoneDelete(ctx context.Context, s *state.State, zoneName string, projectName string) error {
-	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(ctx, s, projectName, zoneName)
 	if err != nil {
 		return err
 	}
 
-	err = netzone.Delete()
+	err = netzone.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed deleting network zone %q: %w", zoneName, err)
 	}
@@ -495,13 +495,13 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
+	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	info := netzone.Info()
-	info.UsedBy, err = netzone.UsedBy()
+	info.UsedBy, err = netzone.UsedBy(r.Context())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -601,7 +601,7 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing Network zone.
-	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
+	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
