@@ -1096,9 +1096,6 @@ run_projects_restrictions() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
   lxc profile device add local:default root disk path="/" pool="${pool}"
 
-  ensure_import_testimage
-  fingerprint="$(lxc image list -f csv -c F testimage)"
-
   # Add a volume.
   lxc storage volume create "local:${pool}" "v-proj$$"
 
@@ -1107,19 +1104,19 @@ run_projects_restrictions() {
 
   # It's not possible to create nested containers.
   ! lxc profile set default security.nesting=true || false
-  ! lxc init testimage c1 -c security.nesting=true || false
+  ! lxc init --empty c1 -c security.nesting=true || false
 
   # It's not possible to use forbidden low-level options
   ! lxc profile set default "raw.idmap=both 0 0" || false
-  ! lxc init testimage c1 -c "raw.idmap=both 0 0" || false
-  ! lxc init testimage c1 -c volatile.uuid="foo" || false
+  ! lxc init --empty c1 -c "raw.idmap=both 0 0" || false
+  ! lxc init --empty c1 -c volatile.uuid="$(< /proc/sys/kernel/random/uuid)" || false
 
   # It's not possible to create privileged containers.
   ! lxc profile set default security.privileged=true || false
-  ! lxc init testimage c1 -c security.privileged=true || false
+  ! lxc init --empty c1 -c security.privileged=true || false
 
   # It's possible to create non-isolated containers.
-  lxc init testimage c1 -c security.idmap.isolated=false -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -c security.idmap.isolated=false -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to change low-level options
   ! lxc config set c1 "raw.idmap=both 0 0" || false
@@ -1193,7 +1190,7 @@ run_projects_restrictions() {
   # Setting restricted.containers.nesting to 'allow' makes it possible to create
   # nested containers.
   lxc project set local:p1 restricted.containers.nesting=allow
-  lxc init testimage c1 -c security.nesting=true -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -c security.nesting=true -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to set restricted.containers.nesting back to 'block',
   # because there's an instance with security.nesting=true.
@@ -1204,7 +1201,7 @@ run_projects_restrictions() {
   # Setting restricted.containers.lowlevel to 'allow' makes it possible to set
   # low-level options.
   lxc project set local:p1 restricted.containers.lowlevel=allow
-  lxc init testimage c1 -c "raw.idmap=both 0 0" -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -c "raw.idmap=both 0 0" -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to set restricted.containers.lowlevel back to 'block',
   # because there's an instance with raw.idmap set.
@@ -1215,7 +1212,7 @@ run_projects_restrictions() {
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
   # privileged containers.
   lxc project set local:p1 restricted.containers.privilege=allow
-  lxc init testimage c1 -c security.privileged=true -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -c security.privileged=true -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to set restricted.containers.privilege back to
   # 'unprivileged', because there's an instance with security.privileged=true.
@@ -1250,8 +1247,6 @@ run_projects_restrictions() {
 
   echo "==> Clean up the instance."
   lxc delete v1
-
-  lxc image delete testimage
 
   lxc profile device remove local:default root
   lxc project switch default || true
