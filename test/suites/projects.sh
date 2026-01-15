@@ -1082,8 +1082,8 @@ run_projects_restrictions() {
   ! lxc network info "${netManaged}" || false
   ! lxc network delete "${netManaged}" || false
 
-  ! lxc profile device add default eth0 nic nictype=bridge parent=netManaged || false
-  ! lxc profile device add default eth0 nic nictype=bridge parent=netUnmanaged || false
+  ! lxc profile device add default eth0 nic nictype=bridge parent="${netManaged}" || false
+  ! lxc profile device add default eth0 nic nictype=bridge parent="${netUnmanaged}" || false
 
   ip link delete "${netUnmanaged}"
 
