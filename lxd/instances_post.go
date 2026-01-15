@@ -620,7 +620,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 	for key, value := range sourceDevices {
 		_, exists := req.Devices[key]
 		if exists {
-			continue
+			continue // Request has overridden this device.
 		}
 
 		req.Devices[key] = value
