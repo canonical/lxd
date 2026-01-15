@@ -3165,6 +3165,23 @@ test_clustering_image_refresh() {
 }
 
 test_clustering_evacuation() {
+  wait_for_evacuation_op() {
+    local lxd_dir="$1"
+    local delay max_attempts i
+    delay=0.2
+    max_attempts=60
+
+    for i in $(seq "${max_attempts}"); do
+      if ! LXD_DIR="${lxd_dir}" lxc operation list --format csv | grep -F "Evacuating cluster member" >/dev/null; then
+        return 0
+      fi
+
+      sleep "${delay}"
+    done
+
+    echo "Evacuation operation still present after ${i} attempts (~${delay}s interval)"
+    return 1
+  }
   echo "Create cluster with 3 nodes"
 
   # The random storage backend is not supported in clustering tests,
@@ -3287,6 +3304,8 @@ test_clustering_evacuation() {
   # c7 should stay on the node it was already on
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,${c7_location}" ]
 
+  wait_for_evacuation_op "${LXD_TWO_DIR}"
+
   # Now test a full restore for comparison
   echo 'Evacuate node1 again'
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
@@ -3383,6 +3402,8 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set evac-c2 placement.group pg-evac-compact-strict
   LXD_DIR="${LXD_ONE_DIR}" lxc config set evac-c3 placement.group pg-evac-compact-strict
 
+  wait_for_evacuation_op "${LXD_ONE_DIR}"
+
   echo "Evacuating..."
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
 
@@ -3412,6 +3433,8 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set evac-c1 placement.group pg-evac-spread-permissive
   LXD_DIR="${LXD_ONE_DIR}" lxc config set evac-c2 placement.group pg-evac-spread-permissive
   LXD_DIR="${LXD_ONE_DIR}" lxc config set evac-c3 placement.group pg-evac-spread-permissive
+
+  wait_for_evacuation_op "${LXD_ONE_DIR}"
 
   echo "Evacuating..."
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
@@ -3446,6 +3469,8 @@ test_clustering_evacuation() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-c1)" = "node1" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-c2)" = "node1" ]
 
+  wait_for_evacuation_op "${LXD_ONE_DIR}"
+
   echo "Evacuating..."
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
 
@@ -3470,6 +3495,8 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4a -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4b -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4c -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate --target node1
+
+  wait_for_evacuation_op "${LXD_ONE_DIR}"
 
   echo "Evacuating..."
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
