@@ -97,7 +97,7 @@ This means that you can access the VM through the console before the `lxd-agent`
 
 ````{tabs}
 ```{group-tab} CLI
-To start the VGA console with graphical output for your VM, you must install a SPICE client (for example, `virt-viewer` or `spice-gtk-client`).
+To start the VGA console with graphical output for your VM, you must install a SPICE client (for example, `virt-viewer` or `spice-client-gtk`).
 Then enter the following command:
 
     lxc console <vm_name> --type vga
