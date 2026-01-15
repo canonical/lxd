@@ -997,41 +997,41 @@ run_projects_restrictions() {
   fi
 
   # Check with restricted unset and restricted.devices.nic unset that managed & unmanaged networks are accessible.
-  lxc network list | grep -F "${netManaged}"
-  lxc network list | grep -F "${netUnmanaged}"
+  lxc network list | grep -wF "${netManaged}"
+  lxc network list | grep -wF "${netUnmanaged}"
   lxc network show "${netManaged}"
   lxc network show "${netUnmanaged}"
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
-    lxc network list --all-projects | grep -F "${netManaged}"
-    lxc network list --all-projects | grep -F "${netUnmanaged}"
+    lxc network list --all-projects | grep -wF "${netManaged}"
+    lxc network list --all-projects | grep -wF "${netUnmanaged}"
   else
     ! lxc network list --all-projects || false
   fi
 
   # Check with restricted unset and restricted.devices.nic=block that managed & unmanaged networks are accessible.
   lxc project set local:p1 restricted.devices.nic=block
-  lxc network list | grep -F "${netManaged}"
-  lxc network list | grep -F "${netUnmanaged}"
+  lxc network list | grep -wF "${netManaged}"
+  lxc network list | grep -wF "${netUnmanaged}"
   lxc network show "${netManaged}"
   lxc network show "${netUnmanaged}"
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
-    lxc network list --all-projects | grep -F "${netManaged}"
-    lxc network list --all-projects | grep -F "${netUnmanaged}"
+    lxc network list --all-projects | grep -wF "${netManaged}"
+    lxc network list --all-projects | grep -wF "${netUnmanaged}"
   else
     ! lxc network list --all-projects || false
   fi
 
   # Check with restricted=true and restricted.devices.nic=block that managed & unmanaged networks are inaccessible.
   lxc project set local:p1 restricted=true
-  ! lxc network list | grep -F "${netManaged}"|| false
+  ! lxc network list | grep -wF "${netManaged}"|| false
   ! lxc network show "${netManaged}" || false
-  ! lxc network list | grep -F "${netUnmanaged}"|| false
+  ! lxc network list | grep -wF "${netUnmanaged}"|| false
   ! lxc network show "${netUnmanaged}" || false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     # Can view when performing an --all-projects request because the network is actually defined in the default project,
     # and the default project is not restricted.
-    lxc network list --all-projects | grep -F "${netManaged}"
-    lxc network list --all-projects | grep -F "${netUnmanaged}"
+    lxc network list --all-projects | grep -wF "${netManaged}"
+    lxc network list --all-projects | grep -wF "${netUnmanaged}"
   else
     ! lxc network list --all-projects || false
   fi
@@ -1039,14 +1039,14 @@ run_projects_restrictions() {
   # Check with restricted=true and restricted.devices.nic=managed that managed networks are accessible and that
   # unmanaged networks are inaccessible.
   lxc project set local:p1 restricted.devices.nic=managed
-  lxc network list | grep -F "${netManaged}"
+  lxc network list | grep -wF "${netManaged}"
   lxc network show "${netManaged}"
-  ! lxc network list | grep -F "${netUnmanaged}"|| false
+  ! lxc network list | grep -wF "${netUnmanaged}"|| false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     # Can view when performing an --all-projects request because the network is actually defined in the default project,
     # and the default project is not restricted.
-    lxc network list --all-projects | grep -F "${netManaged}"
-    lxc network list --all-projects | grep -F "${netUnmanaged}"
+    lxc network list --all-projects | grep -wF "${netManaged}"
+    lxc network list --all-projects | grep -wF "${netUnmanaged}"
   else
     ! lxc network list --all-projects || false
   fi
@@ -1055,18 +1055,18 @@ run_projects_restrictions() {
   # managed and unmanaged ones that they are inaccessible.
   lxc project set local:p1 restricted.devices.nic=allow
   lxc project set local:p1 restricted.networks.access=foo
-  ! lxc network list | grep -F "${netManaged}"|| false
+  ! lxc network list | grep -wF "${netManaged}"|| false
   ! lxc network show "${netManaged}" || false
   ! lxc network info "${netManaged}" || false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     # Can view when performing an --all-projects request because the network is actually defined in the default project,
     # and the default project is not restricted.
-    lxc network list --all-projects | grep -F "${netManaged}"
+    lxc network list --all-projects | grep -wF "${netManaged}"
   else
     ! lxc network list --all-projects || false
   fi
 
-  ! lxc network list | grep -F "${netUnmanaged}"|| false
+  ! lxc network list | grep -wF "${netUnmanaged}"|| false
   ! lxc network show "${netUnmanaged}" || false
   ! lxc network info "${netUnmanaged}" || false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
