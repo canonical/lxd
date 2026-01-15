@@ -862,6 +862,7 @@ _backup_volume_export_with_project() {
   # Change the content (the snapshot will contain the old value).
   echo bar | lxc file push - c1/mnt/test
   LXC_LOCAL='' lxc_remote exec c1 -- sync /mnt/test
+  lxc stop -f c1
 
   lxc storage volume set "${custom_vol_pool}" testvol user.foo=test-snap1
   lxc storage volume snapshot "${custom_vol_pool}" testvol test-snap1
@@ -959,7 +960,6 @@ _backup_volume_export_with_project() {
   old_snap1_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)"
 
   # Test non-optimized import.
-  lxc stop -f c1
   lxc storage volume detach "${custom_vol_pool}" testvol c1
   lxc storage volume delete "${custom_vol_pool}" testvol
   lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz"
