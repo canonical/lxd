@@ -1749,7 +1749,7 @@ func (d *Daemon) init() error {
 	// Setup DNS listener.
 	d.dns = dns.NewServer(d.db.Cluster, func(name string, full bool) (*dns.Zone, error) {
 		// Fetch the zone.
-		zone, err := networkZone.LoadByName(d.State(), name)
+		zone, err := networkZone.LoadByName(d.shutdownCtx, d.State(), name)
 		if err != nil {
 			return nil, err
 		}
@@ -1762,7 +1762,7 @@ func (d *Daemon) init() error {
 
 		if full {
 			// Full content was requested.
-			zoneBuilder, err := zone.Content()
+			zoneBuilder, err := zone.Content(d.shutdownCtx)
 			if err != nil {
 				logger.Errorf("Failed to render DNS zone %q: %v", name, err)
 				return nil, err

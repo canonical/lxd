@@ -146,13 +146,13 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
+	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the records.
-	records, err := netzone.GetRecords()
+	records, err := netzone.GetRecords(r.Context())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -220,7 +220,7 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
+	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -233,7 +233,7 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Create the record.
-	err = netzone.AddRecord(req)
+	err = netzone.AddRecord(r.Context(), req)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -287,13 +287,13 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
+	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Delete the record.
-	err = netzone.DeleteRecord(recordName)
+	err = netzone.DeleteRecord(r.Context(), recordName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -362,13 +362,13 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
+	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the record.
-	record, err := netzone.GetRecord(recordName)
+	record, err := netzone.GetRecord(r.Context(), recordName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -464,13 +464,13 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
+	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the record.
-	record, err := netzone.GetRecord(recordName)
+	record, err := netzone.GetRecord(r.Context(), recordName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -499,12 +499,7 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = netzone.UpdateRecord(recordName, req, requestor.ClientType())
+	err = netzone.UpdateRecord(r.Context(), recordName, req)
 	if err != nil {
 		return response.SmartError(err)
 	}
