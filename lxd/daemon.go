@@ -2467,6 +2467,9 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 	// Look for time skews.
 	now := time.Now().UTC()
 
+	// We just received a heartbeat! Take that into account.
+	d.gateway.HeartbeatReceived()
+
 	if hbData.Time.Add(5*time.Second).Before(now) || hbData.Time.Add(-5*time.Second).After(now) {
 		if !d.timeSkew {
 			logger.Warn("Time skew detected between leader and local", logger.Ctx{"leaderTime": hbData.Time, "localTime": now})

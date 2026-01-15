@@ -304,6 +304,42 @@ func (g *Gateway) HeartbeatRestart() bool {
 	return false
 }
 
+func (g *Gateway) cancelDurableOperationsIfHeartbeatNotReceived(ctx context.Context, duration time.Duration) {
+	select {
+	case <-time.After(duration):
+		// Heartbeat not received in time, cancel durable operations.
+		logger.Error("Heartbeat not received in time, cancelling durable operations")
+		operations.CancelLocalDurableOperations()
+	case <-ctx.Done():
+		// Heartbeat received in time, nothing to do.
+	}
+}
+
+// HeartbeatReceived is called when a heartbeat is received on this node.
+// It resets the heartbeat detection timer.
+func (g *Gateway) HeartbeatReceived() {
+	g.heartbeatDetectionCancellerLock.Lock()
+	if g.heartbeatDetectionCanceller != nil {
+		g.heartbeatDetectionCanceller()
+	}
+
+	// Setup the new heartbeat detection context.
+	heartbeatDetectionCtx, cancel := context.WithCancel(g.shutdownCtx)
+	g.heartbeatDetectionCanceller = cancel
+	g.heartbeatDetectionCancellerLock.Unlock()
+
+	// The heartbeats round is send at least each gateway.heartbeatInterval() seconds.
+	// The heartbeats send to each node are evenly distributed in an interval <0, gateway.heartbeatInterval() - 3s) to distribute the load across the cluster.
+	// Each node then has up to 2s to respond to the heartbeat, and another 1s for the HTTP client to get more useful info.
+	// While the heartbeats are sent to the nodes in order of the node IDs, the heartbeat to a specific node can be sent at an arbitrary time in the interval,
+	// in case when other nodes have been removed from the cluster (or new nodes were added with higher IDs) and thus the node distribution has changed.
+	// So we must assume the upper limit of when a heartbeat can be sent to a specific node is the full heartbeat interval.
+	// All together this is 2*gateway.heartbeatInterval(), so that's the duration we wait before considering that we have not received a heartbeat.
+	nextHeartbeatTimeout := 2 * g.heartbeatInterval()
+
+	go g.cancelDurableOperationsIfHeartbeatNotReceived(heartbeatDetectionCtx, nextHeartbeatTimeout)
+}
+
 func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// Avoid concurent heartbeat loops.
 	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
@@ -314,6 +350,19 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
 		// We're not a raft node or we're not clustered
 		return
+	}
+
+	isLeader, err := g.isLeader()
+	if err != nil {
+		logger.Warn("Failed to determine if node is leader", logger.Ctx{"err": err})
+	}
+
+	// If we're a leader, we are not going to send heartbeats to ourselves.
+	// So just record like that we have received one.
+	// This is useful if we started as a leader, but later we lost connection to the rest of the cluster, and therefore we lost leadership.
+	// In such case we should have a heartbeat detection enabled and cancel durable operations if heartbeats don't arrive in time.
+	if isLeader {
+		g.HeartbeatReceived()
 	}
 
 	// Acquire the cancellation lock and populate it so that this heartbeat round can be cancelled if a

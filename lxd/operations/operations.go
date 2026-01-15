@@ -119,6 +119,10 @@ type Operation struct {
 	// It is cancelled when the onRun hook completes or when Cancel is called (on operation deletion).
 	running cancel.Canceller
 
+	// heartbeatMissed is set to true if the heartbeat was not received on this node.
+	// In such case we stop all the durable operations running on this node, these will be restarted on the cluster leader.
+	heartbeatMissed bool
+
 	// Locking for concurent access to the Operation
 	lock sync.Mutex
 
@@ -522,6 +526,27 @@ func (op *Operation) Start() error {
 
 				op.err = err
 
+				// If the durable operation was cancelled locally because of missed heartbeat,
+				// we only clear it from the local operations map and leave the database record intact.
+				if errors.Is(err, context.Canceled) && op.heartbeatMissed {
+					// Mark the operation as finished. running context is already cancelled.
+					op.status = api.Cancelled
+					op.finished.Cancel()
+					op.lock.Unlock()
+
+					// Remove the operation from the local operations map.
+					operationsLock.Lock()
+					_, ok := operations[op.id]
+					if !ok {
+						operationsLock.Unlock()
+						return
+					}
+
+					delete(operations, op.id)
+					operationsLock.Unlock()
+					return
+				}
+
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
 					updateStatus(op, api.Cancelled)
@@ -636,6 +661,43 @@ func (op *Operation) Cancel() {
 	if op.onRun == nil {
 		op.done()
 	}
+}
+
+// CancelLocalDurableOperation stops a durable operation running on this node.
+// This operation is only removed from the local operations map, the database record is left intact.
+// The cluster leader will restart this operation.
+func CancelLocalDurableOperation(op *Operation) {
+	op.lock.Lock()
+
+	if op.status.IsFinal() {
+		op.lock.Unlock()
+		return
+	}
+
+	// Mark this operation as having missed the heartbeat.
+	// It will tell the end routines not to clear the database record.
+	op.heartbeatMissed = true
+	// Signal the operation to stop.
+	// The operation will be marked as finished and removed from the local operations map
+	// by the rest of the Start() routine after it actually stops.
+	op.running.Cancel()
+	op.lock.Unlock()
+}
+
+// CancelLocalDurableOperations stops all durable operations running on this node.
+// These operations are only removed from the local operations map, the database records are left intact.
+// The cluster leader will later restart these operations.
+func CancelLocalDurableOperations() {
+	operationsLock.Lock()
+	for _, op := range operations {
+		if op.class != OperationClassDurable {
+			continue
+		}
+
+		CancelLocalDurableOperation(op)
+	}
+
+	operationsLock.Unlock()
 }
 
 // Connect connects a websocket operation. If the operation is not a websocket
