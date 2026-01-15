@@ -1283,8 +1283,7 @@ test_projects_usage() {
   lxc profile device set default root size=48MiB --project test-usage
 
   # Spin up a container
-  ensure_import_testimage test-usage
-  lxc init testimage c1 --project test-usage
+  lxc init --empty c1 --project test-usage
   lxc project info test-usage
 
   # Check usage output
@@ -1309,7 +1308,6 @@ VIRTUAL-MACHINES,UNLIMITED,0"
   fi
 
   lxc delete c1 --project test-usage
-  lxc image delete testimage --project test-usage
   lxc project delete test-usage
 }
 
