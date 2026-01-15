@@ -10,6 +10,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -414,6 +415,15 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 			profileDevices, err = getProfileDevices(dest, *profiles)
 			if err != nil {
 				return err
+			}
+		}
+
+		// Ensure that any initial. device config is not applied from source.
+		for devName, devConfig := range *devices {
+			for devKey := range devConfig {
+				if strings.HasPrefix(devKey, deviceConfig.ConfigInitialPrefix) {
+					delete((*devices)[devName], devKey)
+				}
 			}
 		}
 
