@@ -113,6 +113,10 @@ sideload_lxd_snap() {
     local bin
     install_snap lxd "${channel}"
 
+    # For LVM thin use external LVM tools to avoid errors like:
+    # Failed to run: lvcreate --yes --wipesignatures y --thinpool --extents 100%FREE: Device or resource busy
+    snap set lxd lvm.external=true
+
     for bin in "${_LXC:-$(command -v lxc)}" "$(command -v lxd)" "$(command -v lxd-user)"; do
         cp "${bin}" "/var/snap/lxd/common/${bin##*/}.debug"
     done
