@@ -125,6 +125,12 @@ type Gateway struct {
 	heartbeatCancelLock       sync.Mutex
 	HeartbeatLock             sync.Mutex
 
+	// Used for the heartbeat reception detection.
+	// If a heartbeat is not received in time, durable operations on this node are cancelled.
+	// The cluster leader will restart them.
+	heartbeatDetectionCanceller     context.CancelFunc
+	heartbeatDetectionCancellerLock sync.Mutex
+
 	// NodeStore wrapper.
 	store *dqliteNodeStore
 
