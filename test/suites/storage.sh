@@ -949,7 +949,7 @@ EOF
     ensure_import_testimage
 
     # Launch container.
-    lxc launch -s "${pool_name}" testimage c1
+    lxc init -s "${pool_name}" testimage c1
     lxc storage volume create "${pool_name}" fsvol
 
     # Disable quotas. The usage should be 0.
@@ -971,7 +971,7 @@ EOF
     [ "${usage}" -gt 0 ]
 
     # Clean up everything.
-    lxc delete -f c1
+    lxc delete c1
     lxc storage delete "${pool_name}"
   fi
 
@@ -996,7 +996,7 @@ EOF
 
     lxc storage create "${pool_name}" "${lxd_backend}" size=1GiB
 
-    lxc launch testimage c1 -s "${pool_name}"
+    lxc init testimage c1 -s "${pool_name}"
 
     expected_size=1073741824
     # +/- 5% of the expected size
@@ -1043,9 +1043,9 @@ EOF
     ! lxc storage set "${pool_name}" size=1GiB || false
 
     # Ensure the pool is still usable after resizing by launching an instance
-    lxc launch testimage c2 -s "${pool_name}"
+    lxc init testimage c2 -s "${pool_name}"
 
-    lxc rm -f c1 c2
+    lxc delete c1 c2
     lxc storage rm "${pool_name}"
   fi
 
