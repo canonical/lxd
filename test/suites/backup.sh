@@ -1118,7 +1118,7 @@ test_backup_instance_uuid() {
   lxc delete c1
 
   # Cleanup exported tarballs
-  rm -f "${LXD_DIR}"/c*.tar.gz
+  rm "${LXD_DIR}"/c1.tar.gz
 }
 
 test_backup_volume_expiry() {
