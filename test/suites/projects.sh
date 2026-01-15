@@ -1326,17 +1326,12 @@ EOF
     limits.cpu=1 \
     limits.memory=512MiB
 
-  lxc profile device set default root size=300MiB --project test-project-yaml
-  ensure_import_testimage test-project-yaml
+  lxc init --empty c1 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c2 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
+  ! lxc init --empty c3 --project test-project-yaml || false # Should fail due to the project limits.cpu=2 (here we would have 3 containers with 1 CPU each)
 
-  lxc init testimage c1 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
-  lxc init testimage c2 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
-  ! lxc init testimage c3 --project test-project-yaml || false # Should fail due to the project limits.cpu=2 (here we would have 3 containers with 1 CPU each)
+  lxc delete c1 c2 --project test-project-yaml
 
-  lxc delete -f c1 --project test-project-yaml
-  lxc delete -f c2 --project test-project-yaml
-
-  lxc image delete testimage --project test-project-yaml
   lxc project delete test-project-yaml
 }
 
