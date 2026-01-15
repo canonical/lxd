@@ -1042,7 +1042,7 @@ test_backup_volume_rename_delete() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create test volume.
-  lxc storage volume create "${pool}" vol1 size=32MiB
+  lxc storage volume create "${pool}" vol1 size=1MiB
 
   OUTPUT="$(! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{"name": "backupnewname"}' --wait 2>&1 || false)"
   if ! echo "${OUTPUT}" | grep -F "Error: Storage volume backup not found" ; then
