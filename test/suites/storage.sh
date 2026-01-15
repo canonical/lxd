@@ -139,15 +139,13 @@ EOF
       lxc init testimage uuid1 -s "lxdtest-$(basename "${LXD_DIR}")-pool-btrfs"
       POOL="lxdtest-$(basename "${LXD_DIR}")-pool-btrfs"
       lxc copy uuid1 uuid2
-      lxc start uuid1
-      lxc start uuid2
+      lxc start uuid1 uuid2
       if [ "$lxd_backend" = "lvm" ]; then
         [ "$(blkid -s UUID -o value -p /dev/"${POOL}"/containers_uuid1)" != "$(blkid -s UUID -o value -p /dev/"${POOL}"/containers_uuid2)" ]
       elif [ "$lxd_backend" = "ceph" ]; then
         [ "$(blkid -s UUID -o value -p /dev/rbd/"${POOL}"/container_uuid1)" != "$(blkid -s UUID -o value -p /dev/rbd/"${POOL}"/container_uuid2)" ]
       fi
-      lxc delete --force uuid1
-      lxc delete --force uuid2
+      lxc delete --force uuid1 uuid2
 
       # Test UUID re-generation in case of restore.
       lxc init testimage uuid1 -s "${POOL}"
@@ -178,7 +176,7 @@ EOF
 
     # shellcheck disable=SC1009
     if [ "$lxd_backend" = "zfs" ]; then
-    # Create loop file zfs pool.
+      # Create loop file zfs pool.
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" zfs
 
       # Check that we can't create a loop file in a non-LXD owned location.
@@ -888,8 +886,7 @@ EOF
     rootOrigMaxSizeKiB=$((rootOrigSizeKiB+2000))
 
     lxc profile device set default root size "${QUOTA1}"
-    lxc stop -f quota1
-    lxc start quota1
+    lxc restart -f quota1
 
     # BTRFS quota isn't accessible with the df tool.
     if [ "$lxd_backend" != "btrfs" ]; then
@@ -907,9 +904,8 @@ EOF
 
     lxc profile device set default root size "${QUOTA2}"
 
-    lxc restart -f quota1
+    lxc restart -f quota1 quota2
 
-    lxc restart -f quota2
     if [ "$lxd_backend" != "btrfs" ]; then
       rootSizeKiB=$(lxc exec quota2 -- df -P / | tail -n1 | awk '{print $2}')
       if [ "$rootSizeKiB" -gt "$rootMaxKiB2" ] || [ "$rootSizeKiB" -lt "$rootMinKiB2" ] ; then
