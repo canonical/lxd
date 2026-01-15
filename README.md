@@ -9,7 +9,7 @@ This is the snap packaging repository that is used to build the [LXD snap](https
 Local build require the LXD snap to be installed as `snapcraft` creates a container to use as build environment. Here's how to do a local build for the native architecture:
 
 ```
-snapcraft
+snapcraft pack
 ```
 
 # Build the LXD snap on Launchpad
