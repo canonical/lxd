@@ -137,9 +137,14 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		dest = dest.UseProject(c.flagTargetProject)
 	}
 
-	// Confirm that --target is only used with a cluster
-	if c.flagTarget != "" && !dest.IsClustered() {
-		return errors.New("To use --target, the destination remote must be a cluster")
+	// Apply target flag if specified.
+	if c.flagTarget != "" {
+		// Confirm that --target is only used with a cluster
+		if !dest.IsClustered() {
+			return errors.New("To use --target, the destination remote must be a cluster")
+		}
+
+		dest = dest.UseTarget(c.flagTarget)
 	}
 
 	// Parse the config overrides
@@ -258,11 +263,6 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			}
 		}
 
-		// Do the actual copy
-		if c.flagTarget != "" {
-			dest = dest.UseTarget(c.flagTarget)
-		}
-
 		op, err = dest.CopyInstanceSnapshot(source, sourceParentName, *entry, &args)
 		if err != nil {
 			return err
@@ -368,11 +368,6 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		if entry.Config != nil {
 			// Strip the last_state.power key in all cases
 			delete(entry.Config, "volatile.last_state.power")
-		}
-
-		// Do the actual copy
-		if c.flagTarget != "" {
-			dest = dest.UseTarget(c.flagTarget)
 		}
 
 		op, err = dest.CopyInstance(source, *entry, &args)
