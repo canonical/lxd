@@ -510,8 +510,8 @@ _backup_import_with_project() {
     ensure_import_testimage
   fi
 
-  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
-  lxc launch testimage c2 -d "${SMALL_ROOT_DISK}"
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc init testimage c2 -d "${SMALL_ROOT_DISK}"
 
   # Check invalid snapshot names
   ! lxc snapshot c2 ".." || false
@@ -531,7 +531,7 @@ _backup_import_with_project() {
   fi
 
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
-  lxc delete --force c1
+  lxc delete c1
 
   # import backup, and ensure it's valid and runnable
   lxc import "${LXD_DIR}/c1.tar.gz"
@@ -555,7 +555,7 @@ _backup_import_with_project() {
   old_uuid="$(lxc storage volume get "${pool}" container/c2 volatile.uuid)"
   old_snap0_uuid="$(lxc storage volume get "${pool}" container/c2/snap0-with_underscore volatile.uuid)"
   lxc export c2 "${LXD_DIR}/c2.tar.gz"
-  lxc delete --force c2
+  lxc delete c2
 
   lxc import "${LXD_DIR}/c2.tar.gz"
   lxc import "${LXD_DIR}/c2.tar.gz" c3
