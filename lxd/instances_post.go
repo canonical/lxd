@@ -591,12 +591,11 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 	}
 
 	// Config override
-	sourceConfig := source.LocalConfig()
 	if req.Config == nil {
 		req.Config = make(map[string]string)
 	}
 
-	for key, value := range sourceConfig {
+	for key, value := range source.LocalConfig() {
 		if !instancetype.InstanceIncludeWhenCopying(key, false) {
 			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project().Name, "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
 			continue
