@@ -164,9 +164,7 @@ EOF
       fi
       lxc delete --force uuid1
 
-      lxc image delete testimage
       lxc storage delete "$btrfs_storage_pool"
-      ensure_import_testimage
   fi
 
   (
