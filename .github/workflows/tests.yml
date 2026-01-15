@@ -514,7 +514,7 @@ jobs:
       SNAP_RISK: ${{ inputs.snap-risk || 'edge' }}
       SNAP_TRACK: "latest"
       SUDO_PRESERVE_ENV: "GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,OVN_SOURCE"
-    name: Snap (${{ matrix.test }} - ${{ matrix.os }})
+    name: Snap
     runs-on: ubuntu-${{ matrix.os }}
     # avoid runaway test burning 6 hours of CI
     timeout-minutes: 60
