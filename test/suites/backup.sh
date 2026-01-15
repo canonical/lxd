@@ -1125,7 +1125,7 @@ test_backup_volume_expiry() {
   poolName=$(lxc profile device get default root pool)
 
   # Create custom volume.
-  lxc storage volume create "${poolName}" vol1 size=32MiB
+  lxc storage volume create "${poolName}" vol1 size=1MiB
 
   # Create storage volume backups using the API directly.
   # The first one is created with an expiry date, the second one never expires.
