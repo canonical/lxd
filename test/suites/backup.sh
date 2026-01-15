@@ -802,8 +802,18 @@ test_backup_rename() {
 }
 
 test_backup_volume_export() {
-  _backup_volume_export_with_project default "lxdtest-$(basename "${LXD_DIR}")"
-  _backup_volume_export_with_project fooproject "lxdtest-$(basename "${LXD_DIR}")"
+  lxc project create fooproject
+  lxc project create fooproject-b
+
+  ensure_import_testimage
+  ensure_import_testimage fooproject
+
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  # Add a root device to the default profile of the project.
+  lxc profile device add default root disk path="/" pool="${pool}" --project fooproject
+
+  _backup_volume_export_with_project default "${pool}"
+  _backup_volume_export_with_project fooproject "${pool}"
 
   if [ "$lxd_backend" = "ceph" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
     custom_vol_pool="lxdtest-$(basename "${LXD_DIR}")-cephfs"
@@ -814,26 +824,18 @@ test_backup_volume_export() {
 
     lxc storage rm "${custom_vol_pool}"
   fi
+
+  lxc image delete testimage --project fooproject
+  lxc project delete fooproject
+  lxc project delete fooproject-b
 }
 
 _backup_volume_export_with_project() {
-  pool="lxdtest-$(basename "${LXD_DIR}")"
   project="$1"
   custom_vol_pool="$2"
 
   if [ "${project}" != "default" ]; then
-    # Create projects.
-    lxc project create "$project"
-    lxc project create "$project-b"
     lxc project switch "$project"
-
-    ensure_import_testimage "${project}"
-    ensure_import_testimage "${project}-b"
-
-    # Add a root device to the default profile of the project.
-    lxc profile device add default root disk path="/" pool="${pool}"
-  else
-    ensure_import_testimage
   fi
 
   mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized" "${LXD_DIR}/optimized-none" "${LXD_DIR}/optimized-squashfs" "${LXD_DIR}/non-optimized-none" "${LXD_DIR}/non-optimized-squashfs"
@@ -1031,10 +1033,6 @@ _backup_volume_export_with_project() {
 
   if [ "${project}" != "default" ]; then
     lxc project switch default
-    lxc image rm testimage --project "$project"
-    lxc image rm testimage --project "$project-b"
-    lxc project delete "$project"
-    lxc project delete "$project-b"
   fi
 }
 
