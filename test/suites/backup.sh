@@ -606,7 +606,7 @@ _backup_import_with_project() {
   # Also check that the container storage volume config is correctly captured and restored.
   default_pool="$(lxc profile device get default root pool)"
 
-  lxc launch testimage c1-foo -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1-foo -d "${SMALL_ROOT_DISK}"
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap0
   lxc snapshot c1-foo c1-foo-snap0
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap1
@@ -614,7 +614,7 @@ _backup_import_with_project() {
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=post-c1-foo-snap1
 
   lxc export c1-foo "${LXD_DIR}/c1-foo.tar.gz"
-  lxc delete --force c1-foo
+  lxc delete c1-foo
 
   lxc import "${LXD_DIR}/c1-foo.tar.gz"
   lxc storage volume ls "${default_pool}"
