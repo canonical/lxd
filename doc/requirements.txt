@@ -2,7 +2,7 @@
 furo
 
 # External extensions
-myst-parser
+myst-parser==4.0.1
 sphinx-autobuild
 sphinx-design
 sphinx-notfound-page
