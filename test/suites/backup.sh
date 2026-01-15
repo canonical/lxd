@@ -568,10 +568,8 @@ _backup_import_with_project() {
   [ "$(lxc storage volume get "${pool}" container/c2 volatile.uuid)" != "${old_uuid}" ]
   [ "$(lxc storage volume get "${pool}" container/c2/snap0-with_underscore volatile.uuid)" != "${old_snap0_uuid}" ]
 
-  lxc start c2
-  lxc start c3
-  lxc stop c2 --force
-  lxc stop c3 --force
+  lxc start c2 c3
+  lxc stop --force c2 c3
 
   if [ "$#" -ne 0 ]; then
     # Import into different project (before deleting earlier import).
@@ -579,39 +577,29 @@ _backup_import_with_project() {
     lxc import "${LXD_DIR}/c2.tar.gz" --project "$project-b" c3
     lxc info c2 --project "$project-b" | grep snap0-with_underscore
     lxc info c3 --project "$project-b" | grep snap0-with_underscore
-    lxc start c2 --project "$project-b"
-    lxc start c3 --project "$project-b"
-    lxc stop c2 --project "$project-b" --force
-    lxc stop c3 --project "$project-b" --force
+    lxc start c2 c3 --project "$project-b"
+    lxc stop --force c2 c3 --project "$project-b"
     lxc restore c2 snap0-with_underscore --project "$project-b"
     lxc restore c3 snap0-with_underscore --project "$project-b"
-    lxc delete --force c2 --project "$project-b"
-    lxc delete --force c3 --project "$project-b"
+    lxc delete --force c2 c3 --project "$project-b"
   fi
 
   lxc restore c2 snap0-with_underscore
   lxc restore c3 snap0-with_underscore
-  lxc start c2
-  lxc start c3
-  lxc delete --force c2
-  lxc delete --force c3
-
+  lxc start c2 c3
+  lxc delete --force c2 c3
 
   if storage_backend_optimized_backup "$lxd_backend"; then
     lxc import "${LXD_DIR}/c2-optimized.tar.gz"
     lxc import "${LXD_DIR}/c2-optimized.tar.gz" c3
     lxc info c2 | grep snap0-with_underscore
     lxc info c3 | grep snap0-with_underscore
-    lxc start c2
-    lxc start c3
-    lxc stop c2 --force
-    lxc stop c3 --force
+    lxc start c2 c3
+    lxc stop --force c2 c3
     lxc restore c2 snap0-with_underscore
     lxc restore c3 snap0-with_underscore
-    lxc start c2
-    lxc start c3
-    lxc delete --force c2
-    lxc delete --force c3
+    lxc start c2 c3
+    lxc delete --force c2 c3
   fi
 
   # Test exporting container and snapshot names that container hyphens.
