@@ -807,7 +807,7 @@ test_backup_volume_export() {
 
   if [ "$lxd_backend" = "ceph" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
     custom_vol_pool="lxdtest-$(basename "${LXD_DIR}")-cephfs"
-    lxc storage create "${custom_vol_pool}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs" volume.size=24MiB
+    lxc storage create "${custom_vol_pool}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs" volume.size=1MiB
 
     _backup_volume_export_with_project default "${custom_vol_pool}"
     _backup_volume_export_with_project fooproject "${custom_vol_pool}"
@@ -843,7 +843,7 @@ _backup_volume_export_with_project() {
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
   # Create custom storage volume.
-  lxc storage volume create "${custom_vol_pool}" testvol size=32MiB
+  lxc storage volume create "${custom_vol_pool}" testvol size=1MiB
 
   # Attach storage volume to the test container and start.
   lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
