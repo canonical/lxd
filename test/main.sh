@@ -175,6 +175,11 @@ if [ "${PWD}" != "$(dirname "${0}")" ]; then
 fi
 readonly MAIN_DIR="${PWD}"
 export MAIN_DIR
+if [ -n "${LXD_BACKEND:-}" ]; then
+  LXD_BACKEND_EXPLICIT=1
+else
+  LXD_BACKEND_EXPLICIT=0
+fi
 export LXD_BACKEND="${LXD_BACKEND:-"dir"}"
 
 # Support multiple backends selection
@@ -197,7 +202,10 @@ readonly LXD_BACKENDS
 # Determine active tests
 # If LXD_BACKEND is set, we only run that one.
 # Otherwise, we run all backends in LXD_BACKENDS.
-active_backends="${LXD_BACKEND:-${LXD_BACKENDS}}"
+active_backends="${LXD_BACKENDS}"
+if [ "${LXD_BACKEND_EXPLICIT}" = "1" ]; then
+  active_backends="${LXD_BACKEND}"
+fi
 
 import_subdir_files includes
 
