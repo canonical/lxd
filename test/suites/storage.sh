@@ -104,8 +104,8 @@ EOF
   lxc storage set "$storage_pool" user.abc def
   [ "$(lxc storage get "$storage_pool" user.abc)" = "def" ]
 
-  lxc storage volume set "$storage_pool" "$storage_volume" user.abc def
-  [ "$(lxc storage volume get "$storage_pool" "$storage_volume" user.abc)" = "def" ]
+  lxc storage volume set "$storage_pool" "$storage_volume" user.abc xyz
+  [ "$(lxc storage volume get "$storage_pool" "$storage_volume" user.abc)" = "xyz" ]
 
   # Check if storage volume has an UUID.
   [ -n "$(lxc storage volume get "$storage_pool" "$storage_volume" volatile.uuid)" ]
