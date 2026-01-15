@@ -1053,8 +1053,7 @@ run_projects_restrictions() {
 
   # Check with restricted.devices.nic=allow and restricted.networks.access set to a network other than the existing
   # managed and unmanaged ones that they are inaccessible.
-  lxc project set local:p1 restricted.devices.nic=allow
-  lxc project set local:p1 restricted.networks.access=foo
+  lxc project set local:p1 restricted.devices.nic=allow restricted.networks.access=foo
   ! lxc network list | grep -wF "${netManaged}"|| false
   ! lxc network show "${netManaged}" || false
   ! lxc network info "${netManaged}" || false
@@ -1088,9 +1087,7 @@ run_projects_restrictions() {
   ip link delete "${netUnmanaged}"
 
   # Disable restrictions to allow devices to be added to profile.
-  lxc project unset local:p1 restricted.networks.access
-  lxc project set local:p1 restricted.devices.nic=managed
-  lxc project set local:p1 restricted=false
+  lxc project set local:p1 restricted.networks.access="" restricted.devices.nic=managed restricted=false
 
   # Add a root device to the default profile of the project and import an image.
   pool="lxdtest-$(basename "${LXD_DIR}")"
