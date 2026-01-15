@@ -162,7 +162,9 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	var writable api.InstancePut
 	var start bool
 
-	if shared.IsSnapshot(sourceName) {
+	sourceParentName, sourceSnapName, sourceIsSnap := api.GetParentAndSnapshotName(sourceName)
+
+	if sourceIsSnap {
 		if instanceOnly {
 			return errors.New("--instance-only can't be passed when the source is a snapshot")
 		}
@@ -179,8 +181,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Copy of a snapshot into a new instance
-		srcFields := strings.SplitN(sourceName, shared.SnapshotDelimiter, 2)
-		entry, _, err := source.GetInstanceSnapshot(srcFields[0], srcFields[1])
+		entry, _, err := source.GetInstanceSnapshot(sourceParentName, sourceSnapName)
 		if err != nil {
 			return err
 		}
@@ -262,7 +263,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			dest = dest.UseTarget(c.flagTarget)
 		}
 
-		op, err = dest.CopyInstanceSnapshot(source, srcFields[0], *entry, &args)
+		op, err = dest.CopyInstanceSnapshot(source, sourceParentName, *entry, &args)
 		if err != nil {
 			return err
 		}
