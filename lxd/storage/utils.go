@@ -256,6 +256,19 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 		return err
 	}
 
+	// Special zfs.promote handling.
+	// We don't want to store this in the database as it's a one-time operation.
+	// So record its value, remove it from the config, and then restore it after DB insertion.
+	// This avoids future copies of the volume inheriting the zfs.promote setting.
+	volConfig := vol.Config()
+	zfsPromote, zfsPromoteFound := volConfig["zfs.promote"]
+	if zfsPromoteFound {
+		delete(volConfig, "zfs.promote")
+		defer func() {
+			volConfig["zfs.promote"] = zfsPromote
+		}()
+	}
+
 	err = p.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Create the database entry for the storage volume.
 		if snapshot {
