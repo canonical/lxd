@@ -593,7 +593,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 			continue
 		}
 
-		_, err = shared.RunCommandContext(context.TODO(), "nft", "flush", "chain", item.Family, nftablesNamespace, item.Name, ";", "delete", "chain", item.Family, nftablesNamespace, item.Name)
+		_, err = shared.RunCommand(context.TODO(), "nft", "flush", "chain", item.Family, nftablesNamespace, item.Name, ";", "delete", "chain", item.Family, nftablesNamespace, item.Name)
 		if err != nil {
 			return fmt.Errorf("Failed deleting nftables chain %q (%s): %w", item.Name, item.Family, err)
 		}
