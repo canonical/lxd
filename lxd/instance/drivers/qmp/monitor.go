@@ -19,6 +19,15 @@ var monitorsLock sync.Mutex
 // RingbufSize is the size of the agent serial ringbuffer in bytes.
 var RingbufSize = 16
 
+// ringbufSpamReads controls how many concurrent ringbuf-read goroutines to launch.
+const ringbufSpamReads = 200
+
+// ringbufSpamBursts controls how many bursts to launch per trigger.
+const ringbufSpamBursts = 3
+
+// ringbufSpamInterval controls how often to spam reads when idle.
+const ringbufSpamInterval = 100 * time.Millisecond
+
 // EventAgentStarted is the event sent once the lxd-agent has started.
 var EventAgentStarted = "LXD-AGENT-STARTED"
 
@@ -94,8 +103,12 @@ func (m *Monitor) start() error {
 		logger.Debug("QMP monitor started", logger.Ctx{"path": m.path})
 		defer logger.Debug("QMP monitor stopped", logger.Ctx{"path": m.path})
 
-		// Initial read from the ringbuffer.
-		go checkBuffer()
+		// Initial reads from the ringbuffer.
+		for range ringbufSpamBursts {
+			for range ringbufSpamReads {
+				go checkBuffer()
+			}
+		}
 
 		for {
 			// Wait for an event, disconnection or timeout.
@@ -133,10 +146,19 @@ func (m *Monitor) start() error {
 				}
 
 				// Check if the ringbuffer was updated (non-blocking).
-				go checkBuffer()
-			case <-time.After(10 * time.Second):
+				for range ringbufSpamBursts {
+					for range ringbufSpamReads {
+						go checkBuffer()
+					}
+				}
+
+			case <-time.After(ringbufSpamInterval):
 				// Check if the ringbuffer was updated (non-blocking).
-				go checkBuffer()
+				for range ringbufSpamBursts {
+					for range ringbufSpamReads {
+						go checkBuffer()
+					}
+				}
 
 				continue
 			}
