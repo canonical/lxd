@@ -3983,20 +3983,20 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	if userRequested {
 		// Look for deleted idmap keys.
-		protectedKeys := []string{
-			"volatile.idmap.base",
-			"volatile.idmap.current",
-			"volatile.idmap.next",
-			"volatile.last_state.idmap",
+		protectedKeys := map[string]struct{}{
+			"volatile.idmap.base":       {},
+			"volatile.idmap.current":    {},
+			"volatile.idmap.next":       {},
+			"volatile.last_state.idmap": {},
 		}
 
 		for _, k := range changedConfig {
-			if !slices.Contains(protectedKeys, k) {
+			_, protected := protectedKeys[k]
+			if !protected {
 				continue
 			}
 
-			_, ok := d.expandedConfig[k]
-			if !ok {
+			if d.expandedConfig[k] == "" {
 				return errors.New("Volatile idmap keys can't be deleted by the user")
 			}
 		}
