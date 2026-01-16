@@ -1486,6 +1486,74 @@ func pruneExpiredDurableOperationsTask(stateFunc func() *state.State) (task.Func
 	return f, task.Hourly()
 }
 
+func syncDurableOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		s := stateFunc()
+
+		dbOps, err := operations.GetDurableOperationsOnNode(ctx, s, s.DB.Cluster.GetNodeID())
+		if err != nil {
+			logger.Warn("Failed getting durable operations on node", logger.Ctx{"err": err})
+			return
+		}
+
+		// Get the list of local durable operations.
+		localOps := operations.Clone()
+		// Convert it to a map for easier lookup.
+		localOpsMap := make(map[string]*operations.Operation)
+		for _, op := range localOps {
+			if op.Class() != operations.OperationClassDurable {
+				continue
+			}
+
+			localOpsMap[op.ID()] = op
+		}
+
+		// Ensure that all durable operations in the database are running locally.
+		for _, dbOp := range dbOps {
+			if dbOp.Status().IsFinal() {
+				// Operation is in a final state, no need to create it.
+				continue
+			}
+
+			// If the operation is already running locally, everything is great.
+			_, ok := localOpsMap[dbOp.ID()]
+			if ok {
+				continue
+			}
+
+			// Operation is not running locally, we need to restart it.
+			logger.Warnf("Restarting durable operation %q", dbOp.ID())
+			operations.RestartDurableOperation(s, dbOp)
+		}
+
+		// Now we put the database operations in a map, and ensure that all local
+		// durable operations are present in the database.
+		dbOpsMap := make(map[string]*operations.Operation)
+		for _, op := range dbOps {
+			dbOpsMap[op.ID()] = op
+		}
+
+		for _, op := range localOpsMap {
+			if op.Status().IsFinal() {
+				// Operation is in a final state, no need to cancel it.
+				continue
+			}
+
+			// If the local operation is written in the DB, everything is great.
+			_, ok := dbOpsMap[op.ID()]
+			if ok {
+				continue
+			}
+
+			// Operation is not in the DB, we need to cancel it.
+			logger.Warnf("Cancelling local durable operation %q as it's not running on this node per the database", op.ID())
+			operations.CancelLocalDurableOperation(op)
+		}
+	}
+
+	return f, task.Every(time.Minute)
+}
+
 // operationWaitPost represents the fields of a request to register a dummy operation.
 type operationWaitPost struct {
 	Duration  string                    `json:"duration" yaml:"duration"`
