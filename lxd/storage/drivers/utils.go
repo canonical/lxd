@@ -28,6 +28,12 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// noKillRetryOpts is used as the default [shared.RunCommandRetryOpts] for storage operations.
+// It instructs [shared.RunCommandRetry] not to kill the command when the context is done.
+var noKillRetryOpts = &shared.RunCommandRetryOpts{
+	NoKill: true,
+}
+
 // defaultVMBlockFilesystemSize is the size of a VM root device block volume's associated filesystem volume.
 const defaultVMBlockFilesystemSize = "100MiB"
 
