@@ -118,7 +118,7 @@ func (d *zfs) deleteDatasetRecursive(dataset string) error {
 	}
 
 	// Delete the dataset (and any snapshots left).
-	_, err = shared.TryRunCommand("zfs", "destroy", "-r", dataset)
+	_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "zfs", "destroy", "-r", dataset)
 	if err != nil {
 		return err
 	}
@@ -157,7 +157,7 @@ func (d *zfs) deleteDatasetRecursive(dataset string) error {
 		if strings.Contains(originToDelete, "@") && strings.HasPrefix(originToDelete, d.config["zfs.pool_name"]+"/deleted/") {
 			parentVolume, _, _ := strings.Cut(originToDelete, "@")
 			// Delete just this snapshot (not recursive)
-			_, err = shared.TryRunCommand("zfs", "destroy", originToDelete)
+			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "zfs", "destroy", originToDelete)
 			if err != nil {
 				return err
 			}

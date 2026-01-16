@@ -423,7 +423,7 @@ func makeFSType(path string, fsType string, options *mkfsOptions) (string, error
 	// Always add the path to the device as the last argument for wider compatibility with versions of mkfs.
 	cmd = append(cmd, path)
 
-	msg, err = shared.TryRunCommand(cmd[0], cmd[1:]...)
+	msg, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, cmd[0], cmd[1:]...)
 	if err != nil {
 		return msg, err
 	}
@@ -527,11 +527,11 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		var err error
 		switch fsType {
 		case "ext4":
-			_, err = shared.TryRunCommand("resize2fs", devPath)
+			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "resize2fs", devPath)
 		case "xfs":
-			_, err = shared.TryRunCommand("xfs_growfs", mountPath)
+			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "xfs_growfs", mountPath)
 		case "btrfs":
-			_, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mountPath)
+			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "btrfs", "filesystem", "resize", "max", mountPath)
 		default:
 			return fmt.Errorf("Unrecognised filesystem type %q", fsType)
 		}
