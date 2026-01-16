@@ -9,11 +9,14 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth/bearer"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -168,14 +171,15 @@ func restServer(d *Daemon) *http.Server {
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
 		if isBrowserClient(r) {
+			handleUIAccessLink(w, r, d.globalConfig.ClusterUUID(), d.identityCache)
+
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 			return
 		}
 
 		// Normal client handling.
+		w.Header().Set("Content-Type", "application/json")
 		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
 	})
 
@@ -444,6 +448,41 @@ func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *clusterCo
 	if allowedCredentials {
 		rw.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
+}
+
+// handleUIAccessLink sets the session cookie if the request represents a temporary UI  access link.
+func handleUIAccessLink(w http.ResponseWriter, r *http.Request, clusterUUID string, identityCache *identity.Cache) {
+	isUIAccessLink, token, subject := bearer.IsQueryRequest(r, clusterUUID)
+	if !isUIAccessLink {
+		return
+	}
+
+	requestorArgs, err := bearer.Authenticate(token, subject, identityCache)
+	if err != nil || requestorArgs == nil || requestorArgs.TokenExpiresAt == nil {
+		return
+	}
+
+	expiresIn := time.Until(*requestorArgs.TokenExpiresAt)
+	if expiresIn <= 0 {
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     bearer.CookieNameSession,
+		Value:    token,
+		Path:     "/",
+		Secure:   true, // Only send the cookie over HTTPS.
+		HttpOnly: true, // Do not allow JavaScript to access the cookie.
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   int(expiresIn.Seconds()),
+	})
+
+	// Prevent caching of the response containing a session cookie.
+	w.Header().Set("Cache-Control", "no-store")
+
+	// Never send a Referer header when navigating away from this site
+	// to avoid leaking URL / query params.
+	w.Header().Set("Referrer-Policy", "no-referrer")
 }
 
 type uiHTTPDir struct {
