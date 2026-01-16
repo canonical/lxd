@@ -118,7 +118,7 @@ func triggerUpdate() error {
 	time.Sleep(wait)
 
 	logger.Info("Triggering cluster auto-update now")
-	_, err := shared.RunCommandContext(context.TODO(), updateExecutable)
+	_, err := shared.RunCommand(context.TODO(), updateExecutable)
 	if err != nil {
 		logger.Error("Triggering cluster update failed", logger.Ctx{"err": err})
 		return err
