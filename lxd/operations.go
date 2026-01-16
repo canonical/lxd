@@ -1136,6 +1136,15 @@ func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.
 	return f, task.Hourly()
 }
 
+// syncDurableOperations task synchronizer durable operations every minute (see [operations.SyncDurableOperations]).
+func syncDurableOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		operations.SyncDurableOperations(ctx, stateFunc())
+	}
+
+	return f, task.Every(time.Minute)
+}
+
 // operationWaitPost represents the fields of a request to register a dummy operation.
 type operationWaitPost struct {
 	Duration          string              `json:"duration" yaml:"duration"`

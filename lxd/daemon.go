@@ -2031,6 +2031,9 @@ func (d *Daemon) init() error {
 
 		// Run scheduled replicators (minutely check of configurable cron expression)
 		d.tasks.Add(runScheduledReplicatorsTask(d.State))
+
+		// Synchronize locally running durable operations with the database (every minute)
+		d.tasks.Add(syncDurableOperationsTask(d.State))
 	}
 
 	// Load Ubuntu Pro configuration before starting any instances.
