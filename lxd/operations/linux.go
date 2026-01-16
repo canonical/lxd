@@ -5,6 +5,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -18,6 +19,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 	}
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Fixed references use the unique DB constraint to enforce cluster-wide exclusivity.
 		opInfo := cluster.Operation{
 			UUID:   op.id,
 			Type:   opType,
@@ -33,11 +35,24 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			opInfo.ProjectID = &projectID
 		}
 
-		_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
-		return err
+		// Uniqueness conflicts are surfaced to callers.
+		_, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusConflict) {
+				return api.StatusErrorf(http.StatusConflict, "Another operation with reference %q already exists", op.id)
+			}
+
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to add %q Operation %s to database: %w", opType.Description(), op.id, err)
+		if api.StatusErrorCheck(err, http.StatusConflict) {
+			return err
+		}
+
+		return fmt.Errorf("Failed adding %q Operation %s to database: %w", opType.Description(), op.id, err)
 	}
 
 	return nil
