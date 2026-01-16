@@ -60,11 +60,6 @@ do_zfs_delegate() {
 }
 
 do_zfs_cross_pool_copy() {
-  local LXD_STORAGE_DIR
-
-  LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
-  spawn_lxd "${LXD_STORAGE_DIR}" false
-
   # Import image into default storage pool.
   ensure_import_testimage
 
@@ -112,9 +107,6 @@ do_zfs_cross_pool_copy() {
   lxc delete c1 c2 c3 c4 c5 c6
   lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-dir
   lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-zfs
-
-  # shellcheck disable=SC2031
-  kill_lxd "${LXD_STORAGE_DIR}"
 }
 
 do_zfs_rebase() {
@@ -193,12 +185,7 @@ do_zfs_rebase() {
 }
 
 do_storage_driver_zfs() {
-  filesystem="$1"
-
-  local LXD_STORAGE_DIR
-
-  LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
-  spawn_lxd "${LXD_STORAGE_DIR}" false
+  local filesystem="${1}"
 
   # Import image into default storage pool.
   ensure_import_testimage
@@ -206,7 +193,7 @@ do_storage_driver_zfs() {
   fingerprint=$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')
 
   # Create non-block container
-  lxc launch testimage c1
+  lxc init testimage c1
 
   # Check created container and image volumes
   zfs list lxdtest-"$(basename "${LXD_DIR}")/containers/c1"
@@ -259,7 +246,7 @@ do_storage_driver_zfs() {
   zfs list lxdtest-"$(basename "${LXD_DIR}")/images/${fingerprint}_${filesystem}@readonly"
   [ "$(zfs get -H -o value type lxdtest-"$(basename "${LXD_DIR}")/containers/c7")" = "volume" ]
 
-  lxc stop -f c1 c2
+  lxc stop -f c2
 
   # Try renaming instance
   lxc rename c2 c3
@@ -287,9 +274,7 @@ do_storage_driver_zfs() {
   lxc storage volume attach lxdtest-"$(basename "${LXD_DIR}")" vol1 c3 /mnt
   lxc storage volume attach lxdtest-"$(basename "${LXD_DIR}")" vol1 c21 /mnt
 
-  lxc start c1
-  lxc start c3
-  lxc start c21
+  lxc start c1 c3 c21
 
   lxc exec c3 -- touch /mnt/foo
   lxc exec c21 -- ls /mnt/foo
@@ -301,6 +286,7 @@ do_storage_driver_zfs() {
 
   ! lxc exec c3 -- ls /mnt/foo || false
   ! lxc exec c21 -- ls /mnt/foo || false
+  ! lxc exec c1 -- ls /mnt/foo || false
 
   # Backup and import
   lxc launch testimage c4
@@ -354,15 +340,15 @@ do_storage_driver_zfs() {
 
   # Verify that snapshots are still visible in LXD after failed restore
   snap_list_after=$(lxc info c8 | awk '/^\s+snap/ {print $2}')
-  [ "$snap_list_before" = "$snap_list_after" ] || return 1
+  [ "$snap_list_before" = "$snap_list_after" ]
 
   # Also verify that the ZFS snapshots still exist
   for snap in snap0 snap1 snap2; do
-    zfs list -H -o name "lxdtest-$(basename "${LXD_DIR}")/containers/c8@snapshot-${snap}" 2>&1 || return 1
+    zfs list -H -o name "lxdtest-$(basename "${LXD_DIR}")/containers/c8@snapshot-${snap}" 2>&1
   done
 
   # Delete the dependent clone to allow restoration
-  lxc delete -f c9
+  lxc delete c9
 
   # Now restore should work since dependency is gone
   lxc restore c8 snap0
@@ -386,9 +372,6 @@ do_storage_driver_zfs() {
   # Regular (no block mode) storage pool shouldn't be allowed to set block.*.
   ! lxc storage set lxdtest-"$(basename "${LXD_DIR}")" block.filesystem=ext4 || false
   ! lxc storage set lxdtest-"$(basename "${LXD_DIR}")" block.mount_options=rw || false
-
-  # shellcheck disable=SC2031
-  kill_lxd "${LXD_STORAGE_DIR}"
 }
 
 do_recursive_copy_snapshot_cleanup() {
@@ -397,7 +380,7 @@ do_recursive_copy_snapshot_cleanup() {
   storage_pool="lxdtest-$(basename "${LXD_DIR}")"
 
   echo "Create the first container."
-  lxc init testimage t1
+  lxc init --empty t1
 
   echo "Make two copies."
   lxc copy t1 t2
@@ -446,7 +429,7 @@ do_recursive_copy_snapshot_cleanup() {
   echo "Test chain copy snapshot cleanup."
 
   echo "Create base container."
-  lxc init testimage base
+  lxc init --empty base
 
   echo "Create chain of copies."
   lxc copy base chain1
