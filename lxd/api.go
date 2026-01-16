@@ -199,13 +199,10 @@ func restServer(d *Daemon) *http.Server {
 
 					// Prevent the session cookie from being cached by browsers or proxies.
 					w.Header().Set("Cache-Control", "no-store")
-
-					http.Redirect(w, r, "/ui/", http.StatusFound)
-					return
 				}
 			}
 
-			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
+			http.Redirect(w, r, "/ui/", http.StatusFound)
 			return
 		}
 
