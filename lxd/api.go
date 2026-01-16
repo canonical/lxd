@@ -9,9 +9,11 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth/bearer"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/metrics"
@@ -168,14 +170,47 @@ func restServer(d *Daemon) *http.Server {
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
 		if isBrowserClient(r) {
+			// Check for magic link token.
+			isUIMagicLink, token, subject := bearer.IsQueryRequest(r, d.globalConfig.ClusterUUID())
+			if isUIMagicLink {
+				_, err := bearer.Authenticate(token, subject, d.identityCache)
+				if err == nil {
+					http.SetCookie(w, &http.Cookie{
+						Name:  bearer.CookieNameSession,
+						Value: token,
+						Path:  "/",
+
+						// Only send the cookie over HTTPS.
+						Secure: true,
+
+						// Do not allow the cookie to be accessed by JavaScript.
+						HttpOnly: true,
+
+						// Instruct the browser to only send the cookie with requests
+						// to the same origin. This is a security measure to prevent
+						// CSRF attacks.
+						SameSite: http.SameSiteStrictMode,
+
+						// Set max age to 24 hours.
+						// Otherwise, the cookie will be deleted when the browser is closed.
+						MaxAge: int(time.Duration(24 * time.Hour).Seconds()),
+					})
+
+					// Prevent the session cookie from being cached by browsers or proxies.
+					w.Header().Set("Cache-Control", "no-store")
+
+					http.Redirect(w, r, "/ui/", http.StatusFound)
+					return
+				}
+			}
+
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 			return
 		}
 
 		// Normal client handling.
+		w.Header().Set("Content-Type", "application/json")
 		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
 	})
 
