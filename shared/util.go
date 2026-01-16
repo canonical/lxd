@@ -1066,19 +1066,10 @@ func RunCommandSplit(ctx context.Context, env []string, filesInherit []*os.File,
 	return stdout.String(), stderr.String(), nil
 }
 
-// RunCommandContext runs a command with optional arguments and returns stdout. If the command fails to
-// start or returns a non-zero exit code then an error is returned containing the output of stderr.
-func RunCommandContext(ctx context.Context, name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(ctx, nil, nil, name, arg...)
-	return stdout, err
-}
-
 // RunCommand runs a command with optional arguments and returns stdout. If the command fails to
 // start or returns a non-zero exit code then an error is returned containing the output of stderr.
-//
-// Deprecated: Use RunCommandContext().
-func RunCommand(name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(context.TODO(), nil, nil, name, arg...)
+func RunCommand(ctx context.Context, name string, arg ...string) (string, error) {
+	stdout, _, err := RunCommandSplit(ctx, nil, nil, name, arg...)
 	return stdout, err
 }
 
