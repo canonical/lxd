@@ -95,7 +95,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 			"NVIDIA_DRIVER_ROOT",
 		}
 
-		rootPath, err = shared.RunCommandContext(context.TODO(), cmd[0], cmd[1:]...)
+		rootPath, err = shared.RunCommand(context.TODO(), cmd[0], cmd[1:]...)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to determine NVIDIA driver root path: %w", err)
 		}
