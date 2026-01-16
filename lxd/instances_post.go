@@ -11,6 +11,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/google/uuid"
@@ -591,12 +592,11 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 	}
 
 	// Config override
-	sourceConfig := source.LocalConfig()
 	if req.Config == nil {
 		req.Config = make(map[string]string)
 	}
 
-	for key, value := range sourceConfig {
+	for key, value := range source.LocalConfig() {
 		if !instancetype.InstanceIncludeWhenCopying(key, false) {
 			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project().Name, "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
 			continue
@@ -611,19 +611,24 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 	}
 
 	// Devices override
-	sourceDevices := source.LocalDevices()
-
 	if req.Devices == nil {
 		req.Devices = make(map[string]map[string]string)
 	}
 
-	for key, value := range sourceDevices {
-		_, exists := req.Devices[key]
+	for devName, devConfig := range source.LocalDevices() {
+		_, exists := req.Devices[devName]
 		if exists {
-			continue
+			continue // Request has overridden this device.
 		}
 
-		req.Devices[key] = value
+		// Ensure that any initial. device config is not applied from source.
+		for devKey := range devConfig {
+			if strings.HasPrefix(devKey, deviceConfig.ConfigInitialPrefix) {
+				delete(devConfig, devKey)
+			}
+		}
+
+		req.Devices[devName] = devConfig
 	}
 
 	if req.Stateful {
