@@ -1280,6 +1280,95 @@ func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.
 	return f, task.Hourly()
 }
 
+// With durable operations, there's a chance that heartbeat replies are lost before reaching the leader node.
+// In such case the node will continue running the durable operations (because it's receiving the heartbeats),
+// but the leader will also restart those operations (because it's not receiving the heartbeats).
+// To avoid this, we have a periodic task on each node checking that the node is doing what the database says.
+// In other words, we cancel local tasks if these are not written in the database, and we start tasks which
+// are in the database but are not running locally.
+func syncDurableOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		s := stateFunc()
+
+		dbOps, err := operations.LoadDurableOperationsFromNode(ctx, s, s.DB.Cluster.GetNodeID())
+		if err != nil {
+			logger.Warnf("Failed loading durable operations on node: %v", err)
+			return
+		}
+
+		// Get the list of local durable operations.
+		localOps := operations.Clone()
+		// Convert it to a map for easier lookup.
+		localOpsMap := make(map[string]*operations.Operation)
+		for _, op := range localOps {
+			if op.Class() != operations.OperationClassDurable {
+				continue
+			}
+
+			localOpsMap[op.ID()] = op
+		}
+
+		// Ensure that all durable operations in the database are running locally.
+		for _, op := range dbOps {
+			if !op.IsRunning() {
+				// Operation is in a final state, no need to create it.
+				continue
+			}
+
+			// If the operation is already running locally, everything is great.
+			_, ok := localOpsMap[op.ID()]
+			if ok {
+				continue
+			}
+
+			// Operation is not running locally, we need to restart it.
+			logger.Warnf("Restarting durable operation %q", op.ID())
+			operations.RestartDurableOperation(s, op)
+		}
+
+		// Now we put the database operations in a map, and ensure that all local
+		// durable operations are present in the database.
+		dbOpsMap := make(map[string]*operations.Operation)
+		for _, dbOp := range dbOps {
+			dbOpsMap[dbOp.ID()] = dbOp
+		}
+
+	OPS_LOOP:
+		for _, op := range localOpsMap {
+			if !op.IsRunning() {
+				// Operation is in a final state, no need to cancel it.
+				continue OPS_LOOP
+			}
+
+			// If the local operation is written in the DB, everything is great.
+			_, ok := dbOpsMap[op.ID()]
+			if ok {
+				continue OPS_LOOP
+			}
+
+			// If it's a child operation, look for its parent in the DB and look for the child under its parent.
+			if op.Parent() != nil {
+				parentID := op.Parent().ID()
+				dbParentOp, ok := dbOpsMap[parentID]
+				if ok {
+					for _, dbChildOp := range dbParentOp.Children() {
+						if dbChildOp.ID() == op.ID() {
+							// Operation is in the DB as a child of its parent, everything is great.
+							continue OPS_LOOP
+						}
+					}
+				}
+			}
+
+			// Operation is not in the DB, we need to cancel it.
+			logger.Warnf("Cancelling local durable operation %q as it's not running on this node per the database", op.ID())
+			operations.CancelLocalDurableOperation(op)
+		}
+	}
+
+	return f, task.Every(time.Minute)
+}
+
 // operationWaitPost represents the fields of a request to register a dummy operation.
 type operationWaitPost struct {
 	Duration          string                    `json:"duration" yaml:"duration"`
