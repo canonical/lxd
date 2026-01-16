@@ -334,24 +334,34 @@ parts:
         - acpica-tools
         - bc
         - debhelper
+        - dosfstools
         - g++
+        - jq
         - lsb-release
+        - mtools
         - nasm
         - python3
+        - python3-pexpect
         - python3-virt-firmware
         - quilt
         - uuid-dev
+        - xorriso
       - to arm64:
         - acpica-tools
         - bc
         - debhelper
+        - dosfstools
         - g++
+        - jq
         - lsb-release
+        - mtools
         - nasm
         - python3
+        - python3-pexpect
         - python3-virt-firmware
         - quilt
         - uuid-dev
+        - xorriso
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
