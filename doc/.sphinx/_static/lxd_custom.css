@@ -1,0 +1,18 @@
+/* Custom CSS for LXD documentation */
+
+/* Smaller font size for option table fields */
+.configoption .fields p code.literal {
+    font-size: var(--font-size--small--2);
+}
+
+/* Headings and section links in the configuration option index */
+.domainindex-table .cap, .domainindex-jumpbox {
+    text-transform: uppercase;
+}
+
+/* Hide RTD flyout when printing */
+@media print {
+    readthedocs-flyout {
+        display: none;
+    }
+}

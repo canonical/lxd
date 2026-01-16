@@ -43,15 +43,26 @@
     <div class="copyright">
       {%- if hasdoc('copyright') %}
         {% trans path=pathto('copyright'), copyright=copyright|e -%}
-          <a href="{{ path }}">Copyright</a> &#169; {{ copyright }}
+          <a href="{{ path }}">&copy; {{ copyright }} {{ author }}</a>
         {%- endtrans %}
       {%- else %}
         {% trans copyright=copyright|e -%}
-          Copyright &#169; {{ copyright }}
+          &copy; {{ copyright }} {{ author }}
         {%- endtrans %}
       {%- endif %}
     </div>
     {%- endif %}
+    {%- if license and license.name -%}
+      {%- if license.url -%}
+      <div class="license">
+        This page is licensed under <a href="{{ license.url }}">{{ license.name }}</a>
+      </div>
+      {%- else -%}
+      <div class="license">
+        This page is licensed under {{ license.name }}
+      </div>
+      {%- endif -%}
+    {%- endif -%}
 
     {# mod: removed "Made with" #}
 
@@ -70,64 +81,7 @@
     </div>
     {%- endif %}
   </div>
-  <div>
-    {% if display_contributors and pagename and page_source_suffix %}
-        {% set contributors = get_contributors_for_file(pagename, page_source_suffix) %}
-        {% if contributors %}
-          {% if contributors | length > 1 %}
-              <a class="display-contributors">Thanks to the {{ contributors |length }} contributors!</a>
-          {% else %}
-              <a class="display-contributors">Thanks to our contributor!</a>
-          {% endif %}
-          <div id="overlay"></div>
-          <ul class="all-contributors">
-              {% for name, github_url in contributors %}
-                  <li>
-                      <a href="{{ github_url }}" class="contributor">{{ name }}</a>
-                  </li>
-              {% endfor %}
-          </ul>
-       {% endif %}
-   {% endif %}
-  </div>
   <div class="right-details">
-
-    {# mod: replaced RTD icons with our links #}
-
-    {% if discourse %}
-    <div class="ask-discourse">
-      <a class="muted-link" href="{{ discourse }}">Ask a question on Discourse</a>
-    </div>
-    {% endif %}
-
-    {% if mattermost %}
-    <div class="ask-mattermost">
-      <a class="muted-link" href="{{ mattermost }}">Ask a question on Mattermost</a>
-    </div>
-    {% endif %}
-
-    {% if matrix %}
-    <div class="ask-matrix">
-      <a class="muted-link" href="{{ matrix }}">Ask a question on Matrix</a>
-    </div>
-    {% endif %}
-
-    {% if github_url and github_version and github_folder %}
-
-    {% if github_issues %}
-    <div class="issue-github">
-      <a class="muted-link" href="{{ github_url }}/issues/new?title=doc%3A+ADD+A+TITLE&body=DESCRIBE+THE+ISSUE%0A%0A---%0ADocument: {{ pagename }}{{ page_source_suffix }}">Open a GitHub issue for this page</a>
-    </div>
-    {% endif %}
-
-      {# Hide edit link for generated manpages under reference/manpages/ #}
-      {% if not pagename.startswith('reference/manpages/') %}
-        <div class="edit-github">
-          <a class="muted-link" href="{{ github_url }}/edit/{{ github_version }}{{ github_folder }}{{ pagename }}{{ page_source_suffix }}">Edit this page on GitHub</a>
-        </div>
-      {% endif %}
-    {% endif %}
-
-    </div>
-  </div>
+    {# mod: Added link to manage cookie tracker settings #}
+      <a href="" class="js-revoke-cookie-manager muted-link">Manage your tracker settings</a>
 </div>
