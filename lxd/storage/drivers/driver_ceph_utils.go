@@ -50,7 +50,7 @@ var cephVolTypePrefixes = map[VolumeType]string{
 
 // osdPoolExists checks whether a given OSD pool exists.
 func (d *ceph) osdPoolExists() (bool, error) {
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"ceph",
 		"--name", "client."+d.config["ceph.user.name"],
@@ -85,7 +85,7 @@ func (d *ceph) osdPoolExists() (bool, error) {
 //     that this call actually deleted an OSD pool it needs to check for the
 //     existence of the pool first.
 func (d *ceph) osdDeletePool() error {
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"ceph",
 		"--name", "client."+d.config["ceph.user.name"],
@@ -150,7 +150,7 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 		"create",
 		d.getRBDVolumeName(vol, "", false, false))
 
-	_, err = shared.RunCommandContext(context.TODO(), "rbd", cmd...)
+	_, err = shared.RunCommand(context.TODO(), "rbd", cmd...)
 	return err
 }
 
@@ -160,7 +160,7 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 //     to be sure that this call actually deleted an RBD storage volume it needs
 //     to check for the existence of the pool first.
 func (d *ceph) rbdDeleteVolume(vol Volume) error {
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -180,7 +180,7 @@ func (d *ceph) rbdDeleteVolume(vol Volume) error {
 // in the /dev directory and is therefore necessary in order to mount it.
 func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
 	rbdName := d.getRBDVolumeName(vol, "", false, false)
-	devPath, err := shared.RunCommandContext(
+	devPath, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -212,7 +212,7 @@ func (d *ceph) rbdUnmapVolume(vol Volume, unmapUntilEINVAL bool) error {
 	ourDeactivate := false
 
 again:
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -265,7 +265,7 @@ again:
 // This is a precondition in order to delete an RBD snapshot can.
 func (d *ceph) rbdUnmapVolumeSnapshot(vol Volume, snapshotName string, unmapUntilEINVAL bool) error {
 again:
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -297,7 +297,7 @@ again:
 
 // rbdCreateVolumeSnapshot creates a read-write snapshot of a given RBD storage volume.
 func (d *ceph) rbdCreateVolumeSnapshot(vol Volume, snapshotName string) error {
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -317,7 +317,7 @@ func (d *ceph) rbdCreateVolumeSnapshot(vol Volume, snapshotName string) error {
 // rbdProtectVolumeSnapshot protects a given snapshot from being deleted.
 // This is a precondition to be able to create RBD clones from a given snapshot.
 func (d *ceph) rbdProtectVolumeSnapshot(vol Volume, snapshotName string) error {
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -349,7 +349,7 @@ func (d *ceph) rbdProtectVolumeSnapshot(vol Volume, snapshotName string) error {
 // - This is a precondition to be able to delete an RBD snapshot.
 // - This command will only succeed if the snapshot does not have any clones.
 func (d *ceph) rbdUnprotectVolumeSnapshot(vol Volume, snapshotName string) error {
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -401,7 +401,7 @@ func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targe
 		d.getRBDVolumeName(sourceVol, sourceSnapshotName, false, true),
 		d.getRBDVolumeName(targetVol, "", false, true))
 
-	_, err := shared.RunCommandContext(context.TODO(), "rbd", cmd...)
+	_, err := shared.RunCommand(context.TODO(), "rbd", cmd...)
 	if err != nil {
 		return err
 	}
@@ -411,7 +411,7 @@ func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targe
 
 // rbdListSnapshotClones list all clones of an RBD snapshot.
 func (d *ceph) rbdListSnapshotClones(vol Volume, snapshotName string) ([]string, error) {
-	msg, err := shared.RunCommandContext(
+	msg, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -446,7 +446,7 @@ func (d *ceph) rbdMarkVolumeDeleted(vol Volume, newVolumeName string) error {
 	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolumeName, vol.config, vol.poolConfig)
 	deletedName := d.getRBDVolumeName(newVol, "", true, true)
 
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -472,7 +472,7 @@ func (d *ceph) rbdRenameVolume(vol Volume, newVolumeName string) error {
 	// new volume name generated in getRBDVolumeName.
 	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolumeName, vol.config, vol.poolConfig)
 
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -495,7 +495,7 @@ func (d *ceph) rbdRenameVolume(vol Volume, newVolumeName string) error {
 // original name and the caller maps it under its new name the snapshot will be
 // mapped twice. This will prevent it from being deleted.
 func (d *ceph) rbdRenameVolumeSnapshot(vol Volume, oldSnapshotName string, newSnapshotName string) error {
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -519,7 +519,7 @@ func (d *ceph) rbdRenameVolumeSnapshot(vol Volume, oldSnapshotName string, newSn
 //     The caller will usually want to parse this according to its needs. This
 //     helper library provides two small functions to do this but see below.
 func (d *ceph) rbdGetVolumeParent(vol Volume) (string, error) {
-	msg, err := shared.RunCommandContext(
+	msg, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -554,7 +554,7 @@ func (d *ceph) rbdGetVolumeParent(vol Volume) (string, error) {
 // This requires that the snapshot does not have any clones and is unmapped and
 // unprotected.
 func (d *ceph) rbdDeleteVolumeSnapshot(vol Volume, snapshotName string) error {
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -577,7 +577,7 @@ func (d *ceph) rbdDeleteVolumeSnapshot(vol Volume, snapshotName string) error {
 // this will only return
 // <rbd-snapshot-name>.
 func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
-	msg, err := shared.RunCommandContext(
+	msg, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
