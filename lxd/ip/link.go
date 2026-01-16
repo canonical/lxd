@@ -72,7 +72,7 @@ func (l *Link) add(linkType string, additionalArgs []string) error {
 	cmd = append(cmd, "type", linkType)
 	cmd = append(cmd, additionalArgs...)
 
-	_, err := shared.RunCommandContext(context.TODO(), "ip", cmd...)
+	_, err := shared.RunCommand(context.TODO(), "ip", cmd...)
 	if err != nil {
 		return fmt.Errorf("Failed adding link: %w", err)
 	}
@@ -82,7 +82,7 @@ func (l *Link) add(linkType string, additionalArgs []string) error {
 
 // SetUp enables the link device.
 func (l *Link) SetUp() error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "up")
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "set", "dev", l.Name, "up")
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (l *Link) SetUp() error {
 
 // SetDown disables the link device.
 func (l *Link) SetDown() error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "down")
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "set", "dev", l.Name, "down")
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func (l *Link) SetDown() error {
 
 // SetMTU sets the MTU of the link device.
 func (l *Link) SetMTU(mtu uint32) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "mtu", strconv.FormatUint(uint64(mtu), 10))
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "set", "dev", l.Name, "mtu", strconv.FormatUint(uint64(mtu), 10))
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (l *Link) SetMTU(mtu uint32) error {
 
 // SetTXQueueLength sets the txqueuelen of the link device.
 func (l *Link) SetTXQueueLength(queueLength uint32) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "txqueuelen", strconv.FormatUint(uint64(queueLength), 10))
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "set", "dev", l.Name, "txqueuelen", strconv.FormatUint(uint64(queueLength), 10))
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (l *Link) SetTXQueueLength(queueLength uint32) error {
 
 // SetAddress sets the address of the link device.
 func (l *Link) SetAddress(address net.HardwareAddr) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "address", address.String())
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "set", "dev", l.Name, "address", address.String())
 	if err != nil {
 		return err
 	}
@@ -138,13 +138,13 @@ func (l *Link) SetAllMulticast(enabled bool) error {
 		mode = "on"
 	}
 
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "allmulticast", mode)
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "set", "dev", l.Name, "allmulticast", mode)
 	return err
 }
 
 // SetMaster sets the master of the link device.
 func (l *Link) SetMaster(master string) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "master", master)
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "set", "dev", l.Name, "master", master)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (l *Link) SetMaster(master string) error {
 
 // SetNoMaster removes the master of the link device.
 func (l *Link) SetNoMaster() error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "nomaster")
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "set", "dev", l.Name, "nomaster")
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (l *Link) SetNoMaster() error {
 
 // SetName sets the name of the link device.
 func (l *Link) SetName(newName string) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "name", newName)
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "set", "dev", l.Name, "name", newName)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (l *Link) SetName(newName string) error {
 
 // SetNetns moves the link to the selected network namespace.
 func (l *Link) SetNetns(netns string) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "netns", netns)
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "set", "dev", l.Name, "netns", netns)
 	if err != nil {
 		return err
 	}
@@ -370,7 +370,7 @@ func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
 
 // Change sets map for link device.
 func (l *Link) Change(devType string, fanMap string) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "change", "dev", l.Name, "type", devType, "fan-map", fanMap)
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "change", "dev", l.Name, "type", devType, "fan-map", fanMap)
 	if err != nil {
 		return err
 	}
@@ -380,7 +380,7 @@ func (l *Link) Change(devType string, fanMap string) error {
 
 // Delete deletes the link device.
 func (l *Link) Delete() error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "delete", "dev", l.Name)
+	_, err := shared.RunCommand(context.TODO(), "ip", "link", "delete", "dev", l.Name)
 	if err != nil {
 		return err
 	}
@@ -406,7 +406,7 @@ func (l *Link) BridgeVLANAdd(vid string, pvid bool, untagged bool, self bool) er
 		cmd = append(cmd, "master")
 	}
 
-	_, err := shared.RunCommandContext(context.TODO(), "bridge", cmd...)
+	_, err := shared.RunCommand(context.TODO(), "bridge", cmd...)
 	if err != nil {
 		return err
 	}
@@ -424,7 +424,7 @@ func (l *Link) BridgeVLANDelete(vid string, self bool) error {
 		cmd = append(cmd, "master")
 	}
 
-	_, err := shared.RunCommandContext(context.TODO(), "bridge", cmd...)
+	_, err := shared.RunCommand(context.TODO(), "bridge", cmd...)
 	if err != nil {
 		return err
 	}
@@ -439,7 +439,7 @@ func (l *Link) BridgeLinkSetIsolated(isolated bool) error {
 		isolatedState = "off"
 	}
 
-	_, err := shared.RunCommandContext(context.TODO(), "bridge", "link", "set", "dev", l.Name, "isolated", isolatedState)
+	_, err := shared.RunCommand(context.TODO(), "bridge", "link", "set", "dev", l.Name, "isolated", isolatedState)
 	if err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func (l *Link) BridgeLinkSetHairpin(hairpin bool) error {
 		hairpinState = "off"
 	}
 
-	_, err := shared.RunCommandContext(context.TODO(), "bridge", "link", "set", "dev", l.Name, "hairpin", hairpinState)
+	_, err := shared.RunCommand(context.TODO(), "bridge", "link", "set", "dev", l.Name, "hairpin", hairpinState)
 	if err != nil {
 		return err
 	}
