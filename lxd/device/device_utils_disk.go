@@ -112,7 +112,7 @@ func DiskMountClear(mntPath string) error {
 }
 
 func diskCephRbdMap(clusterName string, userName string, poolName string, volumeName string) (string, error) {
-	devPath, err := shared.RunCommandContext(
+	devPath, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"--id", userName,
@@ -137,7 +137,7 @@ func diskCephRbdUnmap(deviceName string) error {
 	unmapImageName := deviceName
 	busyCount := 0
 again:
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		"rbd",
 		"unmap",
