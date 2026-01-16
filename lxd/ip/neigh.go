@@ -51,7 +51,7 @@ type Neigh struct {
 
 // Show list neighbour entries filtered by DevName and optionally MAC address.
 func (n *Neigh) Show() ([]Neigh, error) {
-	out, err := shared.RunCommandContext(context.TODO(), "ip", "neigh", "show", "dev", n.DevName)
+	out, err := shared.RunCommand(context.TODO(), "ip", "neigh", "show", "dev", n.DevName)
 	if err != nil {
 		return nil, err
 	}

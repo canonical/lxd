@@ -76,7 +76,7 @@ func (u32 *U32Filter) Add() error {
 		cmd = append(cmd, "flowid", u32.Flowid)
 	}
 
-	_, err := shared.RunCommandContext(context.TODO(), "tc", cmd...)
+	_, err := shared.RunCommand(context.TODO(), "tc", cmd...)
 	if err != nil {
 		return err
 	}

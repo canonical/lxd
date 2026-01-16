@@ -20,7 +20,7 @@ func (t *Tuntap) Add() error {
 		cmd = append(cmd, "multi_queue")
 	}
 
-	_, err := shared.RunCommandContext(context.TODO(), "ip", cmd...)
+	_, err := shared.RunCommand(context.TODO(), "ip", cmd...)
 	if err != nil {
 		return err
 	}
