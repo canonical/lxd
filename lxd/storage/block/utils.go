@@ -112,7 +112,7 @@ func DiskBlockSize(path string) (uint32, error) {
 // DiskFSUUID returns the UUID of a filesystem on the device.
 // An empty string is returned in case of a pristine disk.
 func DiskFSUUID(pathName string) (string, error) {
-	uuid, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "UUID", "-o", "value", pathName)
+	uuid, err := shared.RunCommand(context.TODO(), "blkid", "-s", "UUID", "-o", "value", pathName)
 	if err != nil {
 		runErr, ok := err.(shared.RunError)
 		if ok {
@@ -132,7 +132,7 @@ func DiskFSUUID(pathName string) (string, error) {
 
 // DiskFSType detects the filesystem type of the block device.
 func DiskFSType(pathName string) (string, error) {
-	fsType, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", pathName)
+	fsType, err := shared.RunCommand(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", pathName)
 	if err != nil {
 		return "", fmt.Errorf("Failed to retrieve filesystem type from device %q: %w", pathName, err)
 	}
@@ -145,7 +145,7 @@ func RefreshDiskDeviceSize(ctx context.Context, diskPath string) error {
 	devName := filepath.Base(diskPath)
 	if strings.HasPrefix(devName, "dm-") {
 		// Ask multipathd to refresh multipath device size.
-		_, err := shared.RunCommandContext(ctx, "multipath", "-r", diskPath)
+		_, err := shared.RunCommand(ctx, "multipath", "-r", diskPath)
 		if err != nil {
 			return fmt.Errorf("Failed to update multipath device %q size: %w", devName, err)
 		}
@@ -288,7 +288,7 @@ func GetDisksByID(filterPrefix string) ([]string, error) {
 
 // LoopDeviceSetupAlign creates a forced 512-byte aligned loop device.
 func LoopDeviceSetupAlign(sourcePath string) (string, error) {
-	out, err := shared.RunCommandContext(context.TODO(), "losetup", "-b", "512", "--find", "--nooverlap", "--show", sourcePath)
+	out, err := shared.RunCommand(context.TODO(), "losetup", "-b", "512", "--find", "--nooverlap", "--show", sourcePath)
 	if err != nil {
 		return "", err
 	}
