@@ -174,7 +174,7 @@ func restServer(d *Daemon) *http.Server {
 		if isBrowserClient(r) {
 			handleUIAccessLink(w, r, d.globalConfig.ClusterUUID(), d.identityCache)
 
-			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
+			http.Redirect(w, r, "/ui/", http.StatusFound)
 			return
 		}
 
