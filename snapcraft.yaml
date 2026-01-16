@@ -391,6 +391,24 @@ parts:
       # Install files destination
       mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
 
+      if [ "$(uname -m)" = "x86_64" ]; then
+          DSC="OvmfPkg/OvmfPkgX64.dsc"
+          BUILD_TARGET="build-ovmf"
+          SRC_DIR="debian/ovmf-install"
+          SRC_CODE="OVMF_CODE_4M.secboot.fd"
+          SRC_VARS="OVMF_VARS_4M.fd"
+          SRC_VARS_MS="OVMF_VARS_4M.ms.fd"
+          SED_EXPR="s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g"
+      elif [ "$(uname -m)" = "aarch64" ]; then
+          DSC="ArmVirtPkg/ArmVirt.dsc.inc"
+          BUILD_TARGET="build-qemu-efi-aarch64"
+          SRC_DIR="debian/aavmf-install"
+          SRC_CODE="AAVMF_CODE.secboot.fd"
+          SRC_VARS="AAVMF_VARS.fd"
+          SRC_VARS_MS="AAVMF_VARS.ms.fd"
+          SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
+      fi
+
       # Function to run build and install
       run_build() {
           TYPE=$1
@@ -401,45 +419,22 @@ parts:
           rm -rf debian/*-install
           rm -rf Build
 
-          if [ "$(uname -m)" = "x86_64" ]; then
-              DSC="OvmfPkg/OvmfPkgX64.dsc"
-              if [ "${TYPE}" = "DEBUG" ]; then
-                  cp "${DSC}" "${DSC}.bak"
-                  sed -i "s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g" "${DSC}"
-              fi
+          if [ "${TYPE}" = "DEBUG" ]; then
+              cp "${DSC}" "${DSC}.bak"
+              sed -i "${SED_EXPR}" "${DSC}"
+          fi
 
-              /usr/bin/make -f debian/rules build-ovmf BUILD_TYPE="${TYPE}"
+          /usr/bin/make -f debian/rules "${BUILD_TARGET}" BUILD_TYPE="${TYPE}"
 
-              if [ "${TYPE}" = "DEBUG" ] && [ -f "${DSC}.bak" ]; then
-                  mv "${DSC}.bak" "${DSC}"
-              fi
+          if [ "${TYPE}" = "DEBUG" ] && [ -f "${DSC}.bak" ]; then
+              mv "${DSC}.bak" "${DSC}"
+          fi
 
-              cp debian/ovmf-install/OVMF_CODE_4M.secboot.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB${SUFFIX}.fd"
-              cp debian/ovmf-install/OVMF_VARS_4M.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB${SUFFIX}.fd"
+          cp "${SRC_DIR}/${SRC_CODE}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB${SUFFIX}.fd"
+          cp "${SRC_DIR}/${SRC_VARS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB${SUFFIX}.fd"
 
-              if [ "${TYPE}" = "RELEASE" ]; then
-                  cp debian/ovmf-install/OVMF_VARS_4M.ms.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
-              fi
-
-          elif [ "$(uname -m)" = "aarch64" ]; then
-              DSC="ArmVirtPkg/ArmVirt.dsc.inc"
-              if [ "${TYPE}" = "DEBUG" ]; then
-                   cp "${DSC}" "${DSC}.bak"
-                   sed -i "s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g" "${DSC}"
-              fi
-
-              /usr/bin/make -f debian/rules build-qemu-efi-aarch64 BUILD_TYPE="${TYPE}"
-
-              if [ "${TYPE}" = "DEBUG" ] && [ -f "${DSC}.bak" ]; then
-                   mv "${DSC}.bak" "${DSC}"
-              fi
-
-              cp debian/aavmf-install/AAVMF_CODE.secboot.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB${SUFFIX}.fd"
-              cp debian/aavmf-install/AAVMF_VARS.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB${SUFFIX}.fd"
-
-              if [ "${TYPE}" = "RELEASE" ]; then
-                  cp debian/aavmf-install/AAVMF_VARS.ms.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
-              fi
+          if [ "${TYPE}" = "RELEASE" ]; then
+               cp "${SRC_DIR}/${SRC_VARS_MS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
           fi
       }
 
