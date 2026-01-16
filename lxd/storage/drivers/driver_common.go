@@ -323,7 +323,7 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 		}
 	}
 
-	_, err = shared.RunCommandContext(context.TODO(), path, "--move-second-header", devPath)
+	_, err = shared.RunCommand(context.TODO(), path, "--move-second-header", devPath)
 	if err == nil {
 		d.logger.Debug("Moved GPT alternative header to end of disk", logger.Ctx{"dev": devPath})
 		return nil
@@ -617,7 +617,7 @@ func (d *common) filesystemFreeze(path string) (func() error, error) {
 		return nil, fmt.Errorf("Failed syncing filesystem %q: %w", path, err)
 	}
 
-	_, err = shared.RunCommandContext(context.TODO(), "fsfreeze", "--freeze", path)
+	_, err = shared.RunCommand(context.TODO(), "fsfreeze", "--freeze", path)
 	if err != nil {
 		return nil, fmt.Errorf("Failed freezing filesystem %q: %w", path, err)
 	}
@@ -625,7 +625,7 @@ func (d *common) filesystemFreeze(path string) (func() error, error) {
 	d.logger.Info("Filesystem frozen", logger.Ctx{"path": path})
 
 	unfreezeFS := func() error {
-		_, err := shared.RunCommandContext(context.TODO(), "fsfreeze", "--unfreeze", path)
+		_, err := shared.RunCommand(context.TODO(), "fsfreeze", "--unfreeze", path)
 		if err != nil {
 			return fmt.Errorf("Failed unfreezing filesystem %q: %w", path, err)
 		}
