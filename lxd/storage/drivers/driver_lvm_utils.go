@@ -257,14 +257,14 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 	}
 
 	// Create the thin pool volume.
-	_, err = shared.TryRunCommand("lvcreate", args...)
+	_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvcreate", args...)
 	if err != nil {
 		return fmt.Errorf("Error creating LVM thin pool named %q: %w", thinPoolName, err)
 	}
 
 	if !isRecent && thinpoolSizeBytes <= 0 {
 		// Grow it to the maximum VG size (two step process required by old LVM).
-		_, err = shared.TryRunCommand("lvextend", "--alloc", "anywhere", "-l", "100%FREE", lvmThinPool)
+		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvextend", "--alloc", "anywhere", "-l", "100%FREE", lvmThinPool)
 		if err != nil {
 			return fmt.Errorf("Error growing LVM thin pool named %q: %w", thinPoolName, err)
 		}
@@ -364,7 +364,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		}
 	}
 
-	_, err = shared.TryRunCommand("lvcreate", args...)
+	_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvcreate", args...)
 	if err != nil {
 		return fmt.Errorf("Error creating LVM logical volume %q: %w", lvFullName, err)
 	}
@@ -434,7 +434,7 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol 
 	revert := revert.New()
 	defer revert.Fail()
 
-	_, err = shared.TryRunCommand("lvcreate", args...)
+	_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvcreate", args...)
 	if err != nil {
 		return "", fmt.Errorf("Error creating LV snapshot named %q: %w", snapLvName, err)
 	}
@@ -453,7 +453,7 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol 
 
 // removeLogicalVolume removes a logical volume.
 func (d *lvm) removeLogicalVolume(volDevPath string) error {
-	_, err := shared.TryRunCommand("lvremove", "-f", volDevPath)
+	_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvremove", "-f", volDevPath)
 	if err != nil {
 		return err
 	}
@@ -465,7 +465,7 @@ func (d *lvm) removeLogicalVolume(volDevPath string) error {
 
 // renameLogicalVolume renames a logical volume.
 func (d *lvm) renameLogicalVolume(volDevPath string, newVolDevPath string) error {
-	_, err := shared.TryRunCommand("lvrename", volDevPath, newVolDevPath)
+	_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvrename", volDevPath, newVolDevPath)
 	if err != nil {
 		return err
 	}
@@ -520,7 +520,7 @@ func (d *lvm) resizeLogicalVolume(lvPath string, sizeBytes int64) error {
 		args = append(args, "--fs=ignore")
 	}
 
-	_, err = shared.TryRunCommand("lvresize", args...)
+	_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvresize", args...)
 	if err != nil {
 		return err
 	}

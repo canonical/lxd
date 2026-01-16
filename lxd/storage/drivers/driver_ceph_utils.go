@@ -623,7 +623,7 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 // getOSDPoolDefaultSize gets the global OSD default pool size that is used for
 // all pools created without an explicit OSD pool size.
 func (d *ceph) getOSDPoolDefaultSize() (int, error) {
-	defaultSize, err := shared.TryRunCommand("ceph",
+	defaultSize, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "ceph",
 		"--name", "client."+d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		"config",
@@ -1331,7 +1331,7 @@ func (d *ceph) resizeVolume(vol Volume, sizeBytes int64, allowShrink bool) error
 	)
 
 	// Resize the block device.
-	_, err := shared.TryRunCommand("rbd", args...)
+	_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "rbd", args...)
 
 	return err
 }

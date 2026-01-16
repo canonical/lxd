@@ -236,7 +236,7 @@ func (d *cephfs) Create() error {
 				}
 
 				if strconv.Itoa(defaultSize) != d.config["cephfs.osd_pool_size"] {
-					_, err = shared.TryRunCommand("ceph",
+					_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "ceph",
 						"--name", "client."+d.config["cephfs.user.name"],
 						"--cluster", d.config["cephfs.cluster_name"],
 						"osd",
@@ -512,7 +512,7 @@ func (d *cephfs) Update(changedConfig map[string]string) error {
 				continue
 			}
 
-			_, err := shared.TryRunCommand("ceph",
+			_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "ceph",
 				"--name", "client."+d.config["cephfs.user.name"],
 				"--cluster", d.config["cephfs.cluster_name"],
 				"osd",

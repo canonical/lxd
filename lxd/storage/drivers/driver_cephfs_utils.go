@@ -49,7 +49,7 @@ func (d *cephfs) osdPoolExists(clusterName string, userName string, osdPoolName 
 // getOSDPoolDefaultSize gets the global OSD default pool size that is used for
 // all pools created without an explicit OSD pool size.
 func (d *cephfs) getOSDPoolDefaultSize() (int, error) {
-	size, err := shared.TryRunCommand("ceph",
+	size, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "ceph",
 		"--name", "client."+d.config["cephfs.user.name"],
 		"--cluster", d.config["cephfs.cluster_name"],
 		"config",
