@@ -28,6 +28,10 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+var tryCommandOpts = &shared.TryRunCommandOpts{
+	NoKill: true,
+}
+
 // defaultVMBlockFilesystemSize is the size of a VM root device block volume's associated filesystem volume.
 const defaultVMBlockFilesystemSize = "100MiB"
 
