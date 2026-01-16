@@ -971,58 +971,6 @@ parts:
       - share/qemu/vgabios-stdvga.bin
       - share/qemu/vgabios-virtio.bin
 
-  qemu-ovmf-secureboot:
-    after:
-      - edk2
-      - qemu
-    source: edk2-vars-generator
-    plugin: nil
-    build-packages:
-      - to amd64:
-        - dosfstools
-        - mtools
-        - python3-pexpect
-        - xorriso
-      - to arm64:
-        - dosfstools
-        - mtools
-        - python3-pexpect
-        - xorriso
-    override-stage: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-
-      export ARCH="$(basename "$(readlink -f "${CRAFT_STAGE}"/lib/*-linux-gnu*/)")"
-      export LD_LIBRARY_PATH="${CRAFT_STAGE}/lib:${CRAFT_STAGE}/lib/${ARCH}"
-
-      set -ex
-
-      FIRMWARE="OVMF"
-      if [ "$(uname -m)" = "aarch64" ]; then
-        FIRMWARE="AAVMF"
-      fi
-
-      mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
-
-      # 4MB variant
-      ./edk2-vars-generator -f "${FIRMWARE}" \
-        -e ../../edk2/build/Build/*/RELEASE*/*/EnrollDefaultKeys.efi \
-        -s ../../edk2/build/Build/*/RELEASE*/*/Shell.efi \
-        -c "${CRAFT_STAGE}/share/qemu/OVMF_CODE.4MB.fd" \
-        -V "${CRAFT_STAGE}/share/qemu/OVMF_VARS.4MB.fd" \
-        -C "$(cat ubuntu-sb.crt)" \
-        -o "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
-    prime:
-      - share/qemu/*
-
   squashfs-tools-ng:
     plugin: nil
     stage-packages:
@@ -1393,7 +1341,7 @@ parts:
   uefivars:
     after:
       - spice-server
-      - qemu-ovmf-secureboot
+      - edk2
       - nftables
     # XXX: cannot use python3-pyuefivars (1.0.0-0ubuntu2) from Noble as the Ubuntu patch breaks it
     #      the version in Ubuntu 24.10 onward should be OK so let's revisit with core26.
@@ -1635,7 +1583,6 @@ parts:
       - nvidia-container
       - openvswitch
       - ovn
-      - qemu-ovmf-secureboot
       - spice-server
       - squashfs-tools-ng
       - swtpm
