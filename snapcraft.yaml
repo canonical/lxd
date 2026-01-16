@@ -415,6 +415,10 @@ parts:
               cp debian/ovmf-install/OVMF_CODE_4M.secboot.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB${SUFFIX}.fd"
               cp debian/ovmf-install/OVMF_VARS_4M.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB${SUFFIX}.fd"
 
+              if [ "${TYPE}" = "RELEASE" ]; then
+                  cp debian/ovmf-install/OVMF_VARS_4M.ms.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
+              fi
+
           elif [ "$(uname -m)" = "aarch64" ]; then
               DSC="ArmVirtPkg/ArmVirt.dsc.inc"
               if [ "${TYPE}" = "DEBUG" ]; then
@@ -430,6 +434,10 @@ parts:
 
               cp debian/aavmf-install/AAVMF_CODE.secboot.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB${SUFFIX}.fd"
               cp debian/aavmf-install/AAVMF_VARS.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB${SUFFIX}.fd"
+
+              if [ "${TYPE}" = "RELEASE" ]; then
+                  cp debian/aavmf-install/AAVMF_VARS.ms.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
+              fi
           fi
       }
 
