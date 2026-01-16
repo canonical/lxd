@@ -2401,3 +2401,34 @@ func (d *common) removeDiskDevices() error {
 
 	return nil
 }
+
+// initialConfigValidate prevents adding or updating device initial configuration.
+func (d *common) initialConfigValidate(allUpdatedKeys []string, addDevices deviceConfig.Devices, removeDevices deviceConfig.Devices) error {
+	if shared.StringPrefixInSlice(deviceConfig.ConfigInitialPrefix, allUpdatedKeys) {
+		for devName, newDev := range addDevices {
+			for k, newVal := range newDev {
+				if !strings.HasPrefix(k, deviceConfig.ConfigInitialPrefix) {
+					continue
+				}
+
+				oldDev, ok := removeDevices[devName]
+				if !ok {
+					return fmt.Errorf("New device %q with initial configuration %q cannot be added once the instance is created", devName, k)
+				}
+
+				oldVal, ok := oldDev[k]
+				if !ok {
+					return fmt.Errorf("Device %q initial configuration %q cannot be added once the instance is created", devName, k)
+				}
+
+				// If newVal is an empty string it means the initial configuration
+				// has been removed.
+				if newVal != "" && newVal != oldVal {
+					return fmt.Errorf("Device %q initial configuration %q cannot be modified once the instance is created", devName, k)
+				}
+			}
+		}
+	}
+
+	return nil
+}
