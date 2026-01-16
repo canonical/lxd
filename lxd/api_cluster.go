@@ -2685,7 +2685,7 @@ func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.
 	}
 
 	for {
-		address, nodes, err := cluster.GetNextRoleChange(s, gateway, unavailableMembers)
+		address, nodes, connectivity, err := cluster.GetNextRoleChange(s, gateway, unavailableMembers)
 		if err != nil {
 			return err
 		}
@@ -2702,7 +2702,7 @@ func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.
 				continue
 			}
 
-			if cluster.HasConnectivity(s.Endpoints.NetworkCert(), s.ServerCert(), address) {
+			if connectivity[address] {
 				break
 			}
 

@@ -726,29 +726,30 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 // It checks if there's a spare online node that can be promoted to voter (if below membershipMaxRaftVoters)
 // or to standby (if below membershipMaxStandBys).
 //
-// If a role change is needed, returns the address of the candidate node and the updated list of raft nodes.
+// If a role change is needed, returns the address of the candidate node, the updated list of raft nodes,
+// and a connectivity map keyed by member address.
 // If no changes are needed, returns an empty address.
-func GetNextRoleChange(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
+func GetNextRoleChange(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, map[string]bool, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
-		return "", nil, nil
+		return "", nil, nil, nil
 	}
 
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return "", nil, fmt.Errorf("Get current raft nodes: %w", err)
+		return "", nil, nil, fmt.Errorf("Get current raft nodes: %w", err)
 	}
 
-	roles, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
+	roles, connectivity, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 
 	role, candidates := roles.Adjust(gateway.info.ID)
 
 	if role == -1 {
 		// No node to promote
-		return "", nodes, nil
+		return "", nodes, connectivity, nil
 	}
 
 	localClusterAddress := state.LocalConfig.ClusterAddress()
@@ -764,7 +765,7 @@ func GetNextRoleChange(state *state.State, gateway *Gateway, unavailableMembers 
 		}
 	}
 
-	return candidateAddress, nodes, nil
+	return candidateAddress, nodes, connectivity, nil
 }
 
 // Assign a new role to the local dqlite node.
@@ -1072,7 +1073,7 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 		return "", nil, fmt.Errorf("No dqlite node has address %s (%s)", address, strings.Join(raftNodeAddresses, ","))
 	}
 
-	roles, err := newRolesChanges(state, gateway, nodes, nil)
+	roles, _, err := newRolesChanges(state, gateway, nodes, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1092,8 +1093,8 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 	return "", nil, nil
 }
 
-// Build an app.RolesChanges object feeded with the current cluster state.
-func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, unavailableMembers []string) (*app.RolesChanges, error) {
+// Build an [app.RolesChanges] object from the current cluster state and return a connectivity map keyed by member address.
+func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, unavailableMembers []string) (*app.RolesChanges, map[string]bool, error) {
 	var domains map[string]uint64
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
@@ -1106,13 +1107,16 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	cluster := map[client.NodeInfo]*client.NodeMetadata{}
+	connectivity := make(map[string]bool, len(nodes))
 
 	for _, node := range nodes {
-		if !slices.Contains(unavailableMembers, node.Address) && HasConnectivity(gateway.networkCert, gateway.state().ServerCert(), node.Address) {
+		connected := !slices.Contains(unavailableMembers, node.Address) && HasConnectivity(gateway.networkCert, gateway.state().ServerCert(), node.Address)
+		connectivity[node.Address] = connected
+		if connected {
 			cluster[node.NodeInfo] = &client.NodeMetadata{
 				FailureDomain: domains[node.Address],
 			}
@@ -1123,12 +1127,12 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 
 	maxVoters := state.GlobalConfig.MaxVoters()
 	if maxVoters > math.MaxInt {
-		return nil, errors.New("Cannot convert maximum voter nodes to int: Upper bound exceeded")
+		return nil, nil, errors.New("Cannot convert maximum voter nodes to int: Upper bound exceeded")
 	}
 
 	maxStandBy := state.GlobalConfig.MaxStandBy()
 	if maxStandBy > math.MaxInt {
-		return nil, errors.New("Cannot convert maximum standby nodes to int: Upper bound exceeded")
+		return nil, nil, errors.New("Cannot convert maximum standby nodes to int: Upper bound exceeded")
 	}
 
 	roles := &app.RolesChanges{
@@ -1139,7 +1143,7 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 		State: cluster,
 	}
 
-	return roles, nil
+	return roles, connectivity, nil
 }
 
 // Purge removes a node entirely from the cluster database.
