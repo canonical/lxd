@@ -90,7 +90,7 @@ func (c *cmdImport) run(cmd *cobra.Command, args []string) error {
 		file = os.Stdin
 		c.global.flagQuiet = true
 	} else {
-		file, err = os.Open(shared.HostPathFollow(srcFile))
+		file, err = os.Open(shared.HostPathFollow(cmd.Context(), srcFile))
 		if err != nil {
 			return err
 		}

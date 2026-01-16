@@ -53,20 +53,20 @@ func (c *cmdManpage) run(cmd *cobra.Command, args []string) error {
 
 		opts := doc.GenManTreeOptions{
 			Header:           header,
-			Path:             shared.HostPathFollow(args[0]),
+			Path:             shared.HostPathFollow(cmd.Context(), args[0]),
 			CommandSeparator: ".",
 		}
 
 		err = doc.GenManTreeFromOpts(c.global.cmd, opts)
 
 	case "md":
-		err = doc.GenMarkdownTree(c.global.cmd, shared.HostPathFollow(args[0]))
+		err = doc.GenMarkdownTree(c.global.cmd, shared.HostPathFollow(cmd.Context(), args[0]))
 
 	case "rest":
-		err = doc.GenReSTTree(c.global.cmd, shared.HostPathFollow(args[0]))
+		err = doc.GenReSTTree(c.global.cmd, shared.HostPathFollow(cmd.Context(), args[0]))
 
 	case "yaml":
-		err = doc.GenYamlTree(c.global.cmd, shared.HostPathFollow(args[0]))
+		err = doc.GenYamlTree(c.global.cmd, shared.HostPathFollow(cmd.Context(), args[0]))
 	}
 
 	return err

@@ -2831,7 +2831,7 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 		targetName = "backup.tar.gz"
 	}
 
-	target, err := os.Create(shared.HostPathFollow(targetName))
+	target, err := os.Create(shared.HostPathFollow(cmd.Context(), targetName))
 	if err != nil {
 		return err
 	}
@@ -2923,7 +2923,7 @@ func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 		d = d.UseTarget(c.storage.flagTarget)
 	}
 
-	file, err := os.Open(shared.HostPathFollow(args[1]))
+	file, err := os.Open(shared.HostPathFollow(cmd.Context(), args[1]))
 	if err != nil {
 		return err
 	}
