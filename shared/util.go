@@ -133,7 +133,7 @@ func IsUnixSocket(path string) bool {
 
 // HostPathFollow takes a valid path (from HostPath) and resolves it
 // all the way to its target or to the last which can be resolved.
-func HostPathFollow(path string) string {
+func HostPathFollow(ctx context.Context, path string) string {
 	// Ignore empty paths
 	if len(path) == 0 {
 		return path
@@ -168,7 +168,7 @@ func HostPathFollow(path string) string {
 	// Rely on "readlink -m" to do the right thing.
 	path = HostPath(path)
 	for {
-		target, err := RunCommand("readlink", "-m", path)
+		target, err := RunCommand(ctx, "readlink", "-m", path)
 		if err != nil {
 			return path
 		}
