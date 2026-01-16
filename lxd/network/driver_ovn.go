@@ -2434,19 +2434,13 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Create external router port.
-		err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterExtPortName(), routerMAC, bridgeMTU, extRouterIPs, update)
+		err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterExtPortName(), routerMAC, bridgeMTU, extRouterIPs, n.getChassisGroupName(), update)
 		if err != nil {
 			return fmt.Errorf("Failed adding external router port: %w", err)
 		}
 
 		if !update {
 			revert.Add(func() { _ = client.LogicalRouterPortDelete(n.getRouterExtPortName()) })
-		}
-
-		// Associate external router port to chassis group.
-		err = client.LogicalRouterPortLinkChassisGroup(n.getRouterExtPortName(), n.getChassisGroupName())
-		if err != nil {
-			return fmt.Errorf("Failed linking external router port to chassis group: %w", err)
 		}
 
 		// Create external switch port and link to router port.
@@ -2668,7 +2662,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Create internal router port.
-	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterIntPortName(), routerMAC, bridgeMTU, intRouterIPs, update)
+	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterIntPortName(), routerMAC, bridgeMTU, intRouterIPs, "", update)
 	if err != nil {
 		return fmt.Errorf("Failed adding internal router port: %w", err)
 	}
