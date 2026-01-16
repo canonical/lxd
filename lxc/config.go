@@ -291,9 +291,10 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 		}
 
 		for {
+			var updateErr error
+
 			// Parse the text received from the editor.
 			if isSnapshot {
-				// Parse the text received from the editor.
 				newdata := api.InstanceSnapshot{}
 				err = yaml.Unmarshal(content, &newdata)
 				if err != nil {
@@ -301,37 +302,20 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 				}
 
 				// Validation: Check if user tried to modify read-only properties.
-				// Create a copy of the original snapshot with only writable properties changed.
 				expectedSnapshot := *snapshotInstance
 				expectedSnapshot.SetWritable(newdata.Writable())
 
-				// Compare if the user tried to modify anything beyond writable fields.
 				if !reflect.DeepEqual(newdata, expectedSnapshot) {
-					return errors.New(snapshotEditableFieldsMsg(newdata.Writable()))
-				}
-
-				var op lxd.Operation
-				op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1], newdata.Writable(), etag)
-				if err == nil {
-					err = op.Wait()
+					updateErr = errors.New(snapshotEditableFieldsMsg(newdata.Writable()))
+				} else {
+					op, err := resource.server.UpdateInstanceSnapshot(fields[0], fields[1], newdata.Writable(), etag)
 					if err == nil {
-						break
+						updateErr = op.Wait()
+					} else {
+						updateErr = err
 					}
 				}
-
-				// Respawn the editor for any error condition.
-				fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
-				_, err := os.Stdin.Read(make([]byte, 1))
-				if err != nil {
-					return err
-				}
-
-				content, err = shared.TextEditor("", content)
-				if err != nil {
-					return err
-				}
 			} else {
-				// Parse the text received from the editor.
 				newdata := api.Instance{}
 				err = yaml.Unmarshal(content, &newdata)
 				if err != nil {
@@ -340,23 +324,28 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 
 				op, err := resource.server.UpdateInstance(resource.name, newdata.Writable(), etag)
 				if err == nil {
-					err = op.Wait()
-					if err == nil {
-						break
-					}
+					updateErr = op.Wait()
+				} else {
+					updateErr = err
 				}
+			}
 
-				// Respawn the editor for any error condition.
-				fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
-				_, err = os.Stdin.Read(make([]byte, 1))
-				if err != nil {
-					return err
-				}
+			// If successful, break out of the loop.
+			if updateErr == nil {
+				break
+			}
 
-				content, err = shared.TextEditor("", content)
-				if err != nil {
-					return err
-				}
+			// Show error and respawn editor.
+			fmt.Fprintf(os.Stderr, "Error: %s\n", updateErr)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
+			_, err = os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
 			}
 		}
 
