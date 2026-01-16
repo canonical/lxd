@@ -26,12 +26,13 @@ type cmdInit struct {
 	flagPreseed bool
 	flagDump    bool
 
-	flagNetworkAddress  string
-	flagNetworkPort     int64
-	flagStorageBackend  string
-	flagStorageDevice   string
-	flagStorageLoopSize int
-	flagStoragePool     string
+	flagNetworkAddress        string
+	flagNetworkPort           int64
+	flagStorageBackend        string
+	flagStorageDevice         string
+	flagStorageLoopSize       int
+	flagStoragePool           string
+	flagUITemporaryAccessLink bool
 
 	hostname string
 }
@@ -63,6 +64,7 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagStorageDevice, "storage-create-device", "", cli.FormatStringFlagLabel("Setup device based storage using DEVICE"))
 	cmd.Flags().IntVar(&c.flagStorageLoopSize, "storage-create-loop", -1, "Setup loop based storage with SIZE in GiB")
 	cmd.Flags().StringVar(&c.flagStoragePool, "storage-pool", "", cli.FormatStringFlagLabel("Storage pool to use or create"))
+	cmd.Flags().BoolVar(&c.flagUITemporaryAccessLink, "ui-temporary-access-link", false, "Generate temporary access link for the UI"+"``")
 
 	return cmd
 }
