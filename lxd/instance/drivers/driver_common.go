@@ -2437,6 +2437,7 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 			"volatile.idmap.current":    {},
 			"volatile.idmap.next":       {},
 			"volatile.last_state.idmap": {},
+			"volatile.uuid":             {},
 		}
 
 		for _, k := range changedConfigKeys {
