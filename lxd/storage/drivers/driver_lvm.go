@@ -56,7 +56,7 @@ func (d *lvm) load() error {
 
 	// Detect and record the version.
 	if lvmVersion == "" {
-		output, err := shared.RunCommandContext(d.state.ShutdownCtx, "lvm", "version")
+		output, err := shared.RunCommand(d.state.ShutdownCtx, "lvm", "version")
 		if err != nil {
 			return fmt.Errorf("Error getting LVM version: %w", err)
 		}
@@ -679,7 +679,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 		}
 
 		// Resize physical volume so that lvresize is able to resize as well.
-		_, err = shared.RunCommandContext(context.TODO(), "pvresize", "-y", loopDevPath)
+		_, err = shared.RunCommand(context.TODO(), "pvresize", "-y", loopDevPath)
 		if err != nil {
 			return err
 		}
@@ -688,7 +688,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 			lvPath := d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName())
 
 			// Use the remaining space in the volume group.
-			_, err = shared.RunCommandContext(context.TODO(), "lvresize", "-f", "-l", "+100%FREE", lvPath)
+			_, err = shared.RunCommand(context.TODO(), "lvresize", "-f", "-l", "+100%FREE", lvPath)
 			if err != nil {
 				return fmt.Errorf("Error resizing LV named %q: %w", lvPath, err)
 			}
@@ -797,7 +797,7 @@ func (d *lvm) GetResources() (*api.ResourcesStoragePool, error) {
 			"-o", "vg_size,vg_free",
 		}
 
-		out, err := shared.RunCommandContext(d.state.ShutdownCtx, "vgs", args...)
+		out, err := shared.RunCommand(d.state.ShutdownCtx, "vgs", args...)
 		if err != nil {
 			return nil, err
 		}

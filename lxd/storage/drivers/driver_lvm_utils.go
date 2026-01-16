@@ -97,7 +97,7 @@ func (d *lvm) isLVMNotFoundExitError(err error) bool {
 
 // pysicalVolumeExists checks if an LVM Physical Volume exists.
 func (d *lvm) pysicalVolumeExists(pvName string) (bool, error) {
-	_, err := shared.RunCommandContext(context.TODO(), "pvs", "--noheadings", "-o", "pv_name", pvName)
+	_, err := shared.RunCommand(context.TODO(), "pvs", "--noheadings", "-o", "pv_name", pvName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return false, nil
@@ -111,7 +111,7 @@ func (d *lvm) pysicalVolumeExists(pvName string) (bool, error) {
 
 // volumeGroupExists checks if an LVM Volume Group exists and returns any tags on that volume group.
 func (d *lvm) volumeGroupExists(vgName string) (bool, []string, error) {
-	output, err := shared.RunCommandContext(context.TODO(), "vgs", "--noheadings", "-o", "vg_tags", vgName)
+	output, err := shared.RunCommand(context.TODO(), "vgs", "--noheadings", "-o", "vg_tags", vgName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return false, nil, nil
@@ -128,7 +128,7 @@ func (d *lvm) volumeGroupExists(vgName string) (bool, []string, error) {
 
 // volumeGroupExtentSize gets the volume group's physical extent size in bytes.
 func (d *lvm) volumeGroupExtentSize(vgName string) (int64, error) {
-	output, err := shared.RunCommandContext(context.TODO(), "vgs", "--noheadings", "--nosuffix", "--units", "b", "-o", "vg_extent_size", vgName)
+	output, err := shared.RunCommand(context.TODO(), "vgs", "--noheadings", "--nosuffix", "--units", "b", "-o", "vg_extent_size", vgName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume group not found")
@@ -143,7 +143,7 @@ func (d *lvm) volumeGroupExtentSize(vgName string) (int64, error) {
 
 // countLogicalVolumes gets the count of volumes (both normal and thin) in a volume group.
 func (d *lvm) countLogicalVolumes(vgName string) (int, error) {
-	output, err := shared.RunCommandContext(context.TODO(), "vgs", "--noheadings", "-o", "lv_count", vgName)
+	output, err := shared.RunCommand(context.TODO(), "vgs", "--noheadings", "-o", "lv_count", vgName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume group not found")
@@ -158,7 +158,7 @@ func (d *lvm) countLogicalVolumes(vgName string) (int, error) {
 
 // countThinVolumes gets the count of thin volumes in a thin pool.
 func (d *lvm) countThinVolumes(vgName, poolName string) (int, error) {
-	output, err := shared.RunCommandContext(context.TODO(), "lvs", "--noheadings", "-o", "thin_count", vgName+"/"+poolName)
+	output, err := shared.RunCommand(context.TODO(), "lvs", "--noheadings", "-o", "thin_count", vgName+"/"+poolName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume group not found")
@@ -173,7 +173,7 @@ func (d *lvm) countThinVolumes(vgName, poolName string) (int, error) {
 
 // thinpoolExists checks whether the specified thinpool exists in a volume group.
 func (d *lvm) thinpoolExists(vgName string, poolName string) (bool, error) {
-	output, err := shared.RunCommandContext(context.TODO(), "lvs", "--noheadings", "-o", "lv_attr", vgName+"/"+poolName)
+	output, err := shared.RunCommand(context.TODO(), "lvs", "--noheadings", "-o", "lv_attr", vgName+"/"+poolName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return false, nil
@@ -193,7 +193,7 @@ func (d *lvm) thinpoolExists(vgName string, poolName string) (bool, error) {
 
 // logicalVolumeExists checks whether the specified logical volume exists.
 func (d *lvm) logicalVolumeExists(volDevPath string) (bool, error) {
-	_, err := shared.RunCommandContext(context.TODO(), "lvs", "--noheadings", "-o", "lv_name", volDevPath)
+	_, err := shared.RunCommand(context.TODO(), "lvs", "--noheadings", "-o", "lv_name", volDevPath)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return false, nil
@@ -392,7 +392,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 	if isRecent {
 		// Disable auto activation of volume on LVM versions that support it.
 		// Must be done after volume create so that zeroing and signature wiping can take place.
-		_, err := shared.RunCommandContext(context.TODO(), "lvchange", "--setactivationskip", "y", volDevPath)
+		_, err := shared.RunCommand(context.TODO(), "lvchange", "--setactivationskip", "y", volDevPath)
 		if err != nil {
 			return fmt.Errorf("Failed to set activation skip on LVM logical volume %q: %w", volDevPath, err)
 		}
@@ -681,7 +681,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []string, refr
 
 // logicalVolumeSize gets the size in bytes of a logical volume.
 func (d *lvm) logicalVolumeSize(volDevPath string) (int64, error) {
-	output, err := shared.RunCommandContext(context.TODO(), "lvs", "--noheadings", "--nosuffix", "--units", "b", "-o", "lv_size", volDevPath)
+	output, err := shared.RunCommand(context.TODO(), "lvs", "--noheadings", "--nosuffix", "--units", "b", "-o", "lv_size", volDevPath)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
 			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume not found")
@@ -704,7 +704,7 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (totalSize uint64, usedSize
 		"-o", "lv_size,data_percent,metadata_percent",
 	}
 
-	out, err := shared.RunCommandContext(context.TODO(), "lvs", args...)
+	out, err := shared.RunCommand(context.TODO(), "lvs", args...)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -813,7 +813,7 @@ func (d *lvm) activateVolume(vol Volume) (bool, error) {
 	}
 
 	if !shared.PathExists(volDevPath) {
-		_, err := shared.RunCommandContext(context.TODO(), "lvchange", "--activate", "y", "--ignoreactivationskip", volDevPath)
+		_, err := shared.RunCommand(context.TODO(), "lvchange", "--activate", "y", "--ignoreactivationskip", volDevPath)
 		if err != nil {
 			return false, fmt.Errorf("Failed to activate LVM logical volume %q: %w", volDevPath, err)
 		}
@@ -854,7 +854,7 @@ func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
 		// Keep trying to deactivate a few times in case the device is still being flushed.
 		var err error
 		for i := range 20 {
-			_, err = shared.RunCommandContext(context.TODO(), "lvchange", "--activate", "n", "--ignoreactivationskip", volDevPath)
+			_, err = shared.RunCommand(context.TODO(), "lvchange", "--activate", "n", "--ignoreactivationskip", volDevPath)
 			if err == nil {
 				break
 			}
