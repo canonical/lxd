@@ -45,7 +45,7 @@ func (c *connectorNVMe) Type() string {
 // Version returns the version of the NVMe CLI.
 func (c *connectorNVMe) Version() (string, error) {
 	// Detect and record the version of the NVMe CLI.
-	out, err := shared.RunCommandContext(context.Background(), "nvme", "version")
+	out, err := shared.RunCommand(context.Background(), "nvme", "version")
 	if err != nil {
 		return "", fmt.Errorf("Failed to get nvme-cli version: %w", err)
 	}
@@ -90,7 +90,7 @@ func (c *connectorNVMe) Connect(ctx context.Context, targetQN string, targetAddr
 			return err
 		}
 
-		_, err = shared.RunCommandContext(ctx, "nvme", "connect", "--transport", "tcp", "--traddr", targetAddr, "--nqn", targetQN, "--hostnqn", hostNQN, "--hostid", c.serverUUID)
+		_, err = shared.RunCommand(ctx, "nvme", "connect", "--transport", "tcp", "--traddr", targetAddr, "--nqn", targetQN, "--hostnqn", hostNQN, "--hostid", c.serverUUID)
 		if err != nil {
 			return fmt.Errorf("Failed to connect to target %q on %q via NVMe: %w", targetQN, targetAddr, err)
 		}
@@ -114,7 +114,7 @@ func (c *connectorNVMe) Disconnect(targetQN string) error {
 		// Do not restrict the context as the operation is relatively short
 		// and most importantly we do not want to "partially" disconnect from
 		// the target, potentially leaving some unclosed sessions.
-		_, err := shared.RunCommandContext(context.Background(), "nvme", "disconnect", "--nqn", targetQN)
+		_, err := shared.RunCommand(context.Background(), "nvme", "disconnect", "--nqn", targetQN)
 		if err != nil {
 			return fmt.Errorf("Failed disconnecting from NVMe target %q: %w", targetQN, err)
 		}
@@ -254,7 +254,7 @@ func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string)
 
 	var discoveryLog nvmeDiscoveryLog
 	for _, targetAddr := range targetAddresses {
-		stdout, err := shared.RunCommandContext(ctx, "nvme", "discover", "--transport", "tcp", "--traddr", targetAddr, "--hostnqn", hostNQN, "--hostid", c.serverUUID, "--output-format", "json")
+		stdout, err := shared.RunCommand(ctx, "nvme", "discover", "--transport", "tcp", "--traddr", targetAddr, "--hostnqn", hostNQN, "--hostid", c.serverUUID, "--output-format", "json")
 		if err != nil {
 			// Exit code 110 is returned if the target address cannot be reached.
 			logger.Warn("Failed connecting to discovery target", logger.Ctx{"target_address": targetAddr, "err": err})
