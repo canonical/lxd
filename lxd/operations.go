@@ -180,7 +180,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	var address string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		ops, err := dbCluster.GetOperationsWithAddress(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
@@ -301,7 +301,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	var address string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		ops, err := dbCluster.GetOperationsWithAddress(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
@@ -348,7 +348,7 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 	var err error
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &op.ID}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		ops, err := dbCluster.GetOperationsWithAddress(ctx, tx.Tx(), filter)
 		if err != nil {
 			return fmt.Errorf("Failed loading operation %q: %w", op.ID, err)
 		}
@@ -1024,7 +1024,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	var address string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		ops, err := dbCluster.GetOperationsWithAddress(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
@@ -1167,7 +1167,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	var address string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		ops, err := dbCluster.GetOperationsWithAddress(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}

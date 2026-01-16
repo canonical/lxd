@@ -19,32 +19,28 @@ import (
 var _ = api.ServerEnvironment{}
 
 var operationObjects = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, operations.project_id, operations.node_id, operations.type
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByNodeID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, operations.project_id, operations.node_id, operations.type
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.node_id = ? )
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, operations.project_id, operations.node_id, operations.type
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.id = ? )
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByUUID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, operations.project_id, operations.node_id, operations.type
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.uuid = ? )
   ORDER BY operations.id, operations.uuid
 `)
@@ -73,7 +69,7 @@ func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operatio
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.UUID, &o.ProjectID, &o.NodeID, &o.Type)
 		if err != nil {
 			return err
 		}
@@ -97,7 +93,7 @@ func getOperationsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) 
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.UUID, &o.ProjectID, &o.NodeID, &o.Type)
 		if err != nil {
 			return err
 		}

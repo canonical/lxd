@@ -385,7 +385,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 
 		nodeID := tx.GetNodeID()
 		filter := cluster.OperationFilter{NodeID: &nodeID}
-		operations, err = cluster.GetOperations(ctx, tx.Tx(), filter)
+		operations, err = cluster.GetOperationsWithAddress(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
@@ -593,10 +593,11 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 
 			// Migrate outstanding operations.
 			for _, operation := range operations {
+				nodeID := tx.GetNodeID()
 				op := cluster.Operation{
 					UUID:   operation.UUID,
 					Type:   operation.Type,
-					NodeID: tx.GetNodeID(),
+					NodeID: &nodeID,
 				}
 
 				_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), op)

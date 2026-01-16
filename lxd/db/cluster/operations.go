@@ -3,7 +3,12 @@
 package cluster
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
+
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // Code generation directives.
@@ -31,11 +36,11 @@ import (
 // Operation holds information about a single LXD operation running on a node
 // in the cluster.
 type Operation struct {
-	ID          int64              `db:"primary=yes"`                                      // Stable database identifier
-	UUID        string             `db:"primary=yes"`                                      // User-visible identifier
-	NodeAddress string             `db:"join=nodes.address&omit=create,create-or-replace"` // Address of the node the operation is running on
+	ID          int64              `db:"primary=yes"`                           // Stable database identifier
+	UUID        string             `db:"primary=yes"`                           // User-visible identifier
+	NodeAddress string             `db:"omit=objects,create,create-or-replace"` // Address of the node the operation is running on
 	ProjectID   *int64             // ID of the project for the operation.
-	NodeID      int64              // ID of the node the operation is running on
+	NodeID      *int64             // ID of the node the operation is running on
 	Type        operationtype.Type // Type of the operation
 }
 
@@ -44,4 +49,46 @@ type OperationFilter struct {
 	ID     *int64
 	NodeID *int64
 	UUID   *string
+}
+
+// GetOperationsWithAddress returns a list of operations matching the provided filters,
+// including the address of the node each operation is running on.
+func GetOperationsWithAddress(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) ([]Operation, error) {
+	ops, err := GetOperations(ctx, tx, filters...)
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := `SELECT id, address FROM nodes`
+	nodes := make(map[int64]string)
+
+	dest := func(scan func(dest ...any) error) error {
+		var id int64
+		var address string
+		err := scan(&id, &address)
+		if err != nil {
+			return err
+		}
+
+		nodes[id] = address
+		return nil
+	}
+
+	err = query.Scan(ctx, tx, stmt, dest)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range ops {
+		if ops[i].NodeID != nil {
+			address, ok := nodes[*ops[i].NodeID]
+			if !ok {
+				return nil, fmt.Errorf("Failed to find node address for node ID %d", *ops[i].NodeID)
+			}
+
+			ops[i].NodeAddress = address
+		}
+	}
+
+	return ops, nil
 }

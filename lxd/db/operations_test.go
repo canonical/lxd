@@ -25,7 +25,7 @@ func TestOperation(t *testing.T) {
 	uuid := "abcd"
 
 	opInfo := cluster.Operation{
-		NodeID:    nodeID,
+		NodeID:    &nodeID,
 		Type:      operationtype.InstanceCreate,
 		UUID:      uuid,
 		ProjectID: &projectID,
@@ -72,7 +72,7 @@ func TestOperationNoProject(t *testing.T) {
 	uuid := "abcd"
 
 	opInfo := cluster.Operation{
-		NodeID: nodeID,
+		NodeID: &nodeID,
 		Type:   operationtype.InstanceCreate,
 		UUID:   uuid,
 	}
