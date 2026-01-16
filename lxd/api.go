@@ -170,6 +170,24 @@ func restServer(d *Daemon) *http.Server {
 		d.oidcVerifier.Logout(w, r)
 	})
 
+	mux.HandleFunc("/bearer/logout", func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{
+			Name:     bearer.CookieNameSession,
+			Value:    "",
+			Path:     "/",
+			Secure:   true,
+			HttpOnly: true,
+			SameSite: http.SameSiteStrictMode,
+
+			// Expire the cookie to instruct the browser to delete it.
+			MaxAge:  -1,
+			Expires: time.Unix(0, 0),
+		})
+
+		w.Header().Set("Cache-Control", "no-store")
+		http.Redirect(w, r, "/ui/login", http.StatusFound)
+	})
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if isBrowserClient(r) {
 			handleUIAccessLink(w, r, d.globalConfig.ClusterUUID(), d.identityCache)
