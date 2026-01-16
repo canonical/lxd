@@ -4396,7 +4396,7 @@ definitions:
                 type: string
                 x-go-name: ID
             location:
-                description: What cluster member this record was found on
+                description: Which cluster member this record was found on
                 example: lxd01
                 type: string
                 x-go-name: Location

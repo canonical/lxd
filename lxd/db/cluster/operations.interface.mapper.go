@@ -13,6 +13,10 @@ type OperationGenerated interface {
 	// generator: operation GetMany
 	GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) ([]Operation, error)
 
+	// CreateOperation adds a new operation to the database.
+	// generator: operation Create
+	CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error)
+
 	// CreateOrReplaceOperation adds a new operation to the database.
 	// generator: operation CreateOrReplace
 	CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error)
