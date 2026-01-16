@@ -611,7 +611,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			// storage driver. Currently initial configuration is only applicable to root disk devices.
 			initialConfig := make(map[string]string)
 			for k, v := range d.config {
-				prefix, newKey, found := strings.Cut(k, "initial.")
+				prefix, newKey, found := strings.Cut(k, deviceConfig.ConfigInitialPrefix)
 				if found && prefix == "" {
 					initialConfig[newKey] = v
 				}

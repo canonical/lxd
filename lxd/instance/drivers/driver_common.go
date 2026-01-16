@@ -2401,3 +2401,100 @@ func (d *common) removeDiskDevices() error {
 
 	return nil
 }
+
+// validateConfig validates the configuration.
+func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices deviceConfig.Devices, removeDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, changedConfigKeys []string, oldExpandedConfig map[string]string, userRequested bool) error {
+	if shared.StringPrefixInSlice(deviceConfig.ConfigInitialPrefix, allUpdatedDeviceKeys) {
+		for devName, newDev := range addDevices {
+			for k, newVal := range newDev {
+				if !strings.HasPrefix(k, deviceConfig.ConfigInitialPrefix) {
+					continue
+				}
+
+				oldDev, ok := removeDevices[devName]
+				if !ok {
+					return fmt.Errorf("New device %q with initial configuration %q cannot be added once the instance is created", devName, k)
+				}
+
+				oldVal, ok := oldDev[k]
+				if !ok {
+					return fmt.Errorf("Device %q initial configuration %q cannot be added once the instance is created", devName, k)
+				}
+
+				// If newVal is an empty string it means the initial configuration
+				// has been removed.
+				if newVal != "" && newVal != oldVal {
+					return fmt.Errorf("Device %q initial configuration %q cannot be modified once the instance is created", devName, k)
+				}
+			}
+		}
+	}
+
+	if userRequested {
+		// Look for deleted protected keys.
+		protectedKeys := map[string]struct{}{
+			"volatile.idmap.base":       {},
+			"volatile.idmap.current":    {},
+			"volatile.idmap.next":       {},
+			"volatile.last_state.idmap": {},
+			"volatile.uuid":             {},
+		}
+
+		for _, k := range changedConfigKeys {
+			_, protected := protectedKeys[k]
+			if !protected {
+				continue
+			}
+
+			if d.expandedConfig[k] == "" {
+				return fmt.Errorf("The protected %q config key cannot be deleted", k)
+			}
+		}
+
+		// Do some validation of the config diff (allows mixed instance types for profiles).
+		err := instance.ValidConfig(d.state.OS, d.expandedConfig, true, instancetype.Any)
+		if err != nil {
+			return fmt.Errorf("Invalid expanded config: %w", err)
+		}
+
+		// Do full expanded validation of the devices diff.
+		err = instance.ValidDevices(d.state, d.project, d.Type(), d.localDevices, d.expandedDevices)
+		if err != nil {
+			return fmt.Errorf("Invalid expanded devices: %w", err)
+		}
+
+		// Validate root device
+		_, oldRootDev, oldErr := instancetype.GetRootDiskDevice(oldExpandedDevices.CloneNative())
+		_, newRootDev, newErr := instancetype.GetRootDiskDevice(d.expandedDevices.CloneNative())
+		if oldErr == nil && newErr == nil && oldRootDev["pool"] != newRootDev["pool"] {
+			return fmt.Errorf("Cannot update root disk device pool name to %q", newRootDev["pool"])
+		}
+
+		// Ensure the instance has a root disk.
+		if newErr != nil {
+			return fmt.Errorf("Invalid root disk device: %w", newErr)
+		}
+
+		// If security.protection.start is being removed, we need to make sure that
+		// our root disk device is not attached to another instance.
+		if shared.IsTrue(oldExpandedConfig["security.protection.start"]) && shared.IsFalseOrEmpty(d.expandedConfig["security.protection.start"]) {
+			var dbVolType dbCluster.StoragePoolVolumeType
+			switch d.dbType {
+			case instancetype.Container:
+				dbVolType = dbCluster.StoragePoolVolumeTypeContainer
+			case instancetype.VM:
+				dbVolType = dbCluster.StoragePoolVolumeTypeVM
+			default:
+				return fmt.Errorf("Unknown instance type %q for checking security.protection.start removal", d.dbType)
+			}
+
+			// Proceed to allow removing security.protection.start.
+			err := allowRemoveSecurityProtectionStart(d.state, newRootDev["pool"], dbVolType, d.name, &d.project)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
