@@ -2255,7 +2255,7 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 	lxdPID := os.Getpid()
 
 	// Run forknet detach
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		d.state.OS.ExecPath,
 		"forknet",
@@ -2355,7 +2355,7 @@ func (d *lxc) Start(stateful bool) error {
 	name := project.Instance(d.Project().Name, d.name)
 
 	// Start the LXC container
-	_, err = shared.RunCommandContext(
+	_, err = shared.RunCommand(
 		context.TODO(),
 		d.state.OS.ExecPath,
 		"forkstart",
@@ -6590,7 +6590,7 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 		target = "/" + target
 	}
 
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		d.state.OS.ExecPath,
 		"forkmount",
@@ -6685,7 +6685,7 @@ func (d *lxc) removeMount(mount string) error {
 			mount = "/" + mount
 		}
 
-		_, err := shared.RunCommandContext(
+		_, err := shared.RunCommand(
 			context.TODO(),
 			d.state.OS.ExecPath,
 			"forkmount",
