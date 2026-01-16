@@ -1103,22 +1103,67 @@ func RunCommandWithFds(ctx context.Context, stdin io.Reader, stdout io.Writer, n
 	return nil
 }
 
-// TryRunCommand runs the specified command up to 20 times with a 500ms delay between each call
-// until it runs without an error. If after 20 times it is still failing then returns the error.
-func TryRunCommand(name string, arg ...string) (string, error) {
-	var err error
-	var output string
+// RunCommandRetryOpts contains options for running commands.
+type RunCommandRetryOpts struct {
+	// RetryFunc must return true to instruct RunCommandRetry to perform another attempt.
+	// It is called after each command failure until the context is cancelled or times out.
+	// The lastErr argument is a [RunError], which can be used to inspect stdout and stderr if necessary.
+	RetryFunc func(attempt uint, lastErr error) bool
 
-	for range 20 {
-		output, err = RunCommand(context.TODO(), name, arg...)
-		if err == nil {
-			break
-		}
+	// NoKill instructs RunCommandRetry to use a background context instead of the
+	// input context when running the command. This prevents sending a kill signal to the
+	// command when the deadline is exceeded or the context is cancelled.
+	NoKill bool
+}
 
+var defaultCommandRetryOpts = RunCommandRetryOpts{
+	RetryFunc: func(attempt uint, lastErr error) bool {
 		time.Sleep(500 * time.Millisecond)
+		return true
+	},
+}
+
+// RunCommandRetry repeatedly runs a command according to the given options and context.
+// It returns the contents of stdout or an error.
+// If the input context has a deadline, then commands are run until that deadline is exceeded.
+// If the input context does not have a deadline, a 10 second timeout is applied.
+func RunCommandRetry(ctx context.Context, opts *RunCommandRetryOpts, cmd string, args ...string) (string, error) {
+	runOpts := defaultCommandRetryOpts
+	if opts != nil {
+		runOpts.NoKill = opts.NoKill
+		if opts.RetryFunc != nil {
+			runOpts.RetryFunc = opts.RetryFunc
+		}
 	}
 
-	return output, err
+	_, ok := ctx.Deadline()
+	if !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+	}
+
+	runCtx := ctx
+	if runOpts.NoKill {
+		runCtx = context.Background()
+	}
+
+	var attempt uint
+	for {
+		stdout, err := RunCommand(runCtx, cmd, args...)
+		if err == nil {
+			return stdout, nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return "", err
+		default:
+			if !runOpts.RetryFunc(attempt, err) {
+				return "", err
+			}
+		}
+	}
 }
 
 // TimeIsSet checks if the provided time is set to a valid timestamp. It returns false if the
