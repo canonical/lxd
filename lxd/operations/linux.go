@@ -48,11 +48,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 		return nil
 	})
 	if err != nil {
-		if api.StatusErrorCheck(err, http.StatusConflict) {
-			return err
-		}
-
-		return fmt.Errorf("Failed adding %q Operation %s to database: %w", opType.Description(), op.id, err)
+		return fmt.Errorf("Failed creating %q operation record: %w", opType.Description(), err)
 	}
 
 	return nil
