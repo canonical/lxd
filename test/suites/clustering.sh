@@ -3577,7 +3577,7 @@ test_clustering_evacuation_restore_operations() {
 
   echo "Check evacuation fails while another evacuation is in progress"
   # Tests fix for https://github.com/canonical/lxd/issues/17170
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node2 --force 2>&1)" = "Error: Failed updating cluster member state: Another operation with reference \"Evacuating cluster member\" already exists" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node2 --force 2>&1)" = "Error: Failed updating cluster member state: Failed creating \"Evacuating cluster member\" operation record: Another operation with reference \"Evacuating cluster member\" already exists" ]
 
   echo "Check restore fails while evacuation operation in progress"
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot restore \"node1\" while an evacuate operation is in progress" ]
