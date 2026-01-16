@@ -1241,7 +1241,7 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", iptablesCommentPrefix+" "+comment)
 
-	_, err = shared.TryRunCommand(cmd, args...)
+	_, err = shared.RunCommandRetry(context.TODO(), nil, cmd, args...)
 	if err != nil {
 		return err
 	}
@@ -1313,7 +1313,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 
 		// List the rules.
 		args := append(baseArgs, "--list-rules")
-		output, err := shared.TryRunCommand(cmd, args...)
+		output, err := shared.RunCommandRetry(context.TODO(), nil, cmd, args...)
 		if err != nil {
 			return fmt.Errorf("Failed to list IPv%d rules (table %s)", ipVersion, fromTable)
 		}
@@ -1329,7 +1329,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 				fields[0] = "-D"
 
 				args = append(baseArgs, fields...)
-				_, err = shared.TryRunCommand("sh", "-c", cmd+" "+strings.Join(args, " "))
+				_, err = shared.RunCommandRetry(context.TODO(), nil, "sh", "-c", cmd+" "+strings.Join(args, " "))
 				if err != nil {
 					return err
 				}
