@@ -5610,13 +5610,12 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 // allowRemoveSecurityProtectionStart: security.protection.start can be removed
 // from a VM when the root disk device has security.shared=true OR it is not
 // attached to any other VMs.
-func allowRemoveSecurityProtectionStart(state *state.State, poolName string, volumeName string, proj *api.Project) error {
+func allowRemoveSecurityProtectionStart(state *state.State, poolName string, volumeType dbCluster.StoragePoolVolumeType, volumeName string, proj *api.Project) error {
 	pool, err := storagePools.LoadByName(state, poolName)
 	if err != nil {
 		return err
 	}
 
-	volumeType := dbCluster.StoragePoolVolumeTypeVM
 	volumeProject := project.StorageVolumeProjectFromRecord(proj, volumeType)
 
 	var dbVolume *db.StorageVolume
