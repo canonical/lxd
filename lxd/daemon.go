@@ -2017,6 +2017,9 @@ func (d *Daemon) init() error {
 
 		// Remove expired tokens (hourly)
 		d.tasks.Add(autoRemoveExpiredTokensTask(d.State))
+
+		// Synchronize locally running durable operations with the database (every minute)
+		d.tasks.Add(syncDurableOperationsTask(d.State))
 	}
 
 	// Load Ubuntu Pro configuration before starting any instances.
