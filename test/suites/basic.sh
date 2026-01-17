@@ -728,10 +728,10 @@ test_basic_usage() {
   lxc storage delete bla
 
   # Test rebuilding an instance with its original image.
-  lxc init testimage c1
-  lxc start c1
+  lxc launch testimage c1
   lxc exec c1 -- touch /data.txt
-  lxc stop c1
+  lxc exec c1 -- sync
+  lxc stop -f c1
   lxc rebuild testimage c1
   lxc start c1
   ! lxc exec c1 -- stat /data.txt || false
