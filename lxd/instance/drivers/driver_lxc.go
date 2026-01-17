@@ -929,19 +929,19 @@ func (d *lxc) initLXC(config bool) error {
 	}
 
 	// Call the onstart hook on start.
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), strconv.Quote(d.Project()), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), shared.ShellQuote(d.Project()), shared.ShellQuote(d.Name())))
 	if err != nil {
 		return err
 	}
 
 	// Call the onstopns hook on stop but before namespaces are unmounted.
-	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project()), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", d.state.OS.ExecPath, shared.VarPath(""), shared.ShellQuote(d.Project()), shared.ShellQuote(d.Name())))
 	if err != nil {
 		return err
 	}
 
 	// Call the onstop hook on stop.
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project()), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", d.state.OS.ExecPath, shared.VarPath(""), shared.ShellQuote(d.Project()), shared.ShellQuote(d.Name())))
 	if err != nil {
 		return err
 	}
