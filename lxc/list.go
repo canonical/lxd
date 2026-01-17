@@ -251,12 +251,12 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.In
 	return false
 }
 
-func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, filters []string, columns []column) error {
+func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, filters []string, columns []column, filtersNeedState bool) error {
 	threads := min(len(instances), 10)
 
 	// Shortcut when needing state and snapshot info.
 	hasSnapshots := false
-	hasState := false
+	hasState := filtersNeedState
 	for _, column := range columns {
 		if column.NeedsSnapshots {
 			hasSnapshots = true
@@ -352,34 +352,28 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 	}
 
 	for _, inst := range instances {
-		for _, column := range columns {
-			if column.NeedsState && inst.IsActive() {
-				cStatesLock.Lock()
-				_, ok := cStates[inst.Name]
-				cStatesLock.Unlock()
-				if ok {
-					continue
-				}
-
-				cStatesLock.Lock()
+		if hasState && inst.IsActive() {
+			cStatesLock.Lock()
+			_, ok := cStates[inst.Name]
+			if !ok {
 				cStates[inst.Name] = nil
-				cStatesLock.Unlock()
+			}
+			cStatesLock.Unlock()
 
+			if !ok {
 				cStatesQueue <- inst.Name
 			}
+		}
 
-			if column.NeedsSnapshots {
-				cSnapshotsLock.Lock()
-				_, ok := cSnapshots[inst.Name]
-				cSnapshotsLock.Unlock()
-				if ok {
-					continue
-				}
-
-				cSnapshotsLock.Lock()
+		if hasSnapshots {
+			cSnapshotsLock.Lock()
+			_, ok := cSnapshots[inst.Name]
+			if !ok {
 				cSnapshots[inst.Name] = nil
-				cSnapshotsLock.Unlock()
+			}
+			cSnapshotsLock.Unlock()
 
+			if !ok {
 				cSnapshotsQueue <- inst.Name
 			}
 		}
@@ -485,7 +479,13 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	filtersNeedState := c.filtersNeedState(filters)
+	if filtersNeedState {
+		needsData = true
+	}
+
 	if needsData && d.HasExtension("container_full") {
+
 		// Using the GetInstancesFull shortcut
 		var instances []api.InstanceFull
 
@@ -529,7 +529,7 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Fetch any remaining data and render the table
-	return c.listInstances(d, instancesFiltered, clientFilters, columns)
+	return c.listInstances(d, instancesFiltered, clientFilters, columns, filtersNeedState)
 }
 
 func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
@@ -995,4 +995,20 @@ func (c *cmdList) mapShorthandFilters() {
 		"ipv4":         c.matchByIPV4,
 		"ipv6":         c.matchByIPV6,
 	}
+}
+
+func (c *cmdList) filtersNeedState(filters []string) bool {
+	for _, filter := range filters {
+		key, _, found := strings.Cut(filter, "=")
+		if !found {
+			continue
+		}
+
+		switch strings.ToLower(strings.TrimSpace(key)) {
+		case "ipv4", "ipv6":
+			return true
+		}
+	}
+
+	return false
 }
