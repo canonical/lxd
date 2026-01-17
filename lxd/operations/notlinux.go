@@ -5,11 +5,10 @@ package operations
 import (
 	"fmt"
 
-	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/shared/api"
 )
 
-func registerDBOperation(op *Operation, opType operationtype.Type) error {
+func registerDBOperation(op *Operation, explicitReferenceProvided bool) error {
 	if op.state != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
 	}
@@ -17,9 +16,33 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 	return nil
 }
 
+func updateDBOperationStatus(op *Operation) error {
+	if op.state != nil {
+		return fmt.Errorf("updateDBOperationStatus not supported on this platform")
+	}
+
+	return nil
+}
+
+func updateDBOperationMetadata(op *Operation) error {
+	if op.state != nil {
+		return fmt.Errorf("updateDBOperationMetadata not supported on this platform")
+	}
+
+	return nil
+}
+
 func removeDBOperation(op *Operation) error {
 	if op.state != nil {
-		return fmt.Errorf("registerDBOperation not supported on this platform")
+		return fmt.Errorf("removeDBOperation not supported on this platform")
+	}
+
+	return nil
+}
+
+func removeDBOperationMetadata(op *Operation) error {
+	if op.state != nil {
+		return fmt.Errorf("removeDBOperationMetadata not supported on this platform")
 	}
 
 	return nil

@@ -14,7 +14,9 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/warningtype"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
@@ -140,7 +142,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 }
 
 // Send sends heartbeat requests to the nodes supplied and updates heartbeat state.
-func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertInfo, serverCert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, spreadDuration time.Duration) {
+func (hbState *APIHeartbeat) Send(ctx context.Context, s *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, spreadDuration time.Duration) {
 	heartbeatsWg := sync.WaitGroup{}
 	sendHeartbeat := func(nodeID int64, address string, spreadDuration time.Duration, heartbeatData *APIHeartbeat) {
 		defer heartbeatsWg.Done()
@@ -189,8 +191,14 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 				err = hbState.cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 					return tx.UpsertWarningLocalNode(ctx, "", entity.TypeClusterMember, int(nodeID), warningtype.OfflineClusterMember, err.Error())
 				})
+
 				if err != nil {
 					logger.Warn("Failed to create warning", logger.Ctx{"err": err})
+				}
+
+				err = operations.RestartDurableOperationsFromNode(ctx, s, nodeID)
+				if err != nil {
+					logger.Warn("Failed restarting durable operations from offline node", logger.Ctx{"node_id": nodeID, "err": err})
 				}
 			}
 		}
@@ -283,6 +291,39 @@ func (g *Gateway) HeartbeatRestart() bool {
 	return false
 }
 
+func (g *Gateway) cancelDurableOperationsIfHeartbeatNotReceived(ctx context.Context, duration time.Duration) {
+	select {
+	case <-time.After(duration):
+		// Heartbeat not received in time, cancel durable operations.
+		logger.Error("Heartbeat not received in time, cancelling durable operations")
+		operations.CancelLocalDurableOperations()
+	case <-ctx.Done():
+		// Heartbeat received in time, nothing to do.
+	}
+}
+
+// HeartbeatReceived is called when a heartbeat is received on this node.
+// It resets the heartbeat detection timer.
+func (g *Gateway) HeartbeatReceived() {
+	g.heartbeatDetectionCancellerLock.Lock()
+	if g.heartbeatDetectionCanceller != nil {
+		g.heartbeatDetectionCanceller()
+	}
+
+	// Setup the new heartbeat detection context.
+	heartbeatDetectionCtx, cancel := context.WithCancel(g.shutdownCtx)
+	g.heartbeatDetectionCanceller = cancel
+	g.heartbeatDetectionCancellerLock.Unlock()
+
+	// The heartbeats round is send at least each gateway.heartbeatInterval() seconds.
+	// The heartbeat send to each node is randomly waiting up to gateway.heartbeatInterval() - 3s to distribute the load across the cluster.
+	// Each node then has up to 2s to respond to the heartbeat, and another 1s for the HTTP client to get more useful info.
+	// All together this is 2*gateway.heartbeatInterval(), so that's the duration we wait before considering that we have not received a heartbeat.
+	nextHeartbeatTimeout := 2 * g.heartbeatInterval()
+
+	go g.cancelDurableOperationsIfHeartbeatNotReceived(heartbeatDetectionCtx, nextHeartbeatTimeout)
+}
+
 func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// Avoid concurent heartbeat loops.
 	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
@@ -293,6 +334,19 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
 		// We're not a raft node or we're not clustered
 		return
+	}
+
+	isLeader, err := g.isLeader()
+	if err != nil {
+		logger.Warn("Failed to determine if node is leader", logger.Ctx{"err": err})
+	}
+
+	// If we're a leader, we are not going to send heartbeats to ourselves.
+	// So just record like that we have received one.
+	// This is useful if we started as a leader, but later we lost connection to the rest of the cluster, and therefore we lost leadership.
+	// In such case we should have a heartbeat detection enabled and cancel durable operations if heartbeats don't arrive in time.
+	if isLeader {
+		g.HeartbeatReceived()
 	}
 
 	// Acquire the cancellation lock and populate it so that this heartbeat round can be cancelled if a
@@ -397,14 +451,14 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// Send stale set to all nodes in database to get a fresh set of active nodes.
 	if mode == hearbeatInitial {
 		hbState.Update(false, raftNodes, members, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
+		hbState.Send(ctx, s, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
 
 		// We have the latest set of node states now, lets send that state set to all nodes.
 		hbState.FullStateList = true
-		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
+		hbState.Send(ctx, s, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
 	} else {
 		hbState.Update(true, raftNodes, members, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
+		hbState.Send(ctx, s, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
 	}
 
 	// Check if context has been cancelled.
@@ -447,7 +501,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		// If any new nodes found, send heartbeat to just them (with full node state).
 		if len(newMembers) > 0 {
 			hbState.Update(true, raftNodes, members, g.HeartbeatOfflineThreshold)
-			hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, newMembers, 0)
+			hbState.Send(ctx, s, g.networkCert, serverCert, localClusterAddress, newMembers, 0)
 		}
 	}
 

@@ -1099,6 +1099,9 @@ func (d *Daemon) init() error {
 
 	var err error
 
+	// Hack to make a durable operations handler map defined in the main package available to the operations
+	operations.InitDurableOperations(DurableOperations, d.requestorHook)
+
 	// Set default authorizer.
 	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log)
 	if err != nil {
@@ -1999,6 +2002,9 @@ func (d *Daemon) init() error {
 
 		// Remove expired tokens (hourly)
 		d.tasks.Add(autoRemoveExpiredTokensTask(d.State))
+
+		// Synchronize locally running durable operations with the database (every minute)
+		d.tasks.Add(syncDurableOperationsTask(d.State))
 	}
 
 	// Start all background tasks
@@ -2100,6 +2106,9 @@ func (d *Daemon) startClusterTasks() {
 
 	// Remove orphaned operations
 	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d.State))
+
+	// Prune expired durable operations from the database (hourly)
+	d.clusterTasks.Add(pruneExpiredDurableOperationsTask(d.State))
 
 	// Perform automatic evacuation for offline cluster members
 	d.clusterTasks.Add(autoHealClusterTask(d.State, d.gateway))
@@ -2244,7 +2253,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		if d.db.Cluster != nil {
 			// Remove remaining operations before closing the database.
 			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				err := dbCluster.DeleteOperations(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
+				err := dbCluster.DeleteNonDurableOperations(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
 				if err != nil {
 					logger.Error("Failed cleaning up operations")
 				}
@@ -2443,6 +2452,9 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 
 	// Look for time skews.
 	now := time.Now().UTC()
+
+	// We just received a heartbeat! Take that into account.
+	d.gateway.HeartbeatReceived()
 
 	if hbData.Time.Add(5*time.Second).Before(now) || hbData.Time.Add(-5*time.Second).After(now) {
 		if !d.timeSkew {

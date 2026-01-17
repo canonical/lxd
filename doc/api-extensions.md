@@ -2884,3 +2884,8 @@ Before this was only partially possible for some of the drivers (e.g. by using `
 The new pool `source.recover` configuration key can be set per cluster member to allow reuse of an existing pool `source`.
 What it does not allow is reusing the same source for multiple storage pools.
 The LVM storage driver has the specific `lvm.vg.force_reuse` configuration key for this purpose.
+
+(extension-durable-operations)=
+## `durable_operations`
+
+Introduces new operation class for durable operations. Durable operations are guaranteed to run on a different node if the node running the operation previously goes offline.

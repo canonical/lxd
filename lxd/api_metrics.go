@@ -422,7 +422,7 @@ func internalMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx) *met
 
 	// Create local variable to get a pointer.
 	nodeID := tx.GetNodeID()
-	operations, err := dbCluster.GetOperations(ctx, tx.Tx(), dbCluster.OperationFilter{NodeID: &nodeID})
+	operations, err := dbCluster.GetOperationsWithAddress(ctx, tx.Tx(), dbCluster.OperationFilter{NodeID: &nodeID})
 	if err != nil {
 		logger.Warn("Failed to get operations", logger.Ctx{"err": err})
 	} else {
