@@ -84,7 +84,7 @@ do_copy() {
   lxc copy c1 c2 --refresh ${targetPoolFlag}
   lxc config show c2/snap0
   lxc config show c2/snap1
-  [ "$(lxc storage volume get "${target_pool}" container/c2 user.foo)" = "main" ]
+  [ "$(lxc storage volume get "${target_pool}" container/c2 user.foo)" = "init" ]
   [ "$(lxc storage volume get "${target_pool}" container/c2/snap0 user.foo)" = "snap0" ]
   [ "$(lxc storage volume get "${target_pool}" container/c2/snap1 user.foo)" = "snap1" ]
 
