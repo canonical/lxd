@@ -500,7 +500,7 @@ test_basic_usage() {
   [ "$(lxc config get test-limits limits.cpu)" = "1" ]
   [ "$(lxc config get test-limits limits.cpu.allowance)" = "50%" ]
   [ "$(lxc config get test-limits limits.memory)" = "204MiB" ]
-  lxc delete -f test-limits
+  lxc delete test-limits
 
   # Test last_used_at field is working properly
   lxc init testimage last-used-at-test
@@ -701,7 +701,7 @@ test_basic_usage() {
     false
   fi
 
-  lxc delete -f c1
+  lxc delete c1
 
   # Should fail to override root device storage pool when the new pool does not exist.
   ! lxc init testimage c1 -d root,pool=bla || false
@@ -722,7 +722,7 @@ test_basic_usage() {
     false
   fi
 
-  lxc delete -f c1
+  lxc delete c1
   lxc storage volume delete bla vol1
   lxc storage volume delete bla vol2
   lxc storage delete bla
@@ -753,14 +753,14 @@ test_basic_usage() {
   lxc init testimage c1
   lxc rebuild c1 --empty
   ! lxc config show c1 | grep -F 'image.' || false
-  lxc delete c1 -f
+  lxc delete c1
 
   # Test assigning an empty profile (with no root disk device) to an instance.
   lxc init --empty c1
   lxc profile create foo
   ! lxc profile assign c1 foo || false
   lxc profile delete foo
-  lxc delete -f c1
+  lxc delete c1
 
   # Test assigning a profile through a YAML file to an instance.
   poolName=$(lxc profile device get default root pool)
@@ -778,7 +778,7 @@ EOF
   lxc init --empty c1 --profile foo
   [ "$(lxc config get c1 limits.cpu --expanded)" = "2" ]
   [ "$(lxc config get c1 limits.memory --expanded)" = "1024MiB" ]
-  lxc delete -f c1
+  lxc delete c1
   lxc profile delete foo
 
   # Multiple ephemeral instances delete
