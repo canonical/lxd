@@ -31,7 +31,7 @@ do_copy() {
   lxc storage volume set "${source_pool}" container/c1 user.foo=main
 
   # Set size to check this is supported during copy.
-  lxc config device set c1 root size=50MiB
+  lxc config device set c1 root size="${DEFAULT_VOLUME_SIZE}"
 
   targetPoolFlag=
   if [ -n "${target_pool}" ]; then
