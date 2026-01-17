@@ -614,7 +614,7 @@ test_basic_usage() {
   fi
 
   # Test boot.host_shutdown_timeout config setting
-  lxc init testimage configtest --config boot.host_shutdown_timeout=45
+  lxc init --empty configtest --config boot.host_shutdown_timeout=45
   [ "$(lxc config get configtest boot.host_shutdown_timeout)" -eq 45 ]
   lxc config set configtest boot.host_shutdown_timeout 15
   [ "$(lxc config get configtest boot.host_shutdown_timeout)" -eq 15 ]
@@ -756,7 +756,7 @@ test_basic_usage() {
   lxc delete c1 -f
 
   # Test assigning an empty profile (with no root disk device) to an instance.
-  lxc init testimage c1
+  lxc init --empty c1
   lxc profile create foo
   ! lxc profile assign c1 foo || false
   lxc profile delete foo
@@ -775,7 +775,7 @@ devices:
     pool: ${poolName}
     type: disk
 EOF
-  lxc init testimage c1 --profile foo
+  lxc init --empty c1 --profile foo
   [ "$(lxc config get c1 limits.cpu --expanded)" = "2" ]
   [ "$(lxc config get c1 limits.memory --expanded)" = "1024MiB" ]
   lxc delete -f c1
