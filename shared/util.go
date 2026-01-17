@@ -1562,3 +1562,13 @@ func IsMicroOVNUsed() bool {
 
 	return false
 }
+
+// SingleQuote is equivalent to strconv.Quote but using a single-quote instead.
+func SingleQuote(in string) string {
+	s := strconv.Quote(in)
+	s = s[1 : len(s)-1]
+	s = strings.ReplaceAll(s, "\\\"", "\"")
+	s = strings.ReplaceAll(s, "'", "\\'")
+
+	return s
+}
