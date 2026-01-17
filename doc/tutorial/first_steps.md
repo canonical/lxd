@@ -22,27 +22,7 @@ The MicroCloud setup process installs and initializes LXD. Thus, you can skip th
 (tutorial-install)=
 ## Install LXD using snap
 
-This section of the tutorial assumes that you have the `snap` packaging system available on your system, which is the recommended way to install and update LXD. To confirm whether it is available on your system, run:
-
-```bash
-snap version
-```
-
-If `snap` is installed, you will see output similar to this:
-
-```{terminal}
-:user: your-user
-:host: host-system
-
-snap version
-
-snap          2.72
-snapd         2.72
-series        16
-ubuntu        24.04
-kernel        6.14.0-33-generic
-architecture  amd64
-```
+This section of the tutorial assumes that you have the `snap` packaging system available on your system, which is the recommended way to install and update LXD.
 
 To install LXD using `snap`, run:
 
@@ -89,15 +69,7 @@ For more information, see {ref}`security-daemon-access`.
 
 Installing LXD through its snap should automatically create an `lxd` group on your system. The user you are logged in as must be in this group to interact with LXD.
 
-Check to see if the current user is already in that group:
-
-```bash
-getent group lxd | grep "$USER"
-```
-
-If this command returns a result, you're set up correctly and can continue with the next section.
-
-If there is no result, enter the following commands. The first command adds your user to the `lxd` group.
+Enter the following commands. The first command adds your user to the `lxd` group.
 The second command starts a new shell where the group membership takes effect immediately.
 
 ```bash
@@ -126,34 +98,8 @@ If you do not see any message when running this command, that means it has succe
 The `lxd init` command can be run again later to update the options. Once you have learned more about LXD, you might want to tune the {ref}`initialization options <initialize>` according to your own preferences, or learn how to {ref}`use a preseed file <initialize-preseed>` to initialize LXD from a saved set of options. For now, the minimal configuration is sufficient.
 ```
 
-(tutorial-virtualization)=
-## Confirm virtualization support
-
-LXD supports two instance types: containers and virtual machines. LXD containers are faster and more lightweight than virtual machines, but share the host system's OS kernel. Virtual machines use their own kernel. For more information about these instance types, see {ref}`containers-and-vms`.
-
-For LXD virtual machines, your host system must be capable of KVM virtualization. To test for this, run:
-
-```bash
-lxc info | grep -FA2 'instance_types'
-```
-
-If your host system is capable of KVM virtualization, you should see `virtual-machine` in the list of `instance_types`:
-
-```{terminal}
-:user: your-user
-:host: host-system
-
-lxc info | grep -FA2 'instance_types'
-
-instance_types:
-       - container
-       - virtual-machine
-```
-
-If `virtual-machine` fails to appear in the output, this indicates that the host system is not capable of virtualization. In this case, LXD can only be used for containers. You can proceed with this tutorial to learn about using containers, but disregard the steps that refer to virtual machines.
-
 (tutorial-enable-ui)=
-## Optional: Enable the LXD UI
+## Enable the LXD UI
 
 While the installation and initialization steps must be performed via the command line interface, a graphical interface (the LXD UI) is available for use after these setup steps. The LXD UI is accessed through your web browser.
 
@@ -166,10 +112,10 @@ If you prefer to use the LXD UI, expand and follow the steps below.
 By default, LXD is exposed through a Unix socket only and is not accessible over HTTPS. To access and manage LXD through a web browser using HTTPS, we must set the {config:option}`server-core:core.https_address` server configuration option. We will use the local network by configuring this to the IPv6 loopback address `[::1]` and port 8443. Run:
 
 ```bash
-lxc config set core.https_address [::1]:8443
+lxc config set core.https_address 127.0.0.1:8443
 ```
 
-Confirm that the `core.https_address` is set to `[::1]:8443`:
+Confirm that the `core.https_address` is set to `127.0.0.1:8443`:
 
 ```bash
 lxc config get core.https_address
