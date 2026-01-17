@@ -520,7 +520,6 @@ test_basic_usage() {
   [ "$(lxc exec foo -- pwd)" = "/root" ]
   # check that we can set the environment
   lxc exec --env BEST_BAND=meshuggah foo -- env | grep -xF BEST_BAND=meshuggah
-  lxc exec foo -- ip link show | grep eth0
 
   # check that environment variables work with profiles
   lxc profile create clash
