@@ -28,7 +28,7 @@ do_copy() {
   fi
 
   lxc init testimage c1 -s "${source_pool}"
-  lxc storage volume set "${source_pool}" container/c1 user.foo=main
+  lxc storage volume set "${source_pool}" container/c1 user.foo=init
 
   # Set size to check this is supported during copy.
   lxc config device set c1 root size="${DEFAULT_VOLUME_SIZE}"
@@ -43,7 +43,7 @@ do_copy() {
   # Initial copy
   # shellcheck disable=2086
   lxc copy c1 c2 ${targetPoolFlag}
-  [ "$(lxc storage volume get "${target_pool}" container/c2 user.foo)" = "main" ]
+  [ "$(lxc storage volume get "${target_pool}" container/c2 user.foo)" = "init" ]
 
   lxc start c1 c2
 
