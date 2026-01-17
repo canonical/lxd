@@ -401,6 +401,43 @@ func (r *ProtocolLXD) GetInstancesFullWithFilter(instanceType api.InstanceType, 
 	return instances, nil
 }
 
+// GetInstancesFullWithFilterAndFields returns a filtered list of instances including snapshots, backups and selective state fields.
+// The fields parameter specifies which state fields to include (e.g., "state.disk", "state.network").
+// An empty fields slice will fetch instance data without any expensive state fields (equivalent to recursion=[]).
+func (r *ProtocolLXD) GetInstancesFullWithFilterAndFields(instanceType api.InstanceType, filters []string, fields []string) ([]api.InstanceFull, error) {
+	err := r.CheckExtension("instances_state_selective_fields")
+	if err != nil {
+		return r.GetInstancesFullWithFilter(instanceType, filters)
+	}
+
+	instances := []api.InstanceFull{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use selective field syntax. Empty fields means recursion=[] (skip all expensive fields).
+	recursionValue := "[" + strings.Join(fields, ",") + "]"
+	v.Set("recursion", recursionValue)
+
+	if len(filters) > 0 {
+		err = r.CheckExtension("api_filtering")
+		if err != nil {
+			return nil, err
+		}
+
+		v.Set("filter", parseFilters(filters))
+	}
+
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
 // GetInstancesFullAllProjects returns a list of instances including snapshots, backups and state from all projects.
 func (r *ProtocolLXD) GetInstancesFullAllProjects(instanceType api.InstanceType) ([]api.InstanceFull, error) {
 	instances := []api.InstanceFull{}
@@ -461,6 +498,50 @@ func (r *ProtocolLXD) GetInstancesFullAllProjectsWithFilter(instanceType api.Ins
 	}
 
 	// Fetch the raw value
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
+// GetInstancesFullAllProjectsWithFilterAndFields returns a filtered list of instances from all projects including snapshots, backups and selective state fields.
+// The fields parameter specifies which state fields to include (e.g., "state.disk", "state.network").
+// An empty fields slice will fetch instance data without any expensive state fields (equivalent to recursion=[]).
+func (r *ProtocolLXD) GetInstancesFullAllProjectsWithFilterAndFields(instanceType api.InstanceType, filters []string, fields []string) ([]api.InstanceFull, error) {
+	err := r.CheckExtension("instances_state_selective_fields")
+	if err != nil {
+		return r.GetInstancesFullAllProjectsWithFilter(instanceType, filters)
+	}
+
+	instances := []api.InstanceFull{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use selective field syntax. Empty fields means recursion=[] (skip all expensive fields).
+	recursionValue := "[" + strings.Join(fields, ",") + "]"
+	v.Set("recursion", recursionValue)
+
+	v.Set("all-projects", "true")
+
+	if len(filters) > 0 {
+		err = r.CheckExtension("api_filtering")
+		if err != nil {
+			return nil, err
+		}
+
+		v.Set("filter", parseFilters(filters))
+	}
+
+	err = r.CheckExtension("instance_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
 	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
