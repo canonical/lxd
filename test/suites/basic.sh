@@ -540,12 +540,12 @@ test_basic_usage() {
   echo abc > "${LXD_DIR}/in"
 
   lxc file push "${LXD_DIR}/in" foo/root/
-  [ "$(lxc exec foo -- /bin/cat /root/in)" = "abc" ]
-  lxc file delete foo/root/in
-
   lxc file push "${LXD_DIR}/in" foo/root/in1
+  echo def | lxc file push - foo/root/in2
+  [ "$(lxc exec foo -- /bin/cat /root/in)" = "abc" ]
   [ "$(lxc file pull foo/root/in1 -)" = "abc" ]
-  lxc file delete foo/root/in1
+  [ "$(lxc file pull foo/root/in2 -)" = "def" ]
+  lxc file delete foo/root/in foo/root/in1 foo/root/in2
 
   rm "${LXD_DIR}/in"
 
