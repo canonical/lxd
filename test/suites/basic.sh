@@ -510,17 +510,15 @@ test_basic_usage() {
   lxc delete last-used-at-test --force
 
   # Test user, group and cwd
-  lxc exec foo -- mkdir /blah
   [ "$(lxc exec foo --user 1000 -- id -u)" = "1000" ]
   [ "$(lxc exec foo --group 1000 -- id -g)" = "1000" ]
-  [ "$(lxc exec foo --cwd /blah -- pwd)" = "/blah" ]
+  [ "$(lxc exec foo --cwd /tmp -- pwd)" = "/tmp" ]
 
-  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- id -u)" = "1234" ]
-  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- id -g)" = "5678" ]
-  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- pwd)" = "/blah" ]
-
+  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /tmp -- id -u)" = "1234" ]
+  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /tmp -- id -g)" = "5678" ]
+  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /tmp -- pwd)" = "/tmp" ]
+  [ "$(lxc exec foo -- pwd)" = "/root" ]
   # check that we can set the environment
-  lxc exec foo -- pwd | grep /root
   lxc exec --env BEST_BAND=meshuggah foo -- env | grep -xF BEST_BAND=meshuggah
   lxc exec foo -- ip link show | grep eth0
 
