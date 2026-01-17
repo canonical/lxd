@@ -76,7 +76,7 @@ do_copy() {
   lxc copy c1 c2 --refresh --instance-only ${targetPoolFlag}
   lxc start c2
   ! lxc exec c2 -- test -f /root/testfile1 || false
-  lxc stop -f c2
+  lxc stop -f c1 c2
 
   # Check whether snapshot c2/snap0 has been created
   ! lxc config show c2/snap0 || false
@@ -99,5 +99,5 @@ do_copy() {
   ! lxc config show c2/snap2 || false
   ! lxc storage volume show "${target_pool}" container/c2/snap2 || false
 
-  lxc delete -f c1 c2
+  lxc delete c1 c2
 }
