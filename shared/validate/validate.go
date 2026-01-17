@@ -525,7 +525,7 @@ func IsAPIName(value string, allowSlashes bool) error {
 	}
 
 	// Check for special URL characters.
-	reservedChars := []string{"?", "&", "+", "\"", "'", "`", "*"}
+	reservedChars := []string{"$", "?", "&", "+", "\"", "'", "`", "*"}
 	if !allowSlashes {
 		reservedChars = append(reservedChars, "/")
 	}
