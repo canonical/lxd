@@ -238,7 +238,7 @@ again:
 					// EBUSY (currently in use).
 					busyCount++
 					if busyCount == 10 {
-						return err
+						return fmt.Errorf("%v: %w", err, ErrResourceBusy)
 					}
 
 					// Wait a second an try again.

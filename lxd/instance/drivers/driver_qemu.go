@@ -629,9 +629,19 @@ func (d *qemu) onStop(target string) error {
 	// Stop the storage for the instance.
 	err = d.unmount()
 	if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
-		err = fmt.Errorf("Failed unmounting instance: %w", err)
-		op.Done(err)
-		return err
+		// Do not error out if we are migrating an instance and receive "device or resource busy" error.
+		// The server might be running on the same host in which case it is not possible to unmount
+		// the source device because it is already used by the destination (migrated) instance.
+		//
+		// This may result in some resources not being fully cleaned up on the source host after migration,
+		// but migration will be performed successfully.
+		if op.Action() != operationlock.ActionMigrate || !errors.Is(err, storageDrivers.ErrResourceBusy) {
+			err = fmt.Errorf("Failed unmounting instance: %w", err)
+			op.Done(err)
+			return err
+		}
+
+		d.logger.Warn("Failed unmounting source instance during migration", logger.Ctx{"err": err})
 	}
 
 	// Unload the apparmor profile
