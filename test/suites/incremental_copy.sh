@@ -1,12 +1,20 @@
 test_incremental_copy() {
+  local lxd_backend
+  lxd_backend="$(storage_backend "${LXD_DIR}")"
+
   ensure_import_testimage
 
   do_copy "" ""
 
   # cross-pool copy
+  local other_backend="dir"
+  if [ "${lxd_backend}" = "dir" ]; then
+    other_backend="btrfs"
+  fi
   local source_pool
-  source_pool="lxdtest-$(basename "${LXD_DIR}")-dir-pool"
-  lxc storage create "${source_pool}" dir
+  source_pool="lxdtest-$(basename "${LXD_DIR}")-${other_backend}-pool"
+  lxc storage create "${source_pool}" "${other_backend}"
+
   do_copy "${source_pool}" "lxdtest-$(basename "${LXD_DIR}")"
   lxc storage rm "${source_pool}"
 }
