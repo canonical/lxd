@@ -262,7 +262,7 @@ func resolveSnapPath(path string) (string, bool) {
 			return path, false
 		}
 
-		path = filepath.Clean(strings.Join([]string{pwd, path}, string(os.PathSeparator)))
+		path = filepath.Join(pwd, path)
 	}
 
 	return path, true
