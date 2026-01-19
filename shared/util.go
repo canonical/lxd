@@ -134,35 +134,10 @@ func IsUnixSocket(path string) bool {
 // HostPathFollow takes a valid path (from HostPath) and resolves it
 // all the way to its target or to the last which can be resolved.
 func HostPathFollow(path string) string {
-	// Ignore empty paths
-	if len(path) == 0 {
+	var ok bool
+	path, ok = resolveSnapPath(path)
+	if !ok {
 		return path
-	}
-
-	// Don't prefix stdin/stdout
-	if path == "-" {
-		return path
-	}
-
-	// Check if we're running in a snap package.
-	if !InSnap() {
-		return path
-	}
-
-	// Handle relative paths
-	if path[0] != os.PathSeparator {
-		// Use the cwd of the parent as snap-confine alters our own cwd on launch
-		ppid := os.Getppid()
-		if ppid < 1 {
-			return path
-		}
-
-		pwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", ppid))
-		if err != nil {
-			return path
-		}
-
-		path = filepath.Clean(strings.Join([]string{pwd, path}, string(os.PathSeparator)))
 	}
 
 	// Rely on "readlink -m" to do the right thing.
