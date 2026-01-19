@@ -58,7 +58,7 @@ In Firefox, click **Advanced**, then follow the link to **Accept the risk and co
 
 Follow the instructions in the LXD UI browser page to install and select the browser certificate, also called a client certificate.
 
-If you have previously installed a certificate for the LXD UI, your browser will offer you the option to use it. Confirm that the installed certificate's issuer is listed is the LXD UI, then select it.
+If you have previously installed a certificate for the LXD UI, your browser will offer you the option to use it. Confirm that the installed certificate's issuer is listed in the LXD UI, then select it.
 
 After you have selected your certificate, follow the LXD UI's on-page instructions to set up the trust token.
 
