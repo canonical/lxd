@@ -36,6 +36,13 @@ test_storage_volume_snapshots() {
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'name: snap0'
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 0001-01-01T00:00:00Z'
 
+  # Check volume snapshot attachment requires source.snapshot (not source=vol/snap)
+  lxc init --empty c2 -s "${storage_pool}"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc config device add c2 snap-bad disk source="${storage_volume}/snap0" pool="${storage_pool}" path=/mnt/bad 2>&1)" = "Error: Invalid devices: Device validation failed for \"snap-bad\": \"source\" cannot include a snapshot, use \"source.snapshot\" instead" ]
+  lxc config device add c2 snap-good disk source="${storage_volume}" source.snapshot="snap0" pool="${storage_pool}" path=/mnt/snap-good
+  lxc config device remove c2 snap-good
+  lxc delete c2
+
   # Create a snapshot with an expiry date using a YAML configuration
   expiry_date_in_one_minute=$(date -u -d '+10 minute' '+%Y-%m-%dT%H:%M:%SZ')
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}" yaml_volume_snapshot <<EOF
