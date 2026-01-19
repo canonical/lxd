@@ -932,6 +932,14 @@ func IsClusterGroupName(name string) error {
 		return errors.New("Cluster group names may not contain quotes")
 	}
 
+	// Validate ASCII-only.
+	err := IsEntityName(name)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // IsEntityName validates that a name contains only ASCII characters.
 // This is important for entity names that are used in system-level operations like cgroups,
