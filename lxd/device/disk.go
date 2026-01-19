@@ -1673,12 +1673,24 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 			}
 		})
 	} else {
-		mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
-		if err != nil {
-			return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
-		}
+		if d.config["source.snapshot"] != "" {
+			// Custom volume snapshots must be mounted read-only to prevent guest writes.
+			snapVol := d.pool.GetVolume(volumeType, storageDrivers.ContentType(dbVolume.ContentType), volStorageName, dbVolume.Config)
+			err = d.pool.Driver().MountVolumeSnapshot(snapVol, nil)
+			if err != nil {
+				return nil, "", nil, fmt.Errorf(`Failed mounting storage volume snapshot "%s/%s" from storage pool %q: %w`, dbVolumeType, snapVol.Name(), d.pool.Name(), err)
+			}
 
-		revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
+			mountInfo = &storagePools.MountInfo{}
+			revert.Add(func() { _, _ = d.pool.Driver().UnmountVolumeSnapshot(snapVol, nil) })
+		} else {
+			mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
+			if err != nil {
+				return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
+			}
+
+			revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
+		}
 	}
 
 	srcPath := storageDrivers.GetVolumeMountPath(d.config["pool"], volumeType, volStorageName)
