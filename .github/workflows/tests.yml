@@ -283,7 +283,7 @@ jobs:
           - group: cluster_storage
             backends: all
           - group: image
-            backends: ${{ needs.code-tests.outputs.fast-backend }}
+            backends: fasts
           - group: instance
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: network
