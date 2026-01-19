@@ -1742,7 +1742,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
 
-	isReadOnly := shared.IsTrue(d.config["readonly"])
+	isReadOnly := shared.IsTrue(d.config["readonly"]) || d.config["source.snapshot"] != ""
 	isRecursive := shared.IsTrue(d.config["recursive"])
 
 	mntOptions := shared.SplitNTrimSpace(d.config["raw.mount.options"], ",", -1, true)
