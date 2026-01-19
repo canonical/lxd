@@ -237,6 +237,7 @@ extensions = [
     'sphinx_sitemap',
     'sphinx_remove_toctrees',
     'myst_parser',
+    'sphinxcontrib.mermaid',
 ]
 
 # Additional MyST syntax

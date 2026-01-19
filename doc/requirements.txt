@@ -30,6 +30,7 @@ sphinx-copybutton
 sphinx-remove-toctrees
 watchfiles
 sphinx-sitemap
+sphinxcontrib-mermaid
 
 # Vale dependencies
 vale
