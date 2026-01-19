@@ -997,41 +997,41 @@ run_projects_restrictions() {
   fi
 
   # Check with restricted unset and restricted.devices.nic unset that managed & unmanaged networks are accessible.
-  lxc network list | grep -F "${netManaged}"
-  lxc network list | grep -F "${netUnmanaged}"
+  lxc network list | grep -wF "${netManaged}"
+  lxc network list | grep -wF "${netUnmanaged}"
   lxc network show "${netManaged}"
   lxc network show "${netUnmanaged}"
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
-    lxc network list --all-projects | grep -F "${netManaged}"
-    lxc network list --all-projects | grep -F "${netUnmanaged}"
+    lxc network list --all-projects | grep -wF "${netManaged}"
+    lxc network list --all-projects | grep -wF "${netUnmanaged}"
   else
     ! lxc network list --all-projects || false
   fi
 
   # Check with restricted unset and restricted.devices.nic=block that managed & unmanaged networks are accessible.
   lxc project set local:p1 restricted.devices.nic=block
-  lxc network list | grep -F "${netManaged}"
-  lxc network list | grep -F "${netUnmanaged}"
+  lxc network list | grep -wF "${netManaged}"
+  lxc network list | grep -wF "${netUnmanaged}"
   lxc network show "${netManaged}"
   lxc network show "${netUnmanaged}"
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
-    lxc network list --all-projects | grep -F "${netManaged}"
-    lxc network list --all-projects | grep -F "${netUnmanaged}"
+    lxc network list --all-projects | grep -wF "${netManaged}"
+    lxc network list --all-projects | grep -wF "${netUnmanaged}"
   else
     ! lxc network list --all-projects || false
   fi
 
   # Check with restricted=true and restricted.devices.nic=block that managed & unmanaged networks are inaccessible.
   lxc project set local:p1 restricted=true
-  ! lxc network list | grep -F "${netManaged}"|| false
+  ! lxc network list | grep -wF "${netManaged}"|| false
   ! lxc network show "${netManaged}" || false
-  ! lxc network list | grep -F "${netUnmanaged}"|| false
+  ! lxc network list | grep -wF "${netUnmanaged}"|| false
   ! lxc network show "${netUnmanaged}" || false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     # Can view when performing an --all-projects request because the network is actually defined in the default project,
     # and the default project is not restricted.
-    lxc network list --all-projects | grep -F "${netManaged}"
-    lxc network list --all-projects | grep -F "${netUnmanaged}"
+    lxc network list --all-projects | grep -wF "${netManaged}"
+    lxc network list --all-projects | grep -wF "${netUnmanaged}"
   else
     ! lxc network list --all-projects || false
   fi
@@ -1039,34 +1039,33 @@ run_projects_restrictions() {
   # Check with restricted=true and restricted.devices.nic=managed that managed networks are accessible and that
   # unmanaged networks are inaccessible.
   lxc project set local:p1 restricted.devices.nic=managed
-  lxc network list | grep -F "${netManaged}"
+  lxc network list | grep -wF "${netManaged}"
   lxc network show "${netManaged}"
-  ! lxc network list | grep -F "${netUnmanaged}"|| false
+  ! lxc network list | grep -wF "${netUnmanaged}"|| false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     # Can view when performing an --all-projects request because the network is actually defined in the default project,
     # and the default project is not restricted.
-    lxc network list --all-projects | grep -F "${netManaged}"
-    lxc network list --all-projects | grep -F "${netUnmanaged}"
+    lxc network list --all-projects | grep -wF "${netManaged}"
+    lxc network list --all-projects | grep -wF "${netUnmanaged}"
   else
     ! lxc network list --all-projects || false
   fi
 
   # Check with restricted.devices.nic=allow and restricted.networks.access set to a network other than the existing
   # managed and unmanaged ones that they are inaccessible.
-  lxc project set local:p1 restricted.devices.nic=allow
-  lxc project set local:p1 restricted.networks.access=foo
-  ! lxc network list | grep -F "${netManaged}"|| false
+  lxc project set local:p1 restricted.devices.nic=allow restricted.networks.access=foo
+  ! lxc network list | grep -wF "${netManaged}"|| false
   ! lxc network show "${netManaged}" || false
   ! lxc network info "${netManaged}" || false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     # Can view when performing an --all-projects request because the network is actually defined in the default project,
     # and the default project is not restricted.
-    lxc network list --all-projects | grep -F "${netManaged}"
+    lxc network list --all-projects | grep -wF "${netManaged}"
   else
     ! lxc network list --all-projects || false
   fi
 
-  ! lxc network list | grep -F "${netUnmanaged}"|| false
+  ! lxc network list | grep -wF "${netUnmanaged}"|| false
   ! lxc network show "${netUnmanaged}" || false
   ! lxc network info "${netUnmanaged}" || false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
@@ -1082,22 +1081,17 @@ run_projects_restrictions() {
   ! lxc network info "${netManaged}" || false
   ! lxc network delete "${netManaged}" || false
 
-  ! lxc profile device add default eth0 nic nictype=bridge parent=netManaged || false
-  ! lxc profile device add default eth0 nic nictype=bridge parent=netUnmanaged || false
+  ! lxc profile device add default eth0 nic nictype=bridge parent="${netManaged}" || false
+  ! lxc profile device add default eth0 nic nictype=bridge parent="${netUnmanaged}" || false
 
   ip link delete "${netUnmanaged}"
 
   # Disable restrictions to allow devices to be added to profile.
-  lxc project unset local:p1 restricted.networks.access
-  lxc project set local:p1 restricted.devices.nic=managed
-  lxc project set local:p1 restricted=false
+  lxc project set local:p1 restricted.networks.access="" restricted.devices.nic=managed restricted=false
 
   # Add a root device to the default profile of the project and import an image.
   pool="lxdtest-$(basename "${LXD_DIR}")"
   lxc profile device add local:default root disk path="/" pool="${pool}"
-
-  ensure_import_testimage
-  fingerprint="$(lxc image list -f csv -c F testimage)"
 
   # Add a volume.
   lxc storage volume create "local:${pool}" "v-proj$$"
@@ -1107,19 +1101,19 @@ run_projects_restrictions() {
 
   # It's not possible to create nested containers.
   ! lxc profile set default security.nesting=true || false
-  ! lxc init testimage c1 -c security.nesting=true || false
+  ! lxc init --empty c1 -c security.nesting=true || false
 
   # It's not possible to use forbidden low-level options
   ! lxc profile set default "raw.idmap=both 0 0" || false
-  ! lxc init testimage c1 -c "raw.idmap=both 0 0" || false
-  ! lxc init testimage c1 -c volatile.uuid="foo" || false
+  ! lxc init --empty c1 -c "raw.idmap=both 0 0" || false
+  ! lxc init --empty c1 -c volatile.uuid="$(< /proc/sys/kernel/random/uuid)" || false
 
   # It's not possible to create privileged containers.
   ! lxc profile set default security.privileged=true || false
-  ! lxc init testimage c1 -c security.privileged=true || false
+  ! lxc init --empty c1 -c security.privileged=true || false
 
   # It's possible to create non-isolated containers.
-  lxc init testimage c1 -c security.idmap.isolated=false -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -c security.idmap.isolated=false -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to change low-level options
   ! lxc config set c1 "raw.idmap=both 0 0" || false
@@ -1193,7 +1187,7 @@ run_projects_restrictions() {
   # Setting restricted.containers.nesting to 'allow' makes it possible to create
   # nested containers.
   lxc project set local:p1 restricted.containers.nesting=allow
-  lxc init testimage c1 -c security.nesting=true -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -c security.nesting=true -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to set restricted.containers.nesting back to 'block',
   # because there's an instance with security.nesting=true.
@@ -1204,7 +1198,7 @@ run_projects_restrictions() {
   # Setting restricted.containers.lowlevel to 'allow' makes it possible to set
   # low-level options.
   lxc project set local:p1 restricted.containers.lowlevel=allow
-  lxc init testimage c1 -c "raw.idmap=both 0 0" -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -c "raw.idmap=both 0 0" -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to set restricted.containers.lowlevel back to 'block',
   # because there's an instance with raw.idmap set.
@@ -1215,7 +1209,7 @@ run_projects_restrictions() {
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
   # privileged containers.
   lxc project set local:p1 restricted.containers.privilege=allow
-  lxc init testimage c1 -c security.privileged=true -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -c security.privileged=true -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to set restricted.containers.privilege back to
   # 'unprivileged', because there's an instance with security.privileged=true.
@@ -1251,8 +1245,6 @@ run_projects_restrictions() {
   echo "==> Clean up the instance."
   lxc delete v1
 
-  lxc image delete testimage
-
   lxc profile device remove local:default root
   lxc project switch default || true
   lxc remote switch local
@@ -1283,8 +1275,7 @@ test_projects_usage() {
   lxc profile device set default root size=48MiB --project test-usage
 
   # Spin up a container
-  ensure_import_testimage test-usage
-  lxc init testimage c1 --project test-usage
+  lxc init --empty c1 --project test-usage
   lxc project info test-usage
 
   # Check usage output
@@ -1309,7 +1300,6 @@ VIRTUAL-MACHINES,UNLIMITED,0"
   fi
 
   lxc delete c1 --project test-usage
-  lxc image delete testimage --project test-usage
   lxc project delete test-usage
 }
 
@@ -1326,17 +1316,12 @@ EOF
     limits.cpu=1 \
     limits.memory=512MiB
 
-  lxc profile device set default root size=300MiB --project test-project-yaml
-  ensure_import_testimage test-project-yaml
+  lxc init --empty c1 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c2 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
+  ! lxc init --empty c3 --project test-project-yaml || false # Should fail due to the project limits.cpu=2 (here we would have 3 containers with 1 CPU each)
 
-  lxc init testimage c1 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
-  lxc init testimage c2 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
-  ! lxc init testimage c3 --project test-project-yaml || false # Should fail due to the project limits.cpu=2 (here we would have 3 containers with 1 CPU each)
+  lxc delete c1 c2 --project test-project-yaml
 
-  lxc delete -f c1 --project test-project-yaml
-  lxc delete -f c2 --project test-project-yaml
-
-  lxc image delete testimage --project test-project-yaml
   lxc project delete test-project-yaml
 }
 
@@ -1349,7 +1334,7 @@ test_projects_before_init() {
   LXD_DIR=${LXD_INIT_DIR} lxc project create foo --config user.foo=bar
   [ "$(LXD_DIR=${LXD_INIT_DIR} lxc project get foo user.foo)" = "bar" ]
 
-  shutdown_lxd "${LXD_INIT_DIR}"
+  kill_lxd "${LXD_INIT_DIR}"
 }
 
 test_projects_images_volume() {
