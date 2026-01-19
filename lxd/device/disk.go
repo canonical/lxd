@@ -1625,6 +1625,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	defer revert.Fail()
 
 	var mountInfo *storagePools.MountInfo
+	var dbVolume *db.StorageVolume
 
 	if filepath.IsAbs(d.config["source"]) {
 		return nil, "", nil, errors.New(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
@@ -1637,6 +1638,20 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 	instProj := d.inst.Project()
 	storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, dbVolumeType, volumeName, true)
+		return err
+	})
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("Failed to fetch local storage volume record: %w", err)
+	}
+
+	var volStorageName string
+	if dbVolume.Type == cluster.StoragePoolVolumeTypeNameCustom {
+		volStorageName = project.StorageVolume(storageProjectName, volumeName)
+	} else {
+		volStorageName = project.Instance(storageProjectName, volumeName)
+	}
 
 	if dbVolumeType == cluster.StoragePoolVolumeTypeVM {
 		diskInst, err := instance.LoadByProjectAndName(d.state, d.inst.Project().Name, volumeName)
@@ -1668,22 +1683,6 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		}
 
 		revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
-	}
-
-	var dbVolume *db.StorageVolume
-	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, dbVolumeType, volumeName, true)
-		return err
-	})
-	if err != nil {
-		return nil, "", nil, fmt.Errorf("Failed to fetch local storage volume record: %w", err)
-	}
-
-	var volStorageName string
-	if dbVolume.Type == cluster.StoragePoolVolumeTypeNameCustom {
-		volStorageName = project.StorageVolume(storageProjectName, volumeName)
-	} else {
-		volStorageName = project.Instance(storageProjectName, volumeName)
 	}
 
 	srcPath := storageDrivers.GetVolumeMountPath(d.config["pool"], volumeType, volStorageName)
