@@ -197,7 +197,7 @@ test_clustering_membership() {
   # detected as down.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 12
+  sleep 11
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -xF "status: Offline"
 
@@ -248,9 +248,9 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${cert}" 8 2 "${token_valid}"
 
   # This will cause the token to expire
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=2S
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=1S
   token_expired="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node9)"
-  sleep 2
+  sleep 1.1
 
   # Spawn a ninth node, using join token.
   ! spawn_lxd_and_join_cluster "${cert}" 9 2 "${token_expired}" || false
@@ -410,7 +410,7 @@ test_clustering_containers() {
   echo "Shutdown node 2, wait for it to be considered offline, and list containers."
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 12
+  sleep 11
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c ns)" = "foo,ERROR" ]
 
   echo "For an instance on an offline member, we can get its config but not use recursion nor get instance state."
@@ -805,7 +805,7 @@ test_clustering_storage() {
     # Shutdown node 3, and wait for it to be considered offline.
     LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
     LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-    sleep 12
+    sleep 11
 
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
@@ -1865,7 +1865,7 @@ test_clustering_shutdown_nodes() {
   wait "${daemon_pid3}"
 
   # Wait for raft election to take place and become aware that quorum has been lost (should take 3-6s).
-  sleep 10
+  sleep 7
 
   # Make sure the database is not available to the first node
   ! LXD_DIR="${LXD_ONE_DIR}" timeout -k 5 5 lxc cluster ls || false
@@ -2674,7 +2674,7 @@ test_clustering_rebalance() {
 
   # Wait for the second node to be considered offline and be replaced by the
   # fourth node.
-  sleep 15
+  sleep 11
 
   # The second node is offline and has been demoted.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Offline"
@@ -2818,7 +2818,7 @@ test_clustering_remove_raft_node() {
   fi
 
   # Let the heartbeats catch up.
-  sleep 12
+  sleep 11
 
   # The node does not appear anymore in the cluster list.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "node2" || false
@@ -2837,7 +2837,7 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "100.64.1.102"
 
   # Wait for a heartbeat to propagate and a rebalance to be performed.
-  sleep 12
+  sleep 11
 
   # We're back to 3 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
@@ -3696,7 +3696,7 @@ test_clustering_edit_configuration() {
   LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
 
   # Let the heartbeats catch up
-  sleep 12
+  sleep 11
 
   # Sanity check of the automated backup
   # We can't check that the backup has the same files as even LXD_ONE_DIR, because
@@ -4192,7 +4192,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
-  sleep 1
+  sleep 0.1
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -4211,7 +4211,7 @@ test_clustering_events() {
     [ "$(grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "2" ]
   done
 
-  sleep 2 # Wait for notification heartbeat to distribute new roles.
+  sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
@@ -4221,7 +4221,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
-  sleep 1
+  sleep 0.1
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -4255,7 +4255,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
-  sleep 1
+  sleep 0.1
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -4268,7 +4268,7 @@ test_clustering_events() {
   LXD_DIR="${LXD_FOUR_DIR}" lxc cluster role add node4 event-hub
   LXD_DIR="${LXD_FIVE_DIR}" lxc cluster role add node5 event-hub
 
-  sleep 2 # Wait for notification heartbeat to distribute new roles.
+  sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
@@ -4282,13 +4282,13 @@ test_clustering_events() {
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
 
-  sleep 12
+  sleep 11
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls
 
   # Confirm that local operations are not blocked by having no event hubs running, but that events are not being
   # distributed.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
-  sleep 1
+  sleep 0.1
 
   [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node1.log")" = "7" ]
   for i in 2 3; do
@@ -4481,7 +4481,7 @@ test_clustering_trust_add() {
 
   # Get a certificate add token from LXD_ONE. The operation will run on LXD_ONE locally.
   lxd_one_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
-  sleep 2
+  sleep 1.1
 
   # Expect one running token operation.
   operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"

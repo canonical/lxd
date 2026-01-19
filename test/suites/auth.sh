@@ -140,7 +140,7 @@ test_authorization() {
   # Check a token cannot be used when expired
   lxc config set core.remote_token_expiry=1S
   tls_identity_token2="$(lxc auth identity create tls/test-user2 --quiet)"
-  sleep 2
+  sleep 1.1
   LXD_CONF3=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF3}" gen_cert_and_key "client"
   ! LXD_CONF="${LXD_CONF3}" lxc remote add tls "${tls_identity_token2}" || false
