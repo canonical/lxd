@@ -168,7 +168,7 @@ func HostPathFollow(path string) string {
 	// Rely on "readlink -m" to do the right thing.
 	path = HostPath(path)
 	for {
-		target, err := RunCommand("readlink", "-m", path)
+		target, err := RunCommand(context.Background(), "readlink", "-m", path)
 		if err != nil {
 			return path
 		}
