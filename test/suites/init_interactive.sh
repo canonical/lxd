@@ -26,6 +26,7 @@ auto
 none
 no
 no
+no
 yes
 EOF
 
