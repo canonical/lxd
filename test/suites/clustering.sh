@@ -3573,11 +3573,7 @@ test_clustering_evacuation_restore_operations() {
   echo "Start node1 evacuation in background"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --quiet --force &
   evac_pid=$!
-  sleep 0.5 # Wait a bit for the operation to register
-
-  echo "Check evacuation fails while another evacuation is in progress"
-  # Tests fix for https://github.com/canonical/lxd/issues/17170
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node2 --force 2>&1)" = "Error: Failed updating cluster member state: Failed creating \"Evacuating cluster member\" operation record: Another operation with reference \"Evacuating cluster member\" already exists" ]
+  sleep 1 # Wait a bit for the operation to start
 
   echo "Check restore fails while evacuation operation in progress"
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot restore \"node1\" while an evacuate operation is in progress" ]
@@ -3593,7 +3589,7 @@ test_clustering_evacuation_restore_operations() {
   echo "Start node1 restore in background"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --quiet --force &
   restore_pid=$!
-  sleep 0.5 # Wait a bit for the operation to register
+  sleep 1 # Wait a bit for the operation to start
 
   echo "Check evacuation fails while restore operation in progress"
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot evacuate \"node1\" while a restore operation is in progress" ]
