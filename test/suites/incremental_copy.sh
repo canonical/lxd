@@ -1,12 +1,20 @@
 test_incremental_copy() {
+  local lxd_backend
+  lxd_backend="$(storage_backend "${LXD_DIR}")"
+
   ensure_import_testimage
 
   do_copy "" ""
 
   # cross-pool copy
+  local other_backend="dir"
+  if [ "${lxd_backend}" = "dir" ]; then
+    other_backend="btrfs"
+  fi
   local source_pool
-  source_pool="lxdtest-$(basename "${LXD_DIR}")-dir-pool"
-  lxc storage create "${source_pool}" dir
+  source_pool="lxdtest-$(basename "${LXD_DIR}")-${other_backend}-pool"
+  lxc storage create "${source_pool}" "${other_backend}"
+
   do_copy "${source_pool}" "lxdtest-$(basename "${LXD_DIR}")"
   lxc storage rm "${source_pool}"
 }
@@ -20,10 +28,10 @@ do_copy() {
   fi
 
   lxc init testimage c1 -s "${source_pool}"
-  lxc storage volume set "${source_pool}" container/c1 user.foo=main
+  lxc storage volume set "${source_pool}" container/c1 user.foo=init
 
   # Set size to check this is supported during copy.
-  lxc config device set c1 root size=50MiB
+  lxc config device set c1 root size="${DEFAULT_VOLUME_SIZE}"
 
   targetPoolFlag=
   if [ -n "${target_pool}" ]; then
@@ -35,7 +43,7 @@ do_copy() {
   # Initial copy
   # shellcheck disable=2086
   lxc copy c1 c2 ${targetPoolFlag}
-  [ "$(lxc storage volume get "${target_pool}" container/c2 user.foo)" = "main" ]
+  [ "$(lxc storage volume get "${target_pool}" container/c2 user.foo)" = "init" ]
 
   lxc start c1 c2
 
@@ -68,7 +76,7 @@ do_copy() {
   lxc copy c1 c2 --refresh --instance-only ${targetPoolFlag}
   lxc start c2
   ! lxc exec c2 -- test -f /root/testfile1 || false
-  lxc stop -f c2
+  lxc stop -f c1 c2
 
   # Check whether snapshot c2/snap0 has been created
   ! lxc config show c2/snap0 || false
@@ -76,7 +84,7 @@ do_copy() {
   lxc copy c1 c2 --refresh ${targetPoolFlag}
   lxc config show c2/snap0
   lxc config show c2/snap1
-  [ "$(lxc storage volume get "${target_pool}" container/c2 user.foo)" = "main" ]
+  [ "$(lxc storage volume get "${target_pool}" container/c2 user.foo)" = "init" ]
   [ "$(lxc storage volume get "${target_pool}" container/c2/snap0 user.foo)" = "snap0" ]
   [ "$(lxc storage volume get "${target_pool}" container/c2/snap1 user.foo)" = "snap1" ]
 
@@ -91,5 +99,5 @@ do_copy() {
   ! lxc config show c2/snap2 || false
   ! lxc storage volume show "${target_pool}" container/c2/snap2 || false
 
-  lxc delete -f c1 c2
+  lxc delete c1 c2
 }
