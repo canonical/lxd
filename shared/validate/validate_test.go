@@ -874,3 +874,69 @@ func TestIsUserSSHKey(t *testing.T) {
 		})
 	}
 }
+
+func TestIsEntityName(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{
+			name:    "Valid ASCII name",
+			value:   "test-project",
+			wantErr: false,
+		},
+		{
+			name:    "Valid ASCII with numbers",
+			value:   "test123",
+			wantErr: false,
+		},
+		{
+			name:    "Empty string",
+			value:   "",
+			wantErr: false,
+		},
+		{
+			name:    "Emoji",
+			value:   "🦎-Gecko-Garage",
+			wantErr: true,
+		},
+		{
+			name:    "Unicode accent",
+			value:   "café",
+			wantErr: true,
+		},
+		{
+			name:    "Japanese characters",
+			value:   "テスト",
+			wantErr: true,
+		},
+		{
+			name:    "Mixed ASCII and Unicode",
+			value:   "test-café",
+			wantErr: true,
+		},
+		{
+			name:    "Chinese characters",
+			value:   "测试",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotErr := validate.IsEntityName(tt.value)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("IsEntityName() failed: %v", gotErr)
+				}
+
+				return
+			}
+
+			if tt.wantErr {
+				t.Fatal("IsEntityName() succeeded unexpectedly")
+			}
+		})
+	}
+}
