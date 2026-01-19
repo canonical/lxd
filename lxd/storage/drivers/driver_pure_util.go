@@ -1366,7 +1366,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 
 		devName := filepath.Base(volumePath)
 		if strings.HasPrefix(devName, "dm-") {
-			_, err := shared.RunCommand(d.state.ShutdownCtx, "multipath", "-f", volumePath)
+			_, err := shared.RunCommand(context.Background(), "multipath", "-f", volumePath)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap volume %q: Failed to remove multipath device %q: %w", vol.name, devName, err)
 			}
