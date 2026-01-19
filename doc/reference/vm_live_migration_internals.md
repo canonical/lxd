@@ -30,14 +30,45 @@ This process leverages the QEMU built-in Network Block Device (NBD) client-serve
 1. Snapshot sync for non-shared storage to ensure consistency between source and target.
 1. Transfer VM state to target.
 
-```{figure} /images/vm_live_migration_flowchart.svg
-Non-Shared Storage Migration
+```{mermaid}
+:caption: Non-Shared Storage Migration
+flowchart TB
+    subgraph Target_VM["Target VM"]
+        direction TB
+        tgt_create["Create Instance"] --> tgt_volume["Create Volume Records"]
+        tgt_volume --> tgt_receive_fs["Receive Storage Driver Filesystem Migration"]
+        tgt_receive_fs --> tgt_start["Start QEMU Process"]
+        tgt_start --> tgt_paused((Paused))
+        tgt_paused --> tgt_receive["Receive Migration"]
+        tgt_receive --> tgt_running((Running))
+    end
+
+    subgraph Source_VM["Source VM"]
+        direction TB
+        src_running((Running)) --> src_set["Set QMP Capabilities"]
+        src_set --> src_write["Write Buffer (CoW)"]
+        src_write --> src_snapshot["Snapshot Root Disk"]
+        src_snapshot --> src_storage["Storage Driver Transfer"]
+        src_storage --> src_nbd["Add NBD Server"]
+        src_nbd --> src_block["Block Device Mirror"]
+        src_block --> src_paused((Paused))
+        src_paused --> src_state["State Transfer"]
+        src_state --> src_stopped((Stopped))
+        src_stopped --> src_discard["Discard Storage"]
+    end
+
 ```
 
 The state transitions during the process are shown below:
 
-```{figure} /images/vm_live_migration_state_diagram.svg
-Non-Shared Storage Migration State Transitions
+```{mermaid}
+:caption: Non-Shared Storage Migration State Transitions
+stateDiagram-v2
+    [*] --> Ready: Block Device Mirror
+    state "Pre-switchover" as PreSwitchover
+    Ready --> PreSwitchover: State Transfer
+    PreSwitchover --> Completed: State Migration
+    Completed --> [*]
 ```
 
 ### Intra-cluster member live migration (Ceph shared storage pool)
