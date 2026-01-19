@@ -199,3 +199,32 @@ func (op *Operation) ToClusterJoinToken() (*ClusterMemberJoinToken, error) {
 
 	return &joinToken, nil
 }
+
+func (op *Operation) parseCommonTokenFields() (secret string, fingerprint string, addresses []string, err error) {
+	secret, ok := op.Metadata["secret"].(string)
+	if !ok {
+		return "", "", nil, fmt.Errorf("Operation secret is type %T not string", op.Metadata["secret"])
+	}
+
+	fingerprint, ok = op.Metadata["fingerprint"].(string)
+	if !ok {
+		return "", "", nil, fmt.Errorf("Operation fingerprint is type %T not string", op.Metadata["fingerprint"])
+	}
+
+	addressesRaw, ok := op.Metadata["addresses"].([]any)
+	if !ok {
+		return "", "", nil, fmt.Errorf("Operation addresses is type %T not []any", op.Metadata["addresses"])
+	}
+
+	addresses = make([]string, 0, len(addressesRaw))
+	for i, address := range addressesRaw {
+		addressString, ok := address.(string)
+		if !ok {
+			return "", "", nil, fmt.Errorf("Operation address index %d is type %T not string", i, address)
+		}
+
+		addresses = append(addresses, addressString)
+	}
+
+	return secret, fingerprint, addresses, nil
+}
