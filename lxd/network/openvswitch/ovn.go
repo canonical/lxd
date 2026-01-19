@@ -294,7 +294,7 @@ func (o *OVN) xbctl(southbound bool, extraArgs ...string) (string, error) {
 
 	after, ok := strings.CutPrefix(dbAddr, "unix:")
 	if ok {
-		dbAddr = "unix:" + shared.HostPathFollow(after)
+		dbAddr = "unix:" + shared.HostPathFollow(context.TODO(), after)
 	}
 
 	// Figure out args.

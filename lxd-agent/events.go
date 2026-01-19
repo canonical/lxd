@@ -190,7 +190,7 @@ func eventsProcess(event api.Event) error {
 
 		// Attempt to perform the mount.
 		for range 5 {
-			_, err = shared.RunCommandContext(context.Background(), "mount", args...)
+			_, err = shared.RunCommand(context.Background(), "mount", args...)
 			if err == nil {
 				l.Info("Mounted hotplug")
 				return nil

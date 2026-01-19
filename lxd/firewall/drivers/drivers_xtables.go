@@ -556,20 +556,20 @@ func (d Xtables) NetworkApplyACLRules(networkName string, rules []ACLRule) error
 
 	applyACLRules := func(cmd string, iptRules [][]string) error {
 		// Attempt to flush chain in table.
-		_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", "filter", "-F", chain)
+		_, err := shared.RunCommand(context.TODO(), cmd, "-w", "-t", "filter", "-F", chain)
 		if err != nil {
 			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
 
 		// Allow connection tracking.
-		_, err = shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
+		_, err = shared.RunCommand(context.TODO(), cmd, "-w", "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
 		if err != nil {
 			return fmt.Errorf("Failed adding connection tracking rules to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
 
 		// Add rules to chain in table.
 		for _, iptRule := range iptRules {
-			_, err := shared.RunCommandContext(context.TODO(), cmd, append([]string{"-w", "-t", "filter", "-A", chain}, iptRule...)...)
+			_, err := shared.RunCommand(context.TODO(), cmd, append([]string{"-w", "-t", "filter", "-A", chain}, iptRule...)...)
 			if err != nil {
 				return fmt.Errorf("Failed adding rule to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 			}
@@ -825,7 +825,7 @@ func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName stri
 
 	ebtablesMu.Lock()
 	for _, rule := range rules {
-		_, err := shared.RunCommandContext(context.TODO(), rule[0], rule[1:]...)
+		_, err := shared.RunCommand(context.TODO(), rule[0], rule[1:]...)
 		if err != nil {
 			ebtablesMu.Unlock()
 			return err
@@ -863,7 +863,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 	ebtablesMu.Lock()
 
 	// Get a current list of rules active on the host.
-	out, err := shared.RunCommandContext(context.TODO(), "ebtables", "-L", "--Lmac2", "--Lx")
+	out, err := shared.RunCommand(context.TODO(), "ebtables", "-L", "--Lmac2", "--Lx")
 	if err != nil {
 		ebtablesMu.Unlock()
 		return fmt.Errorf("Failed to get a list of network filters to for %q: %w", deviceName, err)
@@ -889,7 +889,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 
 			// If we get this far, then the current host rule matches one of our LXD
 			// rules, so we should run the modified command to delete it.
-			_, err = shared.RunCommandContext(context.TODO(), fields[0], fields[1:]...)
+			_, err = shared.RunCommand(context.TODO(), fields[0], fields[1:]...)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -1241,7 +1241,7 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", iptablesCommentPrefix+" "+comment)
 
-	_, err = shared.TryRunCommand(cmd, args...)
+	_, err = shared.TryRunCommand(context.TODO(), nil, cmd, args...)
 	if err != nil {
 		return err
 	}
@@ -1313,7 +1313,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 
 		// List the rules.
 		args := append(baseArgs, "--list-rules")
-		output, err := shared.TryRunCommand(cmd, args...)
+		output, err := shared.TryRunCommand(context.TODO(), nil, cmd, args...)
 		if err != nil {
 			return fmt.Errorf("Failed to list IPv%d rules (table %s)", ipVersion, fromTable)
 		}
@@ -1329,7 +1329,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 				fields[0] = "-D"
 
 				args = append(baseArgs, fields...)
-				_, err = shared.TryRunCommand("sh", "-c", cmd+" "+strings.Join(args, " "))
+				_, err = shared.TryRunCommand(context.TODO(), nil, "sh", "-c", cmd+" "+strings.Join(args, " "))
 				if err != nil {
 					return err
 				}
@@ -1454,7 +1454,7 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 	}
 
 	// Attempt to dump the rules of the chain, if this fails then chain doesn't exist.
-	rules, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-S", chain)
+	rules, err := shared.RunCommand(context.TODO(), cmd, "-w", "-t", table, "-S", chain)
 	if err != nil {
 		return false, false, nil
 	}
@@ -1481,7 +1481,7 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 	}
 
 	// Attempt to create chain in table.
-	_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-N", chain)
+	_, err := shared.RunCommand(context.TODO(), cmd, "-w", "-t", table, "-N", chain)
 	if err != nil {
 		return fmt.Errorf("Failed creating %q chain %q in table %q: %w", cmd, chain, table, err)
 	}
@@ -1503,14 +1503,14 @@ func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string,
 
 	// Attempt to flush rules from chain in table.
 	if flushFirst {
-		_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-F", chain)
+		_, err := shared.RunCommand(context.TODO(), cmd, "-w", "-t", table, "-F", chain)
 		if err != nil {
 			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, table, err)
 		}
 	}
 
 	// Attempt to delete chain in table.
-	_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-X", chain)
+	_, err := shared.RunCommand(context.TODO(), cmd, "-w", "-t", table, "-X", chain)
 	if err != nil {
 		return fmt.Errorf("Failed deleting %q chain %q in table %q: %w", cmd, chain, table, err)
 	}

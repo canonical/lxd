@@ -82,7 +82,7 @@ type proAPIGetGuestTokenV1 struct {
 // getTokenJSON runs `pro api u.pro.attach.guest.get_guest_token.v1` and returns the result.
 func (proCLI) getGuestToken(ctx context.Context) (*api.DevLXDUbuntuProGuestTokenResponse, error) {
 	// Run pro guest attach command.
-	response, err := shared.RunCommandContext(ctx, "pro", "api", "u.pro.attach.guest.get_guest_token.v1")
+	response, err := shared.RunCommand(ctx, "pro", "api", "u.pro.attach.guest.get_guest_token.v1")
 	if err != nil {
 		return nil, api.StatusErrorf(http.StatusServiceUnavailable, "Ubuntu Pro client command unsuccessful: %w", err)
 	}

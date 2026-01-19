@@ -156,7 +156,7 @@ func ClearBlock(blockPath string, blockOffset int64) error {
 	_ = fd.Close()
 
 	// Attempt a secure discard run.
-	_, err = shared.RunCommandContext(context.TODO(), "blkdiscard", "--force", "--offset", strconv.FormatInt(blockOffset, 10), "--secure", blockPath)
+	_, err = shared.RunCommand(context.TODO(), "blkdiscard", "--force", "--offset", strconv.FormatInt(blockOffset, 10), "--secure", blockPath)
 	if err == nil {
 		// Check if the markers are gone.
 		fd, err := os.Open(blockPath)
@@ -181,7 +181,7 @@ func ClearBlock(blockPath string, blockOffset int64) error {
 	}
 
 	// Attempt a regular discard run.
-	_, err = shared.RunCommandContext(context.TODO(), "blkdiscard", "--force", "--offset", strconv.FormatInt(blockOffset, 10), blockPath)
+	_, err = shared.RunCommand(context.TODO(), "blkdiscard", "--force", "--offset", strconv.FormatInt(blockOffset, 10), blockPath)
 	if err == nil {
 		// Check if the markers are gone.
 		fd, err := os.Open(blockPath)
@@ -206,7 +206,7 @@ func ClearBlock(blockPath string, blockOffset int64) error {
 	}
 
 	// Attempt device zero-ing.
-	_, err = shared.RunCommandContext(context.TODO(), "blkdiscard", "--force", "--offset", strconv.FormatInt(blockOffset, 10), "--zeroout", blockPath)
+	_, err = shared.RunCommand(context.TODO(), "blkdiscard", "--force", "--offset", strconv.FormatInt(blockOffset, 10), "--zeroout", blockPath)
 	if err == nil {
 		// Check if the markers are gone.
 		fd, err := os.Open(blockPath)

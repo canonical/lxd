@@ -133,7 +133,7 @@ func IsUnixSocket(path string) bool {
 
 // HostPathFollow takes a valid path (from HostPath) and resolves it
 // all the way to its target or to the last which can be resolved.
-func HostPathFollow(path string) string {
+func HostPathFollow(ctx context.Context, path string) string {
 	// Ignore empty paths
 	if len(path) == 0 {
 		return path
@@ -168,7 +168,7 @@ func HostPathFollow(path string) string {
 	// Rely on "readlink -m" to do the right thing.
 	path = HostPath(path)
 	for {
-		target, err := RunCommand("readlink", "-m", path)
+		target, err := RunCommand(ctx, "readlink", "-m", path)
 		if err != nil {
 			return path
 		}
@@ -1066,19 +1066,10 @@ func RunCommandSplit(ctx context.Context, env []string, filesInherit []*os.File,
 	return stdout.String(), stderr.String(), nil
 }
 
-// RunCommandContext runs a command with optional arguments and returns stdout. If the command fails to
-// start or returns a non-zero exit code then an error is returned containing the output of stderr.
-func RunCommandContext(ctx context.Context, name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(ctx, nil, nil, name, arg...)
-	return stdout, err
-}
-
 // RunCommand runs a command with optional arguments and returns stdout. If the command fails to
 // start or returns a non-zero exit code then an error is returned containing the output of stderr.
-//
-// Deprecated: Use RunCommandContext().
-func RunCommand(name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(context.TODO(), nil, nil, name, arg...)
+func RunCommand(ctx context.Context, name string, arg ...string) (string, error) {
+	stdout, _, err := RunCommandSplit(ctx, nil, nil, name, arg...)
 	return stdout, err
 }
 
@@ -1122,22 +1113,70 @@ func RunCommandWithFds(ctx context.Context, stdin io.Reader, stdout io.Writer, n
 	return nil
 }
 
-// TryRunCommand runs the specified command up to 20 times with a 500ms delay between each call
-// until it runs without an error. If after 20 times it is still failing then returns the error.
-func TryRunCommand(name string, arg ...string) (string, error) {
-	var err error
-	var output string
+// TryRunCommandOpts contains retry options for running commands.
+type TryRunCommandOpts struct {
+	// Timeout is applied to the input context of [TryRunCommand] if it does not already have a deadline.
+	Timeout time.Duration
 
-	for range 20 {
-		output, err = RunCommand(name, arg...)
-		if err == nil {
-			break
-		}
+	// SleepInterval determines how frequently to retry the command on failure.
+	SleepInterval time.Duration
 
-		time.Sleep(500 * time.Millisecond)
+	// NoKill specifies that the command is not to be killed.
+	NoKill bool
+}
+
+// TryRunCommand repeatedly runs a command according to the given options and context.
+// If the input context has a deadline, then commands are run until that deadline is exceeded.
+// If the input context does not have a deadline, the [TryRunCommandOpts.Timeout] is used.
+// If [TryRunCommandOpts] is nil or [TryRunCommandOpts.Timeout] is unset, a default timeout of 10 seconds is applied.
+// [TryRunCommandOpts.SleepInterval] determines how long to sleep between command invocations.
+// [TryRunCommandOpts.NoKill] is used to prevent sending a kill signal to the command when the deadline is exceeded
+// or the context is cancelled. If this is set to true, a background context is used when actually executing the command.
+func TryRunCommand(ctx context.Context, opts *TryRunCommandOpts, cmd string, args ...string) (string, error) {
+	runOpts := TryRunCommandOpts{
+		Timeout:       10 * time.Second,
+		SleepInterval: 500 * time.Millisecond,
 	}
 
-	return output, err
+	if opts != nil {
+		runOpts.NoKill = opts.NoKill
+		if opts.Timeout != 0 {
+			runOpts.Timeout = opts.Timeout
+		}
+
+		if opts.SleepInterval != 0 {
+			runOpts.SleepInterval = opts.SleepInterval
+		}
+	}
+
+	_, ok := ctx.Deadline()
+	if !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, runOpts.Timeout)
+		defer cancel()
+	}
+
+	runCtx := ctx
+	if runOpts.NoKill {
+		runCtx = context.Background()
+	}
+
+	out, err := RunCommand(runCtx, cmd, args...)
+	if err == nil {
+		return out, nil
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return "", err
+		case <-time.Tick(runOpts.SleepInterval):
+			out, err = RunCommand(runCtx, cmd, args...)
+			if err == nil {
+				return out, nil
+			}
+		}
+	}
 }
 
 // TimeIsSet checks if the provided time is set to a valid timestamp. It returns false if the
