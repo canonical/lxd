@@ -397,7 +397,7 @@ jobs:
           fi
 
       - name: "Run system tests (${{ matrix.group }}, btrfs)"
-        if: matrix.backends == 'all' || matrix.backends == 'btrfs'
+        if: matrix.backends == 'all' || matrix.backends == 'fasts' || matrix.backends == 'btrfs'
         env:
           LXD_BACKEND: btrfs
           LXD_BACKENDS: ${{ matrix.backends }}
@@ -425,7 +425,7 @@ jobs:
           sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
 
       - name: "Run system tests (${{ matrix.group }}, dir)"
-        if: matrix.backends == 'all' || matrix.backends == 'dir'
+        if: matrix.backends == 'all' || matrix.backends == 'fasts' || matrix.backends == 'dir'
         env:
           LXD_BACKEND: dir
           LXD_BACKENDS: ${{ matrix.backends }}
