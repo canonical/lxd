@@ -30,6 +30,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -303,6 +304,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 
 	if strings.Contains(req.Name, "/") {
 		return response.BadRequest(errors.New("Storage pool names may not contain slashes"))
+	}
+
+	// Validate ASCII-only.
+	err = validate.IsEntityName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	if req.Driver == "" {
