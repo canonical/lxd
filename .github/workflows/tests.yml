@@ -285,7 +285,7 @@ jobs:
           - group: image
             backends: fasts
           - group: instance
-            backends: ${{ needs.code-tests.outputs.fast-backend }}
+            backends: fasts
           - group: network
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: standalone
