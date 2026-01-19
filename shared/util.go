@@ -228,6 +228,46 @@ func HostPath(path string) string {
 	return "/var/lib/snapd/hostfs" + path
 }
 
+// resolveSnapPath normalizes snap-related path handling.
+// It takes an input path, handling empty and special values, resolving relative
+// paths against the parent process' working directory when running under snap,
+// and returns the resolved path along with a boolean indicating whether further
+// snap-aware processing should continue.
+func resolveSnapPath(path string) (string, bool) {
+	// Ignore empty paths
+	if len(path) == 0 {
+		return path, false
+	}
+
+	// Don't prefix stdin/stdout
+	if path == "-" {
+		return path, false
+	}
+
+	// Check if we're running in a snap package.
+	if !InSnap() {
+		return path, false
+	}
+
+	// Handle relative paths
+	if path[0] != os.PathSeparator {
+		// Use the cwd of the parent as snap-confine alters our own cwd on launch
+		ppid := os.Getppid()
+		if ppid < 1 {
+			return path, false
+		}
+
+		pwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", ppid))
+		if err != nil {
+			return path, false
+		}
+
+		path = filepath.Clean(strings.Join([]string{pwd, path}, string(os.PathSeparator)))
+	}
+
+	return path, true
+}
+
 // VarPath returns the provided path elements joined by a slash and
 // appended to the end of $LXD_DIR, which defaults to /var/lib/lxd.
 func VarPath(path ...string) string {
