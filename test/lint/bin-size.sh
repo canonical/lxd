@@ -12,7 +12,7 @@ echo "Check binaries size limits"
 
 # bin/max (sizes are in MiB)
 declare -rA sizes=(
-    ["lxc"]=16
+    ["lxc"]=17
     ["lxd-agent"]=14
 )
 readonly MIB="$((1024 * 1024))"

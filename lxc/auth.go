@@ -733,6 +733,8 @@ func resolveIdentityTypeShorthand(identityArg string) (method string, identityTy
 		return api.AuthenticationMethodOIDC, api.IdentityTypeOIDCClient, idName, nil
 	case "devlxd":
 		return api.AuthenticationMethodBearer, api.IdentityTypeBearerTokenDevLXD, idName, nil
+	case "bearer":
+		return api.AuthenticationMethodBearer, api.IdentityTypeBearerTokenClient, idName, nil
 	}
 
 	return "", "", "", fmt.Errorf("Unrecognized identity type shorthand %q", shorthandType)
