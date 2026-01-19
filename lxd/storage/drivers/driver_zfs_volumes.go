@@ -571,6 +571,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 	defer revert.Fail()
 
 	// For VMs, also copy the filesystem dataset.
+	// Make sure content type recursion happens early to highlight the recursive aspect of this function.
 	if vol.IsVMBlock() {
 		// For VMs, also copy the filesystem volume.
 		// We can pass the regular volume's snapshots as only their presence is relevant.

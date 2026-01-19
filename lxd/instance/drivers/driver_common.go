@@ -2485,7 +2485,7 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 			case instancetype.VM:
 				dbVolType = dbCluster.StoragePoolVolumeTypeVM
 			default:
-				return fmt.Errorf("Unknown instance type %q for checking security.protection.start removal", d.dbType)
+				return fmt.Errorf(`Unknown instance type %q for checking "security.protection.start" removal`, d.dbType)
 			}
 
 			// Proceed to allow removing security.protection.start.
