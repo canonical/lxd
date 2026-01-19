@@ -1641,7 +1641,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return err
 	})
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("Failed to fetch local storage volume record: %w", err)
+		return nil, "", nil, fmt.Errorf("Failed loading local storage volume record: %w", err)
 	}
 
 	volStorageName, err := volumeStorageName(storageProjectName, volumeName, dbVolume)
