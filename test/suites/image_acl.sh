@@ -9,7 +9,7 @@ test_image_acl() {
   setfacl -m group:1000001:rwx "/proc/${C1_PID}/root/root/foo"
 
   # Publish the container to a new image
-  lxc stop c1
+  lxc stop -f c1
   lxc publish c1 --alias c1-with-acl
 
   # Launch a new container from the existing image
