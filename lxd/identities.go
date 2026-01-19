@@ -505,7 +505,24 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	token, err := encryption.GetDevLXDBearerToken(secret, id.Identifier, s.GlobalConfig.ClusterUUID(), expiresAt)
+	var token string
+	switch id.Type {
+	case api.IdentityTypeBearerTokenClient:
+		var serverCertFingerprint string
+
+		// When creating LXD bearer tokens, include the server certificate fingerprint.
+		serverCertFingerprint, err = shared.CertFingerprintStr(string(s.Endpoints.NetworkPublicKey()))
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed to parse server certificate fingerprint: %w", err))
+		}
+
+		token, err = encryption.GetClientBearerToken(secret, id.Identifier, s.GlobalConfig.ClusterUUID(), expiresAt, serverCertFingerprint)
+	case api.IdentityTypeBearerTokenDevLXD:
+		token, err = encryption.GetDevLXDBearerToken(secret, id.Identifier, s.GlobalConfig.ClusterUUID(), expiresAt)
+	default:
+		err = api.StatusErrorf(http.StatusBadRequest, "Token cannot be issued for identity of type %q", id.Type)
+	}
+
 	if err != nil {
 		return response.SmartError(err)
 	}
