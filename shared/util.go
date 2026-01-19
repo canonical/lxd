@@ -1120,7 +1120,7 @@ func TryRunCommand(name string, arg ...string) (string, error) {
 	var output string
 
 	for range 20 {
-		output, err = RunCommand(name, arg...)
+		output, err = RunCommand(context.TODO(), name, arg...)
 		if err == nil {
 			break
 		}
