@@ -1142,6 +1142,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 }
 
 // CreateInstanceFromCopy copies an instance volume and optionally its snapshots to new volume(s).
+// Ensure to only call this function when the src instance is offline or if it's located on the same cluster member to be able to rely on the freezing capabilities.
 func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, allowInconsistent bool, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "src": src.Name(), "snapshots": snapshots})
 	l.Debug("CreateInstanceFromCopy started")
@@ -1232,6 +1233,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	defer revert.Fail()
 
 	// Some driver backing stores require that running instances be frozen during copy.
+	// If the src instance is not present on the current cluster member, src.IsRunning() will return false as the local state reflects it as not running here.
 	if !src.IsSnapshot() && srcPoolBackend.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
 		b.logger.Info("Freezing instance for consistent copy")
 		err = src.Freeze()
