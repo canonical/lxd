@@ -293,11 +293,9 @@ jobs:
           - group: snap
             backends: all
           - group: standalone_storage
-            backends: btrfs
-          - group: standalone_storage
             backends: ceph
           - group: standalone_storage
-            backends: dir
+            backends: fasts
           - group: standalone_storage
             backends: lvm
           - group: standalone_storage
