@@ -257,7 +257,7 @@ func resolveSnapPath(path string) (string, bool) {
 			return path, false
 		}
 
-		pwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", ppid))
+		pwd, err := os.Readlink("/proc/" + strconv.Itoa(ppid) + "/cwd")
 		if err != nil {
 			return path, false
 		}
