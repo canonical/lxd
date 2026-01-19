@@ -1,6 +1,7 @@
 package zone
 
 import (
+	"context"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/request"
@@ -18,16 +19,16 @@ type NetworkZone interface {
 	Project() string
 	Info() *api.NetworkZone
 	Etag() []any
-	UsedBy() ([]string, error)
-	Content() (*strings.Builder, error)
+	UsedBy(ctx context.Context) ([]string, error)
+	Content(ctx context.Context) (*strings.Builder, error)
 	SOA() (*strings.Builder, error)
 
 	// Records.
-	AddRecord(req api.NetworkZoneRecordsPost) error
-	GetRecords() ([]api.NetworkZoneRecord, error)
-	GetRecord(name string) (*api.NetworkZoneRecord, error)
-	UpdateRecord(name string, req api.NetworkZoneRecordPut, clientType request.ClientType) error
-	DeleteRecord(name string) error
+	AddRecord(ctx context.Context, req api.NetworkZoneRecordsPost) error
+	GetRecords(ctx context.Context) ([]api.NetworkZoneRecord, error)
+	GetRecord(ctx context.Context, name string) (*api.NetworkZoneRecord, error)
+	UpdateRecord(ctx context.Context, name string, req api.NetworkZoneRecordPut) error
+	DeleteRecord(ctx context.Context, name string) error
 
 	// Internal validation.
 	validateName(name string) error
@@ -35,5 +36,5 @@ type NetworkZone interface {
 
 	// Modifications.
 	Update(config *api.NetworkZonePut, clientType request.ClientType) error
-	Delete() error
+	Delete(ctx context.Context) error
 }
