@@ -24,7 +24,7 @@ do_copy() {
   local target_pool="${2}"
 
   if [ -z "${source_pool}" ]; then
-    source_pool=$(lxc profile device get default root pool)
+    source_pool="lxdtest-$(basename "${LXD_DIR}")"
   fi
 
   lxc init testimage c1 -s "${source_pool}"
