@@ -26,7 +26,6 @@ test_storage_volume_snapshots() {
   echo foobar | lxc file push --quiet - c1/mnt/testfile
 
   # Validate file
-  lxc exec c1 -- test -f /mnt/testfile
   [ "$(lxc exec c1 -- cat /mnt/testfile)" = 'foobar' ]
 
   lxc storage volume detach "${storage_pool}" "${storage_volume}" c1
@@ -197,7 +196,6 @@ EOF
   lxc storage volume attach "${storage_pool}" "${storage_volume}" c1 /mnt
 
   # Validate file
-  lxc exec c1 -- test -f /mnt/testfile
   [ "$(lxc exec c1 -- cat /mnt/testfile)" = 'foobar' ]
 
   lxc storage volume detach "${storage_pool}" "${storage_volume}" c1
