@@ -358,13 +358,7 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 	}
 
 	if config != nil {
-		// Apply config overrides.
-		maps.Copy(*config, configOverrides)
-
-		// Strip the last_state.power key in all cases.
-		delete(*config, "volatile.last_state.power")
-
-		// Strip the volatile keys if requested.
+		// Strip the volatile keys from source if requested.
 		if !keepVolatile {
 			for k := range *config {
 				if !instancetype.InstanceIncludeWhenCopying(k, true) {
@@ -372,6 +366,12 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 				}
 			}
 		}
+
+		// Apply config overrides.
+		maps.Copy(*config, configOverrides)
+
+		// Strip the last_state.power key in all cases.
+		delete(*config, "volatile.last_state.power")
 	}
 
 	if devices != nil {
