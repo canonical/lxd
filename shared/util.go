@@ -134,35 +134,10 @@ func IsUnixSocket(path string) bool {
 // HostPathFollow takes a valid path (from HostPath) and resolves it
 // all the way to its target or to the last which can be resolved.
 func HostPathFollow(path string) string {
-	// Ignore empty paths
-	if len(path) == 0 {
+	var ok bool
+	path, ok = resolveSnapPath(path)
+	if !ok {
 		return path
-	}
-
-	// Don't prefix stdin/stdout
-	if path == "-" {
-		return path
-	}
-
-	// Check if we're running in a snap package.
-	if !InSnap() {
-		return path
-	}
-
-	// Handle relative paths
-	if path[0] != os.PathSeparator {
-		// Use the cwd of the parent as snap-confine alters our own cwd on launch
-		ppid := os.Getppid()
-		if ppid < 1 {
-			return path
-		}
-
-		pwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", ppid))
-		if err != nil {
-			return path
-		}
-
-		path = filepath.Clean(strings.Join([]string{pwd, path}, string(os.PathSeparator)))
 	}
 
 	// Rely on "readlink -m" to do the right thing.
@@ -187,35 +162,10 @@ func HostPathFollow(path string) string {
 // On a normal system, this does nothing
 // When inside of a snap environment, returns the real path.
 func HostPath(path string) string {
-	// Ignore empty paths
-	if len(path) == 0 {
+	var ok bool
+	path, ok = resolveSnapPath(path)
+	if !ok {
 		return path
-	}
-
-	// Don't prefix stdin/stdout
-	if path == "-" {
-		return path
-	}
-
-	// Check if we're running in a snap package
-	if !InSnap() {
-		return path
-	}
-
-	// Handle relative paths
-	if path[0] != os.PathSeparator {
-		// Use the cwd of the parent as snap-confine alters our own cwd on launch
-		ppid := os.Getppid()
-		if ppid < 1 {
-			return path
-		}
-
-		pwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", ppid))
-		if err != nil {
-			return path
-		}
-
-		path = filepath.Clean(strings.Join([]string{pwd, path}, string(os.PathSeparator)))
 	}
 
 	// Check if the path is already snap-aware
@@ -226,6 +176,46 @@ func HostPath(path string) string {
 	}
 
 	return "/var/lib/snapd/hostfs" + path
+}
+
+// resolveSnapPath normalizes snap-related path handling.
+// It takes an input path, handling empty and special values, resolving relative
+// paths against the parent process' working directory when running under snap,
+// and returns the resolved path along with a boolean indicating whether further
+// snap-aware processing should continue.
+func resolveSnapPath(path string) (string, bool) {
+	// Ignore empty paths
+	if len(path) == 0 {
+		return path, false
+	}
+
+	// Don't prefix stdin/stdout
+	if path == "-" {
+		return path, false
+	}
+
+	// Check if we're running in a snap package.
+	if !InSnap() {
+		return path, false
+	}
+
+	// Handle relative paths
+	if path[0] != os.PathSeparator {
+		// Use the cwd of the parent as snap-confine alters our own cwd on launch
+		ppid := os.Getppid()
+		if ppid < 1 {
+			return path, false
+		}
+
+		pwd, err := os.Readlink("/proc/" + strconv.Itoa(ppid) + "/cwd")
+		if err != nil {
+			return path, false
+		}
+
+		path = filepath.Join(pwd, path)
+	}
+
+	return path, true
 }
 
 // VarPath returns the provided path elements joined by a slash and
