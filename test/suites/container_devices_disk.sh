@@ -60,7 +60,8 @@ _container_devices_disk_shift() {
   lxc stop foo -f
 
   # Test shifted custom volumes
-  POOL=$(lxc profile device get default root pool)
+  local POOL
+  POOL="lxdtest-$(basename "${LXD_DIR}")"
 
   # Cannot set both security.shifted and security.unmapped.
   ! lxc storage volume create "${POOL}" foo-shift security.shifted=true security.unmapped=true || false
