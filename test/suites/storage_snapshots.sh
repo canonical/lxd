@@ -31,9 +31,9 @@ test_storage_volume_snapshots() {
   lxc storage volume detach "${storage_pool}" "${storage_volume}" c1
   # This will create a snapshot named 'snap0'
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
-  lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/snap0"
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'name: snap0'
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 0001-01-01T00:00:00Z'
+  lxc storage volume list "${storage_pool}" | grep -wF "${storage_volume}/snap0"
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -xF 'name: snap0'
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -xF 'expires_at: 0001-01-01T00:00:00Z'
 
   # Check volume snapshot attachment requires source.snapshot (not source=vol/snap)
   lxc init --empty c2 -s "${storage_pool}"
@@ -77,8 +77,8 @@ EOF
   # This will create a snapshot named 'test0' and 'test1'
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
-  lxc storage volume list "${storage_pool}" | grep -F "${storage_volume}/test0"
-  lxc storage volume list "${storage_pool}" | grep -F "${storage_volume}/test1"
+  lxc storage volume list "${storage_pool}" | grep -wF "${storage_volume}/test0"
+  lxc storage volume list "${storage_pool}" | grep -wF "${storage_volume}/test1"
   lxc storage volume rm "${storage_pool}" "${storage_volume}/test0"
   lxc storage volume rm "${storage_pool}" "${storage_volume}/test1"
   lxc storage volume unset "${storage_pool}" "${storage_volume}" snapshots.pattern
