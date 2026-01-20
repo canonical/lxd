@@ -1712,6 +1712,18 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	return cleanup, srcPath, mountInfo, err
 }
 
+// volumeStorageName returns the storage volume name for the given project and DB volume.
+func volumeStorageName(storageProjectName, volumeName string, dbVolume *db.StorageVolume) (string, error) {
+	switch dbVolume.Type {
+	case cluster.StoragePoolVolumeTypeNameCustom:
+		return project.StorageVolume(storageProjectName, volumeName), nil
+	case cluster.StoragePoolVolumeTypeNameContainer, cluster.StoragePoolVolumeTypeNameVM:
+		return project.Instance(storageProjectName, volumeName), nil
+	default:
+		return "", fmt.Errorf("Invalid storage volume type %q", dbVolume.Type)
+	}
+}
+
 // createDevice creates a disk device mount on host.
 // The srcPath argument is the source of the disk device on the host.
 // Returns the created device path, and whether the path is a file or not.
