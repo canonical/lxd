@@ -146,7 +146,32 @@ test_basic_usage() {
   # Start the instance to clear apply_template.
   lxc start foo
   [ "$(lxc config get foo volatile.apply_template || echo fail)" = "" ]
+
+  # Check volatile.last_state.power is correct.
+  [ "$(lxc config get foo volatile.last_state.power)" = "RUNNING" ]
+
+  # Check copying instance clears volatile.last_state.power.
+  lxc copy foo bar
+  [ "$(lxc config get bar volatile.last_state.power || echo fail)" = "" ]
+
+  # Check that volatile.uuid is regenerated on copy.
+  [ "$(lxc config get foo volatile.uuid)" != "$(lxc config get bar volatile.uuid)" ]
+
+  # Check that volatile.uuid can be overriden on copy.
+  lxc delete bar
+  barUUID="$(uuidgen)"
+  lxc copy foo bar -c volatile.uuid="${barUUID}"
+  [ "$(lxc config get bar volatile.uuid)" = "${barUUID}" ]
+
+  # Check that volatile.uuid is retained on refresh.
+  lxc copy foo bar --refresh
+  [ "$(lxc config get foo volatile.uuid)" = "$(lxc config get bar volatile.uuid)" ]
+
+  # Check that volatile.last_state.power is cleared even on refresh.
+  [ "$(lxc config get bar volatile.last_state.power || echo fail)" = "" ]
+
   lxc stop foo -f
+  lxc delete bar
 
   # Test container rename
   lxc move foo bar
@@ -161,10 +186,6 @@ test_basic_usage() {
   # Check volatile.apply_template is kept until applied (instance start).
   [ "$(lxc config get foo volatile.apply_template)" = "rename" ]
   lxc rename foo bar
-
-  # Test container copy
-  lxc copy bar foo
-  lxc delete foo
 
   # gen untrusted cert
   gen_cert_and_key client3
