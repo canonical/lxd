@@ -205,15 +205,6 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 
 	err = registerDBOperation(&op, args.Type)
 	if err != nil {
-		// Ensure failed DB registration doesn't leave a dangling local operation.
-		operationsLock.Lock()
-		existing, ok := operations[op.id]
-		if ok && existing == &op {
-			delete(operations, op.id)
-		}
-
-		operationsLock.Unlock()
-
 		return nil, err
 	}
 
