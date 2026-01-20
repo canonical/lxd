@@ -350,7 +350,7 @@ EOF
   ! lxc storage volume show "${storage_pool}" "vol1" | grep '^created_at: 0001-01-01T00:00:00Z' || false
   ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep '^created_at: 0001-01-01T00:00:00Z' || false
   lxc storage volume copy "${storage_pool}/vol1" "localhost:${storage_pool}/vol1-copy"
-  ! lxc storage volume show "${storage_pool}" "localhost:${storage_pool}" "vol1-copy" | grep '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "localhost:${storage_pool}" "vol1-copy" | grep '^created_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc storage volume show "${storage_pool}" "vol1/snap0" | awk /created_at:/)" = "$(lxc storage volume show "localhost:${storage_pool}" "vol1-copy/snap0" | awk /created_at:/)" ]
   lxc storage volume delete "${storage_pool}" "vol1"
   lxc storage volume delete "${storage_pool}" "vol1-copy"
