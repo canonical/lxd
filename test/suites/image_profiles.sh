@@ -32,26 +32,23 @@ _image_alternate_profile_list() {
   ensure_import_testimage
   lxc profile create p1
   lxc profile create p2
-  lxc profile create p3
-  lxc image show testimage | sed "s/profiles.*/profiles: ['p1','p2','p3']/; s/- default//" | lxc image edit testimage
+  lxc image show testimage | sed "s/profiles.*/profiles: ['p1','p2']/; s/- default//" | lxc image edit testimage
 
   # Check that the profile list is correct
   lxc image show testimage | grep -xF -- '- p1'
   lxc image show testimage | grep -xF -- '- p2'
-  lxc image show testimage | grep -xF -- '- p3'
   ! lxc image show testimage | grep -xF -- '- default' || false
 
   # Launch the container and check its profiles
   storage="lxdtest-$(basename "${LXD_DIR}")"
   lxc profile device add p1 root disk path=/ pool="$storage"
   lxc init testimage c1
-  lxc list -f json c1 | jq --exit-status '.[0].profiles == ["p1","p2","p3"]'
+  lxc list -f json c1 | jq --exit-status '.[0].profiles == ["p1","p2"]'
 
   # Cleanup
   lxc delete c1
   lxc profile delete p1
   lxc profile delete p2
-  lxc profile delete p3
   lxc image delete testimage
 }
 
