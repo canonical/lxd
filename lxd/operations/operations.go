@@ -199,8 +199,8 @@ func ScheduleServerOperation(s *state.State, args OperationArgs) (*Operation, er
 	return scheduleOperation(s, args)
 }
 
-// scheduleOperation schedules a new operation and returns it. If it cannot be created, it returns an error.
-func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
+// initOperation initializes a new operation structure. It does not register it in the database.
+func initOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -278,7 +278,17 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
-	err = registerDBOperation(&op)
+	return &op, nil
+}
+
+// scheduleOperation schedules a new operation and returns it. If it cannot be created, it returns an error.
+func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
+	op, err := initOperation(s, args)
+	if err != nil {
+		return nil, err
+	}
+
+	err = registerDBOperation(op)
 	if err != nil {
 		return nil, err
 	}
@@ -287,12 +297,12 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	_, md := op.Render()
 
 	operationsLock.Lock()
-	operations[op.id] = &op
+	operations[op.id] = op
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
 	op.start()
-	return &op, nil
+	return op, nil
 }
 
 // SetEventServer allows injection of event server.
