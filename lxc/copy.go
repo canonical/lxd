@@ -358,13 +358,7 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 	}
 
 	if config != nil {
-		// Apply config overrides.
-		maps.Copy(*config, configOverrides)
-
-		// Strip the last_state.power key in all cases.
-		delete(*config, "volatile.last_state.power")
-
-		// Strip the volatile keys if requested.
+		// Strip the volatile keys from source if requested.
 		if !keepVolatile {
 			for k := range *config {
 				if !instancetype.InstanceIncludeWhenCopying(k, true) {
@@ -372,6 +366,12 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 				}
 			}
 		}
+
+		// Apply config overrides.
+		maps.Copy(*config, configOverrides)
+
+		// Strip the last_state.power key in all cases.
+		delete(*config, "volatile.last_state.power")
 	}
 
 	if devices != nil {
@@ -403,14 +403,19 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 			return err
 		}
 
-		rootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(*devices)
-		if rootDiskDeviceKey != "" && poolName != "" {
-			(*devices)[rootDiskDeviceKey]["pool"] = poolName
-		} else if poolName != "" {
-			(*devices)["root"] = map[string]string{
-				"type": "disk",
-				"path": "/",
-				"pool": poolName,
+		// Apply storage pool override if specified.
+		if poolName != "" {
+			rootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(*devices)
+			if rootDiskDeviceKey != "" {
+				// If a root disk device is already defined, just override the pool.
+				(*devices)[rootDiskDeviceKey]["pool"] = poolName
+			} else {
+				// No root disk device defined, add one with the specified pool.
+				(*devices)["root"] = map[string]string{
+					"type": "disk",
+					"path": "/",
+					"pool": poolName,
+				}
 			}
 		}
 	}
