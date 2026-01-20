@@ -62,7 +62,12 @@ func registerDBOperation(op *Operation) error {
 
 		opInfo.Metadata = string(metadataJSON)
 
-		_, err = cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+		dbOpID, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+		if err != nil {
+			return err
+		}
+
+		opInfo.EntityID, err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
 		return err
 	})
 	if err != nil {
