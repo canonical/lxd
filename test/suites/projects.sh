@@ -29,10 +29,19 @@ test_projects_crud() {
   ! lxc project create foo || false
 
   # Trying to create a project containing an underscore fails
-  ! lxc project create foo_banned || false
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc project create foo_banned 2>&1)" = "Error: Project names may not contain underscores" ]
+
+  # Trying to create a project containing emoji fails
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc project create 🦎-Gecko-Garage 2>&1)" = "Error: Name contains non-ASCII character '🦎'" ]
+
+  # Trying to create a project containing other Unicode characters fails
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc project create café 2>&1)" = "Error: Name contains non-ASCII character 'é'" ]
 
   # Rename the project to a banned name fails
-  ! lxc project rename foo bar_banned || false
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc project rename foo bar_banned 2>&1)" = "Error: Project names may not contain underscores" ]
+
+  # Rename the project to a name with emoji fails
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc project rename foo 🦎-bar 2>&1)" = "Error: Name contains non-ASCII character '🦎'" ]
 
   # Rename the project and check it occurs
   lxc project rename foo bar
