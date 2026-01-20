@@ -71,7 +71,17 @@ func registerOperation(ctx context.Context, tx *db.ClusterTx, op *Operation, con
 
 	opInfo.Metadata = string(metadataJSON)
 
-	return cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+	dbOpID, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+	if err != nil {
+		return 0, err
+	}
+
+	err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
+	if err != nil {
+		return 0, err
+	}
+
+	return dbOpID, nil
 }
 
 func registerDBOperation(op *Operation, conflictReference string) error {
