@@ -39,6 +39,9 @@ runs:
       run: |
           set -eux
 
+          # Avoid LXD snap holding on to swap (https://github.com/canonical/lxd/issues/14768)
+          sudo snap remove --purge lxd || true
+
           sudo swapoff /mnt/swapfile
           ephemeral_disk="$(findmnt --noheadings --output SOURCE --target /mnt | sed 's/[0-9]\+$//')"
           sudo umount /mnt
