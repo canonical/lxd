@@ -127,7 +127,6 @@ type OperationArgs struct {
 	Class       OperationClass
 	Resources   map[string][]api.URL
 	Metadata    any
-	Reference   string
 	RunHook     func(ctx context.Context, op *Operation) error
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
 }
@@ -156,11 +155,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	// Main attributes
 	op := Operation{}
 	op.projectName = args.ProjectName
-	op.id = args.Reference
-	if op.id == "" {
-		op.id = uuid.New().String()
-	}
-
+	op.id = uuid.New().String()
 	op.description = args.Type.Description()
 	op.entityType, op.entitlement = args.Type.Permission()
 	op.dbOpType = args.Type
