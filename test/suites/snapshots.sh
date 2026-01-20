@@ -519,9 +519,6 @@ test_snapshot_fail() {
 }
 
 test_snapshot_multi_volume() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-
   ensure_import_testimage
   poolName=$(lxc profile device get default root pool)
 
@@ -582,7 +579,7 @@ test_snapshot_multi_volume() {
   lxc exec c1 -- test -f /mnt/shared/snap2
 
   # If using zfs, we can only restore the latest snapshot.
-  if [ "$lxd_backend" = "zfs" ]; then
+  if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
     lxc delete c1/c1-snap2
     lxc storage volume delete "${poolName}" non-shared/snap1
   fi
