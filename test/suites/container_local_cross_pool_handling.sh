@@ -20,7 +20,7 @@ test_container_local_cross_pool_handling() {
   lxc config show c1
 
   local originalPool
-  originalPool="$(lxc profile device get default root pool)"
+  originalPool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Check volatile.apply_template is initialised during create.
   [ "$(lxc config get c1 volatile.apply_template)" = "create" ]
