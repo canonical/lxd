@@ -150,8 +150,8 @@ func CreateServerOperation(s *state.State, args OperationArgs) (*Operation, erro
 	return operationCreate(s, nil, args)
 }
 
-// operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
-func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+// initOperation initializes a new operation structure. It does not register it in the database.
+func initOperation(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -209,7 +209,17 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op)
+	return &op, nil
+}
+
+// operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
+func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+	op, err := initOperation(s, requestor, args)
+	if err != nil {
+		return nil, err
+	}
+
+	err = registerDBOperation(op)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +231,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
-	return &op, nil
+	return op, nil
 }
 
 // SetEventServer allows injection of event server.
