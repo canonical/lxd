@@ -48,6 +48,27 @@ func registerDBOperation(op *Operation) error {
 			}
 		}
 
+		// Durable operations support only up to a single resource. If there is one, verify and register its entity_id.
+		if op.class == OperationClassDurable && len(op.resources) > 0 {
+			for _, entityURLs := range op.resources {
+				if len(entityURLs) > 0 {
+					entityReference, err := cluster.GetEntityReferenceFromURL(ctx, tx.Tx(), &entityURLs[0])
+					if err != nil {
+						return fmt.Errorf("Failed getting entity ID from resource URL %q: %w", entityURLs[0].String(), err)
+					}
+
+					// The EntityType of the resource must be the same as the EntityType of the required permission defined on the type of the operation.
+					// We don't store EntityType of the resource in the DB, instead, we just use the entityType as defined by the required permissions.
+					permissionEntityType, _ := op.dbOpType.Permission()
+					if entityReference.EntityType != cluster.EntityType(permissionEntityType) {
+						return fmt.Errorf("Mismatched entity type %q for resource URL %q, expected %q", entityReference.EntityType, entityURLs[0].String(), permissionEntityType)
+					}
+
+					opInfo.EntityID = &entityReference.EntityID
+				}
+			}
+		}
+
 		_, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
 		return err
 	})
