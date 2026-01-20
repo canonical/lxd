@@ -6,7 +6,6 @@ _image_nil_profile_list() {
 
   # Cleanup
   lxc delete c1
-  lxc image delete testimage
 }
 
 _image_empty_profile_list() {
