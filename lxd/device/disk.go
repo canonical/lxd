@@ -1646,11 +1646,9 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return nil, "", nil, fmt.Errorf("Failed to fetch local storage volume record: %w", err)
 	}
 
-	var volStorageName string
-	if dbVolume.Type == cluster.StoragePoolVolumeTypeNameCustom {
-		volStorageName = project.StorageVolume(storageProjectName, volumeName)
-	} else {
-		volStorageName = project.Instance(storageProjectName, volumeName)
+	volStorageName, err := volumeStorageName(storageProjectName, volumeName, dbVolume)
+	if err != nil {
+		return nil, "", nil, err
 	}
 
 	if dbVolumeType == cluster.StoragePoolVolumeTypeVM {
