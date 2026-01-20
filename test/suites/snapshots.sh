@@ -333,7 +333,7 @@ snap_restore() {
   [ "$(lxc storage volume get "${pool}" container/bar volatile.uuid)" = "${initialVolumeUUID}" ]
 
   # Check that instances have two different UUID after a snapshot copy
-  lxc launch testimage bar2 -d "${SMALL_ROOT_DISK}"
+  lxc init --empty bar2 -d "${SMALL_ROOT_DISK}"
   initialUUID=$(lxc config get bar2 volatile.uuid)
   initialGenerationID=$(lxc config get bar2 volatile.uuid.generation)
   lxc copy bar2 bar3
@@ -345,8 +345,7 @@ snap_restore() {
     false
   fi
 
-  lxc delete --force bar2
-  lxc delete --force bar3
+  lxc delete bar2 bar3
 
   # Check config value in snapshot has been restored
   cpus=$(lxc config get bar limits.cpu)
@@ -374,7 +373,7 @@ snap_restore() {
   lxc delete --force bar
 
   # Test if container's with hyphen's in their names are treated correctly.
-  lxc launch testimage a-b -d "${SMALL_ROOT_DISK}"
+  lxc init --empty a-b -d "${SMALL_ROOT_DISK}"
   lxc snapshot a-b base
   lxc restore a-b base
   lxc snapshot a-b c-d
