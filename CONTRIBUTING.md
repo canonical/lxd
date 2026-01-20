@@ -165,6 +165,14 @@ sleep 30
 lxc exec v1 -- cloud-init status --wait --long
 ```
 
+If testing with the `ceph` storage backend, it is also possible to attach an ephemeral disk to be assigned to MicroCeph automatically during tests:
+
+```sh
+# The volume name must **end** with `lxd-ephemeral` to be considered for auto-assignment to MicroCeph
+lxc storage volume create default v1-lxd-ephemeral --type=block size=32GiB
+lxc storage volume attach default v1-lxd-ephemeral v1
+```
+
 Then it is possible to build all the dependencies, LXD binaries and even run tests either automatically or manually:
 
 ```sh
