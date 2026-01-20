@@ -51,7 +51,7 @@ func (c *connectorISCSI) Type() string {
 func (c *connectorISCSI) Version() (string, error) {
 	// Detect and record the version of the iSCSI CLI.
 	// It will fail if the "iscsiadm" is not installed on the host.
-	out, err := shared.RunCommandContext(context.Background(), "iscsiadm", "--version")
+	out, err := shared.RunCommand(context.Background(), "iscsiadm", "--version")
 	if err != nil {
 		return "", fmt.Errorf("Failed to get iscsiadm version: %w", err)
 	}
@@ -111,20 +111,20 @@ func (c *connectorISCSI) Connect(ctx context.Context, targetQN string, targetAdd
 		if s != nil && slices.Contains(s.addresses, targetAddr) {
 			// If connection with the target address is already established,
 			// rescan the session to ensure new volumes are detected.
-			_, err := shared.RunCommandContext(ctx, "iscsiadm", "--mode", "session", "--sid", s.id, "--rescan")
+			_, err := shared.RunCommand(ctx, "iscsiadm", "--mode", "session", "--sid", s.id, "--rescan")
 			if err != nil {
 				return err
 			}
 		}
 
 		// Insert new iSCSI target entry into local iSCSI database.
-		_, err := shared.RunCommandContext(ctx, "iscsiadm", "--mode", "node", "--targetname", targetQN, "--portal", targetAddr, "--op", "new")
+		_, err := shared.RunCommand(ctx, "iscsiadm", "--mode", "node", "--targetname", targetQN, "--portal", targetAddr, "--op", "new")
 		if err != nil {
 			return fmt.Errorf("Failed to insert local iSCSI entries for target %q: %w", targetQN, err)
 		}
 
 		// Attempt to login into iSCSI target.
-		_, err = shared.RunCommandContext(ctx, "iscsiadm", "--mode", "node", "--targetname", targetQN, "--portal", targetAddr, "--login")
+		_, err = shared.RunCommand(ctx, "iscsiadm", "--mode", "node", "--targetname", targetQN, "--portal", targetAddr, "--login")
 		if err != nil {
 			exitCode, _ := shared.ExitStatus(err)
 			if exitCode == iscsiErrCodeSessionExists {
@@ -155,7 +155,7 @@ func (c *connectorISCSI) Disconnect(targetQN string) error {
 		// Do not pass a cancelable context as the operation is relatively short
 		// and most importantly we do not want to "partially" disconnect from
 		// the target - potentially leaving some unclosed sessions.
-		_, err = shared.RunCommandContext(context.Background(), "iscsiadm", "--mode", "node", "--targetname", targetQN, "--logout")
+		_, err = shared.RunCommand(context.Background(), "iscsiadm", "--mode", "node", "--targetname", targetQN, "--logout")
 		if err != nil {
 			exitCode, _ := shared.ExitStatus(err)
 			if exitCode == iscsiErrCodeNotFound {
@@ -169,7 +169,7 @@ func (c *connectorISCSI) Disconnect(targetQN string) error {
 		}
 
 		// Remove target entries from local iSCSI database.
-		_, err = shared.RunCommandContext(context.Background(), "iscsiadm", "--mode", "node", "--targetname", targetQN, "--op", "delete")
+		_, err = shared.RunCommand(context.Background(), "iscsiadm", "--mode", "node", "--targetname", targetQN, "--op", "delete")
 		if err != nil {
 			return fmt.Errorf("Failed to remove local iSCSI entries for target %q: %w", targetQN, err)
 		}
@@ -276,7 +276,7 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 
 	result := make([]any, 0)
 	for _, targetAddr := range targetAddresses {
-		stdout, err := shared.RunCommandContext(ctx, "iscsiadm", "--mode", "discovery", "--type", "sendtargets", "--portal", targetAddr)
+		stdout, err := shared.RunCommand(ctx, "iscsiadm", "--mode", "discovery", "--type", "sendtargets", "--portal", targetAddr)
 		if err != nil {
 			logger.Warn("Failed connecting to discovery target", logger.Ctx{"target_address": targetAddr, "err": err})
 			continue
