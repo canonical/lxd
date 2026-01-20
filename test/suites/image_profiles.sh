@@ -14,8 +14,10 @@ _image_empty_profile_list() {
   lxc image show testimage | sed "s/profiles.*/profiles: []/; s/- default//" | lxc image edit testimage
 
   # Check that the profile list is correct
-  lxc image show testimage | grep -xF 'profiles: []'
-  ! lxc image show testimage | grep -xF -- '- default' || false
+  local testimageShow
+  testimageShow="$(lxc image show testimage)"
+  grep -xF 'profiles: []' <<<"${testimageShow}"
+  ! grep -xF -- '- default' <<<"${testimageShow}" || false
 
   # Launch the container and check its profiles
   storage="lxdtest-$(basename "${LXD_DIR}")"
@@ -35,9 +37,11 @@ _image_alternate_profile_list() {
   lxc image show testimage | sed "s/profiles.*/profiles: ['p1','p2']/; s/- default//" | lxc image edit testimage
 
   # Check that the profile list is correct
-  lxc image show testimage | grep -xF -- '- p1'
-  lxc image show testimage | grep -xF -- '- p2'
-  ! lxc image show testimage | grep -xF -- '- default' || false
+  local testimageShow
+  testimageShow="$(lxc image show testimage)"
+  grep -xF -- '- p1' <<<"${testimageShow}"
+  grep -xF -- '- p2' <<<"${testimageShow}"
+  ! grep -xF -- '- default' <<<"${testimageShow}" || false
 
   # Launch the container and check its profiles
   storage="lxdtest-$(basename "${LXD_DIR}")"
