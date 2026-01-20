@@ -91,7 +91,8 @@ _server_config_storage() {
   fi
 
   ensure_import_testimage
-  pool=$(lxc profile device get default root pool)
+  local pool
+  pool="lxdtest-$(basename "${LXD_DIR}")"
 
   lxc init testimage foo
   lxc query --wait /1.0/containers/foo/backups -X POST -d '{"expires_at": "2100-01-01T10:00:00-05:00"}'
