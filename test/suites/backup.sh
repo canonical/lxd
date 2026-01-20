@@ -1,9 +1,7 @@
 test_storage_volume_recover() {
-  LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_IMPORT_DIR}" true
-
+  local poolName poolDriver
   poolName=$(lxc profile device get default root pool)
-  poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
+  poolDriver="$(storage_backend "${LXD_DIR}")"
 
   if [ "${poolDriver}" = "pure" ]; then
     export TEST_UNMET_REQUIREMENT="pure driver does not support recovery"
@@ -65,15 +63,12 @@ EOF
   rm -f foo.iso
   lxc storage volume delete "${poolName}" vol1
   lxc storage volume delete "${poolName}" vol2
-  shutdown_lxd "${LXD_IMPORT_DIR}"
 }
 
 test_storage_volume_recover_by_container() {
-  LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_IMPORT_DIR}" true
-
+  local poolName poolName2 poolDriver
   poolName=$(lxc profile device get default root pool)
-  poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
+  poolDriver="$(storage_backend "${LXD_DIR}")"
 
   # Create another storage pool.
   poolName2="${poolName}-2"
@@ -208,8 +203,8 @@ EOF
   ! lxc storage volume show "${poolName3}" vol3 || false
   ! lxc storage show "${poolName3}" || false
 
-  in_pipe="${LXD_IMPORT_DIR}/in.pipe"
-  out_pipe="${LXD_IMPORT_DIR}/out.pipe"
+  in_pipe="${LXD_DIR}/in.pipe"
+  out_pipe="${LXD_DIR}/out.pipe"
   mkfifo "${in_pipe}" "${out_pipe}"
   lxd recover < "${in_pipe}" > "${out_pipe}" &
   lxd_recover_pid="$!"
@@ -267,19 +262,19 @@ EOF
   lxc delete c1
   lxc storage delete "${poolName2}"
   lxc storage delete "${poolName3}"
-  shutdown_lxd "${LXD_IMPORT_DIR}"
 }
 
 test_container_recover() {
-  local LXD_IMPORT_DIR
-  LXD_IMPORT_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
-  spawn_lxd "${LXD_IMPORT_DIR}" true
-
-  if [ "$(storage_backend "$LXD_IMPORT_DIR")" = "pure" ]; then
-    export TEST_UNMET_REQUIREMENT="Storage driver does not support recovery"
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_DIR}")"
+  if [ "${poolDriver}" = "pure" ]; then
+    export TEST_UNMET_REQUIREMENT="pure does not support recovery"
     return 0
   fi
 
+  local LXD_IMPORT_DIR
+  LXD_IMPORT_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  spawn_lxd "${LXD_IMPORT_DIR}" true
   (
     set -e
 
@@ -289,7 +284,6 @@ test_container_recover() {
     ensure_import_testimage
 
     poolName=$(lxc profile device get default root pool)
-    poolDriver="$(storage_backend "$LXD_DIR")"
 
     lxc storage set "${poolName}" user.foo=bah
     lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
@@ -433,9 +427,10 @@ EOF
     lxc project delete test
   )
 
-  # shellcheck disable=SC2031,2269
-  LXD_DIR=${LXD_DIR}
   kill_lxd "${LXD_IMPORT_DIR}"
+
+  # Reset LXD_DIR
+  LXD_DIR="${LXD_INITIAL_DIR}"
 }
 
 test_bucket_recover() {
@@ -515,8 +510,8 @@ _backup_import_with_project() {
     ensure_import_testimage
   fi
 
-  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
-  lxc launch testimage c2 -d "${SMALL_ROOT_DISK}"
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc init testimage c2 -d "${SMALL_ROOT_DISK}"
 
   # Check invalid snapshot names
   ! lxc snapshot c2 ".." || false
@@ -536,7 +531,7 @@ _backup_import_with_project() {
   fi
 
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
-  lxc delete --force c1
+  lxc delete c1
 
   # import backup, and ensure it's valid and runnable
   lxc import "${LXD_DIR}/c1.tar.gz"
@@ -560,7 +555,7 @@ _backup_import_with_project() {
   old_uuid="$(lxc storage volume get "${pool}" container/c2 volatile.uuid)"
   old_snap0_uuid="$(lxc storage volume get "${pool}" container/c2/snap0-with_underscore volatile.uuid)"
   lxc export c2 "${LXD_DIR}/c2.tar.gz"
-  lxc delete --force c2
+  lxc delete c2
 
   lxc import "${LXD_DIR}/c2.tar.gz"
   lxc import "${LXD_DIR}/c2.tar.gz" c3
@@ -573,10 +568,8 @@ _backup_import_with_project() {
   [ "$(lxc storage volume get "${pool}" container/c2 volatile.uuid)" != "${old_uuid}" ]
   [ "$(lxc storage volume get "${pool}" container/c2/snap0-with_underscore volatile.uuid)" != "${old_snap0_uuid}" ]
 
-  lxc start c2
-  lxc start c3
-  lxc stop c2 --force
-  lxc stop c3 --force
+  lxc start c2 c3
+  lxc stop --force c2 c3
 
   if [ "$#" -ne 0 ]; then
     # Import into different project (before deleting earlier import).
@@ -584,46 +577,36 @@ _backup_import_with_project() {
     lxc import "${LXD_DIR}/c2.tar.gz" --project "$project-b" c3
     lxc info c2 --project "$project-b" | grep snap0-with_underscore
     lxc info c3 --project "$project-b" | grep snap0-with_underscore
-    lxc start c2 --project "$project-b"
-    lxc start c3 --project "$project-b"
-    lxc stop c2 --project "$project-b" --force
-    lxc stop c3 --project "$project-b" --force
+    lxc start c2 c3 --project "$project-b"
+    lxc stop --force c2 c3 --project "$project-b"
     lxc restore c2 snap0-with_underscore --project "$project-b"
     lxc restore c3 snap0-with_underscore --project "$project-b"
-    lxc delete --force c2 --project "$project-b"
-    lxc delete --force c3 --project "$project-b"
+    lxc delete --force c2 c3 --project "$project-b"
   fi
 
   lxc restore c2 snap0-with_underscore
   lxc restore c3 snap0-with_underscore
-  lxc start c2
-  lxc start c3
-  lxc delete --force c2
-  lxc delete --force c3
-
+  lxc start c2 c3
+  lxc delete --force c2 c3
 
   if storage_backend_optimized_backup "$lxd_backend"; then
     lxc import "${LXD_DIR}/c2-optimized.tar.gz"
     lxc import "${LXD_DIR}/c2-optimized.tar.gz" c3
     lxc info c2 | grep snap0-with_underscore
     lxc info c3 | grep snap0-with_underscore
-    lxc start c2
-    lxc start c3
-    lxc stop c2 --force
-    lxc stop c3 --force
+    lxc start c2 c3
+    lxc stop --force c2 c3
     lxc restore c2 snap0-with_underscore
     lxc restore c3 snap0-with_underscore
-    lxc start c2
-    lxc start c3
-    lxc delete --force c2
-    lxc delete --force c3
+    lxc start c2 c3
+    lxc delete --force c2 c3
   fi
 
   # Test exporting container and snapshot names that container hyphens.
   # Also check that the container storage volume config is correctly captured and restored.
   default_pool="$(lxc profile device get default root pool)"
 
-  lxc launch testimage c1-foo -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1-foo -d "${SMALL_ROOT_DISK}"
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap0
   lxc snapshot c1-foo c1-foo-snap0
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap1
@@ -631,7 +614,7 @@ _backup_import_with_project() {
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=post-c1-foo-snap1
 
   lxc export c1-foo "${LXD_DIR}/c1-foo.tar.gz"
-  lxc delete --force c1-foo
+  lxc delete c1-foo
 
   lxc import "${LXD_DIR}/c1-foo.tar.gz"
   lxc storage volume ls "${default_pool}"
@@ -819,38 +802,40 @@ test_backup_rename() {
 }
 
 test_backup_volume_export() {
-  _backup_volume_export_with_project default "lxdtest-$(basename "${LXD_DIR}")"
-  _backup_volume_export_with_project fooproject "lxdtest-$(basename "${LXD_DIR}")"
+  lxc project create fooproject
+  lxc project create fooproject-b
+
+  ensure_import_testimage
+  ensure_import_testimage fooproject
+
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  # Add a root device to the default profile of the project.
+  lxc profile device add default root disk path="/" pool="${pool}" --project fooproject
+
+  _backup_volume_export_with_project default "${pool}"
+  _backup_volume_export_with_project fooproject "${pool}"
 
   if [ "$lxd_backend" = "ceph" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
     custom_vol_pool="lxdtest-$(basename "${LXD_DIR}")-cephfs"
-    lxc storage create "${custom_vol_pool}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs" volume.size=24MiB
+    lxc storage create "${custom_vol_pool}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs" volume.size=1MiB
 
     _backup_volume_export_with_project default "${custom_vol_pool}"
     _backup_volume_export_with_project fooproject "${custom_vol_pool}"
 
     lxc storage rm "${custom_vol_pool}"
   fi
+
+  lxc image delete testimage --project fooproject
+  lxc project delete fooproject
+  lxc project delete fooproject-b
 }
 
 _backup_volume_export_with_project() {
-  pool="lxdtest-$(basename "${LXD_DIR}")"
   project="$1"
   custom_vol_pool="$2"
 
   if [ "${project}" != "default" ]; then
-    # Create projects.
-    lxc project create "$project"
-    lxc project create "$project-b"
     lxc project switch "$project"
-
-    ensure_import_testimage "${project}"
-    ensure_import_testimage "${project}-b"
-
-    # Add a root device to the default profile of the project.
-    lxc profile device add default root disk path="/" pool="${pool}"
-  else
-    ensure_import_testimage
   fi
 
   mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized" "${LXD_DIR}/optimized-none" "${LXD_DIR}/optimized-squashfs" "${LXD_DIR}/non-optimized-none" "${LXD_DIR}/non-optimized-squashfs"
@@ -860,7 +845,7 @@ _backup_volume_export_with_project() {
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
   # Create custom storage volume.
-  lxc storage volume create "${custom_vol_pool}" testvol size=32MiB
+  lxc storage volume create "${custom_vol_pool}" testvol size=1MiB
 
   # Attach storage volume to the test container and start.
   lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
@@ -877,6 +862,7 @@ _backup_volume_export_with_project() {
   # Change the content (the snapshot will contain the old value).
   echo bar | lxc file push - c1/mnt/test
   LXC_LOCAL='' lxc_remote exec c1 -- sync /mnt/test
+  lxc stop -f c1
 
   lxc storage volume set "${custom_vol_pool}" testvol user.foo=test-snap1
   lxc storage volume snapshot "${custom_vol_pool}" testvol test-snap1
@@ -974,7 +960,6 @@ _backup_volume_export_with_project() {
   old_snap1_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)"
 
   # Test non-optimized import.
-  lxc stop -f c1
   lxc storage volume detach "${custom_vol_pool}" testvol c1
   lxc storage volume delete "${custom_vol_pool}" testvol
   lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz"
@@ -1048,10 +1033,6 @@ _backup_volume_export_with_project() {
 
   if [ "${project}" != "default" ]; then
     lxc project switch default
-    lxc image rm testimage --project "$project"
-    lxc image rm testimage --project "$project-b"
-    lxc project delete "$project"
-    lxc project delete "$project-b"
   fi
 }
 
@@ -1059,7 +1040,7 @@ test_backup_volume_rename_delete() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create test volume.
-  lxc storage volume create "${pool}" vol1 size=32MiB
+  lxc storage volume create "${pool}" vol1 size=1MiB
 
   OUTPUT="$(! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{"name": "backupnewname"}' --wait 2>&1 || false)"
   if ! echo "${OUTPUT}" | grep -F "Error: Storage volume backup not found" ; then
@@ -1135,14 +1116,14 @@ test_backup_instance_uuid() {
   lxc delete c1
 
   # Cleanup exported tarballs
-  rm -f "${LXD_DIR}"/c*.tar.gz
+  rm "${LXD_DIR}"/c1.tar.gz
 }
 
 test_backup_volume_expiry() {
   poolName=$(lxc profile device get default root pool)
 
   # Create custom volume.
-  lxc storage volume create "${poolName}" vol1 size=32MiB
+  lxc storage volume create "${poolName}" vol1 size=1MiB
 
   # Create storage volume backups using the API directly.
   # The first one is created with an expiry date, the second one never expires.
