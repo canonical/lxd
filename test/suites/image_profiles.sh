@@ -2,7 +2,7 @@ _image_nil_profile_list() {
   # Launch container with default profile list and check its profiles
   ensure_import_testimage
   lxc init testimage c1
-  [ "$(lxc list -f json c1 | jq -r '.[0].profiles | join(" ")')" = "default" ]
+  lxc list -f json c1 | jq --exit-status '.[0].profiles == ["default"]'
 
   # Cleanup
   lxc delete c1
@@ -21,7 +21,7 @@ _image_empty_profile_list() {
   # Launch the container and check its profiles
   storage="lxdtest-$(basename "${LXD_DIR}")"
   lxc init testimage c1 -s "$storage"
-  [ "$(lxc list -f json c1 | jq -r '.[0].profiles | join(" ")' || echo fail)" = "" ]
+  lxc list -f json c1 | jq --exit-status '.[0].profiles == []'
 
   # Cleanup
   lxc delete c1
@@ -46,7 +46,7 @@ _image_alternate_profile_list() {
   storage="lxdtest-$(basename "${LXD_DIR}")"
   lxc profile device add p1 root disk path=/ pool="$storage"
   lxc init testimage c1
-  [ "$(lxc list -f json c1 | jq -r '.[0].profiles | join(" ")')" = "p1 p2 p3" ]
+  lxc list -f json c1 | jq --exit-status '.[0].profiles == ["p1","p2","p3"]'
 
   # Cleanup
   lxc delete c1
