@@ -202,85 +202,95 @@ func ScheduleServerOperation(s *state.State, args OperationArgs) (*Operation, er
 
 // scheduleOperation schedules a new operation and returns it. If it cannot be created, it returns an error.
 func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
-	// Don't allow new operations when LXD is shutting down.
-	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
-		return nil, errors.New("LXD is shutting down")
-	}
+	// initOperation initializes a single operation structure.
+	initOperation := func(s *state.State, args OperationArgs) (*Operation, error) {
+		// Don't allow new operations when LXD is shutting down.
+		if s != nil && s.ShutdownCtx.Err() == context.Canceled {
+			return nil, errors.New("LXD is shutting down")
+		}
 
-	// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
-	// can be reconstructed from a database record (where it is saved as an entity ID).
-	operationEntityType := args.Type.EntityType()
-	if args.EntityURL != nil {
-		entityType, _, _, _, err := entity.ParseURL(args.EntityURL.URL)
+		// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
+		// can be reconstructed from a database record (where it is saved as an entity ID).
+		operationEntityType := args.Type.EntityType()
+		if args.EntityURL != nil {
+			entityType, _, _, _, err := entity.ParseURL(args.EntityURL.URL)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid operation entity URL: %w", err)
+			}
+
+			if entityType != operationEntityType {
+				return nil, fmt.Errorf("Entity type for URL %q does not match operation entity type %q", args.EntityURL, operationEntityType)
+			}
+		} else if operationEntityType != entity.TypeServer {
+			return nil, errors.New("Operation entity URL required")
+		} else {
+			args.EntityURL = entity.ServerURL()
+		}
+
+		// Use a v7 UUID for the operation ID.
+		uuid, err := uuid.NewV7()
 		if err != nil {
-			return nil, fmt.Errorf("Invalid operation entity URL: %w", err)
+			return nil, fmt.Errorf("Failed to generate operation UUID: %w", err)
 		}
 
-		if entityType != operationEntityType {
-			return nil, fmt.Errorf("Entity type for URL %q does not match operation entity type %q", args.EntityURL, operationEntityType)
+		// Main attributes
+		op := Operation{}
+		op.projectName = args.ProjectName
+		op.id = uuid.String()
+		op.description = args.Type.Description()
+		op.dbOpType = args.Type
+		op.class = args.Class
+		op.createdAt = time.Now()
+		op.updatedAt = op.createdAt
+		op.status = api.Running
+		op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
+		op.entityURL = args.EntityURL
+		op.resources = args.Resources
+		op.finished = cancel.New()
+		op.running = cancel.New()
+		op.state = s
+		op.requestor = args.requestor
+		op.metricsCallback = args.metricsCallback
+		op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+		op.inputs = args.Inputs
+		op.conflictReference = args.ConflictReference
+
+		if s != nil {
+			op.SetEventServer(s.Events)
+			op.location = s.ServerName
 		}
-	} else if operationEntityType != entity.TypeServer {
-		return nil, errors.New("Operation entity URL required")
-	} else {
-		args.EntityURL = entity.ServerURL()
+
+		op.metadata, err = validateMetadata(args.Metadata)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to validate operation metadata: %w", err)
+		}
+
+		// Callback functions
+		op.onRun = args.RunHook
+		op.onConnect = args.ConnectHook
+
+		// Quick check.
+		if op.class != OperationClassWebsocket && op.onConnect != nil {
+			return nil, errors.New("Only websocket operations can have a Connect hook")
+		}
+
+		if op.class == OperationClassWebsocket && op.onConnect == nil {
+			return nil, errors.New("Websocket operations must have a Connect hook")
+		}
+
+		if op.class == OperationClassToken && op.onRun != nil {
+			return nil, errors.New("Token operations cannot have a Run hook")
+		}
+
+		return &op, nil
 	}
 
-	// Use a v7 UUID for the operation ID.
-	uuid, err := uuid.NewV7()
+	op, err := initOperation(s, args)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate operation UUID: %w", err)
+		return nil, err
 	}
 
-	// Main attributes
-	op := Operation{}
-	op.projectName = args.ProjectName
-	op.id = uuid.String()
-	op.description = args.Type.Description()
-	op.dbOpType = args.Type
-	op.class = args.Class
-	op.createdAt = time.Now()
-	op.updatedAt = op.createdAt
-	op.status = api.Running
-	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
-	op.entityURL = args.EntityURL
-	op.resources = args.Resources
-	op.finished = cancel.New()
-	op.running = cancel.New()
-	op.state = s
-	op.requestor = args.requestor
-	op.metricsCallback = args.metricsCallback
-	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
-	op.inputs = args.Inputs
-	op.conflictReference = args.ConflictReference
-
-	if s != nil {
-		op.SetEventServer(s.Events)
-		op.location = s.ServerName
-	}
-
-	op.metadata, err = validateMetadata(args.Metadata)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to validate operation metadata: %w", err)
-	}
-
-	// Callback functions
-	op.onRun = args.RunHook
-	op.onConnect = args.ConnectHook
-
-	// Quick check.
-	if op.class != OperationClassWebsocket && op.onConnect != nil {
-		return nil, errors.New("Only websocket operations can have a Connect hook")
-	}
-
-	if op.class == OperationClassWebsocket && op.onConnect == nil {
-		return nil, errors.New("Websocket operations must have a Connect hook")
-	}
-
-	if op.class == OperationClassToken && op.onRun != nil {
-		return nil, errors.New("Token operations cannot have a Run hook")
-	}
-
-	err = registerDBOperation(&op)
+	err = registerDBOperation(op)
 	if err != nil {
 		return nil, err
 	}
@@ -288,11 +298,11 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op.logger.Debug("New operation")
 
 	operationsLock.Lock()
-	operations[op.id] = &op
+	operations[op.id] = op
 	operationsLock.Unlock()
 
 	op.start()
-	return &op, nil
+	return op, nil
 }
 
 // SetEventServer allows injection of event server.
