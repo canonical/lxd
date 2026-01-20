@@ -418,9 +418,6 @@ restore_and_compare_fs() {
 }
 
 test_snapshot_expiry() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc config show c1/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
