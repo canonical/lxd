@@ -84,17 +84,12 @@ snapshots() {
 
     ! lxc config edit foo/snap0 < "$tmp_yaml" 2>&1 | grep -xF "$ERROR_MSG" || false
   done
+  rm "${tmp_yaml}"
 
   # Test that expires_at can be modified
   expiry_date=$(date -u -d '+1 day' '+%Y-%m-%dT%H:%M:%SZ')
-  lxc config show foo/snap0 > "$tmp_yaml"
-  sed -i "s/^expires_at:.*/expires_at: ${expiry_date}/" "$tmp_yaml"
-  lxc config edit foo/snap0 <<EOF
-$(cat "$tmp_yaml")
-EOF
-  lxc config show foo/snap0 | grep -F "expires_at: ${expiry_date}"
-
-  rm -f "$tmp_yaml"
+  lxc config show foo/snap0 | sed "s/^expires_at:.*/expires_at: ${expiry_date}/" | lxc config edit foo/snap0
+  lxc config show foo/snap0 | grep -xF "expires_at: ${expiry_date}"
 
   lxc snapshot foo
   # FIXME: make this backend agnostic
