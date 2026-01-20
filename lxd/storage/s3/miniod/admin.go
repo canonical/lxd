@@ -67,7 +67,7 @@ func NewAdminClient(url string, username string, password string) (*minioAdmin, 
 
 	args := m.commonArgs
 	args = append(args, "alias", "set", m.alias, api.NewURL().Scheme("http").Host(url).String(), username, password)
-	_, err := shared.RunCommandContext(context.TODO(), "mc", args...)
+	_, err := shared.RunCommand(context.TODO(), "mc", args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to set MinIO client alias: %w", err)
 	}
@@ -79,7 +79,7 @@ func NewAdminClient(url string, username string, password string) (*minioAdmin, 
 func (m *minioAdmin) ServiceStop(ctx context.Context) error {
 	args := m.commonArgs
 	args = append(args, "admin", "service", "stop", m.alias)
-	_, err := shared.RunCommandContext(ctx, "mc", args...)
+	_, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
 		return fmt.Errorf("Failed to stop MinIO service: %w", err)
 	}
@@ -91,7 +91,7 @@ func (m *minioAdmin) ServiceStop(ctx context.Context) error {
 func (m *minioAdmin) GetConfig(ctx context.Context) ([]byte, error) {
 	args := m.commonArgs
 	args = append(args, "admin", "config", "export", m.alias, "--json")
-	out, err := shared.RunCommandContext(ctx, "mc", args...)
+	out, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get MinIO config: %w", err)
 	}
@@ -155,7 +155,7 @@ func (m *minioAdmin) ExportIAM(ctx context.Context) (*zip.Reader, error) {
 func (m *minioAdmin) InfoServiceAccount(ctx context.Context, accessKey string) (*AccountInfo, error) {
 	args := m.commonArgs
 	args = append(args, "admin", "user", "svcacct", "info", m.alias, accessKey, "--json")
-	out, err := shared.RunCommandContext(ctx, "mc", args...)
+	out, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (m *minioAdmin) UpdateServiceAccount(ctx context.Context, opts ServiceAccou
 		args = append(args, "--secret-key", opts.SecretKey)
 	}
 
-	_, err := shared.RunCommandContext(ctx, "mc", args...)
+	_, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
 		return fmt.Errorf("Failed to edit MinIO service account: %w", err)
 	}
@@ -228,7 +228,7 @@ func (m *minioAdmin) AddServiceAccount(ctx context.Context, opts ServiceAccountA
 
 	args := m.commonArgs
 	args = append(args, "admin", "user", "svcacct", "add", m.alias, minioAdminUser, "--access-key", opts.AccessKey, "--secret-key", opts.SecretKey, "--policy", policyPath, "--json")
-	out, err := shared.RunCommandContext(ctx, "mc", args...)
+	out, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to add MinIO service account: %w", err)
 	}
@@ -246,7 +246,7 @@ func (m *minioAdmin) AddServiceAccount(ctx context.Context, opts ServiceAccountA
 func (m *minioAdmin) DeleteServiceAccount(ctx context.Context, serviceAccount string) error {
 	args := m.commonArgs
 	args = append(args, "admin", "user", "svcacct", "remove", m.alias, serviceAccount)
-	_, err := shared.RunCommandContext(ctx, "mc", args...)
+	_, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
 		return fmt.Errorf("Failed to delete MinIO service account: %w", err)
 	}

@@ -143,7 +143,7 @@ func HostPathFollow(path string) string {
 	// Rely on "readlink -m" to do the right thing.
 	path = HostPath(path)
 	for {
-		target, err := RunCommand("readlink", "-m", path)
+		target, err := RunCommand(context.Background(), "readlink", "-m", path)
 		if err != nil {
 			return path
 		}
@@ -1056,19 +1056,10 @@ func RunCommandSplit(ctx context.Context, env []string, filesInherit []*os.File,
 	return stdout.String(), stderr.String(), nil
 }
 
-// RunCommandContext runs a command with optional arguments and returns stdout. If the command fails to
-// start or returns a non-zero exit code then an error is returned containing the output of stderr.
-func RunCommandContext(ctx context.Context, name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(ctx, nil, nil, name, arg...)
-	return stdout, err
-}
-
 // RunCommand runs a command with optional arguments and returns stdout. If the command fails to
 // start or returns a non-zero exit code then an error is returned containing the output of stderr.
-//
-// Deprecated: Use RunCommandContext().
-func RunCommand(name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(context.TODO(), nil, nil, name, arg...)
+func RunCommand(ctx context.Context, name string, arg ...string) (string, error) {
+	stdout, _, err := RunCommandSplit(ctx, nil, nil, name, arg...)
 	return stdout, err
 }
 
@@ -1119,7 +1110,7 @@ func TryRunCommand(name string, arg ...string) (string, error) {
 	var output string
 
 	for range 20 {
-		output, err = RunCommand(name, arg...)
+		output, err = RunCommand(context.TODO(), name, arg...)
 		if err == nil {
 			break
 		}

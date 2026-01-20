@@ -31,7 +31,7 @@ func (class *ClassHTB) Add() error {
 		cmd = append(cmd, "rate", class.Rate)
 	}
 
-	_, err := shared.RunCommandContext(context.TODO(), "tc", cmd...)
+	_, err := shared.RunCommand(context.TODO(), "tc", cmd...)
 	if err != nil {
 		return err
 	}
