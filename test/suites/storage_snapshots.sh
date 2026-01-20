@@ -138,7 +138,7 @@ EOF
 
   # Reset expires_at property.
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" > "$tmp_yaml"
-  sed -i '/^expires_at:/d' "$tmp_yaml"  # expires_at satırını sil
+  sed -i '/^expires_at:/d' "$tmp_yaml"
   lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" <<EOF
   $(cat "$tmp_yaml")
 EOF
