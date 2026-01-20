@@ -2,7 +2,7 @@ test_container_move() {
   ensure_import_testimage
 
   lxd_backend=$(storage_backend "$LXD_DIR")
-  pool=$(lxc profile device get default root pool)
+  pool="lxdtest-$(basename "${LXD_DIR}")"
   pool2="test-pool"
   image="testimage"
   project="test-project"
