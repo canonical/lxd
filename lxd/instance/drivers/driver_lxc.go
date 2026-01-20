@@ -5873,10 +5873,11 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		close(chReady)
 
 		// Wait for completion.
-		// Do not log anything if the process received a SIGTERM (exit status 128+15=143)
-		// as that likely means the instance is being stopped.
+		// Do not log anything if the process received a SIGTERM (exit status
+		// 128+15=143) or exited cleanly as that likely means the instance is
+		// being stopped.
 		exitStatus, err := shared.ExitStatus(forkfile.Wait())
-		if exitStatus == 143 {
+		if exitStatus == 143 || exitStatus == 0 {
 			return
 		}
 
