@@ -1212,11 +1212,9 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 					contentType := storagePools.VolumeDBContentTypeToContentType(dbContentType)
 
-					var volStorageName string
-					if dbVolume.Type == cluster.StoragePoolVolumeTypeNameCustom {
-						volStorageName = project.StorageVolume(storageProjectName, volumeName)
-					} else {
-						volStorageName = project.Instance(storageProjectName, volumeName)
+					volStorageName, err := volumeStorageName(storageProjectName, volumeName, dbVolume)
+					if err != nil {
+						return nil, err
 					}
 
 					vol := d.pool.GetVolume(volumeType, contentType, volStorageName, dbVolume.Config)
