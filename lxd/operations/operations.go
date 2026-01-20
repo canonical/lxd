@@ -207,7 +207,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, args.Type)
+	err = registerDBOperation(&op)
 	if err != nil {
 		return nil, err
 	}
