@@ -224,7 +224,7 @@ test_image_refresh() {
   token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
   lxc_remote remote add l2 "${LXD2_ADDR}" --token "${token}"
 
-  poolDriver="$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')"
+  poolDriver="$(storage_backend "${LXD2_DIR}")"
 
   # Publish image
   lxc image copy testimage l2: --alias testimage --public
