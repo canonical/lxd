@@ -1321,7 +1321,7 @@ test_backup_metadata() {
   # Create a custom storage volume with one snapshot.
   local poolName
   poolName="lxdtest-$(basename "${LXD_DIR}")"
-  lxc storage volume create "${poolName}" vol1 size=32MiB
+  lxc storage volume create "${poolName}" vol1 size=1MiB
   lxc storage volume snapshot "${poolName}" vol1
 
   # Export the custom storage volume without setting an export version.
