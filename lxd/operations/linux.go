@@ -8,11 +8,10 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/shared/api"
 )
 
-func registerDBOperation(op *Operation, opType operationtype.Type) error {
+func registerDBOperation(op *Operation) error {
 	if op.state == nil {
 		return nil
 	}
@@ -20,7 +19,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		opInfo := cluster.Operation{
 			Reference: op.id,
-			Type:      opType,
+			Type:      op.dbOpType,
 			NodeID:    tx.GetNodeID(),
 			Class:     (int64)(op.class),
 			CreatedAt: op.createdAt,
@@ -51,7 +50,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed creating %q operation record: %w", opType.Description(), err)
+		return fmt.Errorf("Failed creating %q operation record: %w", op.dbOpType.Description(), err)
 	}
 
 	return nil
