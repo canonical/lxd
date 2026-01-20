@@ -483,6 +483,9 @@ EOF
   echo "${recoveredKey2}" | grep -F "role: read-only"
   echo "${recoveredKey2}" | grep -F "access-key: ${key2_accessKey}"
   echo "${recoveredKey2}" | grep -F "secret-key: ${key2_secretKey}"
+
+  # Cleanup
+  lxc storage bucket delete "${poolName}" "${bucketName}"
 }
 
 test_backup_import() {
