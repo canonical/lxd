@@ -26,8 +26,7 @@ runs:
           # If the rootfs and the ephemeral part are on the same physical disk, giving the whole
           # disk to microceph would wipe our rootfs. Since it is pretty rare for GitHub Action
           # runners to have a single disk, we immediately bail rather than trying to gracefully
-          # handle it. Once snapd releases with https://github.com/snapcore/snapd/pull/13150,
-          # we will be able to stop worrying about that special case.
+          # handle it.
           if [ "$(stat -c '%d' /)" = "$(stat -c '%d' /mnt)" ]; then
             echo "FAIL: rootfs and ephemeral part on the same disk, aborting"
             exit 1
