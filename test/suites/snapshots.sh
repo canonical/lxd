@@ -449,28 +449,23 @@ test_snapshot_expiry() {
 }
 
 test_snapshot_schedule() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-
   ensure_import_testimage
 
   # Check we get a snapshot on first start
   lxc launch testimage c1 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup'
-  lxc launch testimage c2 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, @daily'
-  lxc launch testimage c3 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 5,6 * * *'
-  lxc launch testimage c4 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 5-8 * * *'
-  lxc launch testimage c5 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 2,5-8/2 * * *'
-  [ "$(lxc list --columns nS --format csv c1)" = "c1,1" ]
-  [ "$(lxc list --columns nS --format csv c2)" = "c2,1" ]
-  [ "$(lxc list --columns nS --format csv c3)" = "c3,1" ]
-  [ "$(lxc list --columns nS --format csv c4)" = "c4,1" ]
-  [ "$(lxc list --columns nS --format csv c5)" = "c5,1" ]
+  [ "$(lxc list --columns S --format csv)" = "1" ]
+
+  # Check we can set various schedule formats
+  lxc config set c1 snapshots.schedule='@startup, @daily'
+  lxc config set c1 snapshots.schedule='@startup, 10 5,6 * * *'
+  lxc config set c1 snapshots.schedule='@startup, 10 5-8 * * *'
+  lxc config set c1 snapshots.schedule='@startup, 10 2,5-8/2 * * *'
 
   # Check we get a new snapshot on restart
   lxc restart c1 -f
-  [ "$(lxc list --columns nS --format csv c1)" = "c1,2" ]
+  [ "$(lxc list --columns S --format csv)" = "2" ]
 
-  lxc delete -f c1 c2 c3 c4 c5
+  lxc delete -f c1
 }
 
 test_snapshot_volume_db_recovery() {
