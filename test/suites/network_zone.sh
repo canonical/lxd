@@ -1,7 +1,8 @@
 test_network_zone() {
   ensure_import_testimage
 
-  poolName=$(lxc profile device get default root pool)
+  local poolName
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
 
   lxc config unset core.https_address
 
