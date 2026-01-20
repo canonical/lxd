@@ -446,7 +446,7 @@ test_bucket_recover() {
     return
   fi
 
-  poolName=$(lxc profile device get default root pool)
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
   bucketName="bucket123"
 
   # Create storage bucket
