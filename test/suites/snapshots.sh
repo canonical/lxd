@@ -482,7 +482,8 @@ test_snapshot_volume_db_recovery() {
 
   ensure_import_testimage
 
-  poolName=$(lxc profile device get default root pool)
+  local poolName
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
 
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
@@ -531,7 +532,9 @@ test_snapshot_multi_volume() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   ensure_import_testimage
-  poolName=$(lxc profile device get default root pool)
+
+  local poolName
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
 
   echo "Check snapshotting root disk."
   lxc init testimage c1
