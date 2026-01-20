@@ -477,9 +477,6 @@ test_snapshot_schedule() {
 }
 
 test_snapshot_volume_db_recovery() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-
   ensure_import_testimage
 
   local poolName
