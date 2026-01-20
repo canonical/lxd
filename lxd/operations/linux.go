@@ -69,7 +69,19 @@ func registerDBOperation(op *Operation) error {
 			}
 		}
 
-		_, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+		opID, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+		if err != nil {
+			return err
+		}
+
+		// For durable operations we need to register metadata and resources in the database.
+		if op.class == OperationClassDurable {
+			err = cluster.CreateOrInsertDurableOperationMetadata(ctx, tx.Tx(), opID, op.metadata)
+			if err != nil {
+				return fmt.Errorf("Failed adding operation %s metadata to database: %w", op.id, err)
+			}
+		}
+
 		return err
 	})
 	if err != nil {
