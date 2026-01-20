@@ -116,33 +116,20 @@ EOF
 
     ! lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" < "$tmp_yaml" 2>&1 | grep -xF "$ERROR_MSG" || false
   done
+  rm "${tmp_yaml}"
 
   # Test editable properties.
   # 1. description.
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" > "$tmp_yaml"
-  sed -i 's/^description:.*/description: "Updated description"/' "$tmp_yaml"
-  lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" <<EOF
-$(cat "$tmp_yaml")
-EOF
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -xF "description: Updated description"
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^description:.*/description: "Updated description"/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
+  [ "$(lxc storage volume get --property "${storage_pool}" "${storage_volume}/snap0" description)" = "Updated description" ]
 
   # 2. expires_at.
   expiry_date=$(date -u -d '+1 day' '+%Y-%m-%dT%H:%M:%SZ')
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" > "$tmp_yaml"
-  sed -i "s/^expires_at:.*/expires_at: ${expiry_date}/" "$tmp_yaml"
-  lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" <<EOF
-$(cat "$tmp_yaml")
-EOF
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed "s/^expires_at:.*/expires_at: ${expiry_date}/" | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -xF "expires_at: ${expiry_date}"
 
   # Reset expires_at property.
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" > "$tmp_yaml"
-  sed -i '/^expires_at:/d' "$tmp_yaml"
-  lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" <<EOF
-  $(cat "$tmp_yaml")
-EOF
-
-  rm -f "$tmp_yaml"
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed '/^expires_at:/d' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
 
   # Check the API returns the zero time representation when listing all snapshots in recursive mode.
   lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/${storage_volume}/snapshots?recursion=2" | jq --exit-status '.[] | select(.name == "'"${storage_volume}/snap0"'") | .expires_at == "0001-01-01T00:00:00Z"'
