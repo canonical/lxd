@@ -163,7 +163,7 @@ test_basic_usage() {
   lxc copy foo bar -c volatile.uuid="${barUUID}"
   [ "$(lxc config get bar volatile.uuid)" = "${barUUID}" ]
 
-  # Check that volatile.uuid is retained on refresh.
+  # Check that volatile.uuid is applied to copy on refresh.
   lxc copy foo bar --refresh
   [ "$(lxc config get foo volatile.uuid)" = "$(lxc config get bar volatile.uuid)" ]
 
