@@ -2156,7 +2156,8 @@ func (d *disk) postStop() error {
 
 	// Check if pool-specific action should be taken to unmount custom volume disks.
 	if d.config["pool"] != "" && d.config["path"] != "/" {
-		volumeName, _, dbVolumeType, err := d.sourceVolumeFields()
+		isSnapshot := d.config["source.snapshot"] != ""
+		volumeName, volumeType, dbVolumeType, err := d.sourceVolumeFields()
 		if err != nil {
 			return err
 		}
@@ -2172,11 +2173,29 @@ func (d *disk) postStop() error {
 				return err
 			}
 
-			if d.config["source.snapshot"] != "" {
+			if isSnapshot {
 				err = d.pool.UnmountInstanceSnapshot(diskInst, nil)
 			} else {
 				err = d.pool.UnmountInstance(diskInst, nil)
 			}
+		} else if isSnapshot {
+			var dbVolume *db.StorageVolume
+			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, dbVolumeType, volumeName, true)
+				return err
+			})
+			if err != nil {
+				return err
+			}
+
+			var volStorageName string
+			volStorageName, err = volumeStorageName(storageProjectName, volumeName, dbVolume)
+			if err != nil {
+				return err
+			}
+
+			snapVol := d.pool.GetVolume(volumeType, storageDrivers.ContentType(dbVolume.ContentType), volStorageName, dbVolume.Config)
+			_, err = d.pool.Driver().UnmountVolumeSnapshot(snapVol, nil)
 		} else {
 			_, err = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil)
 		}
