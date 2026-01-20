@@ -5,11 +5,10 @@ package operations
 import (
 	"fmt"
 
-	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/shared/api"
 )
 
-func registerDBOperation(op *Operation, opType operationtype.Type) error {
+func registerDBOperation(op *Operation) error {
 	if op.state != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
 	}
