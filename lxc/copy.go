@@ -403,14 +403,19 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 			return err
 		}
 
-		rootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(*devices)
-		if rootDiskDeviceKey != "" && poolName != "" {
-			(*devices)[rootDiskDeviceKey]["pool"] = poolName
-		} else if poolName != "" {
-			(*devices)["root"] = map[string]string{
-				"type": "disk",
-				"path": "/",
-				"pool": poolName,
+		// Apply storage pool override if specified.
+		if poolName != "" {
+			rootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(*devices)
+			if rootDiskDeviceKey != "" {
+				// If a root disk device is already defined, just override the pool.
+				(*devices)[rootDiskDeviceKey]["pool"] = poolName
+			} else {
+				// No root disk device defined, add one with the specified pool.
+				(*devices)["root"] = map[string]string{
+					"type": "disk",
+					"path": "/",
+					"pool": poolName,
+				}
 			}
 		}
 	}

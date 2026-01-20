@@ -157,7 +157,7 @@ test_basic_usage() {
   # Check that volatile.uuid is regenerated on copy.
   [ "$(lxc config get foo volatile.uuid)" != "$(lxc config get bar volatile.uuid)" ]
 
-  # Check that volatile.uuid can be overriden on copy.
+  # Check that volatile.uuid can be overridden on copy.
   lxc delete bar
   barUUID="$(uuidgen)"
   lxc copy foo bar -c volatile.uuid="${barUUID}"
