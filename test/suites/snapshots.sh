@@ -367,7 +367,7 @@ snap_restore() {
     restore_and_compare_fs snap0
 
     # check container is running after restore
-    lxc list --fast | grep -wF bar | grep -wF RUNNING
+    [ "$(lxc list -f csv -c s)" = "RUNNING" ]
   fi
 
   lxc delete --force bar
