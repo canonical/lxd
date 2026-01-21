@@ -82,8 +82,7 @@ test_migration() {
 
   lxc_remote copy l1:u1 l2: -d eth1,ipv4.address=10.100.100.10 -d eth1,network=foonet2
 
-  lxc_remote delete l1:u1
-  lxc_remote delete l2:u1
+  lxc_remote delete l1:u1 l2:u1
   lxc_remote network delete l1:foonet
   lxc_remote network delete l2:foonet2
 
@@ -272,8 +271,7 @@ migration() {
     # Test container with snapshots copy when zfs.clone_copy is set to false.
     lxc copy cccp udssr
     [ "$(lxc list -f csv -c S udssr)" = "2" ]
-    lxc delete cccp
-    lxc delete udssr
+    lxc delete cccp udssr
 
     lxc storage unset "lxdtest-$(basename "${LXD_DIR}")" zfs.clone_copy
   fi
@@ -331,7 +329,7 @@ migration() {
   c1_pid="$(lxc_remote list -f csv -c p l1:c1)"
   c2_pid="$(lxc_remote list -f csv -c p l1:c2)"
   [ "$(stat "/proc/${c1_pid}/root/root/testfile1" -c %y)" = "$(stat "/proc/${c2_pid}/root/root/testfile1" -c %y)" ]
-  lxc_remote rm -f l1:c2
+  lxc_remote delete -f l1:c2
   lxc_remote stop -f l1:c1
 
   # This will create snapshot c1/snap0 with test device and expiry date.
@@ -366,7 +364,7 @@ migration() {
   lxc_remote copy l1:c1 l2:c2 --refresh
   ! lxc_remote config show l2:c2/snap1 || false
 
-  lxc_remote rm -f l1:c1 l2:c2
+  lxc_remote delete -f l1:c1 l2:c2
 
   remote_pool1="lxdtest-$(basename "${LXD_DIR}")"
   remote_pool2="lxdtest-$(basename "${lxd2_dir}")"
@@ -524,8 +522,7 @@ migration() {
   lxc_remote move l2:c1 l1:c2
 
   echo "==> Clean up the containers and local volumes."
-  lxc_remote delete -f l1:c1
-  lxc_remote delete -f l1:c2
+  lxc_remote delete -f l1:c1 l1:c2
   lxc_remote storage volume delete l1:dir vol1
   lxc_remote storage volume delete l2:dir vol1
 
@@ -560,8 +557,7 @@ migration() {
     lxc_remote move l2:v1 l1:v2
 
     echo "==> Clean up the VMs and local volumes."
-    lxc_remote delete -f l1:v1
-    lxc_remote delete -f l1:v2
+    lxc_remote delete -f l1:v1 l1:v2
     lxc_remote storage volume delete l1:dir vol1
     lxc_remote storage volume delete l2:dir vol1
   fi
@@ -596,8 +592,7 @@ migration() {
   lxc_remote delete l2:c1/snap2
   lxc_remote copy l2:c1 l1:
   lxc_remote start l1:c1
-  lxc_remote delete l1:c1 -f
-  lxc_remote delete l2:c1 -f
+  lxc_remote delete l1:c1 l2:c1 -f
 
   lxc_remote project switch l1:default
   lxc_remote project delete l1:proj
@@ -610,8 +605,7 @@ migration() {
   lxc_remote copy l1:c1 l2:c1
   ! lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc_remote storage volume get --property "l1:${remote_pool1}" container/c1/snap0 created_at)" = "$(lxc_remote storage volume get --property "l2:${remote_pool2}" container/c1/snap0 created_at)" ]
-  lxc_remote delete l1:c1 -f
-  lxc_remote delete l2:c1 -f
+  lxc_remote delete l1:c1 l2:c1
 
   # Check migration with invalid snapshot config (disks attached with missing source pool and source path).
   lxc_remote init testimage l1:c1
@@ -626,8 +620,7 @@ migration() {
   rmdir "$LXD_DIR/testvol2"
   lxc_remote copy l1:c1 l2:
   lxc_remote info l2:c1 | grep snap0
-  lxc_remote delete l1:c1 -f
-  lxc_remote delete l2:c1 -f
+  lxc_remote delete l1:c1 l2:c1
   lxc_remote storage volume delete l1:dir vol1
   lxc_remote storage delete l1:dir
 
@@ -652,8 +645,7 @@ migration() {
 
   rm foo bar
 
-  lxc_remote rm l1:c1
-  lxc_remote rm l2:c1
+  lxc_remote delete l1:c1 l2:c1
 
   lxc_remote init testimage l1:c1
   # This creates snap0
@@ -665,13 +657,12 @@ migration() {
   lxc_remote snapshot l1:c1
 
   # Delete first snapshot from target
-  lxc_remote rm l2:c1/snap0
+  lxc_remote delete l2:c1/snap0
 
   # Refresh
   lxc_remote copy l1:c1 l2:c1 --refresh
 
-  lxc_remote rm -f l1:c1
-  lxc_remote rm -f l2:c1
+  lxc_remote delete l1:c1 l2:c1
 
   # In this scenario the source LXD server used to crash due to a missing slice check.
   # Let's test this to make sure it doesn't happen again.
@@ -683,8 +674,7 @@ migration() {
   lxc_remote copy l1:c1 l2:c1 --refresh
   lxc_remote copy l1:c1 l2:c1 --refresh
 
-  lxc_remote rm -f l1:c1
-  lxc_remote rm -f l2:c1
+  lxc_remote delete l1:c1 l2:c1
 
   # On btrfs, this used to cause a failure because btrfs couldn't find the parent subvolume.
   lxc_remote init testimage l1:c1
@@ -694,8 +684,7 @@ migration() {
   lxc_remote snapshot l1:c1
   lxc_remote copy l1:c1 l2:c1 --refresh
 
-  lxc_remote rm -f l1:c1
-  lxc_remote rm -f l2:c1
+  lxc_remote delete l1:c1 l2:c1
 
   # On zfs, this used to crash due to a websocket read issue.
   lxc launch testimage c1
@@ -703,8 +692,7 @@ migration() {
   lxc copy c1 l2:c1 --stateless
   lxc copy c1 l2:c1 --stateless --refresh
 
-  lxc_remote rm -f l1:c1
-  lxc_remote rm -f l2:c1
+  lxc_remote delete -f l1:c1 l2:c1
 
   # migrate ISO custom volumes
   truncate -s 8MiB foo.iso
@@ -745,6 +733,5 @@ migration() {
   lxc_remote copy --stateless l2:migratee/snap0 l1:migratee-new-name
 
   # Cleanup
-  lxc_remote delete --force l2:migratee
-  lxc_remote delete --force l1:migratee-new-name
+  lxc_remote delete --force l2:migratee l1:migratee-new-name
 }
