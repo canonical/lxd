@@ -9,15 +9,28 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/shared/api"
 )
 
-func registerDBOperation(op *Operation) error {
+func registerDBOperation(op *Operation, conflictReference string) error {
 	if op.state == nil {
 		return nil
 	}
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// If a conflict reference is provided, check if any conflicting operation is already running before creating the new operation record.
+		if op.dbOpType.ConflictAction() == operationtype.ConflictActionFail && conflictReference != "" {
+			conflict, err := conflictingOperationExists(ctx, tx, conflictReference)
+			if err != nil {
+				return err
+			}
+
+			if conflict {
+				return fmt.Errorf("Conflicting operation with conflict reference %q already exists", conflictReference)
+			}
+		}
+
 		opInfo := cluster.Operation{
 			UUID:      op.id,
 			Type:      op.dbOpType,
@@ -106,4 +119,24 @@ func (op *Operation) sendEvent(eventMessage any) {
 	}
 
 	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
+}
+
+func conflictingOperationExists(ctx context.Context, tx *db.ClusterTx, conflictReference string) (bool, error) {
+	var ops []cluster.Operation
+	filter := cluster.OperationFilter{ConflictReference: &conflictReference}
+	var err error
+	ops, err = cluster.GetOperations(ctx, tx.Tx(), filter)
+	if err != nil {
+		return false, fmt.Errorf("Failed fetching operations with conflict reference %q: %w", conflictReference, err)
+	}
+
+	// Detect conflict only if any of the operations of conflicting type (and entity ID if applicable)
+	// is still running.
+	for _, existingOp := range ops {
+		if !api.StatusCode(existingOp.Status).IsFinal() {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

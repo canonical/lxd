@@ -128,7 +128,10 @@ type OperationArgs struct {
 	Metadata    map[string]any
 	RunHook     func(ctx context.Context, op *Operation) error
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
-	Inputs      map[string]any
+	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
+	// Empty ConflictReference means the operation can be started anytime.
+	ConflictReference string
+	Inputs            map[string]any
 }
 
 // CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
@@ -203,7 +206,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
-	err = registerDBOperation(&op)
+	err = registerDBOperation(&op, args.ConflictReference)
 	if err != nil {
 		return nil, err
 	}
