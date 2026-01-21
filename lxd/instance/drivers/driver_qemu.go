@@ -629,9 +629,21 @@ func (d *qemu) onStop(target string) error {
 	// Stop the storage for the instance.
 	err = d.unmount()
 	if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
-		err = fmt.Errorf("Failed unmounting instance: %w", err)
-		op.Done(err)
-		return err
+		// If we are migrating an instance and receive status locked error (indicating the device or
+		// resource is busy) during unmount while LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST is set,
+		// we ignore the error.
+		// The server is running on the same host in which case it is not possible to unmount
+		// the source device because it is already used by the destination (migrated) instance.
+		isLiveMigrationTest := shared.IsTrue(os.Getenv("LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST"))
+
+		//nolint:revive // Ignore early-return for clarity.
+		if isLiveMigrationTest && op.Action() == operationlock.ActionMigrate && api.StatusErrorCheck(err, http.StatusLocked) {
+			d.logger.Warn("Failed unmounting source instance during migration", logger.Ctx{"err": err})
+		} else {
+			err = fmt.Errorf("Failed unmounting instance: %w", err)
+			op.Done(err)
+			return err
+		}
 	}
 
 	// Unload the apparmor profile

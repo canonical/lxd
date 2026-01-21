@@ -51,6 +51,7 @@ readonly test_group_cluster=(
 readonly test_group_cluster_storage=(
     "clustering_image_refresh"
     "clustering_image_replication"
+    "clustering_live_migration"
     "clustering_publish"
     "clustering_recovery"
     "clustering_storage"
