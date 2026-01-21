@@ -2123,7 +2123,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 					case idmap.IdmapStorageIdmapped:
 						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
 					case idmap.IdmapStorageNone:
-						return nil, "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), errors.New("idmapping abilities are required but aren't supported on system"))
+						return nil, "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), errors.New("idmapping abilities are required but are not supported on system"))
 					}
 				}
 
