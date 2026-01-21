@@ -132,7 +132,10 @@ type OperationArgs struct {
 	Metadata    map[string]any
 	RunHook     func(ctx context.Context, op *Operation) error
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
-	Inputs      map[string]any
+	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
+	// Empty ConflictReference means the operation can be started anytime.
+	ConflictReference string
+	Inputs            map[string]any
 }
 
 // CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
@@ -222,6 +225,17 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op, err := initOperation(s, requestor, args)
 	if err != nil {
 		return nil, err
+	}
+
+	if args.ConflictReference != "" {
+		conflict, err := conflictingOperationExists(op, args.ConflictReference)
+		if err != nil {
+			return nil, err
+		}
+
+		if conflict {
+			return nil, api.StatusErrorf(http.StatusConflict, "Conflicting operation already running")
+		}
 	}
 
 	err = registerDBOperation(op)

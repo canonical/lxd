@@ -41,6 +41,14 @@ func removeDBOperation(op *Operation) error {
 	return nil
 }
 
+func conflictingOperationExists(op *Operation, conflictReference string) (bool, error) {
+	if op.state != nil {
+		return false, fmt.Errorf("conflictingOperationExists not supported on this platform")
+	}
+
+	return false, nil
+}
+
 func (op *Operation) sendEvent(eventMessage any) {
 	if op.events == nil {
 		return

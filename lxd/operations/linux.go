@@ -112,3 +112,26 @@ func (op *Operation) sendEvent(eventMessage any) {
 
 	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
 }
+
+func conflictingOperationExists(op *Operation, conflictReference string) (bool, error) {
+	var ops []cluster.Operation
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		filter := cluster.OperationFilter{ConflictReference: &conflictReference}
+		var err error
+		ops, err = cluster.GetOperations(ctx, tx.Tx(), filter)
+		return err
+	})
+	if err != nil {
+		return false, fmt.Errorf("Failed checking for conflicting operations: %w", err)
+	}
+
+	// Detect conflict only if any of the operations of conflicting type (and entity ID if applicable)
+	// is still running.
+	for _, existingOp := range ops {
+		if !api.StatusCode(existingOp.Status).IsFinal() {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
