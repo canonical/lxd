@@ -95,8 +95,10 @@ test_clustering_live_migration() {
   # Cleanup
   echo "Cleaning up ..."
   unset LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get v1 volatile.base_image)"
+  local fingerprint
+  fingerprint="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get v1 volatile.base_image)"
   LXD_DIR="${LXD_ONE_DIR}" lxc delete --force v1
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "${fingerprint}"
 
   if [ "${isRemoteDriver}" = true ]; then
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${poolName}" vmdata
