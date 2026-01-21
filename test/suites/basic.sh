@@ -467,22 +467,18 @@ test_basic_usage() {
   # Create and start a container
   lxc launch testimage foo
   [ "$(lxc list -f csv -c ns)" = "foo,RUNNING" ]
-  lxc stop foo --force
+  # Record the MAC address
+  mac1=$(lxc exec foo -- cat /sys/class/net/eth0/address)
 
   if lxc info | grep -F 'unpriv_binfmt: "true"'; then
     # Test binfmt_misc support
-    lxc start foo
     lxc exec foo -- mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
     [ "$(lxc exec foo -- cat /proc/sys/fs/binfmt_misc/status)" = "enabled" ]
-    lxc stop -f foo
   fi
 
-  # cycle it a few times
-  lxc start foo
-  mac1=$(lxc exec foo -- cat /sys/class/net/eth0/address)
+  # Reboot to check if the MAC persists across restarts
   lxc restart foo --force
   mac2=$(lxc exec foo -- cat /sys/class/net/eth0/address)
-
   if [ -n "${mac1}" ] && [ -n "${mac2}" ] && [ "${mac1}" != "${mac2}" ]; then
     echo "==> MAC addresses didn't match across restarts (${mac1} vs ${mac2})"
     false
@@ -504,7 +500,7 @@ test_basic_usage() {
   [ "$(lxc config get test-limits limits.cpu)" = "1" ]
   [ "$(lxc config get test-limits limits.cpu.allowance)" = "50%" ]
   [ "$(lxc config get test-limits limits.memory)" = "204MiB" ]
-  lxc delete -f test-limits
+  lxc delete test-limits
 
   # Test last_used_at field is working properly
   lxc init testimage last-used-at-test
@@ -514,19 +510,16 @@ test_basic_usage() {
   lxc delete last-used-at-test --force
 
   # Test user, group and cwd
-  lxc exec foo -- mkdir /blah
   [ "$(lxc exec foo --user 1000 -- id -u)" = "1000" ]
   [ "$(lxc exec foo --group 1000 -- id -g)" = "1000" ]
-  [ "$(lxc exec foo --cwd /blah -- pwd)" = "/blah" ]
+  [ "$(lxc exec foo --cwd /tmp -- pwd)" = "/tmp" ]
 
-  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- id -u)" = "1234" ]
-  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- id -g)" = "5678" ]
-  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- pwd)" = "/blah" ]
-
+  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /tmp -- id -u)" = "1234" ]
+  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /tmp -- id -g)" = "5678" ]
+  [ "$(lxc exec foo --user 1234 --group 5678 --cwd /tmp -- pwd)" = "/tmp" ]
+  [ "$(lxc exec foo -- pwd)" = "/root" ]
   # check that we can set the environment
-  lxc exec foo -- pwd | grep /root
   lxc exec --env BEST_BAND=meshuggah foo -- env | grep -xF BEST_BAND=meshuggah
-  lxc exec foo -- ip link show | grep eth0
 
   # check that environment variables work with profiles
   lxc profile create clash
@@ -547,12 +540,12 @@ test_basic_usage() {
   echo abc > "${LXD_DIR}/in"
 
   lxc file push "${LXD_DIR}/in" foo/root/
-  [ "$(lxc exec foo -- /bin/cat /root/in)" = "abc" ]
-  lxc file delete foo/root/in
-
   lxc file push "${LXD_DIR}/in" foo/root/in1
+  echo def | lxc file push - foo/root/in2
+  [ "$(lxc exec foo -- /bin/cat /root/in)" = "abc" ]
   [ "$(lxc file pull foo/root/in1 -)" = "abc" ]
-  lxc file delete foo/root/in1
+  [ "$(lxc file pull foo/root/in2 -)" = "def" ]
+  lxc file delete foo/root/in foo/root/in1 foo/root/in2
 
   rm "${LXD_DIR}/in"
 
@@ -621,7 +614,7 @@ test_basic_usage() {
   fi
 
   # Test boot.host_shutdown_timeout config setting
-  lxc init testimage configtest --config boot.host_shutdown_timeout=45
+  lxc init --empty configtest --config boot.host_shutdown_timeout=45
   [ "$(lxc config get configtest boot.host_shutdown_timeout)" -eq 45 ]
   lxc config set configtest boot.host_shutdown_timeout 15
   [ "$(lxc config get configtest boot.host_shutdown_timeout)" -eq 15 ]
@@ -708,7 +701,7 @@ test_basic_usage() {
     false
   fi
 
-  lxc delete -f c1
+  lxc delete c1
 
   # Should fail to override root device storage pool when the new pool does not exist.
   ! lxc init testimage c1 -d root,pool=bla || false
@@ -729,16 +722,16 @@ test_basic_usage() {
     false
   fi
 
-  lxc delete -f c1
+  lxc delete c1
   lxc storage volume delete bla vol1
   lxc storage volume delete bla vol2
   lxc storage delete bla
 
   # Test rebuilding an instance with its original image.
-  lxc init testimage c1
-  lxc start c1
+  lxc launch testimage c1
   lxc exec c1 -- touch /data.txt
-  lxc stop c1
+  lxc exec c1 -- sync
+  lxc stop -f c1
   lxc rebuild testimage c1
   lxc start c1
   ! lxc exec c1 -- stat /data.txt || false
@@ -760,14 +753,14 @@ test_basic_usage() {
   lxc init testimage c1
   lxc rebuild c1 --empty
   ! lxc config show c1 | grep -F 'image.' || false
-  lxc delete c1 -f
+  lxc delete c1
 
   # Test assigning an empty profile (with no root disk device) to an instance.
-  lxc init testimage c1
+  lxc init --empty c1
   lxc profile create foo
   ! lxc profile assign c1 foo || false
   lxc profile delete foo
-  lxc delete -f c1
+  lxc delete c1
 
   # Test assigning a profile through a YAML file to an instance.
   poolName=$(lxc profile device get default root pool)
@@ -782,10 +775,10 @@ devices:
     pool: ${poolName}
     type: disk
 EOF
-  lxc init testimage c1 --profile foo
+  lxc init --empty c1 --profile foo
   [ "$(lxc config get c1 limits.cpu --expanded)" = "2" ]
   [ "$(lxc config get c1 limits.memory --expanded)" = "1024MiB" ]
-  lxc delete -f c1
+  lxc delete c1
   lxc profile delete foo
 
   # Multiple ephemeral instances delete
