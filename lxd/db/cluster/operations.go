@@ -14,6 +14,8 @@ import (
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -e operation objects
+//go:generate mapper stmt -e operation objects-by-Type
+//go:generate mapper stmt -e operation objects-by-Type-and-EntityID
 //go:generate mapper stmt -e operation objects-by-NodeID
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-Reference
@@ -57,4 +59,6 @@ type OperationFilter struct {
 	ID        *int64
 	NodeID    *int64
 	Reference *string
+	Type      *operationtype.Type
+	EntityID  *int
 }
