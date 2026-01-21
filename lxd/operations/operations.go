@@ -50,6 +50,20 @@ func (t OperationClass) String() string {
 	}[t]
 }
 
+// OperationUniquenessConstraint allows to constraint when the operation can be created.
+type OperationUniquenessConstraint int
+
+const (
+	// OperationUniquenessConstraintNone represents no constraint on operation uniqueness.
+	OperationUniquenessConstraintNone OperationUniquenessConstraint = iota
+	// OperationUniquenessConstraintType represents a constraint to create the operation only if no other operation of the same type is running.
+	OperationUniquenessConstraintType
+	// OperationUniquenessConstraintEntityID represents a constraint to create the operation only if no other operation of the same type
+	// operating on the same entity ID is running.
+	// The entity ID is the entity ID of the first resource. This further requires the operation to have exactly one resource.
+	OperationUniquenessConstraintEntityID
+)
+
 // Init sets the debug value for the operations package.
 func Init(d bool) {
 	debug = d
@@ -133,7 +147,11 @@ type OperationArgs struct {
 	Metadata    any
 	RunHook     func(ctx context.Context, op *Operation) error
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
-	Inputs      string
+	// UniquenessConstraint allows to create the operation only if no other conflicting operation is running.
+	// See [OperationUniquenessConstraintType] and [OperationUniquenessConstraintEntityID] for the options.
+	// Leaving this field empty means no uniqueness constraint, operation can be started anytime.
+	UniquenessConstraint OperationUniquenessConstraint
+	Inputs               string
 }
 
 // CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
@@ -213,6 +231,37 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op, err := initOperation(s, requestor, args)
 	if err != nil {
 		return nil, err
+	}
+
+	if args.UniquenessConstraint != OperationUniquenessConstraintNone {
+		if args.UniquenessConstraint == OperationUniquenessConstraintEntityID {
+			// Ensure there is exactly one resource.
+			if len(op.resources) != 1 {
+				return nil, errors.New("EntityID uniqueness constraint requires exactly one resource")
+			}
+
+			// If we want to guarantee uniqueness based on entity ID, entity_type needs to be provided too.
+			// As it's derived from operation type, detecting uniqueness based on operation type is sufficient.
+			entityType, _ := args.Type.Permission()
+			if entityType == "" {
+				return nil, errors.New("EntityID uniqueness constraint requires operation type with a defined entity type")
+			}
+
+			for _, resources := range op.resources {
+				if len(resources) != 1 {
+					return nil, errors.New("EntityID uniqueness constraint requires exactly one resource")
+				}
+			}
+		}
+
+		conflict, err := conflictingOperationExists(op, args.UniquenessConstraint)
+		if err != nil {
+			return nil, err
+		}
+
+		if conflict {
+			return nil, api.StatusErrorf(http.StatusConflict, "Conflicting operation already running")
+		}
 	}
 
 	err = registerDBOperation(op)

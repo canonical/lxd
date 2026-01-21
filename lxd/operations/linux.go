@@ -96,3 +96,47 @@ func (op *Operation) sendEvent(eventMessage any) {
 
 	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
 }
+
+func conflictingOperationExists(op *Operation, constraint OperationUniquenessConstraint) (bool, error) {
+	var entityURL *api.URL
+	// If the constraint is restricting also the entity ID on which the operation operates,
+	// use the first resource's URL to check for conflicts.
+	// operationCreate() has already verified there is already only one resource type in the list.
+	if constraint == OperationUniquenessConstraintEntityID {
+		for _, resources := range op.resources {
+			entityURL = &resources[0]
+		}
+	}
+
+	var ops []cluster.Operation
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		opType := op.dbOpType
+		filter := cluster.OperationFilter{Type: &opType}
+		if entityURL != nil {
+			// Get the entity ID from the resource URL.
+			entityReference, err := cluster.GetEntityReferenceFromURL(ctx, tx.Tx(), entityURL)
+			if err != nil {
+				return fmt.Errorf("Failed getting entity ID from resource URL %q: %w", entityURL.String(), err)
+			}
+
+			filter.EntityID = &entityReference.EntityID
+		}
+
+		var err error
+		ops, err = cluster.GetOperations(ctx, tx.Tx(), filter)
+		return err
+	})
+	if err != nil {
+		return false, fmt.Errorf("Failed checking for conflicting operations: %w", err)
+	}
+
+	// Detect conflict only if any of the operations of conflicting type (and entity ID if applicable)
+	// is still running.
+	for _, existingOp := range ops {
+		if !api.StatusCode(existingOp.Status).IsFinal() {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
