@@ -106,9 +106,6 @@ test_config_profiles() {
   lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
   lxc profile list | grep default
 
-  # let's check that 'lxc config profile' still works while it's deprecated
-  lxc config profile list | grep default
-
   # setting an invalid config item should error out when setting it, not get
   # into the database and never let the user edit the container again.
   ! lxc config set foo raw.lxc lxc.notaconfigkey=invalid || false
