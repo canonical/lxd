@@ -331,6 +331,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		progress.Done("")
 	}
 
+	// In case the destination LXD doesn't support instance start on copy,
+	// indicate to start the instance manually.
+	if c.flagStart && !dest.HasExtension("instance_create_start") {
+		start = true
+	}
+
 	// Start the instance if needed
 	if start {
 		req := api.InstanceStatePut{
