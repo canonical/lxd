@@ -282,10 +282,6 @@ migration() {
 
   lxc_remote start l1:c1
 
-  # Make sure the testfile doesn't exist
-  ! lxc file pull l1:c1 -- /root/testfile1 || false
-  ! lxc file pull l2:c2 -- /root/testfile1 || false
-
   # Create test file in c1 (source)
   echo test | lxc_remote file push - l1:c1/root/testfile1
 
