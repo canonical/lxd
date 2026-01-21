@@ -514,6 +514,10 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return errors.New(`The "shift" property cannot be used with custom storage volumes (set "security.shifted=true" on the volume instead)`)
 		}
 
+		if shared.IsSnapshot(d.config["source"]) {
+			return errors.New(`"source" cannot include a snapshot, use "source.snapshot" instead`)
+		}
+
 		if srcPathIsAbs {
 			return errors.New("Storage volumes cannot be specified as absolute paths")
 		}
