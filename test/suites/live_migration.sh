@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # test_clustering_live_migration spawns a 2-node LXD cluster, creates a virtual machine on the first node
 # and live migrates it to the second node. If the storage backend is remote, it also creates a custom
 # storage volume which needs to be live migrated as along the virtual machine.
