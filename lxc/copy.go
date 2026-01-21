@@ -103,6 +103,11 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		return errors.New("--no-profiles cannot be used with --refresh")
 	}
 
+	// Don't allow refreshing and starting the instance afterwards as not supported by the migration API.
+	if c.flagRefresh && c.flagStart {
+		return errors.New("--start cannot be used with --refresh")
+	}
+
 	// If the instance is being copied to a different remote and no destination name is
 	// specified, use the source name with snapshot suffix trimmed (in case a new instance
 	// is being created from a snapshot).
