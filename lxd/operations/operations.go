@@ -118,6 +118,9 @@ type Operation struct {
 	// Inputs for the operation, which are stored in the database.
 	inputs map[string]any
 
+	// Operations which conflict with each other share the same conflict reference.
+	conflictReference string
+
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
@@ -146,6 +149,9 @@ type OperationArgs struct {
 	requestor       *request.Requestor
 	metricsCallback func(result metrics.RequestResult)
 	Inputs          map[string]any
+	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
+	// Empty ConflictReference means the operation can be started anytime.
+	ConflictReference string
 }
 
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
@@ -240,6 +246,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op.metricsCallback = args.metricsCallback
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 	op.inputs = args.Inputs
+	op.conflictReference = args.ConflictReference
 
 	if s != nil {
 		op.SetEventServer(s.Events)

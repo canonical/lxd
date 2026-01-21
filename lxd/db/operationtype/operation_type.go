@@ -335,3 +335,18 @@ func (t Type) EntityType() entity.Type {
 		return ""
 	}
 }
+
+// ConflictAction returns the action to take if a conflicting operation is already running.
+type ConflictAction int
+
+const (
+	// ConflictActionNone means operation has no conflicts, all operations of this type can run concurrently.
+	ConflictActionNone ConflictAction = iota
+	// ConflictActionFail asks to resolve conflicts by failing to create a new operation if a conflicting operation is already running.
+	ConflictActionFail
+)
+
+// ConflictAction returns the action to take if a conflicting operation is already running.
+func (t Type) ConflictAction() ConflictAction {
+	return ConflictActionNone
+}

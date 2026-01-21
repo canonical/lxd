@@ -9,6 +9,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -18,14 +19,20 @@ func registerDBOperation(op *Operation) error {
 	}
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Conflict reference should only be provided for operation types that support conflicts.
+		if op.dbOpType.ConflictAction() == operationtype.ConflictActionNone && op.conflictReference != "" {
+			return fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())
+		}
+
 		opInfo := cluster.Operation{
-			UUID:      op.id,
-			Type:      op.dbOpType,
-			NodeID:    tx.GetNodeID(),
-			Class:     (int64)(op.class),
-			CreatedAt: op.createdAt,
-			UpdatedAt: op.updatedAt,
-			Status:    int64(op.Status()),
+			UUID:              op.id,
+			Type:              op.dbOpType,
+			NodeID:            tx.GetNodeID(),
+			Class:             (int64)(op.class),
+			CreatedAt:         op.createdAt,
+			UpdatedAt:         op.updatedAt,
+			Status:            int64(op.Status()),
+			ConflictReference: op.conflictReference,
 		}
 
 		if op.projectName != "" {
