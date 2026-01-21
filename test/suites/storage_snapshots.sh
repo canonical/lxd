@@ -38,7 +38,7 @@ test_storage_volume_snapshots() {
 
   # Check volume snapshot attachment requires source.snapshot (not source=vol/snap)
   lxc init --empty c2 -s "${storage_pool}"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc config device add c2 snap-bad disk source="${storage_volume}/snap0" pool="${storage_pool}" path=/mnt/bad 2>&1)" = "Error: Invalid devices: Device validation failed for \"snap-bad\": \"source\" cannot include a snapshot, use \"source.snapshot\" instead" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc config device add c2 snap-bad disk source="${storage_volume}/snap0" pool="${storage_pool}" path=/mnt/bad 2>&1)" = 'Error: Invalid devices: Device validation failed for "snap-bad": "source" cannot include a snapshot, use "source.snapshot" instead' ]
   lxc config device add c2 snap-good disk source="${storage_volume}" source.snapshot="snap0" pool="${storage_pool}" path=/mnt/snap-good
   lxc config device remove c2 snap-good
   lxc delete c2
@@ -101,7 +101,7 @@ EOF
   # Only description and expires_at can be modified.
 
   tmp_yaml=$(mktemp)
-  ERROR_MSG="Error: Only \"description\" and \"expires_at\" field(s) can be modified for snapshot volumes"
+  ERROR_MSG='Error: Only "description" and "expires_at" field(s) can be modified for snapshot volumes'
 
   # Test non editable properties.
   for field in name content_type config; do
