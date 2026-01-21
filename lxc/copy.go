@@ -32,6 +32,7 @@ type cmdCopy struct {
 	flagTargetProject     string
 	flagRefresh           bool
 	flagAllowInconsistent bool
+	flagStart             bool
 }
 
 func (c *cmdCopy) command() *cobra.Command {
@@ -63,6 +64,7 @@ The pull transfer mode is the default as it is compatible with all LXD versions.
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied")
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, "Perform an incremental copy")
 	cmd.Flags().BoolVar(&c.flagAllowInconsistent, "allow-inconsistent", false, "Ignore copy errors for volatile files")
+	cmd.Flags().BoolVar(&c.flagStart, "start", false, "Start instance after copy")
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			return c.global.cmpTopLevelResource("instance", toComplete)
@@ -176,9 +178,10 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 		// Prepare the instance creation request
 		args := lxd.InstanceSnapshotCopyArgs{
-			Name: destName,
-			Mode: mode,
-			Live: stateful,
+			Name:  destName,
+			Mode:  mode,
+			Live:  stateful,
+			Start: c.flagStart,
 		}
 
 		if c.flagRefresh {
@@ -217,6 +220,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			Mode:              mode,
 			Refresh:           c.flagRefresh,
 			AllowInconsistent: c.flagAllowInconsistent,
+			Start:             c.flagStart,
 		}
 
 		// Copy of an instance into a new instance
