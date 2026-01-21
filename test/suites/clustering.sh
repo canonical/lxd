@@ -3576,7 +3576,7 @@ test_clustering_evacuation_restore_operations() {
   sleep 1 # Wait a bit for the operation to start
 
   echo "Check restore fails while evacuation operation in progress"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot restore \"node1\" while an evacuate operation is in progress" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force 2>&1)" = 'Error: Failed updating cluster member state: Cannot restore "node1" while an evacuate operation is in progress' ]
 
   echo "Wait for all containers to be evacuated"
   wait "${evac_pid}"
@@ -3592,7 +3592,7 @@ test_clustering_evacuation_restore_operations() {
   sleep 1 # Wait a bit for the operation to start
 
   echo "Check evacuation fails while restore operation in progress"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot evacuate \"node1\" while a restore operation is in progress" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force 2>&1)" = 'Error: Failed updating cluster member state: Cannot evacuate "node1" while a restore operation is in progress' ]
 
   echo "Wait for all containers to be restored to node1"
   wait "${restore_pid}"
