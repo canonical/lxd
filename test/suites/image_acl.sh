@@ -9,7 +9,7 @@ test_image_acl() {
   setfacl -m group:1000001:rwx "/proc/${C1_PID}/root/root/foo"
 
   # Publish the container to a new image
-  lxc stop c1
+  lxc stop -f c1
   lxc publish c1 --alias c1-with-acl
 
   # Launch a new container from the existing image
@@ -17,8 +17,8 @@ test_image_acl() {
 
   # Check if the ACLs are still present
   C2_PID="$(lxc list -f csv -c p c2)"
-  getfacl "/proc/${C2_PID}/root/root/foo" | grep -xF "user:1000001:rwx"
-  getfacl "/proc/${C2_PID}/root/root/foo" | grep -xF "group:1000001:rwx"
+  getfacl --omit-header --absolute-names "/proc/${C2_PID}/root/root/foo" | grep -xF "user:1000001:rwx"
+  getfacl --omit-header --absolute-names "/proc/${C2_PID}/root/root/foo" | grep -xF "group:1000001:rwx"
 
   lxc delete -f c1 c2
   lxc image delete c1-with-acl
