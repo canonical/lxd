@@ -107,7 +107,7 @@ EOF
   lxc storage volume delete "${pool}" testvolume
 }
 
-test_snap_storage_volume_attach_vm() {
+test_vm_storage_volume_attach() {
   local pool
   local orig_volume_size
   pool="lxdtest-$(basename "${LXD_DIR}")"
