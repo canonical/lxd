@@ -155,7 +155,7 @@ migration() {
   lxc_remote delete l1:nobase
 
   lxc_remote start l1:nonlive2
-  lxc_remote list l1: | grep RUNNING | grep nonlive2
+  [ "$(lxc_remote list l1: -f csv -c ns nonlive2)" = "nonlive2,RUNNING" ]
   lxc_remote delete l1:nonlive2 l2:nonlive2 --force
 
   lxc_remote launch testimage cccp
@@ -176,7 +176,7 @@ migration() {
   lxc_remote delete l2:udssr --force
 
   lxc_remote start l2:nonlive
-  lxc_remote list l2: | grep RUNNING | grep nonlive
+  [ "$(lxc_remote list l2: -f csv -c ns nonlive)" = "nonlive,RUNNING" ]
   lxc_remote delete l2:nonlive --force
 
   # Get container's pool.
@@ -351,7 +351,7 @@ migration() {
   # Check whether snapshot c2/snap0 has been created with its config intact.
   ! lxc_remote config show l2:c2/snap0 || false
   lxc_remote copy l1:c1 l2:c2 --refresh
-  lxc_remote ls l2:
+  lxc_remote list -c nS l2:
   lxc_remote config show l2:c2/snap0
   ! lxc_remote config show l2:c2/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc_remote config device get l2:c2 testdev type)" = "none" ]
