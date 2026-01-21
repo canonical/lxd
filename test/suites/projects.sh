@@ -1115,7 +1115,7 @@ run_projects_restrictions() {
   # It's not possible to use forbidden low-level options
   ! lxc profile set default "raw.idmap=both 0 0" || false
   ! lxc init --empty c1 -c "raw.idmap=both 0 0" || false
-  ! lxc init --empty c1 -c volatile.uuid="$(< /proc/sys/kernel/random/uuid)" || false
+  ! lxc init --empty c1 -c volatile.uuid="$(uuidgen)" || false
 
   # It's not possible to create privileged containers.
   ! lxc profile set default security.privileged=true || false
@@ -1126,7 +1126,7 @@ run_projects_restrictions() {
 
   # It's not possible to change low-level options
   ! lxc config set c1 "raw.idmap=both 0 0" || false
-  ! lxc config set c1 volatile.uuid="foo" || false
+  ! lxc config set c1 volatile.uuid="$(uuidgen)" || false
 
   # It's not possible to attach character devices.
   ! lxc profile device add default tty unix-char path=/dev/ttyS0 || false
