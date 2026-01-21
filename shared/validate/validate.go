@@ -617,7 +617,7 @@ func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(v
 		// Validate wildcard.
 		if slices.Contains([]string{"", "::", "[::]", "0.0.0.0"}, host) {
 			if !allowWildcard {
-				return errors.New("Wildcard addresses aren't allowed")
+				return errors.New("Wildcard addresses are not allowed")
 			}
 
 			return nil
