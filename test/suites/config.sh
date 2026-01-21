@@ -190,8 +190,8 @@ test_config_profiles() {
   ! lxc config show foo | grep -vF "volatile.eth0" | grep -wF "eth0" || false
   lxc config show foo --expanded | grep -vF "volatile.eth0" | grep -wF "eth0"
   lxc config device add foo eth2 nic nictype=p2p name=eth10 host_name="${veth_host_name}"
-  lxc exec foo -- /sbin/ifconfig -a | grep -wF eth0
-  lxc exec foo -- /sbin/ifconfig -a | grep -wF eth10
+  lxc exec foo -- ip link | grep -wF eth0
+  lxc exec foo -- ip link | grep -wF eth10
   lxc config device list foo | grep -wF eth2
   lxc config device remove foo eth2
 
