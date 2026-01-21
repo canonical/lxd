@@ -168,12 +168,10 @@ test_config_profiles() {
   ! lxc profile list | grep -wF foo || false  # the old name is gone
   lxc profile delete bar
 
-  lxc config device list foo | grep mnt1
-  lxc config device show foo | grep "/mnt1"
-  lxc config show foo | grep -wF "onenic" -A1 | grep -wF "unconfined"
-  lxc profile list | grep onenic
-  lxc profile device list onenic | grep -wF eth0
-  lxc profile device show onenic | grep -wF p2p
+  [ "$(lxc config device get foo mnt1 path)" = "/mnt1" ]
+  [ "$(lxc config get --property foo profiles)" = "[onenic unconfined]" ]
+  lxc profile list | grep -wF onenic
+  [ "$(lxc profile device get onenic eth0 nictype)" = "p2p" ]
 
   # test setting limits.cpu.pin_strategy at the local config and profile level
   ! lxc config set c1 limits.cpu.pin_strategy=auto || false
