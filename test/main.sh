@@ -141,6 +141,12 @@ run_dependency_checks() {
     download_minio
   fi
 
+  # Setup MicroCeph if the ceph backend is selected
+  if [[ "${LXD_BACKENDS}" == *"ceph"* ]]; then
+    # Setup MicroCeph
+    setup_microceph
+  fi
+
   echo "==> Checking test dependencies"
   if ! check_dependencies devlxd-client lxd-client fuidshift mini-oidc sysinfo; then
     make -C "${MAIN_DIR}/.." test-binaries
