@@ -3181,9 +3181,9 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 	// Run some pre-checks before evacuating or restoring the cluster member.
 	// It's important that those checks runs on the to be restored cluster member.
 	if s.NetworkReady.Err() == nil {
-		return response.BadRequest(fmt.Errorf("Cannot %s %q because some networks aren't started yet", req.Action, d.serverName))
+		return response.BadRequest(fmt.Errorf("Cannot %s %q because some networks have not started yet", req.Action, d.serverName))
 	} else if s.StorageReady.Err() == nil {
-		return response.BadRequest(fmt.Errorf("Cannot %s %q because some storage pools aren't started yet", req.Action, d.serverName))
+		return response.BadRequest(fmt.Errorf("Cannot %s %q because some storage pools have not started yet", req.Action, d.serverName))
 	}
 
 	switch req.Action {
