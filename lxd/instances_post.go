@@ -323,6 +323,13 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 
 		revert.Add(cleanup)
 	} else {
+		if clusterMoveSourceName == "" {
+			err = inst.Update(*args, true)
+			if err != nil {
+				return response.InternalError(fmt.Errorf("Failed updating instance record: %w", err))
+			}
+		}
+
 		instOp, err = inst.LockExclusive()
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed getting exclusive access to instance: %w", err))
