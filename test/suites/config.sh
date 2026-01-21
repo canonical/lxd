@@ -142,11 +142,11 @@ test_config_profiles() {
 
   lxc profile create stdintest
   echo "BADCONF" | lxc profile set stdintest user.user_data -
-  lxc profile show stdintest | grep BADCONF
+  lxc profile show stdintest | grep -wF BADCONF
   lxc profile delete stdintest
 
   echo "BADCONF" | lxc config set foo user.user_data -
-  lxc config show foo | grep BADCONF
+  lxc config show foo | grep -wF BADCONF
   lxc config unset foo user.user_data
 
   mkdir -p "${TEST_DIR}/mnt1"
@@ -168,10 +168,10 @@ test_config_profiles() {
 
   lxc config device list foo | grep mnt1
   lxc config device show foo | grep "/mnt1"
-  lxc config show foo | grep "onenic" -A1 | grep "unconfined"
+  lxc config show foo | grep -wF "onenic" -A1 | grep -wF "unconfined"
   lxc profile list | grep onenic
-  lxc profile device list onenic | grep eth0
-  lxc profile device show onenic | grep p2p
+  lxc profile device list onenic | grep -wF eth0
+  lxc profile device show onenic | grep -wF p2p
 
   # test setting limits.cpu.pin_strategy at the local config and profile level
   ! lxc config set c1 limits.cpu.pin_strategy=auto || false
