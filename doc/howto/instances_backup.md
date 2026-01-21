@@ -256,10 +256,6 @@ If the snapshot is stateful (which means that it contains information about the 
 You can export the full content of your instance to a standalone file that can be stored at any location.
 For highest reliability, store the backup file on a different file system to ensure that it does not get lost or corrupted.
 
-```{note}
-The UI does not currently support exporting and importing instances.
-```
-
 (instances-backup-export-instance)=
 ### Export an instance
 
