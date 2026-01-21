@@ -46,7 +46,7 @@ func registerDBOperation(op *Operation) error {
 			}
 		}
 
-		_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		_, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
 		return err
 	})
 	if err != nil {
