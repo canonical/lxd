@@ -296,7 +296,7 @@ func (d *ceph) getVolumeSize(volumeName string) (int64, error) {
 		Size int64 `json:"size"`
 	}{}
 
-	jsonInfo, err := shared.TryRunCommand(
+	jsonInfo, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts,
 		"rbd",
 		"info",
 		"--format", "json",

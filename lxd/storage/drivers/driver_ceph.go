@@ -185,7 +185,7 @@ func (d *ceph) Create() error {
 
 	if !poolExists {
 		// Create new osd pool.
-		_, err := shared.TryRunCommand("ceph",
+		_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "ceph",
 			"--name", "client."+d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
 			"osd",
@@ -207,7 +207,7 @@ func (d *ceph) Create() error {
 
 		// If the OSD pool size in the config for this pool is different than the default OSD pool size, then set the pool size for the pool.
 		if d.config["ceph.osd.pool_size"] != strconv.Itoa(defaultSize) {
-			_, err = shared.TryRunCommand("ceph",
+			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "ceph",
 				"--name", "client."+d.config["ceph.user.name"],
 				"--cluster", d.config["ceph.cluster_name"],
 				"osd",
@@ -223,7 +223,7 @@ func (d *ceph) Create() error {
 		}
 
 		// Initialize the pool. This is not necessary but allows the pool to be monitored.
-		_, err = shared.TryRunCommand("rbd",
+		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "rbd",
 			"--id", d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
 			"pool",
@@ -444,7 +444,7 @@ func (d *ceph) Validate(config map[string]string) error {
 func (d *ceph) Update(changedConfig map[string]string) error {
 	// applyPool applies a OSD pool level setting.
 	applyPool := func(key string, value string) error {
-		_, err := shared.TryRunCommand("ceph",
+		_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "ceph",
 			"--name", "client."+d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
 			"osd",
