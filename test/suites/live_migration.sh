@@ -47,8 +47,7 @@ test_clustering_live_migration() {
   # Initialize the VM.
   LXD_DIR="${LXD_ONE_DIR}" lxc init ubuntu-vm vm \
     --vm \
-    --config limits.cpu=2 \
-    --config limits.memory=768MiB \
+    --config limits.memory=384MiB \
     --config migration.stateful=true \
     --device root,size="${SMALLEST_VM_ROOT_DISK}" \
     --target node1
