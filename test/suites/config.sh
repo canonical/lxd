@@ -129,16 +129,16 @@ test_config_profiles() {
   lxc profile create one
   lxc profile create two
   lxc profile assign foo one,two
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one two" ]
+  lxc list -f json foo | jq --exit-status '.[0].profiles == ["one","two"]'
   lxc profile assign foo ""
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")' || echo fail)" = "" ]
+  lxc list -f json foo | jq --exit-status '.[0].profiles == []'
   lxc profile apply foo one # backwards compat check with `lxc profile apply`
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one" ]
+  lxc list -f json foo | jq --exit-status '.[0].profiles == ["one"]'
   lxc profile assign foo ""
   lxc profile add foo one
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one" ]
+  lxc list -f json foo | jq --exit-status '.[0].profiles == ["one"]'
   lxc profile remove foo one
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")' || echo fail)" = "" ]
+  lxc list -f json foo | jq --exit-status '.[0].profiles == []'
 
   lxc profile create stdintest
   echo "BADCONF" | lxc profile set stdintest user.user_data -
