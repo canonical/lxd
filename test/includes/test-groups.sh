@@ -77,6 +77,7 @@ readonly test_group_instance=(
     "exec"
     "exec_exit_code"
     "lxd_benchmark_basic"
+    "vm_storage_volume_attach"
     "vm_empty"
     "vm_pcie_bus"
 )
@@ -176,7 +177,6 @@ readonly test_group_snap=(
     "snap_apparmor"
     "snap_basic_usage_vm"
     "snap_lxd_user"
-    "snap_storage_volume_attach_vm"
     "snap_vm_empty"
 )
 
