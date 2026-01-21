@@ -1,27 +1,37 @@
 #!/bin/bash
 
-# test_clustering_live_migration spawns a 2-node LXD cluster, creates a virtual machine on top of it,
-# creates and attaches a block volume to the virtual machine, writes some arbitrary data to the volume,
-# and runs live migration. Success is determined by the data being intact after live migration.
+# test_clustering_live_migration spawns a 2-node LXD cluster, creates a virtual machine on the first node
+# and live migrates it to the second node. If the storage backend is remote, it also creates a custom
+# storage volume which needs to be live migrated as along the virtual machine.
 test_clustering_live_migration() {
   poolDriver="$(storage_backend "${LXD_INITIAL_DIR}")"
-  if [ "${poolDriver:-}" != "ceph" ]; then
-    export TEST_UNMET_REQUIREMENT="Only supports 'ceph', not ${poolDriver}"
+  if [ "${poolDriver}" = "lvm" ]; then
+    # TODO: LVM live migration runs into:
+    # Error: Failed migration on source: Failed transferring migration storage snapshot: Specified block job not found
+    export TEST_UNMET_REQUIREMENT="Storage driver ${poolDriver} is currently unsupported"
     return 0
   fi
 
+  # For remote storage drivers, we perform the live migration with custom storage pool attached as well.
+  isRemoteDriver=false
+  if [ "${poolDriver}" == "ceph" ]; then
+    isRemoteDriver=true
+
+    # Set test live migration env var to prevent LXD erroring out during unmount of the
+    # source instance volume during live migration on the same host. During unmount the
+    # volume is already mounted to the destination instance and will error with "device
+    # or resource busy" error.
+    export LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST=true
+  fi
+
   # Spawn the first node and bootstrap the cluster.
-  # Set test live migration env var to prevent LXD erroring out during unmount of the
-  # source instance volume during live migration on the same host. During unmount the
-  # volume is already mounted to the destination instance and will error with "device
-  # or resource busy" error.
-  LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST=true spawn_lxd_and_bootstrap_cluster "${poolDriver}"
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
 
   local cert
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
 
   # Spawn a second node.
-  LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST=true spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Set up a TLS identity with admin permissions.
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group create live-migration
@@ -45,19 +55,24 @@ test_clustering_live_migration() {
     --device root,size="${SMALLEST_VM_ROOT_DISK}" \
     --target node1
 
-  # Attach the block volume to the VM.
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${poolName}" vmdata --type=block size=1MiB
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device add vm vmdata disk pool="${poolName}" source=vmdata
+  # For remote storage drivers, test live migration with custom volume as well.
+  if [ "${isRemoteDriver}" = true ]; then
+    # Attach the block volume to the VM.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${poolName}" vmdata --type=block size=1MiB
+    LXD_DIR="${LXD_ONE_DIR}" lxc config device add vm vmdata disk pool="${poolName}" source=vmdata
+  fi
 
   # Start the VM.
   LXD_DIR="${LXD_ONE_DIR}" lxc start vm
   LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady vm
 
   # Inside the VM, format and mount the volume, then write some data to it.
-  LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mkfs -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
-  LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mkdir /mnt/vol1
-  LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mount -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata /mnt/vol1
-  LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- cp /etc/hostname /mnt/vol1/bar
+  if [ "${isRemoteDriver}" = true ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mkfs -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mkdir /mnt/vol1
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mount -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata /mnt/vol1
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- cp /etc/hostname /mnt/vol1/bar
+  fi
 
   # Perform live migration of the VM from node1 to node2.
   echo "Live migrating instance 'vm' ..."
@@ -66,14 +81,20 @@ test_clustering_live_migration() {
 
   # After live migration, the volume should be functional and mounted.
   # Check that the file we created is still there with the same contents.
-  echo "Verifying data integrity after live migration"
-  [ "$(LXD_DIR=${LXD_ONE_DIR} lxc exec vm -- cat /mnt/vol1/bar)" = "vm" ]
+  if [ "${isRemoteDriver}" = true ]; then
+    echo "Verifying data integrity after live migration"
+    [ "$(LXD_DIR=${LXD_ONE_DIR} lxc exec vm -- cat /mnt/vol1/bar)" = "vm" ]
+  fi
 
   # Cleanup
   echo "Cleaning up ..."
+  unset LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get vm volatile.base_image)"
   LXD_DIR="${LXD_ONE_DIR}" lxc delete --force vm
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${poolName}" vmdata
+
+  if [ "${isRemoteDriver}" = true ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${poolName}" vmdata
+  fi
 
   # Ensure cleanup of the cluster's data pool to not leave any traces behind when we are using a different driver besides dir.
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
