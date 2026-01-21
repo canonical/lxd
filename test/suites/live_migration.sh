@@ -45,7 +45,7 @@ test_clustering_live_migration() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${poolName}" volume.size="${SMALLEST_VM_ROOT_DISK}"
 
   # Initialize the VM.
-  LXD_DIR="${LXD_ONE_DIR}" lxc init ubuntu-vm vm \
+  LXD_DIR="${LXD_ONE_DIR}" lxc init ubuntu-vm v1 \
     --vm \
     --config limits.memory=384MiB \
     --config migration.stateful=true \
@@ -56,38 +56,39 @@ test_clustering_live_migration() {
   if [ "${isRemoteDriver}" = true ]; then
     # Attach the block volume to the VM.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${poolName}" vmdata --type=block size=1MiB
-    LXD_DIR="${LXD_ONE_DIR}" lxc config device add vm vmdata disk pool="${poolName}" source=vmdata
+    LXD_DIR="${LXD_ONE_DIR}" lxc config device add v1 vmdata disk pool="${poolName}" source=vmdata
   fi
 
   # Start the VM.
-  LXD_DIR="${LXD_ONE_DIR}" lxc start vm
-  LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady vm
+  LXD_DIR="${LXD_ONE_DIR}" lxc start v1
+  LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady v1
 
   # Inside the VM, format and mount the volume, then write some data to it.
   if [ "${isRemoteDriver}" = true ]; then
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mkfs -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mkdir /mnt/vol1
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mount -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata /mnt/vol1
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- cp /etc/hostname /mnt/vol1/bar
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- mkfs -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- mkdir /mnt/vol1
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- mount -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata /mnt/vol1
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- cp /etc/hostname /mnt/vol1/bar
   fi
 
   # Perform live migration of the VM from node1 to node2.
-  echo "Live migrating instance 'vm' ..."
-  LXD_DIR="${LXD_ONE_DIR}" lxc move vm --target node2
-  LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady vm
+  LXD_DIR="${LXD_ONE_DIR}" lxc move v1 --target node2
+
+  # Let the lxd-agent dial back post-migration which confirms the VM is still alive
+  LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady v1
 
   # After live migration, the volume should be functional and mounted.
   # Check that the file we created is still there with the same contents.
   if [ "${isRemoteDriver}" = true ]; then
     echo "Verifying data integrity after live migration"
-    [ "$(LXD_DIR=${LXD_ONE_DIR} lxc exec vm -- cat /mnt/vol1/bar)" = "vm" ]
+    [ "$(LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- cat /mnt/vol1/bar)" = "v1" ]
   fi
 
   # Cleanup
   echo "Cleaning up ..."
   unset LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get vm volatile.base_image)"
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete --force vm
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get v1 volatile.base_image)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete --force v1
 
   if [ "${isRemoteDriver}" = true ]; then
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${poolName}" vmdata
