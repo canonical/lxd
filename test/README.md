@@ -18,29 +18,30 @@ sudo -E ./main.sh
 
 ## Environment variables
 
-Name                           | Default                   | Description
-:--                            | :---                      | :----------
-`LXD_BACKEND`                  | dir                       | What backend to test against (btrfs, ceph, dir, lvm, zfs, or random)
-`LXD_BACKENDS`                 | `LXD_BACKEND`             | Space-delimited list of backends to run test against. Accepts `fast` (`btrfs` or `dir`), `fasts` (`btrfs` and `dir`) and `all` (see the list in `LXD_BACKEND`)
-`LXD_CEPH_CLUSTER`             | ceph                      | The name of the ceph cluster to create osd pools in
-`LXD_CEPH_CEPHFS`              | cephfs                    | Enables the CephFS tests using the specified cephfs filesystem for `cephfs` pools
-`LXD_CEPH_CEPHOBJECT_RADOSGW`  | ""                        | Enables the Ceph Object tests using the specified radosgw HTTP endpoint for `cephobject` pools
-`LXD_VERBOSE`                  | ""                        | Run lxd, lxc and the shell in verbose mode (used in CI; less verbose than `LXD_DEBUG`)
-`LXD_DEBUG`                    | ""                        | Run lxd, lxc and the shell in debug mode (very verbose)
-`LXD_INSPECT`                  | 0                         | Set to 1 to start an inspection shell in the test environment on failure
-`LXD_LOGS`                     | ""                        | Path to a directory to copy all the LXD logs to
-`LXD_OFFLINE`                  | 0                         | Skip anything that requires network access
-`LXD_REPEAT_TESTS`             | 1                         | Number of times to repeat test(s)
-`LXD_RANDOMIZE_TESTS`          | 0                         | Randomize the order of tests in a group
-`LXD_SKIP_TESTS`               | ""                        | Space-delimited list of test names to skip
-`LXD_TEST_IMAGE`               | "" (busybox test image)   | Path to an image tarball to use instead of the default busybox image
-`LXD_TMPFS`                    | 0                         | Sets up a tmpfs for the whole testsuite to run on (fast but needs memory)
-`LXD_NIC_SRIOV_PARENT`         | ""                        | Enables SR-IOV NIC tests using the specified parent device
-`LXD_IB_PHYSICAL_PARENT`       | ""                        | Enables Infiniband physical tests using the specified parent device
-`LXD_IB_SRIOV_PARENT`          | ""                        | Enables Infiniband SR-IOV tests using the specified parent device
-`LXD_NIC_BRIDGED_DRIVER`       | ""                        | Specifies bridged NIC driver for tests (either native or openvswitch, defaults to native)
-`LXD_REQUIRED_TESTS`           | ""                        | Space-delimited list of test names that must not be skipped if their prerequisites are not met
-`LXD_VM_TESTS`                 | 1                         | Enables tests using VMs and the on-demand installation of the needed tools
+Name                                       | Default                   | Description
+:--                                        | :---                      | :----------
+`LXD_BACKEND`                              | dir                       | What backend to test against (btrfs, ceph, dir, lvm, zfs, or random)
+`LXD_BACKENDS`                             | `LXD_BACKEND`             | Space-delimited list of backends to run test against. Accepts `fast` (`btrfs` or `dir`), `fasts` (`btrfs` and `dir`) and `all` (see the list in `LXD_BACKEND`)
+`LXD_CEPH_CLUSTER`                         | ceph                      | The name of the ceph cluster to create osd pools in
+`LXD_CEPH_CEPHFS`                          | cephfs                    | Enables the CephFS tests using the specified cephfs filesystem for `cephfs` pools
+`LXD_CEPH_CEPHOBJECT_RADOSGW`              | ""                        | Enables the Ceph Object tests using the specified radosgw HTTP endpoint for `cephobject` pools
+`LXD_VERBOSE`                              | ""                        | Run lxd, lxc and the shell in verbose mode (used in CI; less verbose than `LXD_DEBUG`)
+`LXD_DEBUG`                                | ""                        | Run lxd, lxc and the shell in debug mode (very verbose)
+`LXD_INSPECT`                              | 0                         | Set to 1 to start an inspection shell in the test environment on failure
+`LXD_LOGS`                                 | ""                        | Path to a directory to copy all the LXD logs to
+`LXD_OFFLINE`                              | 0                         | Skip anything that requires network access
+`LXD_REPEAT_TESTS`                         | 1                         | Number of times to repeat test(s)
+`LXD_RANDOMIZE_TESTS`                      | 0                         | Randomize the order of tests in a group
+`LXD_SKIP_TESTS`                           | ""                        | Space-delimited list of test names to skip
+`LXD_TEST_IMAGE`                           | "" (busybox test image)   | Path to an image tarball to use instead of the default busybox image
+`LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST` | ""                        | When set to true, LXD ignores EBUSY errors during same-host live migration when unmounting a source volume that is already mounted on the destination instance.
+`LXD_TMPFS`                                | 0                         | Sets up a tmpfs for the whole testsuite to run on (fast but needs memory)
+`LXD_NIC_SRIOV_PARENT`                     | ""                        | Enables SR-IOV NIC tests using the specified parent device
+`LXD_IB_PHYSICAL_PARENT`                   | ""                        | Enables Infiniband physical tests using the specified parent device
+`LXD_IB_SRIOV_PARENT`                      | ""                        | Enables Infiniband SR-IOV tests using the specified parent device
+`LXD_NIC_BRIDGED_DRIVER`                   | ""                        | Specifies bridged NIC driver for tests (either native or openvswitch, defaults to native)
+`LXD_REQUIRED_TESTS`                       | ""                        | Space-delimited list of test names that must not be skipped if their prerequisites are not met
+`LXD_VM_TESTS`                             | 1                         | Enables tests using VMs and the on-demand installation of the needed tools
 
 ## Recommendations
 
