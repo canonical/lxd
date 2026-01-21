@@ -147,7 +147,7 @@ test_clustering_waitready() {
   shutdown_lxd "${LXD_ONE_DIR}"
   LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
 
-  # The cluster member cannot be evacuated as long as it's networks and storage pools have not started.
+  # The cluster member cannot be evacuated as long as its networks and storage pools have not started.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --force 2>&1)" = "Error: Failed updating cluster member state: Cannot evacuate \"node1\" because some networks have not started yet" ]
 
   echo "==> Restore the network by unsetting the external interface"
@@ -159,7 +159,7 @@ test_clustering_waitready() {
   shutdown_lxd "${LXD_ONE_DIR}"
   LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
 
-  # The cluster member cannot be evacuated as long as it's storage pools have not started.
+  # The cluster member cannot be evacuated as long as its storage pools have not started.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --force 2>&1)" = "Error: Failed updating cluster member state: Cannot evacuate \"node1\" because some storage pools have not started yet" ]
 
   echo "==> Restore the storage pool directory"
