@@ -231,6 +231,11 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 		// Only start the instance back up if doing a stateless migration.
 		// Its LXD's job to start things back up when receiving a stateful migration.
+		// This is when copyInstace is called by the move command and server side move
+		// cannot be performed, e.g. when migrating an instance between different LXD servers which are not in the same cluster
+		// or when server side move is simply not supported.
+		// The server will switch to migration so we cannot simply populate the Start field of the InstanceCopyArgs as this
+		// information will get lost during migration and is essentially not received by the target.
 		if entry.StatusCode == api.Running && move && !stateful {
 			start = true
 		}
