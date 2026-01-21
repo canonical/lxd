@@ -93,6 +93,8 @@ _mount_order() {
   lxc start foo
   lxc exec foo -- cat /mnt/empty/filler
   lxc stop foo --force
+
+  rm -rf "${TEST_DIR}/order"
 }
 
 test_config_profiles() {
@@ -244,6 +246,9 @@ test_config_profiles() {
   _mount_order
 
   lxc delete foo
+
+  rm -rf "${TEST_DIR}/mnt1"
+  rm -rf "${TEST_DIR}/mnt2"
 
   lxc launch testimage foo -s "lxdtest-$(basename "${LXD_DIR}")" -p onenic -p unconfined
 
