@@ -199,13 +199,11 @@ test_config_profiles() {
   lxc config device add foo mnt2 disk source="${TEST_DIR}/mnt2" path=/mnt2 readonly=true
   lxc exec foo -- grep "/mnt2.*ro," /proc/self/mountinfo
   lxc exec foo -- ls /mnt2/hosts
-  lxc stop foo --force
-  lxc start foo
+  lxc restart --force foo
   lxc exec foo -- ls /mnt2/hosts
   lxc config device remove foo mnt2
   ! lxc exec foo -- ls /mnt2/hosts || false
-  lxc stop foo --force
-  lxc start foo
+  lxc restart --force foo
   ! lxc exec foo -- ls /mnt2/hosts || false
   lxc stop foo --force
 
@@ -247,9 +245,7 @@ test_config_profiles() {
 
   lxc delete foo
 
-  lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
-  lxc profile assign foo onenic,unconfined
-  lxc start foo
+  lxc launch testimage foo -s "lxdtest-$(basename "${LXD_DIR}")" -p onenic -p unconfined
 
   if [ -e /sys/module/apparmor ]; then
     [ "$(lxc exec foo -- cat /proc/self/attr/current)" = "unconfined" ]
