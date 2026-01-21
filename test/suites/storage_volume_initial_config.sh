@@ -9,7 +9,8 @@ test_storage_volume_initial_config() {
 
   image="testimage"
   profile="profile-initial-values"
-  pool=$(lxc profile device get default root pool)
+  local pool
+  pool="lxdtest-$(basename "${LXD_DIR}")"
 
   if [ "$lxd_backend" = "zfs" ] || [ "$lxd_backend" = "lvm" ]; then
     pool="storage-initial-values"

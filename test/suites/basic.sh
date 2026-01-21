@@ -99,7 +99,8 @@ test_basic_usage() {
   lxc image delete splitimage
 
   # Test --no-profiles flag
-  poolName=$(lxc profile device get default root pool)
+  local poolName
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
   ! lxc init testimage foo --no-profiles || false
   lxc init testimage foo --no-profiles -s "${poolName}"
   lxc delete -f foo
@@ -763,7 +764,8 @@ test_basic_usage() {
   lxc delete c1
 
   # Test assigning a profile through a YAML file to an instance.
-  poolName=$(lxc profile device get default root pool)
+  local poolName
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
   lxc profile create foo << EOF
 config:
   limits.cpu: 2

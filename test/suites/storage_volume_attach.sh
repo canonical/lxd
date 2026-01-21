@@ -108,8 +108,10 @@ EOF
 }
 
 test_snap_storage_volume_attach_vm() {
+  local pool
+  pool="lxdtest-$(basename "${LXD_DIR}")-snap"
+
   echo "==> Creating storage volumes"
-  pool="$(lxc profile device get default root pool)"
   lxc storage volume create "${pool}" vol1 size=1MiB --type block
   lxc storage volume create "${pool}" vol2 size=1MiB
   lxc storage volume create "${pool}" vol3 size=1MiB --type block
