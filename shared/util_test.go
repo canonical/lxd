@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -384,5 +386,110 @@ func TestRemoveElementsFromStringSlice(t *testing.T) {
 	for _, tt := range tests {
 		gotList := RemoveElementsFromSlice(tt.list, tt.elementsToRemove...)
 		assert.ElementsMatch(t, tt.expectedList, gotList)
+	}
+}
+
+func TestResolveSnapPath(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("This test is only relevant on Linux")
+	}
+
+	tests := []struct {
+		name     string
+		snap     string
+		snapName string
+		unset    bool
+		input    string
+		want     string
+		isSuffix bool
+		wantOk   bool
+	}{
+		{
+			name:   "Not in snap",
+			unset:  true,
+			input:  "/foo/bar",
+			want:   "/foo/bar",
+			wantOk: false,
+		},
+		{
+			name:     "In snap but not LXD",
+			snap:     "/snap/other/current",
+			snapName: "other",
+			input:    "/foo/bar",
+			want:     "/foo/bar",
+			wantOk:   false,
+		},
+		{
+			name:     "In LXD snap - empty path",
+			snap:     "/snap/lxd/current",
+			snapName: "lxd",
+			input:    "",
+			want:     "",
+			wantOk:   false,
+		},
+		{
+			name:     "In LXD snap - dash",
+			snap:     "/snap/lxd/current",
+			snapName: "lxd",
+			input:    "-",
+			want:     "-",
+			wantOk:   false,
+		},
+		{
+			name:     "In LXD snap - absolute path",
+			snap:     "/snap/lxd/current",
+			snapName: "lxd",
+			input:    "/foo/bar",
+			want:     "/foo/bar",
+			wantOk:   true,
+		},
+		{
+			name:     "In LXD snap - relative path",
+			snap:     "/snap/lxd/current",
+			snapName: "lxd",
+			input:    "foo/bar",
+			want:     "/foo/bar",
+			isSuffix: true,
+			wantOk:   true,
+		},
+	}
+
+	// Helper to reset env
+	resetEnv := func(key, val string, set bool) {
+		if set {
+			_ = os.Setenv(key, val)
+		} else {
+			_ = os.Unsetenv(key)
+		}
+	}
+
+	origSnap, snapSet := os.LookupEnv("SNAP")
+	origSnapName, snapNameSet := os.LookupEnv("SNAP_NAME")
+	defer func() {
+		resetEnv("SNAP", origSnap, snapSet)
+		resetEnv("SNAP_NAME", origSnapName, snapNameSet)
+	}()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.unset {
+				_ = os.Unsetenv("SNAP")
+				_ = os.Unsetenv("SNAP_NAME")
+			} else {
+				_ = os.Setenv("SNAP", tt.snap)
+				_ = os.Setenv("SNAP_NAME", tt.snapName)
+			}
+
+			p, ok := resolveSnapPath(tt.input)
+
+			if tt.isSuffix {
+				assert.True(t, strings.HasSuffix(p, tt.want), "expected %q to have suffix %q", p, tt.want)
+				assert.True(t, filepath.IsAbs(p), "expected absolute path")
+			} else {
+				assert.Equal(t, tt.want, p)
+			}
+
+			assert.Equal(t, tt.wantOk, ok)
+		})
 	}
 }
