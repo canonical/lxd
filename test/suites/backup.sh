@@ -1,6 +1,6 @@
 test_storage_volume_recover() {
   local poolName poolDriver
-  poolName=$(lxc profile device get default root pool)
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
   poolDriver="$(storage_backend "${LXD_DIR}")"
 
   if [ "${poolDriver}" = "pure" ]; then
@@ -67,7 +67,7 @@ EOF
 
 test_storage_volume_recover_by_container() {
   local poolName poolName2 poolDriver
-  poolName=$(lxc profile device get default root pool)
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
   poolDriver="$(storage_backend "${LXD_DIR}")"
 
   # Create another storage pool.
@@ -283,7 +283,7 @@ test_container_recover() {
 
     ensure_import_testimage
 
-    poolName=$(lxc profile device get default root pool)
+    poolName="lxdtest-$(basename "${LXD_DIR}")"
 
     lxc storage set "${poolName}" user.foo=bah
     lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
@@ -446,7 +446,7 @@ test_bucket_recover() {
     return
   fi
 
-  poolName=$(lxc profile device get default root pool)
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
   bucketName="bucket123"
 
   # Create storage bucket
@@ -483,6 +483,9 @@ EOF
   echo "${recoveredKey2}" | grep -F "role: read-only"
   echo "${recoveredKey2}" | grep -F "access-key: ${key2_accessKey}"
   echo "${recoveredKey2}" | grep -F "secret-key: ${key2_secretKey}"
+
+  # Cleanup
+  lxc storage bucket delete "${poolName}" "${bucketName}"
 }
 
 test_backup_import() {
@@ -604,7 +607,7 @@ _backup_import_with_project() {
 
   # Test exporting container and snapshot names that container hyphens.
   # Also check that the container storage volume config is correctly captured and restored.
-  default_pool="$(lxc profile device get default root pool)"
+  default_pool="lxdtest-$(basename "${LXD_DIR}")"
 
   lxc init --empty c1-foo -d "${SMALL_ROOT_DISK}"
   lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap0
@@ -1120,7 +1123,8 @@ test_backup_instance_uuid() {
 }
 
 test_backup_volume_expiry() {
-  poolName=$(lxc profile device get default root pool)
+  local poolName
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create custom volume.
   lxc storage volume create "${poolName}" vol1 size=1MiB
@@ -1155,7 +1159,8 @@ test_backup_export_import_recover() {
   (
     set -e
 
-    poolName=$(lxc profile device get default root pool)
+    local poolName
+    poolName="lxdtest-$(basename "${LXD_DIR}")"
 
     # Create and export an instance.
     lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
@@ -1182,7 +1187,8 @@ EOF
 }
 
 test_backup_export_import_instance_only() {
-  poolName=$(lxc profile device get default root pool)
+  local poolName
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create an instance with snapshot.
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
@@ -1313,8 +1319,9 @@ test_backup_metadata() {
   lxc delete c1
 
   # Create a custom storage volume with one snapshot.
-  poolName=$(lxc profile device get default root pool)
-  lxc storage volume create "${poolName}" vol1 size=32MiB
+  local poolName
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
+  lxc storage volume create "${poolName}" vol1 size=1MiB
   lxc storage volume snapshot "${poolName}" vol1
 
   # Export the custom storage volume without setting an export version.
