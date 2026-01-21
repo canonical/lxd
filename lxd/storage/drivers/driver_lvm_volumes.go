@@ -1305,7 +1305,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 	// as newer snapshots are taken at using the "100%ORIGIN" size). Confusing isn't it.
 	if snapVol.IsVMBlock() || snapVol.contentType == ContentTypeFS {
 		snapLVPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, ContentTypeFS, snapVol.name)
-		_, err = shared.TryRunCommand("lvresize", "-l", "+100%ORIGIN", "-f", snapLVPath)
+		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvresize", "-l", "+100%ORIGIN", "-f", snapLVPath)
 		if err != nil {
 			return fmt.Errorf("Error resizing LV snapshot named %q: %w", snapLVPath, err)
 		}
@@ -1313,7 +1313,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 
 	if snapVol.IsVMBlock() || (snapVol.contentType == ContentTypeBlock && snapVol.volType == VolumeTypeCustom) {
 		snapLVPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, ContentTypeBlock, snapVol.name)
-		_, err = shared.TryRunCommand("lvresize", "-l", "+100%ORIGIN", "-f", snapLVPath)
+		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvresize", "-l", "+100%ORIGIN", "-f", snapLVPath)
 		if err != nil {
 			return fmt.Errorf("Error resizing LV snapshot named %q: %w", snapLVPath, err)
 		}

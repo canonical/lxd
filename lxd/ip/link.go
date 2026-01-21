@@ -184,7 +184,7 @@ func (l *Link) SetNetns(netns string) error {
 
 // SetVfAddress changes the address for the specified vf.
 func (l *Link) SetVfAddress(vf string, address string) error {
-	_, err := shared.TryRunCommand("ip", "link", "set", "dev", l.Name, "vf", vf, "mac", address)
+	_, err := shared.RunCommandRetry(context.TODO(), nil, "ip", "link", "set", "dev", l.Name, "vf", vf, "mac", address)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func (l *Link) SetVfAddress(vf string, address string) error {
 
 // SetVfVlan changes the assigned VLAN for the specified vf.
 func (l *Link) SetVfVlan(vf string, vlan string) error {
-	_, err := shared.TryRunCommand("ip", "link", "set", "dev", l.Name, "vf", vf, "vlan", vlan)
+	_, err := shared.RunCommandRetry(context.TODO(), nil, "ip", "link", "set", "dev", l.Name, "vf", vf, "vlan", vlan)
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func (l *Link) SetVfVlan(vf string, vlan string) error {
 
 // SetVfSpoofchk turns packet spoof checking on or off for the specified VF.
 func (l *Link) SetVfSpoofchk(vf string, mode string) error {
-	_, err := shared.TryRunCommand("ip", "link", "set", "dev", l.Name, "vf", vf, "spoofchk", mode)
+	_, err := shared.RunCommandRetry(context.TODO(), nil, "ip", "link", "set", "dev", l.Name, "vf", vf, "spoofchk", mode)
 	if err != nil {
 		return err
 	}
