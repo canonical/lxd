@@ -1250,7 +1250,11 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 		}
 	}
 
-	return f, task.Hourly()
+	// All the cluster tasks are starting at the daemon init, at which time the cluster heartbeats
+	// have not yet been updated. The autoRemoveOrphanedOperations() might start deleting operations
+	// which are just starting on other nodes. To avoid this, we skip the first run of this
+	// task, allowing time for the heartbeats to be updated.
+	return f, task.Hourly(task.SkipFirst)
 }
 
 // autoRemoveOrphanedOperations removes old operations from offline members. Operations can be left
