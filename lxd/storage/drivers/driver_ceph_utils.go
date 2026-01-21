@@ -238,7 +238,7 @@ again:
 					// EBUSY (currently in use).
 					busyCount++
 					if busyCount == 10 {
-						return err
+						return api.StatusErrorf(http.StatusLocked, "%w", err)
 					}
 
 					// Wait a second an try again.
