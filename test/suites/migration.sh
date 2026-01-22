@@ -615,7 +615,7 @@ migration() {
   lxc_remote config device remove c1 vol2
   rmdir "$LXD_DIR/testvol2"
   lxc_remote copy l1:c1 l2:
-  lxc_remote info l2:c1 | grep snap0
+  lxc_remote info l2:c1 | grep -wF snap0
   lxc_remote delete l1:c1 l2:c1
   lxc_remote storage volume delete l1:dir vol1
   lxc_remote storage delete l1:dir
