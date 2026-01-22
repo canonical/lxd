@@ -115,6 +115,33 @@ func Test_getAllInfo(t *testing.T) {
 			expectedUserAgentFeatures: []string{"cluster"},
 		},
 		{
+			ua: "LXD 5.20 (Linux; x86_64; 6.8.1; Ubuntu; 24.04) (cluster; pro)",
+			expectedUserAgentProduct: UserAgentProduct{
+				Name:    "LXD",
+				Version: "5.20",
+			},
+			expectedUserAgentHost: UserAgentHost{
+				OS:            "Linux",
+				Arch:          "x86_64",
+				KernelVersion: "6.8.1",
+				Distro:        "Ubuntu",
+				DistroVersion: "24.04",
+			},
+			expectedUserAgentFeatures: []string{"cluster", "pro"},
+		},
+		{
+			ua: "LXD 5.20 (Linux; x86_64) (pro)",
+			expectedUserAgentProduct: UserAgentProduct{
+				Name:    "LXD",
+				Version: "5.20",
+			},
+			expectedUserAgentHost: UserAgentHost{
+				OS:   "Linux",
+				Arch: "x86_64",
+			},
+			expectedUserAgentFeatures: []string{"pro"},
+		},
+		{
 			ua: "LXD 5.20 (Linux; x86_64; 6.8.1; Arch Linux) (dir 1)",
 			expectedUserAgentProduct: UserAgentProduct{
 				Name:    "LXD",
