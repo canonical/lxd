@@ -46,6 +46,11 @@ func Load(ctx context.Context, tx *db.ClusterTx) (*Config, error) {
 	return &Config{m: m}, nil
 }
 
+// UserMicrocloud returns whether the user.microcloud key is set.
+func (c *Config) UserMicrocloud() bool {
+	return c.m.GetString("user.microcloud") != ""
+}
+
 // BackupsCompressionAlgorithm returns the compression algorithm to use for backups.
 func (c *Config) BackupsCompressionAlgorithm() string {
 	return c.m.GetString("backups.compression_algorithm")
