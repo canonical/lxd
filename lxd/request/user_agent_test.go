@@ -142,6 +142,45 @@ func Test_getAllInfo(t *testing.T) {
 			expectedUserAgentFeatures: []string{"pro"},
 		},
 		{
+			ua: "LXD 5.20 (Linux; x86_64) (microcloud)",
+			expectedUserAgentProduct: UserAgentProduct{
+				Name:    "LXD",
+				Version: "5.20",
+			},
+			expectedUserAgentHost: UserAgentHost{
+				OS:   "Linux",
+				Arch: "x86_64",
+			},
+			expectedUserAgentFeatures: []string{"microcloud"},
+		},
+		{
+			ua: "LXD 5.20 (Linux; x86_64) (cluster; microcloud)",
+			expectedUserAgentProduct: UserAgentProduct{
+				Name:    "LXD",
+				Version: "5.20",
+			},
+			expectedUserAgentHost: UserAgentHost{
+				OS:   "Linux",
+				Arch: "x86_64",
+			},
+			expectedUserAgentFeatures: []string{"cluster", "microcloud"},
+		},
+		{
+			ua: "LXD 5.21.5 (Linux; x86_64; 6.8.1; Ubuntu; 24.04) (cluster; microcloud; pro)",
+			expectedUserAgentProduct: UserAgentProduct{
+				Name:    "LXD",
+				Version: "5.21.5",
+			},
+			expectedUserAgentHost: UserAgentHost{
+				OS:            "Linux",
+				Arch:          "x86_64",
+				KernelVersion: "6.8.1",
+				Distro:        "Ubuntu",
+				DistroVersion: "24.04",
+			},
+			expectedUserAgentFeatures: []string{"cluster", "microcloud", "pro"},
+		},
+		{
 			ua: "LXD 5.20 (Linux; x86_64; 6.8.1; Arch Linux) (dir 1)",
 			expectedUserAgentProduct: UserAgentProduct{
 				Name:    "LXD",
