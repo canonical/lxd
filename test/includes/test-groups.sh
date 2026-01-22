@@ -193,6 +193,7 @@ readonly test_group_standalone_storage=(
     "backup_export_import_recover"
     "bucket_recover"
     "container_copy_incremental"
+    "container_copy_start"
     "container_devices_disk"
     "container_devices_disk_restricted"
     "container_move"
