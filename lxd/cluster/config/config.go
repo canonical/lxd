@@ -41,6 +41,11 @@ func Load(ctx context.Context, tx *db.ClusterTx) (*Config, error) {
 	return &Config{m: m}, nil
 }
 
+// UserMicrocloud returns whether the user.microcloud key is set.
+func (c *Config) UserMicrocloud() bool {
+	return c.m.GetString("user.microcloud") != ""
+}
+
 // ClusterUUID returns the static cluster UUID.
 func (c *Config) ClusterUUID() string {
 	return c.m.GetString("volatile.uuid")
