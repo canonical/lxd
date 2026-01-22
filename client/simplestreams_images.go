@@ -218,17 +218,17 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 
 // GetImageSecret isn't relevant for the simplestreams protocol.
 func (r *ProtocolSimpleStreams) GetImageSecret(fingerprint string) (string, error) {
-	return "", errors.New("Private images aren't supported by the simplestreams protocol")
+	return "", errors.New("Private images are not supported by the simplestreams protocol")
 }
 
 // GetPrivateImage isn't relevant for the simplestreams protocol.
 func (r *ProtocolSimpleStreams) GetPrivateImage(fingerprint string, secret string) (*api.Image, string, error) {
-	return nil, "", errors.New("Private images aren't supported by the simplestreams protocol")
+	return nil, "", errors.New("Private images are not supported by the simplestreams protocol")
 }
 
 // GetPrivateImageFile isn't relevant for the simplestreams protocol.
 func (r *ProtocolSimpleStreams) GetPrivateImageFile(fingerprint string, secret string, req ImageFileRequest) (*ImageFileResponse, error) {
-	return nil, errors.New("Private images aren't supported by the simplestreams protocol")
+	return nil, errors.New("Private images are not supported by the simplestreams protocol")
 }
 
 // GetImageAliases returns the list of available aliases as ImageAliasesEntry structs.

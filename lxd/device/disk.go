@@ -469,7 +469,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if shared.IsTrue(d.config["recursive"]) && shared.IsTrue(d.config["readonly"]) {
-		return errors.New("Recursive read-only bind-mounts aren't currently supported by the kernel")
+		return errors.New("Recursive read-only bind-mounts are not currently supported by the kernel")
 	}
 
 	// Check ceph options are only used when ceph or cephfs type source is specified.
@@ -660,7 +660,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		if d.config["io.bus"] == "nvme" {
-			return errors.New("NVME disks aren't supported with migration.stateful=true")
+			return errors.New("NVME disks are not supported with migration.stateful=true")
 		}
 
 		if d.config["path"] != "/" && d.pool != nil && !d.pool.Driver().Info().Remote {
