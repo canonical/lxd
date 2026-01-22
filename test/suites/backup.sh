@@ -309,9 +309,9 @@ EOF
     lxc storage volume create "${poolName}" vol1_test size=1MiB
     lxc storage volume attach "${poolName}" vol1_test c1 /mnt
     lxc start c1
-    lxc exec c1 --project test -- mount | grep /mnt
-    echo "hello world" | lxc exec c1 --project test -- tee /mnt/test.txt
-    [ "$(lxc exec c1 --project test -- cat /mnt/test.txt)" = "hello world" ]
+    lxc_remote exec c1 -- grep -wF /mnt /proc/mounts
+    echo "hello world" | lxc_remote exec c1 -- tee /mnt/test.txt
+    [ "$(lxc_remote exec c1 -- cat /mnt/test.txt)" = "hello world" ]
     lxc stop -f c1
     lxc config set c1 snapshots.expiry 1d
     lxc snapshot c1
@@ -393,20 +393,20 @@ EOF
     lxc storage volume show "${poolName}" container/c1
     lxc storage volume show "${poolName}" container/c1/snap0
     lxc start c1
-    lxc exec c1 --project test -- hostname
+    lxc_remote exec c1 -- hostname
 
     # Check snapshot expiry date has been restored.
     snapshotExpiryDateAfter=$(lxc info c1 | grep -wF "snap0")
     [ "$snapshotExpiryDateBefore" = "$snapshotExpiryDateAfter" ]
 
     # Check custom volume accessible.
-    lxc exec c1 --project test -- mount | grep /mnt
-    [ "$(lxc exec c1 --project test -- cat /mnt/test.txt)" = "hello world" ]
+    lxc_remote exec c1 -- grep -wF /mnt /proc/mounts
+    [ "$(lxc_remote exec c1 -- cat /mnt/test.txt)" = "hello world" ]
 
     # Check snashot can be restored.
     lxc restore c1 snap0
     lxc info c1
-    lxc exec c1 --project test -- hostname
+    lxc_remote exec c1 -- hostname
 
     # Recover container that is running.
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
@@ -421,10 +421,10 @@ yes
 yes
 EOF
 
-    lxc exec c1 --project test -- hostname
+    lxc_remote exec c1 -- hostname
     lxc restore c1 snap0
     lxc info c1
-    lxc exec c1 --project test -- hostname
+    lxc_remote exec c1 -- hostname
 
     # Cleanup.
     lxc delete -f c1
