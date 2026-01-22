@@ -113,11 +113,11 @@ test_vm_storage_volume_attach() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
   orig_volume_size="$(lxc storage get "${pool}" volume.size)"
   if [ -n "${orig_volume_size:-}" ]; then
-    echo "==> Override the volume.size to accommodate a VM"
+    # Override the volume.size to accommodate a VM
     lxc storage set "${pool}" volume.size "${SMALLEST_VM_ROOT_DISK}"
   fi
 
-  echo "==> Creating storage volumes"
+  # Creating storage volumes
   lxc storage volume create "${pool}" vol1 size=1MiB --type block
   lxc storage volume create "${pool}" vol2 size=1MiB
   lxc storage volume create "${pool}" vol3 size=1MiB --type block
@@ -131,17 +131,26 @@ test_vm_storage_volume_attach() {
 
   setup_instance_gocoverage v1
 
-  echo "==> Hot plugging storage volumes"
+  sub_test "Hot plugging storage volumes"
   lxc storage volume attach "${pool}" vol2 v1 /mnt
   lxc storage volume attach "${pool}" vol3 v1
   sleep 2
 
-  echo "==> Checking proper hot-plugging"
+  # Checking proper hot-plugging
   lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol1
   lxc exec v1 -- findmnt /mnt
   lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol3
 
-  echo "==> Snapshot custom volume and verify read-only attach"
+  # Detaching storage volumes
+  lxc storage volume detach "${pool}" vol1 v1
+  lxc storage volume detach "${pool}" vol3 v1
+  sleep 2
+
+  # Checking proper unplugging
+  ! lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol1 || false
+  ! lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol3 || false
+
+  sub_test "Snapshot custom volume and verify read-only disk device attach"
   lxc exec v1 -- touch /mnt/snap-data
   lxc storage volume detach "${pool}" vol2 v1
   lxc storage volume snapshot "${pool}" vol2
@@ -151,15 +160,7 @@ test_vm_storage_volume_attach() {
   ! lxc exec v1 -- touch /mnt-snap/should-fail || false
   lxc config device remove v1 vol2-snap
 
-  echo "==> Detaching storage volumes"
-  lxc storage volume detach "${pool}" vol1 v1
-  lxc storage volume detach "${pool}" vol3 v1
-  sleep 2
-
-  echo "==> Checking proper unplugging"
-  ! lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol1 || false
   ! lxc exec v1 -- findmnt /mnt || false
-  ! lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol3 || false
 
   # Cleanup
   lxc storage volume delete "${pool}" vol1
@@ -172,7 +173,7 @@ test_vm_storage_volume_attach() {
   lxc delete -f v1
 
   if [ -n "${orig_volume_size:-}" ]; then
-    echo "==> Restore the volume.size"
+    # Restore the volume.size
     lxc storage set "${pool}" volume.size "${orig_volume_size}"
   fi
 }
