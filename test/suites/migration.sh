@@ -103,7 +103,7 @@ migration() {
   lxc_remote snapshot l1:nonlive
   lxc_remote config unset l1:nonlive user.tester
   lxc_remote move l1:nonlive l2:
-  lxc_remote config show l2:nonlive/snap0 | grep user.tester | grep foo
+  [ "$(lxc_remote config get l2:nonlive/snap0 user.tester)" = "foo" ]
 
   # This line exists so that the container's storage volume is mounted when we
   # perform existence check for various files.
@@ -695,9 +695,9 @@ migration() {
   lxc storage volume import l1:"${pool}" ./foo.iso iso1
   lxc storage volume copy l1:"${pool}"/iso1 l2:"${remote_pool}"/iso1
 
-  lxc storage volume show l2:"${remote_pool}" iso1 | grep -xF 'content_type: iso'
+  [ "$(lxc storage volume get --property l2:"${remote_pool}" iso1 content_type)" = "iso" ]
   lxc storage volume move l1:"${pool}"/iso1 l2:"${remote_pool}"/iso2
-  lxc storage volume show l2:"${remote_pool}" iso2 | grep -xF 'content_type: iso'
+  [ "$(lxc storage volume get --property l2:"${remote_pool}" iso2 content_type)" = "iso" ]
   ! lxc storage volume show l1:"${pool}" iso1 || false
 
   lxc storage volume delete l2:"${remote_pool}" iso1
