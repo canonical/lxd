@@ -1,4 +1,4 @@
-test_incremental_copy() {
+test_container_copy_incremental() {
   local lxd_backend
   lxd_backend="$(storage_backend "${LXD_DIR}")"
 
