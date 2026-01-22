@@ -1,15 +1,20 @@
 test_snapshots() {
-  ensure_import_testimage
-  snapshots "lxdtest-$(basename "${LXD_DIR}")"
+  ensure_has_localhost_remote "${LXD_ADDR}"
 
-  if [ "$(storage_backend "$LXD_DIR")" = "lvm" ]; then
+  ensure_import_testimage
+
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  snapshots "${lxd_backend}" "lxdtest-$(basename "${LXD_DIR}")"
+
+  if [ "${lxd_backend}" = "lvm" ]; then
     pool="lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snapshots"
 
     # Test that non-thinpool lvm backends work fine with snaphots.
     lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size="${DEFAULT_VOLUME_SIZE}"
     lxc profile device set default root pool "${pool}"
 
-    snapshots "${pool}"
+    snapshots "${lxd_backend}" "${pool}"
 
     lxc profile device set default root pool "lxdtest-$(basename "${LXD_DIR}")"
 
@@ -18,11 +23,9 @@ test_snapshots() {
 }
 
 snapshots() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-  pool="$1"
-
-  ensure_has_localhost_remote "${LXD_ADDR}"
+  local lxd_backend pool
+  lxd_backend="$1"
+  pool="$2"
 
   lxc init testimage foo -d "${SMALL_ROOT_DISK}"
 
@@ -84,17 +87,12 @@ snapshots() {
 
     ! lxc config edit foo/snap0 < "$tmp_yaml" 2>&1 | grep -xF "$ERROR_MSG" || false
   done
+  rm "${tmp_yaml}"
 
   # Test that expires_at can be modified
   expiry_date=$(date -u -d '+1 day' '+%Y-%m-%dT%H:%M:%SZ')
-  lxc config show foo/snap0 > "$tmp_yaml"
-  sed -i "s/^expires_at:.*/expires_at: ${expiry_date}/" "$tmp_yaml"
-  lxc config edit foo/snap0 <<EOF
-$(cat "$tmp_yaml")
-EOF
-  lxc config show foo/snap0 | grep -F "expires_at: ${expiry_date}"
-
-  rm -f "$tmp_yaml"
+  lxc config show foo/snap0 | sed "s/^expires_at:.*/expires_at: ${expiry_date}/" | lxc config edit foo/snap0
+  lxc config show foo/snap0 | grep -xF "expires_at: ${expiry_date}"
 
   lxc snapshot foo
   # FIXME: make this backend agnostic
@@ -191,16 +189,19 @@ EOF
 }
 
 test_snapshot_restore() {
-  snap_restore "lxdtest-$(basename "${LXD_DIR}")"
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
 
-  if [ "$(storage_backend "$LXD_DIR")" = "lvm" ]; then
+  snap_restore "${lxd_backend}" "lxdtest-$(basename "${LXD_DIR}")"
+
+  if [ "${lxd_backend}" = "lvm" ]; then
     pool="lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snap-restore"
 
     # Test that non-thinpool lvm backends work fine with snaphots.
     lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size="${DEFAULT_VOLUME_SIZE}"
     lxc profile device set default root pool "${pool}"
 
-    snap_restore "${pool}"
+    snap_restore "${lxd_backend}" "${pool}"
 
     lxc profile device set default root pool "lxdtest-$(basename "${LXD_DIR}")"
 
@@ -209,9 +210,9 @@ test_snapshot_restore() {
 }
 
 snap_restore() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-  pool="$1"
+  local lxd_backend pool
+  lxd_backend="${1}"
+  pool="${2}"
 
   ensure_import_testimage
 
@@ -332,7 +333,7 @@ snap_restore() {
   [ "$(lxc storage volume get "${pool}" container/bar volatile.uuid)" = "${initialVolumeUUID}" ]
 
   # Check that instances have two different UUID after a snapshot copy
-  lxc launch testimage bar2 -d "${SMALL_ROOT_DISK}"
+  lxc init --empty bar2 -d "${SMALL_ROOT_DISK}"
   initialUUID=$(lxc config get bar2 volatile.uuid)
   initialGenerationID=$(lxc config get bar2 volatile.uuid.generation)
   lxc copy bar2 bar3
@@ -344,8 +345,7 @@ snap_restore() {
     false
   fi
 
-  lxc delete --force bar2
-  lxc delete --force bar3
+  lxc delete bar2 bar3
 
   # Check config value in snapshot has been restored
   cpus=$(lxc config get bar limits.cpu)
@@ -367,13 +367,13 @@ snap_restore() {
     restore_and_compare_fs snap0
 
     # check container is running after restore
-    lxc list --fast | grep -wF bar | grep -wF RUNNING
+    [ "$(lxc list -f csv -c s)" = "RUNNING" ]
   fi
 
   lxc delete --force bar
 
   # Test if container's with hyphen's in their names are treated correctly.
-  lxc launch testimage a-b -d "${SMALL_ROOT_DISK}"
+  lxc init --empty a-b -d "${SMALL_ROOT_DISK}"
   lxc snapshot a-b base
   lxc restore a-b base
   lxc snapshot a-b c-d
@@ -418,9 +418,6 @@ restore_and_compare_fs() {
 }
 
 test_snapshot_expiry() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc config show c1/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
@@ -452,28 +449,23 @@ test_snapshot_expiry() {
 }
 
 test_snapshot_schedule() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-
   ensure_import_testimage
 
   # Check we get a snapshot on first start
   lxc launch testimage c1 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup'
-  lxc launch testimage c2 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, @daily'
-  lxc launch testimage c3 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 5,6 * * *'
-  lxc launch testimage c4 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 5-8 * * *'
-  lxc launch testimage c5 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 2,5-8/2 * * *'
-  [ "$(lxc list --columns nS --format csv c1)" = "c1,1" ]
-  [ "$(lxc list --columns nS --format csv c2)" = "c2,1" ]
-  [ "$(lxc list --columns nS --format csv c3)" = "c3,1" ]
-  [ "$(lxc list --columns nS --format csv c4)" = "c4,1" ]
-  [ "$(lxc list --columns nS --format csv c5)" = "c5,1" ]
+  [ "$(lxc list --columns S --format csv)" = "1" ]
+
+  # Check we can set various schedule formats
+  lxc config set c1 snapshots.schedule='@startup, @daily'
+  lxc config set c1 snapshots.schedule='@startup, 10 5,6 * * *'
+  lxc config set c1 snapshots.schedule='@startup, 10 5-8 * * *'
+  lxc config set c1 snapshots.schedule='@startup, 10 2,5-8/2 * * *'
 
   # Check we get a new snapshot on restart
   lxc restart c1 -f
-  [ "$(lxc list --columns nS --format csv c1)" = "c1,2" ]
+  [ "$(lxc list --columns S --format csv)" = "2" ]
 
-  lxc delete -f c1 c2 c3 c4 c5
+  lxc delete -f c1
 }
 
 test_snapshot_volume_db_recovery() {
@@ -525,9 +517,6 @@ test_snapshot_fail() {
 }
 
 test_snapshot_multi_volume() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-
   ensure_import_testimage
 
   local poolName
@@ -590,7 +579,7 @@ test_snapshot_multi_volume() {
   lxc exec c1 -- test -f /mnt/shared/snap2
 
   # If using zfs, we can only restore the latest snapshot.
-  if [ "$lxd_backend" = "zfs" ]; then
+  if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
     lxc delete c1/c1-snap2
     lxc storage volume delete "${poolName}" non-shared/snap1
   fi
