@@ -329,7 +329,7 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 		}
 	}
 
-	if config != nil {
+	if config != nil && len(configOverrides) > 0 {
 		// Strip the volatile keys from source if requested.
 		if !keepVolatile {
 			for k := range *config {
@@ -344,9 +344,11 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 
 		// Strip the last_state.power key in all cases.
 		delete(*config, "volatile.last_state.power")
+	} else {
+		*config = nil
 	}
 
-	if devices != nil {
+	if devices != nil && (len(deviceOverrides) > 0 || poolName != "") {
 		// Check to see if any of the devices overrides are for devices that are not yet defined in the
 		// local devices and thus are expected to be coming from profiles.
 		needProfileExpansion := false
@@ -390,6 +392,8 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 				}
 			}
 		}
+	} else {
+		*devices = nil
 	}
 
 	return nil
