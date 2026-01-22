@@ -68,10 +68,10 @@ test_clustering_live_migration() {
 
   # Inside the VM, format and mount the volume, then write some data to it.
   if [ "${isRemoteDriver}" = true ]; then
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- mkfs -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- mkdir /mnt/vol1
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- mount -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata /mnt/vol1
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- cp /etc/hostname /mnt/vol1/bar
+    # First check there is a symlink pointing to a block device for the volume as otherwise we might end up
+    # creating a simple file in /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- test -b /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
+    echo "foo-$$" | LXD_DIR="${LXD_ONE_DIR}" lxc file push - v1/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
   fi
 
   # Perform live migration of the VM from node1 to node2.
@@ -89,7 +89,7 @@ test_clustering_live_migration() {
   # Check that the file we created is still there with the same contents.
   if [ "${isRemoteDriver}" = true ]; then
     echo "Verifying data integrity after live migration"
-    [ "$(LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- cat /mnt/vol1/bar)" = "v1" ]
+    LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- grep -Fxm1 "foo-$$" /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
   fi
 
   # Cleanup
