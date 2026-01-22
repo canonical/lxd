@@ -104,8 +104,8 @@ EOF
   lxc storage set "$storage_pool" user.abc def
   [ "$(lxc storage get "$storage_pool" user.abc)" = "def" ]
 
-  lxc storage volume set "$storage_pool" "$storage_volume" user.abc def
-  [ "$(lxc storage volume get "$storage_pool" "$storage_volume" user.abc)" = "def" ]
+  lxc storage volume set "$storage_pool" "$storage_volume" user.abc xyz
+  [ "$(lxc storage volume get "$storage_pool" "$storage_volume" user.abc)" = "xyz" ]
 
   # Check if storage volume has an UUID.
   [ -n "$(lxc storage volume get "$storage_pool" "$storage_volume" volatile.uuid)" ]
@@ -139,15 +139,13 @@ EOF
       lxc init testimage uuid1 -s "lxdtest-$(basename "${LXD_DIR}")-pool-btrfs"
       POOL="lxdtest-$(basename "${LXD_DIR}")-pool-btrfs"
       lxc copy uuid1 uuid2
-      lxc start uuid1
-      lxc start uuid2
+      lxc start uuid1 uuid2
       if [ "$lxd_backend" = "lvm" ]; then
         [ "$(blkid -s UUID -o value -p /dev/"${POOL}"/containers_uuid1)" != "$(blkid -s UUID -o value -p /dev/"${POOL}"/containers_uuid2)" ]
       elif [ "$lxd_backend" = "ceph" ]; then
         [ "$(blkid -s UUID -o value -p /dev/rbd/"${POOL}"/container_uuid1)" != "$(blkid -s UUID -o value -p /dev/rbd/"${POOL}"/container_uuid2)" ]
       fi
-      lxc delete --force uuid1
-      lxc delete --force uuid2
+      lxc delete --force uuid1 uuid2
 
       # Test UUID re-generation in case of restore.
       lxc init testimage uuid1 -s "${POOL}"
@@ -166,9 +164,7 @@ EOF
       fi
       lxc delete --force uuid1
 
-      lxc image delete testimage
       lxc storage delete "$btrfs_storage_pool"
-      ensure_import_testimage
   fi
 
   (
@@ -178,7 +174,7 @@ EOF
 
     # shellcheck disable=SC1009
     if [ "$lxd_backend" = "zfs" ]; then
-    # Create loop file zfs pool.
+      # Create loop file zfs pool.
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" zfs
 
       # Check that we can't create a loop file in a non-LXD owned location.
@@ -888,8 +884,7 @@ EOF
     rootOrigMaxSizeKiB=$((rootOrigSizeKiB+2000))
 
     lxc profile device set default root size "${QUOTA1}"
-    lxc stop -f quota1
-    lxc start quota1
+    lxc restart -f quota1
 
     # BTRFS quota isn't accessible with the df tool.
     if [ "$lxd_backend" != "btrfs" ]; then
@@ -907,9 +902,8 @@ EOF
 
     lxc profile device set default root size "${QUOTA2}"
 
-    lxc restart -f quota1
+    lxc restart -f quota1 quota2
 
-    lxc restart -f quota2
     if [ "$lxd_backend" != "btrfs" ]; then
       rootSizeKiB=$(lxc exec quota2 -- df -P / | tail -n1 | awk '{print $2}')
       if [ "$rootSizeKiB" -gt "$rootMaxKiB2" ] || [ "$rootSizeKiB" -lt "$rootMinKiB2" ] ; then
@@ -953,7 +947,7 @@ EOF
     ensure_import_testimage
 
     # Launch container.
-    lxc launch -s "${pool_name}" testimage c1
+    lxc init -s "${pool_name}" testimage c1
     lxc storage volume create "${pool_name}" fsvol
 
     # Disable quotas. The usage should be 0.
@@ -975,7 +969,7 @@ EOF
     [ "${usage}" -gt 0 ]
 
     # Clean up everything.
-    lxc delete -f c1
+    lxc delete c1
     lxc storage delete "${pool_name}"
   fi
 
@@ -1000,7 +994,7 @@ EOF
 
     lxc storage create "${pool_name}" "${lxd_backend}" size=1GiB
 
-    lxc launch testimage c1 -s "${pool_name}"
+    lxc init testimage c1 -s "${pool_name}"
 
     expected_size=1073741824
     # +/- 5% of the expected size
@@ -1047,9 +1041,9 @@ EOF
     ! lxc storage set "${pool_name}" size=1GiB || false
 
     # Ensure the pool is still usable after resizing by launching an instance
-    lxc launch testimage c2 -s "${pool_name}"
+    lxc init testimage c2 -s "${pool_name}"
 
-    lxc rm -f c1 c2
+    lxc delete c1 c2
     lxc storage rm "${pool_name}"
   fi
 

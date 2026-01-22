@@ -15,7 +15,7 @@ test_storage_local_volume_handling() {
     fi
 
     if storage_backend_available "ceph"; then
-      lxc storage create "${pool_base}-ceph" ceph volume.size=25MiB ceph.osd.pg_num=16
+      lxc storage create "${pool_base}-ceph" ceph volume.size="${DEFAULT_VOLUME_SIZE}" ceph.osd.pg_num=8
       if [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
         lxc storage create "${pool_base}-cephfs" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
       fi
@@ -24,7 +24,7 @@ test_storage_local_volume_handling() {
     lxc storage create "${pool_base}-dir" dir
 
     if storage_backend_available "lvm"; then
-      lxc storage create "${pool_base}-lvm" lvm volume.size=25MiB
+      lxc storage create "${pool_base}-lvm" lvm volume.size="${DEFAULT_VOLUME_SIZE}"
     fi
 
     if storage_backend_available "zfs"; then
@@ -47,11 +47,11 @@ test_storage_local_volume_handling() {
     fi
 
     if [ "$driver" = "ceph" ]; then
-      pool_opts="volume.size=25MiB ceph.osd.pg_num=16"
+      pool_opts="volume.size=${DEFAULT_VOLUME_SIZE} ceph.osd.pg_num=16"
     fi
 
     if [ "$driver" = "lvm" ] || [ "$driver" = "pure" ]; then
-      pool_opts="volume.size=25MiB"
+      pool_opts="volume.size=${DEFAULT_VOLUME_SIZE}"
     fi
 
     if [ "$driver" = "pure" ]; then
