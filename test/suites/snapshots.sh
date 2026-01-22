@@ -59,7 +59,7 @@ snapshots() {
   # Test that only expires_at field can be modified for instance snapshots
 
   tmp_yaml=$(mktemp)
-  ERROR_MSG="Error: Only \"expires_at\" field(s) can be modified for instance snapshots"
+  ERROR_MSG='Error: Only "expires_at" field(s) can be modified for instance snapshots'
 
   # Test all non-editable properties
   for field in name architecture config devices ephemeral profiles stateful created_at last_used_at; do
