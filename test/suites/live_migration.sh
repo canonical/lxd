@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # test_clustering_live_migration spawns a 2-node LXD cluster, creates a virtual machine on the first node
 # and live migrates it to the second node. If the storage backend is remote, it also creates a custom
 # storage volume which needs to be live migrated as along the virtual machine.
@@ -47,10 +45,9 @@ test_clustering_live_migration() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${poolName}" volume.size="${SMALLEST_VM_ROOT_DISK}"
 
   # Initialize the VM.
-  LXD_DIR="${LXD_ONE_DIR}" lxc init ubuntu-vm vm \
+  LXD_DIR="${LXD_ONE_DIR}" lxc init ubuntu-vm v1 \
     --vm \
-    --config limits.cpu=2 \
-    --config limits.memory=768MiB \
+    --config limits.memory=384MiB \
     --config migration.stateful=true \
     --device root,size="${SMALLEST_VM_ROOT_DISK}" \
     --target node1
@@ -59,38 +56,49 @@ test_clustering_live_migration() {
   if [ "${isRemoteDriver}" = true ]; then
     # Attach the block volume to the VM.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${poolName}" vmdata --type=block size=1MiB
-    LXD_DIR="${LXD_ONE_DIR}" lxc config device add vm vmdata disk pool="${poolName}" source=vmdata
+    LXD_DIR="${LXD_ONE_DIR}" lxc config device add v1 vmdata disk pool="${poolName}" source=vmdata
   fi
 
   # Start the VM.
-  LXD_DIR="${LXD_ONE_DIR}" lxc start vm
-  LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady vm
+  LXD_DIR="${LXD_ONE_DIR}" lxc start v1
+  LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady v1
+
+  # Record the initial boot ID
+  INITIAL_BOOT_ID="$(LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)"
 
   # Inside the VM, format and mount the volume, then write some data to it.
   if [ "${isRemoteDriver}" = true ]; then
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mkfs -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mkdir /mnt/vol1
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- mount -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata /mnt/vol1
-    LXD_DIR="${LXD_ONE_DIR}" lxc exec vm -- cp /etc/hostname /mnt/vol1/bar
+    # First check there is a symlink pointing to a block device for the volume as otherwise we might end up
+    # creating a simple file in /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- test -b /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
+    echo "foo-$$" | LXD_DIR="${LXD_ONE_DIR}" lxc file push - v1/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
   fi
 
   # Perform live migration of the VM from node1 to node2.
-  echo "Live migrating instance 'vm' ..."
-  LXD_DIR="${LXD_ONE_DIR}" lxc move vm --target node2
-  LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady vm
+  LXD_DIR="${LXD_ONE_DIR}" lxc move v1 --target node2
+
+  # Post live migration checks
+
+  # Let the lxd-agent dial back post-migration which confirms the VM is still alive
+  LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady v1
+
+  # Verify the VM was not rebooted
+  [ "$(LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)" = "${INITIAL_BOOT_ID}" ]
 
   # After live migration, the volume should be functional and mounted.
   # Check that the file we created is still there with the same contents.
   if [ "${isRemoteDriver}" = true ]; then
     echo "Verifying data integrity after live migration"
-    [ "$(LXD_DIR=${LXD_ONE_DIR} lxc exec vm -- cat /mnt/vol1/bar)" = "vm" ]
+    LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- grep -Fxm1 "foo-$$" /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
   fi
 
   # Cleanup
   echo "Cleaning up ..."
   unset LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get vm volatile.base_image)"
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete --force vm
+  local fingerprint
+  fingerprint="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get v1 volatile.base_image)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete --force v1
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "${fingerprint}"
 
   if [ "${isRemoteDriver}" = true ]; then
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${poolName}" vmdata
