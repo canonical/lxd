@@ -862,7 +862,7 @@ _backup_volume_export_with_project() {
 
   # Create file on the custom volume.
   echo foo | lxc file push - c1/mnt/test
-  LXC_LOCAL='' lxc_remote exec c1 -- sync /mnt/test
+  lxc_remote exec c1 -- sync /mnt/test
 
   # Snapshot the custom volume.
   lxc storage volume set "${custom_vol_pool}" testvol user.foo=test-snap0
@@ -870,7 +870,7 @@ _backup_volume_export_with_project() {
 
   # Change the content (the snapshot will contain the old value).
   echo bar | lxc file push - c1/mnt/test
-  LXC_LOCAL='' lxc_remote exec c1 -- sync /mnt/test
+  lxc_remote exec c1 -- sync /mnt/test
   lxc stop -f c1
 
   lxc storage volume set "${custom_vol_pool}" testvol user.foo=test-snap1
