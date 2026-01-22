@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -150,9 +149,13 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			spreadDurationMs := int(spreadDuration.Milliseconds())
 			spreadRange := spreadDurationMs - 3000
 
+			// Spread the heartbeats evenly over the spread range.
+			// That way the nodes can compute when the next heartbeat is expected to arrive
+			// and detect loss of connection to the leader without sending heartbeats themselves
+			// in the opposite direction.
 			if spreadRange > 0 {
 				select {
-				case <-time.After(time.Duration(rand.Intn(spreadRange)) * time.Millisecond):
+				case <-time.After(time.Duration(spreadRange/len(nodes)*int(nodeID-1)) * time.Millisecond):
 				case <-ctx.Done(): // Proceed immediately to heartbeat of member if asked to.
 				}
 			}
