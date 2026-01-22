@@ -141,9 +141,19 @@ test_vm_storage_volume_attach() {
   lxc exec v1 -- findmnt /mnt
   lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol3
 
-  # Detaching storage volumes
-  lxc storage volume detach "${pool}" vol1 v1
+  sub_test "Snapshot custom block device volume and verify read-only disk device attach"
   lxc storage volume detach "${pool}" vol3 v1
+  lxc storage volume snapshot "${pool}" vol3
+  lxc config device add v1 v3rs disk source=vol3 source.snapshot=snap0 pool="${pool}"
+  sleep 2
+  snap_path=/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_v3rs
+  snap_devname="$(basename "$(lxc exec v1 -- readlink "${snap_path}")")"
+  [ "$(lxc exec v1 -- cat "/sys/block/${snap_devname}/ro")" = "1" ]
+  lxc config device remove v1 v3rs
+  sleep 2
+  ! lxc exec v1 -- stat "${snap_path}" || false
+
+  lxc storage volume detach "${pool}" vol1 v1
   sleep 2
 
   # Checking proper unplugging
