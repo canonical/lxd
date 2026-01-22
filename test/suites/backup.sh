@@ -287,9 +287,17 @@ test_container_recover() {
 
     lxc storage set "${poolName}" user.foo=bah
     lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
-    lxc profile device add default root disk path=/ pool="${poolName}" --project test
-    lxc profile device add default eth0 nic nictype=p2p --project test
+
+    # Switching project avoids needing to pass `--project test` to every command
+    # except for `lxc exec ... -- ...` because the `--` causes the `lxc` wrapper
+    # to also inject a `--force-local` argument which causes `lxc` to ignore any
+    # configuration file thus assuming the default project. A workaround is to
+    # use the `lxc_remote` wrapper that does not forcibly inject
+    # `--force-local`.
     lxc project switch test
+
+    lxc profile device add default root disk path=/ pool="${poolName}"
+    lxc profile device add default eth0 nic nictype=p2p
 
     # Basic no-op check.
     lxd recover <<EOF | grep "No unknown storage volumes found. Nothing to do."
