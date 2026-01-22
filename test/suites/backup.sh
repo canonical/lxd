@@ -381,7 +381,6 @@ EOF
     lxc storage volume show "${poolName}" vol1_test/snap0
 
     # Check snapshot exists and container can be started.
-    lxc info c1 | grep snap0
     lxc storage volume ls "${poolName}"
     lxc storage volume show "${poolName}" container/c1
     lxc storage volume show "${poolName}" container/c1/snap0
@@ -414,7 +413,6 @@ yes
 yes
 EOF
 
-    lxc info c1 | grep snap0
     lxc exec c1 --project test -- hostname
     lxc restore c1 snap0
     lxc info c1
