@@ -744,6 +744,10 @@ type InstanceCopyArgs struct {
 	// API extension: override_snapshot_profiles_on_copy
 	// If set, snapshots of the instance copy receive profiles of the target instance
 	OverrideSnapshotProfiles bool
+
+	// Whether to start the instance after copy.
+	// This was made possible by adding the instance_create_start API extension.
+	Start bool
 }
 
 // The InstanceSnapshotCopyArgs struct is used to pass additional options during instance copy.
@@ -757,6 +761,10 @@ type InstanceSnapshotCopyArgs struct {
 	// API extension: container_snapshot_stateful_migration
 	// If set, the instance running state will be transferred (live migration)
 	Live bool
+
+	// Whether to start the instance after copy.
+	// This was made possible by adding the instance_create_start API extension.
+	Start bool
 }
 
 // The InstanceConsoleArgs struct is used to pass additional options during a

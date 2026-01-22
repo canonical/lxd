@@ -32,6 +32,7 @@ type cmdCopy struct {
 	flagTargetProject     string
 	flagRefresh           bool
 	flagAllowInconsistent bool
+	flagStart             bool
 }
 
 func (c *cmdCopy) command() *cobra.Command {
@@ -63,6 +64,7 @@ The pull transfer mode is the default as it is compatible with all LXD versions.
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied")
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, "Perform an incremental copy")
 	cmd.Flags().BoolVar(&c.flagAllowInconsistent, "allow-inconsistent", false, "Ignore copy errors for volatile files")
+	cmd.Flags().BoolVar(&c.flagStart, "start", false, "Start instance after copy")
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			return c.global.cmpTopLevelResource("instance", toComplete)
@@ -99,6 +101,11 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	// Don't allow refreshing without profiles.
 	if c.flagRefresh && c.flagNoProfiles {
 		return errors.New("--no-profiles cannot be used with --refresh")
+	}
+
+	// Don't allow refreshing and starting the instance afterwards as not supported by the migration API.
+	if c.flagRefresh && c.flagStart {
+		return errors.New("--start cannot be used with --refresh")
 	}
 
 	// If the instance is being copied to a different remote and no destination name is
@@ -176,9 +183,10 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 		// Prepare the instance creation request
 		args := lxd.InstanceSnapshotCopyArgs{
-			Name: destName,
-			Mode: mode,
-			Live: stateful,
+			Name:  destName,
+			Mode:  mode,
+			Live:  stateful,
+			Start: c.flagStart,
 		}
 
 		if c.flagRefresh {
@@ -217,6 +225,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			Mode:              mode,
 			Refresh:           c.flagRefresh,
 			AllowInconsistent: c.flagAllowInconsistent,
+			Start:             c.flagStart,
 		}
 
 		// Copy of an instance into a new instance
@@ -227,6 +236,11 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 		// Only start the instance back up if doing a stateless migration.
 		// Its LXD's job to start things back up when receiving a stateful migration.
+		// This is when copyInstace is called by the move command and server side move
+		// cannot be performed, e.g. when migrating an instance between different LXD servers which are not in the same cluster
+		// or when server side move is simply not supported.
+		// The server will switch to migration so we cannot simply populate the Start field of the InstanceCopyArgs as this
+		// information will get lost during migration and is essentially not received by the target.
 		if entry.StatusCode == api.Running && move && !stateful {
 			start = true
 		}
@@ -325,6 +339,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		progress.Done("")
+	}
+
+	// In case the destination LXD doesn't support instance start on copy,
+	// indicate to start the instance manually.
+	if c.flagStart && !dest.HasExtension("instance_create_start") {
+		start = true
 	}
 
 	// Start the instance if needed
