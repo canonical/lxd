@@ -52,7 +52,7 @@ func (d *usb) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if instConf.Architecture() == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
-		return errors.New("USB devices aren't supported on s390x")
+		return errors.New("USB devices are not supported on s390x")
 	}
 
 	rules := map[string]func(string) error{
