@@ -158,6 +158,8 @@ test_vm_storage_volume_attach() {
   lxc exec v1 -- findmnt /mnt-snap
   lxc exec v1 -- test -f /mnt-snap/snap-data
   ! lxc exec v1 -- touch /mnt-snap/should-fail || false
+  lxc exec v1 -- mount -o remount,rw /mnt-snap # Remount as rw
+  ! lxc exec v1 -- touch /mnt-snap/should-fail || false
   lxc config device remove v1 vol2-snap
 
   ! lxc exec v1 -- findmnt /mnt || false
