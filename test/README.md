@@ -140,3 +140,5 @@ set -e
 
 However, note that in the above example, if the `!` is moved outside of the `[]`, it would also warrant a ` || false` fallback.
 ````
+
+For error message assertions, prefer single-quoted strings so error text with `"` does not require escaping and the comparisons stay readable.
