@@ -891,6 +891,8 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 			}
 		}
 
+		req.Start = args.Start
+
 		// Allow overriding the target name
 		if args.Name != "" {
 			req.Name = args.Name
@@ -2006,6 +2008,8 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 		if args.Name != "" {
 			req.Name = args.Name
 		}
+
+		req.Start = args.Start
 	}
 
 	sourceInfo, err := source.GetConnectionInfo()

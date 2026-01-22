@@ -171,6 +171,12 @@ test_basic_usage() {
   # Check that volatile.last_state.power is cleared even on refresh.
   [ "$(lxc config get bar volatile.last_state.power || echo fail)" = "" ]
 
+  lxc delete foo -f
+
+  # Test starting container after copy.
+  lxc copy bar foo --start
+  [ "$(lxc list -f csv -c s foo)" = "RUNNING" ]
+
   lxc stop foo -f
   lxc delete bar
 
