@@ -180,8 +180,8 @@ migration() {
   lxc_remote delete l2:nonlive --force
 
   # Get container's pool.
-  pool=$(lxc config profile device get default root pool)
-  remote_pool=$(lxc_remote config profile device get l2:default root pool)
+  pool="$(lxc profile device get default root pool)"
+  remote_pool="$(lxc_remote profile device get l2:default root pool)"
 
   # Test container only copies
   lxc init testimage cccp

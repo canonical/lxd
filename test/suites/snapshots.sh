@@ -235,9 +235,6 @@ snap_restore() {
   lxc exec bar -- ln -s file_only_in_snap0 /root/statelink
   lxc stop bar --force
 
-  # Get container's pool.
-  pool=$(lxc config profile device get default root pool)
-
   lxc storage volume set "${pool}" container/bar user.foo=snap0
 
   # Check parent volume.block.filesystem is copied to snapshot and not from pool.
@@ -276,7 +273,6 @@ snap_restore() {
   # Check volume.block.filesystem on storage volume in parent and snapshot match.
   if [ "${lxd_backend}" = "lvm" ] || [ "${lxd_backend}" = "ceph" ]; then
     # Change pool volume.block.filesystem setting after creation of instance and before snapshot.
-    pool=$(lxc config profile device get default root pool)
     parentFS=$(lxc storage volume get "${pool}" container/bar block.filesystem)
     snapFS=$(lxc storage volume get "${pool}" container/bar/snap0 block.filesystem)
 

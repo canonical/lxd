@@ -48,13 +48,6 @@ func (c *cmdConfig) command() *cobra.Command {
 	configMetadataCmd := cmdConfigMetadata{global: c.global, config: c}
 	cmd.AddCommand(configMetadataCmd.command())
 
-	// Profile
-	configProfileCmd := cmdProfile{global: c.global}
-	profileCmd := configProfileCmd.command()
-	profileCmd.Hidden = true
-	profileCmd.Deprecated = "please use `lxc profile`"
-	cmd.AddCommand(profileCmd)
-
 	// Set
 	configSetCmd := cmdConfigSet{global: c.global, config: c}
 	cmd.AddCommand(configSetCmd.command())
