@@ -63,6 +63,9 @@ test_clustering_live_migration() {
   LXD_DIR="${LXD_ONE_DIR}" lxc start v1
   LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady v1
 
+  # Record the initial boot ID
+  INITIAL_BOOT_ID="$(LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)"
+
   # Inside the VM, format and mount the volume, then write some data to it.
   if [ "${isRemoteDriver}" = true ]; then
     LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 -- mkfs -t ext4 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vmdata
@@ -74,8 +77,13 @@ test_clustering_live_migration() {
   # Perform live migration of the VM from node1 to node2.
   LXD_DIR="${LXD_ONE_DIR}" lxc move v1 --target node2
 
+  # Post live migration checks
+
   # Let the lxd-agent dial back post-migration which confirms the VM is still alive
   LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady v1
+
+  # Verify the VM was not rebooted
+  [ "$(LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)" = "${INITIAL_BOOT_ID}" ]
 
   # After live migration, the volume should be functional and mounted.
   # Check that the file we created is still there with the same contents.
