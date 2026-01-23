@@ -1732,6 +1732,11 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
+	err = b.applyInstanceRootDiskInitialValues(inst, vol.Config())
+	if err != nil {
+		return err
+	}
+
 	// Get the source storage pool.
 	srcPool, err := LoadByInstance(b.state, src)
 	if err != nil {
