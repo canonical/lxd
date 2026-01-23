@@ -2001,11 +2001,13 @@ func (d *Daemon) init() error {
 		d.tasks.Add(autoRemoveExpiredTokensTask(d.State))
 	}
 
-	// Start all background tasks
-	d.tasks.Start(d.shutdownCtx)
-
 	// Load Ubuntu Pro configuration before starting any instances.
+	// Also add the Ubuntu Pro attachment status to the user agent.
 	d.ubuntuPro = ubuntupro.New(d.shutdownCtx, d.os.ReleaseInfo["NAME"])
+
+	// Start all background tasks.
+	// Some background tasks might do HTTP requests which are best done once the user agent is fully configured.
+	d.tasks.Start(d.shutdownCtx)
 
 	// Restore instances
 	instancesStart(d.State(), instances)
