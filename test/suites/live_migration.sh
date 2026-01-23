@@ -123,9 +123,9 @@ test_clustering_live_migration_same_cluster() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
-# test_clustering_live_migration_diff_servers spawns 2 LXD servers, creates a virtual machine on the first one,
+# test_live_migration spawns 2 LXD servers, creates a virtual machine on the first one,
 # and live migrates it to the second one.
-test_clustering_live_migration_diff_servers() {
+test_live_migration() {
   # Spawn two LXD servers.
   LXD_ONE_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
   LXD_TWO_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
