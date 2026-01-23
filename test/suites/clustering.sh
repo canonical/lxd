@@ -5,12 +5,11 @@ test_clustering_enable() {
   spawn_lxd "${LXD_DIR}" false
 
   # Test specified core.https_address with no cluster.https_address
-  lxc config show | grep -xE "\s+core\.https_address: 127\.0\.0\.1:[0-9]{4,5}"
-  # Launch a container.
-  ensure_import_testimage
+  [[ "$(lxc config get core.https_address)" =~ ^127\.0\.0\.1:[0-9]{4,5}$ ]]
+  # Create a container.
   lxc storage create default dir
   lxc profile device add default root disk path="/" pool="default"
-  lxc launch testimage c1
+  lxc init --empty c1
 
   # Enable clustering.
   lxc cluster enable node1
@@ -23,14 +22,14 @@ test_clustering_enable() {
   lxc cluster list | grep -wF node1
 
   # The container is still there and now shows up as
-  # running on node 1.
+  # being on node 1.
   [ "$(lxc list -f csv -c nL c1)" = "c1,node1" ]
 
   # Clustering can't be enabled on an already clustered instance.
   ! lxc cluster enable node2 || false
 
   # Delete the container
-  lxc delete --force c1
+  lxc delete c1
 
   kill_lxd "${LXD_DIR}"
 
@@ -195,17 +194,16 @@ test_clustering_membership() {
 
   # Shutdown a database node, and wait a few seconds so it will be
   # detected as down.
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   sleep 11
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -xF "status: Offline"
 
   # Gracefully remove a node and check trust certificate is removed.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node4
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM identities WHERE type = 3 and name = "node4"')" = 1 ]
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node4
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node4 || false
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM identities WHERE type = 3 and name = "node4"')" = 0 ]
 
   # The node isn't clustered anymore.
@@ -216,20 +214,20 @@ test_clustering_membership() {
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node6)"
 
   # Check token is associated to correct name.
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 | grep "${token}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep -wF node6 | grep -wF "${token}"
 
   # Spawn a sixth node, using join token.
   spawn_lxd_and_join_cluster "${cert}" 6 2 "${token}"
 
   # Check token has been deleted after join.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep -wF node6 || false
 
   # Generate a join token for a seventh node
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node7)"
 
   # Check token is associated to correct name
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node7 | grep "${token}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep -wF node7 | grep -wF "${token}"
 
   # Revoke the token
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster revoke-token node7
@@ -311,14 +309,13 @@ test_clustering_containers() {
 
   echo "Start the container via node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c s foo)" = "RUNNING" ]
-  LXD_DIR="${LXD_ONE_DIR}" lxc list --fast | grep -wF foo | grep -wF RUNNING
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c nsL)" = "foo,RUNNING,node2" ]
 
   echo "Trying to delete a node which has container results in an error."
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 || false
 
   echo "Exec a command in the container via node1."
-  LXD_DIR="${LXD_ONE_DIR}" lxc exec foo -- ls / | grep -xF proc
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc exec foo -- hostname)" = "foo" ]
 
   echo "Pull, push and delete files from the container via node1."
   ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/non-existing-file "${TEST_DIR}/non-existing-file" || false
@@ -377,19 +374,17 @@ test_clustering_containers() {
 
   echo "Move the container on node3 to node1, using a client connected to node2 and a different container name than the original one."
   echo "Verify volatile.apply_template config key is preserved."
-  apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get bar volatile.apply_template)
+  local initial_template
+  initial_template="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get bar volatile.apply_template)"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node2
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L egg)" = "node2" ]
-  apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
-  [ "${apply_template1}" =  "${apply_template2}" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)" = "${initial_template}" ]
 
   echo "Move back to node3 the container on node1, keeping the same name."
-  apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node3
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
-  apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
-  [ "${apply_template1}" =  "${apply_template2}" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)" = "${initial_template}" ]
 
   echo "Live migration is not supported for containers."
   LXD_DIR="${LXD_TWO_DIR}" lxc start egg
@@ -397,15 +392,13 @@ test_clustering_containers() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c sL egg)" = "RUNNING,node3" ]
   LXD_DIR="${LXD_TWO_DIR}" lxc stop -f egg
 
-  echo "Create backup and attempt to move container. Move should fail and container should remain on node1."
-  LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{"name":"foo"}' /1.0/instances/egg/backups
-  ! LXD_DIR="${LXD_THREE_DIR}" lxc move egg --target node2 || false
-  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
+  echo "Create backup that will make the instance impossible to move."
+  LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{"name":"eggroll"}' /1.0/instances/egg/backups
+  echo "Move should fail and container should remain on node3."
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" CLIENT_DEBUG="" SHELL_TRACING="" lxc move egg --target node2 2>&1)" = "Error: Migration API failure: Instance has backups" ]
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c nsL egg)" = "egg,STOPPED,node3" ]
 
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
-
-  echo "Delete the network now, since we're going to shutdown node2 and it won't be possible afterward."
-  LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
   echo "Shutdown node 2, wait for it to be considered offline, and list containers."
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
@@ -1062,8 +1055,8 @@ test_clustering_network() {
 [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'")" = "node2,1" ]
 
   # Check interfaces are expected types (dummy on node1 and bridge on node2).
-  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep dummy
-  nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep bridge
+  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep -wF dummy
+  nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep -wF bridge
 
   # Check we cannot update network global config while in pending state on either node.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network set "${net}" ipv4.dhcp false || false
@@ -1072,19 +1065,19 @@ test_clustering_network() {
   # Check we can update node-specific config on the node that has been created (and that it is applied).
   nsenter -n -t "${LXD_PID2}" -- ip link add "ext-${net}" type dummy # Create dummy interface to add to bridge.
   LXD_DIR="${LXD_TWO_DIR}" lxc network set "${net}" bridge.external_interfaces "ext-${net}" --target node2
-  nsenter -n -t "${LXD_PID2}" -- ip link show "ext-${net}" | grep "master ${net}"
+  nsenter -n -t "${LXD_PID2}" -- ip link show "ext-${net}" | grep -wF "master ${net}"
 
   # Check we can update node-specific config on the node that hasn't been created (and that only DB is updated).
   nsenter -n -t "${LXD_PID1}" -- ip link add "ext-${net}" type dummy # Create dummy interface to add to bridge.
   nsenter -n -t "${LXD_PID1}" -- ip address add 192.0.2.1/32 dev "ext-${net}" # Add address to prevent attach.
   LXD_DIR="${LXD_ONE_DIR}" lxc network set "${net}" bridge.external_interfaces "ext-${net}" --target node1
-  ! nsenter -n -t "${LXD_PID1}" -- ip link show "ext-${net}" | grep "master ${net}" || false  # Don't expect to be attached.
+  ! nsenter -n -t "${LXD_PID1}" -- ip link show "ext-${net}" | grep -wF "master ${net}" || false  # Don't expect to be attached.
 
   # Delete partially created network and check nodes that were created are cleaned up.
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net}"
   ! nsenter -n -t "${LXD_PID2}" -- ip link show "${net}" || false # Check bridge is removed.
   nsenter -n -t "${LXD_PID2}" -- ip link show "ext-${net}" # Check external interface still exists.
-  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep dummy # Check node1 conflict still exists.
+  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep -wF dummy # Check node1 conflict still exists.
 
   # Create new partially created network and check we can fix it.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
@@ -1095,8 +1088,8 @@ test_clustering_network() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.dhcp=false || false # Check supplying global config on re-create is blocked.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" # Check re-create succeeds.
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Created # Check is created after fix.
-  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
-  nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
+  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep -wF bridge # Check bridge exists.
+  nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep -wF bridge # Check bridge exists.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64 || false # Check re-create is blocked after success.
 
   # Check both nodes marked created.
@@ -1138,10 +1131,10 @@ test_clustering_network() {
 
   # Check networks local to a cluster member show up when targeting that member
   # and hidden when targeting other cluster members. Setup is in includes/clustering.sh
-  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep localBridge1
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep localBridge2 || false
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep localBridge1 || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep localBridge2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep -wF localBridge1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node1 | grep -wF localBridge2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep -wF localBridge1 || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep -wF localBridge2
 
   # Cleanup instances and image.
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3
@@ -1244,9 +1237,9 @@ test_clustering_heal_networks_stop() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=fd42:4242:4242:1010::1/64
 
   echo "Verify the network exists on all nodes"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network list -f csv | grep -c "${net}")" = "1" ]
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc network list -f csv | grep -c "${net}")" = "1" ]
-  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc network list -f csv | grep -c "${net}")" = "1" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network list -f csv | grep -cwF "${net}")" = "1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc network list -f csv | grep -cwF "${net}")" = "1" ]
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc network list -f csv | grep -cwF "${net}")" = "1" ]
 
   echo "Create network forward"
   LXD_DIR="${LXD_ONE_DIR}" lxc network forward create "${net}" 198.51.100.1
@@ -2037,7 +2030,7 @@ test_clustering_address() {
 
   # Create a container using the REST API exposed over core.https_address.
   lxc init --target node2 --empty cluster:c1
-  lxc list cluster: | grep -wF c1
+  [ "$(lxc list -f csv -c nL cluster:)" = "c1,node2" ]
 
   # The core.https_address config value can be set to a wildcard address if
   # the port is the same as cluster.https_address.
@@ -2754,15 +2747,16 @@ test_clustering_rebalance_remove_leader() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list -f csv | wc -l)" = "1" ]
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -F "database: true"
 
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   echo "Clean up"
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
 
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
 }
@@ -3215,30 +3209,23 @@ test_clustering_evacuation() {
 
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1 -c boot.host_shutdown_timeout=1
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node1 -c cluster.evacuate=auto -s pool1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c2 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node1 -c boot.host_shutdown_timeout=1 -c cluster.evacuate=auto -s pool1
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c3 --target=node1 -c cluster.evacuate=stop
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c3 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c3 --target=node1 -c boot.host_shutdown_timeout=1 -c cluster.evacuate=stop
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c4 --target=node1 -c cluster.evacuate=migrate -s pool1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c4 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c4 --target=node1 -c boot.host_shutdown_timeout=1 -c cluster.evacuate=migrate -s pool1
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c5 --target=node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c5 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c5 -c boot.host_shutdown_timeout=1 --target=node1
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c6 --target=node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c6 boot.host_shutdown_timeout=1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c6 --target=node2 -c boot.host_shutdown_timeout=1
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create foo
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign node3 default,foo
 
-  echo 'Create c7 on node1 and manually set "volatile.cluster.group" to "foo" to test evacuation respects the group constraint.'
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c7 --target=node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set c7 volatile.cluster.group foo
+  echo 'Create c7 on node1 with "volatile.cluster.group" set to "foo" to test evacuation respects the group constraint.'
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c7 --target=node1 -c volatile.cluster.group=foo
   [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc config get c7 volatile.cluster.group)" = "foo" ]
   # "volatile.cluster.group" is only checked during scheduling events (creation, migration, evacuation).
   # Expected: c7 created on node1.
@@ -3663,13 +3650,9 @@ test_clustering_edit_configuration() {
   daemon_pid=$(< "${LXD_SIX_DIR}/lxd.pid")
   kill -9 "${daemon_pid}" 2>/dev/null || true
 
-  config=$(mktemp -p "${TEST_DIR}" XXX)
   # Update the cluster configuration with new port numbers
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster show > "${config}"
-
   # lxd cluster edit generates ${LXD_DIR}/database/lxd_recovery_db.tar.gz
-  sed -e "s/:8443/:9393/" -i "${config}"
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster edit < "${config}"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster show | sed -e "s/:8443/:9393/" | LXD_DIR="${LXD_ONE_DIR}" lxd cluster edit
 
   for other_dir in "${LXD_TWO_DIR}" "${LXD_THREE_DIR}" "${LXD_FOUR_DIR}" "${LXD_FIVE_DIR}" "${LXD_SIX_DIR}"; do
     cp "${LXD_ONE_DIR}/database/lxd_recovery_db.tar.gz" "${other_dir}/database/"
@@ -4193,7 +4176,7 @@ test_clustering_events() {
   # Check events were distributed.
   for i in 1 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "2" ]
+    [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "2" ]
   done
 
   # Switch into event-hub mode.
@@ -4204,7 +4187,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
-    [ "$(grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "2" ]
+    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "2" ]
   done
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
@@ -4222,14 +4205,14 @@ test_clustering_events() {
   # Check events were distributed.
   for i in 1 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "4" ]
+    [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "4" ]
   done
 
-  # Launch container on node3 to check image distribution events work during event-hub mode.
-  LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage c3 --target=node3
+  # Init container on node3 to check image distribution events work during event-hub mode.
+  LXD_DIR="${LXD_THREE_DIR}" lxc init testimage c3 --target=node3
 
   for i in 1 2 3; do
-    [ "$(grep -Fc "instance-created" "${TEST_DIR}/node${i}.log")" = "1" ]
+    [ "$(grep -wFc "instance-created" "${TEST_DIR}/node${i}.log")" = "1" ]
   done
 
   # Switch into full-mesh mode by removing one event-hub role so there is <2 in the cluster.
@@ -4245,7 +4228,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
-    [ "$(grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "3" ]
+    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "3" ]
   done
 
   # Restart instance generating restart lifecycle event.
@@ -4256,7 +4239,7 @@ test_clustering_events() {
   # Check events were distributed.
   for i in 1 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
+    [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
   done
 
   # Switch back into event-hub mode by giving the role to node4 and node5.
@@ -4286,10 +4269,10 @@ test_clustering_events() {
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   sleep 0.1
 
-  [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node1.log")" = "7" ]
+  [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node1.log")" = "7" ]
   for i in 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
+    [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
   done
 
   # Kill monitors.
@@ -4302,7 +4285,7 @@ test_clustering_events() {
   # `No active cluster event listener clients` and `Failed heartbeat`
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c2
-  LXD_DIR="${LXD_THREE_DIR}" lxc delete -f c3
+  LXD_DIR="${LXD_THREE_DIR}" lxc delete c3
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -4448,7 +4431,7 @@ test_clustering_uuid() {
   fi
 
   # cleanup
-  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 -f
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
@@ -4510,9 +4493,6 @@ test_clustering_trust_add() {
   operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
   LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,RUNNING"
   is_uuid_v4 "${operation_uuid}"
-
-  # Get the address of LXD_TWO.
-  lxd_two_address="https://$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
 
   # Test adding the remote using the address of LXD_TWO with the token operation running on LXD_ONE.
   # LXD_TWO does not have the operation running locally, so it should find the UUID of the operation in the database
