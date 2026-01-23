@@ -145,7 +145,7 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 			return err
 		}
 
-		return instanceCreateFinish(s, req, args)
+		return instanceCreateFinish(s, req, args, nil)
 	}
 
 	resources := map[string][]api.URL{}
@@ -215,7 +215,7 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 			return err
 		}
 
-		return instanceCreateFinish(s, req, args)
+		return instanceCreateFinish(s, req, args, nil)
 	}
 
 	resources := map[string][]api.URL{}
@@ -958,7 +958,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		runRevert.Success()
 
-		return instanceCreateFinish(s, &req, db.InstanceArgs{Name: bInfo.Name, Project: bInfo.Project})
+		return instanceCreateFinish(s, &req, db.InstanceArgs{Name: bInfo.Name, Project: bInfo.Project}, nil)
 	}
 
 	resources := map[string][]api.URL{}
