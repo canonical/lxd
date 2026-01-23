@@ -470,6 +470,7 @@ var APIExtensions = []string{
 	"ovn_nic_acceleration_parent",
 	"storage_and_profile_operations",
 	"storage_source_recover",
+	"instance_force_delete",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
