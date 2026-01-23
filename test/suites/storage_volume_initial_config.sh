@@ -132,6 +132,83 @@ test_storage_volume_initial_config() {
     [ "$(lxc storage volume get "${pool}" container/c zfs.blocksize)" = "512KiB" ]
     [ "$(zfs get volblocksize "${pool}/containers/c" -H -o value)" = "128K" ]
     lxc delete c
+    lxc storage unset "${pool}" volume.zfs.block_mode
+
+    # > Verify initial.zfs.promote functionality.
+    lxc launch "${image}" c --no-profiles --storage "${pool}"
+
+    # > Check that container's origin is the base image snapshot.
+    [ "$(zfs get origin "${pool}/containers/c" -H -o value)" = "${pool}/images/$(lxc config get c volatile.base_image)@readonly" ]
+
+    # > Create a clone of the container for as a backup for restore later. Ensure a new volatile.uuid is generated.
+    lxc copy c c-backup --refresh -c "volatile.uuid=$(uuidgen)" -d root,initial.zfs.promote=true
+    [ "$(lxc config get c volatile.uuid)" != "$(lxc config get c-backup volatile.uuid)" ]
+
+    # > Check that the c container has a ZFS origin of c-backup copy snapshot prefix.
+    zfs get origin "${pool}/containers/c" -H -o value | grep "^${pool}/containers/c-backup@copy-"
+
+    # > Create a snapshot of the container to check that after promotion is not allowed with snapshots present.
+    lxc snapshot c snap0
+    ! lxc copy c c-save1 --refresh -c volatile.uuid= -d root,initial.zfs.promote=true || false
+    lxc delete c/snap0
+
+    # > Add some data to the container and create a ZFS promoted saved point with a new volatile.uuid.
+    lxc exec c -- touch /root/testfile1
+    lxc copy c c-save1 --refresh -c "volatile.uuid=$(uuidgen)" -d root,initial.zfs.promote=true
+    [ "$(lxc config get c volatile.uuid)" != "$(lxc config get c-save1 volatile.uuid)" ]
+
+    # > Check that the c container has a ZFS origin of c-save1 copy snapshot prefix.
+    zfs get origin "${pool}/containers/c" -H -o value | grep "^${pool}/containers/c-save1@copy-"
+
+    # > Add some more data to the container and create a 2nd ZFS promoted saved point with a new volatile.uuid.
+    lxc exec c -- touch /root/testfile2
+    lxc copy c c-save2 --refresh -c "volatile.uuid=$(uuidgen)" -d root,initial.zfs.promote=true
+    [ "$(lxc config get c volatile.uuid)" != "$(lxc config get c-save2 volatile.uuid)" ]
+
+    # > Check that the c container has a ZFS origin of c-save2 copy snapshot prefix.
+    zfs get origin "${pool}/containers/c" -H -o value | grep "^${pool}/containers/c-save2@copy-"
+
+    # > Now create new container from the save points and check their data is present.
+    lxc copy c-save1 c-restore1
+    zfs get origin "${pool}/containers/c-restore1" -H -o value | grep "^${pool}/containers/c-save1@copy-"
+    [ "$(lxc config get c-save1  volatile.uuid)" != "$(lxc config get c-restore1 volatile.uuid)" ]
+    lxc start c-restore1
+    lxc exec c-restore1 -- test -f /root/testfile1
+    ! lxc exec c-restore1 -- test -f /root/testfile2 || false
+    lxc delete -f c-restore1
+
+    lxc copy c-save2 c-restore2
+    zfs get origin "${pool}/containers/c-restore2" -H -o value | grep "^${pool}/containers/c-save2@copy-"
+    [ "$(lxc config get c-save2  volatile.uuid)" != "$(lxc config get c-restore2 volatile.uuid)" ]
+    lxc start c-restore2
+    lxc exec c-restore2 -- test -f /root/testfile1
+    lxc exec c-restore2 -- test -f /root/testfile2
+    lxc delete -f c-restore2
+
+    # > Lets imagine something went wrong creating the 3rd save point and we need to restore from the backup (keeping the current volatile.uuid).
+    lxc stop -f c
+    cUUID=$(lxc config get c volatile.uuid)
+    lxc rebuild "${image}" c
+
+    # > Create a 3rd ZFS promoted saved point from the rebuilt container.
+    lxc copy c c-save3 --refresh -c "volatile.uuid=$(uuidgen)" -d root,initial.zfs.promote=true
+    [ "$(lxc config get c volatile.uuid)" != "$(lxc config get c-save3 volatile.uuid)" ]
+
+    # > Check that the c container has a ZFS origin of c-save3 copy snapshot prefix.
+    zfs get origin "${pool}/containers/c" -H -o value | grep "^${pool}/containers/c-save3@copy-"
+
+    # > Now restore from backup.
+    lxc copy c-backup c --refresh -c "volatile.uuid=${cUUID}" -d root,initial.zfs.promote=true
+    lxc delete c-backup
+
+    # > Check that container's origin is the base image snapshot.
+    [ "$(zfs get origin "${pool}/containers/c" -H -o value)" = "${pool}/images/$(lxc config get c volatile.base_image)@readonly" ]
+
+    # > Cleanup created containers.
+    lxc delete c c-save1 c-save2 c-save3
+
+    # > Chreck only the pool level ZFS datasets remain after deleting containers.
+    [ "$(zfs list -H -o name | grep -c "^${pool}")" = "13" ]
   fi
 
   # Cleanup
