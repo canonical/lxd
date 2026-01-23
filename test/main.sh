@@ -168,9 +168,9 @@ run_dependency_checks() {
     # Cache the busybox testimage for reuse
     deps/import-busybox --save-image
 
-    # Avoid `.tar.xz` extension that may conflict with some tests
-    mv busybox.tar.xz busybox.tar.xz.cache
-    export LXD_TEST_IMAGE="busybox.tar.xz.cache"
+    # Avoid `.tar` extension that may conflict with some tests
+    mv busybox.tar busybox.tar.cache
+    export LXD_TEST_IMAGE="busybox.tar.cache"
     echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
   fi
 }
