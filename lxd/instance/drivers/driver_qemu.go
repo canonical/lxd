@@ -1136,7 +1136,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Setup a new operation if needed.
 	if op == nil {
-		op, err = operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
+		op, err = operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore, operationlock.ActionCreate}, false, false)
 		if err != nil {
 			if errors.Is(err, operationlock.ErrNonReusableSucceeded) {
 				// An existing matching operation has now succeeded, return.
