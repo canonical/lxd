@@ -10740,6 +10740,10 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Force delete of running instances
+                  in: query
+                  name: force
+                  type: boolean
             produces:
                 - application/json
             responses:
