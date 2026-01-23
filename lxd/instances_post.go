@@ -1465,6 +1465,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Config["volatile.cluster.group"] = targetGroupName
 	}
 
+	// Redirect the request to the target cluster member when not doing an actual copy.
 	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName && req.Source.Type != api.SourceTypeCopy {
 		client, err := cluster.Connect(r.Context(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
