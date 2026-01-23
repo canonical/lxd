@@ -109,11 +109,11 @@ test_idmap() {
   lxc exec idmap -- touch /a
   ! lxc exec idmap -- chown 65536 /a || false
   lxc exec idmap -- chown 65535 /a
-  PID_1=$(lxc info idmap | awk '/^PID/ {print $2}')
+  PID_1="$(lxc list -f csv -c p name=idmap)"
   UID_1=$(stat -c '%u' "/proc/${PID_1}/root/a")
 
   lxc exec idmap1 -- touch /a
-  PID_2=$(lxc info idmap1 | awk '/^PID/ {print $2}')
+  PID_2="$(lxc list -f csv -c p name=idmap1)"
   UID_2=$(stat -c '%u' "/proc/${PID_2}/root/a")
 
   [ "${UID_1}" != "${UID_2}" ]
@@ -187,7 +187,7 @@ gid $((GID_BASE+1)) 1000000
 both $((UID_BASE+2)) 2000000
 EOF
   lxc restart idmap --force
-  PID=$(lxc info idmap | awk '/^PID/ {print $2}')
+  PID="$(lxc list -f csv -c p name=idmap)"
 
   lxc exec idmap -- touch /a
   lxc exec idmap -- chown 1000000:1000000 /a
@@ -204,7 +204,7 @@ gid $((GID_BASE+10))-$((GID_BASE+19)) 3000000-3000009
 both $((GID_BASE+20))-$((GID_BASE+29)) 4000000-4000009
 EOF
   lxc restart idmap --force
-  PID=$(lxc info idmap | awk '/^PID/ {print $2}')
+  PID="$(lxc list -f csv -c p name=idmap)"
 
   lxc exec idmap -- touch /c
   lxc exec idmap -- chown 3000009:3000009 /c
