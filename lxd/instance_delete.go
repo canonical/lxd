@@ -38,6 +38,10 @@ import (
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: force
+//	    description: Force delete of running instances
+//	    type: boolean
 //	responses:
 //	  "202":
 //	    $ref: "#/responses/Operation"
@@ -78,7 +82,8 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	op, err := doInstanceDelete(r.Context(), s, name, projectName, false)
+	force := shared.IsTrue(r.FormValue("force"))
+	op, err := doInstanceDelete(r.Context(), s, name, projectName, force)
 	if err != nil {
 		return response.SmartError(err)
 	}
