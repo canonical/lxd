@@ -304,10 +304,10 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Ensure we don't remove protected volatile keys.
-		for _, key := range []string{"volatile.idmap.next", "volatile.idmap.current"} {
+		for _, key := range []string{"volatile.idmap.next", "volatile.idmap.current", "volatile.last_state.idmap"} {
 			_, found := inst.Config[key]
-			if !found {
-				delete(writable.Config, key)
+			if found {
+				writable.Config[key] = inst.Config[key]
 			}
 		}
 
