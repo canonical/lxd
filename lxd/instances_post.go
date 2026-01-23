@@ -1172,10 +1172,14 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var sourceInst *dbCluster.Instance
 	var sourceImage *api.Image
 	var sourceImageRef string
+	var sourceMemberInfo *db.NodeInfo
 	var candidateMembers []db.NodeInfo
 	var targetMemberInfo *db.NodeInfo
 	var targetGroupName string
 	var placementGroupName string
+
+	// Set to true once we find that the request has to be forwarded to the source.
+	redirectToSource := false
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		target := request.QueryParam(r, "target")
@@ -1237,6 +1241,26 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				req.Profiles = make([]string, 0, len(sourceInstArgs[sourceInst.ID].Profiles))
 				for _, profile := range sourceInstArgs[sourceInst.ID].Profiles {
 					req.Profiles = append(req.Profiles, profile.Name)
+				}
+			}
+
+			// Identify source member to be able to forward the request to the source in case the request
+			// was made on a different cluster member and the type is copy.
+			if s.ServerClustered && !clusterNotification && req.Source.Type == api.SourceTypeCopy {
+				for _, member := range allMembers {
+					if member.Name == sourceInst.Node {
+						sourceMemberInfo = &member
+					}
+				}
+
+				if sourceMemberInfo == nil {
+					return fmt.Errorf("Failed to find source cluster member %q", sourceInst.Node)
+				}
+
+				// Exit the transaction early and indicate we have to forward the request to the source.
+				if sourceMemberInfo.Name != s.ServerName {
+					redirectToSource = true
+					return nil
 				}
 			}
 
@@ -1401,6 +1425,27 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	// Redirect the copy request to the cluster member which currently holds the instance.
+	if redirectToSource && sourceMemberInfo != nil && targetMemberInfo != nil {
+		client, err := cluster.Connect(r.Context(), sourceMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Keep the intended target around for the final move operation.
+		client = client.UseProject(targetProjectName)
+		client = client.UseTarget(targetMemberInfo.Name)
+
+		logger.Debug("Forward instance post copy request", logger.Ctx{"local": s.ServerName, "target": sourceMemberInfo.Name, "targetAddress": sourceMemberInfo.Address})
+		op, err := client.CreateInstance(req)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		opAPI := op.Get()
+		return operations.ForwardedOperationResponse(&opAPI)
 	}
 
 	if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
