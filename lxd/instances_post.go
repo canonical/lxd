@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/archive"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -1704,12 +1705,24 @@ func clusterCopyContainerInternal(ctx context.Context, s *state.State, source in
 
 // instanceCreateFinish finalizes the creation process of an instance by starting it based on
 // the Start field of the request.
-func instanceCreateFinish(s *state.State, req *api.InstancesPost, args db.InstanceArgs) error {
+func instanceCreateFinish(s *state.State, req *api.InstancesPost, args db.InstanceArgs, client lxd.InstanceServer) error {
 	if req == nil || !req.Start {
 		return nil
 	}
 
-	// Start the instance.
+	// If a client is provided start the instance on a remote cluster member.
+	if client != nil {
+		op, err := client.UpdateInstanceState(req.Name, api.InstanceStatePut{
+			Action: "start",
+		}, "")
+		if err != nil {
+			return fmt.Errorf("Failed to start instance %q: %w", req.Name, err)
+		}
+
+		return op.Wait()
+	}
+
+	// Start the instance locally.
 	inst, err := instance.LoadByProjectAndName(s, args.Project, args.Name)
 	if err != nil {
 		return fmt.Errorf("Failed to load the instance: %w", err)
