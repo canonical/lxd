@@ -680,7 +680,36 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 			return err
 		}
 
-		return instanceCreateFinish(s, req, args)
+		var client lxd.InstanceServer
+
+		// Move the instance in case it's not yet at its requested target.
+		if s.ServerClustered && targetMemberInfo != nil && targetMemberInfo.Name != s.ServerName {
+			client, err = cluster.Connect(ctx, targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+			if err != nil {
+				return err
+			}
+
+			// Move to the actual target.
+			client = client.UseTarget(targetMemberInfo.Name)
+
+			logger.Debug("Migrate instance to final target after copy", logger.Ctx{"local": s.ServerName, "target": targetMemberInfo.Name, "targetAddress": targetMemberInfo.Address})
+			op, err := client.MigrateInstance(req.Name, api.InstancePost{
+				// We don't have to handle live migration as the instance is always stopped after copy.
+				// Also we want to always copy the entire instance with all of its snapshots in case they exist.
+				// The previous copy operation would have skipped snapshots when performing an instance only copy.
+				Migration: true,
+			})
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
+		}
+
+		return instanceCreateFinish(s, req, args, client)
 	}
 
 	resources := map[string][]api.URL{}
