@@ -429,6 +429,11 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	}
 
 	if opts.refresh {
+		_, found := opts.targetInstance.Devices[instRootDiskDeviceKey]["initial.zfs.promote"]
+		if found {
+			inst.LocalDevices()[instRootDiskDeviceKey]["initial.zfs.promote"] = opts.targetInstance.Devices[instRootDiskDeviceKey]["initial.zfs.promote"]
+		}
+
 		err = pool.RefreshInstance(inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
 		if err != nil {
 			return nil, fmt.Errorf("Refresh instance: %w", err)
