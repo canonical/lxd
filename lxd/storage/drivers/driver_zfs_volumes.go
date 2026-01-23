@@ -1244,6 +1244,15 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 		}
 	}
 
+	// Validate that promotion can be done if requested.
+	if shared.IsTrue(vol.config["zfs.promote"]) {
+		// Don't allow promotion when source volume has snapshots as zfs promote will move them under the
+		// promoted volume, which we do not want as it would mess up snapshot ownership.
+		if len(srcVol.Snapshots) > 0 || srcVol.IsSnapshot() {
+			return errors.New("Cannot promote volume when source volume has snapshots or is a snapshot")
+		}
+	}
+
 	// If there are no target or source snapshots, perform a simple copy using zfs.
 	// We cannot use generic vfs volume copy here, as zfs will complain if a generic
 	// copy/refresh is followed by an optimized refresh.
