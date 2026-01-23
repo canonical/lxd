@@ -1,7 +1,7 @@
-# test_clustering_live_migration_same_cluster spawns a 2-node LXD cluster, creates a virtual machine on the first node
+# test_clustering_live_migration spawns a 2-node LXD cluster, creates a virtual machine on the first node
 # and live migrates it to the second node. If the storage backend is remote, it also creates a custom
-# storage volume which needs to be live migrated as along the virtual machine.
-test_clustering_live_migration_same_cluster() {
+# storage volume which needs to be live migrated along with the virtual machine.
+test_clustering_live_migration() {
   poolDriver="$(storage_backend "${LXD_INITIAL_DIR}")"
   if [ "${poolDriver}" = "lvm" ]; then
     # TODO: LVM live migration runs into:
