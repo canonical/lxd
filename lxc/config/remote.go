@@ -1,9 +1,7 @@
 package config
 
 import (
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"net"
@@ -419,28 +417,6 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		content, err := os.ReadFile(c.ConfigPath("client.key"))
 		if err != nil {
 			return nil, err
-		}
-
-		pemKey, _ := pem.Decode(content)
-		// Golang has deprecated all methods relating to PEM encryption due to a vulnerability.
-		// However, the weakness does not make PEM unsafe for our purposes as it pertains to password protection on the
-		// key file (client.key is only readable to the user in any case), so we'll ignore deprecation.
-		if x509.IsEncryptedPEMBlock(pemKey) { //nolint:staticcheck
-			if c.PromptPassword == nil {
-				return nil, errors.New("Private key is password protected and no helper was configured")
-			}
-
-			password, err := c.PromptPassword("client.crt")
-			if err != nil {
-				return nil, err
-			}
-
-			derKey, err := x509.DecryptPEMBlock(pemKey, []byte(password)) //nolint:staticcheck
-			if err != nil {
-				return nil, err
-			}
-
-			content = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: derKey})
 		}
 
 		args.TLSClientKey = string(content)
