@@ -315,6 +315,16 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			writable.Devices[destRootDiskDeviceKey]["pool"] = destRootDiskDevice["pool"]
 		}
 
+		// Ensure we don't change the target's root disk initial.zfs.promote value.
+		if srcRootDiskDeviceKey != "" && srcRootDiskDeviceKey == destRootDiskDeviceKey {
+			_, found := destRootDiskDevice["initial.zfs.promote"]
+			if found {
+				writable.Devices[destRootDiskDeviceKey]["initial.zfs.promote"] = destRootDiskDevice["initial.zfs.promote"]
+			} else {
+				delete(writable.Devices[destRootDiskDeviceKey], "initial.zfs.promote")
+			}
+		}
+
 		op, err := dest.UpdateInstance(destName, writable, etag)
 		if err != nil {
 			return err
