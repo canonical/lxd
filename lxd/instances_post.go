@@ -543,7 +543,7 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 	return operations.OperationResponse(op)
 }
 
-func createFromCopy(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromCopy(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, targetMemberInfo *db.NodeInfo) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
@@ -1495,7 +1495,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	case api.SourceTypeConversion:
 		return createFromConversion(r.Context(), s, targetProjectName, profiles, &req)
 	case api.SourceTypeCopy:
-		return createFromCopy(r.Context(), s, targetProjectName, profiles, &req)
+		return createFromCopy(r.Context(), s, targetProjectName, profiles, &req, targetMemberInfo)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
