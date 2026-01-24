@@ -113,7 +113,7 @@ test_clustering_enable() {
   spawn_lxd "${LXD_DIR}" false
 
   lxc config set cluster.https_address=127.0.0.1:8443
-  kill -9 "$(< "${LXD_DIR}/lxd.pid")"
+  kill_go_proc "$(< "${LXD_DIR}/lxd.pid")"
   respawn_lxd "${LXD_DIR}" true
   # Enable clustering.
   lxc cluster enable node1
