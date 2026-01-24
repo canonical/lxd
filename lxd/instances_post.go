@@ -369,6 +369,20 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 			return err
 		}
 
+		// Start up the instance if requested by the client.
+		if req != nil && req.Start {
+			// The lock obtained for the migration will be inherited to allow the start.
+			// The start has to be performed within the instOp as marking it as done
+			// will signal the client a finished migration.
+			err := inst.Start(false)
+			if err != nil {
+				err = fmt.Errorf("Failed to start instance %q: %w", inst.Name(), err)
+				instOp.Done(err) // Complete operation that was created earlier, to release lock.
+
+				return err
+			}
+		}
+
 		instOp.Done(nil) // Complete operation that was created earlier, to release lock.
 		runRevert.Success()
 		return nil
