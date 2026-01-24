@@ -492,6 +492,18 @@ coverage_enabled() {
   [ -n "${GOCOVERDIR:-}" ]
 }
 
+# Kills a Go process, using start-stop-daemon if coverage is enabled or kill -9 otherwise.
+# When coverage is enabled, use start-stop-daemon to allow it to write out coverage data.
+kill_go_proc() {
+  local pid="${1}"
+  if coverage_enabled; then
+    # Send TERM, wait 1 second, then KILL.
+    start-stop-daemon --stop --retry=TERM/1/KILL --pid "${pid}"
+  else
+    kill -9 "${pid}"
+  fi
+}
+
 # Setup LXD agent to collect Go coverage data inside instances.
 # If coverage is not enabled, this is a no-op.
 setup_lxd_agent_gocoverage() {
