@@ -547,31 +547,31 @@ EOF
   sleep 1
 }
 
-# Teardown LXD agent Go coverage setup.
+# Teardown instance Go coverage gathering.
 # If coverage is not enabled, this is a no-op.
-teardown_lxd_agent_gocoverage() {
+teardown_instance_gocoverage() {
   coverage_enabled || return 0
 
   local instance="${1}"
   local project="${2:-}"
 
-  # Only instrument VMs.
-  [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" = "VIRTUAL-MACHINE" ] || return 0
+  echo "==> Tearing down Go coverage gathering inside the ${instance} (${project:-"-"}) instance"
 
-  echo "==> Tearing down LXD agent coverage gathering inside the ${instance} (${project}) VM"
+  # The lxd-agent is only relevant for VMs.
+  if [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" = "VIRTUAL-MACHINE" ]; then
+    lxc file delete "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf --project "${project}"
+    lxc exec "${instance}" --project "${project}" -- systemctl daemon-reload
 
-  lxc file delete "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf --project "${project}"
-  lxc exec "${instance}" --project "${project}" -- systemctl daemon-reload
+    # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
+    # so expect failure.
+    ! lxc exec "${instance}" --project "${project}" -- systemctl restart lxd-agent.service || false
 
-  # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
-  # so expect failure.
-  ! lxc exec "${instance}" --project "${project}" -- systemctl restart lxd-agent.service || false
+    # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
+    waitInstanceReady "${instance}" "${project}"
+  fi
 
   # Unset the GOCOVERDIR environment variable.
   lxc config unset "${instance}" environment.GOCOVERDIR --project "${project}"
-
-  # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
-  waitInstanceReady "${instance}" "${project}"
 
   # Remove the shared dir.
   lxc config device remove "${instance}" gocoverdir --project "${project}"
