@@ -499,6 +499,10 @@ setup_lxd_agent_gocoverage() {
 
   local instance="${1}"
   local project="${2:-}"
+
+  # Only instrument VMs.
+  [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" = "VIRTUAL-MACHINE" ] || return 0
+
   echo "==> Setting up LXD agent coverage gathering inside the ${instance} (${project}) VM"
 
   # Mount the host's GOCOVERDIR into the instance.
@@ -532,6 +536,10 @@ teardown_lxd_agent_gocoverage() {
 
   local instance="${1}"
   local project="${2:-}"
+
+  # Only instrument VMs.
+  [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" = "VIRTUAL-MACHINE" ] || return 0
+
   echo "==> Tearing down LXD agent coverage gathering inside the ${instance} (${project}) VM"
 
   lxc file delete "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf --project "${project}"
