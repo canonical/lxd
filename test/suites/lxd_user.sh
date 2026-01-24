@@ -35,7 +35,7 @@ test_lxd_user() {
   lxc_user storage volume delete "${pool_name}" myvol
 
   # Cleanup
-  kill -9 "${USER_PID}"
+  kill_go_proc "${USER_PID}"
   rm -rf "${USER_TEMPDIR}"
   rm -rf "${TEST_DIR}/lxd-user"
   LXD_DIR="${bakLxdDir}"
