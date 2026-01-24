@@ -507,6 +507,23 @@ kill_go_proc() {
   fi
 }
 
+
+# If Go coverage is enabled, prepare the lxd-agent inside the instance for hard stop.
+# This is a no-op if coverage is not enabled.
+prepare_vm_for_hard_stop() {
+  coverage_enabled || return 0
+
+  local instance="${1}"
+  local project="${2:-}"
+
+  # The lxd-agent is only relevant for VMs.
+  if [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" != "VIRTUAL-MACHINE" ]; then
+    return 0
+  fi
+
+  lxc exec "${instance}" --project "${project}" -- systemctl stop --no-block lxd-agent.service || true
+}
+
 # Setup instance to collect coverage data from running Go binaries from inside the instance.
 # If coverage is not enabled, this is a no-op.
 # If the instance is a VM, the lxd-agent will be instrumented too.
