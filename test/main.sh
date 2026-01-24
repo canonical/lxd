@@ -232,11 +232,29 @@ export _LXC
 ulimit -c unlimited
 echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
 
-# Check for core dumps: return 0 if no core dumps, 1 otherwise with the list of matching files printed
+# Check for core dumps, ignoring qemu crashes (known issue)
 check_coredumps() {
-  if compgen -G "/var/crash/core-*.gz"; then
+  if ! compgen -G "/var/crash/core-*.gz" > /dev/null; then
+    return 0  # No core dumps at all
+  fi
+
+  # Ignore qemu core dumps (known crasher, to be fixed later)
+  # TODO: look at the core dump along with debug builds of qemu to track the
+  #       root cause.
+  # Enable extended globbing for the !(pattern) syntax
+  shopt -s extglob
+  if compgen -G "/var/crash/core-!(qemu-system-*).gz" > /dev/null 2>&1; then
+    echo "==> CORE: coredumps found"
+    ls -la /var/crash/
+    shopt -u extglob
     return 1
   fi
+  shopt -u extglob
+
+  # Only QEMU core dumps (known issue)
+  echo "::notice::==> CORE: QEMU core dump ignored"
+
+  return 0
 }
 
 # Check if the current backend is the last one to be tested in the current context
