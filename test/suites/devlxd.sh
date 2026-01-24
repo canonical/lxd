@@ -144,8 +144,8 @@ EOF
     break
   done
 
-  kill -9 "${client_websocket}"
-  kill -9 "${client_stream}"
+  kill_go_proc "${client_websocket}"
+  kill_go_proc "${client_stream}"
 
   lxc monitor --type=lifecycle > "${TEST_DIR}/devlxd.log" &
   monitorDevlxdPID=$!
@@ -165,7 +165,7 @@ EOF
 
   [ "$(lxc list -f csv -c s devlxd)" = "RUNNING" ]
 
-  kill -9 "${monitorDevlxdPID}"
+  kill_go_proc "${monitorDevlxdPID}"
   rm "${TEST_DIR}/devlxd.log"
 
   # Expedite LXD shutdown by forcibly killing the running instance
@@ -199,7 +199,7 @@ EOF
   lxc exec devlxd -- devlxd-client devices | jq --exit-status ".eth0.hwaddr == \"${hwaddr}\""
 
   lxc delete devlxd --force
-  kill -9 "${monitorDevlxdPID}"
+  kill_go_proc "${monitorDevlxdPID}"
   rm "${TEST_DIR}/devlxd.log"
 
   [ "${MATCH}" = "1" ]
