@@ -315,6 +315,13 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 
 		revert.Add(cleanup)
 	} else {
+		if clusterMoveSourceName == "" {
+			err = inst.Update(*args, true)
+			if err != nil {
+				return response.InternalError(fmt.Errorf("Failed updating instance record: %w", err))
+			}
+		}
+
 		instOp, err = inst.LockExclusive()
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed getting exclusive access to instance: %w", err))
@@ -590,41 +597,6 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		}
 	}
 
-	// Config override
-	if req.Config == nil {
-		req.Config = make(map[string]string)
-	}
-
-	for key, value := range source.LocalConfig() {
-		if !instancetype.InstanceIncludeWhenCopying(key, false) {
-			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project().Name, "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
-			continue
-		}
-
-		_, exists := req.Config[key]
-		if exists {
-			continue
-		}
-
-		req.Config[key] = value
-	}
-
-	// Devices override
-	sourceDevices := source.LocalDevices()
-
-	if req.Devices == nil {
-		req.Devices = make(map[string]map[string]string)
-	}
-
-	for key, value := range sourceDevices {
-		_, exists := req.Devices[key]
-		if exists {
-			continue // Request has overridden this device.
-		}
-
-		req.Devices[key] = value
-	}
-
 	if req.Stateful {
 		sourceName, _, _ := api.GetParentAndSnapshotName(source.Name())
 		if sourceName != req.Name {
@@ -653,11 +625,15 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		Config:       req.Config,
 		Type:         source.Type(),
 		Description:  req.Description,
-		Devices:      deviceConfig.NewDevices(req.Devices),
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
 		Profiles:     profiles,
 		Stateful:     req.Stateful,
+	}
+
+	// Only set args.Devices non-nil if devices were provided in the request.
+	if req.Devices != nil {
+		args.Devices = deviceConfig.NewDevices(req.Devices)
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
@@ -1127,14 +1103,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	if req.Type == "" {
 		req.Type = api.InstanceTypeContainer // Default to container if not specified.
-	}
-
-	if req.Devices == nil {
-		req.Devices = map[string]map[string]string{}
-	}
-
-	if req.Config == nil {
-		req.Config = map[string]string{}
 	}
 
 	if req.InstanceType != "" {
