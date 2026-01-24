@@ -251,7 +251,7 @@ kill_lxd() {
         done < <(echo .tables | sqlite3 "${LXD_DIR}/local.db")
 
         # Kill the daemon
-        timeout -k 30 30 lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
+        timeout -k 30 30 lxd shutdown || kill_go_proc "${LXD_PID}" 2>/dev/null || true
 
         check_leftovers="true"
     fi
@@ -341,7 +341,7 @@ shutdown_lxd() {
     echo "==> Shutting down LXD at ${LXD_DIR} (${LXD_PID})"
 
     # Shutting down the daemon
-    lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
+    lxd shutdown || kill_go_proc "${LXD_PID}" 2>/dev/null || true
 
     # Wait for any cleanup activity that might be happening right
     # after the websocket is closed.
@@ -417,9 +417,8 @@ cleanup_lxds() {
     fi
 
     # Cleanup leftover networks
-    # shellcheck disable=SC2009
-    ps aux | grep "interface=lxdt$$ " | grep -v grep | awk '{print $2}' | while read -r line; do
-        kill -9 "${line}"
+    pgrep -f "interface=lxdt$$ " | while read -r pid; do
+        kill_go_proc "${pid}"
     done
     if [ -e "/sys/class/net/lxdt$$" ]; then
         ip link del lxdt$$
