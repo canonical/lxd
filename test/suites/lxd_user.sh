@@ -1,5 +1,5 @@
 lxc_user() {
-  sudo -u nobody -Es -- env LXD_CONF="${USER_TEMPDIR}" "${_LXC}" "$@"
+  sudo -u nobody -Es -- env GOCOVERDIR="${GOCOVERDIR:-}" LXD_CONF="${USER_TEMPDIR}" "${_LXC}" "$@"
 }
 
 test_lxd_user() {
@@ -49,7 +49,7 @@ test_lxd_user() {
 }
 
 snap_lxc_user() {
-    sudo -Hu testuser LXD_DIR=/var/snap/lxd/common/lxd-user lxc "${@}"
+    sudo -Hu testuser GOCOVERDIR="${GOCOVERDIR:-}" LXD_DIR=/var/snap/lxd/common/lxd-user lxc "${@}"
 }
 
 test_snap_lxd_user() {
