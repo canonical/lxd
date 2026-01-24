@@ -498,27 +498,28 @@ setup_lxd_agent_gocoverage() {
   coverage_enabled || return 0
 
   local instance="${1}"
-  echo "==> Setting up LXD agent coverage gathering inside the ${instance} VM"
+  local project="${2:-}"
+  echo "==> Setting up LXD agent coverage gathering inside the ${instance} (${project}) VM"
 
   # Mount the host's GOCOVERDIR into the instance.
-  lxc config device add "${instance}" gocoverdir disk source="${GOCOVERDIR}" path="${GOCOVERDIR}"
+  lxc config device add "${instance}" gocoverdir disk source="${GOCOVERDIR}" path="${GOCOVERDIR}" --project "${project}"
 
   # The GOCOVERDIR variable is set for use by test binaries like devlxd-client.
-  lxc config set "${instance}" environment.GOCOVERDIR="${GOCOVERDIR}"
+  lxc config set "${instance}" environment.GOCOVERDIR="${GOCOVERDIR}" --project "${project}"
 
   # The GOCOVERDIR variable is passed to lxd-agent via a systemd drop-in.
-  lxc file push --quiet --create-dirs - "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf << EOF
+  lxc file push --quiet --create-dirs --project "${project}" - "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf << EOF
 [Service]
 Environment="GOCOVERDIR=${GOCOVERDIR}"
 EOF
-  lxc exec "${instance}" -- systemctl daemon-reload
+  lxc exec "${instance}" --project "${project}" -- systemctl daemon-reload
 
   # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
   # so a failure is possible and harmless.
-  lxc exec "${instance}" -- systemctl restart --no-block lxd-agent.service || true
+  lxc exec "${instance}" --project "${project}" -- systemctl restart --no-block lxd-agent.service || true
 
   # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
-  waitInstanceReady "${instance}"
+  waitInstanceReady "${instance}" "${project}"
 
   # Give lxd-agent a moment to start up properly.
   sleep 1
@@ -530,21 +531,22 @@ teardown_lxd_agent_gocoverage() {
   coverage_enabled || return 0
 
   local instance="${1}"
-  echo "==> Tearing down LXD agent coverage gathering inside the ${instance} VM"
+  local project="${2:-}"
+  echo "==> Tearing down LXD agent coverage gathering inside the ${instance} (${project}) VM"
 
-  lxc file delete "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf
-  lxc exec "${instance}" -- systemctl daemon-reload
+  lxc file delete "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf --project "${project}"
+  lxc exec "${instance}" --project "${project}" -- systemctl daemon-reload
 
   # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
   # so expect failure.
-  ! lxc exec "${instance}" -- systemctl restart lxd-agent.service || false
+  ! lxc exec "${instance}" --project "${project}" -- systemctl restart lxd-agent.service || false
 
   # Unset the GOCOVERDIR environment variable.
-  lxc config unset "${instance}" environment.GOCOVERDIR
+  lxc config unset "${instance}" environment.GOCOVERDIR --project "${project}"
 
   # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
-  waitInstanceReady "${instance}"
+  waitInstanceReady "${instance}" "${project}"
 
   # Remove the shared dir.
-  lxc config device remove "${instance}" gocoverdir
+  lxc config device remove "${instance}" gocoverdir --project "${project}"
 }
