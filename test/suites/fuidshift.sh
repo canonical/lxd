@@ -41,7 +41,7 @@ _nonroot_fuidshift() {
 
 _root_fuidshift() {
   # error out due to needing root
-  ! sudo -u nobody "$(command -v fuidshift)" my-dir/ b:0:100000:65536 u:10000:1000:1 || false
+  ! sudo -u nobody GOCOVERDIR="${GOCOVERDIR:-}" "$(command -v fuidshift)" my-dir/ b:0:100000:65536 u:10000:1000:1 || false
 
   _nonroot_fuidshift
 
