@@ -147,6 +147,7 @@ jobs:
         run: |
           set -eux
           mkdir -p coverage
+          chmod 0777 coverage
           cd coverage
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
@@ -370,6 +371,7 @@ jobs:
         run: |
           set -eux
           mkdir -p coverage
+          chmod 0777 coverage
           cd coverage
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
@@ -677,6 +679,7 @@ jobs:
         run: |
           set -eux
           mkdir -p coverage
+          chmod 0777 coverage
           cd coverage
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
