@@ -510,6 +510,7 @@ kill_go_proc() {
 # Setup instance to collect coverage data from running Go binaries from inside the instance.
 # If coverage is not enabled, this is a no-op.
 # If the instance is a VM, the lxd-agent will be instrumented too.
+# Note: incompatible with `migration.stateful=true` instances.
 setup_instance_gocoverage() {
   coverage_enabled || return 0
 
