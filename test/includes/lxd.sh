@@ -507,24 +507,27 @@ kill_go_proc() {
   fi
 }
 
-# Setup LXD agent to collect Go coverage data inside instances.
+# Setup instance to collect coverage data from running Go binaries from inside the instance.
 # If coverage is not enabled, this is a no-op.
-setup_lxd_agent_gocoverage() {
+# If the instance is a VM, the lxd-agent will be instrumented too.
+setup_instance_gocoverage() {
   coverage_enabled || return 0
 
   local instance="${1}"
   local project="${2:-}"
 
-  # Only instrument VMs.
-  [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" = "VIRTUAL-MACHINE" ] || return 0
-
-  echo "==> Setting up LXD agent coverage gathering inside the ${instance} (${project}) VM"
+  echo "==> Setting up Go coverage gathering inside the ${instance} (${project:-"-"}) instance"
 
   # Mount the host's GOCOVERDIR into the instance.
   lxc config device add "${instance}" gocoverdir disk source="${GOCOVERDIR}" path="${GOCOVERDIR}" --project "${project}"
 
-  # The GOCOVERDIR variable is set for use by test binaries like devlxd-client.
+  # The GOCOVERDIR variable is set for use by test binaries.
   lxc config set "${instance}" environment.GOCOVERDIR="${GOCOVERDIR}" --project "${project}"
+
+  # The lxd-agent is only relevant for VMs.
+  if [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" != "VIRTUAL-MACHINE" ]; then
+    return 0
+  fi
 
   # The GOCOVERDIR variable is passed to lxd-agent via a systemd drop-in.
   lxc file push --quiet --create-dirs --project "${project}" - "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf << EOF
