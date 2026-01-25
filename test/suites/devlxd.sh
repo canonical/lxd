@@ -560,6 +560,8 @@ test_devlxd_volume_management_snapshots() {
     lxc launch "${image}" "${inst}" $opts --project "${project}"
     waitInstanceReady "${inst}" "${project}"
 
+    setup_instance_gocoverage "${inst}" "${project}"
+
     # Install devlxd-client and make sure it works.
     lxc file push --project "${project}" --quiet "$(command -v devlxd-client)" "${inst}/bin/"
     lxc exec --project "${project}" "${inst}" -- devlxd-client
@@ -689,6 +691,8 @@ EOF
 
     # Cleanup.
     imageFingerprint="$(lxc config get "${inst}" volatile.base_image --project "${project}")"
+    # Coverage data requires clean lxd-agent stop
+    prepare_vm_for_hard_stop "${inst}" "${project}"
     lxc delete "${inst}" --project "${project}" --force
     lxc image delete "${imageFingerprint}" --project "${project}"
     lxc auth identity delete "${authIdentity}"
