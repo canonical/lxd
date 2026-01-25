@@ -243,6 +243,8 @@ test_devlxd_volume_management() {
     lxc launch "${image}" "${inst}" $opts --project "${project}"
     waitInstanceReady "${inst}" "${project}"
 
+    setup_instance_gocoverage "${inst}" "${project}"
+
     # Install devlxd-client and make sure it works.
     lxc file push --project "${project}" --quiet "$(command -v devlxd-client)" "${inst}/bin/"
     lxc exec --project "${project}" "${inst}" -- devlxd-client
@@ -506,6 +508,8 @@ EOF
     if [ "${instType}" = "virtual-machine" ]; then
       lxc image delete "$(lxc config get "${inst}" volatile.base_image --project "${project}")" --project "${project}"
     fi
+    # Coverage data requires clean lxd-agent stop
+    prepare_vm_for_hard_stop "${inst}" "${project}"
     lxc delete "${inst}" --project "${project}" --force
     lxc auth identity delete "${authIdentity}"
     lxc auth group delete "${authGroup}"
