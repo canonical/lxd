@@ -713,7 +713,7 @@ test_devlxd_vm() {
   lxc start v1
   waitInstanceReady v1
 
-  setup_lxd_agent_gocoverage v1
+  setup_instance_gocoverage v1
 
   echo "==> Check that devlxd is enabled by default and works"
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
@@ -725,12 +725,8 @@ test_devlxd_vm() {
   # Run sync before forcefully restarting the VM otherwise the filesystem will be corrupted.
   lxc exec v1 -- "sync"
 
-  # Coverage data requires clean shutdown
-  if coverage_enabled; then
-    # Errors are possible if the service is stopped before the exec completes
-    # as it kills the communication channel
-    lxc exec v1 -- systemctl stop --no-block lxd-agent.service || true
-  fi
+  # Coverage data requires clean lxd-agent stop
+  prepare_vm_for_hard_stop v1
 
   lxc restart -f v1
   waitInstanceReady v1
@@ -787,9 +783,8 @@ runcmd:
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
   [ "$(lxc config get v1 volatile.last_state.ready)" = "true" ]
 
-  # If gathering coverage data, the lxd-agent.service needs to be stopped
-  # cleanly to allow the coverage file to be flushed.
-  teardown_lxd_agent_gocoverage v1
+  # Coverage data requires clean lxd-agent stop
+  prepare_vm_for_hard_stop v1
 
   lxc stop -f v1
   [ "$(lxc config get v1 volatile.last_state.ready)" = "false" ]
