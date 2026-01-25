@@ -129,6 +129,8 @@ test_vm_storage_volume_attach() {
   lxc start v1
   waitInstanceReady v1
 
+  setup_instance_gocoverage v1
+
   echo "==> Hot plugging storage volumes"
   lxc storage volume attach "${pool}" vol2 v1 /mnt
   lxc storage volume attach "${pool}" vol3 v1
@@ -163,6 +165,10 @@ test_vm_storage_volume_attach() {
   lxc storage volume delete "${pool}" vol1
   lxc storage volume delete "${pool}" vol2
   lxc storage volume delete "${pool}" vol3
+
+  # Coverage data requires clean lxd-agent stop
+  prepare_vm_for_hard_stop v1
+
   lxc delete -f v1
 
   if [ -n "${orig_volume_size:-}" ]; then
