@@ -10,8 +10,8 @@ require (
 	github.com/dustinkirkland/golang-petname v0.0.0-20240428194347-eebcea082ee0
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/fvbommel/sortorder v1.1.0
-	github.com/go-acme/lego/v4 v4.30.1
-	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-acme/lego/v4 v4.31.0
+	github.com/go-chi/chi/v5 v5.2.4
 	github.com/go-jose/go-jose/v4 v4.1.3
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/gopacket v1.1.19
@@ -30,20 +30,20 @@ require (
 	github.com/mdlayher/ndp v1.1.0
 	github.com/mdlayher/netx v0.0.0-20230430222610-7e21880baee8
 	github.com/mdlayher/vsock v1.2.1
-	github.com/miekg/dns v1.1.70
+	github.com/miekg/dns v1.1.72
 	github.com/minio/minio-go/v7 v7.0.98
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/moby/sys/capability v0.4.0
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/openfga/api/proto v0.0.0-20251105142303-feed3db3d69d
+	github.com/openfga/api/proto v0.0.0-20260122181957-618e7e0a4878
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
 	github.com/openfga/openfga v1.11.2
 	github.com/osrg/gobgp/v3 v3.37.0
 	github.com/pkg/sftp v1.13.10
 	github.com/pkg/xattr v0.4.12
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/vishvananda/netlink v1.3.1
@@ -56,7 +56,7 @@ require (
 	golang.org/x/sys v0.40.0
 	golang.org/x/term v0.39.0
 	golang.org/x/text v0.33.0
-	golang.org/x/tools v0.40.0
+	golang.org/x/tools v0.41.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.4.0
@@ -158,12 +158,12 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9 // indirect
-	golang.org/x/mod v0.31.0 // indirect
-	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/mod v0.32.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
 	gonum.org/v1/gonum v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/grpc v1.77.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
+	google.golang.org/grpc v1.78.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
