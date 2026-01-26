@@ -13,7 +13,7 @@ build:
     python: "3.12"
   jobs:
     pre_install:
-      - pip install gitpython pyyaml
+      - pip install gitpython==3.1.46 pyyaml==6.0.3
       - git fetch --unshallow || true
     pre_build:
       - go build -ldflags "-s -w" -o trimpath -o lxc.bin ./lxc
