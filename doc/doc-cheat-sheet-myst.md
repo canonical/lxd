@@ -42,19 +42,18 @@ Also see the [MyST documentation](https://myst-parser.readthedocs.io/en/latest/i
 
 ## Code blocks
 
-Start a code block:
+Start a code block with the `none` language to disable syntax highlighting:
 
-    code:
-      - example: true
-
-```
-# Demonstrate a code block
+```none
+# Demonstrate a code block without highlighting
 code:
   - example: true
 ```
 
+Or specify the language to enable syntax highlighting:
+
 ```yaml
-# Demonstrate a code block
+# Demonstrate a code block with YAML highlighting
 code:
   - example: true
 ```
