@@ -46,7 +46,7 @@ do_zfs_delegate() {
   lxc start c1
 
   PID="$(lxc list -f csv -c p c1)"
-  nsenter -t "${PID}" -U -- zfs list | grep -wF containers/c1
+  nsenter -t "${PID}" -U -- zfs list -H -o name | grep -wF containers/c1
 
   # Confirm that ZFS dataset is empty when off.
   lxc stop -f c1
@@ -54,7 +54,7 @@ do_zfs_delegate() {
   lxc start c1
 
   PID="$(lxc list -f csv -c p c1)"
-  ! nsenter -t "${PID}" -U -- zfs list | grep -wF containers/c1 || false
+  ! nsenter -t "${PID}" -U -- zfs list -H -o name | grep -wF containers/c1 || false
 
   lxc delete -f c1
 }
