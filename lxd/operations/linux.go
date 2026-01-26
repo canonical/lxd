@@ -284,3 +284,50 @@ func NewDurableOperation(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *
 
 	return &op, nil
 }
+
+// loadDurableOperationFromDB reloads a durable operation from the database based on its UUID.
+// This is only used to ease debugging to ensure that the reloaded operation is identical to the one originally created.
+func loadDurableOperationFromDB(op *Operation) (*Operation, error) {
+	var result *Operation
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		filter := cluster.OperationFilter{UUID: &op.id}
+		dbOps, err := cluster.GetOperations(ctx, tx.Tx(), filter)
+		if err != nil {
+			return fmt.Errorf("Failed loading operation %q from database: %w", op.id, err)
+		}
+
+		if len(dbOps) != 1 {
+			return fmt.Errorf("Operation %q not found in database", op.id)
+		}
+
+		dbOp := dbOps[0]
+		projectName := ""
+		if dbOp.ProjectID != nil {
+			projectID := (int)(*dbOp.ProjectID)
+			filter := cluster.ProjectFilter{ID: &projectID}
+			projects, err := cluster.GetProjects(ctx, tx.Tx(), filter)
+			if err != nil {
+				return fmt.Errorf("Failed loading project for operation %q from database: %w", op.id, err)
+			}
+
+			if len(projects) != 1 {
+				return fmt.Errorf("Project ID %d for operation %q not found in database", *dbOp.ProjectID, op.id)
+			}
+
+			projectName = projects[0].Name
+		}
+
+		op, err := NewDurableOperation(ctx, tx.Tx(), op.state, &dbOp, projectName)
+		if err != nil {
+			return fmt.Errorf("Failed constructing operation %q from database: %w", op.id, err)
+		}
+
+		result = op
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
