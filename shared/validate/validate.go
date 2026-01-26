@@ -923,7 +923,7 @@ func IsClusterGroupName(name string) error {
 	}
 
 	// Validate ASCII-only.
-	err := IsEntityName(name)
+	err := IsEntityName(name, false)
 	if err != nil {
 		return err
 	}
