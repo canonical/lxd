@@ -71,7 +71,12 @@ func UserAgentFeatures(features []string) error {
 		return errors.New("User agent features may not contain whitespace")
 	}
 
-	userAgentFeatures = features
+	for _, f := range features {
+		if !slices.Contains(userAgentFeatures, f) {
+			userAgentFeatures = append(userAgentFeatures, f)
+		}
+	}
+
 	UserAgent = getUserAgent()
 	return nil
 }

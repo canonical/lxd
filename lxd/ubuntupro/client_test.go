@@ -14,15 +14,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type proCLIMock struct {
 	mockResponse *api.DevLXDUbuntuProGuestTokenResponse
 	mockErr      error
+	mockAttached bool
 }
 
 func (p proCLIMock) getGuestToken(_ context.Context) (*api.DevLXDUbuntuProGuestTokenResponse, error) {
 	return p.mockResponse, p.mockErr
+}
+
+func (p proCLIMock) isHostAttached(ctx context.Context) (bool, error) {
+	return p.mockAttached, p.mockErr
 }
 
 func TestClient(t *testing.T) {
@@ -250,6 +256,21 @@ func TestClient(t *testing.T) {
 	sleep()
 	assert.Equal(t, guestAttachSettingOff, s.guestAttachSetting)
 	runAssertions(assertionsWhenHostHasGuestAttachmentOff)
+
+	t.Run("UserAgent adds pro feature when attached", func(t *testing.T) {
+		mockProCLI := proCLIMock{
+			mockAttached: true,
+		}
+
+		s := &Client{}
+		// We use a new context because the previous one was cancelled.
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		s.init(ctx, tmpDir, mockProCLI)
+
+		assert.Contains(t, version.UserAgent, "pro")
+	})
 
 	err = os.RemoveAll(tmpDir)
 	require.NoError(t, err)
