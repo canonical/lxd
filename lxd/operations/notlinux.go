@@ -40,3 +40,7 @@ func (op *Operation) sendEvent(eventMessage any) {
 
 	op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
 }
+
+func loadDurableOperationFromDB(op *Operation) (*Operation, error) {
+	return nil, nil
+}
