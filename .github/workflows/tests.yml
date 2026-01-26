@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.1
+        uses: actions/checkout@v6.0.2
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
@@ -221,7 +221,7 @@ jobs:
           sudo nft flush ruleset
 
       - name: Checkout
-        uses: actions/checkout@v6.0.1
+        uses: actions/checkout@v6.0.2
 
       - name: Install Go
         uses: actions/setup-go@v6
@@ -387,7 +387,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6.0.1
+        uses: actions/checkout@v6.0.2
 
       - name: Install Go
         uses: actions/setup-go@v6
@@ -457,7 +457,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.1
+        uses: actions/checkout@v6.0.2
         with:
           # A non-shallow clone is needed for the sitemap generation
           fetch-depth: 0
@@ -523,7 +523,7 @@ jobs:
         }')[github.ref_name] }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v5.0.1
+        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # v5.0.1
 
       - uses: ./.github/actions/lp-snap-build
         with:
