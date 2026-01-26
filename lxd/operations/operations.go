@@ -324,6 +324,18 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, err
 	}
 
+	// Durable operations need to be able to be reloaded from the database.
+	// To ease debugging in case of issues, we want to ensure the reloaded operation will be identical to the one originally created.
+	// Therefore, reload the operation from the database here to ensure everything is properly persisted and can be reloaded correctly.
+	// Notably, when unix socket is used for auth, the op.requestor.OriginAddress is set to '@'. This is not persisted in the database,
+	// so reloading the operation ensures we work with empty ("") OriginAddress instead of "@".
+	if op.class == OperationClassDurable {
+		op, err = loadDurableOperationFromDB(op)
+		if err != nil {
+			return nil, fmt.Errorf("Failed reloading durable operation from database: %w", err)
+		}
+	}
+
 	op.logger.Debug("New operation")
 	_, md, _ := op.Render()
 
