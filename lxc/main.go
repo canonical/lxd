@@ -403,11 +403,6 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 		c.conf.ProjectOverride = c.flagProject
 	}
 
-	// Setup password helper
-	c.conf.PromptPassword = func(filename string) (string, error) {
-		return c.asker.AskPasswordOnce(fmt.Sprintf("Password for %s: ", filename)), nil
-	}
-
 	// If the user is running a command that may attempt to connect to the local daemon
 	// and this is the first time the client has been run by the user, then check to see
 	// if LXD has been properly configured.  Don't display the message if the var path
