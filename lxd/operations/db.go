@@ -323,3 +323,28 @@ func PruneExpiredOperations(ctx context.Context, s *state.State) error {
 
 	return nil
 }
+
+// loadDurableOperationFromDB reloads a durable operation from the database based on its UUID.
+// This is only used to ease debugging to ensure that the reloaded operation is identical to the one originally created.
+func loadDurableOperationFromDB(op *Operation) (*Operation, error) {
+	var result *Operation
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbOp, err := cluster.GetOperation(ctx, tx.Tx(), op.id)
+		if err != nil {
+			return fmt.Errorf("Failed loading operation %q from database: %w", op.id, err)
+		}
+
+		op, err := ConstructOperationFromDB(ctx, tx.Tx(), op.state, dbOp)
+		if err != nil {
+			return fmt.Errorf("Failed constructing operation %q from database: %w", op.id, err)
+		}
+
+		result = op
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
