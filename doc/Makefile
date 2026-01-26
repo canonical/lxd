@@ -64,7 +64,7 @@ pa11y-install:
 		}
 
 pymarkdownlnt-install:
-	. $(VENV); test -d $(VENVDIR)/lib/python*/site-packages/pymarkdown || pip install pymarkdownlnt
+	. $(VENV); test -d $(VENVDIR)/lib/python*/site-packages/pymarkdown || pip install pymarkdownlnt==0.9.35
 
 client:
 	cd .. && $(MAKE) -f Makefile client
@@ -112,9 +112,9 @@ lint lint-md: pymarkdownlnt-install
 	@. $(VENV); \
 	pymarkdownlnt --config .sphinx/.pymarkdown.json scan \
 		--recurse \
-		--exclude=./.sphinx \
-		--exclude=./_build \
-		--exclude=./reference/manpages/lxc \
+		--exclude=$(SPHINXDIR) \
+		--exclude=$(BUILDDIR) \
+		--exclude=$(MANPAGEDIR)/lxc \
 		. \
 	&& echo "Passed" \
 	|| (echo "Failed"; exit 1)
