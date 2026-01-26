@@ -156,6 +156,32 @@ func GetProjectNames(ctx context.Context, tx *sql.Tx) ([]string, error) {
 	return names, nil
 }
 
+// GetProjectsSharingDefaultImages returns the names of all projects using
+// images stored in the "default" project. That is, it returns all projects
+// with "features.images=false" and the "default" project itself.
+func GetProjectsSharingDefaultImages(ctx context.Context, tx *sql.Tx) ([]string, error) {
+	// Here we filter for the "default" project and all other projects
+	// which do not have "features.images=true". This latter part is because
+	// we treat the absence of "features.images" key the same as "features.images=false".
+	stmt := `
+	SELECT name FROM projects
+	WHERE (
+		name='default' OR
+		id NOT IN (
+			SELECT project_id
+			FROM projects_config
+			WHERE key = 'features.images' AND value = 'true'
+		)
+	)`
+
+	projectNames, err := query.SelectStrings(ctx, tx, stmt)
+	if err != nil {
+		return nil, fmt.Errorf("Failed fetching project names: %w", err)
+	}
+
+	return projectNames, nil
+}
+
 // ProjectHasImages is a helper to check if a project has the images
 // feature enabled.
 func ProjectHasImages(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
