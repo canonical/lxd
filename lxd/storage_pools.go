@@ -306,8 +306,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Storage pool names may not contain slashes"))
 	}
 
-	// Validate ASCII-only.
-	err = validate.IsEntityName(req.Name)
+	err = validate.IsEntityName(req.Name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
