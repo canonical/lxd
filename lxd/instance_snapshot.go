@@ -344,7 +344,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the name
-	err = validate.IsAPIName(req.Name, false)
+	err = validate.IsEntityName(req.Name, false)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Invalid snapshot name: %w", err))
 	}
@@ -789,7 +789,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 	}
 
 	// Validate the name
-	err = validate.IsAPIName(newName, false)
+	err = validate.IsEntityName(newName, false)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Invalid snapshot name: %w", err))
 	}
