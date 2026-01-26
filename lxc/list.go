@@ -485,7 +485,6 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if needsData && d.HasExtension("container_full") {
-
 		// Using the GetInstancesFull shortcut
 		var instances []api.InstanceFull
 
