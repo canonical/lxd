@@ -144,7 +144,7 @@ func GetProjectConfig(ctx context.Context, tx *sql.Tx, projectName string) (map[
 	return result, nil
 }
 
-// GetProjectNames returns the names of all availablprojects.
+// GetProjectNames returns the names of all available projects.
 func GetProjectNames(ctx context.Context, tx *sql.Tx) ([]string, error) {
 	stmt := "SELECT name FROM projects"
 
