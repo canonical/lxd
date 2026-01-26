@@ -1534,12 +1534,14 @@ func IsMicroOVNUsed() bool {
 	return false
 }
 
-// SingleQuote is equivalent to strconv.Quote but using a single-quote instead.
-func SingleQuote(in string) string {
-	s := strconv.Quote(in)
-	s = s[1 : len(s)-1]
-	s = strings.ReplaceAll(s, "\\\"", "\"")
-	s = strings.ReplaceAll(s, "'", "\\'")
+// ShellQuote escapes the input string for use in shell command arguments.
+// It is equivalent to strconv.Quote but using a single-quote instead.
+func ShellQuote(in string) string {
+	in = strconv.Quote(in)
+	in = in[1 : len(in)-1]                    // Remove the surrounding double quotes added by strconv.Quote.
+	in = strings.ReplaceAll(in, "\\\"", "\"") // Unescape any escaped double quotes from strconv.Quote.
 
-	return s
+	// Replace ' with '\'' which translates to:
+	// [End literal string] + [Escaped single quote] + [Start new literal string]
+	return `'` + strings.ReplaceAll(in, `'`, `'\''`) + `'`
 }
