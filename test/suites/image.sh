@@ -174,23 +174,17 @@ test_image_list_remotes() {
 }
 
 test_image_import_dir() {
-    ensure_import_testimage
-    lxc image export testimage
-    local image
-    image="$(ls -1 -- *.tar.xz)"
     mkdir -p unpacked
-    tar -C unpacked -xf "$image"
+    tar -C unpacked -xf "${LXD_TEST_IMAGE}"
     local fingerprint
     fingerprint="$(lxc image import unpacked | awk '{print $NF;}')"
-    rm -rf "$image" unpacked
+    rm -rf unpacked
 
-    lxc image export "$fingerprint"
+    lxc image export "${fingerprint}"
     lxc image delete "${fingerprint}"
-    local exported
-    exported="${fingerprint}.tar.xz"
 
-    tar tvf "$exported" --occurrence=1 metadata.yaml
-    rm "$exported"
+    tar tvf "${fingerprint}.tar"* --occurrence=1 metadata.yaml
+    rm "${fingerprint}.tar"*
 }
 
 test_image_import_existing_alias() {
