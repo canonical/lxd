@@ -312,7 +312,7 @@ func (n *common) validateRoutes(config map[string]string) error {
 
 // ValidateName validates network name.
 func (n *common) ValidateName(name string) error {
-	err := validate.IsURLSegmentSafe(name)
+	err := validate.IsAPIName(name, false)
 	if err != nil {
 		return err
 	}
