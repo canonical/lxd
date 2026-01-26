@@ -312,7 +312,7 @@ func (n *common) validateRoutes(config map[string]string) error {
 
 // ValidateName validates network name.
 func (n *common) ValidateName(name string) error {
-	err := validate.IsAPIName(name, false)
+	err := validate.IsEntityName(name, false)
 	if err != nil {
 		return err
 	}
@@ -324,12 +324,6 @@ func (n *common) ValidateName(name string) error {
 	// Defend against path traversal attacks.
 	if !shared.IsFileName(name) {
 		return fmt.Errorf("Invalid name %q, may not contain slashes or consecutive dots", name)
-	}
-
-	// Validate ASCII-only.
-	err = validate.IsEntityName(name)
-	if err != nil {
-		return err
 	}
 
 	return nil
