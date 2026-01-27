@@ -41,7 +41,7 @@ Use separate commits for different types of changes:
 | **Go client package**| Files in `client/`                               | `client: Add XYZ`                   |
 | **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         |
 | **LXD daemon**       | Files in `lxd/`                                  | `lxd/<package>: Add support for XYZ`|
-| **Tests**            | Files in `tests/`                                | `tests: Add test for XYZ`           |
+| **Tests**            | Files in `test/`                                 | `test/<path>: Add test for XYZ`     |
 | **GitHub**           | Files in `.github/`                              | `github: Update XYZ`                |
 | **Makefile**         | `Makefile`                                       | `Makefile: Update XYZ`              |
 
