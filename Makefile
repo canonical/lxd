@@ -319,6 +319,7 @@ endif
 .PHONY: update-metadata
 update-metadata: lxd-metadata
 	@echo "Generating golang documentation metadata"
+	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
 	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml
 	if [ -t 0 ] && ! git diff --quiet -- ./lxd/metadata/configuration.json ./doc/metadata.txt; then \
 		read -rp "Would you like to commit metadata changes (Y/n)? " answer; \
