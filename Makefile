@@ -297,7 +297,8 @@ update-protobuf:
 update-schema:
 	@# XXX: `go install ...@latest` is almost a noop if already up to date
 	go install golang.org/x/tools/cmd/goimports@latest
-	go build -C lxd/db/generate -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG)
+	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
+	go build -C lxd/db/generate -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(COVER) $(DEBUG)
 	go generate ./...
 	@echo "Code generation completed"
 
