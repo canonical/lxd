@@ -174,23 +174,17 @@ test_image_list_remotes() {
 }
 
 test_image_import_dir() {
-    ensure_import_testimage
-    lxc image export testimage
-    local image
-    image="$(ls -1 -- *.tar.xz)"
     mkdir -p unpacked
-    tar -C unpacked -xf "$image"
+    tar -C unpacked -xf "${LXD_TEST_IMAGE}"
     local fingerprint
     fingerprint="$(lxc image import unpacked | awk '{print $NF;}')"
-    rm -rf "$image" unpacked
+    rm -rf unpacked
 
-    lxc image export "$fingerprint"
+    lxc image export "${fingerprint}"
     lxc image delete "${fingerprint}"
-    local exported
-    exported="${fingerprint}.tar.xz"
 
-    tar tvf "$exported" --occurrence=1 metadata.yaml
-    rm "$exported"
+    tar tvf "${fingerprint}.tar"* --occurrence=1 metadata.yaml
+    rm "${fingerprint}.tar"*
 }
 
 test_image_import_existing_alias() {
@@ -201,15 +195,15 @@ test_image_import_existing_alias() {
     lxc image export testimage testimage.file
     lxc image delete testimage
 
-    # XXX: ensure_import_testimage imports a `.tar.xz` image which is why once exported, those extensions are appended
+    # XXX: ensure_import_testimage imports a `.tar` image which is why once exported, those extensions are appended
     # the image can be imported with an existing alias
-    lxc image import testimage.file.tar.xz --alias newimage
+    lxc image import testimage.file.tar* --alias newimage
 
     # Test for proper error message when importing an image to a non-existing project
-    output="$(! lxc image import testimage.file.tar.xz --project nonexistingproject 2>&1 || false)"
+    output="$(! lxc image import testimage.file.tar* --project nonexistingproject 2>&1 || false)"
     echo "${output}" | grep -F "Project not found"
 
-    rm testimage.file.tar.xz
+    rm testimage.file.tar*
     lxc image delete newimage image2
 }
 

@@ -19,7 +19,6 @@ ensure_import_testimage() {
     fi
 
     if [ -e "${LXD_TEST_IMAGE:-}" ]; then
-        echo "Importing ${LXD_TEST_IMAGE} test image from disk"
         lxc image import --quiet "${LXD_TEST_IMAGE}" --alias "${alias}" --project "${project}"
     else
         if [ "${project:-}" = "" ]; then
