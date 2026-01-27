@@ -112,7 +112,7 @@ func expandExpression(input string) string {
 
 		// Split the parts string based on '+'
 		parts := strings.Split(partsStr, "+")
-		var expandedParts []string
+		var expandedParts = make([]string, 0, len(parts))
 		for _, part := range parts {
 			expandedParts = append(expandedParts, prefix+part)
 		}

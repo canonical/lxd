@@ -326,6 +326,12 @@ func (n *common) ValidateName(name string) error {
 		return fmt.Errorf("Invalid name %q, may not contain slashes or consecutive dots", name)
 	}
 
+	// Validate ASCII-only.
+	err = validate.IsEntityName(name)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -407,7 +407,7 @@ func (c *cmdList) showInstances(instances []api.InstanceFull, filters []string, 
 
 		instancesFiltered = append(instancesFiltered, inst)
 
-		col := []string{}
+		col := make([]string, 0, len(columns))
 		for _, column := range columns {
 			col = append(col, column.Data(inst))
 		}
@@ -417,7 +417,7 @@ func (c *cmdList) showInstances(instances []api.InstanceFull, filters []string, 
 
 	sort.Sort(cli.SortColumnsNaturally(data))
 
-	headers := []string{}
+	headers := make([]string, 0, len(columns))
 	for _, column := range columns {
 		headers = append(headers, column.Name)
 	}

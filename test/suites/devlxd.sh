@@ -30,9 +30,8 @@ test_devlxd() {
   lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state | jq --exit-status '.auth == "trusted"'
 
   # Revoke the token, it should no longer be valid.
-  subject="$(lxc query /1.0/auth/identities/bearer/foo | jq --exit-status --raw-output .id)"
   lxc auth identity token revoke devlxd/foo
-  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state || false)" = "Failed to verify bearer token: Identity \"${subject}\" (bearer) not found" ]
+  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state || false)" = "Failed to verify bearer token: Unrecognized token subject: No secret found for bearer token identity" ]
 
   # Issue a new token, it should be valid
   devlxd_token3="$(lxc auth identity token issue devlxd/foo --quiet)"
@@ -40,7 +39,7 @@ test_devlxd() {
 
   # Delete the identity, the token should no longer be valid.
   lxc auth identity delete devlxd/foo
-  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token3}" devlxd -- devlxd-client get-state || false)" = "Failed to verify bearer token: Identity \"${subject}\" (bearer) not found" ]
+  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token3}" devlxd -- devlxd-client get-state || false)" = "Failed to verify bearer token: Unrecognized token subject: No secret found for bearer token identity" ]
 
   # Create a token with an expiry
   lxc auth identity create devlxd/foo

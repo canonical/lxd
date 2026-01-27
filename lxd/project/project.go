@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // separator is used to delimit the project name from the suffix.
@@ -49,6 +50,12 @@ func ValidName(name string) error {
 
 	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
 		return errors.New("Project names may not contain quotes")
+	}
+
+	// Validate ASCII-only.
+	err := validate.IsEntityName(name)
+	if err != nil {
+		return err
 	}
 
 	return nil

@@ -102,6 +102,7 @@ export DEFAULT_POOL_SIZE="3GiB"
 
 export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
+export LXD_REPEAT_TESTS="${LXD_REPEAT_TESTS:-1}"
 
 # This must be enough to accommodate the busybox testimage
 export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
@@ -140,6 +141,12 @@ run_dependency_checks() {
     download_minio
   fi
 
+  # Setup MicroCeph if the ceph backend is selected
+  if [[ "${LXD_BACKENDS}" == *"ceph"* ]]; then
+    # Setup MicroCeph
+    setup_microceph
+  fi
+
   echo "==> Checking test dependencies"
   if ! check_dependencies devlxd-client lxd-client fuidshift mini-oidc sysinfo; then
     make -C "${MAIN_DIR}/.." test-binaries
@@ -174,6 +181,11 @@ if [ "${PWD}" != "$(dirname "${0}")" ]; then
 fi
 readonly MAIN_DIR="${PWD}"
 export MAIN_DIR
+if [ -n "${LXD_BACKEND:-}" ]; then
+  LXD_BACKEND_EXPLICIT=1
+else
+  LXD_BACKEND_EXPLICIT=0
+fi
 export LXD_BACKEND="${LXD_BACKEND:-"dir"}"
 
 # Support multiple backends selection
@@ -196,7 +208,10 @@ readonly LXD_BACKENDS
 # Determine active tests
 # If LXD_BACKEND is set, we only run that one.
 # Otherwise, we run all backends in LXD_BACKENDS.
-active_backends="${LXD_BACKEND:-${LXD_BACKENDS}}"
+active_backends="${LXD_BACKENDS}"
+if [ "${LXD_BACKEND_EXPLICIT}" = "1" ]; then
+  active_backends="${LXD_BACKEND}"
+fi
 
 import_subdir_files includes
 
@@ -279,7 +294,7 @@ cleanup() {
       # Re-execution prevention
       export LXD_INSPECT_INPROGRESS=true
 
-      echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
+      echo "==> FAILED TEST: ${TEST_CURRENT} (${TEST_CURRENT_DESCRIPTION})"
       echo "==> Test result: ${TEST_RESULT}"
       # red
       PS1_PREFIX="\[\033[0;31m\]LXD-TEST\[\033[0m\]"
@@ -344,7 +359,7 @@ cleanup() {
     # Generate the duration table on failure as it won't be generated at the end
     # of the script
     generate_duration_table
-    echo "==> FAILED TEST: ${TEST_CURRENT#test_}"
+    echo "==> FAILED TEST: ${TEST_CURRENT}"
   fi
   echo "==> Test result: ${TEST_RESULT}"
 
@@ -382,8 +397,8 @@ generate_duration_table() {
         fi
     done
 
-    # Sort test names
-    mapfile -t test_names < <(printf '%s\n' "${test_names[@]}" | sort)
+    # Sort test names using version sort (-V) so numbered test runs like "test (1/10)" are ordered naturally.
+    mapfile -t test_names < <(printf '%s\n' "${test_names[@]}" | sort -V)
 
     # Calculate column widths and totals
     local test_col_width=5  # "TOTAL"
@@ -391,30 +406,110 @@ generate_duration_table() {
     read -ra backends <<< "${LXD_BACKENDS}"
     local -A backend_col_widths
     local -A backend_totals
+
+    # helper vars for average calculation
+    local -A group_sums
+    local -A group_counts
+    local last_base=""
+
     for backend in "${backends[@]}"; do
         backend_col_widths[${backend}]=${#backend}
         backend_totals[${backend}]=0
+        group_sums[${backend}]=0
+        group_counts[${backend}]=0
     done
 
+    # Pre-calculate widths
     for test_name in "${test_names[@]}"; do
         [ ${#test_name} -gt "${test_col_width}" ] && test_col_width=${#test_name}
+
+        # Logic to handle averaging for Total calculation
+        local current_base=""
+        local current_is_group=0
+        if [[ "${test_name}" =~ ^(.*)\ \([0-9]+/[0-9]+\)$ ]]; then
+             current_base="${BASH_REMATCH[1]}"
+             current_is_group=1
+        else
+             current_base="${test_name}"
+        fi
+
+        # If group changed, add average of previous group to total
+        if [ -n "${last_base}" ] && [ "${current_base}" != "${last_base}" ]; then
+             for backend in "${backends[@]}"; do
+                 if [ "${group_counts[${backend}]}" -gt 0 ]; then
+                     local avg
+                     avg=$(awk "BEGIN {printf \"%.2f\", ${group_sums[${backend}]} / ${group_counts[${backend}]}}")
+                     backend_totals[${backend}]=$(awk "BEGIN {printf \"%.2f\", ${backend_totals[${backend}]} + ${avg}}")
+                 fi
+                 # Reset group stats
+                 group_sums[${backend}]=0
+                 group_counts[${backend}]=0
+             done
+        fi
+
+        last_base="${current_base}"
+
         for backend in "${backends[@]}"; do
             local duration="${durations[${test_name},${backend}]:-}"
-            local cell_text
+            local cell_text="-"
             if [ -n "${duration}" ]; then
                 cell_text="${duration}s"
-                backend_totals[${backend}]=$(awk "BEGIN {printf \"%.2f\", ${backend_totals[${backend}]} + ${duration}}")
-            else
-                cell_text="-"
+                if [ "${current_is_group}" -eq 1 ]; then
+                    group_sums[${backend}]=$(awk "BEGIN {printf \"%.2f\", ${group_sums[${backend}]} + ${duration}}")
+                    group_counts[${backend}]=$((group_counts[${backend}] + 1))
+                else
+                    # Non-grouped item adds directly to total
+                    backend_totals[${backend}]=$(awk "BEGIN {printf \"%.2f\", ${backend_totals[${backend}]} + ${duration}}")
+                fi
             fi
             [ ${#cell_text} -gt "${backend_col_widths[${backend}]}" ] && backend_col_widths[${backend}]=${#cell_text}
         done
     done
 
-    # Check total width
+    # Handle last group
+    for backend in "${backends[@]}"; do
+         if [ "${group_counts[${backend}]}" -gt 0 ]; then
+             local avg
+             avg=$(awk "BEGIN {printf \"%.2f\", ${group_sums[${backend}]} / ${group_counts[${backend}]}}")
+             backend_totals[${backend}]=$(awk "BEGIN {printf \"%.2f\", ${backend_totals[${backend}]} + ${avg}}")
+         fi
+    done
+
+    # Check total label width
+    local total_label="TOTAL"
+    if [ "${LXD_REPEAT_TESTS}" -gt 1 ]; then
+        total_label="TOTAL (avg)"
+    fi
+    [ ${#total_label} -gt "${test_col_width}" ] && test_col_width=${#total_label}
+
+    # Check avg label width for the longest test name
+    local avg_suffix_len=6 # " (avg)"
+    local max_test_len=0
+    for test_name in "${test_names[@]}"; do
+        if [[ "${test_name}" =~ ^(.*)\ \([0-9]+/[0-9]+\)$ ]]; then
+             local base="${BASH_REMATCH[1]}"
+             [ ${#base} -gt "${max_test_len}" ] && max_test_len=${#base}
+        elif [ ${#test_name} -gt "${max_test_len}" ]; then
+             max_test_len=${#test_name}
+        fi
+    done
+
+    if [ "${LXD_REPEAT_TESTS}" -gt 1 ]; then
+        local potential_width=$((max_test_len + avg_suffix_len))
+        [ "${potential_width}" -gt "${test_col_width}" ] && test_col_width=${potential_width}
+    fi
+
+    # Check total value widths
     for backend in "${backends[@]}"; do
         local total_text="${backend_totals[${backend}]}s"
         [ ${#total_text} -gt "${backend_col_widths[${backend}]}" ] && backend_col_widths[${backend}]=${#total_text}
+
+        # Reset totals for the actual printing phase.
+        # At this point backend_totals has only been used to size the columns above.
+        # The reporting/printing loop will recompute these totals from scratch while
+        # generating the table, so we intentionally clear them here to avoid mixing
+        # the sizing pass with the final results.
+        backend_totals[${backend}]=0
     done
 
     {
@@ -432,14 +527,69 @@ generate_duration_table() {
         done
         echo ""
 
+        local last_base=""
+        local is_group=0
+        local -A print_group_sums
+        local -A print_group_counts
+
+        # Initialize group stats
+        for backend in "${backends[@]}"; do
+             print_group_sums[${backend}]=0
+             print_group_counts[${backend}]=0
+        done
+
         # Data rows
         for test_name in "${test_names[@]}"; do
+            local current_base=""
+            local current_is_group=0
+
+            if [[ "${test_name}" =~ ^(.*)\ \([0-9]+/[0-9]+\)$ ]]; then
+                current_base="${BASH_REMATCH[1]}"
+                current_is_group=1
+            else
+                current_base="${test_name}"
+                current_is_group=0
+            fi
+
+            # Check if group changed
+            if [ -n "${last_base}" ] && [ "${current_base}" != "${last_base}" ]; then
+                if [ "${is_group}" -eq 1 ]; then
+                    printf "%-${test_col_width}s" "${last_base} (avg)"
+                    for backend in "${backends[@]}"; do
+                        local sum="${print_group_sums[${backend}]:-0}"
+                        local count="${print_group_counts[${backend}]:-0}"
+                        local cell_text="-"
+                        if [ "${count}" -gt 0 ]; then
+                            local avg
+                            avg=$(awk "BEGIN {printf \"%.2f\", ${sum} / ${count}}")
+                            cell_text="${avg}s"
+                            backend_totals[${backend}]=$(awk "BEGIN {printf \"%.2f\", ${backend_totals[${backend}]} + ${avg}}")
+                        fi
+                        printf " | %${backend_col_widths[${backend}]}s" "${cell_text}"
+
+                        # Reset for next usage (though we can just ignore, safer to reset)
+                        print_group_sums[${backend}]=0
+                        print_group_counts[${backend}]=0
+                    done
+                    echo ""
+                fi
+            fi
+
+            last_base="${current_base}"
+            is_group="${current_is_group}"
+
             printf "%-${test_col_width}s" "${test_name}"
             for backend in "${backends[@]}"; do
                 local duration="${durations[${test_name},${backend}]:-}"
                 local cell_text
                 if [ -n "${duration}" ]; then
                     cell_text="${duration}s"
+                    if [ "${current_is_group}" -eq 1 ]; then
+                        print_group_sums[${backend}]=$(awk "BEGIN {printf \"%.2f\", ${print_group_sums[${backend}]} + ${duration}}")
+                        print_group_counts[${backend}]=$((print_group_counts[${backend}] + 1))
+                    else
+                        backend_totals[${backend}]=$(awk "BEGIN {printf \"%.2f\", ${backend_totals[${backend}]} + ${duration}}")
+                    fi
                 else
                     cell_text="-"
                 fi
@@ -448,8 +598,26 @@ generate_duration_table() {
             echo ""
         done
 
+        # Handle last group
+        if [ "${is_group}" -eq 1 ]; then
+             printf "%-${test_col_width}s" "${last_base} (avg)"
+             for backend in "${backends[@]}"; do
+                local sum="${print_group_sums[${backend}]:-0}"
+                local count="${print_group_counts[${backend}]:-0}"
+                local cell_text="-"
+                if [ "${count}" -gt 0 ]; then
+                    local avg
+                    avg=$(awk "BEGIN {printf \"%.2f\", ${sum} / ${count}}")
+                    cell_text="${avg}s"
+                    backend_totals[${backend}]=$(awk "BEGIN {printf \"%.2f\", ${backend_totals[${backend}]} + ${avg}}")
+                fi
+                printf " | %${backend_col_widths[${backend}]}s" "${cell_text}"
+             done
+             echo ""
+        fi
+
         # Total row
-        printf "%-${test_col_width}s" "TOTAL"
+        printf "%-${test_col_width}s" "${total_label}"
         for backend in "${backends[@]}"; do
             printf " | %${backend_col_widths[${backend}]}s" "${backend_totals[${backend}]}s"
         done
@@ -477,21 +645,26 @@ run_test_group() {
 run_test_n_times() {
   local name="${1}"
   local iterCount=1
-  while [ "${iterCount}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
-    run_test "test_${name}"
+  while [ "${iterCount}" -le "${LXD_REPEAT_TESTS}" ]; do
+    run_test "${name}" "${iterCount}"
     iterCount=$((iterCount + 1))
   done
 }
 
 # Run a single test
 run_test() {
-  TEST_CURRENT=${1}
-  TEST_CURRENT_DESCRIPTION="${TEST_CURRENT#test_} on ${LXD_BACKEND}"
-  TEST_UNMET_REQUIREMENT=""
+  local test_name="${1}"
+  local run_count="${2:-1}"
+  TEST_CURRENT="${test_name}"
 
-  if [ "${RUN_COUNT:-0}" -ne 0 ] && [ "${LXD_REPEAT_TESTS:-1}" -ne 1 ]; then
-    TEST_CURRENT_DESCRIPTION="${TEST_CURRENT_DESCRIPTION} (${RUN_COUNT}/${LXD_REPEAT_TESTS})"
+  if [ "${LXD_REPEAT_TESTS}" -gt 1 ]; then
+    TEST_CURRENT="${TEST_CURRENT} (${run_count}/${LXD_REPEAT_TESTS})"
   fi
+
+  TEST_CURRENT_DESCRIPTION="${TEST_CURRENT} on ${LXD_BACKEND}"
+
+  # Clear unmet requirement message between tests
+  TEST_UNMET_REQUIREMENT=""
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   local DURATION=""
@@ -501,7 +674,7 @@ run_test() {
   # Skip test if requested.
   if [ -n "${LXD_SKIP_TESTS:-}" ]; then
     for testName in ${LXD_SKIP_TESTS}; do
-      if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
+      if [ "${testName}" = "${test_name}" ]; then
           echo "==> SKIP: ${TEST_CURRENT} as specified in LXD_SKIP_TESTS"
           skip=true
           break
@@ -511,7 +684,7 @@ run_test() {
 
   if [ "${skip}" = false ]; then
 
-    if [[ "${TEST_CURRENT}" =~ ^test_snap_.*$ ]]; then
+    if [[ "${test_name}" =~ ^snap_.*$ ]]; then
       [ -e "/snap/lxd/current" ] || spawn_lxd_snap
 
       # For snap based tests, the lxc and lxc_remote functions MUST not be used
@@ -522,8 +695,8 @@ run_test() {
 
     # If there is '_vm' in the test name, then VM tests are expected to be run.
     # If LXD_VM_TESTS=1, then VM tests can be run.
-    if [[ "${TEST_CURRENT}" =~ ^test_.*_vm.*$ ]] && [ "${LXD_VM_TESTS}" = "0" ]; then
-      export TEST_UNMET_REQUIREMENT="VM test currently disabled due to LXD_VM_TESTS=0"
+    if [[ "${test_name}" =~ ^.*_vm.*$ ]] && [ "${LXD_VM_TESTS}" = "0" ]; then
+      TEST_UNMET_REQUIREMENT="VM test currently disabled due to LXD_VM_TESTS=0"
     else
       # Check for any core dump before running the test
       if ! check_coredumps; then
@@ -536,7 +709,7 @@ run_test() {
       readonly START_TIME
 
       # Run test.
-      ${TEST_CURRENT}
+      test_"${test_name}"
 
       END_TIME="$(date +%s.%2N)"
       DURATION=$(awk "BEGIN {printf \"%.2f\", ${END_TIME} - ${START_TIME}}")
@@ -552,7 +725,7 @@ run_test() {
       DURATION=""
       if [ -n "${LXD_REQUIRED_TESTS:-}" ]; then
         for testName in ${LXD_REQUIRED_TESTS}; do
-          if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
+          if [ "${testName}" = "${test_name}" ]; then
               echo "==> REQUIRED: ${TEST_CURRENT} ${TEST_UNMET_REQUIREMENT}"
               false
           fi
@@ -566,9 +739,10 @@ run_test() {
 
   # output duration in blue
   echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION:-"-1"}s\033[0m)"
-  durations["${TEST_CURRENT#test_},${LXD_BACKEND}"]="${DURATION}"
+
+  durations["${TEST_CURRENT},${LXD_BACKEND}"]="${DURATION}"
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    echo "${TEST_CURRENT#test_},${LXD_BACKEND}=${DURATION}" >> "${MAIN_DIR}/.durations.${LXD_BACKEND}"
+    echo "${TEST_CURRENT},${LXD_BACKEND}=${DURATION}" >> "${MAIN_DIR}/.durations.${LXD_BACKEND}"
   fi
   cd "${cwd}"
 }

@@ -37,7 +37,7 @@ import (
 func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	// Function to rename an RBD volume.
 	renameVolume := func(oldName string, newName string) error {
-		_, err := shared.RunCommandContext(
+		_, err := shared.RunCommand(
 			context.Background(),
 			"rbd",
 			"--id", d.config["ceph.user.name"],
@@ -296,7 +296,7 @@ func (d *ceph) getVolumeSize(volumeName string) (int64, error) {
 		Size int64 `json:"size"`
 	}{}
 
-	jsonInfo, err := shared.TryRunCommand(
+	jsonInfo, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts,
 		"rbd",
 		"info",
 		"--format", "json",
@@ -393,7 +393,7 @@ func (d *ceph) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 	if len(vol.Snapshots) == 0 || len(snapshots) == 0 {
 		// If lightweight clone mode isn't enabled, perform a full copy of the volume.
 		if shared.IsFalse(d.config["ceph.rbd.clone_copy"]) {
-			_, err = shared.RunCommandContext(
+			_, err = shared.RunCommand(
 				context.Background(),
 				"rbd",
 				"--id", d.config["ceph.user.name"],
@@ -1026,7 +1026,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 			}
 
 			// Delete snapshots.
-			_, err := shared.RunCommandContext(
+			_, err := shared.RunCommand(
 				context.Background(),
 				"rbd",
 				"--id", d.config["ceph.user.name"],
@@ -1089,7 +1089,7 @@ func (d *ceph) hasVolume(rbdVolumeName string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 
-	_, err := shared.RunCommandContext(ctx,
+	_, err := shared.RunCommand(ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -1260,7 +1260,7 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 
-	jsonInfo, err := shared.RunCommandContext(ctx,
+	jsonInfo, err := shared.RunCommand(ctx,
 		"rbd",
 		"du",
 		"--format", "json",
@@ -1933,7 +1933,7 @@ func (d *ceph) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 // DeleteVolumeSnapshot removes a snapshot from the storage device.
 func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
 	// Check if snapshot exists, and return if not.
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.Background(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -2207,7 +2207,7 @@ func (d *ceph) restoreVolume(vol Volume, snapVol Volume, op *operations.Operatio
 
 	_, snapshotName, _ := api.GetParentAndSnapshotName(snapVol.name)
 
-	_, err = shared.RunCommandContext(
+	_, err = shared.RunCommand(
 		context.Background(),
 		"rbd",
 		"--id", d.config["ceph.user.name"],

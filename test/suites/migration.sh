@@ -74,16 +74,15 @@ test_migration() {
   fi
 
   # Test config overrides for migration of instance with snapshots
-  lxc_remote network create l1:foonet ipv4.address=10.100.10.1/24
-  lxc_remote network create l2:foonet2 ipv4.address=10.100.100.1/24
+  lxc_remote network create l1:foonet ipv4.address=10.100.10.1/24 ipv6.address=none
+  lxc_remote network create l2:foonet2 ipv4.address=10.100.100.1/24 ipv6.address=none
   lxc_remote init --empty l1:u1
   lxc_remote config device add l1:u1 eth1 nic name=eth1 network=foonet ipv4.address=10.100.10.10
   lxc_remote snapshot l1:u1 snap
 
   lxc_remote copy l1:u1 l2: -d eth1,ipv4.address=10.100.100.10 -d eth1,network=foonet2
 
-  lxc_remote delete l1:u1
-  lxc_remote delete l2:u1
+  lxc_remote delete l1:u1 l2:u1
   lxc_remote network delete l1:foonet
   lxc_remote network delete l2:foonet2
 
@@ -104,7 +103,7 @@ migration() {
   lxc_remote snapshot l1:nonlive
   lxc_remote config unset l1:nonlive user.tester
   lxc_remote move l1:nonlive l2:
-  lxc_remote config show l2:nonlive/snap0 | grep user.tester | grep foo
+  [ "$(lxc_remote config get l2:nonlive/snap0 user.tester)" = "foo" ]
 
   # This line exists so that the container's storage volume is mounted when we
   # perform existence check for various files.
@@ -155,7 +154,7 @@ migration() {
   lxc_remote delete l1:nobase
 
   lxc_remote start l1:nonlive2
-  lxc_remote list l1: | grep RUNNING | grep nonlive2
+  [ "$(lxc_remote list l1: -f csv -c ns nonlive2)" = "nonlive2,RUNNING" ]
   lxc_remote delete l1:nonlive2 l2:nonlive2 --force
 
   lxc_remote launch testimage cccp
@@ -176,12 +175,12 @@ migration() {
   lxc_remote delete l2:udssr --force
 
   lxc_remote start l2:nonlive
-  lxc_remote list l2: | grep RUNNING | grep nonlive
+  [ "$(lxc_remote list l2: -f csv -c ns nonlive)" = "nonlive,RUNNING" ]
   lxc_remote delete l2:nonlive --force
 
   # Get container's pool.
-  pool=$(lxc config profile device get default root pool)
-  remote_pool=$(lxc_remote config profile device get l2:default root pool)
+  pool="$(lxc profile device get default root pool)"
+  remote_pool="$(lxc_remote profile device get l2:default root pool)"
 
   # Test container only copies
   lxc init testimage cccp
@@ -272,8 +271,7 @@ migration() {
     # Test container with snapshots copy when zfs.clone_copy is set to false.
     lxc copy cccp udssr
     [ "$(lxc list -f csv -c S udssr)" = "2" ]
-    lxc delete cccp
-    lxc delete udssr
+    lxc delete cccp udssr
 
     lxc storage unset "lxdtest-$(basename "${LXD_DIR}")" zfs.clone_copy
   fi
@@ -283,10 +281,6 @@ migration() {
   lxc_remote copy l1:c1 l2:c2 --refresh
 
   lxc_remote start l1:c1
-
-  # Make sure the testfile doesn't exist
-  ! lxc file pull l1:c1 -- /root/testfile1 || false
-  ! lxc file pull l2:c2 -- /root/testfile1 || false
 
   # Create test file in c1 (source)
   echo test | lxc_remote file push - l1:c1/root/testfile1
@@ -331,7 +325,7 @@ migration() {
   c1_pid="$(lxc_remote list -f csv -c p l1:c1)"
   c2_pid="$(lxc_remote list -f csv -c p l1:c2)"
   [ "$(stat "/proc/${c1_pid}/root/root/testfile1" -c %y)" = "$(stat "/proc/${c2_pid}/root/root/testfile1" -c %y)" ]
-  lxc_remote rm -f l1:c2
+  lxc_remote delete -f l1:c2
   lxc_remote stop -f l1:c1
 
   # This will create snapshot c1/snap0 with test device and expiry date.
@@ -351,7 +345,7 @@ migration() {
   # Check whether snapshot c2/snap0 has been created with its config intact.
   ! lxc_remote config show l2:c2/snap0 || false
   lxc_remote copy l1:c1 l2:c2 --refresh
-  lxc_remote ls l2:
+  lxc_remote list -c nS l2:
   lxc_remote config show l2:c2/snap0
   ! lxc_remote config show l2:c2/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc_remote config device get l2:c2 testdev type)" = "none" ]
@@ -366,12 +360,12 @@ migration() {
   lxc_remote copy l1:c1 l2:c2 --refresh
   ! lxc_remote config show l2:c2/snap1 || false
 
-  lxc_remote rm -f l1:c1 l2:c2
+  lxc_remote delete -f l1:c1 l2:c2
 
   remote_pool1="lxdtest-$(basename "${LXD_DIR}")"
   remote_pool2="lxdtest-$(basename "${lxd2_dir}")"
 
-  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=4MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=1MiB
   lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=snap0vol1
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol1
   lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=snap1vol1
@@ -419,7 +413,7 @@ migration() {
   [ "$(lxc_remote storage volume get l2:"$remote_pool2" vol2/snapremove user.foo)" = "snapremovevol1" ]
 
   # check remote storage volume refresh from a different volume
-  lxc_remote storage volume create l1:"$remote_pool1" vol3 size=4MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol3 size=1MiB
   lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=snap0vol3
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol3
   lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=snap1vol3
@@ -440,7 +434,7 @@ migration() {
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
 
   # check that a refresh doesn't change the volume's and snapshot's UUID.
-  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=4MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=1MiB
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol1
   lxc_remote storage volume copy l1:"$remote_pool1"/vol1 l2:"$remote_pool2"/vol2
   old_uuid="$(lxc storage volume get l2:"$remote_pool2" vol2 volatile.uuid)"
@@ -452,8 +446,8 @@ migration() {
   lxc_remote storage volume delete l1:"$remote_pool1" vol1
 
   # remote storage volume migration in "push" mode
-  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=4MiB
-  lxc_remote storage volume create l1:"$remote_pool1" vol2 size=4MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=1MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol2 size=1MiB
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol2
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=push
@@ -470,8 +464,8 @@ migration() {
   lxc_remote storage volume delete l2:"$remote_pool2" vol6
 
   # remote storage volume migration in "relay" mode
-  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=4MiB
-  lxc_remote storage volume create l1:"$remote_pool1" vol2 size=4MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=1MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol2 size=1MiB
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol2
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=relay
@@ -489,7 +483,7 @@ migration() {
 
   # Test migration when rsync compression is disabled
   lxc_remote storage set l1:"$remote_pool1" rsync.compression false
-  lxc_remote storage volume create l1:"$remote_pool1" foo size=4MiB
+  lxc_remote storage volume create l1:"$remote_pool1" foo size=1MiB
   lxc_remote storage volume copy l1:"$remote_pool1"/foo l2:"$remote_pool2"/bar
   lxc_remote storage volume delete l1:"$remote_pool1" foo
   lxc_remote storage volume delete l2:"$remote_pool2" bar
@@ -502,7 +496,7 @@ migration() {
   lxc_remote storage create l2:dir dir
 
   echo "==> Create a volume to attach to container."
-  lxc_remote storage volume create l1:dir vol1 size=4MiB
+  lxc_remote storage volume create l1:dir vol1 size=1MiB
 
   echo "==> Create a container to test migration with attached local volume."
   lxc_remote init --empty l1:c1
@@ -524,8 +518,7 @@ migration() {
   lxc_remote move l2:c1 l1:c2
 
   echo "==> Clean up the containers and local volumes."
-  lxc_remote delete -f l1:c1
-  lxc_remote delete -f l1:c2
+  lxc_remote delete -f l1:c1 l1:c2
   lxc_remote storage volume delete l1:dir vol1
   lxc_remote storage volume delete l2:dir vol1
 
@@ -538,7 +531,7 @@ migration() {
     echo "==> Test VM migration with attached local volumes."
 
     echo "==> Create a volume to attach to VM."
-    lxc_remote storage volume create l1:dir vol1 size=4MiB
+    lxc_remote storage volume create l1:dir vol1 size=1MiB
 
     echo "==> Create a VM to test migration with attached local volume."
     lxc_remote init --vm --empty l1:v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
@@ -560,8 +553,7 @@ migration() {
     lxc_remote move l2:v1 l1:v2
 
     echo "==> Clean up the VMs and local volumes."
-    lxc_remote delete -f l1:v1
-    lxc_remote delete -f l1:v2
+    lxc_remote delete -f l1:v1 l1:v2
     lxc_remote storage volume delete l1:dir vol1
     lxc_remote storage volume delete l2:dir vol1
   fi
@@ -596,8 +588,7 @@ migration() {
   lxc_remote delete l2:c1/snap2
   lxc_remote copy l2:c1 l1:
   lxc_remote start l1:c1
-  lxc_remote delete l1:c1 -f
-  lxc_remote delete l2:c1 -f
+  lxc_remote delete l1:c1 l2:c1 -f
 
   lxc_remote project switch l1:default
   lxc_remote project delete l1:proj
@@ -610,13 +601,12 @@ migration() {
   lxc_remote copy l1:c1 l2:c1
   ! lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc_remote storage volume get --property "l1:${remote_pool1}" container/c1/snap0 created_at)" = "$(lxc_remote storage volume get --property "l2:${remote_pool2}" container/c1/snap0 created_at)" ]
-  lxc_remote delete l1:c1 -f
-  lxc_remote delete l2:c1 -f
+  lxc_remote delete l1:c1 l2:c1
 
   # Check migration with invalid snapshot config (disks attached with missing source pool and source path).
   lxc_remote init testimage l1:c1
   lxc_remote storage create l1:dir dir
-  lxc_remote storage volume create l1:dir vol1 size=4MiB
+  lxc_remote storage volume create l1:dir vol1 size=1MiB
   lxc_remote storage volume attach l1:dir vol1 c1 /mnt
   mkdir "$LXD_DIR/testvol2"
   lxc_remote config device add l1:c1 vol2 disk source="$LXD_DIR/testvol2" path=/vol2
@@ -625,9 +615,8 @@ migration() {
   lxc_remote config device remove c1 vol2
   rmdir "$LXD_DIR/testvol2"
   lxc_remote copy l1:c1 l2:
-  lxc_remote info l2:c1 | grep snap0
-  lxc_remote delete l1:c1 -f
-  lxc_remote delete l2:c1 -f
+  lxc_remote info l2:c1 | grep -wF snap0
+  lxc_remote delete l1:c1 l2:c1
   lxc_remote storage volume delete l1:dir vol1
   lxc_remote storage delete l1:dir
 
@@ -652,8 +641,7 @@ migration() {
 
   rm foo bar
 
-  lxc_remote rm l1:c1
-  lxc_remote rm l2:c1
+  lxc_remote delete l1:c1 l2:c1
 
   lxc_remote init testimage l1:c1
   # This creates snap0
@@ -665,13 +653,12 @@ migration() {
   lxc_remote snapshot l1:c1
 
   # Delete first snapshot from target
-  lxc_remote rm l2:c1/snap0
+  lxc_remote delete l2:c1/snap0
 
   # Refresh
   lxc_remote copy l1:c1 l2:c1 --refresh
 
-  lxc_remote rm -f l1:c1
-  lxc_remote rm -f l2:c1
+  lxc_remote delete l1:c1 l2:c1
 
   # In this scenario the source LXD server used to crash due to a missing slice check.
   # Let's test this to make sure it doesn't happen again.
@@ -683,8 +670,7 @@ migration() {
   lxc_remote copy l1:c1 l2:c1 --refresh
   lxc_remote copy l1:c1 l2:c1 --refresh
 
-  lxc_remote rm -f l1:c1
-  lxc_remote rm -f l2:c1
+  lxc_remote delete l1:c1 l2:c1
 
   # On btrfs, this used to cause a failure because btrfs couldn't find the parent subvolume.
   lxc_remote init testimage l1:c1
@@ -694,8 +680,7 @@ migration() {
   lxc_remote snapshot l1:c1
   lxc_remote copy l1:c1 l2:c1 --refresh
 
-  lxc_remote rm -f l1:c1
-  lxc_remote rm -f l2:c1
+  lxc_remote delete l1:c1 l2:c1
 
   # On zfs, this used to crash due to a websocket read issue.
   lxc launch testimage c1
@@ -703,17 +688,16 @@ migration() {
   lxc copy c1 l2:c1 --stateless
   lxc copy c1 l2:c1 --stateless --refresh
 
-  lxc_remote rm -f l1:c1
-  lxc_remote rm -f l2:c1
+  lxc_remote delete -f l1:c1 l2:c1
 
   # migrate ISO custom volumes
   truncate -s 8MiB foo.iso
   lxc storage volume import l1:"${pool}" ./foo.iso iso1
   lxc storage volume copy l1:"${pool}"/iso1 l2:"${remote_pool}"/iso1
 
-  lxc storage volume show l2:"${remote_pool}" iso1 | grep -xF 'content_type: iso'
+  [ "$(lxc storage volume get --property l2:"${remote_pool}" iso1 content_type)" = "iso" ]
   lxc storage volume move l1:"${pool}"/iso1 l2:"${remote_pool}"/iso2
-  lxc storage volume show l2:"${remote_pool}" iso2 | grep -xF 'content_type: iso'
+  [ "$(lxc storage volume get --property l2:"${remote_pool}" iso2 content_type)" = "iso" ]
   ! lxc storage volume show l1:"${pool}" iso1 || false
 
   lxc storage volume delete l2:"${remote_pool}" iso1
@@ -745,6 +729,5 @@ migration() {
   lxc_remote copy --stateless l2:migratee/snap0 l1:migratee-new-name
 
   # Cleanup
-  lxc_remote delete --force l2:migratee
-  lxc_remote delete --force l1:migratee-new-name
+  lxc_remote delete --force l2:migratee l1:migratee-new-name
 }

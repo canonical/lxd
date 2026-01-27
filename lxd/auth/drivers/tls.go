@@ -4,13 +4,11 @@ package drivers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"slices"
 
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -30,7 +28,7 @@ type tls struct {
 	commonAuthorizer
 }
 
-func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts) error {
+func (t *tls) load(ctx context.Context, opts Opts) error {
 	return nil
 }
 
@@ -66,12 +64,12 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		return nil
 	}
 
-	id := requestor.CallerIdentity()
-	if id == nil {
-		return errors.New("No identity is set in the request details")
+	idType, err := requestor.CallerIdentityType()
+	if err != nil {
+		return err
 	}
 
-	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
+	if idType.Name() == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return nil
 	}
 
@@ -82,7 +80,7 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 
 	// Check non- project-specific entity types.
 	if !projectSpecific {
-		if t.allowProjectUnspecificEntityType(entitlement, entityType, id, projectName, pathArguments) {
+		if t.allowProjectUnspecificEntityType(entitlement, entityType, requestor, projectName, pathArguments) {
 			return nil
 		}
 
@@ -90,7 +88,7 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 	}
 
 	// Check project level permissions against the certificates project list.
-	if !slices.Contains(id.Projects, projectName) {
+	if !slices.Contains(requestor.CallerAllowedProjectNames(), projectName) {
 		return api.StatusErrorf(http.StatusForbidden, "User does not have permission for project %q", projectName)
 	}
 
@@ -131,12 +129,12 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		return allowFunc(true), nil
 	}
 
-	id := requestor.CallerIdentity()
-	if id == nil {
-		return nil, errors.New("No identity is set in the request details")
+	idType, err := requestor.CallerIdentityType()
+	if err != nil {
+		return nil, err
 	}
 
-	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
+	if idType.Name() == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return allowFunc(true), nil
 	}
 
@@ -161,11 +159,11 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 
 		// Check non- project-specific entity types.
 		if !projectSpecific {
-			return t.allowProjectUnspecificEntityType(entitlement, entityType, id, project, pathArguments)
+			return t.allowProjectUnspecificEntityType(entitlement, entityType, requestor, project, pathArguments)
 		}
 
 		// Otherwise, check if the project is in the list of allowed projects for the entity.
-		return slices.Contains(id.Projects, project)
+		return slices.Contains(requestor.CallerAllowedProjectNames(), project)
 	}, nil
 }
 
@@ -175,7 +173,7 @@ func (t *tls) GetPermissionCheckerWithoutEffectiveProject(ctx context.Context, e
 	return t.GetPermissionChecker(ctx, entitlement, entityType)
 }
 
-func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, entityType entity.Type, id *identity.CacheEntry, projectName string, pathArguments []string) bool {
+func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, entityType entity.Type, requestor *request.Requestor, projectName string, pathArguments []string) bool {
 	switch entityType {
 	case entity.TypeServer:
 		// Restricted TLS certificates have the following entitlements on server.
@@ -187,15 +185,15 @@ func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, ent
 	case entity.TypeIdentity:
 		// If the entity URL refers to the identity that made the request, then the second path argument of the URL is
 		// the identifier of the identity. This line allows the caller to view their own identity and no one else's.
-		return entitlement == auth.EntitlementCanView && len(pathArguments) > 1 && pathArguments[1] == id.Identifier
+		return entitlement == auth.EntitlementCanView && len(pathArguments) > 1 && pathArguments[1] == requestor.CallerUsername()
 	case entity.TypeCertificate:
 		// If the certificate URL refers to the identity that made the request, then the first path argument of the URL is
 		// the identifier of the identity (their fingerprint). This line allows the caller to view their own certificate and no one else's.
-		return entitlement == auth.EntitlementCanView && len(pathArguments) > 0 && pathArguments[0] == id.Identifier
+		return entitlement == auth.EntitlementCanView && len(pathArguments) > 0 && pathArguments[0] == requestor.CallerUsername()
 	case entity.TypeProject:
 		// If the project is in the list of projects that the identity is restricted to, then they have the following
 		// entitlements.
-		return slices.Contains(id.Projects, projectName) && slices.Contains([]auth.Entitlement{auth.EntitlementCanView, auth.EntitlementCanCreateImages, auth.EntitlementCanCreateImageAliases, auth.EntitlementCanCreateInstances, auth.EntitlementCanCreateNetworks, auth.EntitlementCanCreateNetworkACLs, auth.EntitlementCanCreateNetworkZones, auth.EntitlementCanCreateProfiles, auth.EntitlementCanCreateStorageVolumes, auth.EntitlementCanCreateStorageBuckets, auth.EntitlementCanViewEvents, auth.EntitlementCanViewOperations, auth.EntitlementCanViewMetrics}, entitlement)
+		return slices.Contains(requestor.CallerAllowedProjectNames(), projectName) && slices.Contains([]auth.Entitlement{auth.EntitlementCanView, auth.EntitlementCanCreateImages, auth.EntitlementCanCreateImageAliases, auth.EntitlementCanCreateInstances, auth.EntitlementCanCreateNetworks, auth.EntitlementCanCreateNetworkACLs, auth.EntitlementCanCreateNetworkZones, auth.EntitlementCanCreateProfiles, auth.EntitlementCanCreateStorageVolumes, auth.EntitlementCanCreateStorageBuckets, auth.EntitlementCanViewEvents, auth.EntitlementCanViewOperations, auth.EntitlementCanViewMetrics}, entitlement)
 
 	default:
 		return false

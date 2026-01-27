@@ -93,10 +93,13 @@ _mount_order() {
   lxc start foo
   lxc exec foo -- cat /mnt/empty/filler
   lxc stop foo --force
+
+  rm -rf "${TEST_DIR}/order"
 }
 
 test_config_profiles() {
   # Unset LXD_DEVMONITOR_DIR as this test uses devices in /dev instead of TEST_DIR.
+  local OLD_LXD_DEVMONITOR_DIR="${LXD_DEVMONITOR_DIR}"
   unset LXD_DEVMONITOR_DIR
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
@@ -105,9 +108,6 @@ test_config_profiles() {
 
   lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
   lxc profile list | grep default
-
-  # let's check that 'lxc config profile' still works while it's deprecated
-  lxc config profile list | grep default
 
   # setting an invalid config item should error out when setting it, not get
   # into the database and never let the user edit the container again.
@@ -128,24 +128,24 @@ test_config_profiles() {
   lxc profile create one
   lxc profile create two
   lxc profile assign foo one,two
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one two" ]
+  lxc list -f json foo | jq --exit-status '.[0].profiles == ["one","two"]'
   lxc profile assign foo ""
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")' || echo fail)" = "" ]
+  lxc list -f json foo | jq --exit-status '.[0].profiles == []'
   lxc profile apply foo one # backwards compat check with `lxc profile apply`
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one" ]
+  lxc list -f json foo | jq --exit-status '.[0].profiles == ["one"]'
   lxc profile assign foo ""
   lxc profile add foo one
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one" ]
+  lxc list -f json foo | jq --exit-status '.[0].profiles == ["one"]'
   lxc profile remove foo one
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")' || echo fail)" = "" ]
+  lxc list -f json foo | jq --exit-status '.[0].profiles == []'
 
   lxc profile create stdintest
   echo "BADCONF" | lxc profile set stdintest user.user_data -
-  lxc profile show stdintest | grep BADCONF
+  lxc profile show stdintest | grep -wF BADCONF
   lxc profile delete stdintest
 
   echo "BADCONF" | lxc config set foo user.user_data -
-  lxc config show foo | grep BADCONF
+  lxc config show foo | grep -wF BADCONF
   lxc config unset foo user.user_data
 
   mkdir -p "${TEST_DIR}/mnt1"
@@ -165,12 +165,10 @@ test_config_profiles() {
   ! lxc profile list | grep -wF foo || false  # the old name is gone
   lxc profile delete bar
 
-  lxc config device list foo | grep mnt1
-  lxc config device show foo | grep "/mnt1"
-  lxc config show foo | grep "onenic" -A1 | grep "unconfined"
-  lxc profile list | grep onenic
-  lxc profile device list onenic | grep eth0
-  lxc profile device show onenic | grep p2p
+  [ "$(lxc config device get foo mnt1 path)" = "/mnt1" ]
+  [ "$(lxc config get --property foo profiles)" = "[onenic unconfined]" ]
+  lxc profile list | grep -wF onenic
+  [ "$(lxc profile device get onenic eth0 nictype)" = "p2p" ]
 
   # test setting limits.cpu.pin_strategy at the local config and profile level
   ! lxc config set c1 limits.cpu.pin_strategy=auto || false
@@ -187,8 +185,8 @@ test_config_profiles() {
   ! lxc config show foo | grep -vF "volatile.eth0" | grep -wF "eth0" || false
   lxc config show foo --expanded | grep -vF "volatile.eth0" | grep -wF "eth0"
   lxc config device add foo eth2 nic nictype=p2p name=eth10 host_name="${veth_host_name}"
-  lxc exec foo -- /sbin/ifconfig -a | grep -wF eth0
-  lxc exec foo -- /sbin/ifconfig -a | grep -wF eth10
+  lxc exec foo -- ip link | grep -wF eth0
+  lxc exec foo -- ip link | grep -wF eth10
   lxc config device list foo | grep -wF eth2
   lxc config device remove foo eth2
 
@@ -198,13 +196,11 @@ test_config_profiles() {
   lxc config device add foo mnt2 disk source="${TEST_DIR}/mnt2" path=/mnt2 readonly=true
   lxc exec foo -- grep "/mnt2.*ro," /proc/self/mountinfo
   lxc exec foo -- ls /mnt2/hosts
-  lxc stop foo --force
-  lxc start foo
+  lxc restart --force foo
   lxc exec foo -- ls /mnt2/hosts
   lxc config device remove foo mnt2
   ! lxc exec foo -- ls /mnt2/hosts || false
-  lxc stop foo --force
-  lxc start foo
+  lxc restart --force foo
   ! lxc exec foo -- ls /mnt2/hosts || false
   lxc stop foo --force
 
@@ -246,9 +242,10 @@ test_config_profiles() {
 
   lxc delete foo
 
-  lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
-  lxc profile assign foo onenic,unconfined
-  lxc start foo
+  rm -rf "${TEST_DIR}/mnt1"
+  rm -rf "${TEST_DIR}/mnt2"
+
+  lxc launch testimage foo -s "lxdtest-$(basename "${LXD_DIR}")" -p onenic -p unconfined
 
   if [ -e /sys/module/apparmor ]; then
     [ "$(lxc exec foo -- cat /proc/self/attr/current)" = "unconfined" ]
@@ -256,6 +253,9 @@ test_config_profiles() {
   lxc exec foo -- ls /sys/class/net | grep -wF eth0
 
   lxc delete --force foo
+
+  # Restore LXD_DEVMONITOR_DIR
+  LXD_DEVMONITOR_DIR="${OLD_LXD_DEVMONITOR_DIR}"
 }
 
 
@@ -316,7 +316,7 @@ test_property() {
   lxc config show foo/s1 | grep -F "expires_at: 2038-03-23T17:38:37.753398689-04:00"
   lxc config unset foo/s1 expires_at --property
   lxc config show foo/s1 | grep -F "expires_at: 0001-01-01T00:00:00Z"
-  lxc delete -f foo
+  lxc delete foo
 
   # Create a storage volume, create a volume snapshot and set its expiration timestamp
   local storage_pool
@@ -347,9 +347,7 @@ test_config_edit_container_snapshot_pool_config() {
     local storage_pool
     storage_pool="lxdtest-$(basename "${LXD_DIR}")"
 
-    ensure_import_testimage
-
-    lxc init testimage c1 -s "$storage_pool"
+    lxc init --empty c1 -s "$storage_pool"
     lxc snapshot c1 s1
     # edit the container volume name
     lxc storage volume show "$storage_pool" container/c1 | \

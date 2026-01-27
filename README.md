@@ -102,10 +102,6 @@ You can seek support from the LXD developers as well as the wider community thro
 
 Ask questions or engage in discussions: [`https://discourse.ubuntu.com/c/lxd/`](https://discourse.ubuntu.com/c/lxd/126)
 
-### IRC
-
-For live discussions, visit [`#lxd`](https://web.libera.chat/#lxd) on `irc.libera.chat`. See [Getting started with IRC](https://discourse.ubuntu.com/t/getting-started-with-irc/37907) if needed.
-
 ### Documentation
 
 Access the official documentation: [`https://documentation.ubuntu.com/lxd/latest/`](https://documentation.ubuntu.com/lxd/latest/)

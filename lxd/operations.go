@@ -722,8 +722,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Merge with existing data.
-		for _, o := range ops {
-			op := o // Local var for pointer.
+		for _, op := range ops {
 			status := strings.ToLower(op.Status)
 
 			_, ok := md[status]
@@ -843,9 +842,7 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 			continue
 		}
 
-		for _, o := range remoteOps {
-			op := o // Local var for pointer.
-
+		for _, op := range remoteOps {
 			// Exclude remote operations that don't have the desired type.
 			if memberOps[memberAddress][op.ID].Type != opType {
 				continue
@@ -1253,7 +1250,11 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 		}
 	}
 
-	return f, task.Hourly()
+	// All the cluster tasks are starting at the daemon init, at which time the cluster heartbeats
+	// have not yet been updated. The autoRemoveOrphanedOperations() might start deleting operations
+	// which are just starting on other nodes. To avoid this, we skip the first run of this
+	// task, allowing time for the heartbeats to be updated.
+	return f, task.Hourly(task.SkipFirst)
 }
 
 // autoRemoveOrphanedOperations removes old operations from offline members. Operations can be left

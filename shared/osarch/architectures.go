@@ -163,7 +163,7 @@ func ArchitectureGetLocalID() (int, error) {
 
 // SupportedArchitectures returns the list of all supported architectures.
 func SupportedArchitectures() []string {
-	result := []string{}
+	result := make([]string, 0, len(architectureNames))
 	for _, archName := range architectureNames {
 		result = append(result, archName)
 	}

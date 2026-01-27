@@ -100,7 +100,7 @@ func FiltersFromStmt(pkg *packages.Package, kind string, entity string, filters 
 	}
 
 	stmtFilters = sortFilters(stmtFilters)
-	ignoredFilters = [][]string{}
+	ignoredFilters = make([][]string, 0, len(stmtFilters))
 
 	for _, filterGroup := range stmtFilters {
 		ignoredFilterGroup := []string{}

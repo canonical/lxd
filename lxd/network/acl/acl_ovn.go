@@ -642,6 +642,7 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 
 // OVNApplyNetworkBaselineRules applies preset baseline logical switch rules to a allow access to network services.
 func OVNApplyNetworkBaselineRules(client *openvswitch.OVN, switchName openvswitch.OVNSwitch, routerPortName openvswitch.OVNSwitchPort, intRouterIPs []*net.IPNet, dnsIPs []net.IP) error {
+	//nolint:prealloc
 	rules := []openvswitch.OVNACLRule{
 		{
 			Direction: "to-lport",

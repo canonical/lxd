@@ -150,23 +150,22 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if recursion {
-		var certResponses []*api.Certificate
-		var baseCerts []dbCluster.Certificate
-		urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
-		var err error
-		err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			baseCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
-			if err != nil {
-				return err
+	var certResponses []*api.Certificate
+	var baseCerts []dbCluster.Certificate
+	urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
+	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		baseCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		certResponses = make([]*api.Certificate, 0, len(baseCerts))
+		for _, baseCert := range baseCerts {
+			if !userHasPermission(entity.CertificateURL(baseCert.Fingerprint)) {
+				continue
 			}
 
-			certResponses = make([]*api.Certificate, 0, len(baseCerts))
-			for _, baseCert := range baseCerts {
-				if !userHasPermission(entity.CertificateURL(baseCert.Fingerprint)) {
-					continue
-				}
-
+			if recursion {
 				apiCert, err := baseCert.ToAPI(ctx, tx.Tx())
 				if err != nil {
 					return err
@@ -175,34 +174,32 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 				certResponses = append(certResponses, apiCert)
 				urlToCertificate[entity.CertificateURL(apiCert.Fingerprint)] = apiCert
 			}
+		}
 
-			return nil
-		})
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !recursion {
+		body := []string{}
+		for _, baseCert := range baseCerts {
+			certificateURL := api.NewURL().Path(version.APIVersion, "certificates", baseCert.Fingerprint).String()
+			body = append(body, certificateURL)
+		}
+
+		return response.SyncResponse(true, body)
+	}
+
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeCertificate, withEntitlements, urlToCertificate)
 		if err != nil {
 			return response.SmartError(err)
 		}
-
-		if len(withEntitlements) > 0 {
-			err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeCertificate, withEntitlements, urlToCertificate)
-			if err != nil {
-				return response.SmartError(err)
-			}
-		}
-
-		return response.SyncResponse(true, certResponses)
 	}
 
-	body := []string{}
-	for _, identity := range d.identityCache.GetByAuthenticationMethod(api.AuthenticationMethodTLS) {
-		if !userHasPermission(entity.CertificateURL(identity.Identifier)) {
-			continue
-		}
-
-		certificateURL := api.NewURL().Path(version.APIVersion, "certificates", identity.Identifier).String()
-		body = append(body, certificateURL)
-	}
-
-	return response.SyncResponse(true, body)
+	return response.SyncResponse(true, certResponses)
 }
 
 // clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
@@ -489,6 +486,11 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
+
+	// Reject projects list without restricted flag to prevent misleading configurations.
+	if len(req.Projects) > 0 && !req.Restricted {
+		return response.BadRequest(errors.New("Projects can only be specified for restricted certificates. Set restricted=true or remove projects"))
+	}
 
 	// Validate request for creating certificate add token.
 	if req.Token {
@@ -1062,6 +1064,11 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 		if err != nil {
 			return response.BadRequest(err)
 		}
+	}
+
+	// Reject projects list without restricted flag to prevent misleading configurations.
+	if len(req.Projects) > 0 && !req.Restricted {
+		return response.BadRequest(errors.New("Projects can only be specified for restricted certificates"))
 	}
 
 	// Update the database record.

@@ -24,10 +24,11 @@ func (d *cephobject) radosgwadmin(ctx context.Context, args ...string) (string, 
 		defer cancel()
 	}
 
-	cmd := []string{"radosgw-admin", "--cluster", d.config["cephobject.cluster_name"], "--id", d.config["cephobject.user.name"]}
+	cmd := make([]string, 0, 5+len(args))
+	cmd = append(cmd, "radosgw-admin", "--cluster", d.config["cephobject.cluster_name"], "--id", d.config["cephobject.user.name"])
 	cmd = append(cmd, args...)
 
-	return shared.RunCommandContext(ctx, cmd[0], cmd[1:]...)
+	return shared.RunCommand(ctx, cmd[0], cmd[1:]...)
 }
 
 // radosgwadminGetUser returns credentials for an existing radosgw user (and its sub users).

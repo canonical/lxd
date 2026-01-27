@@ -32,6 +32,7 @@ type cmdCopy struct {
 	flagTargetProject     string
 	flagRefresh           bool
 	flagAllowInconsistent bool
+	flagStart             bool
 }
 
 func (c *cmdCopy) command() *cobra.Command {
@@ -63,6 +64,7 @@ The pull transfer mode is the default as it is compatible with all LXD versions.
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied")
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, "Perform an incremental copy")
 	cmd.Flags().BoolVar(&c.flagAllowInconsistent, "allow-inconsistent", false, "Ignore copy errors for volatile files")
+	cmd.Flags().BoolVar(&c.flagStart, "start", false, "Start instance after copy")
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			return c.global.cmpTopLevelResource("instance", toComplete)
@@ -101,6 +103,11 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		return errors.New("--no-profiles cannot be used with --refresh")
 	}
 
+	// Don't allow refreshing and starting the instance afterwards as not supported by the migration API.
+	if c.flagRefresh && c.flagStart {
+		return errors.New("--start cannot be used with --refresh")
+	}
+
 	// If the instance is being copied to a different remote and no destination name is
 	// specified, use the source name with snapshot suffix trimmed (in case a new instance
 	// is being created from a snapshot).
@@ -137,20 +144,25 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		dest = dest.UseProject(c.flagTargetProject)
 	}
 
-	// Confirm that --target is only used with a cluster
-	if c.flagTarget != "" && !dest.IsClustered() {
-		return errors.New("To use --target, the destination remote must be a cluster")
+	// Apply target flag if specified.
+	if c.flagTarget != "" {
+		// Confirm that --target is only used with a cluster
+		if !dest.IsClustered() {
+			return errors.New("To use --target, the destination remote must be a cluster")
+		}
+
+		dest = dest.UseTarget(c.flagTarget)
 	}
 
 	// Parse the config overrides
-	configMap := map[string]string{}
+	configOverrides := map[string]string{}
 	for _, entry := range c.flagConfig {
 		key, value, found := strings.Cut(entry, "=")
 		if !found {
 			return fmt.Errorf("Bad key=value pair: %q", entry)
 		}
 
-		configMap[key] = value
+		configOverrides[key] = value
 	}
 
 	deviceOverrides, err := parseDeviceOverrides(c.flagDevice)
@@ -162,16 +174,19 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	var writable api.InstancePut
 	var start bool
 
-	if shared.IsSnapshot(sourceName) {
+	sourceParentName, sourceSnapName, sourceIsSnap := api.GetParentAndSnapshotName(sourceName)
+
+	if sourceIsSnap {
 		if instanceOnly {
 			return errors.New("--instance-only can't be passed when the source is a snapshot")
 		}
 
 		// Prepare the instance creation request
 		args := lxd.InstanceSnapshotCopyArgs{
-			Name: destName,
-			Mode: mode,
-			Live: stateful,
+			Name:  destName,
+			Mode:  mode,
+			Live:  stateful,
+			Start: c.flagStart,
 		}
 
 		if c.flagRefresh {
@@ -179,50 +194,15 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Copy of a snapshot into a new instance
-		srcFields := strings.SplitN(sourceName, shared.SnapshotDelimiter, 2)
-		entry, _, err := source.GetInstanceSnapshot(srcFields[0], srcFields[1])
+		entry, _, err := source.GetInstanceSnapshot(sourceParentName, sourceSnapName)
 		if err != nil {
 			return err
 		}
 
-		// Overwrite profiles.
-		if c.flagProfile != nil {
-			entry.Profiles = c.flagProfile
-		} else if c.flagNoProfiles {
-			entry.Profiles = []string{}
-		}
-
-		// Check to see if any of the overridden devices are for devices that are not yet defined in the
-		// local devices (and thus maybe expected to be coming from profiles).
-		needProfileExpansion := false
-		for deviceName := range deviceOverrides {
-			_, isLocalDevice := entry.Devices[deviceName]
-			if !isLocalDevice {
-				needProfileExpansion = true
-				break
-			}
-		}
-
-		profileDevices := make(map[string]map[string]string)
-
-		// If there are device overrides that are expected to be applied to profile devices then perform
-		// profile expansion.
-		if needProfileExpansion {
-			// If the list of profiles is empty then LXD would apply the default profile on the server side.
-			profileDevices, err = getProfileDevices(dest, entry.Profiles)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Apply device overrides.
-		entry.Devices, err = shared.ApplyDeviceOverrides(profileDevices, entry.Devices, deviceOverrides)
+		err = c.applyConfigOverrides(dest, pool, keepVolatile, &entry.Profiles, &entry.Config, &entry.Devices, configOverrides, deviceOverrides)
 		if err != nil {
 			return err
 		}
-
-		// Allow setting additional config keys.
-		maps.Copy(entry.Config, configMap)
 
 		// Allow overriding the ephemeral status
 		switch ephemeral {
@@ -232,37 +212,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			entry.Ephemeral = false
 		}
 
-		rootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(entry.Devices)
-
-		if rootDiskDeviceKey != "" && pool != "" {
-			entry.Devices[rootDiskDeviceKey]["pool"] = pool
-		} else if pool != "" {
-			entry.Devices["root"] = map[string]string{
-				"type": "disk",
-				"path": "/",
-				"pool": pool,
-			}
-		}
-
-		if entry.Config != nil {
-			// Strip the last_state.power key in all cases
-			delete(entry.Config, "volatile.last_state.power")
-
-			if !keepVolatile {
-				for k := range entry.Config {
-					if !instancetype.InstanceIncludeWhenCopying(k, true) {
-						delete(entry.Config, k)
-					}
-				}
-			}
-		}
-
-		// Do the actual copy
-		if c.flagTarget != "" {
-			dest = dest.UseTarget(c.flagTarget)
-		}
-
-		op, err = dest.CopyInstanceSnapshot(source, srcFields[0], *entry, &args)
+		op, err = dest.CopyInstanceSnapshot(source, sourceParentName, *entry, &args)
 		if err != nil {
 			return err
 		}
@@ -275,6 +225,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			Mode:              mode,
 			Refresh:           c.flagRefresh,
 			AllowInconsistent: c.flagAllowInconsistent,
+			Start:             c.flagStart,
 		}
 
 		// Copy of an instance into a new instance
@@ -285,15 +236,18 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 		// Only start the instance back up if doing a stateless migration.
 		// Its LXD's job to start things back up when receiving a stateful migration.
+		// This is when copyInstace is called by the move command and server side move
+		// cannot be performed, e.g. when migrating an instance between different LXD servers which are not in the same cluster
+		// or when server side move is simply not supported.
+		// The server will switch to migration so we cannot simply populate the Start field of the InstanceCopyArgs as this
+		// information will get lost during migration and is essentially not received by the target.
 		if entry.StatusCode == api.Running && move && !stateful {
 			start = true
 		}
 
-		// Overwrite profiles.
-		if c.flagProfile != nil {
-			entry.Profiles = c.flagProfile
-		} else if c.flagNoProfiles {
-			entry.Profiles = []string{}
+		err = c.applyConfigOverrides(dest, pool, keepVolatile, &entry.Profiles, &entry.Config, &entry.Devices, configOverrides, deviceOverrides)
+		if err != nil {
+			return err
 		}
 
 		// Traditionally, if instance with snapshots is transferred across projects,
@@ -305,73 +259,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			args.OverrideSnapshotProfiles = true
 		}
 
-		// Check to see if any of the devices overrides are for devices that are not yet defined in the
-		// local devices and thus are expected to be coming from profiles.
-		needProfileExpansion := false
-		for deviceName := range deviceOverrides {
-			_, isLocalDevice := entry.Devices[deviceName]
-			if !isLocalDevice {
-				needProfileExpansion = true
-				break
-			}
-		}
-
-		profileDevices := make(map[string]map[string]string)
-
-		// If there are device overrides that are expected to be applied to profile devices then perform
-		// profile expansion.
-		if needProfileExpansion {
-			profileDevices, err = getProfileDevices(dest, entry.Profiles)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Apply device overrides.
-		entry.Devices, err = shared.ApplyDeviceOverrides(entry.Devices, profileDevices, deviceOverrides)
-		if err != nil {
-			return err
-		}
-
-		// Allow setting additional config keys.
-		maps.Copy(entry.Config, configMap)
-
 		// Allow overriding the ephemeral status
 		switch ephemeral {
 		case 1:
 			entry.Ephemeral = true
 		case 0:
 			entry.Ephemeral = false
-		}
-
-		rootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(entry.Devices)
-		if rootDiskDeviceKey != "" && pool != "" {
-			entry.Devices[rootDiskDeviceKey]["pool"] = pool
-		} else if pool != "" {
-			entry.Devices["root"] = map[string]string{
-				"type": "disk",
-				"path": "/",
-				"pool": pool,
-			}
-		}
-
-		// Strip the volatile keys if requested
-		if !keepVolatile {
-			for k := range entry.Config {
-				if !instancetype.InstanceIncludeWhenCopying(k, true) {
-					delete(entry.Config, k)
-				}
-			}
-		}
-
-		if entry.Config != nil {
-			// Strip the last_state.power key in all cases
-			delete(entry.Config, "volatile.last_state.power")
-		}
-
-		// Do the actual copy
-		if c.flagTarget != "" {
-			dest = dest.UseTarget(c.flagTarget)
 		}
 
 		op, err = dest.CopyInstance(source, *entry, &args)
@@ -448,6 +341,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		progress.Done("")
 	}
 
+	// In case the destination LXD doesn't support instance start on copy,
+	// indicate to start the instance manually.
+	if c.flagStart && !dest.HasExtension("instance_create_start") {
+		start = true
+	}
+
 	// Start the instance if needed
 	if start {
 		req := api.InstanceStatePut{
@@ -462,6 +361,82 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		err = op.Wait()
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string, keepVolatile bool, profiles *[]string, config *map[string]string, devices *map[string]map[string]string, configOverrides map[string]string, deviceOverrides map[string]map[string]string) (err error) {
+	if profiles != nil {
+		// Overwrite profiles if specified.
+		if c.flagProfile != nil {
+			*profiles = c.flagProfile
+		} else if c.flagNoProfiles {
+			*profiles = []string{}
+		}
+	}
+
+	if config != nil {
+		// Strip the volatile keys from source if requested.
+		if !keepVolatile {
+			for k := range *config {
+				if !instancetype.InstanceIncludeWhenCopying(k, true) {
+					delete(*config, k)
+				}
+			}
+		}
+
+		// Apply config overrides.
+		maps.Copy(*config, configOverrides)
+
+		// Strip the last_state.power key in all cases.
+		delete(*config, "volatile.last_state.power")
+	}
+
+	if devices != nil {
+		// Check to see if any of the devices overrides are for devices that are not yet defined in the
+		// local devices and thus are expected to be coming from profiles.
+		needProfileExpansion := false
+		for deviceName := range deviceOverrides {
+			_, isLocalDevice := (*devices)[deviceName]
+			if !isLocalDevice {
+				needProfileExpansion = true
+				break
+			}
+		}
+
+		profileDevices := make(map[string]map[string]string)
+
+		// If there are device overrides that are expected to be applied to profile devices then perform
+		// profile expansion.
+		if needProfileExpansion {
+			profileDevices, err = getProfileDevices(dest, *profiles)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Apply device overrides.
+		*devices, err = shared.ApplyDeviceOverrides(*devices, profileDevices, deviceOverrides)
+		if err != nil {
+			return err
+		}
+
+		// Apply storage pool override if specified.
+		if poolName != "" {
+			rootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(*devices)
+			if rootDiskDeviceKey != "" {
+				// If a root disk device is already defined, just override the pool.
+				(*devices)[rootDiskDeviceKey]["pool"] = poolName
+			} else {
+				// No root disk device defined, add one with the specified pool.
+				(*devices)["root"] = map[string]string{
+					"type": "disk",
+					"path": "/",
+					"pool": poolName,
+				}
+			}
 		}
 	}
 

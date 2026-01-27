@@ -209,16 +209,6 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Revert project for `sourceServer` which may have been overwritten
-	// by `--project` flag in `GetImageServer` method
-	remote := conf.Remotes[remoteName]
-	if remote.Protocol != "simplestream" && !remote.Public {
-		d, ok := sourceServer.(lxd.InstanceServer)
-		if ok {
-			sourceServer = d.UseProject(remote.Project)
-		}
-	}
-
 	// Parse destination remote
 	resources, err := c.global.ParseServers(args[1])
 	if err != nil {
@@ -728,7 +718,7 @@ func (c *cmdImageImport) packImageDir(path string) (string, error) {
 	defer func() { _ = outFile.Close() }()
 
 	outFileName := outFile.Name()
-	_, err = shared.RunCommandContext(context.TODO(), "tar", "-C", path, "--numeric-owner", "--restrict", "--force-local", "--xattrs", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
+	_, err = shared.RunCommand(context.TODO(), "tar", "-C", path, "--numeric-owner", "--restrict", "--force-local", "--xattrs", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
 	if err != nil {
 		return "", err
 	}
@@ -1174,7 +1164,7 @@ func (c *cmdImageList) aliasColumnData(image api.Image) string {
 }
 
 func (c *cmdImageList) aliasesColumnData(image api.Image) string {
-	aliases := []string{}
+	aliases := make([]string, 0, len(image.Aliases))
 	for _, alias := range image.Aliases {
 		aliases = append(aliases, alias.Name)
 	}

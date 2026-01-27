@@ -18,7 +18,7 @@ func LoadModule(module string) error {
 		return nil
 	}
 
-	_, err := shared.RunCommandContext(context.TODO(), "modprobe", "-b", module)
+	_, err := shared.RunCommand(context.TODO(), "modprobe", "-b", module)
 	return err
 }
 

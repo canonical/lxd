@@ -11,9 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -729,25 +727,6 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// When a group is renamed we need to update the list of group names associated with each identity in the cache.
-	// When a group is otherwise modified, the name is unchanged, so the cache doesn't need to be updated.
-	// When a group is created, no identities are a member of it yet, so the cache doesn't need to be updated.
-	s.UpdateIdentityCache()
-
 	// Send a lifecycle event for the group rename
 	lc := lifecycle.AuthGroupRenamed.Event(groupPost.Name, request.CreateRequestor(r.Context()), map[string]any{"old_name": groupName})
 	s.Events.SendLifecycle("", lc)
@@ -786,24 +765,6 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	// Notify other cluster members to update their identity cache.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// When a group is deleted we need to remove it from the list of groups names associated with each identity in the cache.
-	// (When a group is created, nobody is a member of it yet, so the cache doesn't need to be updated).
-	s.UpdateIdentityCache()
 
 	// Send a lifecycle event for the group deletion
 	lc := lifecycle.AuthGroupDeleted.Event(groupName, request.CreateRequestor(r.Context()), nil)

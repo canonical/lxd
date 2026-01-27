@@ -15,11 +15,13 @@ import (
 //go:generate mapper stmt -e operation objects-by-NodeID
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-UUID
+//go:generate mapper stmt -e operation create
 //go:generate mapper stmt -e operation create-or-replace
 //go:generate mapper stmt -e operation delete-by-UUID
 //go:generate mapper stmt -e operation delete-by-NodeID
 //
 //go:generate mapper method -i -e operation GetMany
+//go:generate mapper method -i -e operation Create
 //go:generate mapper method -i -e operation CreateOrReplace
 //go:generate mapper method -i -e operation DeleteOne-by-UUID
 //go:generate mapper method -i -e operation DeleteMany-by-NodeID
@@ -29,9 +31,9 @@ import (
 // Operation holds information about a single LXD operation running on a node
 // in the cluster.
 type Operation struct {
-	ID          int64              `db:"primary=yes"`                               // Stable database identifier
-	UUID        string             `db:"primary=yes"`                               // User-visible identifier
-	NodeAddress string             `db:"join=nodes.address&omit=create-or-replace"` // Address of the node the operation is running on
+	ID          int64              `db:"primary=yes"`                                      // Stable database identifier
+	UUID        string             `db:"primary=yes"`                                      // User-visible identifier
+	NodeAddress string             `db:"join=nodes.address&omit=create,create-or-replace"` // Address of the node the operation is running on
 	ProjectID   *int64             // ID of the project for the operation.
 	NodeID      int64              // ID of the node the operation is running on
 	Type        operationtype.Type // Type of the operation

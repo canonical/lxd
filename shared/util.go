@@ -134,41 +134,16 @@ func IsUnixSocket(path string) bool {
 // HostPathFollow takes a valid path (from HostPath) and resolves it
 // all the way to its target or to the last which can be resolved.
 func HostPathFollow(path string) string {
-	// Ignore empty paths
-	if len(path) == 0 {
+	var ok bool
+	path, ok = resolveSnapPath(path)
+	if !ok {
 		return path
-	}
-
-	// Don't prefix stdin/stdout
-	if path == "-" {
-		return path
-	}
-
-	// Check if we're running in a snap package.
-	if !InSnap() {
-		return path
-	}
-
-	// Handle relative paths
-	if path[0] != os.PathSeparator {
-		// Use the cwd of the parent as snap-confine alters our own cwd on launch
-		ppid := os.Getppid()
-		if ppid < 1 {
-			return path
-		}
-
-		pwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", ppid))
-		if err != nil {
-			return path
-		}
-
-		path = filepath.Clean(strings.Join([]string{pwd, path}, string(os.PathSeparator)))
 	}
 
 	// Rely on "readlink -m" to do the right thing.
 	path = HostPath(path)
 	for {
-		target, err := RunCommand("readlink", "-m", path)
+		target, err := RunCommand(context.Background(), "readlink", "-m", path)
 		if err != nil {
 			return path
 		}
@@ -187,35 +162,10 @@ func HostPathFollow(path string) string {
 // On a normal system, this does nothing
 // When inside of a snap environment, returns the real path.
 func HostPath(path string) string {
-	// Ignore empty paths
-	if len(path) == 0 {
+	var ok bool
+	path, ok = resolveSnapPath(path)
+	if !ok {
 		return path
-	}
-
-	// Don't prefix stdin/stdout
-	if path == "-" {
-		return path
-	}
-
-	// Check if we're running in a snap package
-	if !InSnap() {
-		return path
-	}
-
-	// Handle relative paths
-	if path[0] != os.PathSeparator {
-		// Use the cwd of the parent as snap-confine alters our own cwd on launch
-		ppid := os.Getppid()
-		if ppid < 1 {
-			return path
-		}
-
-		pwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", ppid))
-		if err != nil {
-			return path
-		}
-
-		path = filepath.Clean(strings.Join([]string{pwd, path}, string(os.PathSeparator)))
 	}
 
 	// Check if the path is already snap-aware
@@ -228,6 +178,46 @@ func HostPath(path string) string {
 	return "/var/lib/snapd/hostfs" + path
 }
 
+// resolveSnapPath normalizes snap-related path handling.
+// It takes an input path, handling empty and special values, resolving relative
+// paths against the parent process' working directory when running under snap,
+// and returns the resolved path along with a boolean indicating whether further
+// snap-aware processing should continue.
+func resolveSnapPath(path string) (string, bool) {
+	// Ignore empty paths
+	if len(path) == 0 {
+		return path, false
+	}
+
+	// Don't prefix stdin/stdout
+	if path == "-" {
+		return path, false
+	}
+
+	// Check if we're running in a snap package.
+	if !InSnap() {
+		return path, false
+	}
+
+	// Handle relative paths
+	if path[0] != os.PathSeparator {
+		// Use the cwd of the parent as snap-confine alters our own cwd on launch
+		ppid := os.Getppid()
+		if ppid < 1 {
+			return path, false
+		}
+
+		pwd, err := os.Readlink("/proc/" + strconv.Itoa(ppid) + "/cwd")
+		if err != nil {
+			return path, false
+		}
+
+		path = filepath.Join(pwd, path)
+	}
+
+	return path, true
+}
+
 // VarPath returns the provided path elements joined by a slash and
 // appended to the end of $LXD_DIR, which defaults to /var/lib/lxd.
 func VarPath(path ...string) string {
@@ -236,6 +226,7 @@ func VarPath(path ...string) string {
 		varDir = "/var/lib/lxd"
 	}
 
+	//nolint:prealloc
 	items := []string{varDir}
 	items = append(items, path...)
 	return filepath.Join(items...)
@@ -250,7 +241,8 @@ func CachePath(path ...string) string {
 		cacheDir = filepath.Join(varDir, "cache")
 	}
 
-	items := []string{cacheDir}
+	items := make([]string, 0, 1+len(path))
+	items = append(items, cacheDir)
 	items = append(items, path...)
 	return filepath.Join(items...)
 }
@@ -264,7 +256,8 @@ func LogPath(path ...string) string {
 		logDir = filepath.Join(varDir, "logs")
 	}
 
-	items := []string{logDir}
+	items := make([]string, 0, 1+len(path))
+	items = append(items, logDir)
 	items = append(items, path...)
 	return filepath.Join(items...)
 }
@@ -1063,19 +1056,10 @@ func RunCommandSplit(ctx context.Context, env []string, filesInherit []*os.File,
 	return stdout.String(), stderr.String(), nil
 }
 
-// RunCommandContext runs a command with optional arguments and returns stdout. If the command fails to
-// start or returns a non-zero exit code then an error is returned containing the output of stderr.
-func RunCommandContext(ctx context.Context, name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(ctx, nil, nil, name, arg...)
-	return stdout, err
-}
-
 // RunCommand runs a command with optional arguments and returns stdout. If the command fails to
 // start or returns a non-zero exit code then an error is returned containing the output of stderr.
-//
-// Deprecated: Use RunCommandContext().
-func RunCommand(name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(context.TODO(), nil, nil, name, arg...)
+func RunCommand(ctx context.Context, name string, arg ...string) (string, error) {
+	stdout, _, err := RunCommandSplit(ctx, nil, nil, name, arg...)
 	return stdout, err
 }
 
@@ -1119,22 +1103,67 @@ func RunCommandWithFds(ctx context.Context, stdin io.Reader, stdout io.Writer, n
 	return nil
 }
 
-// TryRunCommand runs the specified command up to 20 times with a 500ms delay between each call
-// until it runs without an error. If after 20 times it is still failing then returns the error.
-func TryRunCommand(name string, arg ...string) (string, error) {
-	var err error
-	var output string
+// RunCommandRetryOpts contains options for running commands.
+type RunCommandRetryOpts struct {
+	// RetryFunc must return true to instruct RunCommandRetry to perform another attempt.
+	// It is called after each command failure until the context is cancelled or times out.
+	// The lastErr argument is a [RunError], which can be used to inspect stdout and stderr if necessary.
+	RetryFunc func(attempt uint, lastErr error) bool
 
-	for range 20 {
-		output, err = RunCommand(name, arg...)
-		if err == nil {
-			break
-		}
+	// NoKill instructs RunCommandRetry to use a background context instead of the
+	// input context when running the command. This prevents sending a kill signal to the
+	// command when the deadline is exceeded or the context is cancelled.
+	NoKill bool
+}
 
+var defaultCommandRetryOpts = RunCommandRetryOpts{
+	RetryFunc: func(attempt uint, lastErr error) bool {
 		time.Sleep(500 * time.Millisecond)
+		return true
+	},
+}
+
+// RunCommandRetry repeatedly runs a command according to the given options and context.
+// It returns the contents of stdout or an error.
+// If the input context has a deadline, then commands are run until that deadline is exceeded.
+// If the input context does not have a deadline, a 10 second timeout is applied.
+func RunCommandRetry(ctx context.Context, opts *RunCommandRetryOpts, cmd string, args ...string) (string, error) {
+	runOpts := defaultCommandRetryOpts
+	if opts != nil {
+		runOpts.NoKill = opts.NoKill
+		if opts.RetryFunc != nil {
+			runOpts.RetryFunc = opts.RetryFunc
+		}
 	}
 
-	return output, err
+	_, ok := ctx.Deadline()
+	if !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+	}
+
+	runCtx := ctx
+	if runOpts.NoKill {
+		runCtx = context.Background()
+	}
+
+	var attempt uint
+	for {
+		stdout, err := RunCommand(runCtx, cmd, args...)
+		if err == nil {
+			return stdout, nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return "", err
+		default:
+			if !runOpts.RetryFunc(attempt, err) {
+				return "", err
+			}
+		}
+	}
 }
 
 // TimeIsSet checks if the provided time is set to a valid timestamp. It returns false if the

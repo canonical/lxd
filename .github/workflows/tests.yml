@@ -187,8 +187,6 @@ jobs:
       - name: Run golangci-lint
         if: github.event_name == 'pull_request' || github.event_name == 'schedule'
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v8
-        with:
-          version: v2.7.2
 
       - name: Run static analysis
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
@@ -285,9 +283,9 @@ jobs:
           - group: cluster_storage
             backends: all
           - group: image
-            backends: ${{ needs.code-tests.outputs.fast-backend }}
+            backends: fasts
           - group: instance
-            backends: ${{ needs.code-tests.outputs.fast-backend }}
+            backends: fasts
           - group: network
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: standalone
@@ -295,11 +293,9 @@ jobs:
           - group: snap
             backends: all
           - group: standalone_storage
-            backends: btrfs
-          - group: standalone_storage
             backends: ceph
           - group: standalone_storage
-            backends: dir
+            backends: fasts
           - group: standalone_storage
             backends: lvm
           - group: standalone_storage
@@ -399,7 +395,7 @@ jobs:
           fi
 
       - name: "Run system tests (${{ matrix.group }}, btrfs)"
-        if: matrix.backends == 'all' || matrix.backends == 'btrfs'
+        if: matrix.backends == 'all' || matrix.backends == 'fasts' || matrix.backends == 'btrfs'
         env:
           LXD_BACKEND: btrfs
           LXD_BACKENDS: ${{ matrix.backends }}
@@ -427,7 +423,7 @@ jobs:
           sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
 
       - name: "Run system tests (${{ matrix.group }}, dir)"
-        if: matrix.backends == 'all' || matrix.backends == 'dir'
+        if: matrix.backends == 'all' || matrix.backends == 'fasts' || matrix.backends == 'dir'
         env:
           LXD_BACKEND: dir
           LXD_BACKENDS: ${{ matrix.backends }}
@@ -516,7 +512,7 @@ jobs:
       SNAP_RISK: ${{ inputs.snap-risk || 'edge' }}
       SNAP_TRACK: "latest"
       SUDO_PRESERVE_ENV: "GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,OVN_SOURCE"
-    name: Snap (${{ matrix.test }} - ${{ matrix.os }})
+    name: Snap
     runs-on: ubuntu-${{ matrix.os }}
     # avoid runaway test burning 6 hours of CI
     timeout-minutes: 60
@@ -1087,6 +1083,12 @@ jobs:
           name: system-test-deps
           merge-multiple: true
           path: /home/runner/go/bin
+
+      - name: Setup MicroCeph
+        uses: ./.github/actions/setup-microceph
+
+      - name: Setup MicroOVN
+        uses: ./.github/actions/setup-microovn
 
       - name: Prepare for running LXD daemon
         run: |

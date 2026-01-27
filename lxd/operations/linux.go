@@ -37,7 +37,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("failed to add %q Operation %s to database: %w", opType.Description(), op.id, err)
+		return fmt.Errorf("Failed creating %q operation record: %w", opType.Description(), err)
 	}
 
 	return nil

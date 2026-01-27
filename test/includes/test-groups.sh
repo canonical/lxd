@@ -51,6 +51,8 @@ readonly test_group_cluster=(
 readonly test_group_cluster_storage=(
     "clustering_image_refresh"
     "clustering_image_replication"
+    "clustering_live_migration_same_cluster"
+    "clustering_live_migration_diff_servers"
     "clustering_publish"
     "clustering_recovery"
     "clustering_storage"
@@ -64,8 +66,6 @@ readonly test_group_instance=(
     "console"
     "console_vm"
     "container_devices_gpu"
-    "container_devices_infiniband_physical"
-    "container_devices_infiniband_sriov"
     "container_devices_none"
     "container_devices_proxy"
     "container_devices_tpm"
@@ -78,6 +78,7 @@ readonly test_group_instance=(
     "exec"
     "exec_exit_code"
     "lxd_benchmark_basic"
+    "vm_storage_volume_attach"
     "vm_empty"
     "vm_pcie_bus"
 )
@@ -98,6 +99,8 @@ readonly test_group_image=(
 )
 
 readonly test_group_network=(
+    "container_devices_infiniband_physical"
+    "container_devices_infiniband_sriov"
     "container_devices_nic_bridged"
     "container_devices_nic_bridged_acl"
     "container_devices_nic_bridged_filtering"
@@ -123,6 +126,7 @@ readonly test_group_standalone=(
     "basic_usage"
     "basic_version"
     "certificate_edit"
+    "certificate_project_restrictions"
     "completions"
     "config_edit"
     "config_edit_container_snapshot_pool_config"
@@ -140,11 +144,14 @@ readonly test_group_standalone=(
     "pki"
     "profiles_project_default"
     "profiles_project_profiles"
+    "profiles_project_images"
+    "profiles_project_images_profiles"
     "projects_before_init"
     "projects_default"
     "projects_profiles"
     "projects_profiles_default"
     "projects_usage"
+    "projects_yaml"
     "property"
     "query"
     "remote_admin"
@@ -171,7 +178,6 @@ readonly test_group_snap=(
     "snap_apparmor"
     "snap_basic_usage_vm"
     "snap_lxd_user"
-    "snap_storage_volume_attach_vm"
     "snap_vm_empty"
 )
 
@@ -204,8 +210,6 @@ readonly test_group_standalone_storage=(
     "init_dump"
     "init_interactive"
     "init_preseed"
-    "profiles_project_images_profiles"
-    "profiles_project_images"
     "projects_copy"
     "projects_crud"
     "projects_containers"
@@ -213,7 +217,6 @@ readonly test_group_standalone_storage=(
     "projects_storage"
     "projects_backups"
     "projects_limits"
-    "projects_yaml"
     "projects_restrictions"
     "projects_images_volume"
     "projects_backups_volume"

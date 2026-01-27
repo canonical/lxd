@@ -1,7 +1,4 @@
 <header id="header" class="p-navigation">
-  <script type="module" src="{{ pathto('_static/js/bundle.js', 1) }}">
-  </script>
-
   <!-- Google Tag Manager -->
   <script>
     (function(w, d, s, l, i) {
@@ -27,36 +24,58 @@
     <ul class="p-navigation__links" role="menu">
 
       <li>
+        {% if product_page %}
         <a class="p-logo" href="https://{{ product_page }}" aria-current="page">
           <img src="{{ pathto(product_tag,1) }}" alt="Logo" class="p-logo-image">
           <div class="p-logo-text p-heading--4">{{ project }}
           </div>
         </a>
+        {% else %}
+        <div class="p-logo">
+          <img src="{{ pathto(product_tag,1) }}" alt="Logo" class="p-logo-image">
+          <div class="p-logo-text p-heading--4">{{ project }}
+          </div>
+        </div>
+        {% endif %}
       </li>
 
       <li class="nav-ubuntu-com">
+        {% if product_page %}
         <a href="https://{{ product_page }}" class="p-navigation__link">{{ product_page }}</a>
+        {% endif %}
       </li>
 
-      <li>
-        <a href="#" class="p-navigation__link nav-more-links">More resources</a>
-        <ul class="more-links-dropdown">
-
+      <li class="nav-dropdown">
+        <a href="#" class="p-navigation__link nav-more-links"
+           id="more-resources-toggle"
+           aria-haspopup="true"
+           aria-expanded="false">
+          More resources
+        </a>
+        <ul class="more-links-dropdown" aria-labelledby="more-resources-toggle">
+          {% if discourse %}
           <li>
-            <a href="https://ubuntu.com/lxd/install/" class="p-navigation__sub-link p-dropdown__link">Install LXD</a>
+            <a href="{{ discourse }}" class="p-navigation__sub-link p-dropdown__link">Discourse</a>
           </li>
-
+          {% endif %}
+      
+          {% if mattermost %}
           <li>
-            <a href="https://ubuntu.com/lxd/manage/" class="p-navigation__sub-link p-dropdown__link">Manage LXD</a>
+            <a href="{{ mattermost }}" class="p-navigation__sub-link p-dropdown__link">Mattermost</a>
           </li>
-
+          {% endif %}
+      
+          {% if matrix %}
           <li>
-            <a href="{{ discourse }}" class="p-navigation__sub-link p-dropdown__link">Forum</a>
+            <a href="{{ matrix }}" class="p-navigation__sub-link p-dropdown__link">Matrix</a>
           </li>
-
+          {% endif %}
+      
+          {% if github_url %}
           <li>
             <a href="{{ github_url }}" class="p-navigation__sub-link p-dropdown__link">GitHub</a>
           </li>
+          {% endif %}
 
         </ul>
       </li>

@@ -8,7 +8,6 @@ import (
 	"github.com/openfga/openfga/pkg/storage"
 
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -21,7 +20,7 @@ type authorizer interface {
 	auth.Authorizer
 
 	init(driverName string, logger logger.Logger) error
-	load(ctx context.Context, certificateCache *identity.Cache, opts Opts) error
+	load(ctx context.Context, opts Opts) error
 }
 
 // Opts is used as part of the LoadAuthorizer function so that only the relevant configuration fields are passed into a
@@ -38,7 +37,7 @@ func WithOpenFGADatastore(store storage.OpenFGADatastore) func(*Opts) {
 }
 
 // LoadAuthorizer instantiates, configures, and initialises an Authorizer.
-func LoadAuthorizer(ctx context.Context, driver string, logger logger.Logger, certificateCache *identity.Cache, options ...func(opts *Opts)) (auth.Authorizer, error) {
+func LoadAuthorizer(ctx context.Context, driver string, logger logger.Logger, options ...func(opts *Opts)) (auth.Authorizer, error) {
 	opts := &Opts{}
 	for _, o := range options {
 		o(opts)
@@ -55,7 +54,7 @@ func LoadAuthorizer(ctx context.Context, driver string, logger logger.Logger, ce
 		return nil, fmt.Errorf("Failed to initialize authorizer: %w", err)
 	}
 
-	err = d.load(ctx, certificateCache, *opts)
+	err = d.load(ctx, *opts)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load authorizer: %w", err)
 	}

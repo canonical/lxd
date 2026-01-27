@@ -1759,18 +1759,14 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 		}
 
 		for _, eventParts := range runConf.Uevents {
-			ueventArray := make([]string, 6)
-			ueventArray[0] = "forkuevent"
-			ueventArray[1] = "inject"
-			ueventArray[2] = "--"
-			ueventArray[3] = strconv.Itoa(d.InitPID())
-			ueventArray[4] = strconv.Itoa(pidFdNr)
+			ueventArray := make([]string, 0, 6+len(eventParts))
+			ueventArray = append(ueventArray, "forkuevent", "inject", "--", strconv.Itoa(d.InitPID()), strconv.Itoa(pidFdNr))
 			length := 0
 			for _, part := range eventParts {
 				length = length + len(part) + 1
 			}
 
-			ueventArray[5] = strconv.Itoa(length)
+			ueventArray = append(ueventArray, strconv.Itoa(length))
 			ueventArray = append(ueventArray, eventParts...)
 			_, _, err := shared.RunCommandSplit(context.TODO(), nil, []*os.File{pidFd}, d.state.OS.ExecPath, ueventArray...)
 			if err != nil {
@@ -2127,7 +2123,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 					case idmap.IdmapStorageIdmapped:
 						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
 					case idmap.IdmapStorageNone:
-						return nil, "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), errors.New("idmapping abilities are required but aren't supported on system"))
+						return nil, "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), errors.New("idmapping abilities are required but are not supported on system"))
 					}
 				}
 
@@ -2259,7 +2255,7 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 	lxdPID := os.Getpid()
 
 	// Run forknet detach
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		d.state.OS.ExecPath,
 		"forknet",
@@ -2359,7 +2355,7 @@ func (d *lxc) Start(stateful bool) error {
 	name := project.Instance(d.Project().Name, d.name)
 
 	// Start the LXC container
-	_, err = shared.RunCommandContext(
+	_, err = shared.RunCommand(
 		context.TODO(),
 		d.state.OS.ExecPath,
 		"forkstart",
@@ -3962,7 +3958,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Diff the devices
-	removeDevices, addDevices, updateDevices, allUpdatedKeys := oldExpandedDevices.Update(d.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
+	removeDevices, addDevices, updateDevices, allUpdatedDeviceKeys := oldExpandedDevices.Update(d.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
 		// This function needs to return a list of fields that are excluded from differences
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
@@ -3980,80 +3976,13 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return newDevType.UpdatableFields(oldDevType)
 	})
 
-	// Prevent adding or updating device initial configuration.
-	if shared.StringPrefixInSlice("initial.", allUpdatedKeys) {
-		for devName, newDev := range addDevices {
-			for k, newVal := range newDev {
-				if !strings.HasPrefix(k, "initial.") {
-					continue
-				}
-
-				oldDev, ok := removeDevices[devName]
-				if !ok {
-					return errors.New("New device with initial configuration cannot be added once the instance is created")
-				}
-
-				oldVal, ok := oldDev[k]
-				if !ok {
-					return errors.New("Device initial configuration cannot be added once the instance is created")
-				}
-
-				// If newVal is an empty string it means the initial configuration
-				// has been removed.
-				if newVal != "" && newVal != oldVal {
-					return errors.New("Device initial configuration cannot be modified once the instance is created")
-				}
-			}
-		}
+	err = d.validateConfig(allUpdatedDeviceKeys, addDevices, removeDevices, oldExpandedDevices, changedConfig, oldExpandedConfig, userRequested)
+	if err != nil {
+		return err
 	}
 
 	if userRequested {
-		// Look for deleted idmap keys.
-		protectedKeys := []string{
-			"volatile.idmap.base",
-			"volatile.idmap.current",
-			"volatile.idmap.next",
-			"volatile.last_state.idmap",
-		}
-
-		for _, k := range changedConfig {
-			if !slices.Contains(protectedKeys, k) {
-				continue
-			}
-
-			_, ok := d.expandedConfig[k]
-			if !ok {
-				return errors.New("Volatile idmap keys can't be deleted by the user")
-			}
-		}
-
-		// Do some validation of the config diff (allows mixed instance types for profiles).
-		err = instance.ValidConfig(d.state.OS, d.expandedConfig, true, instancetype.Any)
-		if err != nil {
-			return fmt.Errorf("Invalid expanded config: %w", err)
-		}
-
-		// Do full expanded validation of the devices diff.
-		err = instance.ValidDevices(d.state, d.project, d.Type(), d.localDevices, d.expandedDevices)
-		if err != nil {
-			return fmt.Errorf("Invalid expanded devices: %w", err)
-		}
-
-		// Validate root device
-		_, oldRootDev, oldErr := instancetype.GetRootDiskDevice(oldExpandedDevices.CloneNative())
-		_, newRootDev, newErr := instancetype.GetRootDiskDevice(d.expandedDevices.CloneNative())
-		if oldErr == nil && newErr == nil && oldRootDev["pool"] != newRootDev["pool"] {
-			return fmt.Errorf("Cannot update root disk device pool name to %q", newRootDev["pool"])
-		}
-
-		// Ensure the instance has a root disk.
-		if newErr != nil {
-			return fmt.Errorf("Invalid root disk device: %w", newErr)
-		}
-	}
-
-	// Run through initLXC to catch anything we missed
-	if userRequested {
+		// Run through initLXC to catch anything we missed
 		d.release()
 		d.cConfig = false
 		_, err = d.initLXC(true)
@@ -4138,7 +4067,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// Update MAAS (must run after the MAC addresses have been generated).
 	updateMAAS := false
 	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
-		if slices.Contains(allUpdatedKeys, key) {
+		if slices.Contains(allUpdatedDeviceKeys, key) {
 			updateMAAS = true
 			break
 		}
@@ -5944,10 +5873,11 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		close(chReady)
 
 		// Wait for completion.
-		// Do not log anything if the process received a SIGTERM (exit status 128+15=143)
-		// as that likely means the instance is being stopped.
+		// Do not log anything if the process received a SIGTERM (exit status
+		// 128+15=143) or exited cleanly as that likely means the instance is
+		// being stopped.
 		exitStatus, err := shared.ExitStatus(forkfile.Wait())
-		if exitStatus == 143 {
+		if exitStatus == 143 || exitStatus == 0 {
 			return
 		}
 
@@ -6661,7 +6591,7 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 		target = "/" + target
 	}
 
-	_, err := shared.RunCommandContext(
+	_, err := shared.RunCommand(
 		context.TODO(),
 		d.state.OS.ExecPath,
 		"forkmount",
@@ -6756,7 +6686,7 @@ func (d *lxc) removeMount(mount string) error {
 			mount = "/" + mount
 		}
 
-		_, err := shared.RunCommandContext(
+		_, err := shared.RunCommand(
 			context.TODO(),
 			d.state.OS.ExecPath,
 			"forkmount",

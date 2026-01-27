@@ -753,7 +753,7 @@ func (b *lxdBackend) applyInstanceRootDiskInitialValues(inst instance.Instance, 
 	}
 
 	for k, v := range rootDiskConf {
-		prefix, newKey, found := strings.Cut(k, "initial.")
+		prefix, newKey, found := strings.Cut(k, config.ConfigInitialPrefix)
 		if found && prefix == "" {
 			volConfig[newKey] = v
 		}

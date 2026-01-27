@@ -110,7 +110,7 @@ test_remote_url_with_token() {
   [[ "${expiresAt}" =~ UTC$ ]]
 
   # Add valid token but override projects
-  CERTNAME="token-client" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' -d '{"trust_token": "'"${token}"'","projects":["default","foo"],"restricted":false}' "https://${LXD_ADDR}/1.0/certificates"
+  CERTNAME="token-client" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' -d '{"trust_token": "'"${token}"'","projects":["default","foo"],"restricted":true}' "https://${LXD_ADDR}/1.0/certificates"
 
   # Check if we can see instances in the foo project
   [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances?project=foo" | jq -r '.status_code')" -eq 200 ]
@@ -407,8 +407,22 @@ test_remote_usage() {
   [ "${alias}" = "bar" ]
 
   lxc_remote image alias delete localhost:foo
+  lxc_remote image delete lxd2:bar
 
-  lxc_remote image delete localhost:testimage
+  echo "==> Test copying image on the same remote into a different project."
+  lxc_remote project create localhost:p1
+  lxc_remote image copy --quiet localhost:testimage localhost: --project default --target-project p1 --copy-aliases
+  lxc_remote image delete localhost:testimage --project default
+
+  echo "==> Test copying image from one remote's non-default project into another remote's non-default project."
+  lxc_remote project create lxd2:foo
+  lxc_remote image copy --quiet localhost:testimage lxd2: --project p1 --target-project foo --copy-aliases
+
+  echo "==> Clean up."
+  lxc_remote image delete localhost:testimage --project p1
+  lxc_remote image delete lxd2:testimage --project foo
+  lxc_remote project delete localhost:p1
+  lxc_remote project delete lxd2:foo
   lxc_remote remote remove lxd2
   lxc_remote remote remove lxd2-public
 

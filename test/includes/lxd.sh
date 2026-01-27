@@ -23,8 +23,9 @@ spawn_lxd_snap() {
     # Pass GOCOVERDIR to snap
     gocoverage_lxd_snap
 
-    # setup storage
-    "$lxd_backend"_setup "${LXD_DIR}" "${lxd_backend}-snap"
+    # setup storage (add "-snap" suffix to pool name to avoid conflicts with the regular test pool)
+    local poolName="lxdtest-${LXD_DIR##*/}-snap"
+    "$lxd_backend"_setup "${LXD_DIR}" "${poolName}"
     echo "$lxd_backend" > "${LXD_DIR}/lxd.backend"
 
     echo "==> Starting lxd snap"
@@ -61,7 +62,7 @@ spawn_lxd_snap() {
     lxc profile device add default eth0 nic nictype=p2p name=eth0
 
     echo "==> Configuring storage backend"
-    "$lxd_backend"_configure "${LXD_DIR}" "${lxd_backend}-snap" "${SMALLEST_VM_ROOT_DISK}"
+    "$lxd_backend"_configure "${LXD_DIR}" "${poolName}" "${SMALLEST_VM_ROOT_DISK}"
 }
 
 spawn_lxd() {
@@ -373,11 +374,9 @@ waitInstanceReady() {
 }
 
 wipe() {
-    if command -v btrfs >/dev/null 2>&1; then
-        rm -Rf "${1}" 2>/dev/null || true
-        if [ -d "${1}" ]; then
-            find "${1}" | tac | xargs btrfs subvolume delete >/dev/null 2>&1 || true
-        fi
+    rm -Rf "${1}" 2>/dev/null || true
+    if [ -d "${1}" ] && command -v btrfs >/dev/null 2>&1; then
+        find "${1}" -type d | tac | xargs btrfs subvolume delete >/dev/null 2>&1 || true
     fi
 
     if mountpoint -q "${1}"; then

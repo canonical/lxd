@@ -56,7 +56,7 @@ func (d *lvm) load() error {
 
 	// Detect and record the version.
 	if lvmVersion == "" {
-		output, err := shared.RunCommandContext(d.state.ShutdownCtx, "lvm", "version")
+		output, err := shared.RunCommand(d.state.ShutdownCtx, "lvm", "version")
 		if err != nil {
 			return fmt.Errorf("Error getting LVM version: %w", err)
 		}
@@ -362,22 +362,24 @@ func (d *lvm) Create() error {
 				return errors.New("No name for physical volume detected")
 			}
 
-			_, err := shared.TryRunCommand("pvcreate", pvName)
+			_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "pvcreate", pvName)
 			if err != nil {
 				return err
 			}
 
-			revert.Add(func() { _, _ = shared.TryRunCommand("pvremove", pvName) })
+			revert.Add(func() { _, _ = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "pvremove", pvName) })
 		}
 
 		// Create volume group.
-		_, err := shared.TryRunCommand("vgcreate", d.config["lvm.vg_name"], pvName)
+		_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "vgcreate", d.config["lvm.vg_name"], pvName)
 		if err != nil {
 			return err
 		}
 
 		d.logger.Debug("Volume group created", logger.Ctx{"pv_name": pvName, "vg_name": d.config["lvm.vg_name"]})
-		revert.Add(func() { _, _ = shared.TryRunCommand("vgremove", d.config["lvm.vg_name"]) })
+		revert.Add(func() {
+			_, _ = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "vgremove", d.config["lvm.vg_name"])
+		})
 	}
 
 	// Create thin pool if needed.
@@ -409,7 +411,7 @@ func (d *lvm) Create() error {
 	}
 
 	// Mark the volume group with the lvmVgPoolMarker tag to indicate it is now in use by LXD.
-	_, err = shared.TryRunCommand("vgchange", "--addtag", lvmVgPoolMarker, d.config["lvm.vg_name"])
+	_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "vgchange", "--addtag", lvmVgPoolMarker, d.config["lvm.vg_name"])
 	if err != nil {
 		return err
 	}
@@ -488,7 +490,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 
 		// Remove volume group if needed.
 		if removeVg {
-			_, err := shared.TryRunCommand("vgremove", "-f", d.config["lvm.vg_name"])
+			_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "vgremove", "-f", d.config["lvm.vg_name"])
 			if err != nil {
 				return fmt.Errorf("Failed to delete the volume group for the lvm storage pool: %w", err)
 			}
@@ -497,7 +499,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 		} else {
 			// Otherwise just remove the lvmVgPoolMarker tag to indicate LXD no longer uses this VG.
 			if slices.Contains(vgTags, lvmVgPoolMarker) {
-				_, err = shared.TryRunCommand("vgchange", "--deltag", lvmVgPoolMarker, d.config["lvm.vg_name"])
+				_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "vgchange", "--deltag", lvmVgPoolMarker, d.config["lvm.vg_name"])
 				if err != nil {
 					return fmt.Errorf("Failed to remove marker tag on volume group for the lvm storage pool: %w", err)
 				}
@@ -509,7 +511,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 
 	// If we have removed the volume group and this is a loop file, lets clean up the physical volume too.
 	if removeVg && loopDevPath != "" {
-		_, err := shared.TryRunCommand("pvremove", "-f", loopDevPath)
+		_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "pvremove", "-f", loopDevPath)
 		if err != nil {
 			d.logger.Warn("Failed to destroy the physical volume for the lvm storage pool", logger.Ctx{"err": err})
 		}
@@ -627,7 +629,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 	}
 
 	if changedConfig["lvm.vg_name"] != "" {
-		_, err := shared.TryRunCommand("vgrename", d.config["lvm.vg_name"], changedConfig["lvm.vg_name"])
+		_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "vgrename", d.config["lvm.vg_name"], changedConfig["lvm.vg_name"])
 		if err != nil {
 			return fmt.Errorf("Error renaming LVM volume group from %q to %q: %w", d.config["lvm.vg_name"], changedConfig["lvm.vg_name"], err)
 		}
@@ -636,7 +638,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 	}
 
 	if changedConfig["lvm.thinpool_name"] != "" {
-		_, err := shared.TryRunCommand("lvrename", d.config["lvm.vg_name"], d.thinpoolName(), changedConfig["lvm.thinpool_name"])
+		_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvrename", d.config["lvm.vg_name"], d.thinpoolName(), changedConfig["lvm.thinpool_name"])
 		if err != nil {
 			return fmt.Errorf("Error renaming LVM thin pool from %q to %q: %w", d.thinpoolName(), changedConfig["lvm.thinpool_name"], err)
 		}
@@ -679,7 +681,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 		}
 
 		// Resize physical volume so that lvresize is able to resize as well.
-		_, err = shared.RunCommandContext(context.TODO(), "pvresize", "-y", loopDevPath)
+		_, err = shared.RunCommand(context.TODO(), "pvresize", "-y", loopDevPath)
 		if err != nil {
 			return err
 		}
@@ -688,7 +690,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 			lvPath := d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName())
 
 			// Use the remaining space in the volume group.
-			_, err = shared.RunCommandContext(context.TODO(), "lvresize", "-f", "-l", "+100%FREE", lvPath)
+			_, err = shared.RunCommand(context.TODO(), "lvresize", "-f", "-l", "+100%FREE", lvPath)
 			if err != nil {
 				return fmt.Errorf("Error resizing LV named %q: %w", lvPath, err)
 			}
@@ -797,7 +799,7 @@ func (d *lvm) GetResources() (*api.ResourcesStoragePool, error) {
 			"-o", "vg_size,vg_free",
 		}
 
-		out, err := shared.RunCommandContext(d.state.ShutdownCtx, "vgs", args...)
+		out, err := shared.RunCommand(d.state.ShutdownCtx, "vgs", args...)
 		if err != nil {
 			return nil, err
 		}

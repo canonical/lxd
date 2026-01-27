@@ -11,7 +11,6 @@ import (
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -74,7 +73,7 @@ func tlsCheckCert(r *http.Request, networkCert *shared.CertInfo, serverCert *sha
 	}
 
 	trustedServerCerts := map[string]x509.Certificate{serverCert.Fingerprint(): *trustedServerCert}
-	cachedIdentityTypeCertificateServer := cache.X509Certificates(api.IdentityTypeCertificateServer)
+	cachedIdentityTypeCertificateServer := cache.GetServerCertificates()
 
 	for _, i := range r.TLS.PeerCertificates {
 		// Trust our own server certificate. This allows Dqlite to start with a connection back to this

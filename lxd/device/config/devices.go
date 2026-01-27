@@ -10,6 +10,9 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// ConfigInitialPrefix indicates the prefix used for creation time initial device config keys.
+const ConfigInitialPrefix = "initial."
+
 // Device represents a LXD container device.
 type Device map[string]string
 
@@ -60,7 +63,7 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 		//  type: n/a
 		//  required: no
 		//  shortdesc: Initial volume configuration
-		if strings.HasPrefix(k, "initial.") {
+		if strings.HasPrefix(k, ConfigInitialPrefix) {
 			continue
 		}
 
@@ -113,7 +116,7 @@ func ApplyDeviceInitialValues(devices Devices, profiles []api.Profile) Devices {
 
 			// If profile device contains an initial.* key, add it to the map of devices.
 			for k := range devConfig {
-				if strings.HasPrefix(k, "initial.") {
+				if strings.HasPrefix(k, ConfigInitialPrefix) {
 					devices[devName] = devConfig
 					break
 				}
@@ -168,7 +171,8 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 		}
 	}
 
-	allChangedKeys := []string{}
+	//nolint:prealloc
+	allChangedKeys := make([]string, 0)
 	for key, d := range addlist {
 		srcOldDevice := rmlist[key]
 		oldDevice := srcOldDevice.Clone()

@@ -28,6 +28,12 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// noKillRetryOpts is used as the default [shared.RunCommandRetryOpts] for storage operations.
+// It instructs [shared.RunCommandRetry] not to kill the command when the context is done.
+var noKillRetryOpts = &shared.RunCommandRetryOpts{
+	NoKill: true,
+}
+
 // defaultVMBlockFilesystemSize is the size of a VM root device block volume's associated filesystem volume.
 const defaultVMBlockFilesystemSize = "100MiB"
 
@@ -65,7 +71,7 @@ func wipeDirectory(path string) error {
 func forceRemoveAll(path string) error {
 	err := os.RemoveAll(path)
 	if err != nil {
-		_, _ = shared.RunCommandContext(context.TODO(), "chattr", "-ai", "-R", path)
+		_, _ = shared.RunCommand(context.TODO(), "chattr", "-ai", "-R", path)
 		err = os.RemoveAll(path)
 		if err != nil {
 			return err
@@ -417,7 +423,7 @@ func makeFSType(path string, fsType string, options *mkfsOptions) (string, error
 	// Always add the path to the device as the last argument for wider compatibility with versions of mkfs.
 	cmd = append(cmd, path)
 
-	msg, err = shared.TryRunCommand(cmd[0], cmd[1:]...)
+	msg, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, cmd[0], cmd[1:]...)
 	if err != nil {
 		return msg, err
 	}
@@ -459,7 +465,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 	switch fsType {
 	case "ext4":
 		return vol.UnmountTask(func(op *operations.Operation) error {
-			output, err := shared.RunCommandContext(context.TODO(), "e2fsck", "-f", "-y", devPath)
+			output, err := shared.RunCommand(context.TODO(), "e2fsck", "-f", "-y", devPath)
 			if err != nil {
 				exitCodeFSModified := false
 				runErr, ok := err.(shared.RunError)
@@ -490,7 +496,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 			}
 
 			args = append(args, devPath, strSize)
-			_, err = shared.RunCommandContext(context.TODO(), "resize2fs", args...)
+			_, err = shared.RunCommand(context.TODO(), "resize2fs", args...)
 			if err != nil {
 				return err
 			}
@@ -499,7 +505,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 		}, true, nil)
 	case "btrfs":
 		return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-			_, err := shared.RunCommandContext(context.TODO(), "btrfs", "filesystem", "resize", strSize, mountPath)
+			_, err := shared.RunCommand(context.TODO(), "btrfs", "filesystem", "resize", strSize, mountPath)
 			if err != nil {
 				return err
 			}
@@ -521,11 +527,11 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		var err error
 		switch fsType {
 		case "ext4":
-			_, err = shared.TryRunCommand("resize2fs", devPath)
+			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "resize2fs", devPath)
 		case "xfs":
-			_, err = shared.TryRunCommand("xfs_growfs", mountPath)
+			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "xfs_growfs", mountPath)
 		case "btrfs":
-			_, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mountPath)
+			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "btrfs", "filesystem", "resize", "max", mountPath)
 		default:
 			return fmt.Errorf("Unrecognised filesystem type %q", fsType)
 		}
@@ -567,7 +573,7 @@ func regenerateFilesystemUUID(fsType string, devPath string) error {
 func regenerateFilesystemBTRFSUUID(devPath string) error {
 	// If the snapshot was taken whilst instance was running there may be outstanding transactions that will
 	// cause btrfstune to corrupt superblock, so ensure these are cleared out first.
-	_, err := shared.RunCommandContext(context.TODO(), "btrfs", "rescue", "zero-log", devPath)
+	_, err := shared.RunCommand(context.TODO(), "btrfs", "rescue", "zero-log", devPath)
 	if err != nil {
 		return err
 	}
@@ -575,7 +581,7 @@ func regenerateFilesystemBTRFSUUID(devPath string) error {
 	// `-m` modifies the metadata_uuid which is much faster than `-u` that rewrites all metadata blocks.
 	// The resulting filesystem needs kernel 5.0+ to be mounted or running `btrfstune -u` to regain compat
 	// with older kernels.
-	_, err = shared.RunCommandContext(context.TODO(), "btrfstune", "-f", "-m", devPath)
+	_, err = shared.RunCommand(context.TODO(), "btrfstune", "-f", "-m", devPath)
 	if err != nil {
 		return err
 	}
@@ -586,20 +592,20 @@ func regenerateFilesystemBTRFSUUID(devPath string) error {
 // regenerateFilesystemXFSUUID changes the XFS filesystem UUID to a new randomly generated one.
 func regenerateFilesystemXFSUUID(devPath string) error {
 	// Attempt to generate a new UUID.
-	msg, err := shared.RunCommandContext(context.TODO(), "xfs_admin", "-U", "generate", devPath)
+	msg, err := shared.RunCommand(context.TODO(), "xfs_admin", "-U", "generate", devPath)
 	if err != nil {
 		return err
 	}
 
 	if msg != "" {
 		// Exit 0 with a msg usually means some log entry getting in the way.
-		_, err = shared.RunCommandContext(context.TODO(), "xfs_repair", "-o", "force_geometry", "-L", devPath)
+		_, err = shared.RunCommand(context.TODO(), "xfs_repair", "-o", "force_geometry", "-L", devPath)
 		if err != nil {
 			return err
 		}
 
 		// Attempt to generate a new UUID again.
-		_, err = shared.RunCommandContext(context.TODO(), "xfs_admin", "-U", "generate", devPath)
+		_, err = shared.RunCommand(context.TODO(), "xfs_admin", "-U", "generate", devPath)
 		if err != nil {
 			return err
 		}
@@ -666,7 +672,7 @@ func copyDevice(inputPath string, outputPath string) error {
 		_ = to.Close()
 	}
 
-	_, err = shared.RunCommandContext(context.TODO(), cmd[0], cmd[1:]...)
+	_, err = shared.RunCommand(context.TODO(), cmd[0], cmd[1:]...)
 	if err != nil {
 		return err
 	}
@@ -760,7 +766,7 @@ func btrfsSubVolumesGet(path string) ([]string, error) {
 
 // btrfsSubVolumeIsRo returns if subvolume is read only.
 func btrfsSubVolumeIsRo(path string) bool {
-	output, err := shared.RunCommandContext(context.TODO(), "btrfs", "property", "get", "-ts", path)
+	output, err := shared.RunCommand(context.TODO(), "btrfs", "property", "get", "-ts", path)
 	if err != nil {
 		return false
 	}
@@ -811,7 +817,7 @@ func loopFileSizeDefault() (uint64, error) {
 // loopFileSetup sets up a loop device for the provided sourcePath.
 // It tries to enable direct I/O if supported.
 func loopDeviceSetup(sourcePath string) (string, error) {
-	out, err := shared.RunCommandContext(context.TODO(), "losetup", "--find", "--nooverlap", "--direct-io=on", "--show", sourcePath)
+	out, err := shared.RunCommand(context.TODO(), "losetup", "--find", "--nooverlap", "--direct-io=on", "--show", sourcePath)
 	if err == nil {
 		return strings.TrimSpace(out), nil
 	}
@@ -820,7 +826,7 @@ func loopDeviceSetup(sourcePath string) (string, error) {
 		return "", err
 	}
 
-	out, err = shared.RunCommandContext(context.TODO(), "losetup", "--find", "--nooverlap", "--show", sourcePath)
+	out, err = shared.RunCommand(context.TODO(), "losetup", "--find", "--nooverlap", "--show", sourcePath)
 	if err == nil {
 		return strings.TrimSpace(out), nil
 	}
@@ -830,13 +836,13 @@ func loopDeviceSetup(sourcePath string) (string, error) {
 
 // loopFileAutoDetach enables auto detach mode for a loop device.
 func loopDeviceAutoDetach(loopDevPath string) error {
-	_, err := shared.RunCommandContext(context.TODO(), "losetup", "--detach", loopDevPath)
+	_, err := shared.RunCommand(context.TODO(), "losetup", "--detach", loopDevPath)
 	return err
 }
 
 // loopDeviceSetCapacity forces the loop driver to reread the size of the file associated with the specified loop device.
 func loopDeviceSetCapacity(loopDevPath string) error {
-	_, err := shared.RunCommandContext(context.TODO(), "losetup", "--set-capacity", loopDevPath)
+	_, err := shared.RunCommand(context.TODO(), "losetup", "--set-capacity", loopDevPath)
 	return err
 }
 

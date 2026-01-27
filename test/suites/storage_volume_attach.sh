@@ -107,9 +107,17 @@ EOF
   lxc storage volume delete "${pool}" testvolume
 }
 
-test_snap_storage_volume_attach_vm() {
+test_vm_storage_volume_attach() {
+  local pool
+  local orig_volume_size
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  orig_volume_size="$(lxc storage get "${pool}" volume.size)"
+  if [ -n "${orig_volume_size:-}" ]; then
+    echo "==> Override the volume.size to accommodate a VM"
+    lxc storage set "${pool}" volume.size "${SMALLEST_VM_ROOT_DISK}"
+  fi
+
   echo "==> Creating storage volumes"
-  pool="$(lxc profile device get default root pool)"
   lxc storage volume create "${pool}" vol1 size=1MiB --type block
   lxc storage volume create "${pool}" vol2 size=1MiB
   lxc storage volume create "${pool}" vol3 size=1MiB --type block
@@ -131,9 +139,18 @@ test_snap_storage_volume_attach_vm() {
   lxc exec v1 -- mount | grep -wF /mnt
   lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol3
 
+  echo "==> Snapshot custom volume and verify read-only attach"
+  lxc exec v1 -- touch /mnt/snap-data
+  lxc storage volume detach "${pool}" vol2 v1
+  lxc storage volume snapshot "${pool}" vol2
+  lxc config device add v1 vol2-snap disk source=vol2 source.snapshot=snap0 pool="${pool}" path=/mnt-snap
+  lxc exec v1 -- mountpoint -q /mnt-snap
+  lxc exec v1 -- test -f /mnt-snap/snap-data
+  ! lxc exec v1 -- touch /mnt-snap/should-fail || false
+  lxc config device remove v1 vol2-snap
+
   echo "==> Detaching storage volumes"
   lxc storage volume detach "${pool}" vol1 v1
-  lxc storage volume detach "${pool}" vol2 v1
   lxc storage volume detach "${pool}" vol3 v1
   sleep 2
 
@@ -147,4 +164,9 @@ test_snap_storage_volume_attach_vm() {
   lxc storage volume delete "${pool}" vol2
   lxc storage volume delete "${pool}" vol3
   lxc delete -f v1
+
+  if [ -n "${orig_volume_size:-}" ]; then
+    echo "==> Restore the volume.size"
+    lxc storage set "${pool}" volume.size "${orig_volume_size}"
+  fi
 }

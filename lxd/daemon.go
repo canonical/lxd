@@ -333,14 +333,9 @@ func allowProjectResourceList(allowAllProjects bool) func(d *Daemon, r *http.Req
 			return response.EmptySyncResponse
 		}
 
-		id := requestor.CallerIdentity()
-		if id == nil {
-			return response.InternalError(errors.New("No identity present in request details"))
-		}
-
-		idType := requestor.CallerIdentityType()
-		if idType == nil {
-			return response.InternalError(errors.New("No identity type present in request details"))
+		idType, err := requestor.CallerIdentityType()
+		if err != nil {
+			return response.SmartError(err)
 		}
 
 		requestProjectName, allProjects, err := request.ProjectParams(r)
@@ -380,7 +375,7 @@ func allowProjectResourceList(allowAllProjects bool) func(d *Daemon, r *http.Req
 		}
 
 		// Disallow listing resources in projects the caller does not have access to.
-		if !slices.Contains(id.Projects, requestProjectName) {
+		if !slices.Contains(requestor.CallerAllowedProjectNames(), requestProjectName) {
 			return response.Forbidden(errors.New("Certificate is restricted"))
 		}
 
@@ -407,9 +402,9 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, entityT
 	}
 
 	// Any other requestor should have an identity type present.
-	identityType := requestor.CallerIdentityType()
-	if identityType == nil {
-		return errors.New("No identity type present in request details")
+	identityType, err := requestor.CallerIdentityType()
+	if err != nil {
+		return err
 	}
 
 	// Check the identity type is fine-grained (it could be a restricted client certificate).
@@ -501,23 +496,18 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
 // client that has been authenticated (cluster, unix, oidc or tls).
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.RequestorArgs, error) {
-	// Perform mTLS check against server certificates. If this passes, the request was made by another cluster member
-	// and the protocol is [request.ProtocolCluster].
-	if r.TLS != nil {
-		for _, i := range r.TLS.PeerCertificates {
-			trusted, fingerprint := util.CheckMutualTLS(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer))
-			if trusted {
-				return &request.RequestorArgs{
-					Trusted:  true,
-					Username: fingerprint,
-					Protocol: request.ProtocolCluster,
-				}, nil
-			}
+	if r.TLS == nil {
+		// For a socket, the server is listening on a file, but the client does not have an address.
+		// Since there is no address, the kernel uses an unnamed unix socket address.
+		// An unnamed or abstract Unix socket address is rendered as '@'.
+		// Without TLS, we only accept unix socket access.
+		if r.RemoteAddr != "@" {
+			return nil, errors.New("Bad/missing TLS on network query")
 		}
-	}
 
-	// Local unix socket queries.
-	if r.RemoteAddr == "@" && r.TLS == nil {
+		// Get user credentials from the connection.
+		// This is only to populate the username.
+		// The caller already has permission by way of file permissions on the socket.
 		cred, err := ucred.GetCredFromContext(r.Context())
 		if err != nil {
 			return nil, err
@@ -538,20 +528,104 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 		}, nil
 	}
 
-	// Bad query, no TLS found.
-	if r.TLS == nil {
-		return nil, errors.New("Bad/missing TLS on network query")
+	// Request has TLS. If client sent a peer certificate, check mTLS and CA.
+	if len(r.TLS.PeerCertificates) > 0 {
+		// Convert list of peer certificates to map.
+		peerCertificateFingerprints := make([]string, 0, len(r.TLS.PeerCertificates))
+		peerCertificates := make(map[string]x509.Certificate, len(r.TLS.PeerCertificates))
+		for _, c := range r.TLS.PeerCertificates {
+			f := shared.CertFingerprint(c)
+			peerCertificates[f] = *c
+			peerCertificateFingerprints = append(peerCertificateFingerprints, f)
+		}
+
+		// Anonymous function to call for each certificate type and it's associated protocol.
+		authTLS := func(protocol string, certGetter func(...string) map[string]x509.Certificate) (*request.RequestorArgs, error) {
+			// Did the client send any certificates we recognise?
+			matchedCerts := certGetter(peerCertificateFingerprints...)
+			if len(matchedCerts) == 0 {
+				// If not, they are not authenticated, but there is no error.
+				return nil, nil
+			} else if len(matchedCerts) > 1 {
+				// If they matched more than one, we don't know who to authenticate the caller as, so return an error.
+				return nil, api.StatusErrorf(http.StatusBadRequest, "Client sent too many credentials")
+			}
+
+			// Get the recognised fingerprint (there is only one).
+			var matchedFingerprint string
+			for k := range matchedCerts {
+				matchedFingerprint = k
+			}
+
+			// We've recognised the fingerprint of the caller certificate, but now we need to perform a full mTLS check.
+			trusted, _ := util.CheckMutualTLS(peerCertificates[matchedFingerprint], matchedCerts)
+			if trusted {
+				// If there is a server.ca file, then all client certificates must be signed by it.
+				// This does not apply to server certificates.
+				if protocol != request.ProtocolCluster && d.endpoints.NetworkCert().CA() != nil {
+					trusted, _, _ = util.CheckCASignature(peerCertificates[matchedFingerprint], d.endpoints.NetworkCert())
+					if !trusted {
+						return nil, nil
+					}
+				}
+
+				return &request.RequestorArgs{
+					Trusted:  trusted,
+					Protocol: protocol,
+					Username: matchedFingerprint,
+				}, nil
+			}
+
+			return nil, nil
+		}
+
+		// Check server certificates.
+		requestor, err := authTLS(request.ProtocolCluster, d.identityCache.GetServerCertificates)
+		if err != nil {
+			return nil, err
+		} else if requestor != nil {
+			return requestor, nil
+		}
+
+		// Check client certificates.
+		requestor, err = authTLS(api.AuthenticationMethodTLS, d.identityCache.GetClientCertificates)
+		if err != nil {
+			return nil, err
+		} else if requestor != nil {
+			return requestor, nil
+		}
+
+		// Only check metrics certificates if it is a metrics API route.
+		if strings.HasPrefix(r.URL.Path, "/1.0/metrics") {
+			requestor, err = authTLS(api.AuthenticationMethodTLS, d.identityCache.GetMetricsCertificates)
+			if err != nil {
+				return nil, err
+			} else if requestor != nil {
+				return requestor, nil
+			}
+		}
+
+		// Lastly, check if core.trust_ca_certificates is true. If so, allow all CA signed certificates without checking
+		// mTLS.
+		if d.endpoints.NetworkCert().CA() != nil && d.globalConfig.TrustCACertificates() {
+			for f, cert := range peerCertificates {
+				trusted, _, _ := util.CheckCASignature(cert, d.endpoints.NetworkCert())
+				if trusted {
+					return &request.RequestorArgs{
+						Trusted:  true,
+						Username: f,
+						Protocol: request.ProtocolPKI,
+					}, nil
+				}
+			}
+		}
 	}
 
+	// Lastly, check OIDC authentication using the verifier.
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
 		result, err := d.oidcVerifier.Auth(w, r)
 		if err != nil {
 			return nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
-		}
-
-		err = d.handleOIDCAuthenticationResult(result)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to process OIDC authentication result: %w", err)
 		}
 
 		return &request.RequestorArgs{
@@ -562,103 +636,8 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 		}, nil
 	}
 
-	isMetricsRequest := func(u url.URL) bool {
-		return strings.HasPrefix(u.Path, "/1.0/metrics")
-	}
-
-	// List of candidate identity types for this request. We have already checked server certificates at the beginning of this method
-	// so we only need to consider client and metrics certificates. (OIDC auth was completed above).
-	candidateIdentityTypes := []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClient}
-	if isMetricsRequest(*r.URL) {
-		// Metrics certificates can only authenticate when calling metrics related endpoints.
-		candidateIdentityTypes = append(candidateIdentityTypes, api.IdentityTypeCertificateMetricsUnrestricted, api.IdentityTypeCertificateMetricsRestricted)
-	}
-
-	// Map of candidate certificates of mTLS check.
-	candidateCertificates := make(map[string]x509.Certificate)
-
-	// If the network cert has a CA, validate the peer certificates against it.
-	if d.endpoints.NetworkCert().CA() != nil {
-		trustCACertificates := d.globalConfig.TrustCACertificates()
-		for _, peerCertificate := range r.TLS.PeerCertificates {
-			trusted, _, fingerprint := util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
-			if !trusted {
-				return &request.RequestorArgs{Trusted: false}, nil
-			}
-
-			// Check if a matching certificate is present in the identity cache.
-			id, err := d.identityCache.Get(api.AuthenticationMethodTLS, fingerprint)
-			if err != nil {
-				if !api.StatusErrorCheck(err, http.StatusNotFound) {
-					return nil, err
-				}
-
-				// If we have a not found error and `core.trust_ca_certificates` is true, then the identity is implicitly
-				// trusted because their certificate was signed by the CA.
-				if trustCACertificates {
-					return &request.RequestorArgs{
-						Trusted:  true,
-						Username: fingerprint,
-						Protocol: request.ProtocolPKI,
-					}, nil
-				}
-
-				// If we don't implicitly trust CA signed certificates, then the identity is not trusted because they
-				// are not present in the identity cache.
-				return &request.RequestorArgs{Trusted: false}, nil
-			}
-
-			// The identity type must be in our list of candidate types (e.g. if this certificate is a metrics certificate
-			// and we're on a non-metrics related route).
-			if !slices.Contains(candidateIdentityTypes, id.IdentityType) {
-				return &request.RequestorArgs{Trusted: false}, nil
-			}
-
-			// In CA mode we only consider if this exact certificate is valid via mTLS checks below.
-			candidateCertificates[id.Identifier] = *id.Certificate
-		}
-	} else {
-		// In non-CA mode we consider all certificates that would be valid for this API route.
-		candidateCertificates = d.identityCache.X509Certificates(candidateIdentityTypes...)
-	}
-
-	// Perform mTLS check on candidates.
-	for _, i := range r.TLS.PeerCertificates {
-		trusted, fingerprint := util.CheckMutualTLS(*i, candidateCertificates)
-		if trusted {
-			return &request.RequestorArgs{
-				Trusted:  true,
-				Username: fingerprint,
-				Protocol: api.AuthenticationMethodTLS,
-			}, nil
-		}
-	}
-
 	// Reject unauthorized.
 	return &request.RequestorArgs{Trusted: false}, nil
-}
-
-// handleOIDCAuthenticationResult checks the identity cache for the OIDC identity by their email address.
-// If no identity is found, the cache is refreshed.
-// This is for new OIDC logins and is currently required for authorization to work because group membership is saved to the cache.
-// The [oidc.Verifier] has already handled adding the identity to the database via the [oidc.SessionHandler].
-//
-// Note that in this case we do not need to notify other cluster members about the new identity.
-// This is because the cache is not required for authentication.
-// If this identity makes a request to another cluster member, that cluster member will call this same function to refresh
-// their cache if the identity is missing.
-func (d *Daemon) handleOIDCAuthenticationResult(result *oidc.AuthenticationResult) error {
-	s := d.State()
-	_, err := s.IdentityCache.Get(api.AuthenticationMethodOIDC, result.Email)
-	if err == nil {
-		return nil
-	} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return err
-	}
-
-	s.UpdateIdentityCache()
-
-	return nil
 }
 
 // getCoreAuthSecrets gets a copy of the current, cluster-wide secrets. The approach can be summarized as follows:
@@ -854,7 +833,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Initialise the request info.
-		err = request.SetRequestor(r, d.identityCache, *requestor)
+		err = request.SetRequestor(r, d.requestorHook, *requestor)
 		if err != nil {
 			_ = response.SmartError(err).Render(w, r)
 			return
@@ -1121,7 +1100,7 @@ func (d *Daemon) init() error {
 	var err error
 
 	// Set default authorizer.
-	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log, d.identityCache)
+	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log)
 	if err != nil {
 		return err
 	}
@@ -1392,7 +1371,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Detect if clustered, but not yet upgraded to per-server client certificates.
-	if d.serverClustered && len(d.identityCache.GetByType(api.IdentityTypeCertificateServer)) < 1 {
+	if d.serverClustered && len(d.identityCache.GetServerCertificates()) < 1 {
 		// If the cluster has not yet upgraded to per-server client certificates (by running patch
 		// patchClusteringServerCertTrust) then temporarily use the network (cluster) certificate as client
 		// certificate, and cause us to trust it for use as client certificate from the other members.
@@ -1584,7 +1563,7 @@ func (d *Daemon) init() error {
 
 	// Load the embedded OpenFGA authorizer. This cannot be loaded until after the cluster database is initialised,
 	// so the TLS authorizer must be loaded first to set up clustering.
-	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverEmbeddedOpenFGA, logger.Log, d.identityCache, authDrivers.WithOpenFGADatastore(openfga.NewOpenFGAStore(d.db.Cluster)))
+	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverEmbeddedOpenFGA, logger.Log, authDrivers.WithOpenFGADatastore(openfga.NewOpenFGAStore(d.db.Cluster)))
 	if err != nil {
 		return err
 	}
@@ -1770,7 +1749,7 @@ func (d *Daemon) init() error {
 	// Setup DNS listener.
 	d.dns = dns.NewServer(d.db.Cluster, func(name string, full bool) (*dns.Zone, error) {
 		// Fetch the zone.
-		zone, err := networkZone.LoadByName(d.State(), name)
+		zone, err := networkZone.LoadByName(d.shutdownCtx, d.State(), name)
 		if err != nil {
 			return nil, err
 		}
@@ -1783,7 +1762,7 @@ func (d *Daemon) init() error {
 
 		if full {
 			// Full content was requested.
-			zoneBuilder, err := zone.Content()
+			zoneBuilder, err := zone.Content(d.shutdownCtx)
 			if err != nil {
 				logger.Errorf("Failed to render DNS zone %q: %v", name, err)
 				return nil, err
@@ -2040,6 +2019,70 @@ func (d *Daemon) init() error {
 	logger.Info("Daemon started")
 
 	return nil
+}
+
+// requestorHook runs for all authenticated (trusted) client requests to the remote API or to the DevLXD API (via bearer auth).
+// It gets the identity by the authentication method (protocol) and identifier (username) and returns authorization details.
+func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (identityID int, idType identity.Type, authGroups []string, mappedAuthGroups []string, projects []string, err error) {
+	err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(authenticationMethod), identifier)
+		if err != nil {
+			return fmt.Errorf("Failed to get identity: %w", err)
+		}
+
+		identityID = id.ID
+
+		idType, err = identity.New(string(id.Type))
+		if err != nil {
+			return fmt.Errorf("Failed to determine type of identity: %w", err)
+		}
+
+		// If client is an admin, there are no groups or projects to get.
+		if idType.IsAdmin() || idType.Name() == api.IdentityTypeCertificateMetricsUnrestricted {
+			return nil
+		}
+
+		// If not fine-grained, get the project list.
+		if !idType.IsFineGrained() {
+			dbProjects, err := dbCluster.GetIdentityProjects(ctx, tx.Tx(), id.ID)
+			if err != nil {
+				return fmt.Errorf("Failed to get projects for identity: %w", err)
+			}
+
+			projects = make([]string, 0, len(dbProjects))
+			for _, p := range dbProjects {
+				projects = append(projects, p.Name)
+			}
+
+			return nil
+		}
+
+		// Otherwise get the authorization groups.
+		dbGroups, err := dbCluster.GetAuthGroupsByIdentityID(ctx, tx.Tx(), id.ID)
+		if err != nil {
+			return fmt.Errorf("Failed to get groups for identity: %w", err)
+		}
+
+		authGroups = make([]string, 0, len(dbGroups))
+		for _, g := range dbGroups {
+			authGroups = append(authGroups, g.Name)
+		}
+
+		if len(idpGroups) > 0 {
+			// If IdP groups are set, map them to LXD auth groups.
+			mappedAuthGroups, err = dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), idpGroups)
+			if err != nil {
+				return fmt.Errorf("Failed to map identity provider groups to authorization groups: %w", err)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return -1, nil, nil, nil, nil, err
+	}
+
+	return identityID, idType, authGroups, mappedAuthGroups, projects, nil
 }
 
 func (d *Daemon) startClusterTasks() {

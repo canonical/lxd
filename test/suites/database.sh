@@ -1,16 +1,12 @@
 # Test restore database backups after a failed upgrade.
 test_database_restore() {
-  LXD_RESTORE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  local LXD_RESTORE_DIR
+  LXD_RESTORE_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
 
   spawn_lxd "${LXD_RESTORE_DIR}" true
 
   # Set a config value before the broken upgrade.
-  (
-    set -e
-    # shellcheck disable=SC2034
-    LXD_DIR=${LXD_RESTORE_DIR}
-    lxc config set "core.https_allowed_credentials" "true"
-  )
+  LXD_DIR="${LXD_RESTORE_DIR}" lxc config set core.https_allowed_credentials=true
 
   shutdown_lxd "${LXD_RESTORE_DIR}"
 
@@ -32,20 +28,14 @@ EOF
 
   # Restart the daemon and check that our previous settings are still there
   respawn_lxd "${LXD_RESTORE_DIR}" true
-  (
-    set -e
-    # shellcheck disable=SC2034
-    LXD_DIR=${LXD_RESTORE_DIR}
-    [ "$(lxc config get "core.https_allowed_credentials")" = "true" ]
-  )
+  [ "$(LXD_DIR="${LXD_RESTORE_DIR}" lxc config get core.https_allowed_credentials)" = "true" ]
 
   kill_lxd "${LXD_RESTORE_DIR}"
 }
 
 test_database_no_disk_space() {
-  local LXD_DIR
-
-  LXD_NOSPACE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  local LXD_NOSPACE_DIR
+  LXD_NOSPACE_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
 
   # Mount a tmpfs with limited space in the global database directory and create
   # a very big file in it, which will eventually cause database transactions to
@@ -75,17 +65,21 @@ test_database_no_disk_space() {
         fi
     done
 
+    # Ensure the for loop broke out early due to `lxc config set` failing.
+    [ "${i}" -lt 20 ]
+
     # Commands that involve writing to the database keep failing.
-    ! lxc config set c "user.propX" - < "${DATA}" || false
     ! lxc config set c "user.propY" - < "${DATA}" || false
 
     # Removing the big file makes the database happy again.
     rm "${BIG_FILE}"
     lxc config set c "user.propZ" - < "${DATA}"
-    lxc delete -f c
+    lxc delete c
   )
 
-  shutdown_lxd "${LXD_NOSPACE_DIR}"
-  umount "${GLOBAL_DB_DIR}"
+  # XXX: forcibly kill LXD as it takes a long time to shut down due to
+  # LXD/dqlite recovery from the out of disk space condition.
+  # Use lazy umount to allow umounting before LXD is killed.
+  umount --lazy "${GLOBAL_DB_DIR}"
   kill_lxd "${LXD_NOSPACE_DIR}"
 }

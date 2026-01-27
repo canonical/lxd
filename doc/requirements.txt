@@ -1,8 +1,8 @@
-# Theme file
-furo
+# Canonical theme (needed for Furo theme and custom templates)
+canonical-sphinx>=0.5.1
 
 # External extensions
-myst-parser
+myst-parser==4.0.1
 sphinx-autobuild
 sphinx-design
 sphinx-notfound-page
@@ -13,26 +13,22 @@ sphinxext-opengraph
 
 # Extra extensions, previously bundled as canonical-sphinx-extensions
 sphinx-config-options>=0.1.0
-sphinx-contributor-listing>=0.1.0
 sphinx-related-links>=0.1.1
 sphinx-roles>=0.1.0
 sphinx-terminal>=1.0.2
 sphinx-youtube-links>=0.1.0
 
 # Other dependencies
-sphinx
+packaging
 sphinxcontrib-svg2pdfconverter[CairoSVG]
 sphinx-last-updated-by-git
 sphinx-sitemap
 gitpython
 linkify-it-py
-pyspelling
 pyyaml
-packaging
 sphinx-copybutton
 sphinx-remove-toctrees
 watchfiles
-sphinxcontrib-svg2pdfconverter[CairoSVG]
 sphinx-sitemap
 
 # Vale dependencies

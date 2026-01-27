@@ -32,8 +32,8 @@ storage_backend_optimized_backup() {
 
 # Choose a random available backend, excluding LXD_BACKEND
 random_storage_backend() {
-    # shellcheck disable=2046
-    shuf -e $(available_storage_backends) | head -n 1
+    # shellcheck disable=SC2046
+    shuf --head-count=1 --echo $(available_storage_backends 2>/dev/null)
 }
 
 # Return the storage backend being used by a LXD instance

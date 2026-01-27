@@ -629,9 +629,21 @@ func (d *qemu) onStop(target string) error {
 	// Stop the storage for the instance.
 	err = d.unmount()
 	if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
-		err = fmt.Errorf("Failed unmounting instance: %w", err)
-		op.Done(err)
-		return err
+		// If we are migrating an instance and receive status locked error (indicating the device or
+		// resource is busy) during unmount while LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST is set,
+		// we ignore the error.
+		// The server is running on the same host in which case it is not possible to unmount
+		// the source device because it is already used by the destination (migrated) instance.
+		isLiveMigrationTest := shared.IsTrue(os.Getenv("LXD_TEST_LIVE_MIGRATION_ON_THE_SAME_HOST"))
+
+		//nolint:revive // Ignore early-return for clarity.
+		if isLiveMigrationTest && op.Action() == operationlock.ActionMigrate && api.StatusErrorCheck(err, http.StatusLocked) {
+			d.logger.Warn("Failed unmounting source instance during migration", logger.Ctx{"err": err})
+		} else {
+			err = fmt.Errorf("Failed unmounting instance: %w", err)
+			op.Done(err)
+			return err
+		}
 	}
 
 	// Unload the apparmor profile
@@ -3880,7 +3892,9 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 		}
 
 		// Prepare the NUMA map.
+		//nolint:prealloc
 		numa := []qemuNumaEntry{}
+		//nolint:prealloc
 		numaIDs := []uint64{}
 		numaNode := uint64(0)
 		for hostNode, entry := range cpuInfo.nodes {
@@ -5608,13 +5622,12 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 // allowRemoveSecurityProtectionStart: security.protection.start can be removed
 // from a VM when the root disk device has security.shared=true OR it is not
 // attached to any other VMs.
-func allowRemoveSecurityProtectionStart(state *state.State, poolName string, volumeName string, proj *api.Project) error {
+func allowRemoveSecurityProtectionStart(state *state.State, poolName string, volumeType dbCluster.StoragePoolVolumeType, volumeName string, proj *api.Project) error {
 	pool, err := storagePools.LoadByName(state, poolName)
 	if err != nil {
 		return err
 	}
 
-	volumeType := dbCluster.StoragePoolVolumeTypeVM
 	volumeProject := project.StorageVolumeProjectFromRecord(proj, volumeType)
 
 	var dbVolume *db.StorageVolume
@@ -5827,7 +5840,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Diff the devices.
-	removeDevices, addDevices, updateDevices, allUpdatedKeys := oldExpandedDevices.Update(d.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
+	removeDevices, addDevices, updateDevices, allUpdatedDeviceKeys := oldExpandedDevices.Update(d.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
 		// This function needs to return a list of fields that are excluded from differences
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
@@ -5845,66 +5858,9 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return newDevType.UpdatableFields(oldDevType)
 	})
 
-	// Prevent adding or updating device initial configuration.
-	if shared.StringPrefixInSlice("initial.", allUpdatedKeys) {
-		for devName, newDev := range addDevices {
-			for k, newVal := range newDev {
-				if !strings.HasPrefix(k, "initial.") {
-					continue
-				}
-
-				oldDev, ok := removeDevices[devName]
-				if !ok {
-					return errors.New("New device with initial configuration cannot be added once the instance is created")
-				}
-
-				oldVal, ok := oldDev[k]
-				if !ok {
-					return errors.New("Device initial configuration cannot be added once the instance is created")
-				}
-
-				// If newVal is an empty string it means the initial configuration
-				// has been removed.
-				if newVal != "" && newVal != oldVal {
-					return errors.New("Device initial configuration cannot be modified once the instance is created")
-				}
-			}
-		}
-	}
-
-	if userRequested {
-		// Do some validation of the config diff (allows mixed instance types for profiles).
-		err = instance.ValidConfig(d.state.OS, d.expandedConfig, true, instancetype.Any)
-		if err != nil {
-			return fmt.Errorf("Invalid expanded config: %w", err)
-		}
-
-		// Do full expanded validation of the devices diff.
-		err = instance.ValidDevices(d.state, d.project, d.Type(), d.localDevices, d.expandedDevices)
-		if err != nil {
-			return fmt.Errorf("Invalid expanded devices: %w", err)
-		}
-
-		// Validate root device
-		_, oldRootDev, oldErr := instancetype.GetRootDiskDevice(oldExpandedDevices.CloneNative())
-		_, newRootDev, newErr := instancetype.GetRootDiskDevice(d.expandedDevices.CloneNative())
-		if oldErr == nil && newErr == nil && oldRootDev["pool"] != newRootDev["pool"] {
-			return fmt.Errorf("Cannot update root disk device pool name to %q", newRootDev["pool"])
-		}
-
-		// Ensure the instance has a root disk.
-		if newErr != nil {
-			return fmt.Errorf("Invalid root disk device: %w", newErr)
-		}
-
-		// If security.protection.start is being removed, we need to make sure that
-		// our root disk device is not attached to another instance.
-		if shared.IsTrue(oldExpandedConfig["security.protection.start"]) && shared.IsFalseOrEmpty(d.expandedConfig["security.protection.start"]) {
-			err := allowRemoveSecurityProtectionStart(d.state, newRootDev["pool"], d.name, &d.project)
-			if err != nil {
-				return err
-			}
-		}
+	err = d.validateConfig(allUpdatedDeviceKeys, addDevices, removeDevices, oldExpandedDevices, changedConfig, oldExpandedConfig, userRequested)
+	if err != nil {
+		return err
 	}
 
 	// If apparmor changed, re-validate the apparmor profile (even if not running).
@@ -6042,7 +5998,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	// Update MAAS (must run after the MAC addresses have been generated).
 	updateMAAS := false
 	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
-		if slices.Contains(allUpdatedKeys, key) {
+		if slices.Contains(allUpdatedDeviceKeys, key) {
 			updateMAAS = true
 			break
 		}
@@ -7050,7 +7006,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 		// Create qcow2 disk image with the maximum size set to the instance's root disk size for use as
 		// a CoW target for the migration snapshot. This will be used during migration to store writes in
 		// the guest whilst the storage driver is transferring the root disk and snapshots to the taget.
-		_, err = shared.RunCommandContext(d.state.ShutdownCtx, "qemu-img", "create", "-f", "qcow2", snapshotFile, strconv.FormatInt(rootDiskSize, 10))
+		_, err = shared.RunCommand(d.state.ShutdownCtx, "qemu-img", "create", "-f", "qcow2", snapshotFile, strconv.FormatInt(rootDiskSize, 10))
 		if err != nil {
 			return fmt.Errorf("Failed opening file image for migration storage snapshot %q: %w", snapshotFile, err)
 		}
