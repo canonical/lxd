@@ -5,7 +5,7 @@ lxd-*.tar.gz
 tags
 **/*.bak
 
-test/busybox.tar.xz.cache
+test/busybox.tar.cache
 test/.durations.*
 
 # Sphinx

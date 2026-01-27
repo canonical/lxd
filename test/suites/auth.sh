@@ -956,7 +956,7 @@ auth_project_features() {
 
   # Check we can export the public image:
   lxc image export "${remote}:testimage" "${TEST_DIR}/" --project default
-  [ "${test_image_fingerprint}" = "$(sha256sum "${TEST_DIR}/${test_image_fingerprint}.tar.xz" | cut -d' ' -f1)" ]
+  [ "${test_image_fingerprint}" = "$(sha256sum "${TEST_DIR}/${test_image_fingerprint}.tar"* | cut -d' ' -f1)" ]
 
   # While the image is public, copy it to the blah project and create an alias for it.
   lxc_remote image copy "${remote}:testimage" "${remote}:" --project default --target-project blah
@@ -1021,7 +1021,7 @@ auth_project_features() {
   lxc image delete "${test_image_fingerprint}" --project default
 
   # Members of test-group can create images.
-  lxc_remote image import "${TEST_DIR}/${test_image_fingerprint}.tar.xz" "${remote}:" --project blah
+  lxc_remote image import "${TEST_DIR}/${test_image_fingerprint}.tar"* "${remote}:" --project blah
   lxc_remote image alias create "${remote}:testimage" "${test_image_fingerprint}" --project blah
 
   # We can view the image we've created via project blah (whose effective project is default) because we've granted the
@@ -1033,7 +1033,7 @@ auth_project_features() {
   lxc image delete "${test_image_fingerprint}" --project default
   lxc auth group permission remove test-group project default can_view_images
   lxc auth group permission remove test-group project default can_view
-  rm "${TEST_DIR}/${test_image_fingerprint}.tar.xz"
+  rm "${TEST_DIR}/${test_image_fingerprint}.tar"*
 
   ### NETWORKS (initial value is false in new projects).
 
