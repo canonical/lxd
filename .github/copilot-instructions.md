@@ -4,7 +4,7 @@
 
 LXD is a modern, secure system container and virtual machine manager written in Go.
 
-LXD requires Go 1.25.4 or higher and is only tested with the Golang compiler.
+LXD requires Go 1.25.5 or higher and is only tested with the Golang compiler.
 
 ## Project Layout and Architecture
 
