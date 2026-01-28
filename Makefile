@@ -316,13 +316,11 @@ check-api: update-api
 update-metadata: lxd-metadata
 	@echo "Generating golang documentation metadata"
 	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
-	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml
-	if [ -t 0 ] && ! git diff --quiet -- ./lxd/metadata/configuration.json ./doc/metadata.txt; then \
-		read -rp "Would you like to commit metadata changes (Y/n)? " answer; \
-		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "doc: Update metadata" -- ./lxd/metadata/configuration.json ./doc/metadata.txt; \
-		fi; \
-	fi
+	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml 2>&1 | grep -vF ' Found lxddoc at ' || true
+
+.PHONY: check-metadata
+check-metadata: update-metadata
+	@./scripts/check-and-commit.sh "lxd/metadata/configuration.json doc/metadata.txt" "doc: Update metadata"
 
 .PHONY: update-godeps
 update-godeps:
