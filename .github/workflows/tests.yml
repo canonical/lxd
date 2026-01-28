@@ -137,16 +137,21 @@ jobs:
       - name: Download go dependencies
         run: |
           set -eux
-          sudo chmod o+w {go.mod,go.sum}
+          # Resolve dependencies and download modules
           go mod download
 
           # Check compatibility with min Go version
           make check-gomin
 
+          # Ensure go.mod and go.sum were not modified by the above
+          # commands which would indicate an issue (hint: run `make update-gomod`)
+          git diff --exit-code
+
       - name: Make GOCOVERDIR
         run: |
           set -eux
           mkdir -p coverage
+          chmod 0777 coverage
           cd coverage
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
@@ -192,11 +197,15 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
         run: |
           set -eux
-          sudo chmod o+w ./lxd/metadata/configuration.json
-          sudo chmod o+w ./doc/metadata.txt
-          sudo chmod o+w ./lxd/auth/entitlements_generated.go
-          sudo chmod o+w ./lxd/auth/drivers/openfga_model.openfga
           make static-analysis
+          git diff --exit-code
+
+          # If coverage data collection is enabled, run schema checks to
+          # exercise `lxd-generate` code paths.
+          if [ "${GOCOVERDIR}" != "" ]; then
+            make check-schema
+            git diff --exit-code
+          fi
 
       - name: Unit tests
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests == 'true' }}
@@ -205,6 +214,7 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           sudo --preserve-env="${SUDO_PRESERVE_ENV}" LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
+          git diff --exit-code
 
       - name: Upload coverage data
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -370,6 +380,7 @@ jobs:
         run: |
           set -eux
           mkdir -p coverage
+          chmod 0777 coverage
           cd coverage
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
@@ -677,6 +688,7 @@ jobs:
         run: |
           set -eux
           mkdir -p coverage
+          chmod 0777 coverage
           cd coverage
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
@@ -934,7 +946,11 @@ jobs:
           set -eux
           mkdir -p coverage
           cd coverage
-          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+          DIR="$(pwd)"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            DIR="$(cygpath -m "$DIR")"
+          fi
+          echo "GOCOVERDIR=$DIR" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
 
       - name: Build static lxc

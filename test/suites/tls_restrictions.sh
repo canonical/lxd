@@ -62,8 +62,8 @@ test_tls_restrictions() {
   lxc storage volume create "${pool_name}" vol1
   lxc profile create p1 --project blah
 
-  kill -9 "${mon_root_pid}" || true
-  kill -9 "${mon_restricted_pid}" || true
+  kill_go_proc "${mon_root_pid}" || true
+  kill_go_proc "${mon_restricted_pid}" || true
 
   # The events for the restricted caller should have only the profile creation lifecycle event because this occurred
   # "blah". The storage volume creation event should not be visible because it occurred in "default".

@@ -33,6 +33,6 @@ check_registered_operations() {
 terminate_leftovers() {
   local pid
   for pid in "$@"; do
-    kill -9 "${pid}" || true
+    kill_go_proc "${pid}" || true
   done
 }

@@ -113,7 +113,7 @@ test_clustering_enable() {
   spawn_lxd "${LXD_DIR}" false
 
   lxc config set cluster.https_address=127.0.0.1:8443
-  kill -9 "$(< "${LXD_DIR}/lxd.pid")"
+  kill_go_proc "$(< "${LXD_DIR}/lxd.pid")"
   respawn_lxd "${LXD_DIR}" true
   # Enable clustering.
   lxc cluster enable node1
@@ -1263,6 +1263,7 @@ test_clustering_heal_networks_stop() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.healing_threshold 11
 
   echo "Kill node2 (a non-leader member)"
+  # XXX: intentionally not using `kill_go_proc` helper as we want abrupt termination (sacrificing some coverage data)
   kill -9 "$(< "${LXD_TWO_DIR}/lxd.pid")"
 
   echo "Wait for node2 to be marked offline"
@@ -2284,8 +2285,8 @@ test_clustering_dns() {
   fi
 
   # Cleanup
-  kill -9 "${forkdns_pid1}"
-  kill -9 "${forkdns_pid2}"
+  kill_go_proc "${forkdns_pid1}"
+  kill_go_proc "${forkdns_pid2}"
   ip link delete "${prefix}1"
   ip link delete "${prefix}2"
 }
@@ -2663,6 +2664,7 @@ test_clustering_rebalance() {
 
   # Kill the second node.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
+  # XXX: intentionally not using `kill_go_proc` helper as we want abrupt termination (sacrificing some coverage data).
   kill -9 "$(< "${LXD_TWO_DIR}/lxd.pid")"
 
   # Wait for the second node to be considered offline and be replaced by the
@@ -2796,6 +2798,7 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
 
   # Kill the second node, to prevent it from transferring its database role at shutdown.
+  # XXX: intentionally not using `kill_go_proc` helper as we want abrupt termination (sacrificing some coverage data).
   kill -9 "$(< "${LXD_TWO_DIR}/lxd.pid")"
 
   # Remove the second node from the database but not from the raft configuration.
@@ -3645,6 +3648,7 @@ test_clustering_edit_configuration() {
   shutdown_lxd "${LXD_FOUR_DIR}"
 
   # Force-kill the last two to prevent leadership loss.
+  # XXX: intentionally not using `kill_go_proc` helper as we want abrupt termination (sacrificing some coverage data).
   daemon_pid=$(< "${LXD_FIVE_DIR}/lxd.pid")
   kill -9 "${daemon_pid}" 2>/dev/null || true
   daemon_pid=$(< "${LXD_SIX_DIR}/lxd.pid")
@@ -3708,6 +3712,7 @@ test_clustering_edit_configuration() {
   shutdown_lxd "${LXD_FOUR_DIR}"
 
   # Force-kill the last two to prevent leadership loss.
+  # XXX: intentionally not using `kill_go_proc` helper as we want abrupt termination (sacrificing some coverage data).
   daemon_pid=$(< "${LXD_FIVE_DIR}/lxd.pid")
   kill -9 "${daemon_pid}" 2>/dev/null || true
   daemon_pid=$(< "${LXD_SIX_DIR}/lxd.pid")
@@ -4276,9 +4281,9 @@ test_clustering_events() {
   done
 
   # Kill monitors.
-  kill -9 "${monitorNode1PID}" || true
-  kill -9 "${monitorNode2PID}" || true
-  kill -9 "${monitorNode3PID}" || true
+  kill_go_proc "${monitorNode1PID}" || true
+  kill_go_proc "${monitorNode2PID}" || true
+  kill_go_proc "${monitorNode3PID}" || true
 
   # Cleanup
   # XXX: deleting c1 c2 and c3 at once causes the test to fail with

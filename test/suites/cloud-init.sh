@@ -30,6 +30,7 @@ test_cloud_init() {
 
   lxc launch testimage devlxd
   lxc file push --quiet "$(command -v devlxd-client)" devlxd/bin/
+  setup_instance_gocoverage devlxd
 
   echo "Check that unknown cloud-init format is passed to the instance unmodified"
   lxc config set devlxd cloud-init.user-data="invalid-yaml"
