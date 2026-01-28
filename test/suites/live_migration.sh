@@ -44,7 +44,7 @@ test_clustering_live_migration() {
   poolName="data"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${poolName}" volume.size="${SMALLEST_VM_ROOT_DISK}"
 
-  # Initialize the VM.
+  # Initialize the VM (modest specs to reduce the state needing to be live-migrated)
   LXD_DIR="${LXD_ONE_DIR}" lxc init ubuntu-vm v1 \
     --vm \
     --config limits.memory=384MiB \
@@ -150,11 +150,10 @@ test_live_migration() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${srcPoolName}" volume.size="${SMALLEST_VM_ROOT_DISK}"
   LXD_DIR="${LXD_TWO_DIR}" lxc storage set "${dstPoolName}" volume.size="${SMALLEST_VM_ROOT_DISK}"
 
-  # Initialize the VM.
+  # Initialize the VM (modest specs to reduce the state needing to be live-migrated)
   LXD_DIR="${LXD_ONE_DIR}" lxc init ubuntu-vm v1 \
     --vm \
-    --config limits.cpu=2 \
-    --config limits.memory=768MiB \
+    --config limits.memory=384MiB \
     --config migration.stateful=true \
     --device root,size="${SMALLEST_VM_ROOT_DISK}"
 
@@ -165,11 +164,12 @@ test_live_migration() {
   # Record the initial boot ID
   INITIAL_BOOT_ID="$(LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)"
 
-  # Perform live migration of the VM from one server to another.
-  echo "Live migrating instance 'v1' ..."
+  # Perform live migration of the VM from one LXD server to the other.
   LXD_DIR="${LXD_ONE_DIR}" lxc move v1 dst:v1
 
-  # Ensure the instance is running on the destination server.
+  # Post live migration checks
+
+  # Let the lxd-agent dial back post-migration which confirms the VM is still alive
   LXD_DIR="${LXD_TWO_DIR}" waitInstanceReady v1
 
   # Verify the VM was not rebooted
@@ -177,8 +177,10 @@ test_live_migration() {
 
   # Cleanup
   echo "Cleaning up ..."
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get v1 volatile.base_image)"
+  local fingerprint
+  fingerprint="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get v1 volatile.base_image)"
   LXD_DIR="${LXD_TWO_DIR}" lxc delete --force v1
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "${fingerprint}"
 
   # Ensure cleanup of the storage pools to not leave any traces behind.
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
