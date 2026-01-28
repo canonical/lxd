@@ -946,7 +946,11 @@ jobs:
           set -eux
           mkdir -p coverage
           cd coverage
-          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+          DIR="$(pwd)"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            DIR="$(cygpath -m "$DIR")"
+          fi
+          echo "GOCOVERDIR=$DIR" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
 
       - name: Build static lxc
