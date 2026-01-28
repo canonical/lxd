@@ -278,6 +278,7 @@ endif
 	go get tags.cncf.io/container-device-interface/specs-go@v1.0.0 # Due to compilation issue
 
 	# Enforce minimum go version
+	go mod tidy -go=$(GOMIN)
 	$(MAKE) check-gomin
 
 	# Use the bundled toolchain that meets the minimum go version
