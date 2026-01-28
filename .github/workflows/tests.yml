@@ -137,11 +137,15 @@ jobs:
       - name: Download go dependencies
         run: |
           set -eux
-          sudo chmod o+w {go.mod,go.sum}
+          # Resolve dependencies and download modules
           go mod download
 
           # Check compatibility with min Go version
           make check-gomin
+
+          # Ensure go.mod and go.sum were not modified by the above
+          # commands which would indicate an issue (hint: run `make update-gomod`)
+          git diff --exit-code
 
       - name: Make GOCOVERDIR
         run: |
