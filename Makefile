@@ -307,12 +307,10 @@ endif
 	@# Generate spec and exclude package from dependency which causes a 'classifier: unknown swagger annotation "extendee"' error.
 	@# For more details see: https://github.com/go-swagger/go-swagger/issues/2917.
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m -x github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2/options
-	if [ -t 0 ] && ! git diff --quiet -- ./doc/rest-api.yaml; then \
-		read -rp "Would you like to commit swagger YAML changes (Y/n)? " answer; \
-		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "doc/rest-api: Refresh swagger YAML" -- ./doc/rest-api.yaml; \
-		fi; \
-	fi
+
+.PHONY: check-api
+check-api: update-api
+	@./scripts/check-and-commit.sh "doc/rest-api.yaml" "doc/rest-api: Refresh swagger YAML"
 
 .PHONY: update-metadata
 update-metadata: lxd-metadata
