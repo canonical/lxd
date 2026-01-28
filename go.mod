@@ -12,7 +12,7 @@ require (
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/fvbommel/sortorder v1.1.0
 	github.com/go-acme/lego/v4 v4.31.0
-	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-chi/chi/v5 v5.2.4
 	github.com/go-jose/go-jose/v4 v4.1.3
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
