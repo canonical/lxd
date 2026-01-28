@@ -19,6 +19,21 @@ else
 	COVER_TEST=-test.gocoverdir="$(GOCOVERDIR)"
 endif
 ARCH ?= $(shell uname -m)
+
+define check_and_commit
+	if ! git diff --quiet -- $(1); then \
+		if [ -t 0 ]; then \
+			read -p "Would you like to commit changes to $(1) (Y/n)? " answer; \
+			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+				git commit -S -sm $(2) -- $(1); \
+				exit 0; \
+			fi; \
+		fi; \
+		git diff --exit-code -- $(1); \
+		echo "==> Please update the generated files in your commit"; \
+		exit 1; \
+	fi
+endef
 DQLITE_BRANCH=main
 LIBLXC_BRANCH=main
 
