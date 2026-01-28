@@ -200,6 +200,13 @@ jobs:
           make static-analysis
           git diff --exit-code
 
+          # If coverage data collection is enabled, run schema checks to
+          # exercise `lxd-generate` code paths.
+          if [ "${GOCOVERDIR}" != "" ]; then
+            make check-schema
+            git diff --exit-code
+          fi
+
       - name: Unit tests
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests == 'true' }}
         run: |
