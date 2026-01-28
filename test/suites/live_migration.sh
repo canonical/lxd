@@ -1,7 +1,7 @@
-# test_clustering_live_migration_same_cluster spawns a 2-node LXD cluster, creates a virtual machine on the first node
+# test_clustering_live_migration spawns a 2-node LXD cluster, creates a virtual machine on the first node
 # and live migrates it to the second node. If the storage backend is remote, it also creates a custom
-# storage volume which needs to be live migrated as along the virtual machine.
-test_clustering_live_migration_same_cluster() {
+# storage volume which needs to be live migrated along with the virtual machine.
+test_clustering_live_migration() {
   poolDriver="$(storage_backend "${LXD_INITIAL_DIR}")"
   if [ "${poolDriver}" = "lvm" ]; then
     # TODO: LVM live migration runs into:
@@ -44,7 +44,7 @@ test_clustering_live_migration_same_cluster() {
   poolName="data"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${poolName}" volume.size="${SMALLEST_VM_ROOT_DISK}"
 
-  # Initialize the VM.
+  # Initialize the VM (modest specs to reduce the state needing to be live-migrated)
   LXD_DIR="${LXD_ONE_DIR}" lxc init ubuntu-vm v1 \
     --vm \
     --config limits.memory=384MiB \
@@ -123,13 +123,12 @@ test_clustering_live_migration_same_cluster() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
-# test_clustering_live_migration_diff_servers spawns 2 LXD servers, creates a virtual machine on the first one,
+# test_live_migration uses the initial LXD server, spawns another, creates a virtual machine on the first one,
 # and live migrates it to the second one.
-test_clustering_live_migration_diff_servers() {
-  # Spawn two LXD servers.
-  LXD_ONE_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+test_live_migration() {
+
+  # Spawn second LXD server.
   LXD_TWO_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
-  spawn_lxd "${LXD_ONE_DIR}" true
   spawn_lxd "${LXD_TWO_DIR}" true
 
   # Set up a TLS identity with admin permissions.
@@ -139,37 +138,42 @@ test_clustering_live_migration_diff_servers() {
   # Add second LXD as remote to the first LXD.
   token="$(LXD_DIR="${LXD_TWO_DIR}" lxc auth identity create tls/live-migration --group=live-migration --quiet)"
   address="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
-  LXD_DIR="${LXD_ONE_DIR}" lxc remote add dst "${address}" --token="${token}"
+  lxc remote add dst "${address}" --token="${token}"
 
-  LXD_DIR="${LXD_ONE_DIR}" ensure_import_ubuntu_vm_image
+  ensure_import_ubuntu_vm_image
 
   # Get names of the created storage pools on both LXD servers.
-  srcPoolName="$(LXD_DIR="${LXD_ONE_DIR}" lxc profile device get default root pool)"
-  dstPoolName="$(LXD_DIR="${LXD_TWO_DIR}" lxc profile device get default root pool)"
+  srcPoolName="lxdtest-$(basename "${LXD_DIR}")"
+  dstPoolName="lxdtest-$(basename "${LXD_TWO_DIR}")"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${srcPoolName}" volume.size="${SMALLEST_VM_ROOT_DISK}"
+  orig_volume_size="$(lxc storage get "${srcPoolName}" volume.size)"
+  if [ -n "${orig_volume_size:-}" ]; then
+    # Override the volume.size to accommodate a large VM
+    lxc storage set "${srcPoolName}" volume.size "${SMALLEST_VM_ROOT_DISK}"
+  fi
+
   LXD_DIR="${LXD_TWO_DIR}" lxc storage set "${dstPoolName}" volume.size="${SMALLEST_VM_ROOT_DISK}"
 
-  # Initialize the VM.
-  LXD_DIR="${LXD_ONE_DIR}" lxc init ubuntu-vm v1 \
+  # Initialize the VM (modest specs to reduce the state needing to be live-migrated)
+  lxc init ubuntu-vm v1 \
     --vm \
-    --config limits.cpu=2 \
-    --config limits.memory=768MiB \
+    --config limits.memory=384MiB \
     --config migration.stateful=true \
     --device root,size="${SMALLEST_VM_ROOT_DISK}"
 
   # Start the VM.
-  LXD_DIR="${LXD_ONE_DIR}" lxc start v1
-  LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady v1
+  lxc start v1
+  waitInstanceReady v1
 
   # Record the initial boot ID
-  INITIAL_BOOT_ID="$(LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)"
+  INITIAL_BOOT_ID="$(lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)"
 
-  # Perform live migration of the VM from one server to another.
-  echo "Live migrating instance 'v1' ..."
-  LXD_DIR="${LXD_ONE_DIR}" lxc move v1 dst:v1
+  # Perform live migration of the VM from one LXD server to the other.
+  lxc move v1 dst:v1
 
-  # Ensure the instance is running on the destination server.
+  # Post live migration checks
+
+  # Let the lxd-agent dial back post-migration which confirms the VM is still alive
   LXD_DIR="${LXD_TWO_DIR}" waitInstanceReady v1
 
   # Verify the VM was not rebooted
@@ -177,20 +181,23 @@ test_clustering_live_migration_diff_servers() {
 
   # Cleanup
   echo "Cleaning up ..."
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get v1 volatile.base_image)"
+  local fingerprint
+  fingerprint="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get v1 volatile.base_image)"
   LXD_DIR="${LXD_TWO_DIR}" lxc delete --force v1
+  lxc image delete "${fingerprint}"
 
   # Ensure cleanup of the storage pools to not leave any traces behind.
-  printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_TWO_DIR}" lxc profile edit default
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete "${srcPoolName}"
   LXD_DIR="${LXD_TWO_DIR}" lxc storage delete "${dstPoolName}"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc remote remove dst
+  lxc remote remove dst
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
 
-  kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
+
+  if [ -n "${orig_volume_size:-}" ]; then
+    # Restore the volume.size
+    lxc storage set "${srcPoolName}" volume.size "${orig_volume_size}"
+  fi
 }

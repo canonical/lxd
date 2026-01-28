@@ -51,8 +51,7 @@ readonly test_group_cluster=(
 readonly test_group_cluster_storage=(
     "clustering_image_refresh"
     "clustering_image_replication"
-    "clustering_live_migration_same_cluster"
-    "clustering_live_migration_diff_servers"
+    "clustering_live_migration"
     "clustering_publish"
     "clustering_recovery"
     "clustering_storage"
@@ -205,6 +204,7 @@ readonly test_group_standalone_storage=(
     "filemanip_req_content_type"
     "fuidshift"
     "idmap"
+    "live_migration"
     "migration"
     "init_auto"
     "init_dump"
