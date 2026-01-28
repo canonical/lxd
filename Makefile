@@ -252,12 +252,7 @@ endif
 	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md .github/copilot-instructions.md
 
 	@echo "Go minimum version updated to $(NEW_GOMIN)"
-	if [ -t 0 ]; then \
-		read -rp "Would you like to commit Go version changes (Y/n)? " answer; \
-		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "go: Update Go minimum version to $(NEW_GOMIN)" -- Makefile go.mod doc/requirements.md .github/copilot-instructions.md; \
-		fi; \
-	fi
+	@./scripts/check-and-commit.sh "Makefile go.mod doc/requirements.md .github/copilot-instructions.md" "go: Update Go minimum version to $(NEW_GOMIN)"
 
 .PHONY: update-gomod
 update-gomod:
