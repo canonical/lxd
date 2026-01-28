@@ -2884,3 +2884,17 @@ Before this was only partially possible for some of the drivers (e.g. by using `
 The new pool `source.recover` configuration key can be set per cluster member to allow reuse of an existing pool `source`.
 What it does not allow is reusing the same source for multiple storage pools.
 The LVM storage driver has the specific `lvm.vg.force_reuse` configuration key for this purpose.
+
+(extension-instances-state-selective-fields)=
+## `instances_state_selective_fields`
+
+Adds support for selective state field rendering when querying instances.
+
+The API now supports bracket notation to specify which state fields to fetch:
+
+* `recursion=[state.disk]` - Fetch only disk information
+* `recursion=[state.network]` - Fetch only network information
+* `recursion=[state.disk,state.network]` - Fetch both
+* `recursion=[]` - Fetch no state fields
+
+The `lxc list` command automatically optimizes queries based on requested columns.
