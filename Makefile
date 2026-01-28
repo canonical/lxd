@@ -281,12 +281,7 @@ endif
 	go get toolchain@none
 
 	@echo "Dependencies updated"
-	if [ -t 0 ] && ! git diff --quiet -- ./go.mod ./go.sum; then \
-		read -rp "Would you like to commit gomod changes (Y/n)? " answer; \
-		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "go: Update dependencies" -- ./go.mod ./go.sum; \
-		fi; \
-	fi
+	@./scripts/check-and-commit.sh "go.mod go.sum" "go: Update dependencies"
 
 
 .PHONY: update-protobuf
