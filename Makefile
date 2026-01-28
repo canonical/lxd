@@ -292,6 +292,13 @@ update-schema:
 	go generate ./...
 	@echo "Code generation completed"
 
+.PHONY: check-schema
+check-schema: update-schema
+	@FILES="$$(git diff --name-only | grep '\.mapper\.go$$' || true)"; \
+	if [ -n "$$FILES" ]; then \
+		./scripts/check-and-commit.sh "$$FILES" "lxd: Update generated code"; \
+	fi
+
 .PHONY: update-api
 update-api:
 ifeq "$(LXD_OFFLINE)" ""
