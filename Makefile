@@ -466,12 +466,10 @@ endif
 .PHONY: update-auth
 update-auth:
 	go generate ./lxd/auth
-	if [ -t 0 ] && ! git diff --quiet -- ./lxd/auth/; then \
-		read -rp "Would you like to commit auth changes (Y/n)? " answer; \
-		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/; \
-		fi; \
-	fi
+
+.PHONY: check-auth
+check-auth: update-auth
+	@$(call check_and_commit,lxd/auth/entitlements_generated.go lxd/auth/drivers/openfga_model.openfga,"lxd/auth: Update auth")
 
 .PHONY: update-fmt
 update-fmt:
