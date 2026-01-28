@@ -27,7 +27,7 @@ runs:
     # GitHub will remove any cache entries that have not been accessed in over 7 days.
     # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
     - name: Cache images
-      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+      uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
       id: cache-images
       with:
         path: ${{ inputs.image-cache-dir }}
