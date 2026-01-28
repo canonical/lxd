@@ -215,7 +215,10 @@ tics: deps
 
 .PHONY: check-gomin
 check-gomin:
-	go mod tidy -go=$(GOMIN)
+	@if ! grep -qxF "go $(GOMIN)" go.mod; then \
+		echo "Error: go.mod Go version is not $(GOMIN)"; \
+		exit 1; \
+	fi
 	@echo "Check the doc mentions the right Go minimum version"
 	$(eval DOC_GOMIN := $(shell sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md))
 	if [ "$(DOC_GOMIN)" != "$(GOMIN)" ]; then \
