@@ -197,11 +197,8 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
         run: |
           set -eux
-          sudo chmod o+w ./lxd/metadata/configuration.json
-          sudo chmod o+w ./doc/metadata.txt
-          sudo chmod o+w ./lxd/auth/entitlements_generated.go
-          sudo chmod o+w ./lxd/auth/drivers/openfga_model.openfga
           make static-analysis
+          git diff --exit-code
 
       - name: Unit tests
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests == 'true' }}
