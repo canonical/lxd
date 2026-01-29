@@ -300,7 +300,7 @@ test_basic_usage() {
   LXD_DIR="${LXD2_DIR}" lxc launch localhost:testimage c2 --project bar --target-project foo
   LXD_DIR="${LXD2_DIR}" lxc file push --quiet "$(command -v devlxd-client)" c2/bin/ --project foo
   LXD_DIR="${LXD2_DIR}" lxc exec c2 --project foo -- devlxd-client get-state
-  LXD_DIR="${LXD2_DIR}" lxc stop c2 --project foo
+  LXD_DIR="${LXD2_DIR}" lxc stop c2 --project foo --force
   LXD_DIR="${LXD2_DIR}" lxc rebuild localhost:testimage c2 --project bar --target-project foo
   LXD_DIR="${LXD2_DIR}" lxc start c2 --project foo
   ! LXD_DIR="${LXD2_DIR}" lxc exec c2 --project foo -- devlxd-client get-state || false

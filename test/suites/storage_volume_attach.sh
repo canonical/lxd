@@ -136,7 +136,7 @@ test_vm_storage_volume_attach() {
 
   echo "==> Checking proper hot-plugging"
   lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol1
-  lxc exec v1 -- mount | grep -wF /mnt
+  lxc exec v1 -- findmnt /mnt
   lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol3
 
   echo "==> Snapshot custom volume and verify read-only attach"
@@ -144,7 +144,7 @@ test_vm_storage_volume_attach() {
   lxc storage volume detach "${pool}" vol2 v1
   lxc storage volume snapshot "${pool}" vol2
   lxc config device add v1 vol2-snap disk source=vol2 source.snapshot=snap0 pool="${pool}" path=/mnt-snap
-  lxc exec v1 -- mountpoint -q /mnt-snap
+  lxc exec v1 -- findmnt /mnt-snap
   lxc exec v1 -- test -f /mnt-snap/snap-data
   ! lxc exec v1 -- touch /mnt-snap/should-fail || false
   lxc config device remove v1 vol2-snap
@@ -156,7 +156,7 @@ test_vm_storage_volume_attach() {
 
   echo "==> Checking proper unplugging"
   ! lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol1 || false
-  ! lxc exec v1 -- mount | grep -wF /mnt || false
+  ! lxc exec v1 -- findmnt /mnt || false
   ! lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol3 || false
 
   # Cleanup
