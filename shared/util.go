@@ -1562,3 +1562,8 @@ func IsMicroOVNUsed() bool {
 
 	return false
 }
+
+// SingleQuote returns the input string single-quoted, with any existing single quotes escaped, suitable for use in shell commands.
+func SingleQuote(in string) string {
+	return `'` + strings.ReplaceAll(in, `'`, `'\''`) + `'`
+}

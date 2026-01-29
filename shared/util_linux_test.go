@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/sys/unix"
 )
 
@@ -96,4 +97,14 @@ func TestGetAllXattr(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestSingleQuote(t *testing.T) {
+	out, err := RunCommand(t.Context(), "/bin/sh", "-c", "echo "+SingleQuote("'hello\"$foo\\t'world'"))
+	assert.NoError(t, err)
+	assert.Equal(t, `'hello"$foo	'world'`+"\n", out)
+
+	out, err = RunCommand(t.Context(), "/bin/sh", "-c", "echo "+SingleQuote(""))
+	assert.NoError(t, err)
+	assert.Equal(t, "\n", out)
 }
