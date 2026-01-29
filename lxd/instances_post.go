@@ -60,6 +60,14 @@ func ensureDownloadedImageFitWithinBudget(ctx context.Context, s *state.State, o
 		return nil, err
 	}
 
+	// Project to associate image with.
+	imgProject := p.Name
+
+	// If "features.images" is disabled for the project, associate the image with the "default" project.
+	if shared.IsFalseOrEmpty(p.Config["features.images"]) {
+		imgProject = api.ProjectDefaultName
+	}
+
 	imgDownloaded, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
 		Server:            source.Server,
 		Protocol:          source.Protocol,
@@ -71,7 +79,7 @@ func ensureDownloadedImageFitWithinBudget(ctx context.Context, s *state.State, o
 		AutoUpdate:        autoUpdate,
 		Public:            false,
 		PreferCached:      true,
-		ProjectName:       p.Name,
+		ProjectName:       imgProject,
 		Budget:            budget,
 		SourceProjectName: source.Project,
 	})

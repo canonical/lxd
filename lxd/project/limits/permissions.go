@@ -313,7 +313,7 @@ func GetImageSpaceBudget(ctx context.Context, globalConfig *clusterConfig.Config
 	}
 
 	// If "features.images" is not enabled, the budget is unlimited.
-	if shared.IsFalse(info.Project.Config["features.images"]) {
+	if shared.IsFalseOrEmpty(info.Project.Config["features.images"]) {
 		return -1, nil
 	}
 
