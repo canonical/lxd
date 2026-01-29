@@ -793,7 +793,9 @@ EOF
   lxc launch testimage c2 --ephemeral
   lxc launch testimage c3 --ephemeral
 
-  lxc stop -f c1 c2 c3
+  # Check deletion via force delete and force stop code paths
+  lxc delete -f c1
+  lxc stop -f c2 c3
   [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 
   # Cleanup

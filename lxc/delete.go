@@ -66,7 +66,7 @@ func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 		op, err = d.DeleteInstanceSnapshot(fields[0], fields[1], c.flagDiskVolumes)
 	} else {
 		// Instance delete
-		op, err = d.DeleteInstance(name)
+		op, err = d.DeleteInstance(name, c.flagForce)
 	}
 
 	if err != nil {
@@ -126,26 +126,6 @@ func (c *cmdDelete) run(cmd *cobra.Command, args []string) error {
 		if ct.StatusCode != 0 && ct.StatusCode != api.Stopped {
 			if !c.flagForce {
 				return errors.New("The instance is currently running, stop it first or pass --force")
-			}
-
-			req := api.InstanceStatePut{
-				Action:  "stop",
-				Timeout: -1,
-				Force:   true,
-			}
-
-			op, err := resource.server.UpdateInstanceState(resource.name, req, "")
-			if err != nil {
-				return err
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return fmt.Errorf("Stopping the instance failed: %s", err)
-			}
-
-			if ct.Ephemeral {
-				continue
 			}
 		}
 
