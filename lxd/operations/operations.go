@@ -50,6 +50,20 @@ func (t OperationClass) String() string {
 	}[t]
 }
 
+// OperationUniquenessConstraint allows to constraint when the operation can be created.
+type OperationUniquenessConstraint int
+
+const (
+	// OperationUniquenessConstraintNone represents no constraint on operation uniqueness.
+	OperationUniquenessConstraintNone OperationUniquenessConstraint = iota
+	// OperationUniquenessConstraintType represents a constraint to create the operation only if no other operation of the same type is running.
+	OperationUniquenessConstraintType
+	// OperationUniquenessConstraintEntityID represents a constraint to create the operation only if no other operation of the same type
+	// operating on the same entity ID is running.
+	// The entity ID is the entity ID of the first resource. This further requires the operation to have exactly one resource.
+	OperationUniquenessConstraintEntityID
+)
+
 // Init sets the debug value for the operations package.
 func Init(d bool) {
 	debug = d
@@ -105,6 +119,10 @@ type Operation struct {
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 	onDone    func(*Operation)
 
+	// inputs holds the JSON encoded inputs for the operation.
+	// These are stored in the database.
+	inputs string
+
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
@@ -129,6 +147,11 @@ type OperationArgs struct {
 	Metadata    any
 	RunHook     func(ctx context.Context, op *Operation) error
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
+	// UniquenessConstraint allows to create the operation only if no other conflicting operation is running.
+	// See [OperationUniquenessConstraintType] and [OperationUniquenessConstraintEntityID] for the options.
+	// Leaving this field empty means no uniqueness constraint, operation can be started anytime.
+	UniquenessConstraint OperationUniquenessConstraint
+	Inputs               string
 }
 
 // CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
@@ -145,8 +168,8 @@ func CreateServerOperation(s *state.State, args OperationArgs) (*Operation, erro
 	return operationCreate(s, nil, args)
 }
 
-// operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
-func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+// initOperation initializes a new operation structure. It does not register it in the database.
+func initOperation(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -170,6 +193,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.state = s
 	op.requestor = requestor
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+	op.inputs = args.Inputs
 
 	if s != nil {
 		op.SetEventServer(s.Events)
@@ -199,11 +223,48 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
-	operationsLock.Lock()
-	operations[op.id] = &op
-	operationsLock.Unlock()
+	return &op, nil
+}
 
-	err = registerDBOperation(&op, args.Type)
+// operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
+func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+	op, err := initOperation(s, requestor, args)
+	if err != nil {
+		return nil, err
+	}
+
+	if args.UniquenessConstraint != OperationUniquenessConstraintNone {
+		if args.UniquenessConstraint == OperationUniquenessConstraintEntityID {
+			// Ensure there is exactly one resource.
+			if len(op.resources) != 1 {
+				return nil, errors.New("EntityID uniqueness constraint requires exactly one resource")
+			}
+
+			// If we want to guarantee uniqueness based on entity ID, entity_type needs to be provided too.
+			// As it's derived from operation type, detecting uniqueness based on operation type is sufficient.
+			entityType, _ := args.Type.Permission()
+			if entityType == "" {
+				return nil, errors.New("EntityID uniqueness constraint requires operation type with a defined entity type")
+			}
+
+			for _, resources := range op.resources {
+				if len(resources) != 1 {
+					return nil, errors.New("EntityID uniqueness constraint requires exactly one resource")
+				}
+			}
+		}
+
+		conflict, err := conflictingOperationExists(op, args.UniquenessConstraint)
+		if err != nil {
+			return nil, err
+		}
+
+		if conflict {
+			return nil, api.StatusErrorf(http.StatusConflict, "Conflicting operation already running")
+		}
+	}
+
+	err = registerDBOperation(op)
 	if err != nil {
 		return nil, err
 	}
@@ -212,10 +273,11 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	_, md, _ := op.Render()
 
 	operationsLock.Lock()
+	operations[op.id] = op
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
-	return &op, nil
+	return op, nil
 }
 
 // SetEventServer allows injection of event server.
@@ -314,6 +376,19 @@ func (op *Operation) done() {
 	}()
 }
 
+func updateStatusWithWarning(op *Operation, newStatus api.StatusCode) {
+	oldStatus := op.status
+	err := op.updateStatus(newStatus)
+	if err != nil {
+		op.logger.Warn("Failed updating operation status", logger.Ctx{
+			"operation": op.id,
+			"err":       err,
+			"oldStatus": oldStatus,
+			"newStatus": newStatus,
+		})
+	}
+}
+
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
@@ -322,7 +397,11 @@ func (op *Operation) Start() error {
 		return errors.New("Only pending operations can be started")
 	}
 
-	op.status = api.Running
+	err := op.updateStatus(api.Running)
+	if err != nil {
+		op.lock.Unlock()
+		return fmt.Errorf("Failed updating Operation %q (%q) status: %w", op.id, op.description, err)
+	}
 
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
@@ -339,21 +418,22 @@ func (op *Operation) Start() error {
 			if err != nil {
 				op.lock.Lock()
 
+				op.err = err
+
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
-					op.status = api.Cancelled
+					updateStatusWithWarning(op, api.Cancelled)
 				} else {
-					op.status = api.Failure
+					updateStatusWithWarning(op, api.Failure)
 				}
 
 				// Always call cancel. This is a no-op if already cancelled.
 				op.running.Cancel()
-				op.err = err
 
 				op.lock.Unlock()
 				op.done()
 
-				op.logger.Debug("Failure for operation", logger.Ctx{"err": err})
+				op.logger.Warn("Failure for operation", logger.Ctx{"err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -364,7 +444,7 @@ func (op *Operation) Start() error {
 			}
 
 			op.lock.Lock()
-			op.status = api.Success
+			updateStatusWithWarning(op, api.Success)
 			op.running.Cancel()
 			op.lock.Unlock()
 			op.done()
@@ -414,9 +494,9 @@ func (op *Operation) Cancel() {
 	//
 	// If the operation does not have a run hook, immediately set the status to cancelled because there is nothing to clean up.
 	if op.onRun != nil {
-		op.status = api.Cancelling
+		updateStatusWithWarning(op, api.Cancelling)
 	} else {
-		op.status = api.Cancelled
+		updateStatusWithWarning(op, api.Cancelled)
 	}
 
 	op.lock.Unlock()
@@ -538,6 +618,11 @@ func (op *Operation) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func (op *Operation) updateStatus(newStatus api.StatusCode) error {
+	op.status = newStatus
+	return updateDBOperationStatus(op)
 }
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
@@ -665,4 +750,9 @@ func (op *Operation) Class() OperationClass {
 // Type returns the db operation type.
 func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
+}
+
+// Inputs returns the operation inputs from the database.
+func (op *Operation) Inputs() string {
+	return op.inputs
 }

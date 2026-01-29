@@ -5,13 +5,20 @@ package operations
 import (
 	"fmt"
 
-	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/shared/api"
 )
 
-func registerDBOperation(op *Operation, opType operationtype.Type) error {
+func registerDBOperation(op *Operation) error {
 	if op.state != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
+	}
+
+	return nil
+}
+
+func updateDBOperationStatus(op *Operation) error {
+	if op.state != nil {
+		return fmt.Errorf("updateDBOperationStatus not supported on this platform")
 	}
 
 	return nil
@@ -23,6 +30,14 @@ func removeDBOperation(op *Operation) error {
 	}
 
 	return nil
+}
+
+func conflictingOperationExists(op *Operation, constraint OperationUniquenessConstraint) (bool, error) {
+	if op.state != nil {
+		return false, fmt.Errorf("conflictingOperationExists not supported on this platform")
+	}
+
+	return false, nil
 }
 
 func (op *Operation) sendEvent(eventMessage any) {
