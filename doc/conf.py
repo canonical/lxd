@@ -383,6 +383,7 @@ for page in [x for x in os.listdir('.sphinx/deps/manpages')
 
     with open(os.path.join('.sphinx/deps/manpages/', pagepath), 'w') as mdfile:
         mdfile.write('(' + page + ')=\n')
+        in_code_block = False
         for line in content:
             if line.startswith('###### Auto generated'):
                 continue
@@ -390,6 +391,13 @@ for page in [x for x in os.listdir('.sphinx/deps/manpages')
                 mdfile.write('# `' + line[3:].rstrip() + '`\n')
             elif line.startswith('##'):
                 mdfile.write(line[1:])
+            elif line.startswith('```'):
+                if not in_code_block and line.rstrip() == '```':
+                    mdfile.write('```none\n')
+                else:
+                    mdfile.write(line)
+
+                in_code_block = not in_code_block
             else:
                 mdfile.write(line)
 
