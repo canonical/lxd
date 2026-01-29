@@ -441,14 +441,44 @@ CREATE TABLE oidc_sessions (
 );
 CREATE TABLE "operations" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    uuid TEXT NOT NULL,
-    node_id TEXT NOT NULL,
+    reference TEXT NOT NULL,
+    node_id INTEGER NOT NULL,
     type INTEGER NOT NULL DEFAULT 0,
     project_id INTEGER,
-    UNIQUE (uuid),
-    FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
-    FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
+    requestor_protocol TEXT,
+    requestor_identity_id INTEGER,
+    entity_id INTEGER,
+    class INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT 0,
+    inputs TEXT,
+    status INTEGER NOT NULL DEFAULT 100,
+    error TEXT,
+    parent INTEGER,
+    stage INTEGER,
+    UNIQUE (reference),
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    FOREIGN KEY (requestor_identity_id) REFERENCES identities (id) ON DELETE CASCADE,
+    FOREIGN KEY (parent) REFERENCES "operations" (id) ON DELETE CASCADE
 );
+CREATE TABLE operations_dependencies (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	operation_id INTEGER NOT NULL,
+	waiting_on_operation_id INTEGER NOT NULL,
+	UNIQUE (operation_id, waiting_on_operation_id),
+	FOREIGN KEY (operation_id) REFERENCES operations (id) ON DELETE CASCADE,
+	FOREIGN KEY (waiting_on_operation_id) REFERENCES operations (id) ON DELETE CASCADE
+);
+CREATE TABLE operations_metadata (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	operation_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (operation_id) REFERENCES operations (id) ON DELETE CASCADE,
+	UNIQUE (operation_id, key, value)
+);
+CREATE INDEX operations_reference ON operations (reference);
 CREATE TABLE placement_groups (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -651,7 +681,7 @@ CREATE TRIGGER storage_volumes_check_id
   WHEN NEW.id IN (SELECT id FROM storage_volumes_snapshots)
   BEGIN
     SELECT RAISE(FAIL,
-    "invalid ID");
+    'invalid ID');
   END;
 CREATE TABLE "storage_volumes_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -677,7 +707,7 @@ CREATE TRIGGER storage_volumes_snapshots_check_id
   WHEN NEW.id IN (SELECT id FROM storage_volumes)
   BEGIN
     SELECT RAISE(FAIL,
-    "invalid ID");
+    'invalid ID');
   END;
 CREATE TABLE "storage_volumes_snapshots_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -708,5 +738,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (78, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (79, strftime("%s"))
 `

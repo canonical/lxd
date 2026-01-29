@@ -119,6 +119,77 @@ var updates = map[int]schema.Update{
 	76: updateFromV75,
 	77: updateFromV76,
 	78: updateFromV77,
+	79: updateFromV78,
+}
+
+func updateFromV78(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+-- Add the new columns without the FOREIGN KEY constraint.
+ALTER TABLE operations RENAME COLUMN uuid TO reference;
+ALTER TABLE operations ADD COLUMN requestor_protocol TEXT;
+ALTER TABLE operations ADD COLUMN requestor_identity_id INTEGER;
+ALTER TABLE operations ADD COLUMN entity_id INTEGER;
+ALTER TABLE operations ADD COLUMN class INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE operations ADD COLUMN created_at DATETIME NOT NULL DEFAULT 0;
+ALTER TABLE operations ADD COLUMN updated_at DATETIME NOT NULL DEFAULT 0;
+ALTER TABLE operations ADD COLUMN inputs TEXT;
+ALTER TABLE operations ADD COLUMN status INTEGER;
+ALTER TABLE operations ADD COLUMN error TEXT;
+ALTER TABLE operations ADD COLUMN parent INTEGER;
+ALTER TABLE operations ADD COLUMN stage INTEGER;
+
+-- Create the new version of the operations table with the FOREIGN KEY constraint.
+CREATE TABLE operations_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    reference TEXT NOT NULL,
+    node_id INTEGER NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER,
+    requestor_protocol TEXT,
+    requestor_identity_id INTEGER,
+    entity_id INTEGER,
+    class INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT 0,
+    inputs TEXT,
+    status INTEGER NOT NULL DEFAULT 100,
+    error TEXT,
+    parent INTEGER,
+    stage INTEGER,
+    UNIQUE (reference),
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    FOREIGN KEY (requestor_identity_id) REFERENCES identities (id) ON DELETE CASCADE,
+    FOREIGN KEY (parent) REFERENCES operations_new (id) ON DELETE CASCADE
+);
+INSERT INTO operations_new SELECT * FROM operations;
+
+-- Drop the old table and rename the new one.
+DROP TABLE operations;
+ALTER TABLE operations_new RENAME TO operations;
+
+-- Create some indexes.
+CREATE INDEX operations_reference ON operations (reference);
+
+CREATE TABLE operations_metadata (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	operation_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (operation_id) REFERENCES operations (id) ON DELETE CASCADE,
+	UNIQUE (operation_id, key, value)
+);
+
+CREATE TABLE operations_dependencies (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	operation_id INTEGER NOT NULL,
+	waiting_on_operation_id INTEGER NOT NULL,
+	UNIQUE (operation_id, waiting_on_operation_id),
+	FOREIGN KEY (operation_id) REFERENCES operations (id) ON DELETE CASCADE,
+	FOREIGN KEY (waiting_on_operation_id) REFERENCES operations (id) ON DELETE CASCADE
+);
+`)
+	return err
 }
 
 func updateFromV77(ctx context.Context, tx *sql.Tx) error {
