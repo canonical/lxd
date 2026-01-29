@@ -1503,7 +1503,7 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 				// Accept incoming channel request.
 				channel, requests, err := localChannel.Accept()
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed accepting channel client %q: %v\n", err)
+					fmt.Fprintf(os.Stderr, "Failed accepting channel client %q: %v\n", nConn.RemoteAddr(), err)
 					return
 				}
 
