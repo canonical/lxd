@@ -271,7 +271,7 @@ func (c *cmdFileCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	progress := cli.ProgressRenderer{
-		Format: fmt.Sprintf("Creating %s: %%s", targetPath),
+		Format: "Creating " + targetPath + ": %s",
 		Quiet:  c.global.flagQuiet,
 	}
 
