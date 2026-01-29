@@ -5,13 +5,32 @@ package operations
 import (
 	"fmt"
 
-	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/shared/api"
 )
 
-func registerDBOperation(op *Operation, opType operationtype.Type) error {
+func updateDBNodeID(op *Operation) error {
+	return fmt.Errorf("updateDBOperationNodeIDOnRestart not supported on this platform")
+}
+
+func registerDBOperation(op *Operation) error {
 	if op.state != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
+	}
+
+	return nil
+}
+
+func updateDBOperationStatus(op *Operation) error {
+	if op.state != nil {
+		return fmt.Errorf("updateDBOperationStatus not supported on this platform")
+	}
+
+	return nil
+}
+
+func updateDBOperationMetadata(op *Operation) error {
+	if op.state != nil {
+		return fmt.Errorf("updateDBOperationMetadata not supported on this platform")
 	}
 
 	return nil
@@ -25,10 +44,30 @@ func removeDBOperation(op *Operation) error {
 	return nil
 }
 
+func conflictingOperationExists(op *Operation, constraint OperationUniquenessConstraint) (bool, error) {
+	if op.state != nil {
+		return false, fmt.Errorf("conflictingOperationExists not supported on this platform")
+	}
+
+	return false, nil
+}
+
+func removeDBOperationMetadata(op *Operation) error {
+	if op.state != nil {
+		return fmt.Errorf("removeDBOperationMetadata not supported on this platform")
+	}
+
+	return nil
+}
+
 func (op *Operation) sendEvent(eventMessage any) {
 	if op.events == nil {
 		return
 	}
 
 	op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
+}
+
+func loadDurableOperationFromDB(op *Operation) (*Operation, error) {
+	return nil, nil
 }
