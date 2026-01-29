@@ -2110,10 +2110,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	force, err := strconv.Atoi(r.FormValue("force"))
-	if err != nil {
-		force = 0
-	}
+	force := shared.IsTrue(r.FormValue("force"))
 
 	localClusterAddress := s.LocalConfig.ClusterAddress()
 
@@ -2169,7 +2166,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		err = client.DeleteClusterMember(name, force == 1)
+		err = client.DeleteClusterMember(name, force)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -2227,7 +2224,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	err = autoSyncImages(s.ShutdownCtx, s)
 	if err != nil {
-		if force == 0 {
+		if !force {
 			return response.SmartError(fmt.Errorf("Failed syncing images: %w", err))
 		}
 
@@ -2237,12 +2234,12 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	// First check that the node is clear from containers and images and
 	// make it leave the database cluster, if it's part of it.
-	address, err := cluster.Leave(s, d.gateway, name, force == 1)
+	address, err := cluster.Leave(s, d.gateway, name, force)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	if force != 1 {
+	if !force {
 		// Try to gracefully delete all networks and storage pools on it.
 		// Delete all networks on this node
 		client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
@@ -2315,7 +2312,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	// If this leader node removed itself, just disable clustering.
 	if address == localClusterAddress {
 		return clusterPutDisable(d, r, api.ClusterPut{})
-	} else if force != 1 {
+	} else if !force {
 		// Try to gracefully reset the database on the node.
 		client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
