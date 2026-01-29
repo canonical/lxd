@@ -16,10 +16,30 @@ install_microceph() {
   fi
 }
 
-# configure_microceph: configure MicroCeph with the specified disk partitioned for the OSD count
+# configure_microceph: configure MicroCeph using either a single disk and OSD count or
+# a list of disks followed by the desired OSD count. When multiple disks are provided,
+# no partitioning is performed and one OSD is created per disk. When a single disk is
+# provided, partitioning is used only if the OSD count is greater than 1.
 configure_microceph() {
   local disk="${1}"
   local osd_count="${2}"
+  local disks=()
+  local use_partitions=true
+
+  if [ "$#" -ge 2 ] && [[ "${!#}" =~ ^[0-9]+$ ]]; then
+    osd_count="${!#}"
+    disks=("${@:1:$(($#-1))}")
+    if [ "${#disks[@]}" -gt 1 ]; then
+      use_partitions=false
+    fi
+    if [ "${#disks[@]}" -eq 1 ] && [ "${osd_count}" -eq 1 ]; then
+      use_partitions=false
+    fi
+  else
+    if [ -z "${osd_count}" ]; then
+      osd_count=1
+    fi
+  fi
 
   microceph cluster bootstrap
   microceph.ceph config set global mon_allow_pool_size_one true
@@ -32,9 +52,24 @@ configure_microceph() {
     microceph.ceph osd set "${flag}"
   done
 
-  # If there is more than one OSD, set up partitions.
-  if [ "${osd_count}" -gt 1 ]; then
-    blkdiscard "${disk}" --force
+  if [ "${use_partitions}" = false ]; then # Multiple disks, single OSD each: no partitioning
+    if [ "${#disks[@]}" -eq 0 ]; then
+      disks=("${disk}")
+    fi
+    for disk in "${disks[@]}"; do
+      # loop devices are assumed to be freshly created and thus don't need wiping
+      if [[ "${disk}" == /dev/loop* ]]; then
+        microceph disk add "${disk}"
+      else
+        microceph disk add --wipe "${disk}"
+      fi
+    done
+  elif [ "${osd_count}" -gt 1 ]; then # Single disk, multiple OSDs: partitions needed
+    if [[ "${disk}" == /dev/loop* ]]; then
+      echo "FAIL: MicroCeph can use partitions BUT NOT from loop device ${disk}"
+      exit 1
+    fi
+    blkdiscard "${disk}" --force || true
     parted "${disk}" --script mklabel gpt
 
     for i in $(seq 1 "${osd_count}"); do
@@ -45,22 +80,27 @@ configure_microceph() {
     done
 
     # Force the detection of the new partitions
-    partx --update "${disk}"
+    partx --update "${disk}" || true
 
     # Allow (more) time for the kernel to pick up the new partitions
     disk_name="$(basename "${disk}")"
     for _ in 1 2 3; do
-      parts="$(grep -cwE "${disk_name}[0-9]+$" /proc/partitions)"
+      parts="$(grep -cwE "${disk_name}p?[0-9]+$" /proc/partitions)"
       [ "${parts}" -ge "${osd_count}" ] && break
       sleep 1
     done
 
+    local separator=""
+    if [[ "${disk}" =~ [0-9]$ ]]; then
+      separator="p"
+    fi
+
     for i in $(seq 1 "${osd_count}"); do
-      local disk_part="${disk}${i}"
+      local disk_part="${disk}${separator}${i}"
 
       # Retry logic for "microceph disk add" that can fail due to partitions not being ready
       # Error: unable to list system disks: Failed to find "/dev/disk/by-id/scsi-36...9e-part1": lstat /dev/disk/by-id/scsi-36...9e-part1: no such file or directory
-      wipe=""
+      local wipe=""
       for attempt in 1 2 3; do
         # shellcheck disable=SC2248
         if microceph disk add "${disk_part}" ${wipe}; then
@@ -76,7 +116,7 @@ configure_microceph() {
         fi
       done
     done
-  else
+  else # Single disk, single OSD: no partitioning
     microceph disk add --wipe "${disk}"
   fi
 
@@ -145,6 +185,7 @@ setup_microceph() {
 
 # If the script is being run directly, execute the specified command
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  set -x
   cmd="${1:-}"
   case "${cmd}" in
     install-microceph)
