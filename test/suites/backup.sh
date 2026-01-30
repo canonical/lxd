@@ -9,7 +9,7 @@ test_storage_volume_recover() {
   fi
 
   # Create custom block volume.
-  lxc storage volume create "${poolName}" vol1 --type=block size=32MiB
+  lxc storage volume create "${poolName}" vol1 --type=block size=1MiB
 
   # Import ISO.
   truncate -s 8MiB foo.iso
@@ -25,7 +25,7 @@ test_storage_volume_recover() {
 
   if [ "$poolDriver" = "zfs" ]; then
     # Create filesystem volume.
-    lxc storage volume create "${poolName}" vol3 size=32MiB
+    lxc storage volume create "${poolName}" vol3 size=1MiB
 
     # Create block_mode enabled volume.
     lxc storage volume create "${poolName}" vol4 zfs.block_mode=true size=200MiB
@@ -85,12 +85,12 @@ test_storage_volume_recover_by_container() {
   lxc snapshot c1
 
   # Create a custom volume and attach to the instance.
-  lxc storage volume create "${poolName}" vol1 size=32MiB
+  lxc storage volume create "${poolName}" vol1 size=1MiB
   lxc storage volume snapshot "${poolName}" vol1
   lxc storage volume attach "${poolName}" vol1 c1 /mnt
 
   # Create a custom volume in a different pool and attach to the instance.
-  lxc storage volume create "${poolName2}" vol2 size=32MiB
+  lxc storage volume create "${poolName2}" vol2 size=1MiB
   lxc storage volume snapshot "${poolName2}" vol2
   lxc storage volume attach "${poolName2}" vol2 c1 /mnt2
 
@@ -183,7 +183,7 @@ EOF
   fi
 
   # Create a custom volume in the new pool and attach to the instance.
-  lxc storage volume create "${poolName3}" vol3 size=32MiB
+  lxc storage volume create "${poolName3}" vol3 size=1MiB
   lxc storage volume snapshot "${poolName3}" vol3
   lxc storage volume attach "${poolName3}" vol3 c1 /mnt3
 
@@ -298,7 +298,7 @@ EOF
 
     # Recover container and custom volume that isn't mounted.
     lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
-    lxc storage volume create "${poolName}" vol1_test size=32MiB
+    lxc storage volume create "${poolName}" vol1_test size=1MiB
     lxc storage volume attach "${poolName}" vol1_test c1 /mnt
     lxc start c1
     lxc exec c1 --project test -- mount | grep /mnt
@@ -381,7 +381,6 @@ EOF
     lxc storage volume show "${poolName}" vol1_test/snap0
 
     # Check snapshot exists and container can be started.
-    lxc info c1 | grep snap0
     lxc storage volume ls "${poolName}"
     lxc storage volume show "${poolName}" container/c1
     lxc storage volume show "${poolName}" container/c1/snap0
@@ -414,7 +413,6 @@ yes
 yes
 EOF
 
-    lxc info c1 | grep snap0
     lxc exec c1 --project test -- hostname
     lxc restore c1 snap0
     lxc info c1

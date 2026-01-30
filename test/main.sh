@@ -390,10 +390,12 @@ generate_duration_table() {
 
     # Collect all unique test names
     local -a test_names=()
+    local -A seen_names
     for key in "${!durations[@]}"; do
         local test_name="${key%,*}"
-        if [[ ! " ${test_names[*]} " =~ (^|[[:space:]])${test_name}([[:space:]]|$) ]]; then
+        if [ -z "${seen_names["${test_name}"]:-}" ]; then
             test_names+=("${test_name}")
+            seen_names["${test_name}"]=1
         fi
     done
 
