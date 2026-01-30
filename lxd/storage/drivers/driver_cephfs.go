@@ -52,19 +52,12 @@ func (d *cephfs) load() error {
 
 	// Detect and record the version.
 	if cephfsVersion == "" {
-		out, err := shared.RunCommand(d.state.ShutdownCtx, "rbd", "--version")
+		ver, err := rbdVersion()
 		if err != nil {
 			return err
 		}
 
-		out = strings.TrimSpace(out)
-
-		fields := strings.Split(out, " ")
-		if strings.HasPrefix(out, "ceph version ") && len(fields) > 2 {
-			cephfsVersion = fields[2]
-		} else {
-			cephfsVersion = out
-		}
+		cephfsVersion = ver
 	}
 
 	cephfsLoaded = true
