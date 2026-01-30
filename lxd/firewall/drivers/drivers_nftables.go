@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/validate"
+	"github.com/canonical/lxd/shared/version"
 )
 
 const nftablesNamespace = "lxd"
@@ -29,7 +30,14 @@ const nftablesContentTemplate = "nftablesContent"
 const nftablesChainSeparator = "."
 
 // Nftables is an implementation of LXD firewall using nftables.
-type Nftables struct{}
+type Nftables struct {
+	kernelVersion version.DottedVersion
+}
+
+// NewNftables returns a new nftables firewall driver.
+func NewNftables(kernelVersion version.DottedVersion) Nftables {
+	return Nftables{kernelVersion: kernelVersion}
+}
 
 // String returns the driver name.
 func (d Nftables) String() string {
@@ -38,46 +46,18 @@ func (d Nftables) String() string {
 
 // Compat returns whether the driver backend is in use, and any host compatibility errors.
 func (d Nftables) Compat() (bool, error) {
-	// Get the kernel version.
-	uname, err := shared.Uname()
-	if err != nil {
-		return false, err
+	// We require a >= 5.2 kernel to avoid weird conflicts with xtables and support for inet table NAT rules.
+	minVer, _ := version.NewDottedVersion("5.2")
+	if d.kernelVersion == (version.DottedVersion{}) {
+		return false, errors.New("Kernel version is unknown")
 	}
 
-	// We require a >= 5.2 kernel to avoid weird conflicts with xtables and support for inet table NAT rules.
-	releaseLen := len(uname.Release)
-	if releaseLen > 1 {
-		verErr := errors.New("Kernel version does not meet minimum requirement of 5.2")
-		releaseParts := strings.SplitN(uname.Release, ".", 3)
-		if len(releaseParts) < 2 {
-			return false, fmt.Errorf("Failed parsing kernel version number into parts: %w", err)
-		}
-
-		majorVer := releaseParts[0]
-		majorVerInt, err := strconv.Atoi(majorVer)
-		if err != nil {
-			return false, fmt.Errorf("Failed parsing kernel major version number %q: %w", majorVer, err)
-		}
-
-		if majorVerInt < 5 {
-			return false, verErr
-		}
-
-		if majorVerInt == 5 {
-			minorVer := releaseParts[1]
-			minorVerInt, err := strconv.Atoi(minorVer)
-			if err != nil {
-				return false, fmt.Errorf("Failed parsing kernel minor version number %q: %w", minorVer, err)
-			}
-
-			if minorVerInt < 2 {
-				return false, verErr
-			}
-		}
+	if d.kernelVersion.Compare(minVer) < 0 {
+		return false, fmt.Errorf("Kernel version does not meet minimum requirement of %s", minVer)
 	}
 
 	// Check if nftables nft command exists, if not use xtables.
-	_, err = exec.LookPath("nft")
+	_, err := exec.LookPath("nft")
 	if err != nil {
 		return false, fmt.Errorf("Backend command %q missing", "nft")
 	}
