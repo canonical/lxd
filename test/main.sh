@@ -232,10 +232,16 @@ export _LXC
 ulimit -c unlimited
 echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
 
-# Check for core dumps, ignoring qemu crashes (known issue)
+# Check for core dumps, ignoring known issues.
 check_coredumps() {
   if ! compgen -G "/var/crash/core-*.gz" > /dev/null; then
     return 0  # No core dumps at all
+  fi
+
+  # Ignore unattended-upgrades core dumps (https://bugs.launchpad.net/ubuntu/+source/unattended-upgrades/+bug/2139433)
+  if compgen -G "/var/crash/core-unattended-upgr*.gz" > /dev/null 2>&1; then
+    echo "::notice::==> CORE: unattended-upgrades core dump ignored (LP: #2139433)"
+    rm /var/crash/core-unattended-upgr*.gz
   fi
 
   # Ignore qemu core dumps (known crasher, to be fixed later)
@@ -251,7 +257,7 @@ check_coredumps() {
   fi
   shopt -u extglob
 
-  # Only QEMU core dumps (known issue)
+  # Only QEMU core dumps (known issue, fixed by QEMU 10.2.0+)
   echo "::notice::==> CORE: QEMU core dump ignored"
 
   return 0
