@@ -34,7 +34,7 @@ func NewTestState(t *testing.T) (*State, func()) {
 		ShutdownCtx:         context.TODO(),
 		DB:                  &db.DB{Node: node, Cluster: cluster},
 		OS:                  os,
-		Firewall:            firewall.New(),
+		Firewall:            firewall.New(os.KernelVersion),
 		UpdateIdentityCache: func() {},
 	}
 
