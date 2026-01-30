@@ -86,9 +86,11 @@ runs:
       run: |
           set -eux
           sudo "${GITHUB_ACTION_PATH}/setup-microceph.sh" install-ceph-common
+          sudo cat /etc/ceph/ceph.conf || true
 
     - name: Wait for MicroCeph to be ready
       shell: bash
       run: |
           set -eux
           sudo "${GITHUB_ACTION_PATH}/setup-microceph.sh" wait-for-microceph
+          sudo cat /etc/ceph/ceph.conf || true
