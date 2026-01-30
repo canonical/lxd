@@ -3277,6 +3277,8 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 			Type:        operationtype.ClusterMemberEvacuate,
 			Class:       operations.OperationClassTask,
 			RunHook:     run,
+			// Use [operations.OperationUniquenessConstraintType] to enforce cluster-wide evacuation exclusivity; this prevents evacuation race conditions.
+			UniquenessConstraint: operations.OperationUniquenessConstraintType,
 		}
 
 		op, err := operations.CreateUserOperation(s, requestor, args)
