@@ -152,10 +152,16 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, errors.New("LXD is shutting down")
 	}
 
+	// Use a v7 UUID for the operation ID.
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate operation UUID: %w", err)
+	}
+
 	// Main attributes
 	op := Operation{}
 	op.projectName = args.ProjectName
-	op.id = uuid.New().String()
+	op.id = uuid.String()
 	op.description = args.Type.Description()
 	op.entityType, op.entitlement = args.Type.Permission()
 	op.dbOpType = args.Type
@@ -175,7 +181,6 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		op.SetEventServer(s.Events)
 	}
 
-	var err error
 	op.metadata, err = validateMetadata(args.Metadata)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to validate operation metadata: %w", err)
