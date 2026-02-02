@@ -37,9 +37,9 @@ func (c *cmdWaitready) Command() *cobra.Command {
   Optional flags can be set to wait for additional resources to be ready.
 `
 	cmd.RunE = c.Run
-	cmd.Flags().Uint64VarP(&c.flagTimeout, "timeout", "t", 0, "Number of seconds to wait before giving up"+"``")
-	cmd.Flags().BoolVar(&c.flagNetwork, "network", false, "Whether to wait for all networks to be ready"+"``")
-	cmd.Flags().BoolVar(&c.flagStorage, "storage", false, "Whether to wait for all storage pools to be ready"+"``")
+	cmd.Flags().Uint64VarP(&c.flagTimeout, "timeout", "t", 0, "Number of seconds to wait before giving up")
+	cmd.Flags().BoolVar(&c.flagNetwork, "network", false, "Whether to wait for all networks to be ready")
+	cmd.Flags().BoolVar(&c.flagStorage, "storage", false, "Whether to wait for all storage pools to be ready")
 
 	return cmd
 }
