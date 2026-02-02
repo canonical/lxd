@@ -1268,14 +1268,51 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 }
 
 // DeleteInstance requests that LXD deletes the instance.
-func (r *ProtocolLXD) DeleteInstance(name string) (Operation, error) {
+func (r *ProtocolLXD) DeleteInstance(name string, force bool) (Operation, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {
 		return nil, err
 	}
 
+	instanceType := strings.TrimPrefix(path, "/")
+	u := api.NewURL().Path(instanceType, name)
+
+	if force {
+		if r.HasExtension("instance_force_delete") {
+			u = u.WithQuery("force", "1")
+		} else {
+			// Older servers need a forced stop before delete when instance_force_delete isn't supported.
+			ct, _, err := r.GetInstance(name)
+			if err != nil {
+				return nil, err
+			}
+
+			if ct.StatusCode != 0 && ct.StatusCode != api.Stopped {
+				req := api.InstanceStatePut{
+					Action:  "stop",
+					Timeout: -1,
+					Force:   true,
+				}
+
+				op, err := r.UpdateInstanceState(name, req, "")
+				if err != nil {
+					return nil, err
+				}
+
+				err = op.Wait()
+				if err != nil {
+					return nil, fmt.Errorf("Stopping the instance failed: %w", err)
+				}
+
+				if ct.Ephemeral {
+					return op, nil
+				}
+			}
+		}
+	}
+
 	// Send the request
-	op, _, err := r.queryOperation(http.MethodDelete, path+"/"+url.PathEscape(name), nil, "", true)
+	op, _, err := r.queryOperation(http.MethodDelete, u.String(), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
