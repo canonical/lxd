@@ -251,7 +251,7 @@ kill_lxd() {
         done < <(echo .tables | sqlite3 "${LXD_DIR}/local.db")
 
         # Kill the daemon
-        timeout -k 30 30 lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
+        timeout -k 30 30 lxd shutdown || kill_go_proc "${LXD_PID}" 2>/dev/null || true
 
         check_leftovers="true"
     fi
@@ -341,7 +341,7 @@ shutdown_lxd() {
     echo "==> Shutting down LXD at ${LXD_DIR} (${LXD_PID})"
 
     # Shutting down the daemon
-    lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
+    lxd shutdown || kill_go_proc "${LXD_PID}" 2>/dev/null || true
 
     # Wait for any cleanup activity that might be happening right
     # after the websocket is closed.
@@ -494,6 +494,12 @@ coverage_enabled() {
 
 # Kills a Go process, using start-stop-daemon if coverage is enabled or kill -9 otherwise.
 # When coverage is enabled, use start-stop-daemon to allow it to write out coverage data.
+# https://go.dev/doc/build-cover#panicprof:
+# > Programs built with go build -cover will only write out complete profile data
+# > at the end of execution if the program invokes os.Exit() or returns normally
+# > from main.main. If a program terminates in an unrecovered panic, or if the
+# > program hits a fatal exception (such as a segmentation violation, divide by
+# > zero, etc), profile data from statements executed during the run will be lost.
 kill_go_proc() {
   local pid="${1}"
   if coverage_enabled; then
