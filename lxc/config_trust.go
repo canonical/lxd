@@ -216,7 +216,7 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 		}
 
 		if !c.global.flagQuiet {
-			fmt.Printf("Client %s certificate add token:"+"\n", cert.Name)
+			fmt.Printf("Client %s certificate add token:\n", cert.Name)
 		}
 
 		fmt.Println(certificateToken.String())
