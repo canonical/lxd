@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/sys"
+	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -36,7 +37,7 @@ func (c *cmdDaemon) command() *cobra.Command {
   the local LXD daemon and which may not be performed through the REST API alone.
 `
 	cmd.RunE = c.run
-	cmd.Flags().StringVar(&c.flagGroup, "group", "", "The group of users that will be allowed to talk to LXD"+"``")
+	cmd.Flags().StringVar(&c.flagGroup, "group", "", cli.FormatStringFlagLabel("The group of users that will be allowed to talk to LXD"))
 
 	return cmd
 }
