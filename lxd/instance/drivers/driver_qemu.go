@@ -2026,7 +2026,10 @@ func (d *qemu) AgentCertificate() *x509.Certificate {
 }
 
 func (d *qemu) architectureSupportsUEFI(arch int) bool {
-	return slices.Contains([]int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}, arch)
+	return slices.Contains([]int{osarch.ARCH_64BIT_INTEL_X86,
+		osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN,
+		osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN},
+		arch)
 }
 
 func (d *qemu) setupNvram() error {
@@ -2118,6 +2121,13 @@ func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
 		}
 
 		return path, "pci", nil
+	case osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN:
+		path, err := exec.LookPath(basePath + "qemu-system-riscv64")
+		if err != nil {
+			return "", "", err
+		}
+
+		return path, "pcie", nil
 	case osarch.ARCH_64BIT_S390_BIG_ENDIAN:
 		path, err := exec.LookPath(basePath + "qemu-system-s390x")
 		if err != nil {
