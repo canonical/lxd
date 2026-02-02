@@ -417,10 +417,7 @@ cleanup_lxds() {
     fi
 
     # Cleanup leftover networks
-    # shellcheck disable=SC2009
-    ps aux | grep "interface=lxdt$$ " | grep -v grep | awk '{print $2}' | while read -r line; do
-        kill -9 "${line}"
-    done
+    pkill -9 -f " --interface=lxdt$$ "  # dnsmasq process
     if [ -e "/sys/class/net/lxdt$$" ]; then
         ip link del lxdt$$
     fi
