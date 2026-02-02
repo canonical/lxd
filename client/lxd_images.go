@@ -921,6 +921,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		ImagePut: api.ImagePut{
 			Profiles: image.Profiles,
 		},
+		Filename: image.Filename,
 	}
 
 	if args != nil {
