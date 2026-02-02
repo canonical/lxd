@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -56,12 +57,12 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagPreseed, "preseed", false, "Pre-seed mode, expects YAML config from stdin")
 	cmd.Flags().BoolVar(&c.flagDump, "dump", false, "Dump YAML config to stdout")
 
-	cmd.Flags().StringVar(&c.flagNetworkAddress, "network-address", "", "Address to bind LXD to (default: none)"+"``")
-	cmd.Flags().Int64Var(&c.flagNetworkPort, "network-port", -1, fmt.Sprintf("Port to bind LXD to (default: %d)"+"``", shared.HTTPSDefaultPort))
-	cmd.Flags().StringVar(&c.flagStorageBackend, "storage-backend", "", "Storage backend to use (btrfs, dir, lvm or zfs, default: dir)"+"``")
-	cmd.Flags().StringVar(&c.flagStorageDevice, "storage-create-device", "", "Setup device based storage using DEVICE"+"``")
-	cmd.Flags().IntVar(&c.flagStorageLoopSize, "storage-create-loop", -1, "Setup loop based storage with SIZE in GiB"+"``")
-	cmd.Flags().StringVar(&c.flagStoragePool, "storage-pool", "", "Storage pool to use or create"+"``")
+	cmd.Flags().StringVar(&c.flagNetworkAddress, "network-address", "", cli.FormatStringFlagLabel("Address to bind LXD to (default: none)"))
+	cmd.Flags().Int64Var(&c.flagNetworkPort, "network-port", -1, fmt.Sprintf("Port to bind LXD to (default: %d)", shared.HTTPSDefaultPort))
+	cmd.Flags().StringVar(&c.flagStorageBackend, "storage-backend", "", cli.FormatStringFlagLabel("Storage backend to use (btrfs, dir, lvm or zfs, default: dir)"))
+	cmd.Flags().StringVar(&c.flagStorageDevice, "storage-create-device", "", cli.FormatStringFlagLabel("Setup device based storage using DEVICE"))
+	cmd.Flags().IntVar(&c.flagStorageLoopSize, "storage-create-loop", -1, "Setup loop based storage with SIZE in GiB")
+	cmd.Flags().StringVar(&c.flagStoragePool, "storage-pool", "", cli.FormatStringFlagLabel("Storage pool to use or create"))
 
 	return cmd
 }
