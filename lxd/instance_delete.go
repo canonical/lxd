@@ -38,6 +38,10 @@ import (
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: force
+//	    description: Force delete of running instances
+//	    type: boolean
 //	responses:
 //	  "202":
 //	    $ref: "#/responses/Operation"
@@ -78,7 +82,8 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	op, err := doInstanceDelete(r.Context(), s, name, projectName, false)
+	force := shared.IsTrue(r.FormValue("force"))
+	op, err := doInstanceDelete(r.Context(), s, name, projectName, force)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -99,6 +104,7 @@ func doInstanceDelete(ctx context.Context, s *state.State, name string, projectN
 		return nil, err
 	}
 
+	deletedOnStop := false
 	if inst.IsRunning() {
 		if !force {
 			return nil, api.NewStatusError(http.StatusBadRequest, "Instance is running")
@@ -113,9 +119,18 @@ func doInstanceDelete(ctx context.Context, s *state.State, name string, projectN
 		if err != nil {
 			return nil, fmt.Errorf("Failed force stopping instance %q before deletion: %w", name, err)
 		}
+
+		// Ephemeral instances are automatically deleted when stopped.
+		if inst.IsEphemeral() {
+			deletedOnStop = true
+		}
 	}
 
 	rmct := func(ctx context.Context, op *operations.Operation) error {
+		if deletedOnStop {
+			return nil
+		}
+
 		return inst.Delete(false, "")
 	}
 

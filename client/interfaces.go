@@ -180,7 +180,7 @@ type InstanceServer interface {
 	UpdateInstance(name string, instance api.InstancePut, ETag string) (op Operation, err error)
 	RenameInstance(name string, instance api.InstancePost) (op Operation, err error)
 	MigrateInstance(name string, instance api.InstancePost) (op Operation, err error)
-	DeleteInstance(name string) (op Operation, err error)
+	DeleteInstance(name string, force bool) (op Operation, err error)
 	UpdateInstances(state api.InstancesPut, ETag string) (op Operation, err error)
 	RebuildInstance(instanceName string, req api.InstanceRebuildPost) (op Operation, err error)
 	RebuildInstanceFromImage(source ImageServer, image api.Image, instanceName string, req api.InstanceRebuildPost) (op RemoteOperation, err error)
