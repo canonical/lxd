@@ -1,5 +1,5 @@
 name: Setup MicroCeph
-description: Setup MicroCeph to use the ephemeral disk of GHA runners, falling back to loop device(s) if needed.
+description: Setup MicroCeph using loop device(s)
 
 inputs:
   microceph-channel:
@@ -18,7 +18,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Prepare disk
+    - name: Setup loop devices for OSDs
       shell: bash
       id: prepare_disk
       env:
@@ -26,38 +26,17 @@ runs:
       run: |
           set -eux
 
-          # Check if we can use the ephemeral disk (common on GHA runners) or if we need to fallback
-          # to using loop devices (when rootfs and /mnt are on the same disk).
-          if [ -d /mnt ] && [ "$(stat -c '%d' /)" != "$(stat -c '%d' /mnt)" ]; then
-            # Different disks, we can safely use the disk backing /mnt
-            echo "::notice::Using ephemeral disk for MicroCeph"
+          # Create one loop device per OSD (5GiB each)
+          disks=()
+          for i in $(seq 1 "${INPUTS_OSD_COUNT}"); do
+            backing_file="$(sudo mktemp -p /mnt microceph.XXXX)"
+            sudo truncate -s 5G "${backing_file}"
 
-            # Avoid LXD snap holding on to swap (https://github.com/canonical/lxd/issues/14768)
-            sudo snap remove --purge lxd || true
+            loop_device="$(sudo losetup --show -f "${backing_file}")"
+            disks+=("${loop_device}")
+          done
 
-            # Report useful diagnostic about /mnt
-            findmnt --output FSTYPE /mnt
-
-            sudo swapoff /mnt/swapfile
-            ephemeral_disk="$(findmnt --noheadings --output SOURCE --target /mnt | sed 's/[0-9]\+$//')"
-            sudo umount /mnt
-            echo "ephemeral_disks=${ephemeral_disk}" >> "${GITHUB_OUTPUT}"
-          else
-            # Fallback to using a loop device. See https://github.com/actions/runner-images/issues/13587
-            echo "::notice::Using loop devices for MicroCeph"
-
-            # Create one loop device per OSD (5GiB each)
-            disks=()
-            for i in $(seq 1 "${INPUTS_OSD_COUNT}"); do
-              backing_file="$(sudo mktemp -p /mnt microceph.XXXX)"
-              sudo truncate -s 5G "${backing_file}"
-
-              loop_device="$(sudo losetup --show -f "${backing_file}")"
-              disks+=("${loop_device}")
-            done
-
-            echo "ephemeral_disks=${disks[*]}" >> "${GITHUB_OUTPUT}"
-          fi
+          echo "ephemeral_disks=${disks[*]}" >> "${GITHUB_OUTPUT}"
 
     - name: Install MicroCeph snap
       shell: bash
