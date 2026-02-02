@@ -1,14 +1,26 @@
-/*env*/
+# Environment
+*env*/
 .sphinx/venv/
+
+# Sphinx
 .sphinx/warnings.txt
 .sphinx/.wordlist.dic
 .sphinx/.doctrees/
+.sphinx/update/
 .sphinx/node_modules/
-package*.json
+
+# Vale
+.sphinx/styles/*
+.sphinx/vale.ini
+
+# Build outputs
 _build
+
+# Node.js
+package*.json
+
+# Unrelated cache and config files
 .DS_Store
 __pycache__
 .idea/
 .vscode/
-.sphinx/styles/*
-.sphinx/vale.ini
