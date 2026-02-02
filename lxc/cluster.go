@@ -328,7 +328,7 @@ type cmdClusterGet struct {
 func (c *cmdClusterGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", "[<remote>:]<member> <key>")
-	cmd.Short = "Get values for cluster member configuration key"
+	cmd.Short = "Get value for cluster member configuration key"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as a cluster property")

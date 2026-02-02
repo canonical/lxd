@@ -27,7 +27,6 @@ Type                | Service               | Status
 Tests               | GitHub                | [![Build Status](https://github.com/canonical/lxd/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/canonical/lxd/actions?query=event%3Apush+branch%3Amain)
 Go documentation    | Godoc                 | [![GoDoc](https://godoc.org/github.com/canonical/lxd/client?status.svg)](https://godoc.org/github.com/canonical/lxd/client)
 Static analysis     | GoReport              | [![Go Report Card](https://goreportcard.com/badge/github.com/canonical/lxd)](https://goreportcard.com/report/github.com/canonical/lxd)
-Translations        | Weblate               | [![Translation status](https://hosted.weblate.org/widget/lxd/lxd/svg-badge.svg)](https://hosted.weblate.org/projects/lxd/lxd/)
 
 ## Installing LXD from packages
 

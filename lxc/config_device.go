@@ -300,7 +300,7 @@ func (c *cmdConfigDeviceGet) command() *cobra.Command {
 		cmd.Use = usage("get", "[<remote>:]<profile> <device> <key>")
 	}
 
-	cmd.Short = "Get values for device configuration key"
+	cmd.Short = "Get value for device configuration key"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run

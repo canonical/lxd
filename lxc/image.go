@@ -472,7 +472,7 @@ func (c *cmdImageEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Config parsing error: %s"+"\n", err)
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
 			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
@@ -992,30 +992,30 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 		imgType = info.Type
 	}
 
-	fmt.Printf("Fingerprint: %s"+"\n", info.Fingerprint)
-	fmt.Printf("Size: %.2fMiB"+"\n", float64(info.Size)/1024.0/1024.0)
-	fmt.Printf("Architecture: %s"+"\n", info.Architecture)
-	fmt.Printf("Type: %s"+"\n", imgType)
-	fmt.Printf("Public: %s"+"\n", public)
-	fmt.Print("Timestamps:" + "\n")
+	fmt.Printf("Fingerprint: %s\n", info.Fingerprint)
+	fmt.Printf("Size: %.2fMiB\n", float64(info.Size)/1024.0/1024.0)
+	fmt.Printf("Architecture: %s\n", info.Architecture)
+	fmt.Printf("Type: %s\n", imgType)
+	fmt.Printf("Public: %s\n", public)
+	fmt.Print("Timestamps:\n")
 
 	const layout = "2006/01/02 15:04 UTC"
 	if shared.TimeIsSet(info.CreatedAt) {
-		fmt.Printf("    "+"Created: %s"+"\n", info.CreatedAt.UTC().Format(layout))
+		fmt.Printf("    Created: %s\n", info.CreatedAt.UTC().Format(layout))
 	}
 
-	fmt.Printf("    "+"Uploaded: %s"+"\n", info.UploadedAt.UTC().Format(layout))
+	fmt.Printf("    Uploaded: %s\n", info.UploadedAt.UTC().Format(layout))
 
 	if shared.TimeIsSet(info.ExpiresAt) {
-		fmt.Printf("    "+"Expires: %s"+"\n", info.ExpiresAt.UTC().Format(layout))
+		fmt.Printf("    Expires: %s\n", info.ExpiresAt.UTC().Format(layout))
 	} else {
-		fmt.Print("    " + "Expires: never" + "\n")
+		fmt.Print("    Expires: never\n")
 	}
 
 	if shared.TimeIsSet(info.LastUsedAt) {
-		fmt.Printf("    "+"Last used: %s"+"\n", info.LastUsedAt.UTC().Format(layout))
+		fmt.Printf("    Last used: %s\n", info.LastUsedAt.UTC().Format(layout))
 	} else {
-		fmt.Print("    " + "Last used: never" + "\n")
+		fmt.Print("    Last used: never\n")
 	}
 
 	fmt.Println("Properties:")
@@ -1032,8 +1032,8 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("Cached: %s"+"\n", cached)
-	fmt.Printf("Auto update: %s"+"\n", autoUpdate)
+	fmt.Printf("Cached: %s\n", cached)
+	fmt.Printf("Auto update: %s\n", autoUpdate)
 
 	if info.UpdateSource != nil {
 		fmt.Println("Source:")
@@ -1043,7 +1043,7 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(info.Profiles) == 0 {
-		fmt.Print("Profiles: " + "[]\n")
+		fmt.Print("Profiles: []\n")
 	} else {
 		fmt.Println("Profiles:")
 		for _, name := range info.Profiles {
