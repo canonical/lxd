@@ -12,9 +12,17 @@ build:
     golang: "1.25"
     python: "3.12"
   jobs:
-    pre_install:
-      - pip install gitpython==3.1.46 pyyaml==6.0.3
+    post_checkout:
       - git fetch --unshallow || true
+      # Cancel building pull requests when there are no changes in the doc directory.
+      # If there are no changes (git diff exits with 0), we force the command to return with 183.
+      # This is a special exit code on Read the Docs that will cancel the build immediately.
+      # https://docs.readthedocs.io/en/stable/build-customization.html#cancel-build-based-on-a-condition
+      - |
+        if [ "$READTHEDOCS_VERSION_TYPE" = "external" ] && git diff --quiet origin/main -- 'doc/' '.readthedocs.yaml';
+        then
+          exit 183;
+        fi
     pre_build:
       - go build -ldflags "-s -w" -o trimpath -o lxc.bin ./lxc
 
