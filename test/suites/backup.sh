@@ -287,9 +287,17 @@ test_container_recover() {
 
     lxc storage set "${poolName}" user.foo=bah
     lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
-    lxc profile device add default root disk path=/ pool="${poolName}" --project test
-    lxc profile device add default eth0 nic nictype=p2p --project test
+
+    # Switching project avoids needing to pass `--project test` to every command
+    # except for `lxc exec ... -- ...` because the `--` causes the `lxc` wrapper
+    # to also inject a `--force-local` argument which causes `lxc` to ignore any
+    # configuration file thus assuming the default project. A workaround is to
+    # use the `lxc_remote` wrapper that does not forcibly inject
+    # `--force-local`.
     lxc project switch test
+
+    lxc profile device add default root disk path=/ pool="${poolName}"
+    lxc profile device add default eth0 nic nictype=p2p
 
     # Basic no-op check.
     lxd recover <<EOF | grep "No unknown storage volumes found. Nothing to do."
@@ -301,9 +309,9 @@ EOF
     lxc storage volume create "${poolName}" vol1_test size=1MiB
     lxc storage volume attach "${poolName}" vol1_test c1 /mnt
     lxc start c1
-    lxc exec c1 --project test -- mount | grep /mnt
-    echo "hello world" | lxc exec c1 --project test -- tee /mnt/test.txt
-    [ "$(lxc exec c1 --project test -- cat /mnt/test.txt)" = "hello world" ]
+    lxc_remote exec c1 -- grep -wF /mnt /proc/mounts
+    echo "hello world" | lxc_remote exec c1 -- tee /mnt/test.txt
+    [ "$(lxc_remote exec c1 -- cat /mnt/test.txt)" = "hello world" ]
     lxc stop -f c1
     lxc config set c1 snapshots.expiry 1d
     lxc snapshot c1
@@ -385,20 +393,20 @@ EOF
     lxc storage volume show "${poolName}" container/c1
     lxc storage volume show "${poolName}" container/c1/snap0
     lxc start c1
-    lxc exec c1 --project test -- hostname
+    lxc_remote exec c1 -- hostname
 
     # Check snapshot expiry date has been restored.
     snapshotExpiryDateAfter=$(lxc info c1 | grep -wF "snap0")
     [ "$snapshotExpiryDateBefore" = "$snapshotExpiryDateAfter" ]
 
     # Check custom volume accessible.
-    lxc exec c1 --project test -- mount | grep /mnt
-    [ "$(lxc exec c1 --project test -- cat /mnt/test.txt)" = "hello world" ]
+    lxc_remote exec c1 -- grep -wF /mnt /proc/mounts
+    [ "$(lxc_remote exec c1 -- cat /mnt/test.txt)" = "hello world" ]
 
     # Check snashot can be restored.
     lxc restore c1 snap0
     lxc info c1
-    lxc exec c1 --project test -- hostname
+    lxc_remote exec c1 -- hostname
 
     # Recover container that is running.
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
@@ -413,10 +421,10 @@ yes
 yes
 EOF
 
-    lxc exec c1 --project test -- hostname
+    lxc_remote exec c1 -- hostname
     lxc restore c1 snap0
     lxc info c1
-    lxc exec c1 --project test -- hostname
+    lxc_remote exec c1 -- hostname
 
     # Cleanup.
     lxc delete -f c1
@@ -854,7 +862,7 @@ _backup_volume_export_with_project() {
 
   # Create file on the custom volume.
   echo foo | lxc file push - c1/mnt/test
-  LXC_LOCAL='' lxc_remote exec c1 -- sync /mnt/test
+  lxc_remote exec c1 -- sync /mnt/test
 
   # Snapshot the custom volume.
   lxc storage volume set "${custom_vol_pool}" testvol user.foo=test-snap0
@@ -862,7 +870,7 @@ _backup_volume_export_with_project() {
 
   # Change the content (the snapshot will contain the old value).
   echo bar | lxc file push - c1/mnt/test
-  LXC_LOCAL='' lxc_remote exec c1 -- sync /mnt/test
+  lxc_remote exec c1 -- sync /mnt/test
   lxc stop -f c1
 
   lxc storage volume set "${custom_vol_pool}" testvol user.foo=test-snap1

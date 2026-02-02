@@ -798,7 +798,7 @@ user_is_project_operator() {
     lxc_remote query "${remote}:/1.0/storage-volumes/custom" | grep -F "/1.0/storage-pools/${pool_name}/volumes/custom/test-volume"
     lxc_remote storage volume delete "${remote}:${pool_name}" test-volume
     lxc_remote launch testimage "${remote}:operator-foo"
-    LXC_LOCAL='' lxc_remote exec "${remote}:operator-foo" -- echo "bar"
+    lxc_remote exec "${remote}:operator-foo" -- echo "bar"
     lxc_remote delete "${remote}:operator-foo" --force
 }
 
@@ -881,7 +881,7 @@ user_is_instance_user() {
   # Check we can still interact with the instance.
   touch "${TEST_DIR}/tmp"
   lxc_remote file push "${TEST_DIR}/tmp" "${remote}:${instance_name}/root/tmpfile.txt"
-  LXC_LOCAL='' lxc_remote exec "${remote}:${instance_name}" -- rm /root/tmpfile.txt
+  lxc_remote exec "${remote}:${instance_name}" -- rm /root/tmpfile.txt
   rm "${TEST_DIR}/tmp"
 
   # We can't edit the instance though
