@@ -722,17 +722,10 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 		return nil, errors.New("The source server isn't listening on the network")
 	}
 
-	rop := remoteOperation{
-		chDone: make(chan bool),
-	}
-
 	operation := req.Source.Operation
 
 	// Forward targetOp to remote op
-	chConnect := make(chan error, 1)
-	chWait := make(chan error, 1)
-
-	go func() {
+	targetOpFunc := func(rop *remoteOperation) error {
 		success := false
 		var errors []remoteOperationResult
 		for _, serverURL := range urls {
@@ -771,39 +764,14 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 			break
 		}
 
-		if success {
-			chConnect <- nil
-			close(chConnect)
-		} else {
-			chConnect <- remoteOperationError("Failed instance creation", errors)
-			close(chConnect)
-
-			if op != nil {
-				_ = op.Cancel()
-			}
+		if !success {
+			return remoteOperationError("Failed instance creation", errors)
 		}
-	}()
 
-	if op != nil {
-		go func() {
-			chWait <- op.Wait()
-			close(chWait)
-		}()
+		return nil
 	}
 
-	go func() {
-		var err error
-
-		select {
-		case err = <-chConnect:
-		case err = <-chWait:
-		}
-
-		rop.err = err
-		close(rop.chDone)
-	}()
-
-	return &rop, nil
+	return r.startSplitRemoteOperation(targetOpFunc, op), nil
 }
 
 // CreateInstanceFromImage is a convenience function to make it easier to create a instance from an existing image.
