@@ -1107,17 +1107,10 @@ func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req
 		return nil, errors.New("The target server isn't listening on the network")
 	}
 
-	rop := remoteOperation{
-		chDone: make(chan bool),
-	}
-
 	operation := req.Target.Operation
 
 	// Forward targetOp to remote op
-	chConnect := make(chan error, 1)
-	chWait := make(chan error, 1)
-
-	go func() {
+	targetOpFunc := func(rop *remoteOperation) error {
 		success := false
 		var errors []remoteOperationResult
 		for _, serverURL := range urls {
@@ -1150,39 +1143,14 @@ func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req
 			break
 		}
 
-		if success {
-			chConnect <- nil
-			close(chConnect)
-		} else {
-			chConnect <- remoteOperationError("Failed instance migration", errors)
-			close(chConnect)
-
-			if op != nil {
-				_ = op.Cancel()
-			}
+		if !success {
+			return remoteOperationError("Failed instance migration", errors)
 		}
-	}()
 
-	if op != nil {
-		go func() {
-			chWait <- op.Wait()
-			close(chWait)
-		}()
+		return nil
 	}
 
-	go func() {
-		var err error
-
-		select {
-		case err = <-chConnect:
-		case err = <-chWait:
-		}
-
-		rop.err = err
-		close(rop.chDone)
-	}()
-
-	return &rop, nil
+	return r.startSplitRemoteOperation(targetOpFunc, op), nil
 }
 
 // MigrateInstance requests that LXD prepares for a instance migration.
