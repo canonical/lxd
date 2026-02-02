@@ -717,7 +717,7 @@ migration() {
   lxc_remote snapshot l1:migratee
 
   # Check container isn't frozen.
-  LXC_LOCAL='' lxc_remote exec l1:migratee -- ls
+  lxc_remote exec l1:migratee -- ls
 
   # Live migration is not supported for containers.
   ! lxc_remote move l1:migratee l2:migratee || false
