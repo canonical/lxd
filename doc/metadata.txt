@@ -1870,6 +1870,13 @@ Available Modes:
 See {ref}`cluster-evacuate` for more information.
 ```
 
+```{config:option} environment.* instance-miscellaneous
+:liveupdate: "yes"
+:shortdesc: "Free-form environment key/value"
+:type: "string"
+Extra environment variables to set on boot (for containers) and during exec.
+```
+
 ```{config:option} linux.kernel_modules instance-miscellaneous
 :condition: "container"
 :liveupdate: "yes"
