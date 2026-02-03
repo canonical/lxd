@@ -869,8 +869,11 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
+	projectShellQuoted := shared.ShellQuote(d.Project().Name)
+	instanceShellQuoted := shared.ShellQuote(d.Name())
+
 	// Call the onstart hook on start.
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), shared.ShellQuote(d.Project().Name), shared.ShellQuote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), projectShellQuoted, instanceShellQuoted))
 	if err != nil {
 		return nil, err
 	}
@@ -886,13 +889,13 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	}
 
 	// Call the onstopns hook on stop but before namespaces are unmounted.
-	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", lxdStopHookPath, shared.VarPath(""), shared.ShellQuote(d.Project().Name), shared.ShellQuote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", lxdStopHookPath, shared.VarPath(""), projectShellQuoted, instanceShellQuoted))
 	if err != nil {
 		return nil, err
 	}
 
 	// Call the onstop hook on stop.
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", lxdStopHookPath, shared.VarPath(""), shared.ShellQuote(d.Project().Name), shared.ShellQuote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", lxdStopHookPath, shared.VarPath(""), projectShellQuoted, instanceShellQuoted))
 	if err != nil {
 		return nil, err
 	}
@@ -1091,7 +1094,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	}
 
 	if shared.IsTrue(d.expandedConfig["security.delegate_bpf"]) {
-		err = lxcSetConfigItem(cc, "lxc.hook.start-host", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+shared.ShellQuote(d.Project().Name)+" "+shared.ShellQuote(d.Name())+" starthost")
+		err = lxcSetConfigItem(cc, "lxc.hook.start-host", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+projectShellQuoted+" "+instanceShellQuoted+" starthost")
 		if err != nil {
 			return nil, err
 		}
