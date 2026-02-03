@@ -1,9 +1,11 @@
 package version
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
+	"unicode"
 
 	"github.com/canonical/lxd/shared/osarch"
 )
@@ -52,8 +54,16 @@ func UserAgentStorageBackends(backends []string) {
 	UserAgent = getUserAgent()
 }
 
-// UserAgentFeatures updates the list of advertised features
-func UserAgentFeatures(features []string) {
-	userAgentFeatures = features
+// UserAgentFeatures updates the list of advertised features.
+func UserAgentFeatures(features []string) error {
+	for _, feature := range features {
+		if strings.IndexFunc(feature, unicode.IsSpace) >= 0 {
+			return errors.New("User agent features may not contain whitespace")
+		}
+	}
+
+	userAgentFeatures = append(userAgentFeatures, features...)
+
 	UserAgent = getUserAgent()
+	return nil
 }
