@@ -299,6 +299,7 @@ test_basic_usage() {
   LXD_DIR="${LXD2_DIR}" lxc init localhost:testimage c1 --project bar --target-project foo
   LXD_DIR="${LXD2_DIR}" lxc launch localhost:testimage c2 --project bar --target-project foo
   LXD_DIR="${LXD2_DIR}" lxc file push --quiet "$(command -v devlxd-client)" c2/bin/ --project foo
+  LXD_DIR="${LXD2_DIR}" setup_instance_gocoverage c2 foo
   LXD_DIR="${LXD2_DIR}" lxc exec c2 --project foo -- devlxd-client get-state
   LXD_DIR="${LXD2_DIR}" lxc stop c2 --project foo --force
   LXD_DIR="${LXD2_DIR}" lxc rebuild localhost:testimage c2 --project bar --target-project foo
