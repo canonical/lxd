@@ -2138,6 +2138,14 @@
 						}
 					},
 					{
+						"environment.*": {
+							"liveupdate": "yes",
+							"longdesc": "Extra environment variables to set on boot (for containers) and during exec.",
+							"shortdesc": "Free-form environment key/value",
+							"type": "string"
+						}
+					},
+					{
 						"linux.kernel_modules": {
 							"condition": "container",
 							"liveupdate": "yes",
