@@ -46,6 +46,6 @@ clear_ovn_nb_db() {
     fi
 
     # Delete any remaining data.
-    ovn-nbctl --format csv --no-headings list "${tbl}" | cut -d, -f1 | ovn-nbctl destroy "${tbl}"
+    ovn-nbctl --all destroy "${tbl}"
   done
 }
