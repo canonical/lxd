@@ -1116,7 +1116,7 @@ func (d *Daemon) init() error {
 
 	// Setup the user-agent.
 	if clustered {
-		version.UserAgentFeatures([]string{"cluster"})
+		_ = version.UserAgentFeatures([]string{"cluster"})
 	}
 
 	// Mount the storage pools.
