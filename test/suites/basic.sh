@@ -529,6 +529,13 @@ test_basic_usage() {
 
   # check that environment variables work with profiles
   lxc profile create clash
+
+  # check that environment variables cannot contain line breaks
+  local invalidEnvValue="foo
+  bar"
+  ! lxc profile set clash environment.INVALID_ENV_VALUE="${invalidEnvValue}" || false
+  ! lxc config set foo environment.INVALID_ENV_VALUE="${invalidEnvValue}" || false
+
   lxc profile set clash environment.BEST_BAND=clash
   lxc profile add foo clash
   lxc exec foo -- env | grep -xF BEST_BAND=clash
