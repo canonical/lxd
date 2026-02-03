@@ -997,13 +997,6 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 	for k, v := range d.expandedConfig {
 		// Setup environment
-		// lxdmeta:generate(entities=instance; group=miscellaneous; key=environment.*)
-		// The specified key/value environment variables are exported to the instance and set for `lxc exec`.
-
-		// ---
-		//  type: string
-		//  liveupdate: yes (exec)
-		//  shortdesc: Environment variables to export
 		environmentKey, found := strings.CutPrefix(k, "environment.")
 		if found {
 			err = lxcSetConfigItem(cc, "lxc.environment", environmentKey+"="+v)
