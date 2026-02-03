@@ -30,8 +30,8 @@ func (c *cmdImport) command() *cobra.Command {
     Create a new instance using backup0.tar.gz as the source.`)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", "Storage pool name"+"``")
-	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, "New key/value to apply to a specific device"+"``")
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", cli.FormatStringFlagLabel("Storage pool name"))
+	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, cli.FormatStringFlagLabel("New key/value to apply to a specific device"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 		if len(args) > 1 {

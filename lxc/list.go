@@ -127,8 +127,8 @@ lxc list -c ns,user.comment:comment
   List instances with their running state and user comment.`)
 
 	cmd.RunE = c.run
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultColumns, "Columns"+"``")
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", "Format (csv|json|table|yaml|compact)"+"``")
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 	cmd.Flags().BoolVar(&c.flagFast, "fast", false, "Fast mode (same as --columns=nsacPt)")
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display instances from all projects")
 
