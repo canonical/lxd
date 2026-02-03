@@ -45,41 +45,26 @@ Name                                       | Default                   | Descrip
 
 ## Recommendations
 
-### `echo` context
+### `sub_test` usage
 
-Add `echo` to provide context during the test execution instead of using code comments.
-
-Bad:
-
-```sh
-test_vm() {
-  # Tiny VMs
-  lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
-  lxc start v1
-  lxc delete --force v1
-
-  # Ephemeral cleanup
-  lxc launch --vm --empty --ephemeral v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
-  lxc stop -f v1
-  [ "$(lxc list -f csv -c n || echo fail)" = "" ]
-}
-```
+Use `sub_test` to label meaningful phases within a test and make logs easier to scan.
+Prefer a small number of focused sub-tests over excessive nesting.
+Use `sub_test` before a logical group of commands that verifies a specific expected behavior for a bug fix or feature.
+Comments within the sub-test block are appropriate to explain why specific commands are used, any setup or initial configuration, and other intent that isn't obvious from the commands.
 
 Good:
 
 ```sh
-  echo "==> Tiny VMs"
-  lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
-  lxc start v1
-  lxc delete --force v1
-
-  echo "==> Ephemeral cleanup"
-  lxc launch --vm --empty --ephemeral v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
-  lxc stop -f v1
-  [ "$(lxc list -f csv -c n || echo fail)" = "" ]
+sub_test "Verify intended behavior X"
+...
+sub_test "Verify intended behavior Y"
+...
 ```
 
-This way, debug logs will be easier to read.
+### `echo` context
+
+Prefer `sub_test` labels and concise comments for context instead of adding `echo` statements.
+Use `echo` only when you need to debug flaky behavior.
 
 ### Expected failure
 

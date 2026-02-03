@@ -77,7 +77,6 @@ readonly test_group_instance=(
     "exec"
     "exec_exit_code"
     "lxd_benchmark_basic"
-    "vm_storage_volume_attach"
     "vm_empty"
     "vm_pcie_bus"
 )
@@ -236,6 +235,7 @@ readonly test_group_standalone_storage=(
     "storage_local_volume_handling"
     "storage_profiles"
     "storage_volume_attach"
+    "storage_volume_attach_vm"
     "storage_driver_btrfs"
     "storage_driver_ceph"
     "storage_driver_cephfs"
