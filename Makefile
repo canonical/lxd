@@ -232,6 +232,10 @@ check-gomin:
 		exit 1; \
 	fi
 
+.PHONY: update-copilot-instructions
+update-copilot-instructions:
+	@./scripts/update-copilot-instructions.sh
+
 .PHONY: update-gomin
 update-gomin:
 ifndef NEW_GOMIN
