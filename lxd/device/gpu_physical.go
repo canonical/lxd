@@ -188,6 +188,16 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 			return fmt.Errorf("Failed to parse minor number %q when starting CDI device: %w", conf["minor"], err)
 		}
 
+		uid := conf["uid"]
+		if uid != "" {
+			d.config["uid"] = uid
+		}
+
+		gid := conf["gid"]
+		if gid != "" {
+			d.config["gid"] = gid
+		}
+
 		// Here putting a `cdi.CDIUnixPrefix` prefix with 'd.name' as a device name will create an directory entry like:
 		// <lxd_var_path>/devices/<instance_name>/<cdi.CDIUnixPrefix>.<gpu_device_name>.<path_encoded_relative_dest_path>
 		// 'unixDeviceSetupCharNum' is already checking for dupe entries so we have no validation to do here.

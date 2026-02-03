@@ -47,6 +47,14 @@ func specDevToInstanceDev(configDevices *ConfigDevices, d specs.DeviceNode) erro
 		"minor":  strconv.FormatInt(d.Minor, 10),
 	}
 
+	if d.UID != nil {
+		instanceDev["uid"] = strconv.FormatUint(uint64(*d.UID), 10)
+	}
+
+	if d.GID != nil {
+		instanceDev["gid"] = strconv.FormatUint(uint64(*d.GID), 10)
+	}
+
 	configDevices.UnixCharDevs = append(configDevices.UnixCharDevs, instanceDev)
 	return nil
 }

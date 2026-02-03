@@ -148,4 +148,143 @@ func TestGenerateFromCDI(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "mock error")
 	})
+
+	t.Run("Device with UID and GID", func(t *testing.T) {
+		uid := uint32(1000)
+		gid := uint32(44)
+		generateSpec = func(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+			return &specs.Spec{
+				Version: "0.5.0",
+				Kind:    "nvidia.com/gpu",
+				Devices: []specs.Device{
+					{
+						Name: "gpu0",
+						ContainerEdits: specs.ContainerEdits{
+							DeviceNodes: []*specs.DeviceNode{
+								{
+									Path:     "/dev/dri/card0",
+									HostPath: hostDevicePath,
+									Major:    226,
+									Minor:    1,
+									UID:      &uid,
+									GID:      &gid,
+								},
+							},
+						},
+					},
+				},
+			}, nil
+		}
+
+		inst := &mockInstance{rootfsPath: "/tmp/rootfs"}
+		cdiID := ID{Vendor: NVIDIA, Class: GPU, Name: "gpu0"}
+
+		config, _, err := GenerateFromCDI(false, inst, cdiID)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+
+		// Check that UID and GID are properly set
+		assert.Len(t, config.UnixCharDevs, 1)
+		assert.Equal(t, "/dev/dri/card0", config.UnixCharDevs[0]["path"])
+		assert.Equal(t, "226", config.UnixCharDevs[0]["major"])
+		assert.Equal(t, "1", config.UnixCharDevs[0]["minor"])
+		assert.Equal(t, "1000", config.UnixCharDevs[0]["uid"])
+		assert.Equal(t, "44", config.UnixCharDevs[0]["gid"])
+	})
+
+	t.Run("Device without UID and GID", func(t *testing.T) {
+		generateSpec = func(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+			return &specs.Spec{
+				Version: "0.5.0",
+				Kind:    "amd.com/gpu",
+				Devices: []specs.Device{
+					{
+						Name: "gpu0",
+						ContainerEdits: specs.ContainerEdits{
+							DeviceNodes: []*specs.DeviceNode{
+								{
+									Path:     "/dev/kfd",
+									HostPath: hostDevicePath,
+									Major:    509,
+									Minor:    1,
+									// No UID or GID set
+								},
+							},
+						},
+					},
+				},
+			}, nil
+		}
+
+		inst := &mockInstance{rootfsPath: "/tmp/rootfs"}
+		cdiID := ID{Vendor: NVIDIA, Class: GPU, Name: "gpu0"}
+
+		config, _, err := GenerateFromCDI(false, inst, cdiID)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+
+		// Check that device is created without UID/GID fields
+		assert.Len(t, config.UnixCharDevs, 1)
+		assert.Equal(t, "/dev/kfd", config.UnixCharDevs[0]["path"])
+		assert.NotContains(t, config.UnixCharDevs[0], "uid")
+		assert.NotContains(t, config.UnixCharDevs[0], "gid")
+		assert.Equal(t, "509", config.UnixCharDevs[0]["major"])
+		assert.Equal(t, "1", config.UnixCharDevs[0]["minor"])
+	})
+
+	t.Run("Multiple Devices with Mixed UID/GID", func(t *testing.T) {
+		uid1 := uint32(1000)
+		gid1 := uint32(44)
+		// Second device has no UID/GID
+		generateSpec = func(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+			return &specs.Spec{
+				Version: "0.5.0",
+				Kind:    "nvidia.com/gpu",
+				Devices: []specs.Device{
+					{
+						Name: "all",
+						ContainerEdits: specs.ContainerEdits{
+							DeviceNodes: []*specs.DeviceNode{
+								{
+									Path:     "/dev/dri/card0",
+									HostPath: hostDevicePath,
+									Major:    226,
+									Minor:    0,
+									UID:      &uid1,
+									GID:      &gid1,
+								},
+								{
+									Path:     "/dev/dri/renderD128",
+									HostPath: hostDevicePath,
+									Major:    226,
+									Minor:    128,
+									// No UID/GID
+								},
+							},
+						},
+					},
+				},
+			}, nil
+		}
+
+		inst := &mockInstance{rootfsPath: "/tmp/rootfs"}
+		cdiID := ID{Vendor: NVIDIA, Class: GPU, Name: "all"}
+
+		config, _, err := GenerateFromCDI(false, inst, cdiID)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+
+		// Check that we have two devices
+		assert.Len(t, config.UnixCharDevs, 2)
+
+		// First device should have UID/GID
+		assert.Equal(t, "/dev/dri/card0", config.UnixCharDevs[0]["path"])
+		assert.Equal(t, "1000", config.UnixCharDevs[0]["uid"])
+		assert.Equal(t, "44", config.UnixCharDevs[0]["gid"])
+
+		// Second device should not have UID/GID
+		assert.Equal(t, "/dev/dri/renderD128", config.UnixCharDevs[1]["path"])
+		assert.NotContains(t, config.UnixCharDevs[1], "uid")
+		assert.NotContains(t, config.UnixCharDevs[1], "gid")
+	})
 }
