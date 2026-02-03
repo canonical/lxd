@@ -256,6 +256,7 @@ test_clustering_membership() {
   # Unset join_token_expiry which will set it to the default value of 3h
   LXD_DIR="${LXD_ONE_DIR}" lxc config unset cluster.join_token_expiry
 
+  # shellcheck disable=SC2153
   LXD_DIR="${LXD_NINE_DIR}" lxd shutdown
   LXD_DIR="${LXD_EIGHT_DIR}" lxd shutdown
   LXD_DIR="${LXD_SIX_DIR}" lxd shutdown
