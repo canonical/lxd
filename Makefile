@@ -215,7 +215,10 @@ tics: deps
 
 .PHONY: check-gomin
 check-gomin:
-	go mod tidy -go=$(GOMIN)
+	@if ! grep -qxF "go $(GOMIN)" go.mod; then \
+		echo "Error: go.mod Go version is not $(GOMIN)"; \
+		exit 1; \
+	fi
 	@echo "Check the doc mentions the right Go minimum version"
 	$(eval DOC_GOMIN := $(shell sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md))
 	if [ "$(DOC_GOMIN)" != "$(GOMIN)" ]; then \
@@ -252,12 +255,7 @@ endif
 	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md .github/copilot-instructions.md
 
 	@echo "Go minimum version updated to $(NEW_GOMIN)"
-	if [ -t 0 ]; then \
-		read -rp "Would you like to commit Go version changes (Y/n)? " answer; \
-		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "go: Update Go minimum version to $(NEW_GOMIN)" -- Makefile go.mod doc/requirements.md .github/copilot-instructions.md; \
-		fi; \
-	fi
+	@./scripts/check-and-commit.sh "Makefile go.mod doc/requirements.md .github/copilot-instructions.md" "go: Update Go minimum version to $(NEW_GOMIN)"
 
 .PHONY: update-gomod
 update-gomod:
@@ -275,18 +273,14 @@ endif
 	go get tags.cncf.io/container-device-interface/specs-go@v1.0.0 # Due to compilation issue
 
 	# Enforce minimum go version
+	go mod tidy -go=$(GOMIN)
 	$(MAKE) check-gomin
 
 	# Use the bundled toolchain that meets the minimum go version
 	go get toolchain@none
 
 	@echo "Dependencies updated"
-	if [ -t 0 ] && ! git diff --quiet -- ./go.mod ./go.sum; then \
-		read -rp "Would you like to commit gomod changes (Y/n)? " answer; \
-		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "go: Update dependencies" -- ./go.mod ./go.sum; \
-		fi; \
-	fi
+	@./scripts/check-and-commit.sh "go.mod go.sum" "go: Update dependencies"
 
 
 .PHONY: update-protobuf
@@ -297,9 +291,17 @@ update-protobuf:
 update-schema:
 	@# XXX: `go install ...@latest` is almost a noop if already up to date
 	go install golang.org/x/tools/cmd/goimports@latest
-	go build -C lxd/db/generate -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG)
+	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
+	go build -C lxd/db/generate -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(COVER) $(DEBUG)
 	go generate ./...
 	@echo "Code generation completed"
+
+.PHONY: check-schema
+check-schema: update-schema
+	@FILES="$$(git diff --name-only | grep '\.mapper\.go$$' || true)"; \
+	if [ -n "$$FILES" ]; then \
+		./scripts/check-and-commit.sh "$$FILES" "lxd: Update generated code"; \
+	fi
 
 .PHONY: update-api
 update-api:
@@ -309,23 +311,20 @@ endif
 	@# Generate spec and exclude package from dependency which causes a 'classifier: unknown swagger annotation "extendee"' error.
 	@# For more details see: https://github.com/go-swagger/go-swagger/issues/2917.
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m -x github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2/options
-	if [ -t 0 ] && ! git diff --quiet -- ./doc/rest-api.yaml; then \
-		read -rp "Would you like to commit swagger YAML changes (Y/n)? " answer; \
-		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "doc/rest-api: Refresh swagger YAML" -- ./doc/rest-api.yaml; \
-		fi; \
-	fi
+
+.PHONY: check-api
+check-api: update-api
+	@./scripts/check-and-commit.sh "doc/rest-api.yaml" "doc/rest-api: Refresh swagger YAML"
 
 .PHONY: update-metadata
 update-metadata: lxd-metadata
 	@echo "Generating golang documentation metadata"
-	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml
-	if [ -t 0 ] && ! git diff --quiet -- ./lxd/metadata/configuration.json ./doc/metadata.txt; then \
-		read -rp "Would you like to commit metadata changes (Y/n)? " answer; \
-		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "doc: Update metadata" -- ./lxd/metadata/configuration.json ./doc/metadata.txt; \
-		fi; \
-	fi
+	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
+	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml 2>&1 | grep -vF ' Found lxddoc at ' || true
+
+.PHONY: check-metadata
+check-metadata: update-metadata
+	@./scripts/check-and-commit.sh "lxd/metadata/configuration.json doc/metadata.txt" "doc: Update metadata"
 
 .PHONY: update-godeps
 update-godeps:
@@ -359,7 +358,7 @@ check: default check-gomin check-unit test-binaries
 
 .PHONY: check-unit
 check-unit:
-	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)")
+	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... $(COVER) $(COVER_TEST)
 
 .PHONY: dist
@@ -415,7 +414,7 @@ dist:
 	rm -Rf $(TMP)
 
 .PHONY: static-analysis
-static-analysis:
+static-analysis: check-api check-auth check-metadata
 ifeq "$(LXD_OFFLINE)" ""
 	@# XXX: `go install ...@latest` is almost a noop if already up to date
 	go install github.com/google/go-licenses@latest
@@ -452,12 +451,10 @@ endif
 .PHONY: update-auth
 update-auth:
 	go generate ./lxd/auth
-	if [ -t 0 ] && ! git diff --quiet -- ./lxd/auth/; then \
-		read -rp "Would you like to commit auth changes (Y/n)? " answer; \
-		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/; \
-		fi; \
-	fi
+
+.PHONY: check-auth
+check-auth: update-auth
+	@./scripts/check-and-commit.sh "lxd/auth/entitlements_generated.go lxd/auth/drivers/openfga_model.openfga" "lxd/auth: Update auth"
 
 .PHONY: update-fmt
 update-fmt:

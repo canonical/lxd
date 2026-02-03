@@ -397,7 +397,7 @@ events_filtering() {
 
   # Create an image via unix socket, then kill the monitor process.
   lxc profile create p1
-  kill -9 "${monitor_pid}" || true
+  kill_go_proc "${monitor_pid}" || true
 
   # The file should be empty.
   [ "$(cat "${monfile}" || echo fail)" = "" ]
@@ -415,7 +415,7 @@ events_filtering() {
 
   # Create a profile via unix socket, then kill the monitor process.
   lxc profile create p1
-  kill -9 "${monitor_pid}" || true
+  kill_go_proc "${monitor_pid}" || true
 
   # The file should contain a single "profile-created" lifecycle event because the identity that is monitoring
   # has can_view_events, but is not the same caller that started the operation.
@@ -434,7 +434,7 @@ events_filtering() {
 
   # Create a profile via the fine-grained identity, without view permissions.
   lxc profile create tls:p1
-  kill -9 "${monitor_pid}" || true
+  kill_go_proc "${monitor_pid}" || true
 
   # The file should contain the lifecycle event, because the identity that is monitoring is the same identity that
   # created the profile.

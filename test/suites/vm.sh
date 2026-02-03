@@ -116,7 +116,11 @@ test_vm_pcie_bus() {
   lxc config device add v1 mydir disk source=v1dir pool="${pool}" path=/mnt
   [ "$(lxc config get v1 volatile.mydir.bus)" = "7" ]
   waitInstanceReady v1
+  setup_instance_gocoverage v1
   lxc exec v1 -- findmnt /mnt -t virtiofs # Check dir is mounted after boot when immediately hot plugged after starting.
+
+  # Coverage data requires clean lxd-agent stop
+  prepare_vm_for_hard_stop v1
   lxc restart -f v1 # Check directory share survive a restart.
   waitInstanceReady v1
   lxc exec v1 -- findmnt /mnt -t virtiofs # Check directory is mounted after boot when added before starting.
@@ -132,6 +136,8 @@ test_vm_pcie_bus() {
   lxc exec v1 -- mount -t virtiofs config /mnt
   ! lxc exec v1 -- touch /mnt/foo || false
 
+  # Coverage data requires clean lxd-agent stop
+  prepare_vm_for_hard_stop v1
   lxc delete --force v1
 
   _secureboot_csm_boot

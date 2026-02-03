@@ -20,8 +20,8 @@ fi
 # Create LXD_LOGS if needed
 [ -n "${LXD_LOGS:-}" ] && mkdir -p "${LXD_LOGS}"
 
-# Create GOCOVERDIR if needed
-[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}"
+# Create GOCOVERDIR if needed and make it world-writable
+[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}" && chmod 0777 "${GOCOVERDIR}"
 
 # === export needed environment variables with defaults === #
 # OVN

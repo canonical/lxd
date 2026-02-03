@@ -251,7 +251,7 @@ kill_lxd() {
         done < <(echo .tables | sqlite3 "${LXD_DIR}/local.db")
 
         # Kill the daemon
-        timeout -k 30 30 lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
+        timeout -k 30 30 lxd shutdown || kill_go_proc "${LXD_PID}" 2>/dev/null || true
 
         check_leftovers="true"
     fi
@@ -341,7 +341,7 @@ shutdown_lxd() {
     echo "==> Shutting down LXD at ${LXD_DIR} (${LXD_PID})"
 
     # Shutting down the daemon
-    lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
+    lxd shutdown || kill_go_proc "${LXD_PID}" 2>/dev/null || true
 
     # Wait for any cleanup activity that might be happening right
     # after the websocket is closed.
@@ -417,10 +417,7 @@ cleanup_lxds() {
     fi
 
     # Cleanup leftover networks
-    # shellcheck disable=SC2009
-    ps aux | grep "interface=lxdt$$ " | grep -v grep | awk '{print $2}' | while read -r line; do
-        kill -9 "${line}"
-    done
+    pkill -9 -f " --interface=lxdt$$ "  # dnsmasq process
     if [ -e "/sys/class/net/lxdt$$" ]; then
         ip link del lxdt$$
     fi
@@ -492,59 +489,108 @@ coverage_enabled() {
   [ -n "${GOCOVERDIR:-}" ]
 }
 
-# Setup LXD agent to collect Go coverage data inside instances.
-# If coverage is not enabled, this is a no-op.
-setup_lxd_agent_gocoverage() {
+# Kills a Go process, using start-stop-daemon if coverage is enabled or kill -9 otherwise.
+# When coverage is enabled, use start-stop-daemon to allow it to write out coverage data.
+# https://go.dev/doc/build-cover#panicprof:
+# > Programs built with go build -cover will only write out complete profile data
+# > at the end of execution if the program invokes os.Exit() or returns normally
+# > from main.main. If a program terminates in an unrecovered panic, or if the
+# > program hits a fatal exception (such as a segmentation violation, divide by
+# > zero, etc), profile data from statements executed during the run will be lost.
+kill_go_proc() {
+  local pid="${1}"
+  if coverage_enabled; then
+    # Send TERM, wait 1 second, then KILL.
+    start-stop-daemon --stop --retry=TERM/1/KILL --pid "${pid}"
+  else
+    kill -9 "${pid}"
+  fi
+}
+
+
+# If Go coverage is enabled, prepare the lxd-agent inside the instance for hard stop.
+# This is a no-op if coverage is not enabled.
+prepare_vm_for_hard_stop() {
   coverage_enabled || return 0
 
   local instance="${1}"
-  echo "==> Setting up LXD agent coverage gathering inside the ${instance} VM"
+  local project="${2:-}"
+
+  # The lxd-agent is only relevant for VMs.
+  if [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" != "VIRTUAL-MACHINE" ]; then
+    return 0
+  fi
+
+  lxc exec "${instance}" --project "${project}" -- systemctl stop --no-block lxd-agent.service || true
+}
+
+# Setup instance to collect coverage data from running Go binaries from inside the instance.
+# If coverage is not enabled, this is a no-op.
+# If the instance is a VM, the lxd-agent will be instrumented too.
+# Note: incompatible with `migration.stateful=true` instances.
+setup_instance_gocoverage() {
+  coverage_enabled || return 0
+
+  local instance="${1}"
+  local project="${2:-}"
+
+  echo "==> Setting up Go coverage gathering inside the ${instance} (${project:-"-"}) instance"
 
   # Mount the host's GOCOVERDIR into the instance.
-  lxc config device add "${instance}" gocoverdir disk source="${GOCOVERDIR}" path="${GOCOVERDIR}"
+  lxc config device add "${instance}" gocoverdir disk source="${GOCOVERDIR}" path="${GOCOVERDIR}" --project "${project}"
 
-  # The GOCOVERDIR variable is set for use by test binaries like devlxd-client.
-  lxc config set "${instance}" environment.GOCOVERDIR="${GOCOVERDIR}"
+  # The GOCOVERDIR variable is set for use by test binaries.
+  lxc config set "${instance}" environment.GOCOVERDIR="${GOCOVERDIR}" --project "${project}"
+
+  # The lxd-agent is only relevant for VMs.
+  if [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" != "VIRTUAL-MACHINE" ]; then
+    return 0
+  fi
 
   # The GOCOVERDIR variable is passed to lxd-agent via a systemd drop-in.
-  lxc file push --quiet --create-dirs - "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf << EOF
+  lxc file push --quiet --create-dirs --project "${project}" - "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf << EOF
 [Service]
 Environment="GOCOVERDIR=${GOCOVERDIR}"
 EOF
-  lxc exec "${instance}" -- systemctl daemon-reload
+  lxc exec "${instance}" --project "${project}" -- systemctl daemon-reload
 
   # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
   # so a failure is possible and harmless.
-  lxc exec "${instance}" -- systemctl restart --no-block lxd-agent.service || true
+  lxc exec "${instance}" --project "${project}" -- systemctl restart --no-block lxd-agent.service || true
 
   # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
-  waitInstanceReady "${instance}"
+  waitInstanceReady "${instance}" "${project}"
 
   # Give lxd-agent a moment to start up properly.
   sleep 1
 }
 
-# Teardown LXD agent Go coverage setup.
+# Teardown instance Go coverage gathering.
 # If coverage is not enabled, this is a no-op.
-teardown_lxd_agent_gocoverage() {
+teardown_instance_gocoverage() {
   coverage_enabled || return 0
 
   local instance="${1}"
-  echo "==> Tearing down LXD agent coverage gathering inside the ${instance} VM"
+  local project="${2:-}"
 
-  lxc file delete "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf
-  lxc exec "${instance}" -- systemctl daemon-reload
+  echo "==> Tearing down Go coverage gathering inside the ${instance} (${project:-"-"}) instance"
 
-  # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
-  # so expect failure.
-  ! lxc exec "${instance}" -- systemctl restart lxd-agent.service || false
+  # The lxd-agent is only relevant for VMs.
+  if [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" = "VIRTUAL-MACHINE" ]; then
+    lxc file delete "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf --project "${project}"
+    lxc exec "${instance}" --project "${project}" -- systemctl daemon-reload
+
+    # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
+    # so expect failure.
+    ! lxc exec "${instance}" --project "${project}" -- systemctl restart lxd-agent.service || false
+
+    # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
+    waitInstanceReady "${instance}" "${project}"
+  fi
 
   # Unset the GOCOVERDIR environment variable.
-  lxc config unset "${instance}" environment.GOCOVERDIR
-
-  # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
-  waitInstanceReady "${instance}"
+  lxc config unset "${instance}" environment.GOCOVERDIR --project "${project}"
 
   # Remove the shared dir.
-  lxc config device remove "${instance}" gocoverdir
+  lxc config device remove "${instance}" gocoverdir --project "${project}"
 }
