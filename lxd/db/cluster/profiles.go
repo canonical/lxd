@@ -5,6 +5,8 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/canonical/lxd/shared/api"
 )
@@ -116,4 +118,69 @@ func GetProfilesIfEnabled(ctx context.Context, tx *sql.Tx, projectName string, n
 	}
 
 	return profiles, nil
+}
+
+// GetProfileIDsByProjectAndName finds profile IDs matching specific names within
+// a specific list of projects.
+func GetProfileIDsByProjectAndName(ctx context.Context, tx *sql.Tx, projectNames []string, profileNames []string) ([]int64, error) {
+	if len(projectNames) == 0 || len(profileNames) == 0 {
+		return []int64{}, nil
+	}
+
+	args := make([]any, 0, len(projectNames)+len(profileNames))
+	var stmt strings.Builder
+
+	stmt.WriteString("SELECT profiles.id FROM profiles ")
+	stmt.WriteString("JOIN projects ON profiles.project_id = projects.id ")
+	stmt.WriteString("WHERE projects.name IN (")
+
+	// Add project name placeholders.
+	for i, projectName := range projectNames {
+		if i > 0 {
+			stmt.WriteString(",")
+		}
+
+		stmt.WriteString("?")
+		args = append(args, projectName)
+	}
+
+	stmt.WriteString(") AND profiles.name IN (")
+
+	// Add profile name placeholders.
+	for i, profileName := range profileNames {
+		if i > 0 {
+			stmt.WriteString(",")
+		}
+
+		stmt.WriteString("?")
+		args = append(args, profileName)
+	}
+
+	stmt.WriteString(")")
+
+	rows, err := tx.QueryContext(ctx, stmt.String(), args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed fetching profile IDs: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	profileIDs := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+
+		err := rows.Scan(&id)
+		if err != nil {
+			return nil, fmt.Errorf("Failed scanning profile ID: %w", err)
+		}
+
+		profileIDs = append(profileIDs, id)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return profileIDs, nil
 }
