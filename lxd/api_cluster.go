@@ -363,7 +363,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	}
 
 	// Add the cluster flag from the agent
-	version.UserAgentFeatures([]string{"cluster"})
+	_ = version.UserAgentFeatures([]string{"cluster"})
 
 	return operations.OperationResponse(op)
 }
@@ -663,7 +663,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Add the cluster flag from the agent
-		version.UserAgentFeatures([]string{"cluster"})
+		_ = version.UserAgentFeatures([]string{"cluster"})
 
 		// Notify the leader of successful join, possibly triggering
 		// role changes.
