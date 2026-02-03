@@ -1228,7 +1228,7 @@ func (d *Daemon) init() error {
 
 	// Setup the user-agent.
 	if d.serverClustered {
-		version.UserAgentFeatures([]string{"cluster"})
+		_ = version.UserAgentFeatures([]string{"cluster"})
 	}
 
 	// Load server name and config before patches run (so they can access them from d.State()).
