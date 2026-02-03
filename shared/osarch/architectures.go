@@ -3,6 +3,7 @@ package osarch
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 const (
@@ -111,6 +112,12 @@ func ArchitectureName(arch int) (string, error) {
 
 // ArchitectureId returns the architecture ID for a given architecture name or alias.
 func ArchitectureId(arch string) (int, error) { //nolint:revive
+	// Handle duplicate architectures from broken metadata (e.g. "x86_64 x86_64")
+	archFields := strings.Fields(arch)
+	if len(archFields) > 0 {
+		arch = archFields[0]
+	}
+
 	for id, name := range architectureNames {
 		if name == arch {
 			return id, nil
