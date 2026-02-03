@@ -5568,15 +5568,20 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 		containerMeta["privileged"] = "false"
 	}
 
-	// Setup security check.
-	rootfsPath, err := os.OpenFile(d.RootfsPath(), unix.O_PATH, 0)
-	if err != nil {
-		return fmt.Errorf("Failed opening instance rootfs path: %w", err)
-	}
-
-	defer func() { _ = rootfsPath.Close() }()
-
+	// Setup security checks.
 	checkBeneath := func(targetPath string) error {
+		rootfsPath, err := os.OpenFile(d.RootfsPath(), unix.O_PATH, 0)
+		if err != nil {
+			return fmt.Errorf("Failed opening instance rootfs path: %w", err)
+		}
+
+		defer func() {
+			err := rootfsPath.Close()
+			if err != nil {
+				d.logger.Warn("Failed closing instance rootfs path", logger.Ctx{"err": err})
+			}
+		}()
+
 		fd, err := unix.Openat2(int(rootfsPath.Fd()), targetPath, &unix.OpenHow{
 			Flags:   unix.O_PATH | unix.O_CLOEXEC,
 			Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_MAGICLINKS,
@@ -5589,7 +5594,42 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			return nil
 		}
 
-		_ = unix.Close(fd)
+		err = unix.Close(fd)
+		if err != nil {
+			return fmt.Errorf("Failed closing file descriptor of %q: %w", targetPath, err)
+		}
+
+		return nil
+	}
+
+	securityChecks := func(path string, templateFile string) error {
+		// Ensure the path is within the container rootfs.
+		err = checkBeneath(path)
+		if err != nil {
+			return err
+		}
+
+		if filepath.Base(templateFile) != templateFile {
+			return errors.New("Template path is attempting to read outside of template directory")
+		}
+
+		tplDirStat, err := os.Lstat(d.TemplatesPath())
+		if err != nil {
+			return fmt.Errorf("Could not access template directory: %w", err)
+		}
+
+		if !tplDirStat.IsDir() {
+			return errors.New("Template directory is not a regular directory")
+		}
+
+		tplFileStat, err := os.Lstat(filepath.Join(d.TemplatesPath(), templateFile))
+		if err != nil {
+			return fmt.Errorf("Could not access template file: %w", err)
+		}
+
+		if tplFileStat.Mode()&os.ModeSymlink == os.ModeSymlink {
+			return errors.New("Template file is a symlink")
+		}
 
 		return nil
 	}
@@ -5606,34 +5646,12 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 				return nil
 			}
 
-			// Perform some security checks.
 			relPath := strings.TrimLeft(tplPath, "/")
 
-			err = checkBeneath(relPath)
+			// Perform some security checks.
+			err = securityChecks(relPath, tpl.Template)
 			if err != nil {
-				return err
-			}
-
-			if filepath.Base(tpl.Template) != tpl.Template {
-				return errors.New("Template path is attempting to read outside of template directory")
-			}
-
-			tplDirStat, err := os.Lstat(d.TemplatesPath())
-			if err != nil {
-				return fmt.Errorf("Could not access template directory: %w", err)
-			}
-
-			if !tplDirStat.IsDir() {
-				return errors.New("Template directory is not a regular directory")
-			}
-
-			tplFileStat, err := os.Lstat(filepath.Join(d.TemplatesPath(), tpl.Template))
-			if err != nil {
-				return fmt.Errorf("Could not access template file: %w", err)
-			}
-
-			if tplFileStat.Mode()&os.ModeSymlink == os.ModeSymlink {
-				return errors.New("Template file is a symlink")
+				return fmt.Errorf("Template security check failed for %q: %w", tplPath, err)
 			}
 
 			// Open the file to template, create if needed
