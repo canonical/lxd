@@ -2876,6 +2876,7 @@ Endpoints converted to asynchronous behavior:
 * `PUT /1.0/profiles/{name}` - Update profile
 * `PATCH /1.0/profiles/{name}` - Patch profile
 
+(extension-storage-source-recover)=
 ## `storage_source_recover`
 
 As part of the recovery process it might be necessary to recover existing storage pools previously created by LXD.
@@ -2885,6 +2886,7 @@ The new pool `source.recover` configuration key can be set per cluster member to
 What it does not allow is reusing the same source for multiple storage pools.
 The LVM storage driver has the specific `lvm.vg.force_reuse` configuration key for this purpose.
 
+(extension-instance-force-delete)=
 ## `instance_force_delete`
 
 This adds support for a `force` query parameter to the `DELETE /1.0/instances/{name}` endpoint. When set, running instances will be forcibly stopped before deletion.
