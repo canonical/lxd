@@ -3,6 +3,7 @@ package ubuntupro
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -256,6 +257,39 @@ func TestClient(t *testing.T) {
 	sleep()
 	assert.Equal(t, guestAttachSettingOff, s.guestAttachSetting)
 	runAssertions(assertionsWhenHostHasGuestAttachmentOff)
+
+	t.Run("UserAgent does not add pro feature when unsupported OS", func(t *testing.T) {
+		_ = New(context.Background(), "Debian")
+		assert.NotContains(t, version.UserAgent, "pro")
+	})
+
+	t.Run("UserAgent does not add pro feature when not attached", func(t *testing.T) {
+		mockProCLI := proCLIMock{
+			mockAttached: false,
+		}
+
+		s := &Client{}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		s.init(ctx, tmpDir, mockProCLI)
+
+		assert.NotContains(t, version.UserAgent, "pro")
+	})
+
+	t.Run("UserAgent does not add pro feature when error checking status", func(t *testing.T) {
+		mockProCLI := proCLIMock{
+			mockErr: errors.New("Foo"),
+		}
+
+		s := &Client{}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		s.init(ctx, tmpDir, mockProCLI)
+
+		assert.NotContains(t, version.UserAgent, "pro")
+	})
 
 	t.Run("UserAgent adds pro feature when attached", func(t *testing.T) {
 		mockProCLI := proCLIMock{
