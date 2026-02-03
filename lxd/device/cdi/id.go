@@ -9,9 +9,6 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-// All represents a selection of all devices generated out of a CDI specification.
-var All = "all"
-
 // Vendor represents the compatible CDI vendor.
 type Vendor string
 
