@@ -9,6 +9,7 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd-benchmark/benchmark"
 	"github.com/canonical/lxd/shared"
+	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -110,10 +111,10 @@ func main() {
 	app.PersistentPostRunE = globalCmd.Teardown
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, "Print help")
-	app.PersistentFlags().IntVarP(&globalCmd.flagParallel, "parallel", "P", -1, "Number of threads to use"+"``")
-	app.PersistentFlags().StringVar(&globalCmd.flagReportFile, "report-file", "", "Path to the CSV report file"+"``")
-	app.PersistentFlags().StringVar(&globalCmd.flagReportLabel, "report-label", "", "Label for the new entry in the report [default=ACTION]"+"``")
-	app.PersistentFlags().StringVar(&globalCmd.flagProject, "project", "default", "Project to use")
+	app.PersistentFlags().IntVarP(&globalCmd.flagParallel, "parallel", "P", -1, "Number of threads to use")
+	app.PersistentFlags().StringVar(&globalCmd.flagReportFile, "report-file", "", cli.FormatStringFlagLabel("Path to the CSV report file"))
+	app.PersistentFlags().StringVar(&globalCmd.flagReportLabel, "report-label", "", cli.FormatStringFlagLabel("Label for the new entry in the report [default=ACTION]"))
+	app.PersistentFlags().StringVar(&globalCmd.flagProject, "project", "default", cli.FormatStringFlagLabel("Project to use"))
 
 	// Version handling
 	app.SetVersionTemplate("{{.Version}}\n")
