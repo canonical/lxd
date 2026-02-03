@@ -1579,15 +1579,6 @@ func (d *Daemon) init() error {
 		logger.Warn("Could not notify all nodes of database upgrade", logger.Ctx{"err": err})
 	}
 
-	// Setup the user-agent.
-	if d.serverClustered {
-		features := []string{"cluster"}
-		err = version.UserAgentFeatures(features)
-		if err != nil {
-			logger.Warn("Failed to configure LXD user agent", logger.Ctx{"err": err, "features": features})
-		}
-	}
-
 	// Apply all patches that need to be run before the cluster config gets loaded.
 	err = patchesApply(d, patchPreLoadClusterConfig)
 	if err != nil {
@@ -1630,6 +1621,28 @@ func (d *Daemon) init() error {
 	})
 	if err != nil {
 		return err
+	}
+
+	// Setup the user-agent.
+	userAgentFeatures := []string{}
+	if d.serverClustered {
+		userAgentFeatures = append(userAgentFeatures, "cluster")
+
+		// A clustered LXD might be part of a MicroCloud.
+		d.globalConfigMu.Lock()
+		userMicrocloud := d.globalConfig.UserMicrocloud()
+		d.globalConfigMu.Unlock()
+
+		if userMicrocloud {
+			userAgentFeatures = append(userAgentFeatures, "microcloud")
+		}
+	}
+
+	if len(userAgentFeatures) > 0 {
+		err = version.UserAgentFeatures(userAgentFeatures)
+		if err != nil {
+			logger.Warn("Failed to configure LXD user agent", logger.Ctx{"err": err, "features": userAgentFeatures})
+		}
 	}
 
 	d.events.SetLocalLocation(d.serverName)
@@ -2001,11 +2014,13 @@ func (d *Daemon) init() error {
 		d.tasks.Add(autoRemoveExpiredTokensTask(d.State))
 	}
 
-	// Start all background tasks
-	d.tasks.Start(d.shutdownCtx)
-
 	// Load Ubuntu Pro configuration before starting any instances.
+	// Also add the Ubuntu Pro attachment status to the user agent.
 	d.ubuntuPro = ubuntupro.New(d.shutdownCtx, d.os.ReleaseInfo["NAME"])
+
+	// Start all background tasks.
+	// Some background tasks might do HTTP requests which are best done once the user agent is fully configured.
+	d.tasks.Start(d.shutdownCtx)
 
 	// Restore instances
 	instancesStart(d.State(), instances)
