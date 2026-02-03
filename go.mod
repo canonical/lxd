@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.25.5
+go 1.25.6
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.18.1
@@ -13,7 +13,7 @@ require (
 	github.com/go-acme/lego/v4 v4.31.0
 	github.com/go-chi/chi/v5 v5.2.4
 	github.com/go-jose/go-jose/v4 v4.1.3
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -38,7 +38,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20260122181957-618e7e0a4878
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
-	github.com/openfga/openfga v1.11.2
+	github.com/openfga/openfga v1.11.3
 	github.com/osrg/gobgp/v3 v3.37.0
 	github.com/pkg/sftp v1.13.10
 	github.com/pkg/xattr v0.4.12
@@ -60,7 +60,7 @@ require (
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
+	k8s.io/utils v0.0.0-20260108192941-914a6e750570
 	tags.cncf.io/container-device-interface v1.1.0
 	tags.cncf.io/container-device-interface/specs-go v1.1.0
 )
@@ -73,11 +73,11 @@ require (
 	github.com/Yiling-J/theine-go v0.6.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bmatcuk/doublestar/v4 v4.9.2 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
-	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
+	github.com/clipperhouse/uax29/v2 v2.5.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-farm v0.0.0-20240924180020-3414d57e47da // indirect
@@ -90,12 +90,12 @@ require (
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
-	github.com/google/cel-go v0.26.1 // indirect
+	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
+	github.com/google/cel-go v0.27.0 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.7 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -103,11 +103,11 @@ require (
 	github.com/juju/collections v1.0.4 // indirect
 	github.com/juju/errors v1.0.0 // indirect
 	github.com/juju/loggo v1.0.0 // indirect
-	github.com/juju/mgo/v2 v2.0.2 // indirect
+	github.com/juju/mgo/v2 v2.0.3 // indirect
 	github.com/juju/schema v1.2.0 // indirect
 	github.com/juju/version v0.0.0-20210303051006-2015802527a8 // indirect
 	github.com/k-sone/critbitgo v1.4.0 // indirect
-	github.com/klauspost/compress v1.18.2 // indirect
+	github.com/klauspost/compress v1.18.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
@@ -128,7 +128,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.67.4 // indirect
+	github.com/prometheus/common v0.67.5 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
@@ -139,7 +139,6 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spf13/viper v1.21.0 // indirect
-	github.com/stoewer/go-strcase v1.3.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tinylib/msgp v1.6.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
@@ -160,9 +159,9 @@ require (
 	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9 // indirect
 	golang.org/x/mod v0.32.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
-	gonum.org/v1/gonum v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
+	gonum.org/v1/gonum v0.17.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260128011058-8636f8732409 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260128011058-8636f8732409 // indirect
 	google.golang.org/grpc v1.78.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
