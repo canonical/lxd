@@ -19,6 +19,51 @@
 						}
 					}
 				]
+			},
+			"link-conf": {
+				"keys": [
+					{
+						"user.*": {
+							"longdesc": "User keys can be used in search.",
+							"shortdesc": "Free form user key/value storage",
+							"type": "string"
+						}
+					}
+				]
+			},
+			"link-volatile-conf": {
+				"keys": [
+					{
+						"volatile.addresses": {
+							"longdesc": "A comma-separated list of cluster link member addresses.",
+							"scope": "global",
+							"shortdesc": "Cluster link member addresses.",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"cluster-link": {
+			"properties": {
+				"keys": [
+					{
+						"description": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Description of the cluster link",
+							"type": "string"
+						}
+					},
+					{
+						"name": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "The name of the cluster link",
+							"type": "string"
+						}
+					}
+				]
 			}
 		},
 		"device-disk": {
@@ -7765,6 +7810,23 @@
 				}
 			]
 		},
+		"cluster_link": {
+			"project_specific": false,
+			"entitlements": [
+				{
+					"name": "can_view",
+					"description": "Grants permission to view the cluster link."
+				},
+				{
+					"name": "can_edit",
+					"description": "Grants permission to edit the cluster link."
+				},
+				{
+					"name": "can_delete",
+					"description": "Grants permission to delete the cluster link."
+				}
+			]
+		},
 		"group": {
 			"project_specific": false,
 			"entitlements": [
@@ -8242,7 +8304,7 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to update cluster member certificates, and to edit or delete warnings."
+					"description": "Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to update cluster member certificates, and to edit or delete warnings."
 				},
 				{
 					"name": "permission_manager",
@@ -8363,6 +8425,22 @@
 				{
 					"name": "can_view_unmanaged_networks",
 					"description": "Grants permission to view unmanaged networks on the LXD host machines."
+				},
+				{
+					"name": "can_create_cluster_links",
+					"description": "Grants permission to create cluster links."
+				},
+				{
+					"name": "can_view_cluster_links",
+					"description": "Grants permission to view cluster links."
+				},
+				{
+					"name": "can_edit_cluster_links",
+					"description": "Grants permission to edit cluster links."
+				},
+				{
+					"name": "can_delete_cluster_links",
+					"description": "Grants permission to delete cluster links."
 				}
 			]
 		},
