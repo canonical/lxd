@@ -251,3 +251,33 @@ func CephKeyring(cluster string, client string) (string, error) {
 
 	return cephSecret, nil
 }
+
+// cephCLIVersion returns the version of a given ceph CLI command.
+func cephCLIVersion(command string) (string, error) {
+	out, err := shared.RunCommandCLocale(command, "--version")
+	if err != nil {
+		return "", err
+	}
+
+	out = strings.TrimSpace(out)
+	fields := strings.Split(out, " ")
+	if strings.HasPrefix(out, "ceph version ") && len(fields) > 2 {
+		return fields[2], nil
+	}
+
+	if out == "" {
+		return "", fmt.Errorf("Empty %s version output", command)
+	}
+
+	return out, nil
+}
+
+// rbdVersion returns the RBD version.
+func rbdVersion() (string, error) {
+	return cephCLIVersion("rbd")
+}
+
+// radosgwVersion returns the radosgw-admin version.
+func radosgwVersion() (string, error) {
+	return cephCLIVersion("radosgw-admin")
+}
