@@ -17,7 +17,7 @@ if [ -t 0 ]; then
   if [ "${answer:-y}" = "y" ] || [ "${answer:-y}" = "Y" ]; then
     # Commit changes and exit
     # shellcheck disable=SC2086
-    exec git commit -Ssm "${MESSAGE}" -- ${FILES}
+    exec git commit -S -s -m "${MESSAGE}" -- ${FILES}
   fi
 fi
 
