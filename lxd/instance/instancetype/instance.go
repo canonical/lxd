@@ -1439,6 +1439,22 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 	}
 
+	// lxdmeta:generate(entities=instance; group=miscellaneous; key=environment.*)
+	// Extra environment variables to set on boot (for containers) and during exec.
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  shortdesc: Free-form environment key/value
+	if strings.HasPrefix(key, "environment.") {
+		return func(val string) error {
+			if strings.Contains(val, "\n") {
+				return errors.New("Environment variables cannot contain line breaks")
+			}
+
+			return nil
+		}, nil
+	}
+
 	if (instanceType == Any || instanceType == Container) && strings.HasPrefix(key, "linux.sysctl.") {
 		return validate.IsAny, nil
 	}
