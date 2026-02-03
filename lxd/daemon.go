@@ -1568,7 +1568,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	d.firewall = firewall.New()
+	d.firewall = firewall.New(d.os.KernelVersion)
 	logger.Info("Firewall loaded driver", logger.Ctx{"driver": d.firewall})
 
 	err = cluster.NotifyUpgradeCompleted(d.State(), networkCert, d.serverCert())
