@@ -115,6 +115,7 @@ var patches = []patch{
 	{name: "storage_unset_cephfs_pristine_setting", stage: patchPostDaemonStorage, run: patchUnsetCephFSPristineSetting},
 	{name: "update_volatile_attached_volumes_format", stage: patchPostDaemonStorage, run: patchUpdateVolatileAttachedVolumesFormat},
 	{name: "storage_unset_ceph_force_reuse_setting", stage: patchPostDaemonStorage, run: patchUnsetCephForceReuseSetting},
+	{name: "vm_rename_security_csm", stage: patchPostDaemonStorage, run: patchVMRenameSecurityCSM},
 }
 
 type patch struct {
@@ -2038,6 +2039,120 @@ func patchUnsetCephForceReuseSetting(_ string, d *Daemon) error {
 DELETE FROM storage_pools_config WHERE key = "ceph.osd.force_reuse"
 	`)
 	return err
+}
+
+// patchVMRenameSecurityCSM renames the security.csm key to boot.mode in VM instance, snapshot, and profile configs.
+// Converts security.csm=true to boot.mode=bios, and security.csm=false to boot.mode=uefi.
+func patchVMRenameSecurityCSM(name string, d *Daemon) error {
+	oldKey := "security.csm"
+	newKey := "boot.mode"
+
+	s := d.State()
+
+	return s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
+			if inst.Type != instancetype.VM {
+				return nil
+			}
+
+			csmValue := inst.Config[oldKey]
+			if csmValue != "" {
+				changes := map[string]string{
+					oldKey: "", // Remove old key
+				}
+
+				// Convert security.csm=true to boot.mode=bios, security.csm=false to boot.mode=uefi.
+				if shared.IsTrue(csmValue) {
+					changes[newKey] = "bios"
+					logger.Debugf("Converting config key %q=%q to %q=bios for VM %q (project %q)", oldKey, csmValue, newKey, inst.Name, inst.Project)
+				} else {
+					changes[newKey] = "uefi"
+					logger.Debugf("Converting config key %q=%q to %q=uefi for VM %q (project %q)", oldKey, csmValue, newKey, inst.Name, inst.Project)
+				}
+
+				err := tx.UpdateInstanceConfig(inst.ID, changes)
+				if err != nil {
+					return fmt.Errorf("Failed updating config for VM %q (project %q): %w", inst.Name, inst.Project, err)
+				}
+			}
+
+			snaps, err := tx.GetInstanceSnapshotsWithName(ctx, inst.Project, inst.Name)
+			if err != nil {
+				return err
+			}
+
+			for _, snap := range snaps {
+				config, err := dbCluster.GetInstanceSnapshotConfig(ctx, tx.Tx(), snap.ID)
+				if err != nil {
+					return err
+				}
+
+				csmValue := config[oldKey]
+				if csmValue != "" {
+					changes := map[string]string{
+						oldKey: "", // Remove old key
+					}
+
+					// Convert security.csm=true to boot.mode=bios, security.csm=false to boot.mode=uefi.
+					if shared.IsTrue(csmValue) {
+						changes[newKey] = "bios"
+						logger.Debugf("Converting config key %q=%q to %q=bios for VM snapshot %q (project %q)", oldKey, csmValue, newKey, snap.Name, snap.Project)
+					} else {
+						changes[newKey] = "uefi"
+						logger.Debugf("Converting config key %q=%q to %q=uefi for VM snapshot %q (project %q)", oldKey, csmValue, newKey, snap.Name, snap.Project)
+					}
+
+					err = tx.UpdateInstanceSnapshotConfig(snap.ID, changes)
+					if err != nil {
+						return fmt.Errorf("Failed updating config for VM snapshot %q (project %q): %w", snap.Name, snap.Project, err)
+					}
+				}
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+
+		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		for _, profile := range profiles {
+			config, err := dbCluster.GetProfileConfig(ctx, tx.Tx(), profile.ID)
+			if err != nil {
+				return err
+			}
+
+			csmValue := config[oldKey]
+			if csmValue == "" {
+				continue
+			}
+
+			changes := map[string]string{
+				oldKey: "", // Remove old key
+			}
+
+			// Convert security.csm=true to boot.mode=bios, security.csm=false to boot.mode=uefi.
+			if shared.IsTrue(csmValue) {
+				changes[newKey] = "bios"
+				logger.Debugf("Converting config key %q=%q to %q=bios for profile %q (project %q)", oldKey, csmValue, newKey, profile.Name, profile.Project)
+			} else {
+				changes[newKey] = "uefi"
+				logger.Debugf("Converting config key %q=%q to %q=uefi for profile %q (project %q)", oldKey, csmValue, newKey, profile.Name, profile.Project)
+			}
+
+			err = dbCluster.UpdateProfileConfig(ctx, tx.Tx(), int64(profile.ID), changes)
+			if err != nil {
+				return fmt.Errorf("Failed updating config for profile %q (project %q): %w", profile.Name, profile.Project, err)
+			}
+		}
+
+		return nil
+	})
 }
 
 // Patches end here
