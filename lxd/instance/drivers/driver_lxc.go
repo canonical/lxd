@@ -1277,7 +1277,7 @@ func (d *lxc) IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
 	var mode idmap.IdmapStorageType = idmap.IdmapStorageNone
 	bindMount := fstype == "none" || fstype == ""
 
-	if !d.state.OS.LXCFeatures["idmapped_mounts_v2"] || !d.state.OS.IdmappedMounts {
+	if !d.state.OS.IdmappedMounts {
 		return mode
 	}
 
