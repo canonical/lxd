@@ -1247,8 +1247,8 @@ func (d *Daemon) init() error {
 		logger.Info(" - seccomp listener continue syscalls: no")
 	}
 
-	if canUseSeccompListenerAddfd() && d.os.LXCFeatures["seccomp_proxy_send_notify_fd"] {
-		d.os.SeccompListenerAddfd = true
+	d.os.SeccompListenerAddfd = canUseSeccompListenerAddfd()
+	if d.os.SeccompListenerAddfd {
 		logger.Info(" - seccomp listener add file descriptors: yes")
 	} else {
 		logger.Info(" - seccomp listener add file descriptors: no")
