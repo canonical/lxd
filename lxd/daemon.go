@@ -1264,8 +1264,8 @@ func (d *Daemon) init() error {
 		logger.Info(" - attach to namespaces via pidfds: no")
 	}
 
-	if d.os.LXCFeatures["devpts_fd"] && canUseNativeTerminals() {
-		d.os.NativeTerminals = true
+	d.os.NativeTerminals = canUseNativeTerminals()
+	if d.os.NativeTerminals {
 		logger.Info(" - safe native terminal allocation: yes")
 	} else {
 		logger.Info(" - safe native terminal allocation: no")
