@@ -186,8 +186,6 @@ It requires the source to be an alias and for it to be public.`)
 }
 
 func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
-	conf := c.global.conf
-
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -234,23 +232,15 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	// Copy the image
 	var imgInfo *api.Image
 	var fp string
-	if conf.Remotes[remoteName].Protocol == "simplestreams" && !c.flagCopyAliases && len(c.flagAliases) == 0 {
-		// All simplestreams images are always public, so unless we
-		// need the aliases list too or the real fingerprint, we can skip the otherwise very expensive
-		// alias resolution and image info retrieval step.
-		imgInfo = &api.Image{}
-		imgInfo.Fingerprint = name
-		imgInfo.Public = true
-	} else {
-		// Resolve any alias and then grab the image information from the source
-		imgInfo, _, err = c.image.dereferenceAlias(sourceServer, imageType, name)
-		if err != nil {
-			return err
-		}
 
-		// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overridden)
-		fp = imgInfo.Fingerprint
+	// Resolve any alias and then grab the image information from the source
+	imgInfo, _, err = c.image.dereferenceAlias(sourceServer, imageType, name)
+	if err != nil {
+		return err
 	}
+
+	// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overridden)
+	fp = imgInfo.Fingerprint
 
 	if imgInfo.Public && imgInfo.Fingerprint != name && !strings.HasPrefix(imgInfo.Fingerprint, name) {
 		// If dealing with an alias, set the imgInfo fingerprint to match the provided alias (needed for auto-update)
