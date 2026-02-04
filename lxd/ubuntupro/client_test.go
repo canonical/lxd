@@ -269,8 +269,7 @@ func TestClient(t *testing.T) {
 		}
 
 		s := &Client{}
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 
 		s.init(ctx, tmpDir, mockProCLI)
 
@@ -283,8 +282,7 @@ func TestClient(t *testing.T) {
 		}
 
 		s := &Client{}
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 
 		s.init(ctx, tmpDir, mockProCLI)
 
@@ -297,9 +295,7 @@ func TestClient(t *testing.T) {
 		}
 
 		s := &Client{}
-		// We use a new context because the previous one was cancelled.
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 
 		s.init(ctx, tmpDir, mockProCLI)
 
