@@ -1254,12 +1254,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	}
 
 	// Setup shmounts
-	if d.state.OS.LXCFeatures["mount_injection_file"] {
-		err = lxcSetConfigItem(cc, "lxc.mount.auto", "shmounts:"+d.ShmountsPath()+":/dev/.lxd-mounts")
-	} else {
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", d.ShmountsPath()+" dev/.lxd-mounts none bind,create=dir 0 0")
-	}
-
+	err = lxcSetConfigItem(cc, "lxc.mount.auto", "shmounts:"+d.ShmountsPath()+":/dev/.lxd-mounts")
 	if err != nil {
 		return nil, err
 	}
@@ -6733,7 +6728,7 @@ func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType id
 		return d.moveMount(source, target, fstype, flags, idmapType)
 	}
 
-	if d.state.OS.LXCFeatures["mount_injection_file"] && idmapType == idmap.IdmapStorageNone {
+	if idmapType == idmap.IdmapStorageNone {
 		return d.insertMountLXC(source, target, fstype, flags)
 	}
 
@@ -6748,47 +6743,25 @@ func (d *lxc) removeMount(mount string) error {
 		return errors.New("Can't remove mount from stopped container")
 	}
 
-	if d.state.OS.LXCFeatures["mount_injection_file"] {
-		configPath := filepath.Join(d.LogPath(), "lxc.conf")
-		cname := project.Instance(d.Project().Name, d.Name())
+	configPath := filepath.Join(d.LogPath(), "lxc.conf")
+	cname := project.Instance(d.Project().Name, d.Name())
 
-		if !strings.HasPrefix(mount, "/") {
-			mount = "/" + mount
-		}
+	if !strings.HasPrefix(mount, "/") {
+		mount = "/" + mount
+	}
 
-		_, err := shared.RunCommand(
-			context.TODO(),
-			d.state.OS.ExecPath,
-			"forkmount",
-			"lxc-umount",
-			"--",
-			cname,
-			d.state.OS.LxcPath,
-			configPath,
-			mount)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Remove the mount from the container
-		pidFdNr, pidFd := d.inheritInitPidFd()
-		if pidFdNr >= 0 {
-			defer func() { _ = pidFd.Close() }()
-		}
-
-		_, err := shared.RunCommandInheritFds(
-			context.TODO(),
-			[]*os.File{pidFd},
-			d.state.OS.ExecPath,
-			"forkmount",
-			"lxd-umount",
-			"--",
-			strconv.Itoa(pid),
-			strconv.Itoa(pidFdNr),
-			mount)
-		if err != nil {
-			return err
-		}
+	_, err := shared.RunCommand(
+		context.TODO(),
+		d.state.OS.ExecPath,
+		"forkmount",
+		"lxc-umount",
+		"--",
+		cname,
+		d.state.OS.LxcPath,
+		configPath,
+		mount)
+	if err != nil {
+		return err
 	}
 
 	return nil
