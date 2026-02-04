@@ -789,17 +789,9 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	allowlist := config["security.syscalls.allow"]
 
 	if allowlist != "" {
-		if !s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
-			return "", fmt.Errorf("Unable to configure allowlist, liblxc is does not support: %q", "seccomp_allow_deny_syntax")
-		}
-
 		policy += "allowlist\n[all]\n"
 		policy += allowlist
 	} else {
-		if !s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
-			return "", fmt.Errorf("Unable to configure denylist, liblxc is does not support: %q", "seccomp_allow_deny_syntax")
-		}
-
 		policy += "denylist\n[all]\n"
 
 		defaultFlag, ok := config["security.syscalls.deny_default"]
