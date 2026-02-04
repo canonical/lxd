@@ -1396,6 +1396,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			expandedConfig := instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), req.Config, profiles)
+			placementGroupName = expandedConfig["placement.group"]
 			targetMemberInfo, err = instancesPostSelectClusterMember(ctx, tx, expandedConfig, candidateMembers, targetProject.Name)
 			return err
 		})
