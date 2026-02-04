@@ -53,7 +53,7 @@ func ValidName(name string) error {
 	}
 
 	// Validate ASCII-only.
-	err := validate.IsEntityName(name)
+	err := validate.IsEntityName(name, false)
 	if err != nil {
 		return err
 	}

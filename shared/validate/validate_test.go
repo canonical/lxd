@@ -894,7 +894,7 @@ func TestIsEntityName(t *testing.T) {
 		{
 			name:    "Empty string",
 			value:   "",
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name:    "Emoji",
@@ -925,7 +925,7 @@ func TestIsEntityName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotErr := validate.IsEntityName(tt.value)
+			gotErr := validate.IsEntityName(tt.value, false)
 			if gotErr != nil {
 				if !tt.wantErr {
 					t.Errorf("IsEntityName() failed: %v", gotErr)

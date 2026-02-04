@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/kballard/go-shellquote"
@@ -509,17 +510,6 @@ func IsNetworkPortRange(value string) error {
 	return nil
 }
 
-// IsURLSegmentSafe validates whether value can be used in a URL segment.
-func IsURLSegmentSafe(value string) error {
-	for _, char := range []string{"/", "?", "&", "+"} {
-		if strings.Contains(value, char) {
-			return fmt.Errorf("Cannot contain %q", char)
-		}
-	}
-
-	return nil
-}
-
 // IsUUID validates whether a value is a UUID.
 func IsUUID(value string) error {
 	_, err := uuid.Parse(value)
@@ -933,7 +923,7 @@ func IsClusterGroupName(name string) error {
 	}
 
 	// Validate ASCII-only.
-	err := IsEntityName(name)
+	err := IsEntityName(name, false)
 	if err != nil {
 		return err
 	}
@@ -941,14 +931,46 @@ func IsClusterGroupName(name string) error {
 	return nil
 }
 
-// IsEntityName validates that a name contains only ASCII characters.
+// IsEntityName checks whether the provided value is a suitable name for an API object.
 // This is important for entity names that are used in system-level operations like cgroups,
 // which don't support Unicode characters.
-func IsEntityName(name string) error {
+func IsEntityName(name string, allowSlashes bool) error {
+	// Check for non-ASCII and white space unicode characters.
 	for _, r := range name {
 		if r > 127 {
 			return fmt.Errorf("Name contains non-ASCII character %q", r)
 		}
+
+		if unicode.IsSpace(r) {
+			return errors.New("Name cannot contain white space")
+		}
+	}
+
+	// Limit length to 64 characters.
+	if len(name) > 64 {
+		return errors.New("Maximum name length is 64 characters")
+	}
+
+	// Check for special URL characters.
+	reservedChars := []string{"$", "?", "&", "+", "\"", "'", "`", "*"}
+	if !allowSlashes {
+		reservedChars = append(reservedChars, "/")
+	}
+
+	for _, char := range reservedChars {
+		if strings.Contains(name, char) {
+			return fmt.Errorf("Name contains invalid character %q", char)
+		}
+	}
+
+	// Check beginning and end.
+	match, err := regexp.MatchString(`^[a-zA-Z0-9]+.*[a-zA-Z0-9]+$`, name)
+	if err != nil {
+		return err
+	}
+
+	if !match {
+		return errors.New("Names must start and end with an alphanumeric character")
 	}
 
 	return nil
