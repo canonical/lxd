@@ -2890,3 +2890,19 @@ The LVM storage driver has the specific `lvm.vg.force_reuse` configuration key f
 ## `instance_force_delete`
 
 This adds support for a `force` query parameter to the `DELETE /1.0/instances/{name}` endpoint. When set, running instances will be forcibly stopped before deletion.
+
+(extension-operation-metadata-entity-name)=
+## `operation_metadata_entity_url`
+
+Each {ref}`operation event <ref-events-operation>` has a `resources` field that contains URLs of LXD entities that the operation depends on.
+
+When an instance, instance backup, or storage volume backup is created, it is not strictly required for the caller to provide the name of the new resource.
+In this case, the URL of the expected resource is added to the resources map for clients to inspect and use.
+The `resources` field then contains both a dependency of the operation, and the newly created resource (which may not exist yet).
+
+To improve consistency, this API extension adds an `entity_url` field to operation metadata.
+The field contains the expected URL of the created entity.
+The field is only included when a resource is being created asynchronously (operation response), and where it is not required for the entity name to be specified by the client.
+For synchronous resource creation, clients should inspect the `Location` header.
+
+The `resources` field should no longer be relied upon for this information.

@@ -40,6 +40,7 @@ type: lifecycle
 - `level`: The log-level of the log.
 - `context`: Additional information included in the event.
 
+(ref-events-operation)=
 ### Operation event structure
 
 - `id`: The UUID of the operation.
