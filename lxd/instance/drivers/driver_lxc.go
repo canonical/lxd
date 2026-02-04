@@ -7200,7 +7200,7 @@ func (d *lxc) cgroup(cc *liblxc.Container, running bool) (*cgroup.CGroup, error)
 		return nil, err
 	}
 
-	cg.UnifiedCapable = liblxc.HasAPIExtension("cgroup2")
+	cg.UnifiedCapable = true // cgroup2: introduced in lxc 4.0.0
 	return cg, nil
 }
 
