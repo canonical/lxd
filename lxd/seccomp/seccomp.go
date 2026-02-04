@@ -2670,10 +2670,6 @@ func lxcSupportSeccompNotify(state *state.State) error {
 		return errors.New("Seccomp notify not supported")
 	}
 
-	if !state.OS.LXCFeatures["seccomp_notify"] {
-		return errors.New("LXC doesn't support seccomp notify")
-	}
-
 	c, err := liblxc.NewContainer("test-seccomp", state.OS.LxcPath)
 	if err != nil {
 		return errors.New("Failed to load seccomp notify test container")
