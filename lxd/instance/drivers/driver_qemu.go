@@ -9141,10 +9141,9 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 
 // version returns the QEMU version.
 func (d *qemu) version() (*version.DottedVersion, error) {
-	info := DriverStatuses()[instancetype.VM].Info
-	qemuVer, err := version.NewDottedVersion(info.Version)
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing QEMU version: %w", err)
+	qemuVer := DriverStatuses()[instancetype.VM].Version
+	if qemuVer == nil {
+		return nil, errors.New("QEMU version unavailable")
 	}
 
 	return qemuVer, nil
