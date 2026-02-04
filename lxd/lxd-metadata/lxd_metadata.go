@@ -124,7 +124,7 @@ func expandExpression(input string) string {
 	return result
 }
 
-func parse(path string, outputJSONPath string, excludedPaths []string, substitutionDBPath string) (*doc, error) {
+func parse(path string, outputJSONPath string, excludedPaths []string, substitutionDBPath string, debug bool) (*doc, error) {
 	jsonDoc := &doc{}
 	docKeys := make(map[string]struct{}, 0)
 	allEntries := make(map[string]map[string]map[string][]any)
@@ -152,11 +152,17 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 		// Skip excluded paths
 		if slices.Contains(excludedPaths, path) {
 			if info.IsDir() {
-				log.Printf("Skipping excluded directory: %v", path)
+				if debug {
+					log.Printf("Skipping excluded directory: %v", path)
+				}
+
 				return filepath.SkipDir
 			}
 
-			log.Printf("Skipping excluded file: %v", path)
+			if debug {
+				log.Printf("Skipping excluded file: %v", path)
+			}
+
 			return nil
 		}
 
@@ -187,7 +193,10 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 					continue
 				}
 
-				log.Printf("Found lxddoc at %s", fset.Position(cg.Pos()).String())
+				if debug {
+					log.Printf("Found lxddoc at %s", fset.Position(cg.Pos()).String())
+				}
+
 				metadata := match[1]
 				longdesc := match[2]
 				data := match[3]
