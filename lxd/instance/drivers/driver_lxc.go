@@ -6161,12 +6161,12 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		strconv.FormatUint(uint64(req.Group), 10),
 	)
 
-	args = append(args, "--")
-	args = append(args, "env")
+	// Environment
+	args = append(args, "--", "env")
 	args = append(args, envSlice...)
 
-	args = append(args, "--")
-	args = append(args, "cmd")
+	// Command
+	args = append(args, "--", "cmd")
 	args = append(args, req.Command...)
 
 	cmd := exec.Cmd{}
