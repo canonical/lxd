@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // Instance driver definitions.
@@ -29,6 +30,7 @@ var instanceDrivers = map[string]func() instance.Instance{
 // DriverStatus definition.
 type DriverStatus struct {
 	Info      instance.Info
+	Version   *version.DottedVersion
 	Warning   *cluster.Warning
 	Supported bool
 }
@@ -164,6 +166,14 @@ func DriverStatuses() map[instancetype.Type]*DriverStatus {
 		driverInfo := instanceDriver().Info()
 		driverStatus.Info = driverInfo
 		driverStatus.Supported = true
+
+		// Parse the version string.
+		if driverInfo.Version != "" {
+			dottedVersion, err := version.NewDottedVersion(driverInfo.Version)
+			if err == nil {
+				driverStatus.Version = dottedVersion
+			}
+		}
 
 		if driverInfo.Error != nil || driverInfo.Version == "" {
 			logger.Warn("Instance type not operational", logger.Ctx{"type": driverInfo.Type, "driver": driverInfo.Name, "err": driverInfo.Error})
