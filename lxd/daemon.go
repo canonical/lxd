@@ -1208,10 +1208,7 @@ func (d *Daemon) init() error {
 		logger.Info(" - netnsid-based network retrieval: no")
 	}
 
-	if canUsePidFds() && d.os.LXCFeatures["pidfd"] {
-		d.os.PidFds = true
-	}
-
+	d.os.PidFds = canUsePidFds()
 	if d.os.PidFds {
 		logger.Info(" - pidfds: yes")
 	} else {
