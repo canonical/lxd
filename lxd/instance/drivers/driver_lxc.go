@@ -651,7 +651,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
-	if d.state.OS.ContainerCoreScheduling {
+	if d.state.OS.CoreScheduling {
 		err = lxcSetConfigItem(cc, "lxc.sched.core", "1")
 		if err != nil {
 			return nil, err
