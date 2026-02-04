@@ -197,7 +197,15 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
         run: |
           set -eux
+          # For `make update-api`
+          sudo chmod o+w ./doc/rest-api.yaml
+          # For `make update-auth`
+          sudo chmod o+w ./lxd/auth/entitlements_generated.go ./lxd/auth/drivers/openfga_model.openfga
+          # For `make update-metadata`
+          sudo chmod o+w ./lxd/metadata/configuration.json ./doc/metadata.txt
+
           make static-analysis
+          # If `git diff` does not come out clean, you likely forgot a `make update-*`
           git diff --exit-code
 
           # If coverage data collection is enabled, run schema checks to
