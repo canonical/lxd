@@ -119,7 +119,7 @@ func Authenticate(token string, subject string, identityCache *identity.Cache) (
 		return nil, api.StatusErrorf(http.StatusForbidden, "Unrecognized token subject: %w", err)
 	}
 
-	err = verifyToken(token, func() ([]byte, error) {
+	expiresAt, err := verifyToken(token, func() ([]byte, error) {
 		return secret, nil
 	})
 	if err != nil {
@@ -127,22 +127,26 @@ func Authenticate(token string, subject string, identityCache *identity.Cache) (
 	}
 
 	return &request.RequestorArgs{
-		Trusted:  true,
-		Protocol: api.AuthenticationMethodBearer,
-		Username: subject,
+		Trusted:        true,
+		Protocol:       api.AuthenticationMethodBearer,
+		Username:       subject,
+		TokenExpiresAt: expiresAt,
 	}, nil
 }
 
 // VerifySessionToken verifies that a given OIDC session token was signed by a key derived from the given cluster secret
 // using the session ID as a salt.
 func VerifySessionToken(token string, clusterSecret []byte, sessionID uuid.UUID) error {
-	return verifyToken(token, func() ([]byte, error) {
+	_, err := verifyToken(token, func() ([]byte, error) {
 		return encryption.TokenSigningKey(clusterSecret, sessionID[:])
 	})
+
+	return err
 }
 
 // verifyToken verifies that the given token was signed by the key returned by the given key func.
-func verifyToken(token string, keyFunc func() ([]byte, error)) error {
+// For a valid token, an expiration time is returned.
+func verifyToken(token string, keyFunc func() ([]byte, error)) (expiresAt *time.Time, err error) {
 	// Always use UTC time.
 	timeFunc := func() time.Time {
 		return time.Now().UTC()
@@ -163,10 +167,16 @@ func verifyToken(token string, keyFunc func() ([]byte, error)) error {
 	}
 
 	// Verify the token.
-	_, err := parser.Parse(token, jwtKeyFunc)
+	var claims jwt.RegisteredClaims
+	_, err = parser.ParseWithClaims(token, &claims, jwtKeyFunc)
 	if err != nil {
-		return api.StatusErrorf(http.StatusForbidden, "Token is not valid: %w", err)
+		return nil, api.StatusErrorf(http.StatusForbidden, "Token is not valid: %w", err)
 	}
 
-	return nil
+	expiry, err := claims.GetExpirationTime()
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusForbidden, "Token does not have an expiration time: %w", err)
+	}
+
+	return &expiry.Time, nil
 }
