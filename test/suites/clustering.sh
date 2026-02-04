@@ -4478,7 +4478,7 @@ test_clustering_trust_add() {
   # Expect one running token operation.
   operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
   LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,RUNNING"
-  is_uuid_v4 "${operation_uuid}"
+  is_uuid_v7 "${operation_uuid}"
 
   # Get the address of LXD_TWO.
   lxd_two_address="https://$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
@@ -4505,7 +4505,7 @@ test_clustering_trust_add() {
   # Expect one running token operation.
   operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
   LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,RUNNING"
-  is_uuid_v4 "${operation_uuid}"
+  is_uuid_v7 "${operation_uuid}"
 
   # Test adding the remote using the address of LXD_TWO with the token operation running on LXD_ONE.
   # LXD_TWO does not have the operation running locally, so it should find the UUID of the operation in the database
