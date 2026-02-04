@@ -6128,6 +6128,13 @@ definitions:
                 readOnly: true
                 type: array
                 x-go-name: AuthMethods
+            auth_token_expiry:
+                description: When the bearer token expires. Only included for bearer token authenticated identities.
+                example: "2026-12-31T23:59:59Z"
+                format: date-time
+                readOnly: true
+                type: string
+                x-go-name: AuthTokenExpiresAt
             auth_user_method:
                 description: The current user login method as seen by LXD
                 example: unix
