@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/entity"
@@ -126,7 +125,7 @@ type OperationArgs struct {
 	Type        operationtype.Type
 	Class       OperationClass
 	Resources   map[string][]api.URL
-	Metadata    any
+	Metadata    map[string]any
 	RunHook     func(ctx context.Context, op *Operation) error
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
 }
@@ -175,12 +174,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		op.SetEventServer(s.Events)
 	}
 
-	newMetadata, err := shared.ParseMetadata(args.Metadata)
-	if err != nil {
-		return nil, err
-	}
-
-	op.metadata = newMetadata
+	op.metadata = args.Metadata
 
 	// Callback functions
 	op.onRun = args.RunHook
@@ -203,7 +197,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, args.Type)
+	err := registerDBOperation(&op, args.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -542,7 +536,7 @@ func (op *Operation) Wait(ctx context.Context) error {
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
-func (op *Operation) UpdateMetadata(opMetadata any) error {
+func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	op.lock.Lock()
 	if op.finished.Err() != nil {
 		op.lock.Unlock()
@@ -554,13 +548,8 @@ func (op *Operation) UpdateMetadata(opMetadata any) error {
 		return errors.New("Read-only operations can't be updated")
 	}
 
-	newMetadata, err := shared.ParseMetadata(opMetadata)
-	if err != nil {
-		return err
-	}
-
 	op.updatedAt = time.Now()
-	op.metadata = newMetadata
+	op.metadata = opMetadata
 	op.lock.Unlock()
 
 	op.logger.Debug("Updated metadata for operation")
@@ -575,7 +564,7 @@ func (op *Operation) UpdateMetadata(opMetadata any) error {
 
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
 // It returns an error if the operation is not pending or running, or the operation is read-only.
-func (op *Operation) ExtendMetadata(metadata any) error {
+func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 	op.lock.Lock()
 
 	// Quick checks.
@@ -589,21 +578,15 @@ func (op *Operation) ExtendMetadata(metadata any) error {
 		return errors.New("Read-only operations can't be updated")
 	}
 
-	// Parse the new metadata.
-	extraMetadata, err := shared.ParseMetadata(metadata)
-	if err != nil {
-		return err
-	}
-
 	// Get current metadata.
 	newMetadata := op.metadata
 	op.lock.Unlock()
 
 	// Merge with current one.
 	if op.metadata == nil {
-		newMetadata = extraMetadata
+		newMetadata = metadata
 	} else {
-		maps.Copy(newMetadata, extraMetadata)
+		maps.Copy(newMetadata, metadata)
 	}
 
 	// Update the operation.
