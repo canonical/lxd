@@ -1113,25 +1113,22 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Ensure secureboot is turned off for images that are not secureboot enabled
-	if shared.IsFalse(d.localConfig["image.requirements.secureboot"]) && shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-		return errors.New("The image used by this instance is incompatible with secureboot. Please set security.secureboot=false on the instance")
+	bootMode := d.effectiveBootMode()
+	if shared.IsFalse(d.localConfig["image.requirements.secureboot"]) && bootMode == instancetype.BootModeUEFISecureBoot {
+		return errors.New("The image used by this instance is incompatible with secureboot. Please set boot.mode=uefi-nosecureboot on the instance")
 	}
 
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
-		// Ensure CSM is turned off for all arches except x86_64
+	if bootMode == instancetype.BootModeBIOS {
+		// Ensure BIOS boot mode is turned off for all arches except x86_64
 		if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
-			return errors.New("CSM can be enabled for x86_64 architecture only. Please set security.csm=false on the instance")
+			return errors.New("BIOS boot mode can be enabled for x86_64 architecture only. Please set boot.mode=uefi-secureboot on the instance")
 		}
 
-		// Having boot.debug_edk2 enabled contradicts with enabling CSM
+		// Having boot.debug_edk2 enabled contradicts with enabling BIOS boot mode
 		if shared.IsTrue(d.localConfig["boot.debug_edk2"]) {
-			return errors.New("CSM can not be enabled together with boot.debug_edk2. Please set one of them to false")
+			return errors.New("BIOS boot mode can not be enabled together with boot.debug_edk2. Please set one of them to false")
 		}
 
-		// Ensure secureboot is turned off when CSM is on
-		if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-			return errors.New("Secure boot can't be enabled while CSM is turned on. Please set security.secureboot=false on the instance")
-		}
 	}
 
 	// Setup a new operation if needed.
@@ -2029,6 +2026,15 @@ func (d *qemu) architectureSupportsUEFI(arch int) bool {
 	return slices.Contains([]int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}, arch)
 }
 
+func (d *qemu) effectiveBootMode() string {
+	bootMode := d.expandedConfig["boot.mode"]
+	if bootMode == "" {
+		return instancetype.BootModeUEFISecureBoot
+	}
+
+	return bootMode
+}
+
 func (d *qemu) setupNvram() error {
 	var err error
 
@@ -2044,9 +2050,10 @@ func (d *qemu) setupNvram() error {
 
 	// Determine expected firmware.
 	var firmwares []edk2.FirmwarePair
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+	bootMode := d.effectiveBootMode()
+	if bootMode == instancetype.BootModeBIOS {
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.CSM)
-	} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+	} else if bootMode == instancetype.BootModeUEFISecureBoot {
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.SECUREBOOT)
 	} else {
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.GENERIC)
@@ -2838,8 +2845,9 @@ func (d *qemu) UEFIVars() (*api.InstanceUEFIVars, error) {
 		return nil, errors.New("UEFI is not supported for this instance architecture")
 	}
 
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
-		return nil, errors.New("UEFI is disabled when CSM mode is active")
+	bootMode := d.effectiveBootMode()
+	if bootMode == instancetype.BootModeBIOS {
+		return nil, errors.New("UEFI is disabled when BIOS boot mode is active")
 	}
 
 	uefiVarsPath := d.nvramPath()
@@ -2878,8 +2886,9 @@ func (d *qemu) UEFIVarsUpdate(newUEFIVarsSet api.InstanceUEFIVars) error {
 		return errors.New("UEFI is not supported for this instance architecture")
 	}
 
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
-		return errors.New("UEFI is disabled when CSM mode is active")
+	bootMode := d.effectiveBootMode()
+	if bootMode == instancetype.BootModeBIOS {
+		return errors.New("UEFI is disabled when BIOS boot mode is active")
 	}
 
 	uefiVarsPath := d.nvramPath()
@@ -3415,9 +3424,10 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Determine expected firmware.
 		var firmwares []edk2.FirmwarePair
-		if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		bootMode := d.effectiveBootMode()
+		if bootMode == instancetype.BootModeBIOS {
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.CSM)
-		} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+		} else if bootMode == instancetype.BootModeUEFISecureBoot {
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.SECUREBOOT)
 		} else {
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.GENERIC)
@@ -3556,7 +3566,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+	bootMode := d.effectiveBootMode()
+	if bootMode == instancetype.BootModeBIOS {
 		// Allocate a direct entry so the SCSI controller can be seen by seabios.
 		devBus, devAddr, multi = bus.allocateDirect()
 	}
@@ -3613,7 +3624,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+	bootMode = d.effectiveBootMode()
+	if bootMode == instancetype.BootModeBIOS {
 		// Allocate a direct entry so the GPU can be seen by seabios.
 		devBus, devAddr, multi = bus.allocateDirect()
 	}
@@ -5896,11 +5908,10 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			"cluster.evacuate",
 			"limits.memory",
 			"security.agent.metrics",
-			"security.csm",
+			"boot.mode",
 			"security.devlxd",
 			"security.devlxd.images",
 			"security.devlxd.management.volumes",
-			"security.secureboot",
 		}
 
 		liveUpdateKeyPrefixes := []string{
@@ -5980,10 +5991,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 						return fmt.Errorf("Failed updating memory limit: %w", err)
 					}
 				}
-			case "security.csm":
-				// Defer rebuilding nvram until next start.
-				d.localConfig["volatile.apply_nvram"] = "true"
-			case "security.secureboot":
+			case "boot.mode":
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"
 			case "security.devlxd":
@@ -6011,7 +6019,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	if d.architectureSupportsUEFI(d.architecture) && (slices.Contains(changedConfig, "security.secureboot") || slices.Contains(changedConfig, "security.csm")) {
+	if d.architectureSupportsUEFI(d.architecture) && slices.Contains(changedConfig, "boot.mode") {
 		// setupNvram() requires instance's config volume to be mounted.
 		// The easiest way to detect that is to check if instance is running.
 		// TODO: extend storage API to be able to check if volume is already mounted?
