@@ -472,6 +472,7 @@ var APIExtensions = []string{
 	"storage_source_recover",
 	"instance_force_delete",
 	"operation_metadata_entity_url",
+	"instance_boot_mode",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
