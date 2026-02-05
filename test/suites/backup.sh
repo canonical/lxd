@@ -265,11 +265,11 @@ EOF
 }
 
 test_container_recover() {
-  local poolDriver
-  poolDriver="$(storage_backend "${LXD_DIR}")"
   local LXD_IMPORT_DIR
   LXD_IMPORT_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
   spawn_lxd "${LXD_IMPORT_DIR}" true
+  local poolDriver
+  poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
   (
     set -e
 
