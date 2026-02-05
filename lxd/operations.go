@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1056,8 +1057,15 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 
 func checkOperationViewAccess(ctx context.Context, op *operations.Operation, authorizer auth.Authorizer, secret string) error {
 	// If a secret is provided and it matches the operation, allow access.
-	if secret != "" && op.Metadata()["secret"] == secret {
-		return nil
+	if secret != "" {
+		// Assert opSecret is a string then convert to []byte for constant time comparison.
+		opSecret, ok := op.Metadata()["secret"]
+		if ok {
+			opSecretStr, ok := opSecret.(string)
+			if ok && subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(secret)) == 1 {
+				return nil
+			}
+		}
 	}
 
 	// There must be a requestor.
