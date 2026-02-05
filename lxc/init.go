@@ -4,9 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
-	"path"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -416,22 +414,17 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		opInfo = op.Get()
 	}
 
-	instances, ok := opInfo.Resources["instances"]
-	if !ok || len(instances) == 0 {
-		// Try using the older "containers" field.
-		instances, ok = opInfo.Resources["containers"]
-		if !ok || len(instances) == 0 {
-			return nil, "", errors.New("Didn't get any affected image, instance or snapshot from server")
+	if name == "" {
+		if d.HasExtension("operation_metadata_entity_url") {
+			name, _, err = getEntityFromOperationMetadata(opInfo.Metadata)
+		} else {
+			name, _, err = getEntityFromOperationResources(opInfo.Resources, "instances", "containers")
 		}
-	}
 
-	if len(instances) == 1 && name == "" {
-		url, err := url.Parse(instances[0])
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("Failed to get instance name from operation: %w", err)
 		}
 
-		name = path.Base(url.Path)
 		fmt.Printf("Instance name is: %s\n", name)
 	}
 
