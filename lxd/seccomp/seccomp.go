@@ -2672,7 +2672,7 @@ func lxcSupportSeccompNotify(state *state.State) error {
 
 	c, err := liblxc.NewContainer("test-seccomp", state.OS.LxcPath)
 	if err != nil {
-		return errors.New("Failed to load seccomp notify test container")
+		return errors.New("Failed loading seccomp notify test container")
 	}
 
 	err = c.SetConfigItem("lxc.seccomp.notify.proxy", "unix:"+shared.VarPath("seccomp.socket"))
