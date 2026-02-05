@@ -24,7 +24,6 @@ import (
 	dqliteClient "github.com/canonical/go-dqlite/v3/client"
 	"github.com/canonical/go-dqlite/v3/driver"
 	"github.com/gorilla/mux"
-	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/acme"
@@ -1168,27 +1167,22 @@ func (d *Daemon) init() error {
 		}
 	}
 
-	// Detect LXC features
-	d.os.LXCFeatures = map[string]bool{}
-	lxcExtensions := []string{
-		"mount_injection_file",
-		"seccomp_notify",
-		"network_ipvlan",
-		"network_l2proxy",
-		"network_gateway_device_route",
-		"network_phys_macvlan_mtu",
-		"network_veth_router",
-		"cgroup2",
-		"pidfd",
-		"seccomp_allow_deny_syntax",
-		"devpts_fd",
-		"seccomp_proxy_send_notify_fd",
-		"idmapped_mounts_v2",
-		"core_scheduling",
-	}
-
-	for _, extension := range lxcExtensions {
-		d.os.LXCFeatures[extension] = liblxc.HasAPIExtension(extension)
+	// LXC features available in 5.0.0+
+	d.os.LXCFeatures = map[string]bool{
+		"mount_injection_file":         true,
+		"seccomp_notify":               true,
+		"network_ipvlan":               true,
+		"network_l2proxy":              true,
+		"network_gateway_device_route": true,
+		"network_phys_macvlan_mtu":     true,
+		"network_veth_router":          true,
+		"cgroup2":                      true,
+		"pidfd":                        true,
+		"seccomp_allow_deny_syntax":    true,
+		"devpts_fd":                    true,
+		"seccomp_proxy_send_notify_fd": true,
+		"idmapped_mounts_v2":           true,
+		"core_scheduling":              true,
 	}
 
 	// Look for kernel features
