@@ -98,7 +98,7 @@ fi
 
 # Default sizes to be used with storage pools
 export DEFAULT_VOLUME_SIZE="24MiB"
-export DEFAULT_POOL_SIZE="3GiB"
+export DEFAULT_POOL_SIZE="4GiB"
 
 export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
