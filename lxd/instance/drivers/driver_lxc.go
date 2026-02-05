@@ -6149,7 +6149,8 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 
 	// Prepare the subcommand
 	cname := project.Instance(d.Project().Name, d.Name())
-	args := []string{
+	args := make([]string, 0, 8+2+len(envSlice)+2+len(req.Command))
+	args = append(args,
 		d.state.OS.ExecPath,
 		"forkexec",
 		cname,
@@ -6158,7 +6159,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		req.Cwd,
 		strconv.FormatUint(uint64(req.User), 10),
 		strconv.FormatUint(uint64(req.Group), 10),
-	}
+	)
 
 	args = append(args, "--")
 	args = append(args, "env")
