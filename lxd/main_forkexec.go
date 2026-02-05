@@ -15,9 +15,12 @@ package main
 #include <unistd.h>
 #include <limits.h>
 
-#include "include/macro.h"
-#include "include/memory_utils.h"
-#include "include/syscall_wrappers.h"
+#include "lxd.h"
+#include "file_utils.h"
+#include "macro.h"
+#include "memory_utils.h"
+#include "process_utils.h"
+#include "syscall_wrappers.h"
 #include <lxc/attach_options.h>
 #include <lxc/lxccontainer.h>
 
