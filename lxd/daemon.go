@@ -58,6 +58,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/lxd/ubuntupro"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -1228,7 +1229,7 @@ func (d *Daemon) init() error {
 
 	// Setup the user-agent.
 	if d.serverClustered {
-		version.UserAgentFeatures([]string{"cluster"})
+		_ = version.UserAgentFeatures([]string{"cluster"})
 	}
 
 	// Load server name and config before patches run (so they can access them from d.State()).
@@ -1582,6 +1583,12 @@ func (d *Daemon) init() error {
 		// Remove expired tokens (hourly)
 		d.tasks.Add(autoRemoveExpiredTokensTask(d))
 	}
+
+	// Add the Ubuntu Pro attachment status to the user agent.
+	// The Ubuntu Pro client returned by ubuntupro.New manages state internally and is
+	// only needed for its initialization side effects here, so we intentionally
+	// discard the returned value.
+	_ = ubuntupro.New(d.os.ReleaseInfo["NAME"])
 
 	// Start all background tasks
 	d.tasks.Start(d.shutdownCtx)
