@@ -210,6 +210,9 @@ fi
 # Redirect getent to the host
 ln -s "${SNAP}/wrappers/run-host" "/run/bin/getent"
 
+# Redirect pro to the host
+ln -s "${SNAP}/wrappers/run-host" "/run/bin/pro"
+
 # Avoid xtables talking to nft
 ln -s "${SNAP}/bin/arptables-legacy" "/run/bin/arptables"
 ln -s "${SNAP}/bin/ebtables-legacy" "/run/bin/ebtables"
