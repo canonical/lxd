@@ -267,11 +267,6 @@ EOF
 test_container_recover() {
   local poolDriver
   poolDriver="$(storage_backend "${LXD_DIR}")"
-  if [ "${poolDriver}" = "pure" ]; then
-    export TEST_UNMET_REQUIREMENT="pure does not support recovery"
-    return 0
-  fi
-
   local LXD_IMPORT_DIR
   LXD_IMPORT_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
   spawn_lxd "${LXD_IMPORT_DIR}" true
