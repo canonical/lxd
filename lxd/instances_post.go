@@ -1375,7 +1375,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 			expandedConfig := instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), req.Config, profiles)
 			placementGroupName = expandedConfig["placement.group"]
-			targetMemberInfo, err = instancesPostSelectClusterMember(ctx, tx, expandedConfig, candidateMembers, targetProject.Name)
+			targetMemberInfo, err = instancesPostSelectClusterMember(ctx, tx, placementGroupName, candidateMembers, targetProject.Name)
 			return err
 		}
 
@@ -1398,7 +1398,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			expandedConfig := instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), req.Config, profiles)
 			placementGroupName = expandedConfig["placement.group"]
-			targetMemberInfo, err = instancesPostSelectClusterMember(ctx, tx, expandedConfig, candidateMembers, targetProject.Name)
+			targetMemberInfo, err = instancesPostSelectClusterMember(ctx, tx, placementGroupName, candidateMembers, targetProject.Name)
 			return err
 		})
 		if err != nil {
@@ -1450,9 +1450,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 // It first checks whether the instance belongs to a placement group and, if so, applies the placement group’s policy and rigor to filter the available members.
 // Among the remaining candidates, the member with the fewest existing instances is selected.
 // If the instance does not belong to a placement group, the member with the fewest instances is chosen from all candidates.
-func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, expandedConfig map[string]string, candidateMembers []db.NodeInfo, projectName string) (*db.NodeInfo, error) {
+func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, placementGroupName string, candidateMembers []db.NodeInfo, projectName string) (*db.NodeInfo, error) {
 	// Check if instance is using a placement group.
-	placementGroupName := expandedConfig["placement.group"]
 	if placementGroupName == "" {
 		return tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 	}
