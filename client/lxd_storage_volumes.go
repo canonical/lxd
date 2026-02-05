@@ -457,19 +457,15 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 	return op, nil
 }
 
-func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool string, req api.StorageVolumePost, urls []string) (RemoteOperation, error) {
+func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool string, req api.StorageVolumePost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, errors.New("The source server isn't listening on the network")
-	}
-
-	rop := remoteOperation{
-		chDone: make(chan bool),
 	}
 
 	operation := req.Target.Operation
 
 	// Forward targetOp to remote op
-	go func() {
+	targetOpFunc := func(rop *remoteOperation) error {
 		success := false
 		var errors []remoteOperationResult
 		for _, serverURL := range urls {
@@ -482,10 +478,7 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 				continue
 			}
 
-			rop := remoteOperation{
-				targetOp: top,
-				chDone:   make(chan bool),
-			}
+			rop.targetOp = top
 
 			for _, handler := range rop.handlers {
 				_, _ = rop.targetOp.AddHandler(handler)
@@ -507,13 +500,13 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 		}
 
 		if !success {
-			rop.err = remoteOperationError("Failed storage volume creation", errors)
+			return remoteOperationError("Failed storage volume creation", errors)
 		}
 
-		close(rop.chDone)
-	}()
+		return nil
+	}
 
-	return &rop, nil
+	return r.startSplitRemoteOperation(targetOpFunc, op), nil
 }
 
 // tryCreateStoragePoolVolume attempts to create a storage volume in the specified storage pool.
@@ -703,7 +696,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		target.Certificate = info.Certificate
 		sourceReq.Target = &target
 
-		return r.tryMigrateStoragePoolVolume(source, sourcePool, sourceReq, info.Addresses)
+		return r.tryMigrateStoragePoolVolume(source, sourcePool, sourceReq, info.Addresses, op)
 	}
 
 	// Get source server connection information
