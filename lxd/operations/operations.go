@@ -180,7 +180,11 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, fmt.Errorf("Failed to validate operation metadata: %w", err)
 	}
 
-	op.metadata = args.Metadata
+	// Ensure metadata is never nil.
+	op.metadata = make(map[string]any)
+	if args.Metadata != nil {
+		op.metadata = args.Metadata
+	}
 
 	// Callback functions
 	op.onRun = args.RunHook
