@@ -174,6 +174,7 @@ linkcheck_ignore = [
     # Blocked from GH runners
     'https://www.schlachter.tech/solutions/pongo2-template-engine/',
     r"https://.*\.sourceforge\.net/.*",
+    r'https://docutils\.sourceforge\.io/docs/.*',
     r'https://.*canonical\.com/.*',
     r'https://snapcraft\.io/.*',
     r'https://ubuntu\.com/.*',
