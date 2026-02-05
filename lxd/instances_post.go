@@ -1374,6 +1374,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			expandedConfig := instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), req.Config, profiles)
+			placementGroupName = expandedConfig["placement.group"]
 			targetMemberInfo, err = instancesPostSelectClusterMember(ctx, tx, expandedConfig, candidateMembers, targetProject.Name)
 			return err
 		}
