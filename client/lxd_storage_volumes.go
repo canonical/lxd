@@ -518,19 +518,15 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 
 // tryCreateStoragePoolVolume attempts to create a storage volume in the specified storage pool.
 // It will try to do this on every server in the provided list of urls, and waits for the creation to be complete.
-func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVolumesPost, urls []string) (RemoteOperation, error) {
+func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVolumesPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, errors.New("The source server isn't listening on the network")
-	}
-
-	rop := remoteOperation{
-		chDone: make(chan bool),
 	}
 
 	operation := req.Source.Operation
 
 	// Forward targetOp to remote op
-	go func() {
+	targetOpFunc := func(rop *remoteOperation) error {
 		success := false
 		var errors []remoteOperationResult
 		for _, serverURL := range urls {
@@ -544,10 +540,7 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 				continue
 			}
 
-			rop := remoteOperation{
-				targetOp: top,
-				chDone:   make(chan bool),
-			}
+			rop.targetOp = top
 
 			for _, handler := range rop.handlers {
 				_, _ = rop.targetOp.AddHandler(handler)
@@ -569,13 +562,13 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 		}
 
 		if !success {
-			rop.err = remoteOperationError("Failed storage volume creation", errors)
+			return remoteOperationError("Failed storage volume creation", errors)
 		}
 
-		close(rop.chDone)
-	}()
+		return nil
+	}
 
-	return &rop, nil
+	return r.startSplitRemoteOperation(targetOpFunc, op), nil
 }
 
 // CopyStoragePoolVolume copies an existing storage volume.
@@ -790,7 +783,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	req.Source.Websockets = sourceSecrets
 	req.Source.Certificate = info.Certificate
 
-	return r.tryCreateStoragePoolVolume(pool, req, info.Addresses)
+	return r.tryCreateStoragePoolVolume(pool, req, info.Addresses, op)
 }
 
 // MoveStoragePoolVolume renames or moves an existing storage volume.
