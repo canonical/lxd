@@ -18,7 +18,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -145,8 +144,8 @@ type migrationSourceWs struct {
 
 // Metadata returns a map where each key is a connection name and each value is
 // the secret of the corresponding websocket connection.
-func (s *migrationSourceWs) Metadata() any {
-	secrets := make(shared.Jmap, len(s.conns))
+func (s *migrationSourceWs) Metadata() map[string]any {
+	secrets := make(map[string]any, len(s.conns))
 	for connName, conn := range s.conns {
 		secrets[connName] = conn.Secret()
 	}
@@ -214,8 +213,8 @@ type migrationSinkArgs struct {
 }
 
 // Metadata returns metadata for the migration sink.
-func (s *migrationSink) Metadata() any {
-	secrets := make(shared.Jmap, len(s.conns))
+func (s *migrationSink) Metadata() map[string]any {
+	secrets := make(map[string]any, len(s.conns))
 	for connName, conn := range s.conns {
 		secrets[connName] = conn.Secret()
 	}
