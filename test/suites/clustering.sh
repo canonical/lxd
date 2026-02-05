@@ -4031,6 +4031,10 @@ EOF
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster:c2 placement.group=pg-test
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster:c2 volatile.cluster.group || echo fail)" = "" ]
 
+  # Creating with "placement.group" should not set "volatile.cluster.group".
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty cluster:c6 --target=@blah -c placement.group=pg-test
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster:c6 volatile.cluster.group || echo fail)" = "" ]
+
   echo 'Verify that instances with "volatile.cluster.group" are reported in used_by for the blah group'
   LXD_DIR="${LXD_ONE_DIR}" lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | .[] == "/1.0/instances/c3"'
 
@@ -4038,7 +4042,7 @@ EOF
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster group delete blah || false
 
   echo 'Clean up for restricted project tests'
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c4 c5
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c4 c5 c6
 
   echo '==> Restricted project tests'
 
