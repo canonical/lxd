@@ -6,7 +6,9 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"reflect"
 	"sort"
 	"strconv"
@@ -489,4 +491,68 @@ func (c *locationHeaderTransport) RoundTrip(r *http.Request) (*http.Response, er
 // Transport returns the underlying transport of cloudInstanceServerTransport (to implement lxd.HTTPTransporter).
 func (c *locationHeaderTransport) Transport() *http.Transport {
 	return c.transport
+}
+
+// getEntityFromOperationMetadata inspects and parses the given operation metadata "entity_url" to return an entity name
+// and a URL or an error.
+func getEntityFromOperationMetadata(operationMetadata map[string]any) (string, *url.URL, error) {
+	if operationMetadata == nil {
+		return "", nil, errors.New("Operation does not contain any metadata")
+	}
+
+	entityURLAny, ok := operationMetadata["entity_url"]
+	if !ok {
+		return "", nil, errors.New("Operation did not return an entity URL")
+	}
+
+	entityURL, ok := entityURLAny.(string)
+	if !ok {
+		return "", nil, fmt.Errorf("Expected a string entity URL but got %v (%T)", entityURLAny, entityURLAny)
+	}
+
+	return entityNameFromURL(entityURL)
+}
+
+// getEntityFromOperationResources inspects and parses the given operation resources to return an entity name and a URL.
+// It expects the operation resource map to contain a key with one of the given resource types matching a value that is
+// an array with only one value.
+//
+// This function should only be used to retrieve the name of a newly created resource if the server does not have the
+// `operation_metadata_entity_url` API extension. Otherwise, the getEntityFromOperationMetadata function should be used.
+func getEntityFromOperationResources(operationResources map[string][]string, resourceTypes ...string) (string, *url.URL, error) {
+	if len(resourceTypes) == 0 {
+		return "", nil, errors.New("Must specify a resource type")
+	}
+
+	if operationResources == nil {
+		return "", nil, errors.New("Operation does not contain any resources")
+	}
+
+	for _, t := range resourceTypes {
+		if len(operationResources[t]) == 1 {
+			return entityNameFromURL(operationResources[t][0])
+		}
+	}
+
+	if len(resourceTypes) == 1 {
+		return "", nil, fmt.Errorf("Operation did not return a specific resource of type %q", resourceTypes[0])
+	}
+
+	return "", nil, fmt.Errorf("Operation has no specific resource with type (%q)", strings.Join(resourceTypes, ", "))
+}
+
+// entityNameFromURL parses a string URL and returns the last path element as the name.
+func entityNameFromURL(urlStr string) (string, *url.URL, error) {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed to parse entity URL %q: %w", urlStr, err)
+	}
+
+	// Always expect the entity name to be the last element of the URL.
+	name, err := url.PathUnescape(path.Base(u.EscapedPath()))
+	if err != nil {
+		return "", nil, fmt.Errorf("Invalid segment in entity URL %q: %w", urlStr, err)
+	}
+
+	return name, u, nil
 }
