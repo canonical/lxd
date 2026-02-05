@@ -1375,7 +1375,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 		// Set the metadata if possible, even if there is an error
 		if info != nil {
-			metadata := make(map[string]string)
+			metadata := make(map[string]any)
 			metadata["fingerprint"] = info.Fingerprint
 			metadata["size"] = strconv.FormatInt(info.Size, 10)
 
@@ -1448,12 +1448,12 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	var metadata any
+	var metadata map[string]any
 
 	if imageUpload && imageMetadata != nil {
 		secret, _ := shared.RandomCryptoString()
 		if secret != "" {
-			metadata = map[string]string{
+			metadata = map[string]any{
 				"secret": secret,
 			}
 		}
