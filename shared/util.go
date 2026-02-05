@@ -21,7 +21,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"runtime"
 	"slices"
@@ -940,32 +939,6 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 	}
 
 	return content, nil
-}
-
-// ParseMetadata converts the provided metadata into a map[string]any. An error is
-// returned if the input is not a valid map or if the keys are not strings.
-func ParseMetadata(metadata any) (map[string]any, error) {
-	newMetadata := make(map[string]any)
-	s := reflect.ValueOf(metadata)
-	if !s.IsValid() {
-		return nil, nil
-	}
-
-	if s.Kind() == reflect.Map {
-		for _, k := range s.MapKeys() {
-			if k.Kind() != reflect.String {
-				return nil, errors.New("Invalid metadata provided (key isn't a string)")
-			}
-
-			newMetadata[k.String()] = s.MapIndex(k).Interface()
-		}
-	} else if s.Kind() == reflect.Ptr && !s.Elem().IsValid() {
-		return nil, nil
-	} else {
-		return nil, errors.New("Invalid metadata provided (type isn't a map)")
-	}
-
-	return newMetadata, nil
 }
 
 // RemoveDuplicatesFromString removes all duplicates of the string 'sep'
