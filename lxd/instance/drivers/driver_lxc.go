@@ -656,11 +656,6 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if d.state.OS.CoreScheduling {
-		err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/proc/%d/exe forkcoresched 1", os.Getpid()))
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// Allow for lightweight init
@@ -6163,12 +6158,6 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		req.Cwd,
 		strconv.FormatUint(uint64(req.User), 10),
 		strconv.FormatUint(uint64(req.Group), 10),
-	}
-
-	if d.state.OS.CoreScheduling && !d.state.OS.ContainerCoreScheduling {
-		args = append(args, "1")
-	} else {
-		args = append(args, "0")
 	}
 
 	args = append(args, "--")
