@@ -6154,7 +6154,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		"forkexec",
 		cname,
 		d.state.OS.LxcPath,
-		filepath.Join(d.LogPath(), "lxc.conf"),
+		configPath,
 		req.Cwd,
 		strconv.FormatUint(uint64(req.User), 10),
 		strconv.FormatUint(uint64(req.Group), 10),
