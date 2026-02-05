@@ -203,11 +203,12 @@ parts:
   # Dependencies
   amd-ctk:
     source: https://github.com/ROCm/container-toolkit
+    source-commit: 3ab0394f71220e693ae016fa6581fbd04a51ed44 # v1.2.0
     source-depth: 1
     source-type: git
     plugin: go
     build-snaps:
-      - go
+      - go/1.25/stable
     prime:
       - bin/amd-ctk
 
