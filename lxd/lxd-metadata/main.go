@@ -9,6 +9,7 @@ import (
 )
 
 var exclude []string
+var debug bool
 var jsonOutput string
 var txtOutput string
 var substitutionDBPath string
@@ -23,7 +24,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		path := args[0]
-		_, err := parse(path, jsonOutput, exclude, substitutionDBPath)
+		_, err := parse(path, jsonOutput, exclude, substitutionDBPath, debug)
 		if err != nil {
 			log.Fatal(err) //nolint:revive
 		}
@@ -39,6 +40,7 @@ var rootCmd = &cobra.Command{
 
 func main() {
 	rootCmd.Flags().StringSliceVarP(&exclude, "exclude", "e", []string{}, "Path to exclude from the process")
+	rootCmd.Flags().BoolVarP(&debug, "debug", "d", false, "Show debug information")
 	rootCmd.Flags().StringVarP(&jsonOutput, "json", "j", "configuration.json", "Output JSON file containing the generated configuration")
 	rootCmd.Flags().StringVarP(&txtOutput, "txt", "t", "", "Output TXT file containing the generated documentation")
 	rootCmd.Flags().StringVarP(&substitutionDBPath, "substitution-db", "s", "", "Path to a YAML file containing substitution rules")
