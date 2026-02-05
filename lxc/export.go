@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
-	"net/url"
 	"os"
-	"path"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -140,15 +138,15 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get name of backup
-	uStr := op.Get().Resources["backups"][0]
-	u, err := url.Parse(uStr)
-	if err != nil {
-		return fmt.Errorf("Invalid URL %q: %w", uStr, err)
+	var backupName string
+	if d.HasExtension("operation_metadata_entity_url") {
+		backupName, _, err = getEntityFromOperationMetadata(op.Get().Metadata)
+	} else {
+		backupName, _, err = getEntityFromOperationResources(op.Get().Resources, "backups")
 	}
 
-	backupName, err := url.PathUnescape(path.Base(u.EscapedPath()))
 	if err != nil {
-		return fmt.Errorf("Invalid backup name segment in path %q: %w", u.EscapedPath(), err)
+		return fmt.Errorf("Failed to get instance backup name from operation: %w", err)
 	}
 
 	defer func() {
