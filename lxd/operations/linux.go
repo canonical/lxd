@@ -76,9 +76,11 @@ func registerOperation(ctx context.Context, tx *db.ClusterTx, op *Operation, con
 		return 0, err
 	}
 
-	err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
-	if err != nil {
-		return 0, err
+	if op.Class() == OperationClassDurable {
+		err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	return dbOpID, nil
