@@ -305,3 +305,47 @@ func TestClient(t *testing.T) {
 	err = os.RemoveAll(tmpDir)
 	require.NoError(t, err)
 }
+
+func TestParseProAPIIsAttachedV1(t *testing.T) {
+	t.Run("Valid attached", func(t *testing.T) {
+		response := `{"data": {"attributes": {"is_attached_and_contract_valid": true}}}`
+		attached, err := parseProAPIIsAttachedV1(response)
+		require.NoError(t, err)
+		assert.True(t, attached)
+	})
+
+	t.Run("Valid detached", func(t *testing.T) {
+		response := `{"data": {"attributes": {"is_attached_and_contract_valid": false}}}`
+		attached, err := parseProAPIIsAttachedV1(response)
+		require.NoError(t, err)
+		assert.False(t, attached)
+	})
+
+	t.Run("Missing data", func(t *testing.T) {
+		response := `{"foo": "bar"}`
+		_, err := parseProAPIIsAttachedV1(response)
+		require.Error(t, err)
+		assert.Equal(t, "Received unexpected response from Ubuntu Pro client: missing attached field", err.Error())
+	})
+
+	t.Run("Missing attributes", func(t *testing.T) {
+		response := `{"data": {"foo": "bar"}}`
+		_, err := parseProAPIIsAttachedV1(response)
+		require.Error(t, err)
+		assert.Equal(t, "Received unexpected response from Ubuntu Pro client: missing attached field", err.Error())
+	})
+
+	t.Run("Missing attached field", func(t *testing.T) {
+		response := `{"data": {"attributes": {"foo": "bar"}}}`
+		_, err := parseProAPIIsAttachedV1(response)
+		require.Error(t, err)
+		assert.Equal(t, "Received unexpected response from Ubuntu Pro client: missing attached field", err.Error())
+	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		response := `invalid`
+		_, err := parseProAPIIsAttachedV1(response)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid character")
+	})
+}
