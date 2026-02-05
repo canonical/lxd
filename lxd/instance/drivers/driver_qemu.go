@@ -8920,17 +8920,19 @@ func (d *qemu) Info() instance.Info {
 		return data
 	}
 
-	stdout, stderr, err := shared.RunCommandSplit(context.TODO(), nil, nil, qemuPath, "--version")
+	stdout, err := shared.RunCommandCLocale(qemuPath, "--version")
 	if err != nil {
-		logger.Errorf("Failed getting version during QEMU initialization: %v (%s)", err, stderr)
+		logger.Errorf("Failed getting version during QEMU initialization: %v", err)
 		data.Error = errors.New("Failed getting QEMU version")
 		return data
 	}
 
+	// $ qemu-system-x86_64 --version
+	// QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.11)
+	// Copyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers
 	qemuOutput := strings.Fields(stdout)
 	if len(qemuOutput) >= 4 {
-		qemuVersion := qemuOutput[3]
-		data.Version = qemuVersion
+		data.Version = qemuOutput[3]
 	} else {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
 	}
@@ -9139,10 +9141,9 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 
 // version returns the QEMU version.
 func (d *qemu) version() (*version.DottedVersion, error) {
-	info := DriverStatuses()[instancetype.VM].Info
-	qemuVer, err := version.NewDottedVersion(info.Version)
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing QEMU version: %w", err)
+	qemuVer := DriverStatuses()[instancetype.VM].Version
+	if qemuVer == nil {
+		return nil, errors.New("QEMU version unavailable")
 	}
 
 	return qemuVer, nil
