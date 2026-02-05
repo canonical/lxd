@@ -55,8 +55,8 @@ type execWs struct {
 }
 
 // Metadata returns a map of metadata.
-func (s *execWs) Metadata() any {
-	fds := shared.Jmap{}
+func (s *execWs) Metadata() map[string]any {
+	fds := make(map[string]string, len(s.fds))
 	for fd, secret := range s.fds {
 		if fd == execWSControl {
 			fds[api.SecretNameControl] = secret
@@ -65,7 +65,7 @@ func (s *execWs) Metadata() any {
 		}
 	}
 
-	return shared.Jmap{
+	return map[string]any{
 		"fds":         fds,
 		"command":     s.req.Command,
 		"environment": s.req.Environment,
