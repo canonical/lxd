@@ -2906,3 +2906,13 @@ The field is only included when a resource is being created asynchronously (oper
 For synchronous resource creation, clients should inspect the `Location` header.
 
 The `resources` field should no longer be relied upon for this information.
+
+(extension-instance-boot-mode)=
+## `instance_boot_mode`
+
+Introduces the new {config:option}`instance-boot:boot.mode` configuration key to control the VM boot firmware mode.
+This replaces the removed `security.csm` setting.
+
+The new setting accepts:
+* `uefi` (default) - Use UEFI firmware (EDK2)
+* `bios` - Use legacy BIOS firmware (SeaBIOS)
