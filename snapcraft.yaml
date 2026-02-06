@@ -351,85 +351,73 @@ parts:
       craftctl default
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      set -ex
+      set -eux
+
+      # Ensure staged libraries are found (needed for qemu to generate secure boot vars)
+      export LD_LIBRARY_PATH="${CRAFT_STAGE}/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH):${CRAFT_STAGE}/lib:${LD_LIBRARY_PATH:-}"
+
+      # Apply patches from Ubuntu sources.
+      QUILT_PATCHES=debian/patches quilt push -a
 
       # Apply patches
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
       cp "${CRAFT_PROJECT_DIR}/patches/edk2-0002-logo.bmp" MdeModulePkg/Logo/Logo.bmp
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0003-boot-delay.patch"
 
-      # Arch-specific logic
-      ARCH="X64"
-      PKG="OvmfPkg/OvmfPkgX64.dsc"
-      FV_CODE="OVMF_CODE"
-      FV_VARS="OVMF_VARS"
-      if [ "$(uname -m)" = "aarch64" ]; then
-          ARCH="AARCH64"
-          PKG="ArmVirtPkg/ArmVirtQemu.dsc"
-          FV_CODE="QEMU_EFI"
-          FV_VARS="QEMU_VARS"
-      fi
+      # Install files destination
+      mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
 
-      # Run in a bash sub-shell as edksetup.sh requires it
-      build_edk2() {
-          TARGET_CODE="$1"
-          shift
-          TARGET_VARS="$1"
-          shift
-          TARGET_BUILD_TYPE="$1"
-          shift
+      # Function to run build and install
+      run_build() {
+          TYPE=$1
+          SUFFIX=$2
 
-          set -ex
-          (
-          cat << EOF
-              . ./edksetup.sh
-              make -C BaseTools ARCH="${ARCH}"
-              build -a "${ARCH}" -t GCC5 -b "${TARGET_BUILD_TYPE}" -p "${PKG}" \
-                -DSMM_REQUIRE=FALSE \
-                -DSECURE_BOOT_ENABLE=TRUE \
-                -DNETWORK_IP4_ENABLE=TRUE \
-                -DNETWORK_IP6_ENABLE=TRUE \
-                -DNETWORK_TLS_ENABLE=TRUE \
-                -DNETWORK_HTTP_BOOT_ENABLE=TRUE \
-                -DTPM2_ENABLE=TRUE \
-                -DTPM2_CONFIG_ENABLE=TRUE \
-                $@
-      EOF
-          ) | bash -e
+          # Clean up previous build stamps/artifacts to ensure clean rebuild with new TYPE
+          rm -f debian/setup-build-stamp
+          rm -rf debian/*-install
+          rm -rf Build
 
-          cp Build/*/${TARGET_BUILD_TYPE}*/FV/${FV_CODE}.fd "${TARGET_CODE}"
-          cp Build/*/${TARGET_BUILD_TYPE}*/FV/${FV_VARS}.fd "${TARGET_VARS}"
+          if [ "$(uname -m)" = "x86_64" ]; then
+              DSC="OvmfPkg/OvmfPkgX64.dsc"
+              if [ "${TYPE}" = "DEBUG" ]; then
+                  cp "${DSC}" "${DSC}.bak"
+                  sed -i "s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g" "${DSC}"
+              fi
 
-          if [ "$(uname -m)" = "aarch64" ]; then
-              truncate -s 64m "${TARGET_CODE}"
-              truncate -s 64m "${TARGET_VARS}"
+              /usr/bin/make -f debian/rules build-ovmf BUILD_TYPE="${TYPE}"
+
+              if [ "${TYPE}" = "DEBUG" ] && [ -f "${DSC}.bak" ]; then
+                  mv "${DSC}.bak" "${DSC}"
+              fi
+
+              cp debian/ovmf-install/OVMF_CODE_4M.secboot.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB${SUFFIX}.fd"
+              cp debian/ovmf-install/OVMF_VARS_4M.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB${SUFFIX}.fd"
+
+          elif [ "$(uname -m)" = "aarch64" ]; then
+              DSC="ArmVirtPkg/ArmVirt.dsc.inc"
+              if [ "${TYPE}" = "DEBUG" ]; then
+                   cp "${DSC}" "${DSC}.bak"
+                   sed -i "s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g" "${DSC}"
+              fi
+
+              /usr/bin/make -f debian/rules build-qemu-efi-aarch64 BUILD_TYPE="${TYPE}"
+
+              if [ "${TYPE}" = "DEBUG" ] && [ -f "${DSC}.bak" ]; then
+                   mv "${DSC}.bak" "${DSC}"
+              fi
+
+              cp debian/aavmf-install/AAVMF_CODE.secboot.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB${SUFFIX}.fd"
+              cp debian/aavmf-install/AAVMF_VARS.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB${SUFFIX}.fd"
           fi
       }
 
-      # Create the firmware path
-      mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
+      # Build Release
+      run_build RELEASE ""
 
-      # Primary firmware (4MB)
-      build_edk2 \
-        "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB.fd" \
-        "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.fd" \
-        RELEASE \
-        -DFD_SIZE_4MB
+      # Build Debug
+      run_build DEBUG ".debug"
 
-      # Debug firmware (4MB, debug mode)
-      # Can be enabled with the LXD boot.debug_edk2 instance option
-      # Set DEBUG_VERBOSE flag
-      if [ "$(uname -m)" = "aarch64" ]; then
-          sed -i "s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g" ArmVirtPkg/ArmVirt.dsc.inc
-      fi
-      if [ "$(uname -m)" = "x86_64" ]; then
-          sed -i "s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g" "${PKG}"
-      fi
-      build_edk2 \
-        "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB.debug.fd" \
-        "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd" \
-        DEBUG \
-        -DFD_SIZE_4MB
+      # Cleanup debug vars
       rm "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd"
     prime:
       - share/qemu/*
