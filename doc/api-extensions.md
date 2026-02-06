@@ -2225,9 +2225,13 @@ This introduces:
 
 ## `security_csm`
 
-Introduce a new {config:option}`instance-security:security.csm` configuration key to control the use of
+Introduce a new `instance-security:security.csm` configuration key to control the use of
 `CSM` (Compatibility Support Module) to allow legacy operating systems to
 be run in LXD VMs.
+
+```{note}
+The `security.csm` key has been replaced by `boot.mode`. See {ref}`extension-instance-boot-mode`.
+```
 
 ## `instances_rebuild`
 
