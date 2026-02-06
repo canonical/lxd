@@ -357,8 +357,6 @@ parts:
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
       cp "${CRAFT_PROJECT_DIR}/patches/edk2-0002-logo.bmp" MdeModulePkg/Logo/Logo.bmp
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0003-boot-delay.patch"
-      # revert "ArmVirtPkg: make EFI_LOADER_DATA non-executable" as it breaks almost everything
-      patch --binary -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0008-Revert-ArmVirtPkg-make-EFI_LOADER_DATA-non-execurable.patch"
 
       # Arch-specific logic
       ARCH="X64"
