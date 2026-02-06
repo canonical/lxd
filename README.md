@@ -99,7 +99,7 @@ You can seek support from the LXD developers as well as the wider community thro
 
 ### Forum
 
-Ask questions or engage in discussions: [`https://discourse.ubuntu.com/c/lxd/`](https://discourse.ubuntu.com/c/lxd/126)
+Ask questions or engage in discussions: [`https://discourse.ubuntu.com/c/project/lxd/`](https://discourse.ubuntu.com/c/project/lxd/126)
 
 ### Documentation
 
