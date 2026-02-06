@@ -331,14 +331,26 @@ parts:
     plugin: nil
     build-packages:
       - to amd64:
-        - g++
         - acpica-tools
+        - bc
+        - debhelper
+        - g++
+        - lsb-release
         - nasm
+        - python3
+        - python3-virt-firmware
+        - quilt
         - uuid-dev
       - to arm64:
-        - g++
         - acpica-tools
+        - bc
+        - debhelper
+        - g++
+        - lsb-release
         - nasm
+        - python3
+        - python3-virt-firmware
+        - quilt
         - uuid-dev
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
