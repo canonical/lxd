@@ -3086,3 +3086,28 @@ This includes the following new endpoints (see {ref}`rest-api` for details):
 
 Adds a new `security` event type conforming to OWASP security event logging guidelines.
 Security events are accessible via `GET /1.0/events?type=security` and can be routed to Grafana Loki by adding `security` to the `loki.types` server configuration.
+
+(extension-image-registries)=
+## `image_registries`
+
+This introduces the image registries API.
+
+This includes the following new endpoints (see {ref}`rest-api` for details):
+
+* [`GET /1.0/image-registries`](swagger:/image-registries/image_registries_get)
+* [`GET /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_get)
+* [`GET /1.0/image-registries/<name>/images`](swagger:/image-registries/image_registry_images_get)
+* [`POST /1.0/image-registries`](swagger:/image-registries/image_registries_post)
+* [`POST /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_post)
+* [`PUT /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_put)
+* [`PATCH /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_patch)
+* [`DELETE /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_delete)
+
+Also the following API endpoints are updated to use image registries:
+
+* [`POST /1.0/images`](swagger:/images/images_post)
+* [`POST /1.0/instances`](swagger:/instances/instances_post)
+
+This also adds a new project-level configuration key:
+
+* {config:option}`project-restricted:restricted.registries` - Comma separated list of allowed image registries for use in a project.
