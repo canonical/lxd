@@ -69,19 +69,3 @@ Finally, click {guilabel}`Connect` in the UI to complete gaining access. You sho
 Now you can start creating instances, editing profiles, or configuring your server.
 
 For detailed information about the authentication process, see: {ref}`authentication`.
-
-(access-ui-enable)=
-## Enable or disable the UI
-
-The {ref}`snap configuration option <howto-snap-configure>` `lxd ui.enable` controls whether the UI is enabled for LXD.
-
-Starting with LXD 5.21, the UI is enabled by default.
-If you want to disable it, set the option to `false`:
-
-    sudo snap set lxd ui.enable=false
-    sudo systemctl reload snap.lxd.daemon
-
-To enable it again, or to enable it for older LXD versions (that include the UI), set the option to `true`:
-
-    sudo snap set lxd ui.enable=true
-    sudo systemctl reload snap.lxd.daemon
