@@ -1,5 +1,9 @@
 package api
 
+import (
+	"time"
+)
+
 const (
 	// AuthTrusted is the value of [ServerUntrusted.Auth] returned by the server when the client has authenticated.
 	AuthTrusted = "trusted"
@@ -243,6 +247,11 @@ type Server struct {
 	//
 	// API extension: auth_user
 	AuthUserMethod string `json:"auth_user_method" yaml:"auth_user_method"`
+
+	// When the bearer token expires. Only included for bearer token authenticated identities.
+	// Read only: true
+	// Example: 2026-12-31T23:59:59Z
+	AuthTokenExpiresAt *time.Time `json:"auth_token_expiry,omitempty" yaml:"auth_token_expires_at,omitempty"`
 
 	// Read-only status/configuration information
 	// Read only: true

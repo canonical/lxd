@@ -59,5 +59,6 @@ Harden security </howto/security_harden>
 /howto/troubleshoot
 Get support </support>
 Contribute to LXD </contributing>
+/howto/auth_bearer
 /howto/devlxd_authenticate
 ```

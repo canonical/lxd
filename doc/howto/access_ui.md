@@ -41,7 +41,41 @@ If you have already set up access to the UI, you will see the {guilabel}`Instanc
 
 <!-- Include start access UI -->
 
-Access to the UI requires both a browser certificate and a trust token.
+Access to the UI can be obtained in two ways:
+
+- Temporary access using a UI magic link (bearer token, valid for 1 day).
+- Permanent access using a browser certificate and trust token.
+
+(access-ui-setup-magic-link)=
+### Temporary UI access using magic link
+
+The `lxd init` guides you through the LXD initialization process.
+When the server address is configured during the initialization process, the `lxd init` offers an option to generate a temporary UI access link. If you agree with that option, a temporary LXD UI access URL that is valid for 24 hours is printed at the end of the process, as shown below.
+
+```
+...
+Would you like the LXD server to be available over the network? (yes/no) [default=no]: yes
+Address to bind LXD to (not including port) [default=all]:
+Port to bind LXD to [default=8443]:
+Would you like to create a temporary LXD UI  access link? (yes/no) [default=no]: yes
+...
+UI temporary identity (type: Client token bearer): ui-admin-temporary
+UI temporary access link (expires: 2026-01-17 16:36): https://127.0.0.1:8443/?token=<bearer_token>
+```
+
+Open this URL in your browser to immediately access the UI as an admin.
+This method is intended for initial access and setup only. After logging in, configure the permanent authentication (mTLS or OIDC) for continued access.
+
+To obtain a new temporary UI access link, run `lxd init` again. For convenience, the `--ui-temporary-access-link` flag can be used in combination with the `--auto` to non-interactively generate a new one.
+
+```
+lxd init --auto --ui-temporary-access-link
+```
+
+(access-ui-setup-certificate)=
+### Permanent UI access using browser certificate
+
+Permanent access to the UI requires both a browser certificate and a trust token.
 
 If you have not set up a secure {ref}`authentication-server-certificate`, LXD uses a self-signed certificate, which will cause a security warning in your browser. Use your browser's mechanism to continue this time despite the security warning.
 
@@ -54,7 +88,7 @@ For example, in Chrome, click **Advanced**, then follow the link to **Proceed** 
 
 In Firefox, click **Advanced**, then follow the link to **Accept the risk and continue**.
 
-### Set up the browser certificate
+#### Set up the browser certificate
 
 Follow the instructions in the LXD UI browser page to install and select the browser certificate, also called a client certificate.
 
