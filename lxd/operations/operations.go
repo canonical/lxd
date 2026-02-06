@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -174,6 +175,11 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		op.SetEventServer(s.Events)
 	}
 
+	err := validateMetadata(args.Metadata)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to validate operation metadata: %w", err)
+	}
+
 	op.metadata = args.Metadata
 
 	// Callback functions
@@ -197,7 +203,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err := registerDBOperation(&op, args.Type)
+	err = registerDBOperation(&op, args.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -537,6 +543,11 @@ func (op *Operation) Wait(ctx context.Context) error {
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
+	err := validateMetadata(opMetadata)
+	if err != nil {
+		return fmt.Errorf("Failed to update operation metadata: %w", err)
+	}
+
 	op.lock.Lock()
 	if op.finished.Err() != nil {
 		op.lock.Unlock()
@@ -587,6 +598,11 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 		newMetadata = metadata
 	} else {
 		maps.Copy(newMetadata, metadata)
+	}
+
+	err := validateMetadata(newMetadata)
+	if err != nil {
+		return fmt.Errorf("Failed to extend operation metadata: %w", err)
 	}
 
 	// Update the operation.
@@ -648,4 +664,23 @@ func (op *Operation) Class() OperationClass {
 // Type returns the db operation type.
 func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
+}
+
+// validateMetadata is used to enforce some consistency in operation metadata.
+func validateMetadata(metadata map[string]any) error {
+	// If the entity_url field is used, it must always be a string and must always be a valid URL.
+	entityURLAny, ok := metadata["entity_url"]
+	if ok {
+		entityURL, ok := entityURLAny.(string)
+		if !ok {
+			return fmt.Errorf("Operation metadata entity_url must be a string (got %T)", entityURLAny)
+		}
+
+		err := validate.IsRequestURL(entityURL)
+		if err != nil {
+			return fmt.Errorf("Operation metadata entity_url must be a valid request URL: %w", err)
+		}
+	}
+
+	return nil
 }
