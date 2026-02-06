@@ -60,7 +60,7 @@ Ubuntu 20.04 and earlier have recent versions of the `cloud-init` package but su
 
 ### Vendor data and user data
 
-Both `vendor-data` and `user-data` are used to provide {ref}`cloud configuration data <explanation/format:cloud config data>` to `cloud-init`.
+Both `vendor-data` and `user-data` are used to provide {ref}`cloud configuration data <cloud-init:user_data_formats-cloud_config>` to `cloud-init`.
 
 The main idea is that `vendor-data` is used for the general default configuration, while `user-data` is used for instance-specific configuration.
 This means that you should specify `vendor-data` in a profile and `user-data` in the instance configuration.
@@ -134,7 +134,7 @@ Then click {guilabel}`Edit instance` and override the configuration for one or m
 The `cloud-init` options require YAML's [literal style format](https://yaml.org/spec/1.2.2/#812-literal-style).
 You use a pipe symbol (`|`) to indicate that all indented text after the pipe should be passed to `cloud-init` as a single string, with new lines and indentation preserved.
 
-The `vendor-data` and `user-data` options usually start with `#cloud-config`. But `cloud-init` has an array of [configuration formats](https://docs.cloud-init.io/en/latest/explanation/format.html#configuration-types) available.
+The `vendor-data` and `user-data` options usually start with `#cloud-config`. But `cloud-init` has an array of {ref}`configuration types <cloud-init:user_data_formats>` available. 
 
 For example:
 
@@ -297,7 +297,7 @@ To inject SSH keys into LXD instances for an arbitrary user, use the configurati
 
 Use the format `<user>:<key>` for its value, where `<user>` is a Linux username and `<key>` can be either a pure SSH public key or an import ID for a key hosted elsewhere. For example, `root:gh:githubUser` and `myUser:ssh-keyAlg publicKeyHash` are valid values. To prevent a particular SSH key from being inherited from a profile by an instance, edit the instance configuration by setting the `cloud-init.ssh-keys.<keyName>` key that references the target SSH key to `none`, and the key will not be injected.
 
-The contents of the `cloud-init.ssh-keys.<keyName>` keys are merged into both {config:option}`instance-cloud-init:cloud-init.vendor-data` and {config:option}`instance-cloud-init:cloud-init.user-data` before being passed to the guest, following the `cloud-config` specification. (See the {ref}`cloud-init documentation <cloud-init:about-cloud-config>` for details.) Therefore, keys defined via `cloud-init.ssh-keys.<keyName>` cannot be applied if LXD cannot parse the existing `cloud-init.vendor-data` and `cloud-init.user-data` for that instance. This might occur if those keys are not in YAML format or contain invalid YAML. Other configuration formats are not yet supported.
+The contents of the `cloud-init.ssh-keys.<keyName>` keys are merged into both {config:option}`instance-cloud-init:cloud-init.vendor-data` and {config:option}`instance-cloud-init:cloud-init.user-data` before being passed to the guest, following the `cloud-config` specification. (See the {doc}`cloud-init reference <cloud-init:reference/index>` for details.) Therefore, keys defined via `cloud-init.ssh-keys.<keyName>` cannot be applied if LXD cannot parse the existing `cloud-init.vendor-data` and `cloud-init.user-data` for that instance. This might occur if those keys are not in YAML format or contain invalid YAML. Other configuration formats are not yet supported.
 
 You can define SSH keys via `cloud-init.vendor-data` or `cloud-init.user-data` directly. Keys defined using `cloud-init.ssh-keys.<keyName>` do not conflict with those defined in either of those settings. For details on defining SSH keys with `cloud-config`, see {ref}`the cloud-init documentation for SSH configuration <cloud-init:cce-ssh>`. Changing a `cloud-init.*` key does not remove previously applied keys.
 
