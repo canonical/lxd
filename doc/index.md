@@ -79,7 +79,7 @@ It’s an open source project that warmly welcomes community projects, contribut
 
 The LXD project is sponsored by [Canonical Ltd](https://canonical.com/).
 
-- [Ubuntu Code of Conduct](https://ubuntu.com/community/ethos/code-of-conduct)
+- [Ubuntu Code of Conduct](https://ubuntu.com/community/docs/ethos/code-of-conduct)
 - [Contribute to the project](contributing.md)
 - [Release announcements](https://discourse.ubuntu.com/tags/c/project/lxd/news/143/release)
 - [Release tarballs](https://github.com/canonical/lxd/releases/)
