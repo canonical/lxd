@@ -722,17 +722,10 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 		return nil, errors.New("The source server isn't listening on the network")
 	}
 
-	rop := remoteOperation{
-		chDone: make(chan bool),
-	}
-
 	operation := req.Source.Operation
 
 	// Forward targetOp to remote op
-	chConnect := make(chan error, 1)
-	chWait := make(chan error, 1)
-
-	go func() {
+	targetOpFunc := func(rop *remoteOperation) error {
 		success := false
 		var errors []remoteOperationResult
 		for _, serverURL := range urls {
@@ -771,39 +764,14 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 			break
 		}
 
-		if success {
-			chConnect <- nil
-			close(chConnect)
-		} else {
-			chConnect <- remoteOperationError("Failed instance creation", errors)
-			close(chConnect)
-
-			if op != nil {
-				_ = op.Cancel()
-			}
+		if !success {
+			return remoteOperationError("Failed instance creation", errors)
 		}
-	}()
 
-	if op != nil {
-		go func() {
-			chWait <- op.Wait()
-			close(chWait)
-		}()
+		return nil
 	}
 
-	go func() {
-		var err error
-
-		select {
-		case err = <-chConnect:
-		case err = <-chWait:
-		}
-
-		rop.err = err
-		close(rop.chDone)
-	}()
-
-	return &rop, nil
+	return r.startSplitRemoteOperation(targetOpFunc, op), nil
 }
 
 // CreateInstanceFromImage is a convenience function to make it easier to create a instance from an existing image.
@@ -1139,17 +1107,10 @@ func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req
 		return nil, errors.New("The target server isn't listening on the network")
 	}
 
-	rop := remoteOperation{
-		chDone: make(chan bool),
-	}
-
 	operation := req.Target.Operation
 
 	// Forward targetOp to remote op
-	chConnect := make(chan error, 1)
-	chWait := make(chan error, 1)
-
-	go func() {
+	targetOpFunc := func(rop *remoteOperation) error {
 		success := false
 		var errors []remoteOperationResult
 		for _, serverURL := range urls {
@@ -1182,39 +1143,14 @@ func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req
 			break
 		}
 
-		if success {
-			chConnect <- nil
-			close(chConnect)
-		} else {
-			chConnect <- remoteOperationError("Failed instance migration", errors)
-			close(chConnect)
-
-			if op != nil {
-				_ = op.Cancel()
-			}
+		if !success {
+			return remoteOperationError("Failed instance migration", errors)
 		}
-	}()
 
-	if op != nil {
-		go func() {
-			chWait <- op.Wait()
-			close(chWait)
-		}()
+		return nil
 	}
 
-	go func() {
-		var err error
-
-		select {
-		case err = <-chConnect:
-		case err = <-chWait:
-		}
-
-		rop.err = err
-		close(rop.chDone)
-	}()
-
-	return &rop, nil
+	return r.startSplitRemoteOperation(targetOpFunc, op), nil
 }
 
 // MigrateInstance requests that LXD prepares for a instance migration.
@@ -2156,7 +2092,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 		target.Certificate = info.Certificate
 		sourceReq.Target = &target
 
-		return r.tryMigrateInstanceSnapshot(source, cName, sName, sourceReq, info.Addresses)
+		return r.tryMigrateInstanceSnapshot(source, cName, sName, sourceReq, info.Addresses, op)
 	}
 
 	// Get source server connection information
@@ -2259,19 +2195,15 @@ func (r *ProtocolLXD) RenameInstanceSnapshot(instanceName string, name string, i
 	return op, nil
 }
 
-func (r *ProtocolLXD) tryMigrateInstanceSnapshot(source InstanceServer, instanceName string, name string, req api.InstanceSnapshotPost, urls []string) (RemoteOperation, error) {
+func (r *ProtocolLXD) tryMigrateInstanceSnapshot(source InstanceServer, instanceName string, name string, req api.InstanceSnapshotPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, errors.New("The target server isn't listening on the network")
-	}
-
-	rop := remoteOperation{
-		chDone: make(chan bool),
 	}
 
 	operation := req.Target.Operation
 
 	// Forward targetOp to remote op
-	go func() {
+	targetOpFunc := func(rop *remoteOperation) error {
 		success := false
 		var errors []remoteOperationResult
 		for _, serverURL := range urls {
@@ -2305,13 +2237,13 @@ func (r *ProtocolLXD) tryMigrateInstanceSnapshot(source InstanceServer, instance
 		}
 
 		if !success {
-			rop.err = remoteOperationError("Failed instance migration", errors)
+			return remoteOperationError("Failed instance migration", errors)
 		}
 
-		close(rop.chDone)
-	}()
+		return nil
+	}
 
-	return &rop, nil
+	return r.startSplitRemoteOperation(targetOpFunc, op), nil
 }
 
 // MigrateInstanceSnapshot requests that LXD prepares for a snapshot migration.

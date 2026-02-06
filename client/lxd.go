@@ -501,3 +501,36 @@ func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api
 
 	return info, nil
 }
+
+// startSplitRemoteOperation starts a new remote operation and ensures that both the target operation func and source operation
+// are executed before marking the returned remote operation as done.
+// The new remote operation gets passed as an argument to the provided target operation func.
+// In case the target operation func is returning an error, this indicates we don't anymore have to wait for the source operation.
+func (r *ProtocolLXD) startSplitRemoteOperation(targetOpFunc func(rop *remoteOperation) error, sourceOp Operation) RemoteOperation {
+	rop := &remoteOperation{
+		chDone: make(chan bool),
+	}
+
+	go func() {
+		// Used later to either transport the error from the source or target operation.
+		var err error
+
+		// Finish the remote operation only after both sub-operations are done.
+		defer func() {
+			rop.err = err
+			close(rop.chDone)
+		}()
+
+		err = targetOpFunc(rop)
+		if err != nil {
+			return
+		}
+
+		// Target operation was successful, now wait and check the source operation if provided.
+		if sourceOp != nil {
+			err = sourceOp.Wait()
+		}
+	}()
+
+	return rop
+}
