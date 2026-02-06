@@ -10,7 +10,7 @@ import (
 )
 
 // NewFileReadWriter returns a CGroup instance using the filesystem as its backend.
-func NewFileReadWriter(pid int, unifiedCapable bool) (*CGroup, error) {
+func NewFileReadWriter(pid int) (*CGroup, error) {
 	// Setup the read/writer struct.
 	rw := fileReadWriter{}
 
@@ -58,7 +58,7 @@ func NewFileReadWriter(pid int, unifiedCapable bool) (*CGroup, error) {
 		return nil, err
 	}
 
-	cg.UnifiedCapable = unifiedCapable
+	cg.UnifiedCapable = true // cgroup2: introduced in lxc 4.0.0
 	return cg, nil
 }
 

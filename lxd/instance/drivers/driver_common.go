@@ -1766,7 +1766,6 @@ func (d *common) setCoreSched(pids []int) error {
 
 	args := []string{
 		"forkcoresched",
-		"0",
 	}
 
 	for _, pid := range pids {
