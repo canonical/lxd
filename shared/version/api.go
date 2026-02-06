@@ -490,6 +490,7 @@ var APIExtensions = []string{
 	"replicators",
 	"event_security",
 	"storage_driver_powerstore",
+	"image_registries",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
