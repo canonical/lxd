@@ -10,7 +10,7 @@ Review the following guidelines before contributing to the project.
 
 ## Code of Conduct
 
-All contributors must adhere to the [Ubuntu Code of Conduct](https://ubuntu.com/community/ethos/code-of-conduct).
+All contributors must adhere to the [Ubuntu Code of Conduct](https://ubuntu.com/community/docs/ethos/code-of-conduct).
 
 ## License and copyright
 
