@@ -23,29 +23,39 @@ type pro interface {
 // proCLI calls the actual Ubuntu Pro CLI to implement the interface.
 type proCLI struct{}
 
-// isHostAttached returns true if the host is attached to a pro subscription.
+// isHostAttached returns true if the host is attached to a pro subscription with a valid contract.
 func (proCLI) isHostAttached() (bool, error) {
 	// Run pro status command.
-	response, err := shared.RunCommand("pro", "status", "--format", "json")
+	response, err := shared.RunCommand("pro", "api", "u.pro.status.is_attached.v1")
 	if err != nil {
 		return false, fmt.Errorf("Ubuntu Pro client command unsuccessful: %w", err)
 	}
 
-	// Parse response.
-	var statusResponse struct {
-		Attached *bool `json:"attached"`
-	}
+	return parseProAPIIsAttachedV1(response)
+}
 
-	err = json.Unmarshal([]byte(response), &statusResponse)
+// proAPIIsAttachedV1 represents the expected format of calls to `pro api u.pro.status.is_attached.v1`.
+type proAPIIsAttachedV1 struct {
+	Data *struct {
+		Attributes *struct {
+			Attached *bool `json:"is_attached_and_contract_valid"`
+		} `json:"attributes"`
+	} `json:"data"`
+}
+
+func parseProAPIIsAttachedV1(response string) (bool, error) {
+	var statusResponse proAPIIsAttachedV1
+
+	err := json.Unmarshal([]byte(response), &statusResponse)
 	if err != nil {
 		return false, fmt.Errorf("Received unexpected response from Ubuntu Pro client: %w", err)
 	}
 
-	if statusResponse.Attached == nil {
+	if statusResponse.Data == nil || statusResponse.Data.Attributes == nil || statusResponse.Data.Attributes.Attached == nil {
 		return false, errors.New("Received unexpected response from Ubuntu Pro client: missing attached field")
 	}
 
-	return *statusResponse.Attached, nil
+	return *statusResponse.Data.Attributes.Attached, nil
 }
 
 // New returns a new Client that checks (once) if the host is attached to a pro subscription.
