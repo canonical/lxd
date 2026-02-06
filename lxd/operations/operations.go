@@ -105,6 +105,9 @@ type Operation struct {
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 	onDone    func(*Operation)
 
+	// Inputs for the operation, which are stored in the database.
+	inputs map[string]any
+
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
@@ -129,6 +132,10 @@ type OperationArgs struct {
 	Metadata    map[string]any
 	RunHook     func(ctx context.Context, op *Operation) error
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
+	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
+	// Empty ConflictReference means the operation can be started anytime.
+	ConflictReference string
+	Inputs            map[string]any
 }
 
 // CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
@@ -145,17 +152,23 @@ func CreateServerOperation(s *state.State, args OperationArgs) (*Operation, erro
 	return operationCreate(s, nil, args)
 }
 
-// operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
-func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+// initOperation initializes a new operation structure. It does not register it in the database.
+func initOperation(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
 	}
 
+	// Use a v7 UUID for the operation ID.
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate operation UUID: %w", err)
+	}
+
 	// Main attributes
 	op := Operation{}
 	op.projectName = args.ProjectName
-	op.id = uuid.New().String()
+	op.id = uuid.String()
 	op.description = args.Type.Description()
 	op.entityType, op.entitlement = args.Type.Permission()
 	op.dbOpType = args.Type
@@ -170,17 +183,22 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.state = s
 	op.requestor = requestor
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+	op.inputs = args.Inputs
 
 	if s != nil {
 		op.SetEventServer(s.Events)
 	}
 
-	err := validateMetadata(args.Metadata)
+	err = validateMetadata(args.Metadata)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to validate operation metadata: %w", err)
 	}
 
-	op.metadata = args.Metadata
+	// Ensure metadata is never nil.
+	op.metadata = make(map[string]any)
+	if args.Metadata != nil {
+		op.metadata = args.Metadata
+	}
 
 	// Callback functions
 	op.onRun = args.RunHook
@@ -199,11 +217,28 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
-	operationsLock.Lock()
-	operations[op.id] = &op
-	operationsLock.Unlock()
+	return &op, nil
+}
 
-	err = registerDBOperation(&op, args.Type)
+// operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
+func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+	op, err := initOperation(s, requestor, args)
+	if err != nil {
+		return nil, err
+	}
+
+	if args.ConflictReference != "" {
+		conflict, err := conflictingOperationExists(op, args.ConflictReference)
+		if err != nil {
+			return nil, err
+		}
+
+		if conflict {
+			return nil, api.StatusErrorf(http.StatusConflict, "Conflicting operation already running")
+		}
+	}
+
+	err = registerDBOperation(op)
 	if err != nil {
 		return nil, err
 	}
@@ -212,10 +247,11 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	_, md, _ := op.Render()
 
 	operationsLock.Lock()
+	operations[op.id] = op
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
-	return &op, nil
+	return op, nil
 }
 
 // SetEventServer allows injection of event server.
@@ -314,6 +350,20 @@ func (op *Operation) done() {
 	}()
 }
 
+func updateStatusWithWarning(op *Operation, newStatus api.StatusCode) {
+	oldStatus := op.status
+	// We cannot really use operation context as it was already cancelled.
+	err := op.updateStatus(context.TODO(), newStatus)
+	if err != nil {
+		op.logger.Warn("Failed updating operation status", logger.Ctx{
+			"operation": op.id,
+			"err":       err,
+			"oldStatus": oldStatus,
+			"newStatus": newStatus,
+		})
+	}
+}
+
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
@@ -322,14 +372,18 @@ func (op *Operation) Start() error {
 		return errors.New("Only pending operations can be started")
 	}
 
-	op.status = api.Running
+	runCtx := context.Context(op.running)
+	err := op.updateStatus(runCtx, api.Running)
+	if err != nil {
+		op.lock.Unlock()
+		return fmt.Errorf("Failed updating Operation %q (%q) status: %w", op.id, op.description, err)
+	}
 
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
 		// The requestor is available directly on the operation, but we should still put it in the context.
 		// This is so that, if an operation queries another cluster member, the requestor information will be set
 		// in the request headers.
-		runCtx := context.Context(op.running)
 		if op.requestor != nil {
 			runCtx = request.WithRequestor(runCtx, op.requestor)
 		}
@@ -339,21 +393,22 @@ func (op *Operation) Start() error {
 			if err != nil {
 				op.lock.Lock()
 
+				op.err = err
+
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
-					op.status = api.Cancelled
+					updateStatusWithWarning(op, api.Cancelled)
 				} else {
-					op.status = api.Failure
+					updateStatusWithWarning(op, api.Failure)
 				}
 
 				// Always call cancel. This is a no-op if already cancelled.
 				op.running.Cancel()
-				op.err = err
 
 				op.lock.Unlock()
 				op.done()
 
-				op.logger.Debug("Failure for operation", logger.Ctx{"err": err})
+				op.logger.Warn("Failure for operation", logger.Ctx{"err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -364,7 +419,7 @@ func (op *Operation) Start() error {
 			}
 
 			op.lock.Lock()
-			op.status = api.Success
+			updateStatusWithWarning(op, api.Success)
 			op.running.Cancel()
 			op.lock.Unlock()
 			op.done()
@@ -413,10 +468,11 @@ func (op *Operation) Cancel() {
 	// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
 	//
 	// If the operation does not have a run hook, immediately set the status to cancelled because there is nothing to clean up.
+	// We cannot use the operation context here because it has already been cancelled above.
 	if op.onRun != nil {
-		op.status = api.Cancelling
+		updateStatusWithWarning(op, api.Cancelling)
 	} else {
-		op.status = api.Cancelled
+		updateStatusWithWarning(op, api.Cancelled)
 	}
 
 	op.lock.Unlock()
@@ -540,6 +596,12 @@ func (op *Operation) Wait(ctx context.Context) error {
 	}
 }
 
+func (op *Operation) updateStatus(ctx context.Context, newStatus api.StatusCode) error {
+	op.status = newStatus
+	op.updatedAt = time.Now()
+	return updateDBOperationStatus(op)
+}
+
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
@@ -571,6 +633,15 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	op.lock.Unlock()
 
 	return nil
+}
+
+// CommitMetadata commits the metadata of a durable operation to the database.
+func (op *Operation) CommitMetadata() error {
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	op.updatedAt = time.Now()
+	return updateDBOperationStatus(op)
 }
 
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
@@ -664,6 +735,11 @@ func (op *Operation) Class() OperationClass {
 // Type returns the db operation type.
 func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
+}
+
+// Inputs returns the operation inputs from the database.
+func (op *Operation) Inputs() map[string]any {
+	return op.inputs
 }
 
 // validateMetadata is used to enforce some consistency in operation metadata.

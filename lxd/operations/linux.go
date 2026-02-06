@@ -4,24 +4,28 @@ package operations
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/shared/api"
 )
 
-func registerDBOperation(op *Operation, opType operationtype.Type) error {
+func registerDBOperation(op *Operation) error {
 	if op.state == nil {
 		return nil
 	}
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		opInfo := cluster.Operation{
-			UUID:   op.id,
-			Type:   opType,
-			NodeID: tx.GetNodeID(),
+			UUID:      op.id,
+			Type:      op.dbOpType,
+			NodeID:    tx.GetNodeID(),
+			Class:     (int64)(op.class),
+			CreatedAt: op.createdAt,
+			UpdatedAt: op.updatedAt,
+			Status:    int64(op.Status()),
 		}
 
 		if op.projectName != "" {
@@ -33,11 +37,57 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			opInfo.ProjectID = &projectID
 		}
 
-		_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		if op.requestor != nil {
+			value := cluster.RequestorProtocol(op.requestor.CallerProtocol())
+			opInfo.RequestorProtocol = &value
+
+			requestorCallerIdentityID := op.requestor.CallerIdentityID()
+			if requestorCallerIdentityID != 0 {
+				identityID := int64(requestorCallerIdentityID)
+				opInfo.RequestorIdentityID = &identityID
+			}
+		}
+
+		inputsJSON, err := json.Marshal(op.inputs)
+		if err != nil {
+			return fmt.Errorf("Failed marshalling operation inputs: %w", err)
+		}
+
+		opInfo.Inputs = string(inputsJSON)
+
+		metadataJSON, err := json.Marshal(op.metadata)
+		if err != nil {
+			return fmt.Errorf("Failed marshalling operation metadata: %w", err)
+		}
+
+		opInfo.Metadata = string(metadataJSON)
+
+		_, err = cluster.CreateOperation(ctx, tx.Tx(), opInfo)
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed creating %q operation record: %w", opType.Description(), err)
+		return fmt.Errorf("Failed creating %q operation record: %w", op.dbOpType.Description(), err)
+	}
+
+	return nil
+}
+
+func updateDBOperationStatus(op *Operation) error {
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		opErr := ""
+		if op.err != nil {
+			opErr = op.err.Error()
+		}
+
+		metadataJSON, err := json.Marshal(op.metadata)
+		if err != nil {
+			return fmt.Errorf("Failed marshalling operation metadata: %w", err)
+		}
+
+		return cluster.UpdateOperationStatus(ctx, tx.Tx(), op.id, op.updatedAt, op.status, string(metadataJSON), opErr)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed adding operation %s metadata to database: %w", op.id, err)
 	}
 
 	return nil
@@ -61,4 +111,27 @@ func (op *Operation) sendEvent(eventMessage any) {
 	}
 
 	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
+}
+
+func conflictingOperationExists(op *Operation, conflictReference string) (bool, error) {
+	var ops []cluster.Operation
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		filter := cluster.OperationFilter{ConflictReference: &conflictReference}
+		var err error
+		ops, err = cluster.GetOperations(ctx, tx.Tx(), filter)
+		return err
+	})
+	if err != nil {
+		return false, fmt.Errorf("Failed checking for conflicting operations: %w", err)
+	}
+
+	// Detect conflict only if any of the operations of conflicting type (and entity ID if applicable)
+	// is still running.
+	for _, existingOp := range ops {
+		if !api.StatusCode(existingOp.Status).IsFinal() {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
