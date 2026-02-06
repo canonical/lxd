@@ -479,6 +479,7 @@ var APIExtensions = []string{
 	"project_delete_operation",
 	"gpu_cdi_amd",
 	"cluster_links",
+	"image_registries",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
