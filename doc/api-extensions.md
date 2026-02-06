@@ -2906,3 +2906,8 @@ The field is only included when a resource is being created asynchronously (oper
 For synchronous resource creation, clients should inspect the `Location` header.
 
 The `resources` field should no longer be relied upon for this information.
+
+(extension-durable-operations)=
+## `durable_operations`
+
+Introduces new operation class for durable operations. Durable operations are guaranteed to run on a different node if the node running the operation previously goes offline.

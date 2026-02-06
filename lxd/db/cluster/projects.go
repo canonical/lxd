@@ -182,6 +182,31 @@ func GetProjectsSharingDefaultImages(ctx context.Context, tx *sql.Tx) ([]string,
 	return projectNames, nil
 }
 
+// GetProjectIDsToNames returns a map associating each project ID to its
+// project name.
+func GetProjectIDsToNames(ctx context.Context, tx *sql.Tx) (map[int64]string, error) {
+	stmt := "SELECT id, name FROM projects"
+
+	result := map[int64]string{}
+	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
+		var id int64
+		var name string
+
+		err := scan(&id, &name)
+		if err != nil {
+			return err
+		}
+
+		result[id] = name
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Fetch project IDs to names: %w", err)
+	}
+
+	return result, nil
+}
+
 // ProjectHasImages is a helper to check if a project has the images
 // feature enabled.
 func ProjectHasImages(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
