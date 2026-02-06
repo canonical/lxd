@@ -324,9 +324,9 @@ parts:
       #- lib/*/liblz4.so*  # use liblz4.so from the base snap
 
   edk2:
-    source: https://github.com/tianocore/edk2
+    source: https://git.launchpad.net/ubuntu/+source/edk2
     source-depth: 1
-    source-commit: 8736b8fdca85e02933cdb0a13309de14c9799ece # edk2-stable202311
+    source-commit: 0b1f127464c5e53bea2933e26a37155424974fdf # import/2025.02-8ubuntu3
     source-submodules: []
     source-type: git
     plugin: nil
