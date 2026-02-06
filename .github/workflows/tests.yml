@@ -304,9 +304,10 @@ jobs:
 
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
-        uses: canonical/lxd/.github/actions/setup-microceph@main
+        uses: ./.github/actions/setup-microceph
         with:
           osd-count: 3
+          microceph-channel: "squid/edge"
 
       - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
