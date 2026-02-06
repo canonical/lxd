@@ -85,7 +85,7 @@ The LXD project is sponsored by [Canonical Ltd](https://canonical.com/).
 - [Release tarballs](https://github.com/canonical/lxd/releases/)
 - [Get support](support.md)
 - [Watch tutorials and announcements on YouTube](https://www.youtube.com/c/LXDvideos)
-- [Ask and answer questions on the forum](https://discourse.ubuntu.com/c/lxd/126)
+- [Ask and answer questions on the forum](https://discourse.ubuntu.com/c/project/lxd/126)
 
 ```{toctree}
 :hidden:
