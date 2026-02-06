@@ -60,7 +60,7 @@ Ubuntu 20.04 and earlier have recent versions of the `cloud-init` package but su
 
 ### Vendor data and user data
 
-Both `vendor-data` and `user-data` are used to provide {ref}`cloud configuration data <explanation/format:cloud config data>` to `cloud-init`.
+Both `vendor-data` and `user-data` are used to provide {ref}`cloud configuration data <cloud-init:user_data_formats-cloud_config>` to `cloud-init`.
 
 The main idea is that `vendor-data` is used for the general default configuration, while `user-data` is used for instance-specific configuration.
 This means that you should specify `vendor-data` in a profile and `user-data` in the instance configuration.
