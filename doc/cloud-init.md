@@ -133,7 +133,7 @@ Then click {guilabel}`Edit instance` and override the configuration for one or m
 The `cloud-init` options require YAML's [literal style format](https://yaml.org/spec/1.2.2/#812-literal-style).
 You use a pipe symbol (`|`) to indicate that all indented text after the pipe should be passed to `cloud-init` as a single string, with new lines and indentation preserved.
 
-The `vendor-data` and `user-data` options usually start with `#cloud-config`. But `cloud-init` has an array of [configuration formats](https://docs.cloud-init.io/en/latest/explanation/format.html#configuration-types) available.
+The `vendor-data` and `user-data` options usually start with `#cloud-config`. But `cloud-init` has an array of {ref}`configuration types <cloud-init:user_data_formats>` available. 
 
 For example:
 
