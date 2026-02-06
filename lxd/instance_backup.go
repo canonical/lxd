@@ -380,12 +380,17 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 
 	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName)}
 
+	metadata := map[string]any{
+		"entity_url": api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(inst.Project().Name).String(),
+	}
+
 	args := operations.OperationArgs{
 		ProjectName: projectName,
 		Type:        operationtype.BackupCreate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     backup,
+		Metadata:    metadata,
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, args)
