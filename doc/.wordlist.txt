@@ -35,6 +35,9 @@ checksums
 Chocolatey
 CIDR
 CLI
+cloud-init
+cloud-config
+config
 COPR
 CPUs
 CRIU
