@@ -111,7 +111,7 @@ To file a new bug or feature request, [submit an issue on GitHub](https://github
 
 ### Other community resources
 
-You can find additional resources on the [LXD website](https://canonical.com/lxd), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA), and the [community-created tutorials](https://discourse.ubuntu.com/c/lxd/tutorials/146).
+You can find additional resources on the [LXD website](https://canonical.com/lxd), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA), and the [community-created tutorials](https://discourse.ubuntu.com/c/project/lxd/tutorials/146).
 
 ## Commercial support
 
