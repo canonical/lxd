@@ -30,7 +30,7 @@ runs:
           disks=()
           for i in $(seq 1 "${INPUTS_OSD_COUNT}"); do
             backing_file="$(sudo mktemp -p /mnt microceph.XXXX)"
-            sudo truncate -s 5G "${backing_file}"
+            sudo truncate -s 10G "${backing_file}"
 
             loop_device="$(sudo losetup --show -f "${backing_file}")"
             disks+=("${loop_device}")
