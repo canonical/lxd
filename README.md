@@ -16,7 +16,7 @@ You should consider using LXD if you want to containerize different environments
 
 See [Getting started](https://documentation.ubuntu.com/lxd/latest/getting_started/) in the LXD documentation for installation instructions and first steps.
 
-- Release announcements: [`https://discourse.ubuntu.com/c/lxd/news/`](https://discourse.ubuntu.com/c/lxd/news/143)
+- Release announcements: [`https://discourse.ubuntu.com/tags/c/project/lxd/news/143/release`](https://discourse.ubuntu.com/tags/c/project/lxd/news/143/release)
 - Release tarballs: [`https://github.com/canonical/lxd/releases/`](https://github.com/canonical/lxd/releases/)
 - Documentation: [`https://documentation.ubuntu.com/lxd/latest/`](https://documentation.ubuntu.com/lxd/latest/)
 
@@ -99,7 +99,7 @@ You can seek support from the LXD developers as well as the wider community thro
 
 ### Forum
 
-Ask questions or engage in discussions: [`https://discourse.ubuntu.com/c/lxd/`](https://discourse.ubuntu.com/c/lxd/126)
+Ask questions or engage in discussions: [`https://discourse.ubuntu.com/c/project/lxd/`](https://discourse.ubuntu.com/c/project/lxd/126)
 
 ### Documentation
 
@@ -111,7 +111,7 @@ To file a new bug or feature request, [submit an issue on GitHub](https://github
 
 ### Other community resources
 
-You can find additional resources on the [LXD website](https://canonical.com/lxd), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA), and the [community-created tutorials](https://discourse.ubuntu.com/c/lxd/tutorials/146).
+You can find additional resources on the [LXD website](https://canonical.com/lxd), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA), and the [community-created tutorials](https://discourse.ubuntu.com/c/project/lxd/tutorials/146).
 
 ## Commercial support
 
