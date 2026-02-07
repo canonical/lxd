@@ -18,8 +18,8 @@ doc/.sphinx/themes/
 doc/.sphinx/venv/
 doc/.sphinx/warnings.txt
 doc/.sphinx/.wordlist.dic
-doc/.sphinx/_static/swagger-ui
-doc/.sphinx/_static/download
+doc/_static/swagger-ui
+doc/_static/download
 doc/**/__pycache__
 
 # For Atom ctags
