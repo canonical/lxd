@@ -44,6 +44,31 @@ For example:
     lxc query --request GET /1.0/instances?filter=name+eq+ubuntu.*
 
 See [`GET /1.0/instances`](swagger:/instances/instances_get) for more information.
+
+## Optimize queries with selective recursion
+
+To improve performance when querying many instances, you can use bracket notation in the recursion parameter to selectively fetch only the state fields you need.
+This avoids expensive disk and network queries when they are not required.
+
+Fetch only disk usage information:
+
+    lxc query --request GET /1.0/instances?recursion=[state.disk]
+
+Fetch only network information:
+
+    lxc query --request GET /1.0/instances?recursion=[state.network]
+
+Fetch both disk and network information:
+
+    lxc query --request GET /1.0/instances?recursion=[state.disk,state.network]
+
+Skip all expensive state fields (fastest option):
+
+    lxc query --request GET /1.0/instances?recursion=[]
+
+This selective recursion syntax works with both `/1.0/instances` (list) and `/1.0/instances/{name}` (single instance) endpoints.
+
+See {ref}`extension-instances-state-selective-fields` for more information.
 ```
 
 ```{group-tab} UI
