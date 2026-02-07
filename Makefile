@@ -336,6 +336,7 @@ check-metadata: update-metadata
 update-godeps:
 	@echo "Updating godeps.list files"
 	@UPDATE_LISTS=true test/lint/godeps.sh
+	@./scripts/check-and-commit.sh "test/godeps/client.list test/godeps/lxc-config.list test/godeps/lxd-agent.list test/godeps/shared-api.list" "godeps: Update godeps.list files"
 
 .PHONY: doc
 doc: doc-clean doc-install doc-html doc-objects
