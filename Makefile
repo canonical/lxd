@@ -283,9 +283,11 @@ endif
 	# Use the bundled toolchain that meets the minimum go version
 	go get toolchain@none
 
+	@echo "Check licenses for compatibility"
+	@./scripts/licenses.sh
+
 	@echo "Dependencies updated"
 	@./scripts/check-and-commit.sh "go.mod go.sum" "go: Update dependencies"
-
 
 .PHONY: update-protobuf
 update-protobuf:
@@ -334,6 +336,7 @@ check-metadata: update-metadata
 update-godeps:
 	@echo "Updating godeps.list files"
 	@UPDATE_LISTS=true test/lint/godeps.sh
+	@./scripts/check-and-commit.sh "test/godeps/client.list test/godeps/lxc-config.list test/godeps/lxd-agent.list test/godeps/shared-api.list" "godeps: Update godeps.list files"
 
 .PHONY: doc
 doc: doc-clean doc-install doc-html doc-objects
@@ -420,9 +423,6 @@ dist:
 .PHONY: static-analysis
 static-analysis: check-api check-auth check-metadata
 ifeq "$(LXD_OFFLINE)" ""
-	@# XXX: `go install ...@latest` is almost a noop if already up to date
-	go install github.com/google/go-licenses@latest
-
 	@# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
 	go install fillmore-labs.com/errortype@latest
 
