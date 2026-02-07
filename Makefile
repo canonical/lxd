@@ -283,9 +283,11 @@ endif
 	# Use the bundled toolchain that meets the minimum go version
 	go get toolchain@none
 
+	@echo "Check licenses for compatibility"
+	@./scripts/licenses.sh
+
 	@echo "Dependencies updated"
 	@./scripts/check-and-commit.sh "go.mod go.sum" "go: Update dependencies"
-
 
 .PHONY: update-protobuf
 update-protobuf:
