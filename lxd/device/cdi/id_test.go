@@ -13,7 +13,8 @@ func TestToVendor(t *testing.T) {
 		wantErr bool
 	}{
 		{"Valid Nvidia", "nvidia.com", NVIDIA, false},
-		{"Invalid vendor", "amd.com", "", true},
+		{"Valid AMD", "amd.com", AMD, false},
+		{"Invalid vendor", "unknown.com", "", true},
 		{"Empty string", "", "", true},
 	}
 
@@ -68,13 +69,16 @@ func TestToCDI(t *testing.T) {
 		want    *ID
 		wantErr bool
 	}{
-		{"Valid GPU", "nvidia.com/gpu=0", &ID{Vendor: NVIDIA, Class: GPU, Name: "0"}, false},
-		{"Valid GPU all", "nvidia.com/gpu=all", &ID{Vendor: NVIDIA, Class: GPU, Name: "all"}, false},
-		{"Valid MIG", "nvidia.com/mig=0:1", &ID{Vendor: NVIDIA, Class: MIG, Name: "0:1"}, false},
-		{"Valid IGPU", "nvidia.com/igpu=0", &ID{Vendor: NVIDIA, Class: IGPU, Name: "0"}, false},
-		{"Valid GPU with UUID", "nvidia.com/gpu=GPU-8da9a1ee-3495-a369-a73a-b9d8ffbc1220", &ID{Vendor: NVIDIA, Class: GPU, Name: "GPU-8da9a1ee-3495-a369-a73a-b9d8ffbc1220"}, false},
-		{"Valid MIG with UUID", "nvidia.com/mig=MIG-8da9a1ee-3495-a369-a73a-b9d8ffbc1220", &ID{Vendor: NVIDIA, Class: MIG, Name: "MIG-8da9a1ee-3495-a369-a73a-b9d8ffbc1220"}, false},
-		{"Invalid vendor", "amd.com/gpu=0", nil, true},
+		{"Valid NVIDIA GPU", "nvidia.com/gpu=0", &ID{Vendor: NVIDIA, Class: GPU, Name: "0"}, false},
+		{"Valid NVIDIA GPU all", "nvidia.com/gpu=all", &ID{Vendor: NVIDIA, Class: GPU, Name: "all"}, false},
+		{"Valid NVIDIA MIG", "nvidia.com/mig=0:1", &ID{Vendor: NVIDIA, Class: MIG, Name: "0:1"}, false},
+		{"Valid NVIDIA IGPU", "nvidia.com/igpu=0", &ID{Vendor: NVIDIA, Class: IGPU, Name: "0"}, false},
+		{"Valid NVIDIA GPU with UUID", "nvidia.com/gpu=GPU-8da9a1ee-3495-a369-a73a-b9d8ffbc1220", &ID{Vendor: NVIDIA, Class: GPU, Name: "GPU-8da9a1ee-3495-a369-a73a-b9d8ffbc1220"}, false},
+		{"Valid NVIDIA MIG with UUID", "nvidia.com/mig=MIG-8da9a1ee-3495-a369-a73a-b9d8ffbc1220", &ID{Vendor: NVIDIA, Class: MIG, Name: "MIG-8da9a1ee-3495-a369-a73a-b9d8ffbc1220"}, false},
+		{"Valid AMD GPU", "amd.com/gpu=0", &ID{Vendor: AMD, Class: GPU, Name: "0"}, false},
+		{"Valid AMD GPU all", "amd.com/gpu=all", &ID{Vendor: AMD, Class: GPU, Name: "all"}, false},
+		{"Valid AMD IGPU", "amd.com/igpu=0", &ID{Vendor: AMD, Class: IGPU, Name: "0"}, false},
+		{"Invalid vendor", "unknown.com/gpu=0", nil, true},
 		{"Invalid class", "nvidia.com/cpu=0", nil, true},
 		{"Valid MIG format (all MIG indexes in device)", "nvidia.com/mig=0", &ID{Vendor: NVIDIA, Class: MIG, Name: "0"}, false},
 		{"Non-CDI format", "not-a-cdi-format", nil, true},
