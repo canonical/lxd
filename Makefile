@@ -420,9 +420,6 @@ dist:
 .PHONY: static-analysis
 static-analysis: check-api check-auth check-metadata
 ifeq "$(LXD_OFFLINE)" ""
-	@# XXX: `go install ...@latest` is almost a noop if already up to date
-	go install github.com/google/go-licenses@latest
-
 	@# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
 	go install fillmore-labs.com/errortype@latest
 
