@@ -42,6 +42,12 @@ const (
 
 	// IdentityTypeBearerTokenDevLXD represents an identity that bears a LXD token that can be used to interact with the DevLXD API.
 	IdentityTypeBearerTokenDevLXD = "DevLXD token bearer"
+
+	// IdentityTypeCertificateClusterLink represents cluster links that authenticate using TLS and whose permissions are managed via group ownership.
+	IdentityTypeCertificateClusterLink = "Cluster link certificate"
+
+	// IdentityTypeCertificateClusterLinkPending represents cluster links for which a token has been issued but who have not yet authenticated with a linked LXD cluster.
+	IdentityTypeCertificateClusterLinkPending = "Cluster link certificate (pending)"
 )
 
 // WithEntitlements is meant to be an embedded struct to API types eligible for entitlement enrichment,

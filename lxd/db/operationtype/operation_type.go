@@ -80,6 +80,7 @@ const (
 	ProfileUpdate
 	VolumeUpdate
 	VolumeDelete
+	RefreshClusterLinkVolatileAddresses
 )
 
 // Description return a human-readable description of the operation type.
@@ -211,6 +212,8 @@ func (t Type) Description() string {
 		return "Healing cluster"
 	case RemoveExpiredOIDCSessions:
 		return "Remove expired OIDC sessions"
+	case RefreshClusterLinkVolatileAddresses:
+		return "Refreshing cluster link volatile addresses"
 	default:
 		return "Executing operation"
 	}
