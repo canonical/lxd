@@ -31,7 +31,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network/acl"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/subprocess"
@@ -1391,19 +1391,19 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Create the bridge interface if doesn't exist.
 	if !n.isRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
-			ovs := openvswitch.NewOVS()
-			if !ovs.Installed() {
+			vswitch := ovs.NewOVS()
+			if !vswitch.Installed() {
 				return errors.New("Open vSwitch isn't installed on this system")
 			}
 
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
-			err := ovs.BridgeAdd(n.name, false, bridge.Address, bridge.MTU)
+			err := vswitch.BridgeAdd(n.name, false, bridge.Address, bridge.MTU)
 			if err != nil {
 				return err
 			}
 
-			revert.Add(func() { _ = ovs.BridgeDelete(n.name) })
+			revert.Add(func() { _ = vswitch.BridgeDelete(n.name) })
 		} else {
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
@@ -2297,8 +2297,8 @@ func (n *bridge) Stop() error {
 
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
-		ovs := openvswitch.NewOVS()
-		err := ovs.BridgeDelete(n.name)
+		vswitch := ovs.NewOVS()
+		err := vswitch.BridgeDelete(n.name)
 		if err != nil {
 			return err
 		}
