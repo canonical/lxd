@@ -1,11 +1,11 @@
-_secureboot_csm_boot() {
-  echo "==> Secure boot and CSM combinations"
-  # CSM requires secureboot to be disabled.
-  ! lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" --config security.csm=true || false
+_secureboot_bios_boot() {
+  echo "==> Secure boot and BIOS boot mode combinations"
+  # BIOS boot mode requires secureboot to be disabled.
+  ! lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" --config boot.mode=bios || false
   lxc config set v1 security.secureboot=false
   lxc start v1
   lxc stop -f v1
-  # CSM with secureboot should refuse to start.
+  # BIOS boot mode with secureboot should refuse to start.
   lxc config set v1 security.secureboot=true
   ! lxc start v1 || false
   lxc delete -f v1
@@ -140,7 +140,7 @@ test_vm_pcie_bus() {
   prepare_vm_for_hard_stop v1
   lxc delete --force v1
 
-  _secureboot_csm_boot
+  _secureboot_bios_boot
 
   echo "==> Ephemeral cleanup"
   lxc launch --vm --empty --ephemeral v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
@@ -161,6 +161,6 @@ test_vm_pcie_bus() {
 }
 
 test_snap_vm_empty() {
-  # useful to test snap provided CSM BIOS
-  _secureboot_csm_boot
+  # useful to test snap provided BIOS boot
+  _secureboot_bios_boot
 }

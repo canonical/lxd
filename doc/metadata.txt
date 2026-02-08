@@ -1728,6 +1728,15 @@ A log file can be found in `$LXD_DIR/logs/<instance_name>/edk2.log`.
 Number of seconds to wait for the instance to shut down before it is force-stopped.
 ```
 
+```{config:option} boot.mode instance-boot
+:condition: "virtual machine"
+:defaultdesc: "`uefi`"
+:liveupdate: "no"
+:shortdesc: "Boot mode for the VM (uefi or bios)"
+:type: "string"
+When setting this option to `bios`, set {config:option}`instance-security:security.secureboot` to `false`.
+```
+
 ```{config:option} boot.stop.priority instance-boot
 :defaultdesc: "`0`"
 :liveupdate: "no"
@@ -2196,15 +2205,6 @@ If left empty, no limit is set.
 
 ```
 
-```{config:option} security.csm instance-security
-:condition: "virtual machine"
-:defaultdesc: "`false`"
-:liveupdate: "no"
-:shortdesc: "Whether to use a firmware that supports UEFI-incompatible operating systems"
-:type: "bool"
-When enabling this option, set {config:option}`instance-security:security.secureboot` to `false`.
-```
-
 ```{config:option} security.delegate_bpf instance-security
 :condition: "unprivileged container"
 :defaultdesc: "`false`"
@@ -2366,7 +2366,7 @@ Set this option to `true` to prevent the instance's file system from being UID/G
 :liveupdate: "no"
 :shortdesc: "Whether UEFI secure boot is enabled with the default Microsoft keys"
 :type: "bool"
-When disabling this option, consider enabling {config:option}`instance-security:security.csm`.
+When disabling this option, consider setting {config:option}`instance-boot:boot.mode` to `bios`.
 ```
 
 ```{config:option} security.sev instance-security
