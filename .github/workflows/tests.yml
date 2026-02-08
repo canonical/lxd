@@ -770,6 +770,14 @@ jobs:
 
           sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./bin/local-run "tests/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
 
+          # Cleanly stopping `snap.lxd.daemon.service` will ensure that any Go
+          # coverage data is flushed to disk and can be collected by the upload
+          # step below. If the service is not stopped, we might end up with
+          # partial or no coverage data at all.
+          if [ -n "${GOCOVERDIR:-}" ] && systemctl is-active --quiet snap.lxd.daemon.service; then
+            sudo systemctl stop snap.lxd.daemon.service
+          fi
+
       # always update cache as we have our own logic of
       # cache invalidation and updates in addition to a date check
       - name: Delete previous cache
