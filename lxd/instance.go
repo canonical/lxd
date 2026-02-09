@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -256,16 +257,43 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Apply config from source instance if no config is specified in request.
+	// Must come before instance is loaded where it potentially disables the opts.refresh flag if instance doesn't exist.
+	if opts.targetInstance.Config == nil {
+		sourceLocalConfig := opts.sourceInstance.LocalConfig()
+		opts.targetInstance.Config = make(map[string]string, len(sourceLocalConfig))
+		for key, value := range sourceLocalConfig {
+			if !opts.refresh && !instancetype.InstanceIncludeWhenCopying(key, false) {
+				logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": opts.sourceInstance.Project().Name, "sourceInstance": opts.sourceInstance.Name(), "project": opts.targetInstance.Project, "instance": opts.targetInstance.Name})
+				continue
+			}
+
+			opts.targetInstance.Config[key] = value
+		}
+	}
+
+	// Apply devices from source instance if no devices are specified in request.
+	if opts.targetInstance.Devices == nil {
+		opts.targetInstance.Devices = opts.sourceInstance.LocalDevices().Clone()
+	}
+
 	if opts.refresh {
 		// Load the target instance.
 		inst, err = instance.LoadByProjectAndName(s, opts.targetInstance.Project, opts.targetInstance.Name)
 		if err != nil {
+			if !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return nil, fmt.Errorf("Failed loading target instance for refresh: %w", err)
+			}
+
 			opts.refresh = false // Instance doesn't exist, so switch to copy mode.
 		}
 	}
 
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
+		// Don't take the source's volatile.last_state.power key.
+		delete(opts.targetInstance.Config, "volatile.last_state.power")
+
 		// Create the instance.
 		inst, instOp, cleanup, err = instance.CreateInternal(s, opts.targetInstance, true)
 		if err != nil {
@@ -274,6 +302,31 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 
 		revert.Add(cleanup)
 	} else {
+		// Ensure we don't change the target's root disk pool.
+		srcRootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(opts.targetInstance.Devices.CloneNative())
+		destRootDiskDeviceKey, destRootDiskDevice, _ := instancetype.GetRootDiskDevice(inst.LocalDevices().CloneNative())
+		if srcRootDiskDeviceKey != "" && srcRootDiskDeviceKey == destRootDiskDeviceKey {
+			opts.targetInstance.Devices[destRootDiskDeviceKey]["pool"] = destRootDiskDevice["pool"]
+		}
+
+		// Ensure we don't change some key volatile keys.
+		// - volatile.last_state.power: Should be preserved from the existing instance's power state.
+		// - volatile.idmap.next: Should be preserved to avoid breaking existing filesystem mappings.
+		localConfig := inst.LocalConfig()
+		for _, key := range []string{"volatile.last_state.power", "volatile.idmap.next"} {
+			value, found := localConfig[key]
+			if found {
+				opts.targetInstance.Config[key] = value // Preserve existing value.
+			} else {
+				delete(opts.targetInstance.Config, key) // Remove any new value.
+			}
+		}
+
+		err = inst.Update(opts.targetInstance, true)
+		if err != nil {
+			return nil, fmt.Errorf("Failed updating target instance record: %w", err)
+		}
+
 		instOp, err = inst.LockExclusive()
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting exclusive access to target instance: %w", err)

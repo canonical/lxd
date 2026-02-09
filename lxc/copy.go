@@ -171,7 +171,6 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	}
 
 	var op lxd.RemoteOperation
-	var writable api.InstancePut
 	var start bool
 
 	sourceParentName, sourceSnapName, sourceIsSnap := api.GetParentAndSnapshotName(sourceName)
@@ -271,8 +270,6 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		if err != nil {
 			return err
 		}
-
-		writable = entry.Writable()
 	}
 
 	// Watch the background operation
@@ -295,51 +292,6 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	}
 
 	progress.Done("")
-
-	if c.flagRefresh {
-		inst, etag, err := dest.GetInstance(destName)
-		if err != nil {
-			return fmt.Errorf("Failed to refresh target instance %q: %v", destName, err)
-		}
-
-		// Ensure we don't change the target's volatile.idmap.next value.
-		if inst.Config["volatile.idmap.next"] != writable.Config["volatile.idmap.next"] {
-			writable.Config["volatile.idmap.next"] = inst.Config["volatile.idmap.next"]
-		}
-
-		// Ensure we don't change the target's root disk pool.
-		srcRootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(writable.Devices)
-		destRootDiskDeviceKey, destRootDiskDevice, _ := instancetype.GetRootDiskDevice(inst.Devices)
-		if srcRootDiskDeviceKey != "" && srcRootDiskDeviceKey == destRootDiskDeviceKey {
-			writable.Devices[destRootDiskDeviceKey]["pool"] = destRootDiskDevice["pool"]
-		}
-
-		op, err := dest.UpdateInstance(destName, writable, etag)
-		if err != nil {
-			return err
-		}
-
-		// Watch the background operation
-		progress := cli.ProgressRenderer{
-			Format: "Refreshing instance: %s",
-			Quiet:  c.global.flagQuiet,
-		}
-
-		_, err = op.AddHandler(progress.UpdateOp)
-		if err != nil {
-			progress.Done("")
-			return err
-		}
-
-		// Wait for the copy to complete
-		err = cli.CancelableWait(op, &progress)
-		if err != nil {
-			progress.Done("")
-			return err
-		}
-
-		progress.Done("")
-	}
 
 	// In case the destination LXD doesn't support instance start on copy,
 	// indicate to start the instance manually.
@@ -377,7 +329,7 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 		}
 	}
 
-	if config != nil {
+	if config != nil && len(configOverrides) > 0 {
 		// Strip the volatile keys from source if requested.
 		if !keepVolatile {
 			for k := range *config {
@@ -392,9 +344,11 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 
 		// Strip the last_state.power key in all cases.
 		delete(*config, "volatile.last_state.power")
+	} else {
+		*config = nil
 	}
 
-	if devices != nil {
+	if devices != nil && (len(deviceOverrides) > 0 || poolName != "") {
 		// Check to see if any of the devices overrides are for devices that are not yet defined in the
 		// local devices and thus are expected to be coming from profiles.
 		needProfileExpansion := false
@@ -438,6 +392,8 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 				}
 			}
 		}
+	} else {
+		*devices = nil
 	}
 
 	return nil
