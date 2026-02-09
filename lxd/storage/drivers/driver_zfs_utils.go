@@ -565,3 +565,75 @@ func (d *zfs) delegateDataset(vol Volume, pid int) error {
 func ZFSSupportsDelegation() bool {
 	return zfsDelegate
 }
+
+// parseImageVariantName parses an image dataset name into fingerprint and
+// variant suffix. For example:
+//   - "abc123" -> ("abc123", "")
+//   - "abc123_btrfs" -> ("abc123", "btrfs")
+func parseImageVariantName(name string) (fingerprint string, suffix string) {
+	// Image fingerprints are hex strings (SHA256) and don't contain underscores.
+	// The variant suffix is appended after an underscore.
+	fingerprint, suffix, found := strings.Cut(name, "_")
+	if found && fingerprint != "" {
+		return fingerprint, suffix
+	}
+
+	return name, ""
+}
+
+// variantMatchesConfig checks if a variant (identified by its suffix) matches
+// the given pool configuration. For example:
+//   - ("", false, "ext4") -> true
+//   - ("ext4", true, "ext4") -> true
+//   - ("btrfs", true, "ext4") -> false
+func variantMatchesConfig(suffix string, poolIsBlockBacked bool, poolBlockFS string) bool {
+	if suffix == "" {
+		return !poolIsBlockBacked
+	}
+
+	return poolIsBlockBacked && poolBlockFS == suffix
+}
+
+// getPoolBlockConfig extracts block mode and filesystem settings from a pool config map.
+// Returns whether block mode is enabled and the effective filesystem (defaulting to DefaultFilesystem).
+func getPoolBlockConfig(config map[string]string) (isBlockBacked bool, blockFS string) {
+	isBlockBacked = shared.IsTrue(config["volume.zfs.block_mode"])
+	blockFS = config["volume.block.filesystem"]
+	if blockFS == "" {
+		blockFS = DefaultFilesystem
+	}
+
+	return isBlockBacked, blockFS
+}
+
+// variantNeedsRecreateForBlocksize checks if an existing variant's volblocksize
+// differs from what the new config requires.
+func (d *zfs) variantNeedsRecreateForBlocksize(dataset string, vol Volume) (bool, error) {
+	currentBlocksize, err := d.getDatasetProperty(dataset, "volblocksize")
+	if err != nil {
+		return false, err
+	}
+
+	desiredBlocksize := vol.ExpandedConfig("zfs.blocksize")
+	if desiredBlocksize == "" {
+		// No specific blocksize requested, use default (don't need to recreate).
+		return false, nil
+	}
+
+	desiredBytes, err := units.ParseByteSizeString(desiredBlocksize)
+	if err != nil {
+		return false, err
+	}
+
+	// zfs.blocksize may be configured up to 16MiB but volblocksize is capped at 128KiB.
+	if desiredBytes > zfsMaxVolBlocksize {
+		desiredBytes = zfsMaxVolBlocksize
+	}
+
+	currentBytes, err := units.ParseByteSizeString(currentBlocksize)
+	if err != nil {
+		return false, err
+	}
+
+	return currentBytes != desiredBytes, nil
+}
