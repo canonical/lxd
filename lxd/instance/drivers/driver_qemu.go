@@ -92,6 +92,9 @@ const QEMUDefaultCPUCores = 1
 // QEMUDefaultMemSize is the default memory size for VMs if no limit specified.
 const QEMUDefaultMemSize = "1GiB"
 
+// QEMUDefaultMaxBusPorts is the default number of PCI ports available for VMs.
+const QEMUDefaultMaxBusPorts uint8 = 8
+
 // qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
 const qemuSerialChardevName = "qemu_serial-chardev"
 
@@ -2271,6 +2274,24 @@ func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
 	}
 
 	return pciSlots, nil
+}
+
+// getMaxPCISlotCount returns the maximum allowed number of PCI/PCIe slots for the instance.
+func (d *qemu) getMaxPCISlotCount() (pciSlotCountMax uint8, err error) {
+	// Initialize to the default value for "limits.max_bus_ports".
+	pciSlotCountMax = QEMUDefaultMaxBusPorts
+
+	pciSlotCountMaxStr, ok := d.expandedConfig["limits.max_bus_ports"]
+	if ok && pciSlotCountMaxStr != "" {
+		val, err := strconv.ParseUint(pciSlotCountMaxStr, 10, 8)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", "limits.max_bus_ports", err)
+		}
+
+		pciSlotCountMax = uint8(val)
+	}
+
+	return pciSlotCountMax, nil
 }
 
 // busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
