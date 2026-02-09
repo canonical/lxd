@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/archive"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -144,7 +145,7 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 			return err
 		}
 
-		return instanceCreateFinish(s, req, args)
+		return instanceCreateFinish(s, req, args, nil)
 	}
 
 	resources := map[string][]api.URL{}
@@ -217,7 +218,7 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 			return err
 		}
 
-		return instanceCreateFinish(s, req, args)
+		return instanceCreateFinish(s, req, args, nil)
 	}
 
 	resources := map[string][]api.URL{}
@@ -554,7 +555,7 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 	return operations.OperationResponse(op)
 }
 
-func createFromCopy(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromCopy(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, targetMemberInfo *db.NodeInfo) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
@@ -599,24 +600,27 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 				return clusterCopyContainerInternal(ctx, s, source, projectName, profiles, req)
 			}
 
-			var pool *api.StoragePool
-
-			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-				_, pool, _, err = tx.GetStoragePoolInAnyState(ctx, sourcePoolName)
-
-				return err
-			})
+			pool, err := storagePools.LoadByName(s, sourcePoolName)
 			if err != nil {
-				err = fmt.Errorf("Failed to fetch instance's pool info: %w", err)
-				return response.SmartError(err)
+				return response.SmartError(fmt.Errorf("Failed loading pool %q of instance %q: %w", sourcePoolName, source.Name(), err))
 			}
 
-			if pool.Driver != "ceph" {
+			// 1) If a remote driver does not support optimized volume copy on the storage array, this means
+			// LXD mounts both the source and target volume and copies the contents from one volume to the other.
+			// In case the instance is running and the volume is mounted on the source, the target LXD cannot
+			// also mount the source volume so the copy always has to be performed on the source LXD.
+			// 2) If we use a remote driver which supports optimized copy of volumes,
+			// we don't want to use the migration protocol but instead rely on the standard instance copy
+			// as it's cheaper to perform the copy on the storage array directly without performing migration.
+			if !pool.Driver().Info().Remote {
 				// Redirect to migration
 				return clusterCopyContainerInternal(ctx, s, source, projectName, profiles, req)
 			}
 		}
 	}
+
+	// The following must always run on the source LXD.
+	// This ensures that if the instance is running, its filesystem can be frozen before performing the copy.
 
 	// Config override
 	if req.Config == nil {
@@ -704,7 +708,36 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 			return err
 		}
 
-		return instanceCreateFinish(s, req, args)
+		var targetClient lxd.InstanceServer
+
+		// Move the instance in case it's not yet at its requested target.
+		if s.ServerClustered && targetMemberInfo != nil && targetMemberInfo.Name != s.ServerName {
+			targetClient, err = cluster.Connect(ctx, targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+			if err != nil {
+				return err
+			}
+
+			// Move to the actual target.
+			targetClient = targetClient.UseTarget(targetMemberInfo.Name)
+
+			logger.Debug("Migrate instance to final target after copy", logger.Ctx{"local": s.ServerName, "target": targetMemberInfo.Name, "targetAddress": targetMemberInfo.Address})
+			op, err := targetClient.MigrateInstance(req.Name, api.InstancePost{
+				// We don't have to handle live migration as the instance is always stopped after copy.
+				// At this stage we move the entire instance with all of its snapshots.
+				// In case the actual copy operation was requested with InstanceOnly=true, the copied instance doesn't have snapshots.
+				Migration: true,
+			})
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
+		}
+
+		return instanceCreateFinish(s, req, args, targetClient)
 	}
 
 	resources := map[string][]api.URL{}
@@ -968,7 +1001,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		runRevert.Success()
 
-		return instanceCreateFinish(s, &req, db.InstanceArgs{Name: bInfo.Name, Project: bInfo.Project})
+		return instanceCreateFinish(s, &req, db.InstanceArgs{Name: bInfo.Name, Project: bInfo.Project}, nil)
 	}
 
 	resources := map[string][]api.URL{}
@@ -1189,10 +1222,14 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var sourceInst *dbCluster.Instance
 	var sourceImage *api.Image
 	var sourceImageRef string
+	var sourceMemberInfo *db.NodeInfo
 	var candidateMembers []db.NodeInfo
 	var targetMemberInfo *db.NodeInfo
 	var targetGroupName string
 	var placementGroupName string
+
+	// Set to true once we find that the request has to be forwarded to the source.
+	redirectToSource := false
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		target := request.QueryParam(r, "target")
@@ -1254,6 +1291,26 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				req.Profiles = make([]string, 0, len(sourceInstArgs[sourceInst.ID].Profiles))
 				for _, profile := range sourceInstArgs[sourceInst.ID].Profiles {
 					req.Profiles = append(req.Profiles, profile.Name)
+				}
+			}
+
+			// Identify source member to be able to forward the request to the source in case the request
+			// was made on a different cluster member and the type is copy.
+			if s.ServerClustered && !clusterNotification && req.Source.Type == api.SourceTypeCopy {
+				for _, member := range allMembers {
+					if member.Name == sourceInst.Node {
+						sourceMemberInfo = &member
+					}
+				}
+
+				if sourceMemberInfo == nil {
+					return fmt.Errorf("Failed to find source cluster member %q", sourceInst.Node)
+				}
+
+				// Exit the transaction early and indicate we have to forward the request to the source.
+				if sourceMemberInfo.Name != s.ServerName {
+					redirectToSource = true
+					return nil
 				}
 			}
 
@@ -1420,6 +1477,27 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Redirect the copy request to the cluster member which currently holds the instance.
+	if redirectToSource && sourceMemberInfo != nil && targetMemberInfo != nil {
+		client, err := cluster.Connect(r.Context(), sourceMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Keep the intended target around for the final move operation.
+		client = client.UseProject(targetProjectName)
+		client = client.UseTarget(targetMemberInfo.Name)
+
+		logger.Debug("Forward instance post copy request", logger.Ctx{"local": s.ServerName, "target": sourceMemberInfo.Name, "targetAddress": sourceMemberInfo.Address})
+		op, err := client.CreateInstance(req)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		opAPI := op.Get()
+		return operations.ForwardedOperationResponse(&opAPI)
+	}
+
 	if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			expandedConfig := instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), req.Config, profiles)
@@ -1437,7 +1515,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Config["volatile.cluster.group"] = targetGroupName
 	}
 
-	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName {
+	// Redirect the request to the target cluster member when not doing an actual copy.
+	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName && req.Source.Type != api.SourceTypeCopy {
 		client, err := cluster.Connect(r.Context(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
 			return response.SmartError(err)
@@ -1466,7 +1545,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	case api.SourceTypeConversion:
 		return createFromConversion(r.Context(), s, targetProjectName, profiles, &req)
 	case api.SourceTypeCopy:
-		return createFromCopy(r.Context(), s, targetProjectName, profiles, &req)
+		return createFromCopy(r.Context(), s, targetProjectName, profiles, &req, targetMemberInfo)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
@@ -1672,12 +1751,24 @@ func clusterCopyContainerInternal(ctx context.Context, s *state.State, source in
 
 // instanceCreateFinish finalizes the creation process of an instance by starting it based on
 // the Start field of the request.
-func instanceCreateFinish(s *state.State, req *api.InstancesPost, args db.InstanceArgs) error {
+func instanceCreateFinish(s *state.State, req *api.InstancesPost, args db.InstanceArgs, client lxd.InstanceServer) error {
 	if req == nil || !req.Start {
 		return nil
 	}
 
-	// Start the instance.
+	// If a client is provided start the instance on a remote cluster member.
+	if client != nil {
+		op, err := client.UpdateInstanceState(req.Name, api.InstanceStatePut{
+			Action: "start",
+		}, "")
+		if err != nil {
+			return fmt.Errorf("Failed to start instance %q: %w", req.Name, err)
+		}
+
+		return op.Wait()
+	}
+
+	// Start the instance locally.
 	inst, err := instance.LoadByProjectAndName(s, args.Project, args.Name)
 	if err != nil {
 		return fmt.Errorf("Failed to load the instance: %w", err)
