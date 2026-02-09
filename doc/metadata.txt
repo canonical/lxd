@@ -2141,6 +2141,15 @@ Various suffixes are supported (see {ref}`instances-limit-units`).
 See {ref}`instance-options-limits-hugepages` for more information.
 ```
 
+```{config:option} limits.max_bus_ports instance-resource-limits
+:condition: "virtual machine"
+:defaultdesc: "`8`"
+:liveupdate: "no"
+:shortdesc: "Limit of allowed PCI/PCIe devices"
+:type: "integer"
+Total number of user configurable PCI/PCIe devices that can be attached to the VM.
+```
+
 ```{config:option} limits.memory instance-resource-limits
 :defaultdesc: "`1GiB` (VMs)"
 :liveupdate: "yes"
