@@ -11,6 +11,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -156,19 +158,21 @@ type powerStoreErrorInstanceResource struct {
 
 // powerStoreClient holds the PowerStore HTTP API client.
 type powerStoreClient struct {
-	gateway              string
-	gatewaySkipTLSVerify bool
-	username             string
-	password             string
+	gateway                  string
+	gatewaySkipTLSVerify     bool
+	username                 string
+	password                 string
+	volumeResourceNamePrefix string
 }
 
 // newPowerStoreClient creates a new instance of the PowerStore HTTP API client.
 func newPowerStoreClient(driver *powerstore) *powerStoreClient {
 	return &powerStoreClient{
-		gateway:              driver.config["powerstore.gateway"],
-		gatewaySkipTLSVerify: shared.IsFalse(driver.config["powerstore.gateway.verify"]),
-		username:             driver.config["powerstore.user.name"],
-		password:             driver.config["powerstore.user.password"],
+		gateway:                  driver.config["powerstore.gateway"],
+		gatewaySkipTLSVerify:     shared.IsFalse(driver.config["powerstore.gateway.verify"]),
+		username:                 driver.config["powerstore.user.name"],
+		password:                 driver.config["powerstore.user.password"],
+		volumeResourceNamePrefix: driver.volumeResourceNamePrefix(),
 	}
 }
 
@@ -331,6 +335,31 @@ func (c *powerStoreClient) withQueryParams(params url.Values) func(req *http.Req
 	}
 }
 
+const powerStoreMaxAPIResponseLimit = 2000
+
+type powerStorePagination struct {
+	Page         int
+	ItemsPerPage int
+}
+
+// Offset computes offset value for the provided pagination state.
+func (p powerStorePagination) Offset() int {
+	page := max(0, p.Page)
+	limit := p.Limit()
+	return page * limit
+}
+
+// Limit computes limit value for the provided pagination state.
+func (p powerStorePagination) Limit() int {
+	return min(max(0, p.ItemsPerPage), powerStoreMaxAPIResponseLimit)
+}
+
+// SetParams sets URL pagination parameters.
+func (p powerStorePagination) SetParams(params url.Values) {
+	params.Set("offset", strconv.Itoa(p.Offset()))
+	params.Set("limit", strconv.Itoa(p.Limit()))
+}
+
 type powerStoreIDResource struct {
 	ID string `json:"id"`
 }
@@ -354,4 +383,124 @@ func (c *powerStoreClient) getLoginSessionInfoWithBasicAuthorization(ctx context
 		return nil, nil, fmt.Errorf("retrieving PowerStore login session info: %w", err)
 	}
 	return resp, body, nil
+}
+
+type powerStoreVolumeResource struct {
+	ID            string                                 `json:"id,omitempty"`
+	Name          string                                 `json:"name,omitempty"`
+	Description   string                                 `json:"description,omitempty"`
+	Type          string                                 `json:"type,omitempty"`
+	State         string                                 `json:"state,omitempty"`
+	Size          int64                                  `json:"size,omitempty"`
+	LogicalUsed   int64                                  `json:"logical_used,omitempty"`
+	WWN           string                                 `json:"wwn,omitempty"`
+	AppType       string                                 `json:"app_type,omitempty"`
+	AppTypeOther  string                                 `json:"app_type_other,omitempty"`
+	VolumeGroups  []*powerStoreIDResource                `json:"volume_groups,omitempty"`
+	MappedVolumes []*powerStoreHostVolumeMappingResource `json:"mapped_volumes,omitempty"`
+}
+
+type powerStoreHostVolumeMappingResource struct {
+	ID       string `json:"id,omitempty"`
+	HostID   string `json:"host_id,omitempty"`
+	VolumeID string `json:"volume_id,omitempty"`
+}
+
+func (c *powerStoreClient) getVolumesByQuery(ctx context.Context, query map[string]string, pagination powerStorePagination) ([]*powerStoreVolumeResource, error) {
+	params := url.Values{}
+	for key, val := range query {
+		params.Set(key, val)
+	}
+	params.Set("select", "id,name,description,type,state,size,logical_used,wwn,app_type,app_type_other,volume_groups(id),mapped_volumes(id,host_id,volume_id)")
+	pagination.SetParams(params)
+
+	body := []*powerStoreVolumeResource{}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodGet, "/api/rest/volume", nil, &body,
+		c.withQueryParams(params),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving information about PowerStore volumes: %w", err)
+	}
+
+	// in most cases all items in the returned body will belong to the current storage pool and no item will be filtered out
+	filtered := make([]*powerStoreVolumeResource, 0, len(body))
+	for _, v := range body {
+		if !strings.HasPrefix(v.Name, c.volumeResourceNamePrefix) {
+			continue
+		}
+		filtered = append(filtered, v)
+	}
+	return filtered, nil
+}
+
+func (c *powerStoreClient) getVolumeByQuery(ctx context.Context, query map[string]string) (*powerStoreVolumeResource, error) {
+	vols, err := c.getVolumesByQuery(ctx, query, powerStorePagination{ItemsPerPage: 1})
+	if err != nil {
+		return nil, err
+	}
+	if len(vols) == 0 {
+		return nil, nil
+	}
+	return vols[0], nil
+}
+
+// GetVolumes retrieves list of volume associated with the storage pool.
+func (c *powerStoreClient) GetVolumes(ctx context.Context) ([]*powerStoreVolumeResource, error) {
+	query := map[string]string{"name": fmt.Sprintf("ilike.%s*", c.volumeResourceNamePrefix)}
+
+	var vols []*powerStoreVolumeResource
+	for page := 0; ; page++ {
+		volsPage, err := c.getVolumesByQuery(ctx, query, powerStorePagination{Page: page})
+		if pse, ok := err.(*powerStoreError); ok && pse.HTTPStatusCode() == http.StatusRequestedRangeNotSatisfiable {
+			return vols, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		vols = append(vols, volsPage...)
+	}
+}
+
+// GetVolumeByID retrieves volume using its ID.
+func (c *powerStoreClient) GetVolumeByID(ctx context.Context, id string) (*powerStoreVolumeResource, error) {
+	return c.getVolumeByQuery(ctx, map[string]string{"id": "eq." + id})
+}
+
+// GetVolumeByName retrieves volume using its name.
+func (c *powerStoreClient) GetVolumeByName(ctx context.Context, name string) (*powerStoreVolumeResource, error) {
+	return c.getVolumeByQuery(ctx, map[string]string{"name": "eq." + name})
+}
+
+// CreateVolume creates a new volume.
+func (c *powerStoreClient) CreateVolume(ctx context.Context, vol *powerStoreVolumeResource) error {
+	body := &powerStoreIDResource{}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodPost, "/api/rest/volume", vol, body)
+	if err != nil {
+		return fmt.Errorf("creating PowerStore volume: %w", err)
+	}
+	vol.ID = body.ID
+	return nil
+}
+
+// DeleteVolumeByID deletes volume using its ID.
+func (c *powerStoreClient) DeleteVolumeByID(ctx context.Context, id string) error {
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodDelete, "/api/rest/volume/"+id, nil, nil)
+	if err != nil {
+		return fmt.Errorf("deleting PowerStore volume: %w", err)
+	}
+	return nil
+}
+
+type powerStoreVolumeGroupRemoveMembersResource struct {
+	VolumeIDs []string `json:"volume_ids,omitempty"`
+}
+
+// RemoveMembersFromVolumeGroup removes volumes from the volume group.
+func (c *powerStoreClient) RemoveMembersFromVolumeGroup(ctx context.Context, id string, volumeIDs []string) error {
+	reqBody := &powerStoreVolumeGroupRemoveMembersResource{VolumeIDs: volumeIDs}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodPost, "/volume_group/"+id+"/remove_members", reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("removing members from PowerStore volume group: %w", err)
+	}
+	return nil
 }

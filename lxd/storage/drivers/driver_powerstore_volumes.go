@@ -56,11 +56,21 @@ var powerStoreVolContentTypeSuffixesRev = map[string]ContentType{
 	powerStoreISOVolSuffix:   ContentTypeISO,
 }
 
+// powerStoreResourceNamePrefix common prefix for all resource names in PowerStore.
+const powerStoreResourceNamePrefix = "lxd:"
+
 // powerStorePoolAndVolSep separates pool name and volume data in encoded volume names.
 const powerStorePoolAndVolSep = "-"
 
-// getVolumeName returns the fully qualified name derived from the volume.
-func (d *powerstore) getVolumeName(vol Volume) (string, error) {
+// volumeResourceNamePrefix returns the prefix used by all volume resource names in PowerStore associated with the current storage pool.
+func (d *powerstore) volumeResourceNamePrefix() string {
+	poolHash := sha256.Sum256([]byte(d.Name()))
+	poolName := base64.StdEncoding.EncodeToString(poolHash[:])
+	return powerStoreResourceNamePrefix + poolName + powerStorePoolAndVolSep
+}
+
+// volumeResourceName derives the name of a volume resource in PowerStore from the provided volume.
+func (d *powerstore) volumeResourceName(vol Volume) (string, error) {
 	volUUID, err := uuid.Parse(vol.config["volatile.uuid"])
 	if err != nil {
 		return "", fmt.Errorf(`failed parsing "volatile.uuid" from volume %q: %w`, vol.name, err)
@@ -79,12 +89,16 @@ func (d *powerstore) getVolumeName(vol Volume) (string, error) {
 
 	poolHash := sha256.Sum256([]byte(vol.Pool()))
 	poolName := base64.StdEncoding.EncodeToString(poolHash[:])
-	return poolName + powerStorePoolAndVolSep + volName, nil
+	return powerStoreResourceNamePrefix + poolName + powerStorePoolAndVolSep + volName, nil
 }
 
-// getDataFromVolumeName decodes the volume's name and extracts stored data.
-func (d *powerstore) getDataFromVolumeName(name string) (poolHash string, volType VolumeType, volUUID uuid.UUID, volContentType ContentType, err error) {
-	poolHash, volName, ok := strings.Cut(name, powerStorePoolAndVolSep)
+// extractDataFromVolumeResourceName decodes the PowerStore volume resource name and extracts the stored data.
+func (d *powerstore) extractDataFromVolumeResourceName(name string) (poolHash string, volType VolumeType, volUUID uuid.UUID, volContentType ContentType, err error) {
+	prefixLess, hasPrefix := strings.CutPrefix(name, powerStoreResourceNamePrefix)
+	if !hasPrefix {
+		return "", "", uuid.Nil, "", fmt.Errorf("failed to decode volume name %q: invalid name format", name)
+	}
+	poolHash, volName, ok := strings.Cut(prefixLess, powerStorePoolAndVolSep)
 	if !ok || poolHash == "" || volName == "" {
 		return "", "", uuid.Nil, "", fmt.Errorf("failed to decode volume name %q: invalid name format", name)
 	}

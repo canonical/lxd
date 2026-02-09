@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestPowerStoreGetVolumeName(t *testing.T) {
+func TestPowerStoreVolumeResourceName(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
@@ -23,7 +23,7 @@ func TestPowerStoreGetVolumeName(t *testing.T) {
 				map[string]string{"volatile.uuid": "3a628d33-a689-462b-b23e-9a10e423b02e"},
 				map[string]string{},
 			),
-			want: "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-c_OmKNM6aJRiuyPpoQ5COwLg==",
+			want: "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-c_OmKNM6aJRiuyPpoQ5COwLg==",
 		},
 		{
 			name: "vm-volume-iso",
@@ -36,7 +36,7 @@ func TestPowerStoreGetVolumeName(t *testing.T) {
 				map[string]string{"volatile.uuid": "3a628d33-a689-462b-b23e-9a10e423b02e"},
 				map[string]string{},
 			),
-			want: "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-v_OmKNM6aJRiuyPpoQ5COwLg==.i",
+			want: "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-v_OmKNM6aJRiuyPpoQ5COwLg==.i",
 		},
 		{
 			name: "vm-volume-block",
@@ -49,7 +49,7 @@ func TestPowerStoreGetVolumeName(t *testing.T) {
 				map[string]string{"volatile.uuid": "3a628d33-a689-462b-b23e-9a10e423b02e"},
 				map[string]string{},
 			),
-			want: "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-v_OmKNM6aJRiuyPpoQ5COwLg==.b",
+			want: "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-v_OmKNM6aJRiuyPpoQ5COwLg==.b",
 		},
 		{
 			name: "image-volume",
@@ -62,7 +62,7 @@ func TestPowerStoreGetVolumeName(t *testing.T) {
 				map[string]string{"volatile.uuid": "3a628d33-a689-462b-b23e-9a10e423b02e"},
 				map[string]string{},
 			),
-			want: "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-i_OmKNM6aJRiuyPpoQ5COwLg==",
+			want: "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-i_OmKNM6aJRiuyPpoQ5COwLg==",
 		},
 		{
 			name: "custom-volume",
@@ -75,7 +75,7 @@ func TestPowerStoreGetVolumeName(t *testing.T) {
 				map[string]string{"volatile.uuid": "3a628d33-a689-462b-b23e-9a10e423b02e"},
 				map[string]string{},
 			),
-			want: "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-u_OmKNM6aJRiuyPpoQ5COwLg==",
+			want: "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-u_OmKNM6aJRiuyPpoQ5COwLg==",
 		},
 		{
 			name: "other-name-and-uuid",
@@ -88,7 +88,7 @@ func TestPowerStoreGetVolumeName(t *testing.T) {
 				map[string]string{"volatile.uuid": "2731b28f-464b-4eac-b0cd-ec03d9effbf0"},
 				map[string]string{},
 			),
-			want: "omYUlOQRvuW2uffxWqsCQCue5SfEs4+khWLni1wNmC4=-JzGyj0ZLTqywzewD2e/78A==",
+			want: "lxd:omYUlOQRvuW2uffxWqsCQCue5SfEs4+khWLni1wNmC4=-JzGyj0ZLTqywzewD2e/78A==",
 		},
 		{
 			name: "invalid-volume-volatile-uuid",
@@ -108,7 +108,7 @@ func TestPowerStoreGetVolumeName(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := (&powerstore{}).getVolumeName(test.given)
+			got, err := (&powerstore{}).volumeResourceName(test.given)
 			if err != nil && !test.wantErr {
 				t.Fatalf("unexpected error while getting PowerStore volume name: %v", err)
 			}
@@ -122,7 +122,7 @@ func TestPowerStoreGetVolumeName(t *testing.T) {
 	}
 }
 
-func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
+func TestPowerStoreExtractDataFromVolumeResourceName(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name                  string
@@ -135,7 +135,7 @@ func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
 	}{
 		{
 			name:                  "container-volume",
-			given:                 "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-c_OmKNM6aJRiuyPpoQ5COwLg==",
+			given:                 "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-c_OmKNM6aJRiuyPpoQ5COwLg==",
 			wantPoolHash:          "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=",
 			wantVolumeType:        VolumeTypeContainer,
 			wantVolumeUUID:        "3a628d33-a689-462b-b23e-9a10e423b02e",
@@ -143,7 +143,7 @@ func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
 		},
 		{
 			name:                  "vm-volume-iso",
-			given:                 "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-v_OmKNM6aJRiuyPpoQ5COwLg==.i",
+			given:                 "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-v_OmKNM6aJRiuyPpoQ5COwLg==.i",
 			wantPoolHash:          "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=",
 			wantVolumeType:        VolumeTypeVM,
 			wantVolumeUUID:        "3a628d33-a689-462b-b23e-9a10e423b02e",
@@ -151,7 +151,7 @@ func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
 		},
 		{
 			name:                  "vm-volume-block",
-			given:                 "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-v_OmKNM6aJRiuyPpoQ5COwLg==.b",
+			given:                 "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-v_OmKNM6aJRiuyPpoQ5COwLg==.b",
 			wantPoolHash:          "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=",
 			wantVolumeType:        VolumeTypeVM,
 			wantVolumeUUID:        "3a628d33-a689-462b-b23e-9a10e423b02e",
@@ -159,7 +159,7 @@ func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
 		},
 		{
 			name:                  "image-volume",
-			given:                 "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-i_OmKNM6aJRiuyPpoQ5COwLg==",
+			given:                 "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-i_OmKNM6aJRiuyPpoQ5COwLg==",
 			wantPoolHash:          "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=",
 			wantVolumeType:        VolumeTypeImage,
 			wantVolumeUUID:        "3a628d33-a689-462b-b23e-9a10e423b02e",
@@ -167,7 +167,7 @@ func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
 		},
 		{
 			name:                  "custom-volume",
-			given:                 "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-u_OmKNM6aJRiuyPpoQ5COwLg==",
+			given:                 "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-u_OmKNM6aJRiuyPpoQ5COwLg==",
 			wantPoolHash:          "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=",
 			wantVolumeType:        VolumeTypeCustom,
 			wantVolumeUUID:        "3a628d33-a689-462b-b23e-9a10e423b02e",
@@ -175,11 +175,20 @@ func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
 		},
 		{
 			name:                  "missing-volume-type-and-content-type",
-			given:                 "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-OmKNM6aJRiuyPpoQ5COwLg==",
+			given:                 "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-OmKNM6aJRiuyPpoQ5COwLg==",
 			wantPoolHash:          "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=",
 			wantVolumeType:        "",
 			wantVolumeUUID:        "3a628d33-a689-462b-b23e-9a10e423b02e",
 			wantVolumeContentType: "",
+		},
+		{
+			name:                  "missing-prefix",
+			given:                 "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-u_OmKNM6aJRiuyPpoQ5COwLg==",
+			wantPoolHash:          "",
+			wantVolumeType:        "",
+			wantVolumeUUID:        "00000000-0000-0000-0000-000000000000",
+			wantVolumeContentType: "",
+			wantErr:               true,
 		},
 		{
 			name:                  "missing-pool-name-hash",
@@ -192,7 +201,7 @@ func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
 		},
 		{
 			name:                  "missing-volume-data",
-			given:                 "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=",
+			given:                 "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=",
 			wantPoolHash:          "",
 			wantVolumeType:        "",
 			wantVolumeUUID:        "00000000-0000-0000-0000-000000000000",
@@ -201,7 +210,7 @@ func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
 		},
 		{
 			name:                  "invalid-base64-encoded-volume-uuid",
-			given:                 "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-u_OmKNM6aJRiuyPpoQ5COwLg=",
+			given:                 "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-u_OmKNM6aJRiuyPpoQ5COwLg=",
 			wantPoolHash:          "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=",
 			wantVolumeType:        VolumeTypeCustom,
 			wantVolumeUUID:        "00000000-0000-0000-0000-000000000000",
@@ -210,7 +219,7 @@ func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
 		},
 		{
 			name:                  "invalid-volume-uuid",
-			given:                 "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-u_OmKNM6aJRiuyPpoQ5COwLgaaaa==",
+			given:                 "lxd:2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=-u_OmKNM6aJRiuyPpoQ5COwLgaaaa==",
 			wantPoolHash:          "2qwxIqsfgiGetqVdSVHgyhn3Kvtz65HGHeOkgAshhG8=",
 			wantVolumeType:        VolumeTypeCustom,
 			wantVolumeUUID:        "00000000-0000-0000-0000-000000000000",
@@ -222,7 +231,7 @@ func TestPowerStoreGetDataFromVolumeName(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			gotPoolHash, gotVolumeType, gotVolumeUUID, gotVolumeContentType, err := (&powerstore{}).getDataFromVolumeName(test.given)
+			gotPoolHash, gotVolumeType, gotVolumeUUID, gotVolumeContentType, err := (&powerstore{}).extractDataFromVolumeResourceName(test.given)
 			if err != nil && !test.wantErr {
 				t.Fatalf("unexpected error while retrieving data from PowerStore volume name: %v", err)
 			}
