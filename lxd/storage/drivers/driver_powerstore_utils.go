@@ -387,6 +387,51 @@ func (c *powerStoreClient) getLoginSessionInfoWithBasicAuthorization(ctx context
 	return resp, body, nil
 }
 
+type powerStoreApplianceMetricsResource struct {
+	ID                     string  `json:"id,omitempty"`
+	Name                   string  `json:"name,omitempty"`
+	AvgLatency             float64 `json:"avg_latency,omitempty"`
+	TotalIops              float64 `json:"total_iops,omitempty"`
+	TotalBandwidth         float64 `json:"total_bandwidth,omitempty"`
+	LastLogicalTotalSpace  int64   `json:"last_logical_total_space,omitempty"`
+	LastLogicalUsedSpace   int64   `json:"last_logical_used_space,omitempty"`
+	LastPhysicalTotalSpace int64   `json:"last_physical_total_space,omitempty"`
+	LastPhysicalUsedSpace  int64   `json:"last_physical_used_space,omitempty"`
+}
+
+func (c *powerStoreClient) getApplianceMetricsByQuery(ctx context.Context, query map[string]string, pagination powerStorePagination) ([]*powerStoreApplianceMetricsResource, error) {
+	params := url.Values{}
+	for key, val := range query {
+		params.Set(key, val)
+	}
+	params.Set("select", "id,name,avg_latency,total_iops,total_bandwidth,last_logical_total_space,last_logical_used_space,last_physical_total_space,last_physical_used_space")
+	pagination.SetParams(params)
+
+	body := []*powerStoreApplianceMetricsResource{}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodGet, "/api/rest/appliance_list_cma_view", nil, &body,
+		c.withQueryParams(params),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving metrics of PowerStore appliances: %w", err)
+	}
+	return body, nil
+}
+
+// GetApplianceMetrics retrieves appliance metrics.
+func (c *powerStoreClient) GetApplianceMetrics(ctx context.Context) ([]*powerStoreApplianceMetricsResource, error) {
+	var metrics []*powerStoreApplianceMetricsResource
+	for page := 0; ; page++ {
+		metricsPage, err := c.getApplianceMetricsByQuery(ctx, nil, powerStorePagination{Page: page})
+		if pse, ok := err.(*powerStoreError); ok && pse.HTTPStatusCode() == http.StatusRequestedRangeNotSatisfiable {
+			return metrics, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		metrics = append(metrics, metricsPage...)
+	}
+}
+
 type powerStoreHostResource struct {
 	ID               string                                 `json:"id,omitempty"`
 	Name             string                                 `json:"name,omitempty"`

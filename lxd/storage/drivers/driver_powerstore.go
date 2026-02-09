@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -441,5 +442,14 @@ func (d *powerstore) Unmount() (bool, error) {
 
 // GetResources returns the pool resource usage information.
 func (d *powerstore) GetResources() (*api.ResourcesStoragePool, error) {
-	return nil, ErrNotSupported
+	metrics, err := d.client().GetApplianceMetrics(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	res := &api.ResourcesStoragePool{}
+	for _, m := range metrics {
+		res.Space.Total += uint64(m.LastPhysicalTotalSpace)
+		res.Space.Used += uint64(m.LastPhysicalUsedSpace)
+	}
+	return res, nil
 }
