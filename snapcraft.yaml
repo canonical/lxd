@@ -828,6 +828,7 @@ parts:
       - --disable-qed
       - --disable-sdl
       - --disable-slirp
+      - --disable-tcg  # See note about TCG in the override-build section
       - --disable-user
       - --disable-vde
       - --disable-vdi
@@ -849,7 +850,6 @@ parts:
       - --enable-seccomp
       - --enable-spice
       - --enable-system
-      - --enable-tcg
       - --enable-tools
       - --enable-vhost-crypto
       - --enable-vhost-kernel
@@ -927,6 +927,15 @@ parts:
 
       sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
+
+      # TCG is not used (nor supported) at runtime however it may be needed at
+      # build time by the `edk2` part if KVM acceleration is not available.
+      # `edk2` is only built for `amd64` and `arm64` and Launchpad `amd64`
+      # builders support KVM acceleration so TCG is only needed on `arm64`.
+      if [ "${QEMUARCH}" = "aarch64" ]; then
+        # Append `--enable-tcg`. If `--disable-tcg` was previously set, this will override it.
+        sed -i '1 a set -- "$@" --enable-tcg' configure
+      fi
 
       # Extract efi-virtio.rom from ipxe-qemu.
       # This doesn't work in the organize section below.
