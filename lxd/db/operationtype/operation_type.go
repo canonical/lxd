@@ -236,10 +236,17 @@ func (t Type) Description() string {
 		return "Remove expired tokens"
 	case ClusterHeal:
 		return "Healing cluster"
+	case ClusterJoinToken:
+		return "Cluster join token"
+	case CertificateAddToken:
+		return "Certificate add token"
 	case RemoveExpiredOIDCSessions:
-		return "Remove expired OIDC sessions"
+		return "Removing expired OIDC sessions"
+
+	// It should never be possible to reach the default clause.
+	// See the init function.
 	default:
-		return "Executing operation"
+		return ""
 	}
 }
 
