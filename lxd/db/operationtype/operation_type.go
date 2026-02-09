@@ -1,8 +1,23 @@
 package operationtype
 
 import (
+	"fmt"
+
 	"github.com/canonical/lxd/shared/entity"
 )
+
+// init disallows import of the package if any Type is not well-defined.
+func init() {
+	for t := Type(1); t < upperBound; t++ {
+		if t.Description() == "" {
+			panic(fmt.Sprintf("Operation type #%d does not have a description", t))
+		}
+
+		if t.EntityType() == "" {
+			panic(fmt.Sprintf("Operation type #%d does not have an entity type", t))
+		}
+	}
+}
 
 // Type is a numeric code identifying the type of Operation.
 type Type int64
@@ -79,7 +94,20 @@ const (
 	ProfileUpdate
 	VolumeUpdate
 	VolumeDelete
+
+	// upperBound is used only to enforce consistency in the package on init.
+	// Make sure it's always the last item in this list.
+	upperBound
 )
+
+// Validate returns an error if the given Type is not defined.
+func Validate(operationTypeCode Type) error {
+	if operationTypeCode > 0 && operationTypeCode < upperBound {
+		return nil
+	}
+
+	return fmt.Errorf("Unknown operation type code %d", operationTypeCode)
+}
 
 // Description return a human-readable description of the operation type.
 func (t Type) Description() string {
