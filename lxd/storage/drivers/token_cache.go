@@ -1,6 +1,8 @@
 package drivers
 
-import "sync"
+import (
+	"sync"
+)
 
 // keyedMutex represents per-key lock (keyed mutex). It provides mutual exclusion locks scoped to arbitrary strings keys.
 //
