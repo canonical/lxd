@@ -152,10 +152,16 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, errors.New("LXD is shutting down")
 	}
 
+	// Use a v7 UUID for the operation ID.
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate operation UUID: %w", err)
+	}
+
 	// Main attributes
 	op := Operation{}
 	op.projectName = args.ProjectName
-	op.id = uuid.New().String()
+	op.id = uuid.String()
 	op.description = args.Type.Description()
 	op.entityType, op.entitlement = args.Type.Permission()
 	op.dbOpType = args.Type
@@ -175,12 +181,10 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		op.SetEventServer(s.Events)
 	}
 
-	err := validateMetadata(args.Metadata)
+	op.metadata, err = validateMetadata(args.Metadata)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to validate operation metadata: %w", err)
 	}
-
-	op.metadata = args.Metadata
 
 	// Callback functions
 	op.onRun = args.RunHook
@@ -203,7 +207,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = registerDBOperation(&op, args.Type)
+	err = registerDBOperation(&op)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +357,7 @@ func (op *Operation) Start() error {
 				op.lock.Unlock()
 				op.done()
 
-				op.logger.Debug("Failure for operation", logger.Ctx{"err": err})
+				op.logger.Warn("Failure for operation", logger.Ctx{"err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -543,7 +547,7 @@ func (op *Operation) Wait(ctx context.Context) error {
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
-	err := validateMetadata(opMetadata)
+	opMetadata, err := validateMetadata(opMetadata)
 	if err != nil {
 		return fmt.Errorf("Failed to update operation metadata: %w", err)
 	}
@@ -600,7 +604,7 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 		maps.Copy(newMetadata, metadata)
 	}
 
-	err := validateMetadata(newMetadata)
+	newMetadata, err := validateMetadata(newMetadata)
 	if err != nil {
 		return fmt.Errorf("Failed to extend operation metadata: %w", err)
 	}
@@ -667,20 +671,25 @@ func (op *Operation) Type() operationtype.Type {
 }
 
 // validateMetadata is used to enforce some consistency in operation metadata.
-func validateMetadata(metadata map[string]any) error {
+func validateMetadata(metadata map[string]any) (map[string]any, error) {
+	// Ensure metadata is never nil.
+	if metadata == nil {
+		metadata = make(map[string]any)
+	}
+
 	// If the entity_url field is used, it must always be a string and must always be a valid URL.
 	entityURLAny, ok := metadata["entity_url"]
 	if ok {
 		entityURL, ok := entityURLAny.(string)
 		if !ok {
-			return fmt.Errorf("Operation metadata entity_url must be a string (got %T)", entityURLAny)
+			return nil, fmt.Errorf("Operation metadata entity_url must be a string (got %T)", entityURLAny)
 		}
 
 		err := validate.IsRequestURL(entityURL)
 		if err != nil {
-			return fmt.Errorf("Operation metadata entity_url must be a valid request URL: %w", err)
+			return nil, fmt.Errorf("Operation metadata entity_url must be a valid request URL: %w", err)
 		}
 	}
 
-	return nil
+	return metadata, nil
 }

@@ -180,7 +180,7 @@ type Identity struct {
 
 // IdentityFilter contains fields upon which identities can be filtered.
 type IdentityFilter struct {
-	ID         *int
+	ID         *int64
 	AuthMethod *AuthMethod
 	Type       *IdentityType
 	Identifier *string
