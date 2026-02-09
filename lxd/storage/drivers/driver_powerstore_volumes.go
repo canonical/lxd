@@ -84,15 +84,18 @@ func (d *powerstore) volumeResourceName(vol Volume) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf(`failed parsing "volatile.uuid" from volume %q: %w`, vol.name, err)
 	}
+
 	volName := base64.StdEncoding.EncodeToString(volUUID[:])
 
 	// Search for the volume type prefix, and if found, prepend it to the volume name.
-	if prefix := powerStoreVolTypePrefixes[vol.volType]; prefix != "" {
+	prefix := powerStoreVolTypePrefixes[vol.volType]
+	if prefix != "" {
 		volName = prefix + powerStoreVolPrefixSep + volName
 	}
 
 	// Search for the content type suffix, and if found, append it to the volume name.
-	if suffix := powerStoreVolContentTypeSuffixes[vol.contentType]; suffix != "" {
+	suffix := powerStoreVolContentTypeSuffixes[vol.contentType]
+	if suffix != "" {
 		volName = volName + powerStoreVolSuffixSep + suffix
 	}
 
@@ -107,17 +110,20 @@ func (d *powerstore) extractDataFromVolumeResourceName(name string) (poolHash st
 	if !hasPrefix {
 		return "", "", uuid.Nil, "", fmt.Errorf("failed to decode volume name %q: invalid name format", name)
 	}
+
 	poolHash, volName, ok := strings.Cut(prefixLess, powerStorePoolAndVolSep)
 	if !ok || poolHash == "" || volName == "" {
 		return "", "", uuid.Nil, "", fmt.Errorf("failed to decode volume name %q: invalid name format", name)
 	}
 
-	if prefix, volNameWithoutPrefix, ok := strings.Cut(volName, powerStoreVolPrefixSep); ok {
+	prefix, volNameWithoutPrefix, ok := strings.Cut(volName, powerStoreVolPrefixSep)
+	if ok {
 		volName = volNameWithoutPrefix
 		volType = powerStoreVolTypePrefixesRev[prefix]
 	}
 
-	if volNameWithoutSuffix, suffix, ok := strings.Cut(volName, powerStoreVolSuffixSep); ok {
+	volNameWithoutSuffix, suffix, ok := strings.Cut(volName, powerStoreVolSuffixSep)
+	if ok {
 		volName = volNameWithoutSuffix
 		volContentType = powerStoreVolContentTypeSuffixesRev[suffix]
 	}
@@ -126,6 +132,7 @@ func (d *powerstore) extractDataFromVolumeResourceName(name string) (poolHash st
 	if err != nil {
 		return poolHash, volType, volUUID, volContentType, fmt.Errorf("failed to decode volume name %q: %w", name, err)
 	}
+
 	volUUID, err = uuid.FromBytes(binUUID)
 	if err != nil {
 		return poolHash, volType, volUUID, volContentType, fmt.Errorf("failed to parse UUID from decoded volume name: %w", err)
@@ -146,11 +153,13 @@ func (d *powerstore) hostResourceName() (resource string, hostname string, err e
 	if err != nil {
 		return "", "", err
 	}
+
 	resource = fmt.Sprintf("%s%s-%s/%s", powerStoreResourceNamePrefix, hostname, d.config["powerstore.mode"], d.config["powerstore.transport"])
 	if len(resource) > 128 { // PowerStore limits host resource name to 128 characters
 		hostnameHash := sha256.Sum256([]byte(hostname))
 		resource = fmt.Sprintf("%s%s-%s/%s", powerStoreResourceNamePrefix, base64.StdEncoding.EncodeToString(hostnameHash[:]), d.config["powerstore.mode"], d.config["powerstore.transport"])
 	}
+
 	return resource, hostname, nil
 }
 
@@ -162,10 +171,12 @@ func (d *powerstore) initiator() (*powerStoreHostInitiatorResource, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		initiatorResource.PortName, err = connector.QualifiedName()
 		if err != nil {
 			return nil, err
 		}
+
 		switch {
 		case d.config["powerstore.mode"] == connectors.TypeNVME:
 			// PowerStore uses the same port type for both NVMe/TCP and NVMe/FC
@@ -177,8 +188,10 @@ func (d *powerstore) initiator() (*powerStoreHostInitiatorResource, error) {
 		default:
 			return nil, fmt.Errorf("cannot determine PowerStore initiator port type (mode: %q, transport: %q)", d.config["powerstore.mode"], d.config["powerstore.transport"])
 		}
+
 		d.initiatorResource = initiatorResource
 	}
+
 	return d.initiatorResource, nil
 }
 
@@ -304,6 +317,7 @@ func (d *powerstore) GetVolumeUsage(vol Volume) (int64, error) {
 		if err != nil {
 			return -1, err
 		}
+
 		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
 	}
 
@@ -311,6 +325,7 @@ func (d *powerstore) GetVolumeUsage(vol Volume) (int64, error) {
 	if err != nil {
 		return -1, err
 	}
+
 	return volResource.LogicalUsed, nil
 }
 
@@ -325,6 +340,7 @@ func (d *powerstore) GetVolumeDiskPath(vol Volume) (string, error) {
 		devPath, _, err := d.getMappedDevicePath(vol, false)
 		return devPath, err
 	}
+
 	return "", ErrNotSupported
 }
 
@@ -337,12 +353,14 @@ func (d *powerstore) CreateVolume(vol Volume, filler *VolumeFiller, op *operatio
 	if err != nil {
 		return err
 	}
+
 	revert.Add(func() { _ = d.deleteVolumeResource(volResource) })
 
 	hostResource, err := d.getOrCreateHostWithInitiatorResource()
 	if err != nil {
 		return err
 	}
+
 	revert.Add(func() { _ = d.deleteHostAndInitiatorResource(hostResource) })
 
 	if vol.contentType == ContentTypeFS {
@@ -350,6 +368,7 @@ func (d *powerstore) CreateVolume(vol Volume, filler *VolumeFiller, op *operatio
 		if err != nil {
 			return err
 		}
+
 		revert.Add(cleanup)
 		volumeFilesystem := vol.ConfigBlockFilesystem()
 		_, err = makeFSType(devPath, volumeFilesystem, nil)
@@ -365,6 +384,7 @@ func (d *powerstore) CreateVolume(vol Volume, filler *VolumeFiller, op *operatio
 		if err != nil {
 			return err
 		}
+
 		revert.Add(func() { _ = d.DeleteVolume(fsVol, op) })
 	}
 
@@ -408,6 +428,7 @@ func (d *powerstore) CreateVolume(vol Volume, filler *VolumeFiller, op *operatio
 
 		return nil
 	}
+
 	err = vol.MountTask(mountTask, op)
 	if err != nil {
 		return err
@@ -423,6 +444,7 @@ func (d *powerstore) HasVolume(vol Volume) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	return volResource != nil, nil
 }
 
@@ -445,10 +467,12 @@ func (d *powerstore) ListVolumes() ([]Volume, error) {
 		volConfig := map[string]string{
 			"volatile.uuid": volUUID.String(),
 		}
+
 		vol := NewVolume(d, d.name, volType, volContentType, "", volConfig, d.config)
 		if volContentType == ContentTypeFS {
 			vol.SetMountFilesystemProbe(true)
 		}
+
 		vols = append(vols, vol)
 	}
 
@@ -474,6 +498,7 @@ func (d *powerstore) DeleteVolume(vol Volume, op *operations.Operation) error {
 	if err != nil {
 		return err
 	}
+
 	if volResource != nil {
 		err = d.deleteVolumeResource(volResource)
 		if err != nil {
@@ -485,6 +510,7 @@ func (d *powerstore) DeleteVolume(vol Volume, op *operations.Operation) error {
 	if err != nil {
 		return err
 	}
+
 	if hostResource != nil {
 		err = d.deleteHostAndInitiatorResource(hostResource)
 		if err != nil {
@@ -506,6 +532,7 @@ func (d *powerstore) DeleteVolume(vol Volume, op *operations.Operation) error {
 		if err != nil {
 			return err
 		}
+
 		err = os.RemoveAll(mountPath)
 		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("removing %q directory: %w", mountPath, err)
@@ -543,6 +570,7 @@ func (d *powerstore) mapVolumeByVolumeResource(volResource *powerStoreVolumeReso
 	if err != nil {
 		return nil, err
 	}
+
 	defer unlock()
 
 	reverter := revert.New()
@@ -552,6 +580,7 @@ func (d *powerstore) mapVolumeByVolumeResource(volResource *powerStoreVolumeReso
 	if err != nil {
 		return nil, err
 	}
+
 	reverter.Add(func() { _ = d.deleteHostAndInitiatorResource(hostResource) })
 
 	mapped := false
@@ -561,9 +590,11 @@ func (d *powerstore) mapVolumeByVolumeResource(volResource *powerStoreVolumeReso
 		}
 	}
 	if !mapped {
-		if err := d.client().AttachHostToVolume(context.Background(), hostResource.ID, volResource.ID); err != nil {
+		err := d.client().AttachHostToVolume(context.Background(), hostResource.ID, volResource.ID)
+		if err != nil {
 			return nil, err
 		}
+
 		reverter.Add(func() { _ = d.client().DetachHostFromVolume(context.Background(), hostResource.ID, volResource.ID) })
 	}
 
@@ -571,6 +602,7 @@ func (d *powerstore) mapVolumeByVolumeResource(volResource *powerStoreVolumeReso
 	if err != nil {
 		return nil, err
 	}
+
 	cleanup, err := connector.Connect(d.state.ShutdownCtx, targetQN, targetAddresses...)
 	if err != nil {
 		return nil, err
@@ -585,6 +617,7 @@ func (d *powerstore) mapVolumeByVolumeResource(volResource *powerStoreVolumeReso
 	if !mapped {
 		outerReverter.Add(func() { _ = d.unmapVolumeByVolumeResource(volResource) })
 	}
+
 	outerReverter.Add(cleanup)
 
 	reverter.Success()
@@ -602,6 +635,7 @@ func (d *powerstore) unmapVolumeByVolumeResource(volResource *powerStoreVolumeRe
 	if err != nil {
 		return err
 	}
+
 	defer unlock()
 
 	hostResource, _, err := d.getHostWithInitiatorResource()
@@ -614,6 +648,7 @@ func (d *powerstore) unmapVolumeByVolumeResource(volResource *powerStoreVolumeRe
 			if mappingResource.HostID != hostResource.ID {
 				continue
 			}
+
 			err := d.client().DetachHostFromVolume(context.Background(), mappingResource.HostID, volResource.ID)
 			if err != nil {
 				return err
@@ -629,6 +664,7 @@ func (d *powerstore) unmapVolumeByVolumeResource(volResource *powerStoreVolumeRe
 		if err != nil {
 			return err
 		}
+
 		err = connector.Disconnect(targetQN)
 		if err != nil {
 			return err
@@ -651,6 +687,7 @@ func (d *powerstore) unmapVolume(vol Volume) error {
 	if err != nil {
 		return err
 	}
+
 	return d.unmapVolumeByVolumeResource(volResource)
 }
 
@@ -664,6 +701,7 @@ func (d *powerstore) getMappedDevicePath(vol Volume, mapVolume bool) (string, re
 	if err != nil {
 		return "", nil, err
 	}
+
 	volDeviceID := d.volumeDeviceID(volResource)
 
 	if mapVolume {
@@ -671,12 +709,14 @@ func (d *powerstore) getMappedDevicePath(vol Volume, mapVolume bool) (string, re
 		if err != nil {
 			return "", nil, err
 		}
+
 		revert.Add(cleanup)
 	}
 
 	devicePathFilter := func(path string) bool {
 		return strings.Contains(path, volDeviceID)
 	}
+
 	var devicePath string
 	if mapVolume {
 		// Wait for the device path to appear as the volume has been just mapped to the host.
@@ -701,6 +741,7 @@ func (d *powerstore) getVolumeResourceByVolume(vol Volume) (*powerStoreVolumeRes
 	if err != nil {
 		return nil, err
 	}
+
 	return d.client().GetVolumeByName(context.Background(), volResourceName)
 }
 
@@ -710,13 +751,16 @@ func (d *powerstore) getExistingVolumeResourceByVolume(vol Volume) (*powerStoreV
 	if err != nil {
 		return nil, err
 	}
+
 	volResource, err := d.client().GetVolumeByName(context.Background(), volResourceName)
 	if err != nil {
 		return nil, err
 	}
+
 	if volResource == nil {
 		return nil, fmt.Errorf("PowerStore volume resource %q not found", volResourceName)
 	}
+
 	return volResource, nil
 }
 
@@ -726,9 +770,11 @@ func (d *powerstore) createVolumeResource(vol Volume) (*powerStoreVolumeResource
 	if err != nil {
 		return nil, err
 	}
+
 	if sizeBytes < powerStoreMinVolumeSizeBytes {
 		return nil, fmt.Errorf("Volume size is too small, supported minimum %s", powerStoreMinVolumeSizeUnit)
 	}
+
 	if sizeBytes > powerStoreMaxVolumeSizeBytes {
 		return nil, fmt.Errorf("Volume size is too large, supported maximum %s", powerStoreMaxVolumeSizeUnit)
 	}
@@ -742,6 +788,7 @@ func (d *powerstore) createVolumeResource(vol Volume) (*powerStoreVolumeResource
 	if vol.volType != "" {
 		typ += ":" + string(vol.volType)
 	}
+
 	if vol.contentType != "" {
 		typ += ":" + string(vol.contentType)
 	}
@@ -753,10 +800,12 @@ func (d *powerstore) createVolumeResource(vol Volume) (*powerStoreVolumeResource
 		AppType:      "Other",
 		AppTypeOther: powerStoreSprintfLimit(32, "%s", typ), // maximum allowed value length for volume app_type_other field is 32,
 	}
+
 	err = d.client().CreateVolume(context.Background(), volResource)
 	if err != nil {
 		return nil, err
 	}
+
 	return volResource, nil
 }
 
@@ -788,6 +837,7 @@ func (d *powerstore) getHostWithInitiatorResource() (*powerStoreHostResource, *p
 	if err != nil {
 		return nil, nil, err
 	}
+
 	if hostResource != nil {
 		// host with initiator already exists
 		return hostResource, initiatorResource, nil
@@ -798,10 +848,12 @@ func (d *powerstore) getHostWithInitiatorResource() (*powerStoreHostResource, *p
 	if err != nil {
 		return nil, nil, err
 	}
+
 	hostResource, err = d.client().GetHostByName(context.Background(), hostResourceName)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	if hostResource != nil {
 		// host without initiator found
 		return hostResource, nil, nil
@@ -824,20 +876,24 @@ func (d *powerstore) getOrCreateHostWithInitiatorResource() (*powerStoreHostReso
 		if err != nil {
 			return nil, err
 		}
+
 		hostResourceName, hostname, err := d.hostResourceName()
 		if err != nil {
 			return nil, err
 		}
+
 		hostResource = &powerStoreHostResource{
 			Name:        hostResourceName,
 			Description: powerStoreSprintfLimit(256, "LXD Name: %s", hostname), // maximum allowed value length for host description field is 256
 			OsType:      powerStoreOsTypeEnum_Linux,
 			Initiators:  []*powerStoreHostInitiatorResource{initiatorResource},
 		}
+
 		err = d.client().CreateHost(context.Background(), hostResource)
 		if err != nil {
 			return nil, err
 		}
+
 		return hostResource, nil
 	}
 
@@ -847,10 +903,12 @@ func (d *powerstore) getOrCreateHostWithInitiatorResource() (*powerStoreHostReso
 		if err != nil {
 			return nil, err
 		}
+
 		err = d.client().AddInitiatorToHostByID(context.Background(), hostResource.ID, initiatorResource)
 		if err != nil {
 			return nil, err
 		}
+
 		return d.client().GetHostByID(context.Background(), hostResource.ID) // refetch to refresh the data
 	}
 
@@ -864,6 +922,7 @@ func (d *powerstore) deleteHostAndInitiatorResource(hostResource *powerStoreHost
 	if err != nil {
 		return err
 	}
+
 	hostResourceName, _, err := d.hostResourceName()
 	if err != nil {
 		return err
@@ -873,17 +932,21 @@ func (d *powerstore) deleteHostAndInitiatorResource(hostResource *powerStoreHost
 		// host has some other volumes mapped
 		return nil
 	}
+
 	if len(hostResource.Initiators) > 1 {
 		// host has multiple initiators associated
 		return nil
 	}
+
 	if len(hostResource.Initiators) == 1 && (hostResource.Initiators[0].PortName != initiatorResource.PortName || hostResource.Initiators[0].PortType != initiatorResource.PortType) {
 		// associated initiator do not matches the expected one
 		return nil
 	}
+
 	if hostResource.Name != hostResourceName {
 		// host is not managed by LXD
 		return nil
 	}
+
 	return d.client().DeleteHostByID(context.Background(), hostResource.ID)
 }

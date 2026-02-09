@@ -44,6 +44,7 @@ func newPowerStoreLoginSession(id string, idleTimeout time.Duration, authToken, 
 		AuthToken:   authToken,
 		CSRFToken:   csrfToken,
 	}
+
 	ls.Interacted()
 	return ls
 }
@@ -53,6 +54,7 @@ func (ls *powerStoreLoginSession) IsValid() bool {
 	if ls == nil {
 		return false
 	}
+
 	lastInteraction := *ls.LastInteraction.Load()
 	return time.Now().Before(lastInteraction.Add(ls.IdleTimeout))
 }
@@ -76,6 +78,7 @@ func powerStoreSprintfLimit(limit int, format string, args ...any) string {
 	if len(x) > limit {
 		x = x[:limit]
 	}
+
 	return x
 }
 
@@ -90,13 +93,17 @@ func newPowerStoreError(resp *http.Response) error {
 	if resp.StatusCode == http.StatusUnauthorized {
 		return api.NewStatusError(http.StatusUnauthorized, "Unauthorized request")
 	}
+
 	e := &powerStoreError{httpStatusCode: resp.StatusCode}
 	if resp.Header.Get("Content-Type") != "application/json" || resp.Header.Get("Content-Length") == "0" {
 		return e
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&e.details); err != nil {
+
+	err := json.NewDecoder(resp.Body).Decode(&e.details)
+	if err != nil {
 		e.decoderErr = fmt.Errorf("unmarshal HTTP error response body: %w", err)
 	}
+
 	return e
 }
 
@@ -115,6 +122,7 @@ func (e *powerStoreError) Error() string {
 	if e.decoderErr != nil {
 		msg = fmt.Sprintf("%s; response decoding error: %s", msg, e.decoderErr.Error())
 	}
+
 	return msg
 }
 
@@ -182,11 +190,13 @@ func (c *powerStoreClient) marshalHTTPRequestBody(src any) (io.Reader, error) {
 	if src == nil {
 		return nil, nil
 	}
+
 	dst := &bytes.Buffer{}
-	encoder := json.NewEncoder(dst)
-	if err := encoder.Encode(src); err != nil {
+	err := json.NewEncoder(dst).Encode(src)
+	if err != nil {
 		return nil, err
 	}
+
 	return dst, nil
 }
 
@@ -208,7 +218,8 @@ func (c *powerStoreClient) doHTTPRequest(ctx context.Context, method string, pat
 	}
 
 	for _, edit := range requestEditors {
-		if err := edit(req); err != nil {
+		err := edit(req)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -220,17 +231,21 @@ func (c *powerStoreClient) doHTTPRequest(ctx context.Context, method string, pat
 			},
 		},
 	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)
 	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode > 299 {
 		return resp, newPowerStoreError(resp)
 	}
+
 	if responseData != nil {
-		if err := json.NewDecoder(resp.Body).Decode(responseData); err != nil {
+		err := json.NewDecoder(resp.Body).Decode(responseData)
+		if err != nil {
 			return resp, fmt.Errorf("unmarshal HTTP response body: %s: %w", path, err)
 		}
 	}
@@ -242,6 +257,7 @@ func (c *powerStoreClient) startNewLoginSession(ctx context.Context) (*powerStor
 	if err != nil {
 		return nil, fmt.Errorf("starting PowerStore session: %w", err)
 	}
+
 	if len(info) < 1 {
 		return nil, errors.New("starting PowerStore session: invalid session information")
 	}
@@ -255,9 +271,11 @@ func (c *powerStoreClient) startNewLoginSession(ctx context.Context) (*powerStor
 		if c.Name != powerStoreAuthorizationCookieName {
 			continue
 		}
+
 		authCookie = c
 		break
 	}
+
 	if authCookie == nil {
 		return nil, errors.New("starting PowerStore session: missing PowerStore authorization cookie")
 	}
@@ -275,10 +293,12 @@ func (c *powerStoreClient) getOrCreateLoginSession(ctx context.Context, sessionK
 	if session.IsValid() {
 		return session, nil
 	}
+
 	return powerStoreTokenCache.Replace(sessionKey, func(ls *powerStoreLoginSession) (*powerStoreLoginSession, error) {
 		if ls != session && ls.IsValid() {
 			return ls, nil // session was already replaced with a new valid session
 		}
+
 		return c.startNewLoginSession(ctx)
 	})
 }
@@ -289,6 +309,7 @@ func (c *powerStoreClient) forceLoginSessionRemoval(sessionKey string, sessionTo
 		if ls != sessionToRemove {
 			return ls, nil // session was already replaced
 		}
+
 		return nil, nil // delete session
 	})
 }
@@ -307,6 +328,7 @@ func (c *powerStoreClient) doHTTPRequestWithLoginSession(ctx context.Context, me
 		// there is something wrong with the session token, remove it
 		c.forceLoginSessionRemoval(sessionKey, session)
 	}
+
 	return resp, err
 }
 
@@ -332,6 +354,7 @@ func (c *powerStoreClient) withQueryParams(params url.Values) func(req *http.Req
 			req.URL.RawQuery = ""
 			return nil
 		}
+
 		req.URL.RawQuery = params.Encode()
 		return nil
 	}
@@ -384,6 +407,7 @@ func (c *powerStoreClient) getLoginSessionInfoWithBasicAuthorization(ctx context
 	if err != nil {
 		return nil, nil, fmt.Errorf("retrieving PowerStore login session info: %w", err)
 	}
+
 	return resp, body, nil
 }
 
@@ -404,6 +428,7 @@ func (c *powerStoreClient) getApplianceMetricsByQuery(ctx context.Context, query
 	for key, val := range query {
 		params.Set(key, val)
 	}
+
 	params.Set("select", "id,name,avg_latency,total_iops,total_bandwidth,last_logical_total_space,last_logical_used_space,last_physical_total_space,last_physical_used_space")
 	pagination.SetParams(params)
 
@@ -414,6 +439,7 @@ func (c *powerStoreClient) getApplianceMetricsByQuery(ctx context.Context, query
 	if err != nil {
 		return nil, fmt.Errorf("retrieving metrics of PowerStore appliances: %w", err)
 	}
+
 	return body, nil
 }
 
@@ -422,12 +448,15 @@ func (c *powerStoreClient) GetApplianceMetrics(ctx context.Context) ([]*powerSto
 	var metrics []*powerStoreApplianceMetricsResource
 	for page := 0; ; page++ {
 		metricsPage, err := c.getApplianceMetricsByQuery(ctx, nil, powerStorePagination{Page: page})
-		if pse, ok := err.(*powerStoreError); ok && pse.HTTPStatusCode() == http.StatusRequestedRangeNotSatisfiable {
+		pse, ok := err.(*powerStoreError)
+		if ok && pse.HTTPStatusCode() == http.StatusRequestedRangeNotSatisfiable {
 			return metrics, nil
 		}
+
 		if err != nil {
 			return nil, err
 		}
+
 		metrics = append(metrics, metricsPage...)
 	}
 }
@@ -465,6 +494,7 @@ func (c *powerStoreClient) getHostsByQuery(ctx context.Context, query map[string
 	for key, val := range query {
 		params.Set(key, val)
 	}
+
 	params.Set("select", "id,name,description,initiators(id,port_name,port_type),os_type,host_connectivity,mapped_hosts(id,host_id,volume_id)")
 	pagination.SetParams(params)
 
@@ -482,8 +512,10 @@ func (c *powerStoreClient) getHostsByQuery(ctx context.Context, query map[string
 		if !strings.HasPrefix(h.Name, c.hostResourceNamePrefix) {
 			continue
 		}
+
 		filtered = append(filtered, h)
 	}
+
 	return filtered, nil
 }
 
@@ -492,9 +524,11 @@ func (c *powerStoreClient) getHostByQuery(ctx context.Context, query map[string]
 	if err != nil {
 		return nil, err
 	}
+
 	if len(hosts) == 0 {
 		return nil, nil
 	}
+
 	return hosts[0], nil
 }
 
@@ -515,6 +549,7 @@ func (c *powerStoreClient) CreateHost(ctx context.Context, host *powerStoreHostR
 	if err != nil {
 		return fmt.Errorf("creating PowerStore host: %w", err)
 	}
+
 	host.ID = body.ID
 	return nil
 }
@@ -525,6 +560,7 @@ func (c *powerStoreClient) DeleteHostByID(ctx context.Context, id string) error 
 	if err != nil {
 		return fmt.Errorf("deleting PowerStore host: %w", err)
 	}
+
 	return nil
 }
 
@@ -539,6 +575,7 @@ func (c *powerStoreClient) AddInitiatorToHostByID(ctx context.Context, hostID st
 	if err != nil {
 		return fmt.Errorf("adding initiator to PowerStore host: %w", err)
 	}
+
 	return nil
 }
 
@@ -553,6 +590,7 @@ func (c *powerStoreClient) RemoveInitiatorFromHostByID(ctx context.Context, host
 	if err != nil {
 		return fmt.Errorf("removing initiator from PowerStore host: %w", err)
 	}
+
 	return nil
 }
 
@@ -568,6 +606,7 @@ func (c *powerStoreClient) AttachHostToVolume(ctx context.Context, hostID, volID
 	if err != nil {
 		return fmt.Errorf("attaching PowerStore host to a volume: %w", err)
 	}
+
 	return nil
 }
 
@@ -583,6 +622,7 @@ func (c *powerStoreClient) DetachHostFromVolume(ctx context.Context, hostID, vol
 	if err != nil {
 		return fmt.Errorf("detaching PowerStore host from a volume: %w", err)
 	}
+
 	return nil
 }
 
@@ -598,6 +638,7 @@ func (c *powerStoreClient) getInitiatorsByQuery(ctx context.Context, query map[s
 	for key, val := range query {
 		params.Set(key, val)
 	}
+
 	params.Set("select", "id,host_id,port_name,port_type")
 	pagination.SetParams(params)
 
@@ -617,9 +658,11 @@ func (c *powerStoreClient) getInitiatorByQuery(ctx context.Context, query map[st
 	if err != nil {
 		return nil, err
 	}
+
 	if len(initiators) == 0 {
 		return nil, nil
 	}
+
 	return initiators[0], nil
 }
 
@@ -629,9 +672,11 @@ func (c *powerStoreClient) GetHostByInitiator(ctx context.Context, initiator *po
 	if err != nil {
 		return nil, err
 	}
+
 	if hostInitiator == nil {
 		return nil, nil
 	}
+
 	return c.GetHostByID(ctx, hostInitiator.HostID)
 }
 
@@ -661,6 +706,7 @@ func (c *powerStoreClient) getVolumesByQuery(ctx context.Context, query map[stri
 	for key, val := range query {
 		params.Set(key, val)
 	}
+
 	params.Set("select", "id,name,description,type,state,size,logical_used,wwn,app_type,app_type_other,volume_groups(id),mapped_volumes(id,host_id,volume_id)")
 	pagination.SetParams(params)
 
@@ -678,8 +724,10 @@ func (c *powerStoreClient) getVolumesByQuery(ctx context.Context, query map[stri
 		if !strings.HasPrefix(v.Name, c.volumeResourceNamePrefix) {
 			continue
 		}
+
 		filtered = append(filtered, v)
 	}
+
 	return filtered, nil
 }
 
@@ -688,9 +736,11 @@ func (c *powerStoreClient) getVolumeByQuery(ctx context.Context, query map[strin
 	if err != nil {
 		return nil, err
 	}
+
 	if len(vols) == 0 {
 		return nil, nil
 	}
+
 	return vols[0], nil
 }
 
@@ -701,12 +751,15 @@ func (c *powerStoreClient) GetVolumes(ctx context.Context) ([]*powerStoreVolumeR
 	var vols []*powerStoreVolumeResource
 	for page := 0; ; page++ {
 		volsPage, err := c.getVolumesByQuery(ctx, query, powerStorePagination{Page: page})
-		if pse, ok := err.(*powerStoreError); ok && pse.HTTPStatusCode() == http.StatusRequestedRangeNotSatisfiable {
+		pse, ok := err.(*powerStoreError)
+		if ok && pse.HTTPStatusCode() == http.StatusRequestedRangeNotSatisfiable {
 			return vols, nil
 		}
+
 		if err != nil {
 			return nil, err
 		}
+
 		vols = append(vols, volsPage...)
 	}
 }
@@ -728,6 +781,7 @@ func (c *powerStoreClient) CreateVolume(ctx context.Context, vol *powerStoreVolu
 	if err != nil {
 		return fmt.Errorf("creating PowerStore volume: %w", err)
 	}
+
 	vol.ID = body.ID
 	return nil
 }
@@ -738,6 +792,7 @@ func (c *powerStoreClient) DeleteVolumeByID(ctx context.Context, id string) erro
 	if err != nil {
 		return fmt.Errorf("deleting PowerStore volume: %w", err)
 	}
+
 	return nil
 }
 
@@ -752,5 +807,6 @@ func (c *powerStoreClient) RemoveMembersFromVolumeGroup(ctx context.Context, id 
 	if err != nil {
 		return fmt.Errorf("removing members from PowerStore volume group: %w", err)
 	}
+
 	return nil
 }

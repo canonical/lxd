@@ -24,11 +24,13 @@ func (km *keyedMutex) inc(key string) *keyedMutexItem {
 	if km.locks == nil {
 		km.locks = map[string]*keyedMutexItem{}
 	}
+
 	i, ok := km.locks[key]
 	if !ok {
 		i = &keyedMutexItem{}
 		km.locks[key] = i
 	}
+
 	i.refs++
 	return i
 }
@@ -40,14 +42,17 @@ func (km *keyedMutex) dec(key string) *keyedMutexItem {
 	if km.locks == nil {
 		return nil
 	}
+
 	i, ok := km.locks[key]
 	if !ok {
 		return nil
 	}
+
 	i.refs--
 	if i.refs <= 0 {
 		delete(km.locks, key)
 	}
+
 	return i
 }
 
@@ -59,7 +64,8 @@ func (km *keyedMutex) Lock(key string) {
 
 // Unlock releases an exclusive lock associated with the provided key.
 func (km *keyedMutex) Unlock(key string) {
-	if i := km.dec(key); i != nil {
+	i := km.dec(key)
+	if i != nil {
 		i.mtx.Unlock()
 	}
 }
@@ -78,6 +84,7 @@ func (tc *tokenCache[T]) Load(key string) *T {
 	if !has {
 		return nil
 	}
+
 	return value.(*T) //nolint:revive // No need to assert types as it is guaranteed that all values are of type *T.
 }
 
@@ -92,6 +99,7 @@ func (tc *tokenCache[T]) Replace(key string, replaceFunc func(*T) (*T, error)) (
 	if err != nil { // replacement failed
 		return value, err
 	}
+
 	if value == nil { // value should be removed
 		tc.items.Delete(key)
 		return value, nil

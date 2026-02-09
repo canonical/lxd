@@ -88,6 +88,7 @@ func (d *powerstore) client() *powerStoreClient {
 	if d.httpClient == nil {
 		d.httpClient = newPowerStoreClient(d)
 	}
+
 	return d.httpClient
 }
 
@@ -121,8 +122,10 @@ func (d *powerstore) connector() (connectors.Connector, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		d.storageConnector = connector
 	}
+
 	return d.storageConnector, nil
 }
 
@@ -134,8 +137,10 @@ func (d *powerstore) target() (string, []string, error) {
 		if err != nil {
 			return "", nil, err
 		}
+
 		d.targetQualifiedName = discovered
 	}
+
 	return d.targetQualifiedName, targetAddress, nil
 }
 
@@ -160,6 +165,7 @@ func (d *powerstore) discoverTargetQualifiedName(targetAddress []string) (string
 			if record.SubType != connectors.SubtypeNVMESubsys {
 				continue
 			}
+
 			return record.SubNQN, nil
 
 		default:
@@ -208,6 +214,7 @@ func (d *powerstore) FillConfig() error {
 		if err != nil {
 			return err
 		}
+
 		d.config["powerstore.mode"] = mode
 		d.config["powerstore.transport"] = transport
 
@@ -216,6 +223,7 @@ func (d *powerstore) FillConfig() error {
 		if err != nil {
 			return err
 		}
+
 		d.config["powerstore.mode"] = mode
 
 	case d.config["powerstore.transport"] == "":
@@ -223,6 +231,7 @@ func (d *powerstore) FillConfig() error {
 		if err != nil {
 			return err
 		}
+
 		d.config["powerstore.transport"] = transport
 	}
 
@@ -243,11 +252,13 @@ func (d *powerstore) discoverModeAndTransport() (mode string, transport string, 
 			if err != nil {
 				return "", "", err
 			}
+
 			if connector.LoadModules() == nil {
 				return mode, transport, nil
 			}
 		}
 	}
+
 	return "", "", errors.New("failed to discover PowerStore mode and transport")
 }
 
@@ -256,12 +267,14 @@ func (d *powerstore) discoverMode(transport string) (mode string, err error) {
 	if !slices.Contains(powerStoreSupportedTransports, transport) {
 		return "", fmt.Errorf("unsupported PowerStore transport %q", transport)
 	}
+
 	for _, mode := range powerStoreSupportedModes {
 		connectorType := powerStoreModeAndTransportToConnectorType[mode][transport]
 		connector, err := connectors.NewConnector(connectorType, "")
 		if err != nil {
 			return "", err
 		}
+
 		if connector.LoadModules() == nil {
 			return mode, nil
 		}
@@ -274,12 +287,14 @@ func (d *powerstore) discoverTransport(mode string) (transport string, err error
 	if !slices.Contains(powerStoreSupportedModes, mode) {
 		return "", fmt.Errorf("unsupported PowerStore mode %q", mode)
 	}
+
 	for _, transport := range powerStoreSupportedTransports {
 		connectorType := powerStoreModeAndTransportToConnectorType[mode][transport]
 		connector, err := connectors.NewConnector(connectorType, "")
 		if err != nil {
 			return "", err
 		}
+
 		if connector.LoadModules() == nil {
 			return transport, nil
 		}
@@ -372,6 +387,7 @@ func (d *powerstore) Validate(config map[string]string) error {
 	if oldMode != "" && oldMode != newMode {
 		return errors.New("PowerStore mode cannot be changed")
 	}
+
 	if oldTransport != "" && oldTransport != newTransport {
 		return errors.New("PowerStore transport cannot be changed")
 	}
@@ -388,6 +404,7 @@ func (d *powerstore) Validate(config map[string]string) error {
 		if err != nil {
 			return fmt.Errorf("PowerStore mode %q with transport %q is not supported: %w", newMode, newTransport, err)
 		}
+
 		err = connector.LoadModules()
 		if err != nil {
 			return fmt.Errorf("PowerStore mode %q with transport %q is not supported due to missing kernel modules: %w", newMode, newTransport, err)
@@ -402,6 +419,7 @@ func (d *powerstore) ValidateSource() error {
 	if d.config["powerstore.gateway"] == "" {
 		return errors.New("The powerstore.gateway cannot be empty")
 	}
+
 	return nil
 }
 
@@ -453,10 +471,13 @@ func (d *powerstore) GetResources() (*api.ResourcesStoragePool, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	res := &api.ResourcesStoragePool{}
+
 	for _, m := range metrics {
 		res.Space.Total += uint64(m.LastPhysicalTotalSpace)
 		res.Space.Used += uint64(m.LastPhysicalUsedSpace)
 	}
+
 	return res, nil
 }

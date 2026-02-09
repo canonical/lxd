@@ -112,9 +112,11 @@ func TestPowerStoreVolumeResourceName(t *testing.T) {
 			if err != nil && !test.wantErr {
 				t.Fatalf("unexpected error while getting PowerStore volume name: %v", err)
 			}
+
 			if err == nil && test.wantErr {
 				t.Fatalf("expected error while getting PowerStore volume name, got nil")
 			}
+
 			if test.want != got {
 				t.Errorf("unexpected result of getting PowerStore volume name (want: %q, got %q)", test.want, got)
 			}
@@ -235,18 +237,23 @@ func TestPowerStoreExtractDataFromVolumeResourceName(t *testing.T) {
 			if err != nil && !test.wantErr {
 				t.Fatalf("unexpected error while retrieving data from PowerStore volume name: %v", err)
 			}
+
 			if err == nil && test.wantErr {
 				t.Fatalf("expected error while retrieving data from PowerStore volume name, got nil")
 			}
+
 			if test.wantPoolHash != gotPoolHash {
 				t.Errorf("wrong pool hash retrieved from PowerStore volume name (want: %q, got %q)", test.wantPoolHash, gotPoolHash)
 			}
+
 			if test.wantVolumeType != gotVolumeType {
 				t.Errorf("wrong volume type retrieved from PowerStore volume name (want: %q, got %q)", test.wantVolumeType, gotVolumeType)
 			}
+
 			if test.wantVolumeUUID != gotVolumeUUID.String() {
 				t.Errorf("wrong volume UUID retrieved from PowerStore volume name (want: %q, got %q)", test.wantVolumeUUID, gotVolumeUUID)
 			}
+
 			if test.wantVolumeContentType != gotVolumeContentType {
 				t.Errorf("wrong volume content type retrieved from PowerStore volume name (want: %q, got %q)", test.wantVolumeContentType, gotVolumeContentType)
 			}

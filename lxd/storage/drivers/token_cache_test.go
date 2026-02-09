@@ -22,6 +22,7 @@ func TestKeyedMutex_SerialExecution(t *testing.T) {
 		defer km.Unlock("k")
 		output += val
 	}
+
 	write := func() {
 		wg := &sync.WaitGroup{}
 		defer wg.Wait()
@@ -33,11 +34,13 @@ func TestKeyedMutex_SerialExecution(t *testing.T) {
 
 		output += "0"
 	}
+
 	for range iterations {
 		write()
 	}
 
-	if want := strings.Repeat("0A", iterations); want != output {
+	want := strings.Repeat("0A", iterations)
+	if want != output {
 		t.Fatalf("invalid output (want %q, got %q)", want, output)
 	}
 }
@@ -46,22 +49,26 @@ func TestKeyedMutex_ResourceCleanup(t *testing.T) {
 	km := &keyedMutex{}
 
 	km.Lock("a")
-	if want, got := 1, len(km.locks); want != got {
+	want, got := 1, len(km.locks)
+	if want != got {
 		t.Fatalf("expected %d key(s), got %d", want, got)
 	}
 
 	km.Lock("b")
-	if want, got := 2, len(km.locks); want != got {
+	want, got = 2, len(km.locks)
+	if want != got {
 		t.Fatalf("expected %d key(s), got %d", want, got)
 	}
 
 	km.Unlock("a")
-	if want, got := 1, len(km.locks); want != got {
+	want, got = 1, len(km.locks)
+	if want != got {
 		t.Fatalf("expected %d key(s), got %d", want, got)
 	}
 
 	km.Unlock("b")
-	if want, got := 0, len(km.locks); want != got {
+	want, got = 0, len(km.locks)
+	if want != got {
 		t.Fatalf("expected %d key(s), got %d", want, got)
 	}
 }
@@ -87,12 +94,15 @@ func TestKeyedMutex_Race_SingleKey(t *testing.T) {
 	for i := 0; i < goroutines; i++ {
 		go stressRoutine(wg)
 	}
+
 	wg.Wait()
 
 	if len(km.locks) != 0 {
 		t.Fatalf("expected no remaining locks")
 	}
-	if want := strings.Repeat("x", goroutines*iterations); want != output {
+
+	want := strings.Repeat("x", goroutines*iterations)
+	if want != output {
 		t.Fatalf("invalid output (want len %d, got len %d)", len(want), len(output))
 	}
 }
@@ -121,12 +131,15 @@ func TestKeyedMutex_Race_MultipleKeys(t *testing.T) {
 	for i := 0; i < goroutines; i++ {
 		go stressRoutine(wg, i)
 	}
+
 	wg.Wait()
 
 	if len(km.locks) != 0 {
 		t.Fatalf("expected no remaining locks")
 	}
-	if want, got := strings.Repeat("x", goroutines*iterations), strings.Join(output, ""); want != got {
+
+	want, got := strings.Repeat("x", goroutines*iterations), strings.Join(output, "")
+	if want != got {
 		t.Fatalf("invalid output (want len %d, got len %d)", len(want), len(got))
 	}
 }
@@ -142,6 +155,7 @@ func TestKeyedMutex_Race_CrossGoroutineUnlock(t *testing.T) {
 		output += "x"
 		close(done)
 	}
+
 	unlockRoutine := func(wg *sync.WaitGroup, done chan struct{}) {
 		defer wg.Done()
 		<-done
@@ -156,12 +170,15 @@ func TestKeyedMutex_Race_CrossGoroutineUnlock(t *testing.T) {
 		go lockRoutine(wg, done)
 		go unlockRoutine(wg, done)
 	}
+
 	wg.Wait()
 
 	if len(km.locks) != 0 {
 		t.Fatalf("expected no remaining locks")
 	}
-	if want := strings.Repeat("x", iterations*2); want != output {
+
+	want := strings.Repeat("x", iterations*2)
+	if want != output {
 		t.Fatalf("invalid output (want len %d, got len %d)", len(want), len(output))
 	}
 }
@@ -182,6 +199,7 @@ func tokenCacheReplaceFunc(t *testing.T, want, replaceWith *string, err error) f
 		case want != nil && got != nil && *want != *got:
 			t.Errorf("replace func got unexpected source value %q, expected %q", *got, *want)
 		}
+
 		return replaceWith, err
 	}
 }
@@ -226,6 +244,7 @@ func requireTokenCacheReplaceToEqual(t *testing.T, tc *tokenCache[string], key s
 	case wantErr != nil && gotErr != nil && wantErr.Error() != gotErr.Error():
 		t.Fatalf("unexpected cache replace error %q, expected %q", gotErr.Error(), wantErr.Error())
 	}
+
 	switch {
 	case wantValue == nil && gotValue != nil:
 		t.Fatalf("unexpected cache replace value %q, expected nil", *gotValue)
