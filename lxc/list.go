@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -358,6 +358,7 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 			if !ok {
 				cStates[inst.Name] = nil
 			}
+
 			cStatesLock.Unlock()
 
 			if !ok {
@@ -371,6 +372,7 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 			if !ok {
 				cSnapshots[inst.Name] = nil
 			}
+
 			cSnapshotsLock.Unlock()
 
 			if !ok {
