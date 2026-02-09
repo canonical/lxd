@@ -175,6 +175,16 @@ func DriverStatuses() map[instancetype.Type]*DriverStatus {
 			}
 		}
 
+		// Check that we have a sufficiently recent version of liblxc.
+		if driverInfo.Name == "lxc" && driverStatus.Version != nil {
+			minLXCVersion, _ := version.NewDottedVersion("5.0.0")
+
+			if driverStatus.Version.Compare(minLXCVersion) < 0 {
+				driverInfo.Error = errors.New("LXC 5.0.0 or newer is required")
+				driverStatus.Info.Error = driverInfo.Error
+			}
+		}
+
 		if driverInfo.Error != nil || driverInfo.Version == "" {
 			logger.Warn("Instance type not operational", logger.Ctx{"type": driverInfo.Type, "driver": driverInfo.Name, "err": driverInfo.Error})
 
