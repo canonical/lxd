@@ -14,13 +14,11 @@ import (
 	"tags.cncf.io/container-device-interface/specs-go"
 
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/logger"
 )
 
-// specDevToNativeDev builds a list of unix-char devices to be created from a CDI spec.
-func specDevToNativeDev(configDevices *ConfigDevices, d specs.DeviceNode) error {
+// specDevToInstanceDev builds a list of unix-char devices to be created from a CDI spec.
+func specDevToInstanceDev(configDevices *ConfigDevices, d specs.DeviceNode) error {
 	if d.Path == "" {
 		return fmt.Errorf("Device path is empty in the CDI device node: %v", d)
 	}
@@ -30,7 +28,9 @@ func specDevToNativeDev(configDevices *ConfigDevices, d specs.DeviceNode) error 
 		hostPath = d.Path // When the hostPath is empty, the path is the device path in the container.
 	}
 
-	if d.Major == 0 || d.Minor == 0 {
+	// Only fetch major/minor from device if both are unspecified (0).
+	// Some devices legitimately have minor=0, so we can't treat 0 as "unspecified" individually.
+	if d.Major == 0 && d.Minor == 0 {
 		stat := unix.Stat_t{}
 		err := unix.Stat(hostPath, &stat)
 		if err != nil {
@@ -41,16 +41,28 @@ func specDevToNativeDev(configDevices *ConfigDevices, d specs.DeviceNode) error 
 		d.Minor = int64(unix.Minor(uint64(stat.Rdev)))
 	}
 
-	configDevices.UnixCharDevs = append(configDevices.UnixCharDevs, map[string]string{"type": "unix-char", "source": hostPath, "path": d.Path, "major": strconv.FormatInt(d.Major, 10), "minor": strconv.FormatInt(d.Minor, 10)})
+	instanceDev := map[string]string{
+		"type":   "unix-char",
+		"source": hostPath,
+		"path":   d.Path,
+		"major":  strconv.FormatInt(d.Major, 10),
+		"minor":  strconv.FormatInt(d.Minor, 10),
+	}
+
+	if d.UID != nil {
+		instanceDev["uid"] = strconv.FormatUint(uint64(*d.UID), 10)
+	}
+
+	if d.GID != nil {
+		instanceDev["gid"] = strconv.FormatUint(uint64(*d.GID), 10)
+	}
+
+	configDevices.UnixCharDevs = append(configDevices.UnixCharDevs, instanceDev)
 	return nil
 }
 
-// specMountToNativeDev builds a list of disk mounts to be created from a CDI spec.
-func specMountToNativeDev(configDevices *ConfigDevices, cdiID ID, mounts []*specs.Mount) ([]SymlinkEntry, error) {
-	if len(mounts) == 0 {
-		return nil, errors.New("CDI mounts are empty")
-	}
-
+// specMountToInstanceDev builds a list of disk mounts to be created from a CDI spec.
+func specMountToInstanceDev(configDevices *ConfigDevices, cdiID ID, mounts []*specs.Mount) ([]SymlinkEntry, error) {
 	indirectSymlinks := make([]SymlinkEntry, 0)
 	var chosenOpts []string
 
@@ -134,9 +146,8 @@ func specMountToNativeDev(configDevices *ConfigDevices, cdiID ID, mounts []*spec
 
 // specHookToLXDCDIHook will translate a hook from a CDI spec into an entry in a `Hooks`.
 // Some CDI hooks are not relevant for LXD and will be ignored.
-func specHookToLXDCDIHook(hook *specs.Hook, hooks *Hooks, l logger.Logger) error {
+func specHookToLXDCDIHook(hook *specs.Hook, hooks *Hooks) error {
 	if hook == nil {
-		l.Warn("CDI hook is nil")
 		return nil
 	}
 
@@ -238,52 +249,57 @@ func specHookToLXDCDIHook(hook *specs.Hook, hooks *Hooks, l logger.Logger) error
 
 // applyContainerEdits updates the configDevices and the hooks with CDI "container edits"
 // (edits are user space libraries to mount and char device to pass to the container).
-func applyContainerEdits(edits specs.ContainerEdits, configDevices *ConfigDevices, hooks *Hooks, existingMounts []*specs.Mount, l logger.Logger) ([]*specs.Mount, error) {
+func applyContainerEdits(edits specs.ContainerEdits, configDevices *ConfigDevices, hooks *Hooks) error {
 	for _, d := range edits.DeviceNodes {
 		if d == nil {
-			l.Warn("One CDI DeviceNode is nil")
 			continue
 		}
 
-		err := specDevToNativeDev(configDevices, *d)
+		err := specDevToInstanceDev(configDevices, *d)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	for _, hook := range edits.Hooks {
-		err := specHookToLXDCDIHook(hook, hooks, l)
+		err := specHookToLXDCDIHook(hook, hooks)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return append(existingMounts, edits.Mounts...), nil
+	return nil
 }
 
 // GenerateFromCDI does several things:
-//
-//  1. It generates a CDI specification from a CDI ID and an instance.
-//     According the the specified 'vendor', 'class' and 'name' (this assembled triplet is called a fully-qualified CDI ID. We'll just call it ID in the context of this package), the CDI specification is generated.
-//     The CDI specification is a JSON-like format. It is divided into two parts: the 'specific device' configuration and the 'general device' configuration.
-//     - The 'specific device' configuration: this is a list of 'container edits' that can be added to the container runtime.
-//     According to the CDI ID (vendor, class, name), we only select the 'container edits' that matches the CDI ID.
-//     The 'container edits' are a list of device nodes, hooks and mounts that must be added to the container runtime.
-//     - The 'general device' configuration: this is a single 'container edits' entry runtime that must be passed to the container runtime in ant case. Which unix char devices need to be passed
-//     (e.g, special GPU memory controller device, etc.)? Which user space libraries need to be mounted (e.g, CUDA libraries for NVIDIA, etc.)?
-//     Which hooks need to be executed (e.g, symlinks to create, folder entries to add to ldcache, etc.))?
-//     In our case, these edits will be interpreted either as disk or unix char mounts passed to the container.
-//     The hooks will be centralized in a single resource file that will be read and executed as a LXC `lxc.hook.mount` hook,
-//     through LXD's `callhook` command.
-//  2. We first process the 'specific device' configuration: we convert this information into a map of devices
-//     (keyed by their path given in the spec, it mapped to a map of device properties). We also collect the specific mounts (but we do not process them yet) and hooks.
-//  3. We then process the 'general device' configuration in the same fashion.
-//  4. Now we process all the mounts we collected from the spec in order to turn them into disk devices.
-//     This operations generate a side effect: it generates a list of indirect symlinks (see `specMountToNativeDev`)
-//  5. Merge all the hooks (direct + indirect) into a single list of hooks.
-func GenerateFromCDI(s *state.State, inst instance.Instance, cdiID ID, l logger.Logger) (*ConfigDevices, *Hooks, error) {
+// 1. Generate a CDI specification from a CDI ID and an instance. According the
+// the specified 'vendor', 'class' and 'name' (this assembled triplet is called
+// a fully-qualified CDI ID. We'll just call it ID in the context of this
+// package), the CDI specification is generated. The CDI specification is a
+// JSON-like format that describes a per-device configuration and general
+// container edits.
+// - Per-device configuration represents a single device identified by the CDI
+// ID (e.g. /dev/nvidia0) It contains device-specific 'container edits' (device nodes, hooks and
+// mounts). We only select those that matches the provided CDI ID (which can be
+// a device index, uuid or 'all'). The hooks will be centralized in a single
+// resource file that will be read and executed as a LXC `lxc.hook.mount` hook,
+// through LXD's `callhook` command.
+// - General container edits are instructions on how to modify the container
+// when a CDI device is used. These edits are not specific to a single device,
+// rather they apply to all devices of a given class/vendor. These edits must be
+// applied if one or multiple devices are getting passed through (e.g. /dev/nvidia-uvm)
+// 2. Process per-device configuration(s): we convert this information into a
+// map of devices (keyed by their path given in the spec, it mapped to a map of
+// device properties). We also collect mounts (but we do not process them yet)
+// and hooks.
+// 3. Process general container edits in the same fashion.
+// 4. Process all the mounts collected from the spec in order to turn
+// them into disk devices. This operations generate a side effect: it generates
+// a list of indirect symlinks (see `specMountToLXDDev`)
+// 5. Merge all the hooks (direct + indirect) into a single list of hooks.
+func GenerateFromCDI(isCore bool, inst instance.Instance, cdiID ID) (*ConfigDevices, *Hooks, error) {
 	// 1. Generate the CDI specification
-	spec, err := generateSpec(s, cdiID, inst)
+	spec, err := generateSpec(isCore, cdiID, inst)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate CDI spec: %w", err)
 	}
@@ -294,49 +310,32 @@ func GenerateFromCDI(s *state.State, inst instance.Instance, cdiID ID, l logger.
 	configDevices := &ConfigDevices{UnixCharDevs: make([]map[string]string, 0), BindMounts: make([]map[string]string, 0)}
 
 	// 2. Process the specific device configuration
-	lookedUpDevs := make(map[string]struct{})
 	for _, device := range spec.Devices {
-		if cdiID.Name == All {
-			// When 'all' is selected as a CDI identifier,
-			// we should make the difference between CDI device index that are integer and the ones represented by a UUID
-			// that could contain the same cards. Having a lookup map avoid to add the same devices multiple times.
-			devToAdd := true
-			for _, devNode := range device.ContainerEdits.DeviceNodes {
-				_, ok := lookedUpDevs[devNode.Path]
-				if ok {
-					devToAdd = false
-					break
-				}
-
-				lookedUpDevs[devNode.Path] = struct{}{}
+		// If cdiID.Name is 'all', then the edits for all the visible devices will be
+		// applied from the generated spec (it has a special case 'all' device entry).
+		// Otherwise, only the edits for the specific device identified by cdiID.Name
+		// will be applied.
+		if device.Name == cdiID.Name {
+			err := applyContainerEdits(device.ContainerEdits, configDevices, hooks)
+			if err != nil {
+				return nil, nil, err
 			}
 
-			if devToAdd {
-				mounts, err = applyContainerEdits(device.ContainerEdits, configDevices, hooks, mounts, l)
-				if err != nil {
-					return nil, nil, err
-				}
-			}
-		} else {
-			if device.Name == cdiID.Name {
-				mounts, err = applyContainerEdits(device.ContainerEdits, configDevices, hooks, mounts, l)
-				if err != nil {
-					return nil, nil, err
-				}
-
-				break
-			}
+			mounts = append(mounts, device.ContainerEdits.Mounts...)
+			break
 		}
 	}
 
-	// 3. Process general device configuration
-	mounts, err = applyContainerEdits(spec.ContainerEdits, configDevices, hooks, mounts, l)
+	// 3. Process general container edits (device-independent)
+	err = applyContainerEdits(spec.ContainerEdits, configDevices, hooks)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// 4. Process the mounts
-	indirectSymlinks, err := specMountToNativeDev(configDevices, cdiID, mounts)
+	mounts = append(mounts, spec.ContainerEdits.Mounts...)
+
+	// 4. Transform mounts into disk devices and collect indirect symlinks
+	indirectSymlinks, err := specMountToInstanceDev(configDevices, cdiID, mounts)
 	if err != nil {
 		return nil, nil, err
 	}
