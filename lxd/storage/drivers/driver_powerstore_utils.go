@@ -483,6 +483,113 @@ func (c *powerStoreClient) DeleteHostByID(ctx context.Context, id string) error 
 	return nil
 }
 
+type powerStoreAddInitiatorToHostResource struct {
+	AddInitiators []*powerStoreHostInitiatorResource `json:"add_initiators,omitempty"`
+}
+
+// AddInitiatorToHostByID adds initiator to host using its ID.
+func (c *powerStoreClient) AddInitiatorToHostByID(ctx context.Context, hostID string, initiator *powerStoreHostInitiatorResource) error {
+	reqBody := &powerStoreAddInitiatorToHostResource{AddInitiators: []*powerStoreHostInitiatorResource{initiator}}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodPatch, "/api/rest/host/"+hostID, reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("adding initiator to PowerStore host: %w", err)
+	}
+	return nil
+}
+
+type powerStoreRemoveInitiatorFromHostResource struct {
+	RemoveInitiators []string `json:"remove_initiators,omitempty"`
+}
+
+// RemoveInitiatorFromHostByID removes initiator matching port name from host using its ID.
+func (c *powerStoreClient) RemoveInitiatorFromHostByID(ctx context.Context, hostID string, initiator *powerStoreHostInitiatorResource) error {
+	reqBody := &powerStoreRemoveInitiatorFromHostResource{RemoveInitiators: []string{initiator.PortName}}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodPatch, "/api/rest/host/"+hostID, reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("removing initiator from PowerStore host: %w", err)
+	}
+	return nil
+}
+
+type powerStoreHostAttachResource struct {
+	VolumeGroupID string `json:"volume_group_id,omitempty"`
+	VolumeID      string `json:"volume_id,omitempty"`
+}
+
+// AttachHostToVolume attaches (maps) host to volume.
+func (c *powerStoreClient) AttachHostToVolume(ctx context.Context, hostID, volID string) error {
+	reqBody := &powerStoreHostAttachResource{VolumeID: volID}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodPost, "/api/rest/host/"+hostID+"/attach", reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("attaching PowerStore host to a volume: %w", err)
+	}
+	return nil
+}
+
+type powerStoreHostDetachResource struct {
+	VolumeGroupID string `json:"volume_group_id,omitempty"`
+	VolumeID      string `json:"volume_id,omitempty"`
+}
+
+// DetachHostFromVolume detaches (unmaps) host from volume.
+func (c *powerStoreClient) DetachHostFromVolume(ctx context.Context, hostID, volID string) error {
+	reqBody := &powerStoreHostDetachResource{VolumeID: volID}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodPost, "/api/rest/host/"+hostID+"/detach", reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("detaching PowerStore host from a volume: %w", err)
+	}
+	return nil
+}
+
+type powerStoreInitiatorResource struct {
+	ID       string `json:"id,omitempty"`
+	HostID   string `json:"host_id,omitempty"`
+	PortName string `json:"port_name,omitempty"`
+	PortType string `json:"port_type,omitempty"`
+}
+
+func (c *powerStoreClient) getInitiatorsByQuery(ctx context.Context, query map[string]string, pagination powerStorePagination) ([]*powerStoreInitiatorResource, error) {
+	params := url.Values{}
+	for key, val := range query {
+		params.Set(key, val)
+	}
+	params.Set("select", "id,host_id,port_name,port_type")
+	pagination.SetParams(params)
+
+	body := []*powerStoreInitiatorResource{}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodGet, "/api/rest/initiator", nil, &body,
+		c.withQueryParams(params),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving information about PowerStore initiators: %w", err)
+	}
+
+	return body, nil
+}
+
+func (c *powerStoreClient) getInitiatorByQuery(ctx context.Context, query map[string]string) (*powerStoreInitiatorResource, error) {
+	initiators, err := c.getInitiatorsByQuery(ctx, query, powerStorePagination{ItemsPerPage: 1})
+	if err != nil {
+		return nil, err
+	}
+	if len(initiators) == 0 {
+		return nil, nil
+	}
+	return initiators[0], nil
+}
+
+// GetHostByInitiator retrieves host that have initiator matching port name and type.
+func (c *powerStoreClient) GetHostByInitiator(ctx context.Context, initiator *powerStoreHostInitiatorResource) (*powerStoreHostResource, error) {
+	hostInitiator, err := c.getInitiatorByQuery(ctx, map[string]string{"port_name": initiator.PortName, "port_type": initiator.PortType})
+	if err != nil {
+		return nil, err
+	}
+	if hostInitiator == nil {
+		return nil, nil
+	}
+	return c.GetHostByID(ctx, hostInitiator.HostID)
+}
+
 type powerStoreVolumeResource struct {
 	ID            string                                 `json:"id,omitempty"`
 	Name          string                                 `json:"name,omitempty"`
