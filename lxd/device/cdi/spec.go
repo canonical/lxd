@@ -12,10 +12,11 @@ import (
 	"strings"
 
 	"github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi"
+	"github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi/transform"
+	"go.yaml.in/yaml/v2"
 	"tags.cncf.io/container-device-interface/specs-go"
 
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -42,8 +43,8 @@ func defaultNvidiaTegraCSVFiles(rootPath string) []string {
 }
 
 // generateNvidiaSpec generates a CDI spec for an Nvidia vendor.
-func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
-	l := logger.AddContext(logger.Ctx{"instanceName": inst.Name(), "projectName": inst.Project().Name, "cdiID": cdiID.String()})
+func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "cdiID": cdiID.String()})
 	mode := nvcdi.ModeAuto
 	if cdiID.Class == IGPU {
 		mode = nvcdi.ModeCSV
@@ -67,7 +68,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 	rootPath := ""
 	devRootPath := ""
 	configSearchPaths := []string{}
-	if s.OS.InUbuntuCore() {
+	if isCore {
 		devRootPath = "/"
 
 		gpuCore24Root := os.Getenv("SNAP") + "/gpu-2404"
@@ -82,12 +83,12 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 		// NVIDIA_DRIVER_ROOT environment variable name comes from:
 		// https://git.launchpad.net/~canonical-kernel-snaps/canonical-kernel-snaps/+git/kernel-snaps-u24.04/commit/?id=928d273d881abc8599f9cb754eeb753aa7113852
 		//
-		// You may wonder why we need this
-		// gpu-2404-provider-wrapper printenv NVIDIA_DRIVER_ROOT
-		// machinery instead of simple os.Getenv("NVIDIA_DRIVER_ROOT").
-		// Reason is that mesa-2404 or pc-kernel may be upgraded (refreshed)
-		// while LXD snap version remains the same and there is no guarantee
-		// that NVIDIA_DRIVER_ROOT value won't change between those refreshes...
+		// You may wonder why we need this gpu-2404-provider-wrapper printenv
+		// NVIDIA_DRIVER_ROOT machinery instead of simple
+		// os.Getenv("NVIDIA_DRIVER_ROOT"). Reason is that mesa-2404 or
+		// pc-kernel may be upgraded (refreshed) while LXD snap version remains
+		// the same and there is no guarantee that NVIDIA_DRIVER_ROOT value
+		// won't change between those refreshes...
 		//
 		cmd := []string{
 			gpuInterfaceProviderWrapper,
@@ -122,6 +123,7 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 		nvcdi.WithMode(mode),
 		nvcdi.WithCSVFiles(defaultNvidiaTegraCSVFiles(rootPath)),
 		nvcdi.WithConfigSearchPaths(configSearchPaths),
+		nvcdi.WithMergedDeviceOptions(transform.WithName("all")),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create CDI library: %w", err)
@@ -156,11 +158,55 @@ func generateNvidiaSpec(s *state.State, cdiID ID, inst instance.Instance) (*spec
 	return spec, nil
 }
 
+func generateAMDSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "cdiID": cdiID.String()})
+
+	amdCTKBinary := "amd-ctk"
+	amdCTKPath, err := exec.LookPath(amdCTKBinary)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to find the %q binary: %w", amdCTKBinary, err)
+	}
+
+	// No stdout support, no custom file name support from amd-ctk. The spec
+	// must be named amd.json.
+	specFile := filepath.Join(inst.LogPath(), "amd.json")
+
+	cmd := []string{
+		amdCTKPath,
+		"cdi",
+		"generate",
+		"--output",
+		specFile,
+	}
+
+	_, err = shared.RunCommand(context.TODO(), cmd[0], cmd[1:]...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate AMD CDI spec: %w", err)
+	}
+
+	l.Debug("CDI spec has been successfully generated", logger.Ctx{"specPath": specFile})
+
+	specRaw, err := os.ReadFile(specFile)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read AMD CDI spec: %w", err)
+	}
+
+	var spec specs.Spec
+	err = yaml.Unmarshal([]byte(specRaw), &spec)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal AMD CDI spec: %w", err)
+	}
+
+	return &spec, nil
+}
+
 // generateSpec generates a CDI spec for the given CDI ID.
-func generateSpec(s *state.State, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+var generateSpec = func(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
 	switch cdiID.Vendor {
 	case NVIDIA:
-		return generateNvidiaSpec(s, cdiID, inst)
+		return generateNvidiaSpec(isCore, cdiID, inst)
+	case AMD:
+		return generateAMDSpec(isCore, cdiID, inst)
 	default:
 		return nil, fmt.Errorf("Unsupported CDI vendor (%q) for the spec generation", cdiID.Vendor)
 	}

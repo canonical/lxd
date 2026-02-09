@@ -79,7 +79,7 @@ var customCDILinkerConfFile = "00-lxdcdi.conf"
 func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) error {
 	hookFile, err := os.Open(filepath.Join(devicesRootFolder, hooksFilePath))
 	if err != nil {
-		return fmt.Errorf("Failed to open the CDI hooks file at %q: %w", hooksFilePath, err)
+		return fmt.Errorf("Failed opening the CDI hooks file at %q: %w", hooksFilePath, err)
 	}
 
 	defer hookFile.Close()
@@ -87,7 +87,7 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 	hooks := &cdi.Hooks{}
 	err = json.NewDecoder(hookFile).Decode(hooks)
 	if err != nil {
-		return fmt.Errorf("Failed to decode the CDI hooks file at %q: %w\n", hooksFilePath, err)
+		return fmt.Errorf("Failed decoding the CDI hooks file at %q: %w\n", hooksFilePath, err)
 	}
 
 	fmt.Println("CDI Hooks file loaded:")
@@ -108,20 +108,20 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 		// Resolve hook link from target
 		target, err := resolveTargetRelativeToLink(symlink.Link, symlink.Target)
 		if err != nil {
-			return fmt.Errorf("Failed to resolve a CDI symlink: %w\n", err)
+			return fmt.Errorf("Failed resolving a CDI symlink: %w\n", err)
 		}
 
 		// Try to create the directory if it doesn't exist
 		err = os.MkdirAll(filepath.Dir(filepath.Join(containerRootFSMount, symlink.Link)), 0755)
 		if err != nil {
-			return fmt.Errorf("Failed to create the directory for the CDI symlink: %w\n", err)
+			return fmt.Errorf("Failed creating the directory for the CDI symlink: %w\n", err)
 		}
 
 		// Create the symlink
 		err = os.Symlink(target, filepath.Join(containerRootFSMount, symlink.Link))
 		if err != nil {
 			if !errors.Is(err, fs.ErrExist) {
-				return fmt.Errorf("Failed to create the CDI symlink: %w\n", err)
+				return fmt.Errorf("Failed creating the CDI symlink: %w\n", err)
 			}
 
 			fmt.Printf("Symlink not created because link %q already exists for target %q\n", symlink.Link, target)
@@ -131,6 +131,12 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 	// Updating the linker cache
 	l := len(hooks.LDCacheUpdates)
 	if l > 0 {
+		ldConfDirPath := filepath.Join(containerRootFSMount, "etc", "ld.so.conf.d")
+		err = os.MkdirAll(ldConfDirPath, 0755)
+		if err != nil {
+			return fmt.Errorf("Failed creating the linker conf directory at %q: %w\n", ldConfDirPath, err)
+		}
+
 		ldConfFilePath := containerRootFSMount + "/etc/ld.so.conf.d/" + customCDILinkerConfFile
 		_, err = os.Stat(ldConfFilePath)
 		if err == nil {
@@ -138,7 +144,7 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 			// and add the ones that are not already there.
 			ldConfFile, err := os.OpenFile(ldConfFilePath, os.O_APPEND|os.O_RDWR, 0644)
 			if err != nil {
-				return fmt.Errorf("Failed to open the ld.so.conf file at %q: %w\n", ldConfFilePath, err)
+				return fmt.Errorf("Failed opening the ld.so.conf file at %q: %w\n", ldConfFilePath, err)
 			}
 
 			existingLinkerEntries := make(map[string]bool)
@@ -154,7 +160,7 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 					_, err = fmt.Fprintln(ldConfFile, update)
 					if err != nil {
 						ldConfFile.Close()
-						return fmt.Errorf("Failed to write to the linker conf file at %q: %w\n", ldConfFilePath, err)
+						return fmt.Errorf("Failed writing to the linker conf file at %q: %w\n", ldConfFilePath, err)
 					}
 
 					existingLinkerEntries[update] = true
@@ -166,7 +172,7 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 			// The file does not exist. We simply create it with our entries.
 			ldConfFile, err := os.OpenFile(ldConfFilePath, os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
-				return fmt.Errorf("Failed to create the linker conf file at %q: %w\n", ldConfFilePath, err)
+				return fmt.Errorf("Failed creating the linker conf file at %q: %w\n", ldConfFilePath, err)
 			}
 
 			for _, update := range hooks.LDCacheUpdates {
@@ -174,7 +180,7 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 				_, err = fmt.Fprintln(ldConfFile, update)
 				if err != nil {
 					ldConfFile.Close()
-					return fmt.Errorf("Failed to write to the linker conf file at %q: %w\n", ldConfFilePath, err)
+					return fmt.Errorf("Failed writing to the linker conf file at %q: %w\n", ldConfFilePath, err)
 				}
 			}
 
@@ -182,23 +188,24 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 		} else {
 			return fmt.Errorf("Could not stat the linker conf file to add CDI linker entries at %q: %w\n", ldConfFilePath, err)
 		}
-	}
 
-	// Then remove the linker cache and regenerate it
-	linkerCachePath := filepath.Join(containerRootFSMount, "/etc/ld.so.cache")
-	err = os.Remove(linkerCachePath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove the ld.so.cache file: %w\n", err)
+		// Then remove the linker cache and regenerate it
+		linkerCachePath := filepath.Join(containerRootFSMount, "etc", "ld.so.cache")
+		err = os.Remove(linkerCachePath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("Failed removing the ld.so.cache file: %w\n", err)
+			}
+
+			fmt.Printf("Linker cache not found in %q, skipping removal\n", linkerCachePath)
 		}
 
-		fmt.Printf("Linker cache not found in %q, skipping removal\n", linkerCachePath)
-	}
-
-	// Run `ldconfig` on the HOST (but targeting the container rootFS) to reduce the risk of running untrusted code in the container.
-	err = exec.Command("/sbin/ldconfig", "-r", containerRootFSMount).Run()
-	if err != nil {
-		return fmt.Errorf("Failed to run ldconfig in the container rootfs: %w\n", err)
+		// Run `ldconfig` on the HOST (but targeting the container rootFS) to reduce the risk of running untrusted code in the container.
+		ldexec := exec.Command("/sbin/ldconfig", "-r", containerRootFSMount)
+		output, err := ldexec.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed running ldconfig in the container rootfs: %w: %s", err, string(output))
+		}
 	}
 
 	return nil
