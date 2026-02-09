@@ -11,7 +11,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/request"
@@ -19,7 +18,6 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
-	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
@@ -94,8 +92,6 @@ type Operation struct {
 	err         error
 	readonly    bool
 	description string
-	entityType  entity.Type
-	entitlement auth.Entitlement
 	dbOpType    operationtype.Type
 	requestor   *request.Requestor
 	logger      logger.Logger
@@ -163,7 +159,6 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.projectName = args.ProjectName
 	op.id = uuid.String()
 	op.description = args.Type.Description()
-	op.entityType, op.entitlement = args.Type.Permission()
 	op.dbOpType = args.Type
 	op.class = args.Class
 	op.createdAt = time.Now()
@@ -643,11 +638,6 @@ func (op *Operation) URL() string {
 // Resources returns the operation resources.
 func (op *Operation) Resources() map[string][]api.URL {
 	return op.resources
-}
-
-// Permission returns the operations entity.Type and auth.Entitlement.
-func (op *Operation) Permission() (entity.Type, auth.Entitlement) {
-	return op.entityType, op.entitlement
 }
 
 // Project returns the operation project.
