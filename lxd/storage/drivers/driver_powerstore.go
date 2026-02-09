@@ -44,6 +44,15 @@ type powerstore struct {
 	httpClient *powerStoreClient
 }
 
+// client returns the PowerStore API client.
+// A new client gets created if one does not exists.
+func (d *powerstore) client() *powerStoreClient {
+	if d.httpClient == nil {
+		d.httpClient = newPowerStoreClient(d)
+	}
+	return d.httpClient
+}
+
 // load is used to run one-time action per-driver rather than per-pool.
 func (d *powerstore) load() error {
 	// Done if previously loaded.
