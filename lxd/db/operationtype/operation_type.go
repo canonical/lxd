@@ -5,7 +5,7 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
-// Type is a numeric code indentifying the type of an Operation.
+// Type is a numeric code identifying the type of Operation.
 type Type int64
 
 // Possible values for Type
