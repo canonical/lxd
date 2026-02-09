@@ -253,80 +253,54 @@ func (t Type) Description() string {
 // EntityType returns the primary entity.Type that the Type operates on.
 func (t Type) EntityType() entity.Type {
 	switch t {
-	case BackupCreate:
-		return entity.TypeInstance
-	case BackupRename:
-		return entity.TypeInstance
-	case BackupRestore:
-		return entity.TypeInstance
-	case BackupRemove:
-		return entity.TypeInstance
-	case ConsoleShow:
-		return entity.TypeInstance
-	case InstanceFreeze:
-		return entity.TypeInstance
-	case InstanceUnfreeze:
-		return entity.TypeInstance
-	case InstanceStart:
-		return entity.TypeInstance
-	case InstanceStop:
-		return entity.TypeInstance
-	case InstanceRestart:
-		return entity.TypeInstance
-	case CommandExec:
-		return entity.TypeInstance
-	case SnapshotCreate:
-		return entity.TypeInstance
-	case SnapshotRename:
-		return entity.TypeInstance
-	case SnapshotTransfer:
-		return entity.TypeInstance
-	case SnapshotUpdate:
-		return entity.TypeInstance
-	case SnapshotDelete:
+	// Server level operations and background tasks.
+	case ClusterBootstrap, ClusterJoin, CustomVolumeSnapshotsExpire, ImagesExpire, ImagesPruneLeftover,
+		ImagesSynchronize, RemoveExpiredOIDCSessions, RemoveExpiredTokens, RemoveOrphanedOperations,
+		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
+		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
+		ClusterHeal, ImagesUpdate:
+		return entity.TypeServer
+
+	// Project level operations.
+	// If creating a resource, then the parent project is the primary entity
+	// (the entity being created is not yet referenceable).
+	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload:
+		return entity.TypeProject
+
+	// Volume operations.
+	case VolumeSnapshotRename, VolumeSnapshotUpdate, VolumeSnapshotDelete, VolumeMigrate,
+		VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete:
+		return entity.TypeStorageVolume
+
+	// Instance operations.
+	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
+		InstanceStart, InstanceStop, InstanceRestart, InstanceRename, InstanceMigrate, InstanceLiveMigrate,
+		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate:
 		return entity.TypeInstance
 
-	case InstanceCreate:
-		return entity.TypeInstance
-	case InstanceUpdate:
-		return entity.TypeInstance
-	case InstanceRename:
-		return entity.TypeInstance
-	case InstanceMigrate:
-		return entity.TypeInstance
-	case InstanceLiveMigrate:
-		return entity.TypeInstance
-	case InstanceDelete:
-		return entity.TypeInstance
-	case InstanceRebuild:
-		return entity.TypeInstance
-	case SnapshotRestore:
-		return entity.TypeInstance
+	// Instance backup operations.
+	case BackupRename, BackupRemove, BackupRestore:
+		return entity.TypeInstanceBackup
 
-	case ImageDownload:
-		return entity.TypeImage
-	case ImageDelete:
-		return entity.TypeImage
-	case ImageToken:
-		return entity.TypeImage
-	case ImageRefresh:
-		return entity.TypeImage
-	case ImagesUpdate:
-		return entity.TypeImage
-	case ImagesSynchronize:
+	// Instance snapshot operations.
+	case SnapshotRename, SnapshotTransfer, SnapshotUpdate, SnapshotDelete:
+		return entity.TypeInstanceSnapshot
+
+	// Image operations.
+	case ImageDelete, ImageRefresh, ImageToken:
 		return entity.TypeImage
 
-	case CustomVolumeSnapshotsExpire:
-		return entity.TypeStorageVolume
-	case CustomVolumeBackupCreate:
-		return entity.TypeStorageVolume
-	case CustomVolumeBackupRemove:
-		return entity.TypeStorageVolume
-	case CustomVolumeBackupRename:
-		return entity.TypeStorageVolume
-	case CustomVolumeBackupRestore:
-		return entity.TypeStorageVolume
+	// Volume backup operations.
+	case CustomVolumeBackupRemove, CustomVolumeBackupRename, CustomVolumeBackupRestore:
+		return entity.TypeStorageVolumeBackup
+
+	// Profile operations.
+	case ProfileUpdate:
+		return entity.TypeProfile
+
+	// It should never be possible to reach the default clause.
+	// See the init function.
+	default:
+		return ""
 	}
-
-	return ""
 }
