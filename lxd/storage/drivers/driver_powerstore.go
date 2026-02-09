@@ -320,6 +320,13 @@ func (d *powerstore) Validate(config map[string]string) error {
 		//  shortdesc: Whether to verify the PowerStore Gateway's certificate
 		//  scope: global
 		"powerstore.gateway.verify": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.target)
+		// A comma-separated list of NVMe or iSCSI target addresses.
+		// ---
+		//  type: string
+		//  defaultdesc: the discovered mode
+		//  shortdesc: List of target addresses.
+		"powerstore.target": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.mode)
 		// The mode gets discovered automatically if the system provides the necessary kernel modules.
 		// Supported values are `iscsi` and `nvme`.
