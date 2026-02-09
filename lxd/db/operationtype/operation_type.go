@@ -1,7 +1,6 @@
 package operationtype
 
 import (
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/shared/entity"
 )
 
@@ -216,83 +215,83 @@ func (t Type) Description() string {
 	}
 }
 
-// Permission returns the entity.Type and auth.Entitlement required to cancel the operation.
-func (t Type) Permission() (entity.Type, auth.Entitlement) {
+// EntityType returns the primary entity.Type that the Type operates on.
+func (t Type) EntityType() entity.Type {
 	switch t {
 	case BackupCreate:
-		return entity.TypeInstance, auth.EntitlementCanManageBackups
+		return entity.TypeInstance
 	case BackupRename:
-		return entity.TypeInstance, auth.EntitlementCanManageBackups
+		return entity.TypeInstance
 	case BackupRestore:
-		return entity.TypeInstance, auth.EntitlementCanManageBackups
+		return entity.TypeInstance
 	case BackupRemove:
-		return entity.TypeInstance, auth.EntitlementCanManageBackups
+		return entity.TypeInstance
 	case ConsoleShow:
-		return entity.TypeInstance, auth.EntitlementCanAccessConsole
+		return entity.TypeInstance
 	case InstanceFreeze:
-		return entity.TypeInstance, auth.EntitlementCanUpdateState
+		return entity.TypeInstance
 	case InstanceUnfreeze:
-		return entity.TypeInstance, auth.EntitlementCanUpdateState
+		return entity.TypeInstance
 	case InstanceStart:
-		return entity.TypeInstance, auth.EntitlementCanUpdateState
+		return entity.TypeInstance
 	case InstanceStop:
-		return entity.TypeInstance, auth.EntitlementCanUpdateState
+		return entity.TypeInstance
 	case InstanceRestart:
-		return entity.TypeInstance, auth.EntitlementCanUpdateState
+		return entity.TypeInstance
 	case CommandExec:
-		return entity.TypeInstance, auth.EntitlementCanExec
+		return entity.TypeInstance
 	case SnapshotCreate:
-		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
+		return entity.TypeInstance
 	case SnapshotRename:
-		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
+		return entity.TypeInstance
 	case SnapshotTransfer:
-		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
+		return entity.TypeInstance
 	case SnapshotUpdate:
-		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
+		return entity.TypeInstance
 	case SnapshotDelete:
-		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
+		return entity.TypeInstance
 
 	case InstanceCreate:
-		return entity.TypeInstance, auth.EntitlementCanEdit
+		return entity.TypeInstance
 	case InstanceUpdate:
-		return entity.TypeInstance, auth.EntitlementCanEdit
+		return entity.TypeInstance
 	case InstanceRename:
-		return entity.TypeInstance, auth.EntitlementCanEdit
+		return entity.TypeInstance
 	case InstanceMigrate:
-		return entity.TypeInstance, auth.EntitlementCanEdit
+		return entity.TypeInstance
 	case InstanceLiveMigrate:
-		return entity.TypeInstance, auth.EntitlementCanEdit
+		return entity.TypeInstance
 	case InstanceDelete:
-		return entity.TypeInstance, auth.EntitlementCanEdit
+		return entity.TypeInstance
 	case InstanceRebuild:
-		return entity.TypeInstance, auth.EntitlementCanEdit
+		return entity.TypeInstance
 	case SnapshotRestore:
-		return entity.TypeInstance, auth.EntitlementCanEdit
+		return entity.TypeInstance
 
 	case ImageDownload:
-		return entity.TypeImage, auth.EntitlementCanEdit
+		return entity.TypeImage
 	case ImageDelete:
-		return entity.TypeImage, auth.EntitlementCanEdit
+		return entity.TypeImage
 	case ImageToken:
-		return entity.TypeImage, auth.EntitlementCanEdit
+		return entity.TypeImage
 	case ImageRefresh:
-		return entity.TypeImage, auth.EntitlementCanEdit
+		return entity.TypeImage
 	case ImagesUpdate:
-		return entity.TypeImage, auth.EntitlementCanEdit
+		return entity.TypeImage
 	case ImagesSynchronize:
-		return entity.TypeImage, auth.EntitlementCanEdit
+		return entity.TypeImage
 
 	case CustomVolumeSnapshotsExpire:
-		return entity.TypeStorageVolume, auth.EntitlementCanEdit
+		return entity.TypeStorageVolume
 	case CustomVolumeBackupCreate:
-		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
+		return entity.TypeStorageVolume
 	case CustomVolumeBackupRemove:
-		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
+		return entity.TypeStorageVolume
 	case CustomVolumeBackupRename:
-		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
+		return entity.TypeStorageVolume
 	case CustomVolumeBackupRestore:
-		return entity.TypeStorageVolume, auth.EntitlementCanEdit
+		return entity.TypeStorageVolume
 	}
 
-	return "", ""
+	return ""
 }
