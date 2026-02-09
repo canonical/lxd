@@ -148,6 +148,9 @@ test_container_copy_start() {
   # Spawn a second node.
   spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
+  # Spawn a third node.
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+
   # Set up a TLS identity with admin permissions.
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group create copy
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add copy server admin
@@ -229,6 +232,22 @@ test_container_copy_start() {
     [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c s c2)" = "RUNNING" ]
 
     LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c2
+
+    # Create an instance on the first cluster member.
+    # Then test if an instance copy triggered on another cluster gets redirected to the source cluster member.
+    # In addition force the placement on a third cluster member different than the source/trigger to also cause a move of the instance.
+    LXD_DIR="${LXD_ONE_DIR}" lxc copy c1 c2 --target node1
+
+    echo "==> Check the instance copy can be triggered from any other member than the source with a final placement on a different member"
+    LXD_DIR="${LXD_TWO_DIR}" lxc copy c2 c3 --target node3 --mode "${mode}" --start
+
+    echo "==> Check the instance was placed on node2"
+    LXD_DIR="${LXD_ONE_DIR}" lxc info c3 | grep -xF "Location: node3"
+
+    echo "==> Check the copied container is running"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c s c3)" = "RUNNING" ]
+
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c2 c3
   done
 
   # Cleanup
@@ -241,13 +260,16 @@ test_container_copy_start() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
 
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
 
   teardown_clustering_netns
   teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
 }
