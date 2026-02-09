@@ -137,6 +137,7 @@ readonly test_group_standalone=(
     "filtering"
     "get_operations"
     "kernel_limits"
+    "loki"
     "lxd_user"
     "metrics"
     "oidc"
