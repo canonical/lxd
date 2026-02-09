@@ -163,6 +163,7 @@ type powerStoreClient struct {
 	username                 string
 	password                 string
 	volumeResourceNamePrefix string
+	hostResourceNamePrefix   string
 }
 
 // newPowerStoreClient creates a new instance of the PowerStore HTTP API client.
@@ -173,6 +174,7 @@ func newPowerStoreClient(driver *powerstore) *powerStoreClient {
 		username:                 driver.config["powerstore.user.name"],
 		password:                 driver.config["powerstore.user.password"],
 		volumeResourceNamePrefix: driver.volumeResourceNamePrefix(),
+		hostResourceNamePrefix:   powerStoreResourceNamePrefix,
 	}
 }
 
@@ -383,6 +385,102 @@ func (c *powerStoreClient) getLoginSessionInfoWithBasicAuthorization(ctx context
 		return nil, nil, fmt.Errorf("retrieving PowerStore login session info: %w", err)
 	}
 	return resp, body, nil
+}
+
+type powerStoreHostResource struct {
+	ID               string                                 `json:"id,omitempty"`
+	Name             string                                 `json:"name,omitempty"`
+	Description      string                                 `json:"description,omitempty"`
+	Initiators       []*powerStoreHostInitiatorResource     `json:"initiators,omitempty"`
+	OsType           string                                 `json:"os_type,omitempty"`
+	HostConnectivity string                                 `json:"host_connectivity,omitempty"`
+	MappedHosts      []*powerStoreHostVolumeMappingResource `json:"mapped_hosts,omitempty"`
+}
+
+//nolint:revive // For easier readability allow underscores in constants names.
+const (
+	powerStoreOsTypeEnum_Linux = "Linux"
+)
+
+type powerStoreHostInitiatorResource struct {
+	ID       string `json:"id,omitempty"`
+	PortName string `json:"port_name,omitempty"`
+	PortType string `json:"port_type,omitempty"`
+}
+
+//nolint:revive // For easier readability allow underscores in constants names.
+const (
+	powerStoreInitiatorPortTypeEnum_iSCSI = "iSCSI"
+	powerStoreInitiatorPortTypeEnum_FC    = "FC"
+	powerStoreInitiatorPortTypeEnum_NVMe  = "NVMe"
+)
+
+func (c *powerStoreClient) getHostsByQuery(ctx context.Context, query map[string]string, pagination powerStorePagination) ([]*powerStoreHostResource, error) {
+	params := url.Values{}
+	for key, val := range query {
+		params.Set(key, val)
+	}
+	params.Set("select", "id,name,description,initiators(id,port_name,port_type),os_type,host_connectivity,mapped_hosts(id,host_id,volume_id)")
+	pagination.SetParams(params)
+
+	body := []*powerStoreHostResource{}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodGet, "/api/rest/host", nil, &body,
+		c.withQueryParams(params),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving information about PowerStore hosts: %w", err)
+	}
+
+	// in most cases all items in the returned body will be managed by LXD and no item will be filtered out
+	filtered := make([]*powerStoreHostResource, 0, len(body))
+	for _, h := range body {
+		if !strings.HasPrefix(h.Name, c.hostResourceNamePrefix) {
+			continue
+		}
+		filtered = append(filtered, h)
+	}
+	return filtered, nil
+}
+
+func (c *powerStoreClient) getHostByQuery(ctx context.Context, query map[string]string) (*powerStoreHostResource, error) {
+	hosts, err := c.getHostsByQuery(ctx, query, powerStorePagination{ItemsPerPage: 1})
+	if err != nil {
+		return nil, err
+	}
+	if len(hosts) == 0 {
+		return nil, nil
+	}
+	return hosts[0], nil
+}
+
+// GetHostByID retrieves host using its ID.
+func (c *powerStoreClient) GetHostByID(ctx context.Context, id string) (*powerStoreHostResource, error) {
+	return c.getHostByQuery(ctx, map[string]string{"id": "eq." + id})
+}
+
+// GetHostByName retrieves host using its name.
+func (c *powerStoreClient) GetHostByName(ctx context.Context, name string) (*powerStoreHostResource, error) {
+	return c.getHostByQuery(ctx, map[string]string{"name": "eq." + name})
+}
+
+// CreateHost creates new host.
+func (c *powerStoreClient) CreateHost(ctx context.Context, host *powerStoreHostResource) error {
+	body := &powerStoreIDResource{}
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodPost, "/api/rest/host", host, body)
+	if err != nil {
+		return fmt.Errorf("creating PowerStore host: %w", err)
+	}
+	host.ID = body.ID
+	return nil
+}
+
+// DeleteHostByID deletes host using its ID.
+func (c *powerStoreClient) DeleteHostByID(ctx context.Context, id string) error {
+	_, err := c.doHTTPRequestWithLoginSession(ctx, http.MethodDelete, "/api/rest/host/"+id, nil, nil)
+	if err != nil {
+		return fmt.Errorf("deleting PowerStore host: %w", err)
+	}
+	return nil
 }
 
 type powerStoreVolumeResource struct {
