@@ -1335,8 +1335,9 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if req.OpType == operationtype.Unknown {
-		return response.BadRequest(fmt.Errorf("Invalid operation type %q", req.OpType))
+	err = operationtype.Validate(req.OpType)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Invalid operation type code %d", req.OpType))
 	}
 
 	run := func(op *operations.Operation) error {
