@@ -651,13 +651,8 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
-	if d.state.OS.ContainerCoreScheduling {
+	if d.state.OS.CoreScheduling {
 		err = lxcSetConfigItem(cc, "lxc.sched.core", "1")
-		if err != nil {
-			return nil, err
-		}
-	} else if d.state.OS.CoreScheduling {
-		err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/proc/%d/exe forkcoresched 1", os.Getpid()))
 		if err != nil {
 			return nil, err
 		}
@@ -1254,12 +1249,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	}
 
 	// Setup shmounts
-	if d.state.OS.LXCFeatures["mount_injection_file"] {
-		err = lxcSetConfigItem(cc, "lxc.mount.auto", "shmounts:"+d.ShmountsPath()+":/dev/.lxd-mounts")
-	} else {
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", d.ShmountsPath()+" dev/.lxd-mounts none bind,create=dir 0 0")
-	}
-
+	err = lxcSetConfigItem(cc, "lxc.mount.auto", "shmounts:"+d.ShmountsPath()+":/dev/.lxd-mounts")
 	if err != nil {
 		return nil, err
 	}
@@ -1282,7 +1272,7 @@ func (d *lxc) IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
 	var mode idmap.IdmapStorageType = idmap.IdmapStorageNone
 	bindMount := fstype == "none" || fstype == ""
 
-	if !d.state.OS.LXCFeatures["idmapped_mounts_v2"] || !d.state.OS.IdmappedMounts {
+	if !d.state.OS.IdmappedMounts {
 		return mode
 	}
 
@@ -6159,29 +6149,24 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 
 	// Prepare the subcommand
 	cname := project.Instance(d.Project().Name, d.Name())
-	args := []string{
+	args := make([]string, 0, 8+2+len(envSlice)+2+len(req.Command))
+	args = append(args,
 		d.state.OS.ExecPath,
 		"forkexec",
 		cname,
 		d.state.OS.LxcPath,
-		filepath.Join(d.LogPath(), "lxc.conf"),
+		configPath,
 		req.Cwd,
 		strconv.FormatUint(uint64(req.User), 10),
 		strconv.FormatUint(uint64(req.Group), 10),
-	}
+	)
 
-	if d.state.OS.CoreScheduling && !d.state.OS.ContainerCoreScheduling {
-		args = append(args, "1")
-	} else {
-		args = append(args, "0")
-	}
-
-	args = append(args, "--")
-	args = append(args, "env")
+	// Environment
+	args = append(args, "--", "env")
 	args = append(args, envSlice...)
 
-	args = append(args, "--")
-	args = append(args, "cmd")
+	// Command
+	args = append(args, "--", "cmd")
 	args = append(args, req.Command...)
 
 	cmd := exec.Cmd{}
@@ -6733,7 +6718,7 @@ func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType id
 		return d.moveMount(source, target, fstype, flags, idmapType)
 	}
 
-	if d.state.OS.LXCFeatures["mount_injection_file"] && idmapType == idmap.IdmapStorageNone {
+	if idmapType == idmap.IdmapStorageNone {
 		return d.insertMountLXC(source, target, fstype, flags)
 	}
 
@@ -6748,47 +6733,25 @@ func (d *lxc) removeMount(mount string) error {
 		return errors.New("Can't remove mount from stopped container")
 	}
 
-	if d.state.OS.LXCFeatures["mount_injection_file"] {
-		configPath := filepath.Join(d.LogPath(), "lxc.conf")
-		cname := project.Instance(d.Project().Name, d.Name())
+	configPath := filepath.Join(d.LogPath(), "lxc.conf")
+	cname := project.Instance(d.Project().Name, d.Name())
 
-		if !strings.HasPrefix(mount, "/") {
-			mount = "/" + mount
-		}
+	if !strings.HasPrefix(mount, "/") {
+		mount = "/" + mount
+	}
 
-		_, err := shared.RunCommand(
-			context.TODO(),
-			d.state.OS.ExecPath,
-			"forkmount",
-			"lxc-umount",
-			"--",
-			cname,
-			d.state.OS.LxcPath,
-			configPath,
-			mount)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Remove the mount from the container
-		pidFdNr, pidFd := d.inheritInitPidFd()
-		if pidFdNr >= 0 {
-			defer func() { _ = pidFd.Close() }()
-		}
-
-		_, err := shared.RunCommandInheritFds(
-			context.TODO(),
-			[]*os.File{pidFd},
-			d.state.OS.ExecPath,
-			"forkmount",
-			"lxd-umount",
-			"--",
-			strconv.Itoa(pid),
-			strconv.Itoa(pidFdNr),
-			mount)
-		if err != nil {
-			return err
-		}
+	_, err := shared.RunCommand(
+		context.TODO(),
+		d.state.OS.ExecPath,
+		"forkmount",
+		"lxc-umount",
+		"--",
+		cname,
+		d.state.OS.LxcPath,
+		configPath,
+		mount)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -7076,10 +7039,6 @@ func (d *lxc) DevptsFd() (*os.File, error) {
 
 	defer d.release()
 
-	if !liblxc.HasAPIExtension("devpts_fd") {
-		return nil, errors.New("Missing devpts_fd extension")
-	}
-
 	return cc.DevptsFd()
 }
 
@@ -7204,7 +7163,7 @@ func (d *lxc) cgroup(cc *liblxc.Container, running bool) (*cgroup.CGroup, error)
 		return nil, err
 	}
 
-	cg.UnifiedCapable = liblxc.HasAPIExtension("cgroup2")
+	cg.UnifiedCapable = true // cgroup2: introduced in lxc 4.0.0
 	return cg, nil
 }
 

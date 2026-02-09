@@ -387,7 +387,7 @@ func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst insta
 // isolCPUs: list of CPUs listed in "isolcpus" kernel parameter (not available for automatic pinning).
 func getCPULists() (cpus []int64, isolCPUs []int64, err error) {
 	// Get effective cpus list - those are all guaranteed to be online
-	cg, err := cgroup.NewFileReadWriter(1, true)
+	cg, err := cgroup.NewFileReadWriter(1)
 	if err != nil {
 		logger.Error("Unable to load cgroup writer", logger.Ctx{"err": err})
 		return nil, nil, err
