@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
@@ -411,17 +410,23 @@ func (d *powerstore) SourceIdentifier() (string, error) {
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
 func (d *powerstore) Create() error {
-	return ErrNotSupported
+	return nil
 }
 
 // Delete removes the storage pool from the storage device.
 func (d *powerstore) Delete(op *operations.Operation) error {
-	return ErrNotSupported
+	// If the user completely destroyed it, call it done.
+	if !shared.PathExists(GetPoolMountPath(d.name)) {
+		return nil
+	}
+
+	// On delete, wipe everything in the directory.
+	return wipeDirectory(GetPoolMountPath(d.name))
 }
 
 // Update applies any driver changes required from a configuration change.
 func (d *powerstore) Update(changedConfig map[string]string) error {
-	return ErrNotSupported
+	return nil
 }
 
 // Mount mounts the storage pool.
@@ -437,9 +442,4 @@ func (d *powerstore) Unmount() (bool, error) {
 // GetResources returns the pool resource usage information.
 func (d *powerstore) GetResources() (*api.ResourcesStoragePool, error) {
 	return nil, ErrNotSupported
-}
-
-// MigrationTypes returns the type of transfer methods to be used when doing migrations between pools in preference order.
-func (d *powerstore) MigrationTypes(contentType ContentType, refresh bool, copySnapshots bool) []migration.Type {
-	return nil
 }
