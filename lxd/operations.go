@@ -245,45 +245,18 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			projectName = api.ProjectDefaultName
 		}
 
-		// Separate resources by entity type. If there are multiple entries of a particular entity type we can reduce
-		// the number of calls to the authorizer.
-		objectType, entitlement := op.Permission()
-		urlsByEntityType := make(map[entity.Type][]api.URL)
-		if objectType != "" {
-			for _, v := range op.Resources() {
-				for _, u := range v {
-					entityType, _, _, _, err := entity.ParseURL(u.URL)
-					if err != nil {
-						return response.InternalError(fmt.Errorf("Failed to parse operation resource entity URL: %w", err))
-					}
-
-					urlsByEntityType[entityType] = append(urlsByEntityType[entityType], u)
-				}
-			}
+		requestor, err := request.GetRequestor(r.Context())
+		if err != nil {
+			return response.SmartError(err)
 		}
 
-		for entityType, urls := range urlsByEntityType {
-			// If only one entry of this type, check directly.
-			if len(urls) == 1 {
-				err := s.Authorizer.CheckPermission(r.Context(), &urls[0], entitlement)
-				if err != nil {
-					return response.SmartError(err)
-				}
-
-				continue
-			}
-
-			// Otherwise get a permission checker for the entity type.
-			hasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), entitlement, entityType)
+		// Allow cancellation only if the caller is equal or the caller is a server admin.
+		// Rather than using the "admin" entitlement, we use `can_edit` because this is used for arbitrary editing of
+		// server config, warnings, cluster membership etc.
+		if !requestor.CallerIsEqual(op.Requestor()) {
+			err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanEdit)
 			if err != nil {
 				return response.SmartError(err)
-			}
-
-			// Check each URL.
-			for _, u := range urls {
-				if !hasPermission(&u) {
-					return response.Forbidden(nil)
-				}
 			}
 		}
 
@@ -1351,8 +1324,9 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if req.OpType == operationtype.Unknown {
-		return response.BadRequest(fmt.Errorf("Invalid operation type %q", req.OpType))
+	err = operationtype.Validate(req.OpType)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Invalid operation type code %d", req.OpType))
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {

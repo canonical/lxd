@@ -4476,8 +4476,8 @@ test_clustering_trust_add() {
   sleep 1.1
 
   # Expect one running token operation.
-  operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
-  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,RUNNING"
+  operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Certificate add token,RUNNING" | cut -d, -f1 )"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Certificate add token,RUNNING"
   is_uuid_v7 "${operation_uuid}"
 
   # Get the address of LXD_TWO.
@@ -4491,8 +4491,8 @@ test_clustering_trust_add() {
   ! lxc remote add lxd_two "${lxd_two_address}" --token "${lxd_one_token}" || false
 
   # Expect the operation to be cancelled.
-  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,CANCELLED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Certificate add token,CANCELLED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Certificate add token,CANCELLED"
 
   # Set token expiry to 1 hour
   LXD_DIR="${LXD_ONE_DIR}" lxc config set core.remote_token_expiry 1H
@@ -4503,8 +4503,8 @@ test_clustering_trust_add() {
   lxd_one_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
 
   # Expect one running token operation.
-  operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
-  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,RUNNING"
+  operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Certificate add token,RUNNING" | cut -d, -f1 )"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Certificate add token,RUNNING"
   is_uuid_v7 "${operation_uuid}"
 
   # Test adding the remote using the address of LXD_TWO with the token operation running on LXD_ONE.
@@ -4514,8 +4514,8 @@ test_clustering_trust_add() {
   lxc remote add lxd_two "${lxd_two_address}" --token "${lxd_one_token}"
 
   # Expect the operation to be cancelled.
-  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,CANCELLED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Certificate add token,CANCELLED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -F "${operation_uuid},TOKEN,Certificate add token,CANCELLED"
 
   # Clean up
   lxc remote rm lxd_two

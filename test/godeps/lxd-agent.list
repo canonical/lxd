@@ -1,7 +1,6 @@
 github.com/armon/go-proxyproto
 github.com/canonical/lxd/client
 github.com/canonical/lxd/lxd-agent/api
-github.com/canonical/lxd/lxd/auth
 github.com/canonical/lxd/lxd/certificate
 github.com/canonical/lxd/lxd/db/operationtype
 github.com/canonical/lxd/lxd/device/config
