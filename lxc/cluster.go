@@ -1299,6 +1299,8 @@ Evacuation actions:
  - live-migrate: live migrate eligible instances on the member to other members
 
 Note: Live migration is supported for virtual machines only.
+If no target member is available, an instance is skipped.
+If a live migration attempt fails, the evacuation operation fails.
 `)
 
 	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, "Force evacuation without user confirmation")
