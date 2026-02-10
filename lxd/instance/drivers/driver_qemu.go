@@ -3702,12 +3702,23 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	lastBusName := ""                      // Use to detect when the main bus name changes from bus.allocate().
 	lastBusNum := qemuPCIDeviceIDStart - 1 // Initialise to last built-in device bus number.
+	usedSlots := 0                         // Calculate used PCI bus slots.
+
+	// Get maximum allowed number of PCI/PCIe slots.
+	pciSlotCountMax, err := d.getMaxPCISlotCount()
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed getting PCI slot limit: %w", err)
+	}
 
 	// busAllocate allocates the next slot and records it into pending volatile for PCIe devices if needed.
 	// This function should be called in the correct order to maintain a device's persistent bus order.
 	busAllocate := func(deviceName string, enableMultifunction bool) (cleanup revert.Hook, busName string, busAddress string, multifunction bool, err error) {
 		if bus.name != "pci" && bus.name != "pcie" {
 			return nil, "", "", false, fmt.Errorf("Bus allocation not supported for bus type %q", bus.name)
+		}
+
+		if usedSlots >= int(pciSlotCountMax) {
+			return nil, "", "", false, fmt.Errorf("PCI devices limit reached: used %d of %d slots; increase %s to allow more devices", usedSlots, pciSlotCountMax, "limits.max_bus_ports")
 		}
 
 		multifunctionGroup := busFunctionGroupNone
@@ -3734,6 +3745,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			}
 		}
 
+		usedSlots++
+
 		return nil, busName, busAddress, multifunction, nil
 	}
 
@@ -3751,7 +3764,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Number of spare hotplug ports to allocate.
 	// Could go negative by the time its used (below) if there are gaps in the bus numbers.
-	spareHotplugPorts := 8
+	spareHotplugPorts := int(pciSlotCountMax)
 
 	// These devices are sorted so that NICs are added first to ensure that the first NIC can use the 5th
 	// PCIe bus port and will be consistently named enp5s0 for compatibility with network configuration in our
@@ -3863,6 +3876,9 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			return "", nil, err
 		}
 	}
+
+	// Account for already used PCIe slots.
+	spareHotplugPorts -= usedSlots
 
 	// Allocate remaining empty PCIe slots for hotplug devices.
 	for range spareHotplugPorts {
