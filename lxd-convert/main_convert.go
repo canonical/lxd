@@ -618,7 +618,7 @@ func (c *cmdConvert) runInteractive(config *cmdConvertData, server lxd.InstanceS
 		}
 	}
 
-	// Ask VM supports the secureboot. In non-interactive mode, security.secureboot can be
+	// Ask whether the VM supports UEFI secure boot. In non-interactive mode, boot.mode can be
 	// configured using --config flag.
 	if !c.flagNonInteractive && config.InstanceArgs.Type == api.InstanceTypeVM {
 		architectureName, _ := osarch.ArchitectureGetLocal()
@@ -630,7 +630,7 @@ func (c *cmdConvert) runInteractive(config *cmdConvertData, server lxd.InstanceS
 			}
 
 			if !hasSecureBoot {
-				config.InstanceArgs.Config["security.secureboot"] = "false"
+				config.InstanceArgs.Config["boot.mode"] = "uefi-nosecureboot"
 			}
 		}
 	}
