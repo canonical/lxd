@@ -168,7 +168,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.class = args.Class
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
-	op.status = api.Pending
+	op.status = api.OperationCreated
 	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
 	op.resources = args.Resources
 	op.finished = cancel.New()
@@ -321,7 +321,7 @@ func (op *Operation) done() {
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
-	if op.status != api.Pending {
+	if op.status != api.OperationCreated {
 		op.lock.Unlock()
 		return errors.New("Only pending operations can be started")
 	}
