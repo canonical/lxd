@@ -54,7 +54,7 @@ Use the following command to create a snapshot of an instance:
 ```
 
 For virtual machines, you can add the `--stateful` flag to capture not only the data included in the instance volume but also the running state of the instance.
-Note that this feature is not fully supported for containers because of CRIU limitations.
+Stateful snapshots are not supported for containers.
 
 By default, instance snapshots include a snapshot of the instance's root disk volume only. To include snapshots of attached storage volumes, set the `--disk-volumes` flag to "all-exclusive".
 ````
@@ -73,7 +73,7 @@ To retain a specific snapshot even if a general expiry time is set, set the `exp
 If you want to replace an existing snapshot, {ref}`delete it <instances-snapshots-delete>` first and then create another snapshot with the same name.
 
 For virtual machines, you can add `"stateful": true` to the request data to capture not only the data included in the instance volume but also the running state of the instance.
-Note that this feature is not fully supported for containers because of CRIU limitations.
+Stateful snapshots are not supported for containers.
 
 By default, instance snapshots include a snapshot of the instance's root disk volume only. To include snapshots of attached storage volumes, set the `disk_volumes_mode` flag to "all-exclusive" in the request data.
 

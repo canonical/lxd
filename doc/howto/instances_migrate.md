@@ -55,7 +55,7 @@ If you need to adapt the configuration for the instance to run on the target ser
 (live-migration)=
 ## Live migration
 
-Live migration means migrating an instance to another server while it is running. This method is supported for virtual machines. For containers, there is limited support.
+Live migration means migrating an instance to another server while it is running. This method is supported for virtual machines.
 
 (live-migration-vms)=
 ### Live migration for virtual machines
