@@ -16,6 +16,8 @@ test_storage_driver_zfs() {
   do_zfs_rebase
   do_recursive_copy_snapshot_cleanup
   do_zfs_bucket_dataset_cleanup
+  do_zfs_image_variants
+  do_zfs_image_variant_blocksize
 }
 
 do_zfs_delegate() {
@@ -500,4 +502,179 @@ do_zfs_bucket_dataset_cleanup() {
   fi
 
   lxc storage delete "${storage_pool}-buckets-patch-test"
+}
+
+do_zfs_image_variants() {
+  sub_test "ZFS image variants: test different block modes and filesystems."
+  local storage_pool fingerprint
+
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")-variant"
+
+  # Import image and get fingerprint.
+  ensure_import_testimage
+  fingerprint=$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')
+
+  # Create test storage pool (dataset mode).
+  lxc storage create "${storage_pool}" zfs volume.zfs.block_mode=false
+
+  # Create c1 with pool defaults (dataset mode).
+  lxc init testimage c1 -s "${storage_pool}"
+
+  # Change pool to block mode with ext4 and create c2.
+  lxc storage set "${storage_pool}" volume.zfs.block_mode=true volume.block.filesystem=ext4
+  lxc init testimage c2 -s "${storage_pool}"
+
+  # Verify both base and ext4 variant exist.
+  [ "$(zfs get -H -o value type "${storage_pool}/images/${fingerprint}")" = "filesystem" ]
+  [ "$(zfs get -H -o value type "${storage_pool}/images/${fingerprint}_ext4")" = "volume" ]
+
+  # Create c3 with initial.* override for btrfs.
+  lxc init testimage c3 -s "${storage_pool}" -d root,initial.zfs.block_mode=true -d root,initial.block.filesystem=btrfs
+
+  # Verify all three variants exist (base, ext4, btrfs).
+  [ "$(zfs get -H -o value type "${storage_pool}/images/${fingerprint}")" = "filesystem" ]
+  [ "$(zfs get -H -o value type "${storage_pool}/images/${fingerprint}_ext4")" = "volume" ]
+  [ "$(zfs get -H -o value type "${storage_pool}/images/${fingerprint}_btrfs")" = "volume" ]
+
+  # Change pool back to dataset mode and create c4.
+  lxc storage set "${storage_pool}" volume.zfs.block_mode=false
+  lxc init testimage c4 -s "${storage_pool}"
+
+  # Verify all variants still exist.
+  zfs list "${storage_pool}/images/${fingerprint}"
+  zfs list "${storage_pool}/images/${fingerprint}_ext4"
+  zfs list "${storage_pool}/images/${fingerprint}_btrfs"
+
+  # Delete c4, base image should remain (c1 still using it).
+  lxc delete c4
+
+  # Verify all variants remain since c1, c2, c3 are depending on them.
+  zfs list "${storage_pool}/images/${fingerprint}"
+  zfs list "${storage_pool}/images/${fingerprint}_ext4"
+  zfs list "${storage_pool}/images/${fingerprint}_btrfs"
+
+  # Delete c2, ext4 variant should be removed (no clones, doesn't match pool config).
+  lxc delete c2
+
+  # Verify ext4 variant is deleted but base and btrfs remain.
+  zfs list "${storage_pool}/images/${fingerprint}"
+  zfs list "${storage_pool}/images/${fingerprint}_btrfs"
+  ! zfs list "${storage_pool}/images/${fingerprint}_ext4" || false
+
+  # Change pool to btrfs block mode and delete c3.
+  lxc storage set "${storage_pool}" volume.zfs.block_mode=true volume.block.filesystem=btrfs
+  lxc delete c3
+
+  # Verify btrfs variant is kept (matches pool config) and base remains.
+  zfs list "${storage_pool}/images/${fingerprint}"
+  zfs list "${storage_pool}/images/${fingerprint}_btrfs"
+
+  # Delete c1, dataset variant should be removed (no clones, doesn't match pool config).
+  lxc delete c1
+
+  # Verify dataset variant is deleted and btrfs variant remains (matches pool config).
+  ! zfs list "${storage_pool}/images/${fingerprint}" || false
+  zfs list "${storage_pool}/images/${fingerprint}_btrfs"
+
+  # Change pool config to dataset mode (no longer matches btrfs variant).
+  lxc storage set "${storage_pool}" volume.zfs.block_mode=false
+
+  # Verify btrfs variant is deleted (doesn't match pool config, has no clones).
+  ! zfs list "${storage_pool}/images/${fingerprint}_btrfs" || false
+
+  # Create c5 with current pool config (dataset mode).
+  lxc init testimage c5 -s "${storage_pool}"
+
+  # Delete the image while c5 is using it.
+  ! zfs list "${storage_pool}/deleted/images/${fingerprint}" || false
+  lxc image delete "${fingerprint}"
+
+  # Verify base moved to deleted path since c5 is using it.
+  ! zfs list "${storage_pool}/images/${fingerprint}" || false
+  zfs list "${storage_pool}/deleted/images/${fingerprint}"
+
+  # Delete c5 to cleanup deleted image.
+  lxc delete c5
+
+  # Verify deleted image is removed.
+  ! zfs list "${storage_pool}/deleted/images/${fingerprint}" || false
+
+  # Cleanup test storage pool.
+  lxc storage delete "${storage_pool}"
+}
+
+do_zfs_image_variant_blocksize() {
+  sub_test "ZFS image variants: instance vs pool zfs.blocksize handling."
+  local storage_pool fingerprint variant_dataset deleted_dataset
+
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")-blocksize"
+
+  ensure_import_testimage
+  fingerprint=$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')
+
+  # Pool with block_mode=true, ext4, blocksize=8K. First instance materialises the variant.
+  lxc storage create "${storage_pool}" zfs volume.zfs.block_mode=true volume.block.filesystem=ext4 volume.zfs.blocksize=8KiB
+
+  lxc init testimage c1 -s "${storage_pool}"
+
+  variant_dataset="${storage_pool}/images/${fingerprint}_ext4"
+  deleted_dataset="${storage_pool}/deleted/images/${fingerprint}_ext4"
+
+  # Pool variant materialised at 8K.
+  [ "$(zfs get -H -o value volblocksize "${variant_dataset}")" = "8K" ]
+
+  # An instance requesting a per-instance blocksize different from the pool's must get
+  # its own dataset at that size; the shared variant must not be mutated and no
+  # soft-deleted entry should be produced.
+  lxc init testimage c2 -s "${storage_pool}" -d root,initial.zfs.blocksize=16KiB
+
+  [ "$(zfs get -H -o value volblocksize "${variant_dataset}")" = "8K" ]
+  [ "$(zfs get -H -o value volblocksize "${storage_pool}/containers/c2")" = "16K" ]
+  ! zfs list "${deleted_dataset}" || false
+
+  # When the pool blocksize changes and a new instance is created, the old variant
+  # has live clones so it cannot be deleted; it is soft-deleted to the deterministic
+  # /deleted slot and a fresh variant at the new blocksize takes the active slot.
+  lxc storage set "${storage_pool}" volume.zfs.blocksize=16KiB
+  lxc init testimage c3 -s "${storage_pool}"
+
+  [ "$(zfs get -H -o value volblocksize "${variant_dataset}")" = "16K" ]
+  [ "$(zfs get -H -o value volblocksize "${deleted_dataset}")" = "8K" ]
+
+  # When the pool blocksize reverts, the matching soft-deleted variant is swapped back
+  # into the active slot. The currently-active variant is soft-deleted; because the
+  # deterministic /deleted slot is already occupied it is placed in a tombstone slot
+  # first, then moved to the deterministic slot once that slot is freed by the restore.
+  lxc storage set "${storage_pool}" volume.zfs.blocksize=8KiB
+  lxc init testimage c4 -s "${storage_pool}"
+
+  [ "$(zfs get -H -o value volblocksize "${variant_dataset}")" = "8K" ]
+  [ "$(zfs get -H -o value volblocksize "${deleted_dataset}")" = "16K" ]
+
+  # No tombstones should exist after the swap completes.
+  [ "$(zfs_image_variant_tombstone_count "${storage_pool}" "${fingerprint}_ext4")" = "0" ]
+
+  # Cleanup.
+  lxc delete c1 c2 c3 c4
+  lxc image delete "${fingerprint}"
+  lxc storage delete "${storage_pool}"
+}
+
+# zfs_image_variant_tombstone_count prints the number of UUID-suffixed tombstones for the
+# given variant basename (e.g. <fp>_ext4 or <fp>.block) under <pool>/deleted/images.
+# Tombstones are produced by deleteVolume only when the deterministic /deleted slot is
+# already occupied at soft-delete time.
+zfs_image_variant_tombstone_count() {
+  local pool="$1"
+  local basename="$2"
+  local parent="${pool}/deleted/images"
+  local out
+
+  if ! out=$(zfs list -H -o name "${parent}" 2>&1); then
+    echo 0
+    return
+  fi
+
+  out=$(zfs list -H -o name -t volume -d 1 "${parent}")
+  echo "${out}" | awk -v stem="${basename}" '$0 ~ "/" stem "-[0-9a-f-]{36}$" { c++ } END { print c+0 }'
 }
