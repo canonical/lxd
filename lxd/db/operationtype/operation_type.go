@@ -1,11 +1,25 @@
 package operationtype
 
 import (
-	"github.com/canonical/lxd/lxd/auth"
+	"fmt"
+
 	"github.com/canonical/lxd/shared/entity"
 )
 
-// Type is a numeric code indentifying the type of an Operation.
+// init disallows import of the package if any Type is not well-defined.
+func init() {
+	for t := Type(1); t < upperBound; t++ {
+		if t.Description() == "" {
+			panic(fmt.Sprintf("Operation type #%d does not have a description", t))
+		}
+
+		if t.EntityType() == "" {
+			panic(fmt.Sprintf("Operation type #%d does not have an entity type", t))
+		}
+	}
+}
+
+// Type is a numeric code identifying the type of Operation.
 type Type int64
 
 // Possible values for Type
@@ -80,7 +94,20 @@ const (
 	ProfileUpdate
 	VolumeUpdate
 	VolumeDelete
+
+	// upperBound is used only to enforce consistency in the package on init.
+	// Make sure it's always the last item in this list.
+	upperBound
 )
+
+// Validate returns an error if the given Type is not defined.
+func Validate(operationTypeCode Type) error {
+	if operationTypeCode > 0 && operationTypeCode < upperBound {
+		return nil
+	}
+
+	return fmt.Errorf("Unknown operation type code %d", operationTypeCode)
+}
 
 // Description return a human-readable description of the operation type.
 func (t Type) Description() string {
@@ -209,90 +236,71 @@ func (t Type) Description() string {
 		return "Remove expired tokens"
 	case ClusterHeal:
 		return "Healing cluster"
+	case ClusterJoinToken:
+		return "Cluster join token"
+	case CertificateAddToken:
+		return "Certificate add token"
 	case RemoveExpiredOIDCSessions:
-		return "Remove expired OIDC sessions"
+		return "Removing expired OIDC sessions"
+
+	// It should never be possible to reach the default clause.
+	// See the init function.
 	default:
-		return "Executing operation"
+		return ""
 	}
 }
 
-// Permission returns the entity.Type and auth.Entitlement required to cancel the operation.
-func (t Type) Permission() (entity.Type, auth.Entitlement) {
+// EntityType returns the primary entity.Type that the Type operates on.
+func (t Type) EntityType() entity.Type {
 	switch t {
-	case BackupCreate:
-		return entity.TypeInstance, auth.EntitlementCanManageBackups
-	case BackupRename:
-		return entity.TypeInstance, auth.EntitlementCanManageBackups
-	case BackupRestore:
-		return entity.TypeInstance, auth.EntitlementCanManageBackups
-	case BackupRemove:
-		return entity.TypeInstance, auth.EntitlementCanManageBackups
-	case ConsoleShow:
-		return entity.TypeInstance, auth.EntitlementCanAccessConsole
-	case InstanceFreeze:
-		return entity.TypeInstance, auth.EntitlementCanUpdateState
-	case InstanceUnfreeze:
-		return entity.TypeInstance, auth.EntitlementCanUpdateState
-	case InstanceStart:
-		return entity.TypeInstance, auth.EntitlementCanUpdateState
-	case InstanceStop:
-		return entity.TypeInstance, auth.EntitlementCanUpdateState
-	case InstanceRestart:
-		return entity.TypeInstance, auth.EntitlementCanUpdateState
-	case CommandExec:
-		return entity.TypeInstance, auth.EntitlementCanExec
-	case SnapshotCreate:
-		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
-	case SnapshotRename:
-		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
-	case SnapshotTransfer:
-		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
-	case SnapshotUpdate:
-		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
-	case SnapshotDelete:
-		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
+	// Server level operations and background tasks.
+	case ClusterBootstrap, ClusterJoin, CustomVolumeSnapshotsExpire, ImagesExpire, ImagesPruneLeftover,
+		ImagesSynchronize, RemoveExpiredOIDCSessions, RemoveExpiredTokens, RemoveOrphanedOperations,
+		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
+		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
+		ClusterHeal, ImagesUpdate:
+		return entity.TypeServer
 
-	case InstanceCreate:
-		return entity.TypeInstance, auth.EntitlementCanEdit
-	case InstanceUpdate:
-		return entity.TypeInstance, auth.EntitlementCanEdit
-	case InstanceRename:
-		return entity.TypeInstance, auth.EntitlementCanEdit
-	case InstanceMigrate:
-		return entity.TypeInstance, auth.EntitlementCanEdit
-	case InstanceLiveMigrate:
-		return entity.TypeInstance, auth.EntitlementCanEdit
-	case InstanceDelete:
-		return entity.TypeInstance, auth.EntitlementCanEdit
-	case InstanceRebuild:
-		return entity.TypeInstance, auth.EntitlementCanEdit
-	case SnapshotRestore:
-		return entity.TypeInstance, auth.EntitlementCanEdit
+	// Project level operations.
+	// If creating a resource, then the parent project is the primary entity
+	// (the entity being created is not yet referenceable).
+	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload:
+		return entity.TypeProject
 
-	case ImageDownload:
-		return entity.TypeImage, auth.EntitlementCanEdit
-	case ImageDelete:
-		return entity.TypeImage, auth.EntitlementCanEdit
-	case ImageToken:
-		return entity.TypeImage, auth.EntitlementCanEdit
-	case ImageRefresh:
-		return entity.TypeImage, auth.EntitlementCanEdit
-	case ImagesUpdate:
-		return entity.TypeImage, auth.EntitlementCanEdit
-	case ImagesSynchronize:
-		return entity.TypeImage, auth.EntitlementCanEdit
+	// Volume operations.
+	case VolumeSnapshotRename, VolumeSnapshotUpdate, VolumeSnapshotDelete, VolumeMigrate,
+		VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete:
+		return entity.TypeStorageVolume
 
-	case CustomVolumeSnapshotsExpire:
-		return entity.TypeStorageVolume, auth.EntitlementCanEdit
-	case CustomVolumeBackupCreate:
-		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
-	case CustomVolumeBackupRemove:
-		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
-	case CustomVolumeBackupRename:
-		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
-	case CustomVolumeBackupRestore:
-		return entity.TypeStorageVolume, auth.EntitlementCanEdit
+	// Instance operations.
+	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
+		InstanceStart, InstanceStop, InstanceRestart, InstanceRename, InstanceMigrate, InstanceLiveMigrate,
+		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate:
+		return entity.TypeInstance
+
+	// Instance backup operations.
+	case BackupRename, BackupRemove, BackupRestore:
+		return entity.TypeInstanceBackup
+
+	// Instance snapshot operations.
+	case SnapshotRename, SnapshotTransfer, SnapshotUpdate, SnapshotDelete:
+		return entity.TypeInstanceSnapshot
+
+	// Image operations.
+	case ImageDelete, ImageRefresh, ImageToken:
+		return entity.TypeImage
+
+	// Volume backup operations.
+	case CustomVolumeBackupRemove, CustomVolumeBackupRename, CustomVolumeBackupRestore:
+		return entity.TypeStorageVolumeBackup
+
+	// Profile operations.
+	case ProfileUpdate:
+		return entity.TypeProfile
+
+	// It should never be possible to reach the default clause.
+	// See the init function.
+	default:
+		return ""
 	}
-
-	return "", ""
 }
