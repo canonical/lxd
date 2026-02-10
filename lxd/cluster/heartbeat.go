@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
 
@@ -141,23 +142,13 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 // Send sends heartbeat requests to the nodes supplied and updates heartbeat state.
 func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertInfo, serverCert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, spreadDuration time.Duration) {
 	heartbeatsWg := sync.WaitGroup{}
-	sendHeartbeat := func(nodeID int64, address string, spreadDuration time.Duration, heartbeatData *APIHeartbeat) {
+	sendHeartbeat := func(nodeID int64, address string, delay time.Duration, heartbeatData *APIHeartbeat) {
 		defer heartbeatsWg.Done()
 
-		if spreadDuration > 0 {
-			// Spread in time by waiting up to 3s less than the interval.
-			spreadDurationMs := int(spreadDuration.Milliseconds())
-			spreadRange := spreadDurationMs - 3000
-
-			// Spread the heartbeats evenly over the spread range.
-			// That way the nodes can compute when the next heartbeat is expected to arrive
-			// and detect loss of connection to the leader without sending heartbeats themselves
-			// in the opposite direction.
-			if spreadRange > 0 {
-				select {
-				case <-time.After(time.Duration(spreadRange/len(nodes)*int(nodeID-1)) * time.Millisecond):
-				case <-ctx.Done(): // Proceed immediately to heartbeat of member if asked to.
-				}
+		if delay > 0 {
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done(): // Proceed immediately to heartbeat of member if asked to.
 			}
 		}
 
@@ -199,7 +190,12 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 		}
 	}
 
-	for _, node := range nodes {
+	// Sort the nodes by ID to ensure the same order every time, that way the spreading of heartbeats is consistent and predictable.
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].ID < nodes[j].ID
+	})
+
+	for i, node := range nodes {
 		// Special case for the local member - just record the time now.
 		if node.Address == localAddress {
 			hbState.Lock()
@@ -212,9 +208,24 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			continue
 		}
 
+		var delay time.Duration
+		if spreadDuration > 0 {
+			// Spread in time by waiting up to 3s less than the interval.
+			spreadDurationMs := int(spreadDuration.Milliseconds())
+			spreadRange := spreadDurationMs - 3000
+
+			// Spread the heartbeats evenly over the spread range.
+			// That way the nodes can compute when the next heartbeat is expected to arrive
+			// and detect loss of connection to the leader without sending heartbeats themselves
+			// in the opposite direction.
+			if spreadRange > 0 {
+				delay = time.Duration(spreadRange/len(nodes)*i) * time.Millisecond
+			}
+		}
+
 		// Parallelize the rest.
 		heartbeatsWg.Add(1)
-		go sendHeartbeat(node.ID, node.Address, spreadDuration, hbState)
+		go sendHeartbeat(node.ID, node.Address, delay, hbState)
 	}
 
 	heartbeatsWg.Wait()
