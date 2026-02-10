@@ -126,6 +126,8 @@ This command removes the cluster member's "evacuated" state, migrates the evacua
 
 You can control how each instance is migrated, via the {config:option}`instance-miscellaneous:cluster.evacuate` instance configuration key. This key applies to the migrations performed during both evacuation and restoration. By default, any instances that are suitable for {ref}`live migration <live-migration>` will be live-migrated, and any that are not suitable will be shut down. See the {config:option}`instance-miscellaneous:cluster.evacuate` reference documentation for further information.
 
+If you force `cluster.evacuate=live-migrate`, LXD attempts live migration for all instances on the member. Live migration is supported for virtual machines only. If no target member is available for an instance, that instance is skipped. If a live migration attempt fails (for example, when trying to live-migrate a container), the evacuation operation fails.
+
 If an instance is not suitable for live migration, it will be shut down cleanly before evacuation, respecting the {config:option}`instance-boot:boot.host_shutdown_timeout` configuration key.
 
 ```{note}
