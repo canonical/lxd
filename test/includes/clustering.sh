@@ -113,9 +113,15 @@ teardown_clustering_netns() {
 spawn_lxd_and_bootstrap_cluster() {
   local driver="${1:-dir}"
   local port="${2:-}"
+  local index="${3:-1}"
 
-  setup_clustering_bridge
-  setup_clustering_netns 1
+  if [ ! -e "/sys/class/net/br$$" ]; then
+    setup_clustering_bridge
+  fi
+
+  setup_clustering_netns "${index}"
+  # shellcheck disable=SC2154
+  local ns="${bridge}${index}"
 
   # Avoid overwriting the global LXD_DIR
   local LXD_DIR
@@ -126,24 +132,52 @@ spawn_lxd_and_bootstrap_cluster() {
     mkdir -p "${LXD_DIR}"
     unset LXD_DIR_KEEP
   fi
-  # shellcheck disable=SC2154
-  local ns="${bridge}1"
-
   echo "==> Spawn bootstrap cluster node in ${ns} with storage driver ${driver}"
 
   LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
 
-  # shellcheck disable=SC2034
-  LXD_ONE_DIR="${LXD_DIR}" ns1="${ns}"
+  case "${index}" in
+    1)
+      # shellcheck disable=SC2034
+      LXD_ONE_DIR="${LXD_DIR}" ns1="${ns}";;
+    2)
+      # shellcheck disable=SC2034
+      LXD_TWO_DIR="${LXD_DIR}" ns2="${ns}";;
+    3)
+      # shellcheck disable=SC2034
+      LXD_THREE_DIR="${LXD_DIR}" ns3="${ns}";;
+    4)
+      # shellcheck disable=SC2034
+      LXD_FOUR_DIR="${LXD_DIR}" ns4="${ns}";;
+    5)
+      # shellcheck disable=SC2034
+      LXD_FIVE_DIR="${LXD_DIR}" ns5="${ns}";;
+    6)
+      # shellcheck disable=SC2034
+      LXD_SIX_DIR="${LXD_DIR}" ns6="${ns}";;
+    7)
+      # shellcheck disable=SC2034
+      LXD_SEVEN_DIR="${LXD_DIR}" ns7="${ns}";;
+    8)
+      # shellcheck disable=SC2034
+      LXD_EIGHT_DIR="${LXD_DIR}" ns8="${ns}";;
+    9)
+      # shellcheck disable=SC2034
+      LXD_NINE_DIR="${LXD_DIR}" ns9="${ns}";;
+    *)
+      echo "spawn_lxd_and_bootstrap_cluster: Unsupported index ${index}"
+      false
+      ;;
+  esac
 
   local preseed
   preseed="config:
-  core.https_address: 100.64.1.101:8443"
+  core.https_address: 100.64.1.10${index}:8443"
 
-    if [ "${port}" != "" ]; then
+  if [ "${port}" != "" ]; then
     preseed+="
-  cluster.https_address: 100.64.1.101:${port}"
-    fi
+  cluster.https_address: 100.64.1.10${index}:${port}"
+  fi
 
   preseed+="
   images.auto_update_interval: 0
@@ -195,7 +229,7 @@ profiles:
       pool: data
       type: disk
 cluster:
-  server_name: node1
+  server_name: node${index}
   enabled: true"
 
   # Print the preseed for debugging purposes.
