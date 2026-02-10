@@ -62,7 +62,7 @@ func (op *operation) AddHandler(function func(api.Operation)) (*EventTarget, err
 		function(newOp)
 	}
 
-	return op.listener.AddHandler([]string{"operation"}, wrapped)
+	return op.listener.AddHandler([]string{api.EventTypeOperation}, wrapped)
 }
 
 // Cancel will request that LXD cancels the operation (if supported).
@@ -205,7 +205,7 @@ func (op *operation) setupListener() error {
 
 	// Setup the handler
 	chReady := make(chan bool)
-	_, err := op.listener.AddHandler([]string{"operation"}, func(event api.Event) {
+	_, err := op.listener.AddHandler([]string{api.EventTypeOperation}, func(event api.Event) {
 		<-chReady
 
 		// We don't want concurrency while processing events
@@ -336,7 +336,7 @@ func (op *remoteOperation) AddHandler(function func(api.Operation)) (*EventTarge
 		// Generate a mock EventTarget
 		target = &EventTarget{
 			function: func(api.Event) { function(api.Operation{}) },
-			types:    []string{"operation"},
+			types:    []string{api.EventTypeOperation},
 		}
 	}
 
