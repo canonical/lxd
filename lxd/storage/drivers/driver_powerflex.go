@@ -151,6 +151,14 @@ func (d *powerflex) FillConfig() error {
 		d.config["volume.size"] = powerFlexDefaultSize
 	}
 
+	// Retrieve and store the PowerFlex system version.
+	systemInfo, err := d.client().getSystemInfo()
+	if err != nil {
+		return err
+	}
+
+	d.config["powerflex.system.version"] = systemInfo.SystemVersionName
+
 	return nil
 }
 
@@ -300,6 +308,13 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  shortdesc: Size/quota of the storage volume
 		//  scope: global
 		"volume.size": validate.Optional(validate.IsMultipleOfUnit("8GiB")),
+		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.system.version)
+		// This field is automatically populated by querying the PowerFlex system.
+		// ---
+		//  type: string
+		//  shortdesc: Software version of the PowerFlex array.
+		//  scope: global
+		"powerflex.system.version": validate.IsAny,
 	}
 
 	err := d.validatePool(config, rules, d.commonVolumeRules())
