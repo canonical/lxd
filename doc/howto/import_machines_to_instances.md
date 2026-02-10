@@ -251,7 +251,7 @@ Complete the following steps to convert an existing machine to a LXD instance:
      Type: virtual-machine
      Source: ./virtual-machine.img
      Config:
-       security.secureboot: "false"
+       boot.mode: "uefi-nosecureboot"
 
    Additional overrides can be applied at this stage:
    1) Begin the conversion with the above configuration
@@ -269,8 +269,8 @@ Complete the following steps to convert an existing machine to a LXD instance:
      Type: virtual-machine
      Source: ./virtual-machine.img
      Config:
+       boot.mode: "uefi-nosecureboot"
        limits.cpu: "2"
-       security.secureboot: "false"
 
    Additional overrides can be applied at this stage:
    1) Begin the conversion with the above configuration
@@ -292,8 +292,8 @@ Complete the following steps to convert an existing machine to a LXD instance:
      Storage pool: default
      Storage volume size: 20GiB
      Config:
+       boot.mode: "uefi-nosecureboot"
        limits.cpu: "2"
-       security.secureboot: "false"
 
    Additional overrides can be applied at this stage:
    1) Begin the conversion with the above configuration
@@ -314,8 +314,8 @@ Complete the following steps to convert an existing machine to a LXD instance:
      Storage volume size: 20GiB
      Network name: lxdbr0
      Config:
+       boot.mode: "uefi-nosecureboot"
        limits.cpu: "2"
-       security.secureboot: "false"
 
    Additional overrides can be applied at this stage:
    1) Begin the conversion with the above configuration
@@ -400,7 +400,7 @@ lxd-convert \
   --name v1 \
   --type vm \
   --source "${sourcePath}" \
-  --config security.secureboot=false \
+  --config boot.mode=uefi-nosecureboot \
   --config limits.cpu=4 \
   --config limits.memory=4GiB \
   --non-interactive
