@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -686,7 +687,9 @@ var ConfigSchema = config.Schema{
 		//  scope: global
 		//  defaultdesc: `lifecycle,logging`
 		//  shortdesc: Events to send to the Loki server
-		"loki.types": {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf("lifecycle", "logging", "ovn"))), Default: "lifecycle,logging"},
+		"loki.types": {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf(
+			api.EventTypeLifecycle, api.EventTypeLogging, api.EventTypeOVN,
+		))), Default: "lifecycle,logging"},
 
 		// lxdmeta:generate(entities=server; group=miscellaneous; key=maas.api.key)
 		//
