@@ -1104,55 +1104,6 @@ parts:
       # Include the lzma symlink
       ln -s xz "${CRAFT_PART_INSTALL}/usr/bin/lzma"
 
-  zfs-2-1:
-    source: https://github.com/openzfs/zfs
-    source-commit: a7186651d3306debca6b4f72797239eea61db36c # zfs-2.1.16
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=/
-      - --with-config=user
-    build-packages:
-      - to armhf: []
-      - else:
-        - libblkid-dev
-        - libssl-dev
-        - uuid-dev
-        - zlib1g-dev
-        - libtirpc-dev
-    override-stage: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
-    override-prime: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
-    override-pull: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
-    override-build: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
-      set -ex
-
-      ZFS_VER="2.1"
-
-      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
-      mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
-      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
-      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
-
-      # unused .so
-      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
-      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
-
   zfs-2-2:
     source: https://github.com/openzfs/zfs
     source-commit: 079ba86d71571bf997ff688da061d8c4aa2fd052 # zfs-2.2.9
@@ -1689,7 +1640,6 @@ parts:
       - xz
       - wrappers
       - xtables
-      - zfs-2-1
       - zfs-2-2
       - zfs-2-3
       - zfs-2-4
