@@ -1989,6 +1989,16 @@
 						}
 					},
 					{
+						"boot.mode": {
+							"condition": "virtual machine",
+							"defaultdesc": "`uefi-secureboot`",
+							"liveupdate": "no",
+							"longdesc": "The `uefi-secureboot` mode uses UEFI firmware with secure boot enabled.\nThe `uefi-nosecureboot` mode uses UEFI firmware with secure boot disabled.\nThe `bios` mode is supported only on `x86_64` (`amd64`).",
+							"shortdesc": "Boot firmware mode for the VM (uefi-secureboot, uefi-nosecureboot or bios)",
+							"type": "string"
+						}
+					},
+					{
 						"boot.stop.priority": {
 							"defaultdesc": "`0`",
 							"liveupdate": "no",
@@ -2469,16 +2479,6 @@
 						}
 					},
 					{
-						"security.csm": {
-							"condition": "virtual machine",
-							"defaultdesc": "`false`",
-							"liveupdate": "no",
-							"longdesc": "When enabling this option, set {config:option}`instance-security:security.secureboot` to `false`.",
-							"shortdesc": "Whether to use a firmware that supports UEFI-incompatible operating systems",
-							"type": "bool"
-						}
-					},
-					{
 						"security.delegate_bpf": {
 							"condition": "unprivileged container",
 							"defaultdesc": "`false`",
@@ -2628,16 +2628,6 @@
 							"liveupdate": "container",
 							"longdesc": "",
 							"shortdesc": "Whether to prevent the instance from being started",
-							"type": "bool"
-						}
-					},
-					{
-						"security.secureboot": {
-							"condition": "virtual machine",
-							"defaultdesc": "`true`",
-							"liveupdate": "no",
-							"longdesc": "When disabling this option, consider enabling {config:option}`instance-security:security.csm`.",
-							"shortdesc": "Whether UEFI secure boot is enabled with the default Microsoft keys",
 							"type": "bool"
 						}
 					},
