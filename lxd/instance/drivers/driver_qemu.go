@@ -1112,23 +1112,22 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
-	// Ensure secureboot is turned off for images that are not secureboot enabled
+	// Ensure secure boot is disabled for images that don't support it.
 	bootMode := d.effectiveBootMode()
 	if shared.IsFalse(d.localConfig["image.requirements.secureboot"]) && bootMode == instancetype.BootModeUEFISecureBoot {
-		return errors.New("The image used by this instance is incompatible with secureboot. Please set boot.mode=uefi-nosecureboot on the instance")
+		return errors.New("The image used by this instance is incompatible with secure boot. Set boot.mode=uefi-nosecureboot")
 	}
 
 	if bootMode == instancetype.BootModeBIOS {
-		// Ensure BIOS boot mode is turned off for all arches except x86_64
+		// Ensure BIOS mode is only used on x86_64.
 		if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
-			return errors.New("BIOS boot mode can be enabled for x86_64 architecture only. Please set boot.mode=uefi-secureboot on the instance")
+			return errors.New("BIOS mode is only supported on x86_64. Set boot.mode=uefi-secureboot")
 		}
 
-		// Having boot.debug_edk2 enabled contradicts with enabling BIOS boot mode
+		// boot.debug_edk2 requires UEFI and cannot be used with BIOS mode.
 		if shared.IsTrue(d.localConfig["boot.debug_edk2"]) {
-			return errors.New("BIOS boot mode can not be enabled together with boot.debug_edk2. Please set one of them to false")
+			return errors.New("boot.debug_edk2 cannot be enabled when boot.mode=bios")
 		}
-
 	}
 
 	// Setup a new operation if needed.
