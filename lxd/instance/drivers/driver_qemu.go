@@ -2050,11 +2050,12 @@ func (d *qemu) setupNvram() error {
 	// Determine expected firmware.
 	var firmwares []edk2.FirmwarePair
 	bootMode := d.effectiveBootMode()
-	if bootMode == instancetype.BootModeBIOS {
+	switch bootMode {
+	case instancetype.BootModeBIOS:
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.CSM)
-	} else if bootMode == instancetype.BootModeUEFISecureBoot {
+	case instancetype.BootModeUEFISecureBoot:
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.SECUREBOOT)
-	} else {
+	default:
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.GENERIC)
 	}
 
@@ -3424,11 +3425,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		// Determine expected firmware.
 		var firmwares []edk2.FirmwarePair
 		bootMode := d.effectiveBootMode()
-		if bootMode == instancetype.BootModeBIOS {
+		switch bootMode {
+		case instancetype.BootModeBIOS:
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.CSM)
-		} else if bootMode == instancetype.BootModeUEFISecureBoot {
+		case instancetype.BootModeUEFISecureBoot:
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.SECUREBOOT)
-		} else {
+		default:
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.GENERIC)
 		}
 
