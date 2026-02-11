@@ -933,8 +933,9 @@ parts:
       # `edk2` is only built for `amd64` and `arm64` and Launchpad `amd64`
       # builders support KVM acceleration so TCG is only needed on `arm64`.
       if [ "${QEMUARCH}" = "aarch64" ]; then
-        # Append `--enable-tcg`. If `--disable-tcg` was previously set, this will override it.
-        sed -i '1 a set -- "$@" --enable-tcg' configure
+          # `set -- "$@"`: preserve arguments passed to `configure` and append
+          # `--enable-tcg` at the end to override the previous `--disable-tcg`.
+          sed -i '1 a set -- "$@" --enable-tcg' configure
       fi
 
       # Extract efi-virtio.rom from ipxe-qemu.
