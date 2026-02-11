@@ -1502,82 +1502,13 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	// Check if clustered.
 	if s.ServerClustered && target != "" && req.Source.Location != "" && req.Migration {
-		var sourceNodeOffline bool
-
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Load source node.
-			nodeInfo, err := tx.GetNodeByName(ctx, req.Source.Location)
-			if err != nil {
-				return err
-			}
-
-			sourceAddress := nodeInfo.Address
-
-			if sourceAddress == "" {
-				// Local node.
-				sourceNodeOffline = false
-				return nil
-			}
-
-			sourceMemberInfo, err := tx.GetNodeByAddress(ctx, sourceAddress)
-			if err != nil {
-				return fmt.Errorf("Failed to get source member for %q: %w", sourceAddress, err)
-			}
-
-			sourceNodeOffline = sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold())
-
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
+		resp := forwardedResponseToNode(r.Context(), s, req.Source.Location)
+		if resp != nil {
+			return resp
 		}
 
 		var targetProject *api.Project
 		var targetMemberInfo *db.NodeInfo
-
-		if sourceNodeOffline {
-			resp := forwardedResponseToNode(r.Context(), s, target)
-			if resp != nil {
-				return resp
-			}
-
-			if details.pool.Driver().Info().Name == "ceph" {
-				var dbVolume *db.StorageVolume
-				var volumeNotFound bool
-				var targetIsSet bool
-
-				err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-					dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, cluster.StoragePoolVolumeTypeCustom, details.volumeName, true)
-					if err != nil {
-						// Check if the user provided an incorrect target query parameter and return a helpful error message.
-						_, volumeNotFound = api.StatusErrorMatch(err, http.StatusNotFound)
-						targetIsSet = r.URL.Query().Get("target") != ""
-
-						return err
-					}
-
-					return nil
-				})
-				if err != nil {
-					if s.ServerClustered && targetIsSet && volumeNotFound {
-						return response.NotFound(errors.New("Storage volume not found on this cluster member"))
-					}
-
-					return response.SmartError(err)
-				}
-
-				req := api.StorageVolumePost{
-					Name: req.Name,
-				}
-
-				return storagePoolVolumeTypePostRename(s, r, details.pool.Name(), effectiveProjectName, &dbVolume.StorageVolume, req)
-			}
-		} else {
-			resp := forwardedResponseToNode(r.Context(), s, req.Source.Location)
-			if resp != nil {
-				return resp
-			}
-		}
 
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			p, err := cluster.GetProject(ctx, tx.Tx(), effectiveProjectName)
