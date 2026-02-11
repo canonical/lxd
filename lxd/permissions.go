@@ -175,7 +175,7 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 
 	assignedPermissions := make(map[cluster.Permission][]string, len(authGroupPermissions))
 	if recursion == "1" {
-		groupNames := make(map[int]string, len(groups))
+		groupNames := make(map[int64]string, len(groups))
 		for _, group := range groups {
 			groupNames[group.ID] = group.Name
 		}

@@ -185,8 +185,8 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 
 	var groups []dbCluster.AuthGroup
 	var authGroupPermissions []dbCluster.Permission
-	groupsIdentities := make(map[int][]dbCluster.Identity)
-	groupsIdentityProviderGroups := make(map[int][]dbCluster.IdentityProviderGroup)
+	groupsIdentities := make(map[int64][]dbCluster.Identity)
+	groupsIdentityProviderGroups := make(map[int64][]dbCluster.IdentityProviderGroup)
 	entityURLs := make(map[entity.Type]map[int]*api.URL)
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		allGroups, err := dbCluster.GetAuthGroups(ctx, tx.Tx())
@@ -237,7 +237,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if recursion {
-		authGroupPermissionsByGroupID := make(map[int][]dbCluster.Permission, len(groups))
+		authGroupPermissionsByGroupID := make(map[int64][]dbCluster.Permission, len(groups))
 		for _, permission := range authGroupPermissions {
 			authGroupPermissionsByGroupID[permission.GroupID] = append(authGroupPermissionsByGroupID[permission.GroupID], permission)
 		}
