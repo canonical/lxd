@@ -18,7 +18,7 @@ import (
 // Permission is the database representation of an api.Permission.
 type Permission struct {
 	ID          int
-	GroupID     int
+	GroupID     int64
 	Entitlement auth.Entitlement
 	EntityType  EntityType
 	EntityID    int

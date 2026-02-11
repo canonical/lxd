@@ -85,7 +85,7 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.
 }
 
 // GetIdentitiesByAuthGroupID returns the identities that are members of the group with the given ID.
-func GetIdentitiesByAuthGroupID(ctx context.Context, tx *sql.Tx, groupID int) ([]Identity, error) {
+func GetIdentitiesByAuthGroupID(ctx context.Context, tx *sql.Tx, groupID int64) ([]Identity, error) {
 	stmt := `
 SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 FROM identities
@@ -114,15 +114,15 @@ WHERE identities_auth_groups.auth_group_id = ?`
 }
 
 // GetAllIdentitiesByAuthGroupIDs returns a map of group IDs to the identities that are members of the group with that ID.
-func GetAllIdentitiesByAuthGroupIDs(ctx context.Context, tx *sql.Tx) (map[int][]Identity, error) {
+func GetAllIdentitiesByAuthGroupIDs(ctx context.Context, tx *sql.Tx) (map[int64][]Identity, error) {
 	stmt := `
 SELECT identities_auth_groups.auth_group_id, identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 FROM identities
 JOIN identities_auth_groups ON identities.id = identities_auth_groups.identity_id`
 
-	result := make(map[int][]Identity)
+	result := make(map[int64][]Identity)
 	dest := func(scan func(dest ...any) error) error {
-		var groupID int
+		var groupID int64
 		i := Identity{}
 		err := scan(&groupID, &i.ID, &i.AuthMethod, &i.Type, &i.Identifier, &i.Name, &i.Metadata)
 		if err != nil {
@@ -143,7 +143,7 @@ JOIN identities_auth_groups ON identities.id = identities_auth_groups.identity_i
 }
 
 // GetIdentityProviderGroupsByGroupID returns the identity provider groups that map to the group with the given ID.
-func GetIdentityProviderGroupsByGroupID(ctx context.Context, tx *sql.Tx, groupID int) ([]IdentityProviderGroup, error) {
+func GetIdentityProviderGroupsByGroupID(ctx context.Context, tx *sql.Tx, groupID int64) ([]IdentityProviderGroup, error) {
 	stmt := `
 SELECT identity_provider_groups.id, identity_provider_groups.name
 FROM identity_provider_groups
@@ -172,15 +172,15 @@ WHERE auth_groups_identity_provider_groups.auth_group_id = ?`
 }
 
 // GetAllIdentityProviderGroupsByGroupIDs returns a map of group IDs to the IdentityProviderGroups that map to the group with that ID.
-func GetAllIdentityProviderGroupsByGroupIDs(ctx context.Context, tx *sql.Tx) (map[int][]IdentityProviderGroup, error) {
+func GetAllIdentityProviderGroupsByGroupIDs(ctx context.Context, tx *sql.Tx) (map[int64][]IdentityProviderGroup, error) {
 	stmt := `
 SELECT auth_groups_identity_provider_groups.auth_group_id, identity_provider_groups.id, identity_provider_groups.name
 FROM identity_provider_groups
 JOIN auth_groups_identity_provider_groups ON identity_provider_groups.id = auth_groups_identity_provider_groups.identity_provider_group_id`
 
-	result := make(map[int][]IdentityProviderGroup)
+	result := make(map[int64][]IdentityProviderGroup)
 	dest := func(scan func(dest ...any) error) error {
-		var groupID int
+		var groupID int64
 		i := IdentityProviderGroup{}
 		err := scan(&groupID, &i.ID, &i.Name)
 		if err != nil {
@@ -201,7 +201,7 @@ JOIN auth_groups_identity_provider_groups ON identity_provider_groups.id = auth_
 }
 
 // GetPermissionsByAuthGroupID returns the permissions that belong to the group with the given ID.
-func GetPermissionsByAuthGroupID(ctx context.Context, tx *sql.Tx, groupID int) ([]Permission, error) {
+func GetPermissionsByAuthGroupID(ctx context.Context, tx *sql.Tx, groupID int64) ([]Permission, error) {
 	var result []Permission
 	dest := func(scan func(dest ...any) error) error {
 		p := Permission{}
@@ -248,7 +248,7 @@ func GetPermissions(ctx context.Context, tx *sql.Tx) ([]Permission, error) {
 
 // SetAuthGroupPermissions deletes all auth_group -> permission mappings from the `auth_group_permissions` table
 // where the group ID is equal to the given value. Then it inserts a new row for each given permission ID.
-func SetAuthGroupPermissions(ctx context.Context, tx *sql.Tx, groupID int, authGroupPermissions []Permission) error {
+func SetAuthGroupPermissions(ctx context.Context, tx *sql.Tx, groupID int64, authGroupPermissions []Permission) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM auth_groups_permissions WHERE auth_group_id = ?`, groupID)
 	if err != nil {
 		return fmt.Errorf("Failed to delete existing permissions for group with ID `%d`: %w", groupID, err)
