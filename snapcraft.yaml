@@ -427,8 +427,7 @@ parts:
           rm -rf Build
 
           if [ "${TYPE}" = "DEBUG" ]; then
-              cp "${DSC}" "${DSC}.bak"
-              sed -i "${SED_EXPR}" "${DSC}"
+              sed --in-place=.bak "${SED_EXPR}" "${DSC}"
           fi
 
           /usr/bin/make -f debian/rules "${BUILD_TARGET}" BUILD_TYPE="${TYPE}"
