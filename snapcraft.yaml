@@ -324,23 +324,46 @@ parts:
       #- lib/*/liblz4.so*  # use liblz4.so from the base snap
 
   edk2:
-    source: https://github.com/tianocore/edk2
+    after:
+      - qemu
+    source: https://git.launchpad.net/ubuntu/+source/edk2
     source-depth: 1
-    source-commit: 8736b8fdca85e02933cdb0a13309de14c9799ece # edk2-stable202311
-    source-submodules: []
+    source-commit: 0b1f127464c5e53bea2933e26a37155424974fdf # import/2025.02-8ubuntu3
     source-type: git
     plugin: nil
     build-packages:
       - to amd64:
-        - g++
         - acpica-tools
+        - bc
+        - debhelper
+        - dosfstools
+        - g++
+        - jq
+        - lsb-release
+        - mtools
         - nasm
+        - python3
+        - python3-pexpect
+        - python3-virt-firmware
+        - quilt
         - uuid-dev
+        - xorriso
       - to arm64:
-        - g++
         - acpica-tools
+        - bc
+        - debhelper
+        - dosfstools
+        - g++
+        - jq
+        - lsb-release
+        - mtools
         - nasm
+        - python3
+        - python3-pexpect
+        - python3-virt-firmware
+        - quilt
         - uuid-dev
+        - xorriso
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -350,102 +373,85 @@ parts:
     override-pull: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
-
-      set -ex
-
-      # Fix submodule sources
-      # see https://github.com/tianocore/edk2/commit/95d8a1c255cfb8e063d679930d08ca6426eb5701
-      sed -i "s#https://github.com/Zeex/subhook.git#https://github.com/tianocore/edk2-subhook.git#g" .gitmodules
-
-      # Pull submodules after switching to source-commit
-      git submodule update --init --recursive
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      set -ex
+      set -eux
+
+      # Ensure staged libraries are found (needed for qemu to generate secure boot vars)
+      export LD_LIBRARY_PATH="${CRAFT_STAGE}/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH):${CRAFT_STAGE}/lib:${LD_LIBRARY_PATH:-}"
+
+      # Apply patches from Ubuntu sources.
+      QUILT_PATCHES=debian/patches quilt push -a
+
+      # Enable KVM if available
+      if [ -c /dev/kvm ] && [ -w /dev/kvm ]; then
+          sed -i 's/accel=tcg/accel=kvm:tcg/' debian/python/UEFI/Qemu.py
+      fi
+      # Ensure fast RNG in the build VM to speed up secure boot vars generation.
+      sed -i "s/'-serial', 'stdio',/'-serial', 'stdio', '-device', 'virtio-rng-pci',/" debian/python/UEFI/Qemu.py
 
       # Apply patches
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
       cp "${CRAFT_PROJECT_DIR}/patches/edk2-0002-logo.bmp" MdeModulePkg/Logo/Logo.bmp
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0003-boot-delay.patch"
-      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0004-gcc-errors.patch"
-      patch --binary -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0005-disable-dynamic-mmio-winsize.patch"
-      patch --binary -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0006-disable-EFI-memory-attributes-protocol.patch"
-      patch --binary -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0007-Disable-the-Shell-when-SecureBoot-is-enabled.patch"
-      # revert "ArmVirtPkg: make EFI_LOADER_DATA non-executable" as it breaks almost everything
-      patch --binary -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0008-Revert-ArmVirtPkg-make-EFI_LOADER_DATA-non-execurable.patch"
 
-      # Arch-specific logic
-      ARCH="X64"
-      PKG="OvmfPkg/OvmfPkgX64.dsc"
-      FV_CODE="OVMF_CODE"
-      FV_VARS="OVMF_VARS"
-      if [ "$(uname -m)" = "aarch64" ]; then
-          ARCH="AARCH64"
-          PKG="ArmVirtPkg/ArmVirtQemu.dsc"
-          FV_CODE="QEMU_EFI"
-          FV_VARS="QEMU_VARS"
+      # Install files destination
+      mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
+
+      if [ "$(uname -m)" = "x86_64" ]; then
+          DSC="OvmfPkg/OvmfPkgX64.dsc"
+          BUILD_TARGET="build-ovmf"
+          SRC_DIR="debian/ovmf-install"
+          SRC_CODE="OVMF_CODE_4M.secboot.fd"
+          SRC_VARS="OVMF_VARS_4M.fd"
+          SRC_VARS_MS="OVMF_VARS_4M.ms.fd"
+          SED_EXPR="s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g"
+      elif [ "$(uname -m)" = "aarch64" ]; then
+          DSC="ArmVirtPkg/ArmVirt.dsc.inc"
+          BUILD_TARGET="build-qemu-efi-aarch64"
+          SRC_DIR="debian/aavmf-install"
+          SRC_CODE="AAVMF_CODE.secboot.fd"
+          SRC_VARS="AAVMF_VARS.fd"
+          SRC_VARS_MS="AAVMF_VARS.ms.fd"
+          SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
       fi
 
-      # Run in a bash sub-shell as edksetup.sh requires it
-      build_edk2() {
-          TARGET_CODE="$1"
-          shift
-          TARGET_VARS="$1"
-          shift
-          TARGET_BUILD_TYPE="$1"
-          shift
+      # Function to run build and install
+      run_build() {
+          TYPE=$1
+          SUFFIX=$2
 
-          set -ex
-          (
-          cat << EOF
-              . ./edksetup.sh
-              make -C BaseTools ARCH="${ARCH}"
-              build -a "${ARCH}" -t GCC5 -b "${TARGET_BUILD_TYPE}" -p "${PKG}" \
-                -DSMM_REQUIRE=FALSE \
-                -DSECURE_BOOT_ENABLE=TRUE \
-                -DNETWORK_IP4_ENABLE=TRUE \
-                -DNETWORK_IP6_ENABLE=TRUE \
-                -DNETWORK_TLS_ENABLE=TRUE \
-                -DNETWORK_HTTP_BOOT_ENABLE=TRUE \
-                -DTPM2_ENABLE=TRUE \
-                -DTPM2_CONFIG_ENABLE=TRUE \
-                $@
-      EOF
-          ) | bash -e
+          # Clean up previous build stamps/artifacts to ensure clean rebuild with new TYPE
+          rm -f debian/setup-build-stamp
+          rm -rf debian/*-install
+          rm -rf Build
 
-          cp Build/*/${TARGET_BUILD_TYPE}*/FV/${FV_CODE}.fd "${TARGET_CODE}"
-          cp Build/*/${TARGET_BUILD_TYPE}*/FV/${FV_VARS}.fd "${TARGET_VARS}"
+          if [ "${TYPE}" = "DEBUG" ]; then
+              cp "${DSC}" "${DSC}.bak"
+              sed -i "${SED_EXPR}" "${DSC}"
+          fi
 
-          if [ "$(uname -m)" = "aarch64" ]; then
-              truncate -s 64m "${TARGET_CODE}"
-              truncate -s 64m "${TARGET_VARS}"
+          /usr/bin/make -f debian/rules "${BUILD_TARGET}" BUILD_TYPE="${TYPE}"
+
+          if [ "${TYPE}" = "DEBUG" ] && [ -f "${DSC}.bak" ]; then
+              mv "${DSC}.bak" "${DSC}"
+          fi
+
+          cp "${SRC_DIR}/${SRC_CODE}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB${SUFFIX}.fd"
+          cp "${SRC_DIR}/${SRC_VARS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB${SUFFIX}.fd"
+
+          if [ "${TYPE}" = "RELEASE" ]; then
+               cp "${SRC_DIR}/${SRC_VARS_MS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
           fi
       }
 
-      # Create the firmware path
-      mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
+      # Build Release
+      run_build RELEASE ""
 
-      # Primary firmware (4MB)
-      build_edk2 \
-        "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB.fd" \
-        "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.fd" \
-        RELEASE \
-        -DFD_SIZE_4MB
+      # Build Debug
+      run_build DEBUG ".debug"
 
-      # Debug firmware (4MB, debug mode)
-      # Can be enabled with the LXD boot.debug_edk2 instance option
-      # Set DEBUG_VERBOSE flag
-      if [ "$(uname -m)" = "aarch64" ]; then
-          sed -i "s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g" ArmVirtPkg/ArmVirt.dsc.inc
-      fi
-      if [ "$(uname -m)" = "x86_64" ]; then
-          sed -i "s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g" "${PKG}"
-      fi
-      build_edk2 \
-        "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB.debug.fd" \
-        "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd" \
-        DEBUG \
-        -DFD_SIZE_4MB
+      # Cleanup debug vars
       rm "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd"
     prime:
       - share/qemu/*
@@ -822,6 +828,7 @@ parts:
       - --disable-qed
       - --disable-sdl
       - --disable-slirp
+      - --disable-tcg  # See note about TCG in the override-build section
       - --disable-user
       - --disable-vde
       - --disable-vdi
@@ -843,7 +850,6 @@ parts:
       - --enable-seccomp
       - --enable-spice
       - --enable-system
-      - --enable-tcg
       - --enable-tools
       - --enable-vhost-crypto
       - --enable-vhost-kernel
@@ -922,6 +928,15 @@ parts:
       sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
 
+      # TCG is not used (nor supported) at runtime however it may be needed at
+      # build time by the `edk2` part if KVM acceleration is not available.
+      # `edk2` is only built for `amd64` and `arm64` and Launchpad `amd64`
+      # builders support KVM acceleration so TCG is only needed on `arm64`.
+      if [ "${QEMUARCH}" = "aarch64" ]; then
+        # Append `--enable-tcg`. If `--disable-tcg` was previously set, this will override it.
+        sed -i '1 a set -- "$@" --enable-tcg' configure
+      fi
+
       # Extract efi-virtio.rom from ipxe-qemu.
       # This doesn't work in the organize section below.
       mkdir -p "${CRAFT_PART_INSTALL}"/share/qemu
@@ -966,58 +981,6 @@ parts:
       - share/qemu/vgabios-ramfb.bin
       - share/qemu/vgabios-stdvga.bin
       - share/qemu/vgabios-virtio.bin
-
-  qemu-ovmf-secureboot:
-    after:
-      - edk2
-      - qemu
-    source: edk2-vars-generator
-    plugin: nil
-    build-packages:
-      - to amd64:
-        - dosfstools
-        - mtools
-        - python3-pexpect
-        - xorriso
-      - to arm64:
-        - dosfstools
-        - mtools
-        - python3-pexpect
-        - xorriso
-    override-stage: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-
-      export ARCH="$(basename "$(readlink -f "${CRAFT_STAGE}"/lib/*-linux-gnu*/)")"
-      export LD_LIBRARY_PATH="${CRAFT_STAGE}/lib:${CRAFT_STAGE}/lib/${ARCH}"
-
-      set -ex
-
-      FIRMWARE="OVMF"
-      if [ "$(uname -m)" = "aarch64" ]; then
-        FIRMWARE="AAVMF"
-      fi
-
-      mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
-
-      # 4MB variant
-      ./edk2-vars-generator -f "${FIRMWARE}" \
-        -e ../../edk2/build/Build/*/RELEASE*/*/EnrollDefaultKeys.efi \
-        -s ../../edk2/build/Build/*/RELEASE*/*/Shell.efi \
-        -c "${CRAFT_STAGE}/share/qemu/OVMF_CODE.4MB.fd" \
-        -V "${CRAFT_STAGE}/share/qemu/OVMF_VARS.4MB.fd" \
-        -C "$(cat ubuntu-sb.crt)" \
-        -o "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
-    prime:
-      - share/qemu/*
 
   squashfs-tools-ng:
     plugin: nil
@@ -1389,7 +1352,7 @@ parts:
   uefivars:
     after:
       - spice-server
-      - qemu-ovmf-secureboot
+      - edk2
       - nftables
     # XXX: cannot use python3-pyuefivars (1.0.0-0ubuntu2) from Noble as the Ubuntu patch breaks it
     #      the version in Ubuntu 24.10 onward should be OK so let's revisit with core26.
@@ -1631,7 +1594,6 @@ parts:
       - nvidia-container
       - openvswitch
       - ovn
-      - qemu-ovmf-secureboot
       - spice-server
       - squashfs-tools-ng
       - swtpm
