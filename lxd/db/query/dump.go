@@ -98,7 +98,7 @@ func getTableData(ctx context.Context, tx *sql.Tx, table string) ([]string, erro
 	var statements []string
 
 	// Query all rows.
-	rows, err := tx.QueryContext(ctx, "SELECT * FROM "+table+" ORDER BY rowid")
+	rows, err := tx.QueryContext(ctx, "SELECT * FROM "+table)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch rows for table %q: %w", table, err)
 	}
