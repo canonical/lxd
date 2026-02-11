@@ -109,7 +109,7 @@ func (proCLI) getGuestToken(ctx context.Context) (*api.DevLXDUbuntuProGuestToken
 // isHostAttached returns true if the host is attached to a pro subscription with a valid contract.
 func (proCLI) isHostAttached(ctx context.Context) (bool, error) {
 	// Run pro status command.
-	response, err := shared.RunCommand(ctx, "pro", "api", "u.pro.status.is_attached.v1")
+	response, err := shared.RunCommand("pro", "api", "u.pro.status.is_attached.v1") //nolint:staticcheck
 	if err != nil {
 		return false, fmt.Errorf("Ubuntu Pro client command unsuccessful: %w", err)
 	}
