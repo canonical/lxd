@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -22,6 +23,30 @@ type AuthGroupsRow struct {
 // APIName implements [query.APINamer] for API friendly error messages.
 func (AuthGroupsRow) APIName() string {
 	return "Authorization group"
+}
+
+// AuthGroupExists returns true if an AuthGroup exists and false otherwise.
+func AuthGroupExists(ctx context.Context, tx *sql.Tx, groupName string) (bool, error) {
+	_, err := GetAuthGroup(ctx, tx, groupName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
+// GetAuthGroup gets a single AuthGroup by name.
+func GetAuthGroup(ctx context.Context, tx *sql.Tx, groupName string) (*AuthGroupsRow, error) {
+	group, err := query.SelectOne[AuthGroupsRow](ctx, tx, "WHERE name = ?", groupName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading authorization group: %w", err)
+	}
+
+	return group, nil
 }
 
 // ToAPI converts the Group to an api.AuthGroup, making extra database queries as necessary.
