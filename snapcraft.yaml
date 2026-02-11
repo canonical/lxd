@@ -405,6 +405,12 @@ parts:
           SRC_CODE="OVMF_CODE_4M.secboot.fd"
           SRC_VARS="OVMF_VARS_4M.fd"
           SRC_VARS_MS="OVMF_VARS_4M.ms.fd"
+          # Add DEBUG_VERBOSE to print error level for DEBUG build
+          # * 0x80000000 (DEBUG_ERROR)
+          # * 0x00000040 (DEBUG_INFO)
+          # * 0x0000000F (Bits 0-3: DEBUG_INIT, DEBUG_WARN, DEBUG_LOAD, DEBUG_FS)
+          # = 0x8000004F
+          # Adding 0x00400000 (DEBUG_VERBOSE) gives 0x8040004F
           SED_EXPR="s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g"
       elif [ "$(uname -m)" = "aarch64" ]; then
           DSC="ArmVirtPkg/ArmVirt.dsc.inc"
@@ -413,6 +419,7 @@ parts:
           SRC_CODE="AAVMF_CODE.secboot.fd"
           SRC_VARS="AAVMF_VARS.fd"
           SRC_VARS_MS="AAVMF_VARS.ms.fd"
+          # See note in `x86_64` section for DEBUG_VERBOSE explanation
           SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
       fi
 
@@ -427,6 +434,7 @@ parts:
           rm -rf Build
 
           if [ "${TYPE}" = "DEBUG" ]; then
+              # Add `DEBUG_VERBOSE` to print error level for DEBUG build
               sed --in-place=.bak "${SED_EXPR}" "${DSC}"
           fi
 
