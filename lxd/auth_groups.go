@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -190,7 +191,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	groupsIdentityProviderGroups := make(map[int64][]dbCluster.IdentityProviderGroup)
 	entityURLs := make(map[entity.Type]map[int]*api.URL)
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		allGroups, err := dbCluster.GetAuthGroups(ctx, tx.Tx())
+		allGroups, err := query.Select[dbCluster.AuthGroup](ctx, tx.Tx(), "")
 		if err != nil {
 			return err
 		}
@@ -354,7 +355,7 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		groupID, err := dbCluster.CreateAuthGroup(ctx, tx.Tx(), dbCluster.AuthGroup{
+		groupID, err := query.Create(ctx, tx.Tx(), dbCluster.AuthGroup{
 			Name:        group.Name,
 			Description: group.Description,
 		})
@@ -366,7 +367,7 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), int(groupID), validatedPermissions)
+		err = dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), groupID, validatedPermissions)
 		if err != nil {
 			return err
 		}
@@ -541,10 +542,9 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = dbCluster.UpdateAuthGroup(ctx, tx.Tx(), groupName, dbCluster.AuthGroup{
-			Name:        groupName,
-			Description: groupPut.Description,
-		})
+		group.Description = groupPut.Description
+
+		err = query.Update(ctx, tx.Tx(), *group)
 		if err != nil {
 			return err
 		}
@@ -621,14 +621,12 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	newPermissions := make([]api.Permission, 0, len(groupPut.Permissions))
-	var groupID int
+	var group *dbCluster.AuthGroup
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
+		group, err = dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
 		if err != nil {
 			return err
 		}
-
-		groupID = group.ID
 
 		apiGroup, err := group.ToAPI(ctx, tx.Tx(), canViewIdentity, canViewIDPGroup)
 		if err != nil {
@@ -638,16 +636,6 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 		err = util.EtagCheck(r, *apiGroup)
 		if err != nil {
 			return err
-		}
-
-		if groupPut.Description != "" {
-			err = dbCluster.UpdateAuthGroup(ctx, tx.Tx(), groupName, dbCluster.AuthGroup{
-				Name:        groupName,
-				Description: groupPut.Description,
-			})
-			if err != nil {
-				return err
-			}
 		}
 
 		for _, permission := range groupPut.Permissions {
@@ -668,7 +656,15 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), groupID, newDBPermissions)
+		if groupPut.Description != "" {
+			group.Description = groupPut.Description
+			err = query.Update(ctx, tx.Tx(), *group)
+			if err != nil {
+				return err
+			}
+		}
+
+		return dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), group.ID, newDBPermissions)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -730,7 +726,13 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.RenameAuthGroup(ctx, tx.Tx(), groupName, groupPost.Name)
+		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
+		if err != nil {
+			return err
+		}
+
+		group.Name = groupPost.Name
+		return query.Update(ctx, tx.Tx(), group)
 	})
 	if err != nil {
 		if api.StatusErrorCheck(err, http.StatusConflict) {
@@ -777,7 +779,7 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.DeleteAuthGroup(ctx, tx.Tx(), groupName)
+		return query.DeleteOne[dbCluster.AuthGroup](ctx, tx.Tx(), "WHERE name = ?", groupName)
 	})
 	if err != nil {
 		return response.SmartError(err)
