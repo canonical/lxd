@@ -418,8 +418,8 @@ parts:
 
       # Function to run build and install
       run_build() {
-          TYPE=$1
-          SUFFIX=$2
+          local TYPE="${1}"
+          local SUFFIX="${2}"
 
           # Clean up previous build stamps/artifacts to ensure clean rebuild with new TYPE
           rm -f debian/setup-build-stamp
