@@ -15,6 +15,7 @@ import (
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -34,7 +35,7 @@ func Test_patchSplitIdentityCertificateEntityTypes(t *testing.T) {
 		var err error
 
 		// Create a group.
-		groupID, err = dbCluster.CreateAuthGroup(ctx, tx.Tx(), dbCluster.AuthGroup{
+		groupID, err = query.Create(ctx, tx.Tx(), dbCluster.AuthGroup{
 			Name: "test-group",
 		})
 		require.NoError(t, err)

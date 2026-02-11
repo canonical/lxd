@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -151,7 +152,7 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if recursion == "1" {
-			groups, err = cluster.GetAuthGroups(ctx, tx.Tx())
+			groups, err = query.Select[cluster.AuthGroup](ctx, tx.Tx(), "")
 			if err != nil {
 				return fmt.Errorf("Failed to get groups: %w", err)
 			}
