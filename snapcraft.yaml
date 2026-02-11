@@ -1333,6 +1333,10 @@ parts:
       mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
       rm -Rf "${CRAFT_PART_INSTALL}.tmp"
 
+      # unused .so
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+
   zstd:
     after:
       - libatomic
