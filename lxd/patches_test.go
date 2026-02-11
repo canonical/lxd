@@ -27,16 +27,17 @@ func Test_patchSplitIdentityCertificateEntityTypes(t *testing.T) {
 	defer cleanup()
 	ctx := cancel.New()
 
-	var groupID int
+	var groupID int64
 	var certificateID int
 	var identityID int
 	err := cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
 		// Create a group.
-		groupIDint64, err := dbCluster.CreateAuthGroup(ctx, tx.Tx(), dbCluster.AuthGroup{
+		groupID, err = dbCluster.CreateAuthGroup(ctx, tx.Tx(), dbCluster.AuthGroup{
 			Name: "test-group",
 		})
 		require.NoError(t, err)
-		groupID = int(groupIDint64)
 
 		// Create a certificate
 		cert, _, err := shared.GenerateMemCert(true, shared.CertOptions{})
