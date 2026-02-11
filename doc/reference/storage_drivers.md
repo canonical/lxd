@@ -75,32 +75,33 @@ Feature                                     | Directory | Btrfs | LVM   | ZFS   
 {ref}`storage-optimized-image-storage`      | ❌        | ✅   | ✅     | ✅     | ✅       | ➖     | ➖          | ❌              | ✅          | ✅
 Optimized instance creation                 | ❌        | ✅   | ✅     | ✅     | ✅       | ➖     | ➖          | ❌              | ✅          | ✅
 Optimized snapshot creation                 | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
-Optimized image transfer                    | ❌        | ✅   | ❌     | ✅     | ✅       | ➖     | ➖          | ❌              | ✅          | ✅
+Optimized image transfer                    | ❌        | ✅   | ❌     | ✅     | ✅       | ➖     | ➖          | ❌              | ❌          | ❌
 Optimized backup (import/export)            | ❌        | ✅   | ❌     | ✅     | ❌       | ➖     | ➖          | ❌              | ❌          | ❌
 {ref}`storage-optimized-volume-transfer`    | ❌        | ✅   | ❌     | ✅     | ✅[^1]   | ➖     | ➖          | ❌              | ❌          | ❌
-{ref}`storage-optimized-volume-refresh`     | ❌        | ✅   | ✅[^2] | ✅     | ✅[^3]   | ➖     | ➖          | ❌              | ❌          | ❌
+{ref}`storage-optimized-volume-refresh`     | ❌        | ✅   | ✅[^2] | ✅     | ✅[^3]   | ➖     | ➖          | ❌              | ✅[^4]      | ✅[^4]
 Copy on write                               | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
 Block based                                 | ❌        | ❌   | ✅     | ❌      | ✅      | ❌     | ➖          | ✅              | ✅          | ✅
 Instant cloning                             | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ❌              | ✅          | ❌
-Storage driver usable inside a container    | ✅        | ✅   | ❌     | ✅[^4] | ❌       | ➖     | ➖          | ❌              | ❌          | ❌
+Storage driver usable inside a container    | ✅        | ✅   | ❌     | ✅[^5] | ❌       | ➖     | ➖          | ❌              | ❌          | ❌
 Restore from older snapshots (not latest)   | ✅        | ✅   | ✅     | ❌      | ✅      | ✅     | ➖          | ✅              | ✅          | ✅
-Storage quotas                              | ✅[^5]    | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅              | ✅          | ✅
+Storage quotas                              | ✅[^6]    | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅              | ✅          | ✅
 Available on `lxd init`                     | ✅        | ✅   | ✅     | ✅     | ✅       | ❌     | ❌          | ❌              | ❌          | ❌
 Object storage                              | ✅        | ✅   | ✅     | ✅     | ❌       | ❌     | ✅          | ❌              | ❌          | ❌
-Volume recovery                             | ✅        | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅[^6]          | ✅[^6]      | ❌
+Volume recovery                             | ✅        | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅[^7]          | ✅[^7]      | ❌
 
 [^1]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
 [^2]: Requires {config:option}`storage-lvm-pool-conf:lvm.use_thinpool` to be enabled. Only when refreshing local volumes.
 [^3]: Only for volumes of type `block`.
-[^4]: Requires {config:option}`storage-zfs-volume-conf:zfs.delegate` to be enabled.
-[^5]: % Include content from [storage_dir.md](storage_dir.md)
+[^4]: Only when refreshing volumes on the same LXD server using the same storage array.
+[^5]: Requires {config:option}`storage-zfs-volume-conf:zfs.delegate` to be enabled.
+[^6]: % Include content from [storage_dir.md](storage_dir.md)
 
       ```{include} storage_dir.md
          :start-after: <!-- Include start dir quotas -->
          :end-before: <!-- Include end dir quotas -->
       ```
 
-[^6]: Custom volumes can only be recovered when attached to an instance due to the use of transformed volume names.
+[^7]: Custom volumes can only be recovered when attached to an instance due to the use of transformed volume names.
 
 (storage-optimized-image-storage)=
 ### Optimized image storage
