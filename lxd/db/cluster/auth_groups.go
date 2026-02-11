@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -17,6 +18,25 @@ type AuthGroup struct {
 	ID          int64  `db:"id"`
 	Name        string `db:"name"`
 	Description string `db:"description"`
+}
+
+// AuthGroupExists returns true if an AuthGroup exists and false otherwise.
+func AuthGroupExists(ctx context.Context, tx *sql.Tx, groupName string) (bool, error) {
+	_, err := GetAuthGroup(ctx, tx, groupName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("Failed to query for auth groups by name: %w", err)
+	}
+
+	return true, nil
+}
+
+// GetAuthGroup gets a single AuthGroup by name.
+func GetAuthGroup(ctx context.Context, tx *sql.Tx, groupName string) (*AuthGroup, error) {
+	return query.SelectOne[AuthGroup](ctx, tx, "WHERE name = ?", groupName)
 }
 
 // ToAPI converts the Group to an api.AuthGroup, making extra database queries as necessary.
