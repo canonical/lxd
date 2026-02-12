@@ -97,6 +97,7 @@ const (
 	ImageUploadToken
 	ImageUpload
 	InstanceCopy
+	VolumeSnapshotsCreateScheduled
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -251,6 +252,8 @@ func (t Type) Description() string {
 		return "Removing expired OIDC sessions"
 	case ImageUpload:
 		return "Uploading image"
+	case VolumeSnapshotsCreateScheduled:
+		return "Creating scheduled volume snapshots"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -267,7 +270,7 @@ func (t Type) EntityType() entity.Type {
 		ImagesSynchronize, RemoveExpiredOIDCSessions, RemoveExpiredTokens, RemoveOrphanedOperations,
 		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
-		ClusterHeal, ImagesUpdate:
+		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled:
 		return entity.TypeServer
 
 	// Project level operations.
