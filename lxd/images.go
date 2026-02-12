@@ -1204,7 +1204,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// We need to invalidate the secret whether the source is trusted or not.
-	op, err := imageValidSecret(s, r, dbProject.Name, fingerprint, secret)
+	op, err := imageValidSecret(s, r, dbProject.Name, fingerprint, secret, operationtype.ImageUploadToken)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3217,28 +3217,21 @@ func doImageGet(ctx context.Context, tx *db.ClusterTx, project, fingerprint stri
 	return imgInfo, nil
 }
 
-// imageValidSecret searches for an ImageToken operation running on any member in the default project that has an
-// images resource matching the specified fingerprint and the metadata secret field matches the specified secret.
+// imageValidSecret searches for an image upload or download token operation running on any member in the given
+// project that has a matching fingerprint and secret in its metadata.
 // If an operation is found it is returned and the operation is cancelled. Otherwise nil is returned if not found.
-func imageValidSecret(s *state.State, r *http.Request, projectName string, fingerprint string, secret string) (*api.Operation, error) {
-	ops, err := operationsGetByType(r.Context(), s, projectName, operationtype.ImageToken)
+func imageValidSecret(s *state.State, r *http.Request, projectName string, fingerprint string, secret string, tokenType operationtype.Type) (*api.Operation, error) {
+	ops, err := operationsGetByType(r.Context(), s, projectName, tokenType)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting image token operations: %w", err)
 	}
 
-	fingerprintURLPath := api.NewURL().Path(version.APIVersion, "images", fingerprint).String()
-
 	for _, op := range ops {
-		if op.Resources == nil {
+		if op.Metadata == nil {
 			continue
 		}
 
-		opImages, ok := op.Resources["images"]
-		if !ok {
-			continue
-		}
-
-		if !shared.StringPrefixInSlice(fingerprintURLPath, opImages) {
+		if op.Metadata["fingerprint"] != fingerprint {
 			continue
 		}
 
@@ -3413,7 +3406,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	if secret != "" {
 		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
 		// privilege. This is to ensure the image token operation is cancelled.
-		op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret)
+		op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret, operationtype.ImageDownloadToken)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -4527,7 +4520,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	if secret != "" {
 		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
 		// privilege. This is to ensure the image token operation is cancelled.
-		op, err := imageValidSecret(s, r, projectName, imgInfo.Fingerprint, secret)
+		op, err := imageValidSecret(s, r, projectName, imgInfo.Fingerprint, secret, operationtype.ImageDownloadToken)
 		if err != nil {
 			return response.SmartError(err)
 		}
