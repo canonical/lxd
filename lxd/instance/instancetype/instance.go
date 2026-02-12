@@ -32,6 +32,13 @@ const ConfigVolatilePrefix = "volatile."
 // TargetClusterGroupPrefix indicates the prefix used for target cluster group names.
 const TargetClusterGroupPrefix = "@"
 
+// Boot mode configuration values.
+const (
+	BootModeUEFISecureBoot   = "uefi-secureboot"
+	BootModeUEFINoSecureBoot = "uefi-nosecureboot"
+	BootModeBIOS             = "bios"
+)
+
 // ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
 var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image.", "cloud-init.ssh-keys."}
 
@@ -1132,25 +1139,17 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: Whether the `lxd-agent` is queried for state information and metrics
 	"security.agent.metrics": validate.Optional(validate.IsBool),
 
-	// lxdmeta:generate(entities=instance; group=security; key=security.csm)
-	// When enabling this option, set {config:option}`instance-security:security.secureboot` to `false`.
+	// lxdmeta:generate(entities=instance; group=boot; key=boot.mode)
+	// The `uefi-secureboot` mode uses UEFI firmware with secure boot enabled.
+	// The `uefi-nosecureboot` mode uses UEFI firmware with secure boot disabled.
+	// The `bios` mode is supported only on `x86_64` (`amd64`).
 	// ---
-	//  type: bool
-	//  defaultdesc: `false`
+	//  type: string
+	//  defaultdesc: `uefi-secureboot`
 	//  liveupdate: no
 	//  condition: virtual machine
-	//  shortdesc: Whether to use a firmware that supports UEFI-incompatible operating systems
-	"security.csm": validate.Optional(validate.IsBool),
-
-	// lxdmeta:generate(entities=instance; group=security; key=security.secureboot)
-	// When disabling this option, consider enabling {config:option}`instance-security:security.csm`.
-	// ---
-	//  type: bool
-	//  defaultdesc: `true`
-	//  liveupdate: no
-	//  condition: virtual machine
-	//  shortdesc: Whether UEFI secure boot is enabled with the default Microsoft keys
-	"security.secureboot": validate.Optional(validate.IsBool),
+	//  shortdesc: Boot firmware mode for the VM (uefi-secureboot, uefi-nosecureboot or bios)
+	"boot.mode": validate.Optional(validate.IsOneOf(BootModeUEFISecureBoot, BootModeUEFINoSecureBoot, BootModeBIOS)),
 
 	// lxdmeta:generate(entities=instance; group=security; key=security.sev)
 	//

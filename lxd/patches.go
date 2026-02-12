@@ -115,6 +115,7 @@ var patches = []patch{
 	{name: "storage_unset_cephfs_pristine_setting", stage: patchPostDaemonStorage, run: patchUnsetCephFSPristineSetting},
 	{name: "update_volatile_attached_volumes_format", stage: patchPostDaemonStorage, run: patchUpdateVolatileAttachedVolumesFormat},
 	{name: "storage_unset_ceph_force_reuse_setting", stage: patchPostDaemonStorage, run: patchUnsetCephForceReuseSetting},
+	{name: "vm_rename_security_csm", stage: patchPostDaemonStorage, run: patchVMRenameSecurityCSM},
 }
 
 type patch struct {
@@ -2038,6 +2039,154 @@ func patchUnsetCephForceReuseSetting(_ string, d *Daemon) error {
 DELETE FROM storage_pools_config WHERE key = "ceph.osd.force_reuse"
 	`)
 	return err
+}
+
+// patchVMRenameSecurityCSM migrates VM boot config keys to boot.mode in instance, snapshot, and profile configs.
+// Converts legacy keys:
+// - security.csm=true -> boot.mode=bios.
+// - security.secureboot=false -> boot.mode=uefi-nosecureboot.
+// - default/no explicit secureboot -> boot.mode=uefi-secureboot.
+func patchVMRenameSecurityCSM(name string, d *Daemon) error {
+	oldCSMKey := "security.csm"
+	oldSecureBootKey := "security.secureboot"
+	newKey := "boot.mode"
+
+	s := d.State()
+
+	// Only run on a single cluster member to avoid concurrent updates.
+	isSelectedMember, err := selectedPatchClusterMember(s)
+	if err != nil {
+		return err
+	}
+
+	if !isSelectedMember {
+		return nil
+	}
+
+	return s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
+			if inst.Type != instancetype.VM {
+				return nil
+			}
+
+			csmValue := inst.Config[oldCSMKey]
+			secureBootValue := inst.Config[oldSecureBootKey]
+			if csmValue != "" || secureBootValue != "" {
+				targetMode := instancetype.BootModeUEFISecureBoot
+				if shared.IsTrue(csmValue) {
+					targetMode = instancetype.BootModeBIOS
+				} else if shared.IsFalse(secureBootValue) {
+					targetMode = instancetype.BootModeUEFINoSecureBoot
+				}
+
+				changes := map[string]string{}
+				if csmValue != "" {
+					changes[oldCSMKey] = "" // Remove old key.
+				}
+
+				if secureBootValue != "" {
+					changes[oldSecureBootKey] = "" // Remove old key.
+				}
+
+				changes[newKey] = targetMode
+				logger.Debugf("Converting VM %q (project %q) boot config to %q=%q", inst.Name, inst.Project, newKey, targetMode)
+
+				err := tx.UpdateInstanceConfig(inst.ID, changes)
+				if err != nil {
+					return fmt.Errorf("Failed updating config for VM %q (project %q): %w", inst.Name, inst.Project, err)
+				}
+			}
+
+			snaps, err := tx.GetInstanceSnapshotsWithName(ctx, inst.Project, inst.Name)
+			if err != nil {
+				return err
+			}
+
+			for _, snap := range snaps {
+				config, err := dbCluster.GetInstanceSnapshotConfig(ctx, tx.Tx(), snap.ID)
+				if err != nil {
+					return err
+				}
+
+				csmValue := config[oldCSMKey]
+				secureBootValue := config[oldSecureBootKey]
+				if csmValue != "" || secureBootValue != "" {
+					targetMode := instancetype.BootModeUEFISecureBoot
+					if shared.IsTrue(csmValue) {
+						targetMode = instancetype.BootModeBIOS
+					} else if shared.IsFalse(secureBootValue) {
+						targetMode = instancetype.BootModeUEFINoSecureBoot
+					}
+
+					changes := map[string]string{}
+					if csmValue != "" {
+						changes[oldCSMKey] = "" // Remove old key.
+					}
+
+					if secureBootValue != "" {
+						changes[oldSecureBootKey] = "" // Remove old key.
+					}
+
+					changes[newKey] = targetMode
+					logger.Debugf("Converting VM snapshot %q (project %q) boot config to %q=%q", snap.Name, snap.Project, newKey, targetMode)
+
+					err = tx.UpdateInstanceSnapshotConfig(snap.ID, changes)
+					if err != nil {
+						return fmt.Errorf("Failed updating config for VM snapshot %q (project %q): %w", snap.Name, snap.Project, err)
+					}
+				}
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+
+		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		for _, profile := range profiles {
+			config, err := dbCluster.GetProfileConfig(ctx, tx.Tx(), profile.ID)
+			if err != nil {
+				return err
+			}
+
+			csmValue := config[oldCSMKey]
+			secureBootValue := config[oldSecureBootKey]
+			if csmValue == "" && secureBootValue == "" {
+				continue
+			}
+
+			targetMode := instancetype.BootModeUEFISecureBoot
+			if shared.IsTrue(csmValue) {
+				targetMode = instancetype.BootModeBIOS
+			} else if shared.IsFalse(secureBootValue) {
+				targetMode = instancetype.BootModeUEFINoSecureBoot
+			}
+
+			if csmValue != "" {
+				delete(config, oldCSMKey)
+			}
+
+			if secureBootValue != "" {
+				delete(config, oldSecureBootKey)
+			}
+
+			config[newKey] = targetMode
+			logger.Debugf("Converting profile %q (project %q) boot config to %q=%q", profile.Name, profile.Project, newKey, targetMode)
+
+			err = dbCluster.UpdateProfileConfig(ctx, tx.Tx(), int64(profile.ID), config)
+			if err != nil {
+				return fmt.Errorf("Failed updating config for profile %q (project %q): %w", profile.Name, profile.Project, err)
+			}
+		}
+
+		return nil
+	})
 }
 
 // Patches end here
