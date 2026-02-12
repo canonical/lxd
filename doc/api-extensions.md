@@ -2921,3 +2921,9 @@ The new setting accepts:
 * `uefi-secureboot` (default) - Use UEFI firmware with secure boot enabled
 * `uefi-nosecureboot` - Use UEFI firmware with secure boot disabled
 * `bios` - Use legacy BIOS firmware (SeaBIOS), `x86_64` (`amd64`) only
+
+(extension-auth-bearer-lxd)=
+## `auth_bearer`
+
+Adds new identity type `bearer` that allows authentication with the LXD API using bearer tokens.
+See {ref}`LXD bearer tokens <authentication-bearer>`.

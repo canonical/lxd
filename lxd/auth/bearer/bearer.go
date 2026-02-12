@@ -19,13 +19,25 @@ import (
 // IsDevLXDRequest returns true if the caller sent a bearer token in the Authorization header that is a JWT and appears to
 // have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
 func IsDevLXDRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
+	return isRequestFromAudience(r, clusterUUID, encryption.DevLXDAudience(clusterUUID))
+}
+
+// IsAPIRequest returns true if the caller sent a bearer token in the Authorization header that is a JWT and appears to
+// have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
+func IsAPIRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
+	return isRequestFromAudience(r, clusterUUID, encryption.LXDAudience(clusterUUID))
+}
+
+// isRequestFromAudience returns true if the caller sent a bearer token in the Authorization header that is a JWT and appears to
+// have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
+func isRequestFromAudience(r *http.Request, clusterUUID string, audience string) (isRequest bool, token string, subject string) {
 	// Check Authorization header for bearer token.
 	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if !ok || token == "" {
 		return false, "", ""
 	}
 
-	subject, _, err := isLXDToken(token, clusterUUID, encryption.DevLXDAudience(clusterUUID))
+	subject, _, err := isLXDToken(token, clusterUUID, audience)
 	if err != nil {
 		return false, "", ""
 	}

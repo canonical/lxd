@@ -280,8 +280,24 @@ test_devlxd_volume_management() {
     lxc auth group permission add "${authGroup}" instance "${inst}" can_view project="${project}"
     lxc auth identity group add "${authIdentity}" "${authGroup}"
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq --exit-status .name
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered == false'
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment.server_clustered == false'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq --exit-status '.auth == "trusted"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq --exit-status '.auth == "trusted"'
+
+    # Ensure DevLXD authentication does not accept LXD bearer token.
+    # Set same permissions to the LXD bearer token as to DevLXD bearer token
+    # and ensure it is not allowed to do any operation.
+    lxc auth identity create bearer/test-with-devlxd --group "${authGroup}"
+    lxdToken=$(lxc auth identity token issue bearer/test-with-devlxd --quiet)
+
+    # First, query LXD API directly to ensure the token is trusted by LXD API.
+    curl -s -k -H "Authorization: Bearer ${lxdToken}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+    # Now, ensure that the valid LXD token is not trusted by DevLXD.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${lxdToken}" -- devlxd-client get-state | jq --exit-status '.auth == "untrusted"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${lxdToken}" -- devlxd-client query GET /1.0 | jq --exit-status '.auth == "untrusted"'
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${lxdToken}" -- devlxd-client instance get "${inst}")" = "You must be authenticated" ]
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${lxdToken}" -- devlxd-client storage get invalid-pool)" = "You must be authenticated" ]
+    lxc auth identity delete bearer/test-with-devlxd
 
     # Test devLXD authorization (volume management security flag).
     # Fail when the security flag is not set.
