@@ -926,20 +926,23 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
+	projectShellQuoted := shared.ShellQuote(d.Project().Name)
+	instanceShellQuoted := shared.ShellQuote(d.Name())
+
 	// Call the onstart hook on start.
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), projectShellQuoted, instanceShellQuoted))
 	if err != nil {
 		return nil, err
 	}
 
 	// Call the onstopns hook on stop but before namespaces are unmounted.
-	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", d.state.OS.ExecPath, shared.VarPath(""), projectShellQuoted, instanceShellQuoted))
 	if err != nil {
 		return nil, err
 	}
 
 	// Call the onstop hook on stop.
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", d.state.OS.ExecPath, shared.VarPath(""), projectShellQuoted, instanceShellQuoted))
 	if err != nil {
 		return nil, err
 	}
@@ -6593,6 +6596,72 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 		containerMeta["privileged"] = "false"
 	}
 
+	// Setup security checks.
+	checkBeneath := func(targetPath string) error {
+		rootfsPath, err := os.OpenFile(d.RootfsPath(), unix.O_PATH, 0)
+		if err != nil {
+			return fmt.Errorf("Failed opening instance rootfs path: %w", err)
+		}
+
+		defer func() {
+			err := rootfsPath.Close()
+			if err != nil {
+				d.logger.Warn("Failed closing instance rootfs path", logger.Ctx{"err": err})
+			}
+		}()
+
+		fd, err := unix.Openat2(int(rootfsPath.Fd()), targetPath, &unix.OpenHow{
+			Flags:   unix.O_PATH | unix.O_CLOEXEC,
+			Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_MAGICLINKS,
+		})
+		if err != nil {
+			if errors.Is(err, unix.EXDEV) {
+				return errors.New("Template is attempting access to path outside of container")
+			}
+
+			return nil
+		}
+
+		err = unix.Close(fd)
+		if err != nil {
+			return fmt.Errorf("Failed closing file descriptor of %q: %w", targetPath, err)
+		}
+
+		return nil
+	}
+
+	securityChecks := func(path string, templateFile string) error {
+		// Ensure the path is within the container rootfs.
+		err = checkBeneath(path)
+		if err != nil {
+			return err
+		}
+
+		if filepath.Base(templateFile) != templateFile {
+			return errors.New("Template path is attempting to read outside of template directory")
+		}
+
+		tplDirStat, err := os.Lstat(d.TemplatesPath())
+		if err != nil {
+			return fmt.Errorf("Could not access template directory: %w", err)
+		}
+
+		if !tplDirStat.IsDir() {
+			return errors.New("Template directory is not a regular directory")
+		}
+
+		tplFileStat, err := os.Lstat(filepath.Join(d.TemplatesPath(), templateFile))
+		if err != nil {
+			return fmt.Errorf("Could not access template file: %w", err)
+		}
+
+		if tplFileStat.Mode()&os.ModeSymlink == os.ModeSymlink {
+			return errors.New("Template file is a symlink")
+		}
+
+		return nil
+	}
+
 	// Go through the templates
 	for tplPath, tpl := range metadata.Templates {
 		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
@@ -6611,8 +6680,16 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 				return nil
 			}
 
+			relPath := strings.TrimLeft(tplPath, "/")
+
+			// Perform some security checks.
+			err = securityChecks(relPath, tpl.Template)
+			if err != nil {
+				return fmt.Errorf("Template security check failed for %q: %w", tplPath, err)
+			}
+
 			// Open the file to template, create if needed
-			fullpath := filepath.Join(d.RootfsPath(), strings.TrimLeft(tplPath, "/"))
+			fullpath := filepath.Join(d.RootfsPath(), relPath)
 			if shared.PathExists(fullpath) {
 				if tpl.CreateOnly {
 					return nil

@@ -712,7 +712,13 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 	}
 
 	if strings.HasPrefix(key, "environment.") {
-		return validate.IsAny, nil
+		return func(val string) error {
+			if strings.Contains(val, "\n") {
+				return errors.New("Environment variables cannot contain line breaks")
+			}
+
+			return nil
+		}, nil
 	}
 
 	if strings.HasPrefix(key, "user.") {

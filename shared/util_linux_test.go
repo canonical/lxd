@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
 
@@ -95,5 +96,17 @@ func TestGetAllXattr(t *testing.T) {
 			t.Errorf("Expected to find extended attribute %s with a value of %s on directory but did not find it.", k, v)
 			return
 		}
+	}
+}
+
+func TestShellQuote(t *testing.T) {
+	// Check that the input argument passed to "/bin/sh echo -n" is printed unmodified.
+	for _, in := range []string{
+		"hello\tworld with tab",  // Tab character is preserved.
+		`'hello"\"$foo\t'world'`, // Mixed quotes and literal backslash t are preserved.
+	} {
+		out, err := RunCommand(`/bin/sh`, `-c`, `echo -n `+ShellQuote(in))
+		require.NoError(t, err)
+		require.Equal(t, in, out)
 	}
 }
