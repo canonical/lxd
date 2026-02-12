@@ -661,6 +661,11 @@ type Instance interface {
 	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 }
 
+var (
+	headerUID  = []byte("Uid:")
+	headerGID  = []byte("Gid:")
+)
+
 var seccompPath = shared.VarPath("security", "seccomp")
 
 // ProfilePath returns the seccomp path for the instance.
@@ -1141,76 +1146,64 @@ func TaskIDs(pid int) (UID int64, GID int64, fsUID int64, fsGID int64, err error
 		return -1, -1, -1, -1, err
 	}
 
-	reUID, err := regexp.Compile(`^Uid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)`)
-	if err != nil {
-		return -1, -1, -1, -1, err
-	}
-
-	reGID, err := regexp.Compile(`^Gid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)`)
-	if err != nil {
-		return -1, -1, -1, -1, err
-	}
-
 	UID = -1
 	GID = -1
 	fsUID = -1
 	fsGID = -1
 	UIDFound := false
 	GIDFound := false
-	for _, line := range strings.Split(string(status), "\n") {
+	for line := range bytes.SplitSeq(status, []byte("\n")) {
 		if UIDFound && GIDFound {
 			break
 		}
 
-		if !UIDFound {
-			m := reUID.FindStringSubmatch(line)
-			if len(m) > 2 {
-				// effective uid
-				result, err := strconv.ParseInt(m[2], 10, 64)
-				if err != nil {
-					return -1, -1, -1, -1, err
-				}
-
-				UID = result
-				UIDFound = true
+		if !UIDFound && bytes.HasPrefix(line, headerUID) {
+			fields := bytes.Fields(line)
+			if len(fields) < 5 {
+				continue
 			}
 
-			if len(m) > 4 {
-				// fsuid
-				result, err := strconv.ParseInt(m[4], 10, 64)
-				if err != nil {
-					return -1, -1, -1, -1, err
-				}
-
-				fsUID = result
+			// effective uid
+			result, err := strconv.ParseInt(string(fields[2]), 10, 64)
+			if err != nil {
+				return -1, -1, -1, -1, err
 			}
 
+			UID = result
+			UIDFound = true
+
+			// fsuid
+			result, err = strconv.ParseInt(string(fields[4]), 10, 64)
+			if err != nil {
+				return -1, -1, -1, -1, err
+			}
+
+			fsUID = result
 			continue
 		}
 
-		if !GIDFound {
-			m := reGID.FindStringSubmatch(line)
-			if len(m) > 2 {
-				// effective gid
-				result, err := strconv.ParseInt(m[2], 10, 64)
-				if err != nil {
-					return -1, -1, -1, -1, err
-				}
-
-				GID = result
-				GIDFound = true
+		if !GIDFound && bytes.HasPrefix(line, headerGID) {
+			fields := bytes.Fields(line)
+			if len(fields) < 5 {
+				continue
 			}
 
-			if len(m) > 4 {
-				// fsgid
-				result, err := strconv.ParseInt(m[4], 10, 64)
-				if err != nil {
-					return -1, -1, -1, -1, err
-				}
-
-				fsGID = result
+			// effective gid
+			result, err := strconv.ParseInt(string(fields[2]), 10, 64)
+			if err != nil {
+				return -1, -1, -1, -1, err
 			}
 
+			GID = result
+			GIDFound = true
+
+			// fsgid
+			result, err = strconv.ParseInt(string(fields[4]), 10, 64)
+			if err != nil {
+				return -1, -1, -1, -1, err
+			}
+
+			fsGID = result
 			continue
 		}
 	}
