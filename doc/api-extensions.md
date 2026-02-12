@@ -2968,3 +2968,15 @@ As with the {ref}`storage and profile operation extension <extension-storage-and
 ## `gpu_cdi_amd`
 
 Adds support for using the Container Device Interface (CDI) specification to configure AMD GPU passthrough in LXD containers. The `id` field of GPU devices now accepts CDI identifiers (for example, `amd.com/gpu=gpu{INDEX}`) for containers, in addition to DRM card IDs.
+
+(extension-instance-refresh-config)=
+## `instance_refresh_config`
+
+Ensures that instance `copy --refresh` operations apply target config/profile/device updates server-side.
+
+This applies to both direct copies and migration-based refresh operations.
+
+During refresh, the server applies the target instance configuration from the request (including config, devices, and profiles) before the data transfer completes.
+The request payload is treated as the full desired writable target configuration for the refresh update.
+The server does not merge or preserve omitted target keys automatically.
+Clients must include any target values that should remain on the destination after refresh.
