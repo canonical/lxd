@@ -38,7 +38,7 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse request.
-	lxdPath, projectName, instanceRef, hook, _, err := callhook.ParseArgs(args)
+	lxdPath, projectName, instanceRef, hook, err := callhook.ParseArgs(args)
 	if err != nil {
 		_ = cmd.Help()
 		if len(args) == 0 {

@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/pkg/sftp"
 
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/shared/api"
@@ -65,6 +69,29 @@ const (
 	customCDILinkerConfFile = "00-lxdcdi.conf"
 )
 
+type containerFS interface {
+	MkdirAll(path string) error
+	Symlink(oldname, newname string) error
+	OpenFile(path string, flags int) (io.ReadWriteCloser, error)
+}
+
+type sftpContainerFS struct {
+	client *sftp.Client
+}
+
+// MkdirAll creates a directory named path, along with any necessary parents.
+func (s *sftpContainerFS) MkdirAll(path string) error { return s.client.MkdirAll(path) }
+
+// Symlink creates newname as a symbolic link to oldname.
+func (s *sftpContainerFS) Symlink(oldname, newname string) error {
+	return s.client.Symlink(oldname, newname)
+}
+
+// OpenFile opens the named file with the specified flags.
+func (s *sftpContainerFS) OpenFile(path string, flags int) (io.ReadWriteCloser, error) {
+	return s.client.OpenFile(path, flags)
+}
+
 // resolveTargetRelativeToLink converts a link's target into a path relative to the link's path.
 func resolveTargetRelativeToLink(link string, target string) (string, error) {
 	if !filepath.IsAbs(link) {
@@ -92,9 +119,21 @@ func resolveTargetRelativeToLink(link string, target string) (string, error) {
 }
 
 // ApplyHooksToContainer applies CDI hooks to a container by creating symlinks
-// and updating the linker configuration. This function can be called both
-// during container start (from LXC hook) and during hotplug.
-func ApplyHooksToContainer(hooksFilePath string, containerRootFS string) error {
+// and updating the linker configuration using SFTP.
+func ApplyHooksToContainer(hooksFilePath string, inst instance.Instance) error {
+	sftpClient, err := inst.FileSFTP()
+	if err != nil {
+		return fmt.Errorf("Failed getting SFTP client: %w", err)
+	}
+
+	defer func() { _ = sftpClient.Close() }()
+
+	return applyHooksWithFS(hooksFilePath, &sftpContainerFS{client: sftpClient})
+}
+
+// applyHooksWithFS is the testable core of ApplyHooksToContainer.
+// It applies CDI hooks using the provided containerFS implementation.
+func applyHooksWithFS(hooksFilePath string, cfs containerFS) error {
 	hookFile, err := os.Open(hooksFilePath)
 	if err != nil {
 		return fmt.Errorf("Failed opening the CDI hooks file at %q: %w", hooksFilePath, err)
@@ -117,13 +156,14 @@ func ApplyHooksToContainer(hooksFilePath string, containerRootFS string) error {
 		}
 
 		// Try to create the directory if it doesn't exist
-		err = os.MkdirAll(filepath.Dir(filepath.Join(containerRootFS, symlink.Link)), 0755)
+		linkDir := filepath.Dir(symlink.Link)
+		err = cfs.MkdirAll(linkDir)
 		if err != nil {
 			return fmt.Errorf("Failed creating the directory for the CDI symlink: %w", err)
 		}
 
 		// Create the symlink
-		err = os.Symlink(target, filepath.Join(containerRootFS, symlink.Link))
+		err = cfs.Symlink(target, symlink.Link)
 		if err != nil {
 			if !errors.Is(err, fs.ErrExist) {
 				return fmt.Errorf("Failed creating the CDI symlink: %w", err)
@@ -132,84 +172,93 @@ func ApplyHooksToContainer(hooksFilePath string, containerRootFS string) error {
 	}
 
 	// Updating the linker configuration.
-	ln := len(hooks.LDCacheUpdates)
-	if ln > 0 {
-		ldConfDirPath := filepath.Join(containerRootFS, "etc", "ld.so.conf.d")
-		err = os.MkdirAll(ldConfDirPath, 0755)
+	if len(hooks.LDCacheUpdates) > 0 {
+		ldConfDirPath := "/etc/ld.so.conf.d"
+		err = cfs.MkdirAll(ldConfDirPath)
 		if err != nil {
 			return fmt.Errorf("Failed creating the linker conf directory at %q: %w", ldConfDirPath, err)
 		}
 
-		ldConfFilePath := containerRootFS + "/etc/ld.so.conf.d/" + customCDILinkerConfFile
-		_, err = os.Stat(ldConfFilePath)
+		ldConfFilePath := filepath.Join(ldConfDirPath, customCDILinkerConfFile)
+
+		// Try to open existing file for reading and appending.
+		ldConfFile, err := cfs.OpenFile(ldConfFilePath, os.O_APPEND|os.O_RDWR)
 		if err == nil {
+			defer ldConfFile.Close()
+
 			// The file already exists. Read it first, analyze its entries
 			// and add the ones that are not already there.
-			ldConfFile, err := os.OpenFile(ldConfFilePath, os.O_APPEND|os.O_RDWR, 0644)
-			if err != nil {
-				return fmt.Errorf("Failed opening the ld.so.conf file at %q: %w", ldConfFilePath, err)
-			}
-
 			existingLinkerEntries := make(map[string]bool)
 			scanner := bufio.NewScanner(ldConfFile)
 			for scanner.Scan() {
 				existingLinkerEntries[strings.TrimSpace(scanner.Text())] = true
 			}
 
+			if scanner.Err() != nil {
+				return fmt.Errorf("Failed reading the linker conf file at %q: %w", ldConfFilePath, scanner.Err())
+			}
+
 			for _, update := range hooks.LDCacheUpdates {
 				if !existingLinkerEntries[update] {
 					_, err = fmt.Fprintln(ldConfFile, update)
 					if err != nil {
-						ldConfFile.Close()
 						return fmt.Errorf("Failed writing to the linker conf file at %q: %w", ldConfFilePath, err)
 					}
 
 					existingLinkerEntries[update] = true
 				}
 			}
-
-			ldConfFile.Close()
-		} else if errors.Is(err, os.ErrNotExist) {
-			// The file does not exist. We simply create it with our entries.
-			ldConfFile, err := os.OpenFile(ldConfFilePath, os.O_CREATE|os.O_WRONLY, 0644)
+		} else {
+			// The file does not exist. Create it with our entries.
+			ldConfFile, err := cfs.OpenFile(ldConfFilePath, os.O_CREATE|os.O_WRONLY)
 			if err != nil {
 				return fmt.Errorf("Failed creating the linker conf file at %q: %w", ldConfFilePath, err)
 			}
 
+			defer ldConfFile.Close()
+
 			for _, update := range hooks.LDCacheUpdates {
 				_, err = fmt.Fprintln(ldConfFile, update)
 				if err != nil {
-					ldConfFile.Close()
 					return fmt.Errorf("Failed writing to the linker conf file at %q: %w", ldConfFilePath, err)
 				}
 			}
-
-			ldConfFile.Close()
-		} else {
-			return fmt.Errorf("Could not stat the linker conf file to add CDI linker entries at %q: %w", ldConfFilePath, err)
 		}
 	}
 
 	return nil
 }
 
-// UpdateLDCache updates the linker cache inside the instance.
+// UpdateLDCache updates the linker cache inside the instance. It ignores
+// possible errors and logs them instead since this is a best effort action and
+// failure should not impact the container's start or hotplugging.
 func UpdateLDCache(inst instance.Instance) {
 	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
-	// Run ldconfig to update the linker cache, note we do not update symlinks via
-	// -X as those are handled by the CDI hooks.
-	cmd, err := inst.Exec(api.InstanceExecPost{
-		Command:   []string{"/sbin/ldconfig", "-X"},
-		WaitForWS: false,
-	}, nil, nil, nil)
 
-	if err != nil {
-		l.Warn("Failed starting ldconfig in the container", logger.Ctx{"error": err})
-		return
-	}
+	if inst.IsRunning() {
+		// Run ldconfig to update the linker cache, note we do not update symlinks via
+		// -X as those are handled by the CDI hooks.
+		cmd, err := inst.Exec(api.InstanceExecPost{
+			Command:   []string{"/sbin/ldconfig", "-X"},
+			WaitForWS: false,
+		}, nil, nil, nil)
 
-	p, err := cmd.Wait()
-	if err != nil {
-		l.Warn("Failed executing ldconfig in the container", logger.Ctx{"error": err, "exit code": p})
+		if err != nil {
+			l.Warn("Failed starting ldconfig in the container", logger.Ctx{"error": err})
+			return
+		}
+
+		p, err := cmd.Wait()
+		if err != nil {
+			l.Warn("Failed executing ldconfig in the container", logger.Ctx{"error": err, "exit code": p})
+		}
+	} else {
+		// For stopped containers, add touch /usr mtime. This triggers systemd's
+		// ldconfig.service at boot to pick up the CDI libraries.
+		// See systemctl cat ldconfig.service for details.
+		err := os.Chtimes(filepath.Join(inst.RootfsPath(), "usr"), time.Now(), time.Now())
+		if err != nil {
+			l.Warn("Failed updating mtime of /usr in the container to trigger ldconfig.service", logger.Ctx{"error": err})
+		}
 	}
 }

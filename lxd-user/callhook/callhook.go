@@ -13,11 +13,11 @@ import (
 )
 
 // ParseArgs parses callhook request into constituent parts.
-func ParseArgs(args []string) (lxdPath string, projectName string, instanceRef string, hook string, cdiHooksFiles []string, err error) {
+func ParseArgs(args []string) (lxdPath string, projectName string, instanceRef string, hook string, err error) {
 	argsLen := len(args)
 
 	if argsLen < 2 {
-		return "", "", "", "", nil, errors.New("Missing required arguments")
+		return "", "", "", "", errors.New("Missing required arguments")
 	}
 
 	lxdPath = args[0]
@@ -33,11 +33,9 @@ func ParseArgs(args []string) (lxdPath string, projectName string, instanceRef s
 		projectName = args[1]
 		instanceRef = args[2]
 		hook = args[3]
-		cdiHooksFiles = make([]string, len(args[4:]))
-		copy(cdiHooksFiles, args[4:])
 	}
 
-	return lxdPath, projectName, instanceRef, hook, cdiHooksFiles, nil
+	return lxdPath, projectName, instanceRef, hook, nil
 }
 
 // HandleContainerHook passes the callhook request to the LXD server via the UNIX socket.

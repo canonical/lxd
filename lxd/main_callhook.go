@@ -2,20 +2,15 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
-	"path/filepath"
-	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/lxd-user/callhook"
-	"github.com/canonical/lxd/lxd/device/cdi"
 )
 
 type cmdCallhook struct {
-	global            *cmdGlobal
-	devicesRootFolder string
+	global *cmdGlobal
 }
 
 // Command returns a cobra command for `lxd callhook`.
@@ -32,9 +27,6 @@ func (c *cmdCallhook) Command() *cobra.Command {
 	cmd.RunE = c.Run
 	cmd.Hidden = true
 
-	// devicesRootFolder is used to specify where to look for CDI config device files.
-	cmd.Flags().StringVar(&c.devicesRootFolder, "devicesRootFolder", "", "Root folder for CDI devices")
-
 	return cmd
 }
 
@@ -46,7 +38,7 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse request.
-	lxdPath, projectName, instanceRef, hook, cdiHooksFiles, err := callhook.ParseArgs(args)
+	lxdPath, projectName, instanceRef, hook, err := callhook.ParseArgs(args)
 	if err != nil {
 		_ = cmd.Help()
 		if len(args) == 0 {
@@ -58,44 +50,9 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 
 	// Handle startmountns hook.
 	if hook == "startmountns" {
-		if len(cdiHooksFiles) == 0 {
-			return errors.New("Missing required CDI hooks files argument")
-		}
-
-		if c.devicesRootFolder == "" {
-			return errors.New("Missing required --devicesRootFolder <directory> flag")
-		}
-
-		containerRootFSMount := os.Getenv("LXC_ROOTFS_MOUNT")
-		if containerRootFSMount == "" {
-			return errors.New("LXC_ROOTFS_MOUNT is empty")
-		}
-
-		var err error
-		for _, cdiHooksFile := range cdiHooksFiles {
-			cdiHookPath := filepath.Join(c.devicesRootFolder, cdiHooksFile)
-			err = cdi.ApplyHooksToContainer(cdiHookPath, containerRootFSMount)
-			if err != nil {
-				return err
-			}
-		}
-
-		if len(cdiHooksFiles) > 0 {
-			// NOTE: LXD does need to call ldconfig after applying the hooks here, as
-			// the instance is not running and we don't want to run the host's
-			// ldconfig in the container's mount namespace. systemd (starting from
-			// v215) includes a one-shot service that runs ldconfig at boot at a
-			// predictable time on a condition (see below). Therefore, the services
-			// depending on the CDI bind mounts and symlinks can be safely started
-			// afterwards. See also: `systemctl cat ldconfig.service`.
-
-			// Touch /usr to update its mtime so that systemd's ldconfig.service is triggered during boot.
-			err = os.Chtimes(filepath.Join(containerRootFSMount, "usr"), time.Now(), time.Now())
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed updating mtime of /usr: %v\n", err)
-			}
-		}
-
+		// CDI device setup for stopped containers is now handled via PostHooks in gpu_physical.go.
+		// The /usr mtime is touched when the device is added to ensure systemd's ldconfig.service
+		// is triggered at boot. No action needed here.
 		return nil
 	}
 
