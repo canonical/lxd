@@ -151,6 +151,24 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, errors.New("LXD is shutting down")
 	}
 
+	// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
+	// can be reconstructed from a database record (where it is saved as an entity ID).
+	operationEntityType := args.Type.EntityType()
+	if args.EntityURL != nil {
+		entityType, _, _, _, err := entity.ParseURL(args.EntityURL.URL)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid operation entity URL: %w", err)
+		}
+
+		if entityType != operationEntityType {
+			return nil, fmt.Errorf("Entity type for URL %q does not match operation entity type %q", args.EntityURL, operationEntityType)
+		}
+	} else if operationEntityType != entity.TypeServer {
+		return nil, errors.New("Operation entity URL required")
+	} else {
+		args.EntityURL = entity.ServerURL()
+	}
+
 	// Use a v7 UUID for the operation ID.
 	uuid, err := uuid.NewV7()
 	if err != nil {
