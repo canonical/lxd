@@ -270,13 +270,16 @@ func (t Type) EntityType() entity.Type {
 	// Project level operations.
 	// If creating a resource, then the parent project is the primary entity
 	// (the entity being created is not yet referenceable).
-	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken:
+	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore, BackupRestore:
 		return entity.TypeProject
 
 	// Volume operations.
-	case VolumeSnapshotRename, VolumeSnapshotUpdate, VolumeSnapshotDelete, VolumeMigrate,
-		VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete:
+	case VolumeMigrate, VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete:
 		return entity.TypeStorageVolume
+
+	// Volume snapshot operations
+	case VolumeSnapshotRename, VolumeSnapshotUpdate, VolumeSnapshotDelete:
+		return entity.TypeStorageVolumeSnapshot
 
 	// Instance operations.
 	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
@@ -285,7 +288,7 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeInstance
 
 	// Instance backup operations.
-	case BackupRename, BackupRemove, BackupRestore:
+	case BackupRename, BackupRemove:
 		return entity.TypeInstanceBackup
 
 	// Instance snapshot operations.
@@ -297,7 +300,7 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeImage
 
 	// Volume backup operations.
-	case CustomVolumeBackupRemove, CustomVolumeBackupRename, CustomVolumeBackupRestore:
+	case CustomVolumeBackupRemove, CustomVolumeBackupRename:
 		return entity.TypeStorageVolumeBackup
 
 	// Profile operations.
