@@ -14,6 +14,7 @@ Pygments==2.10.0
 pyparsing==2.4.7
 pytz==2021.1
 requests==2.26.0
+setuptools<81.0.0
 six==1.16.0
 snowballstemmer==2.1.0
 Sphinx==4.2.0
