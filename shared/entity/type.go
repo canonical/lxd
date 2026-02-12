@@ -22,6 +22,10 @@ type typeInfo interface {
 
 	// path returns the API path for the resource. The pathPlaceholder constant should be used in place of mux variables.
 	path() []string
+
+	// pathArgNames returns the names of the path arguments in order.
+	// Used to map the path arguments with their names/keys when parsing from a URL.
+	pathArgNames() []string
 }
 
 // typeInfoCommon partially implements typeInfo and can be embedded in typeInfo
@@ -210,6 +214,10 @@ func (container) path() []string {
 	return []string{"containers", pathPlaceholder}
 }
 
+func (container) pathArgNames() []string {
+	return []string{"name"}
+}
+
 type image struct {
 	typeInfoCommon
 }
@@ -220,6 +228,10 @@ func (image) requiresProject() bool {
 
 func (image) path() []string {
 	return []string{"images", pathPlaceholder}
+}
+
+func (image) pathArgNames() []string {
+	return []string{"name"}
 }
 
 type profile struct {
@@ -234,6 +246,10 @@ func (profile) path() []string {
 	return []string{"profiles", pathPlaceholder}
 }
 
+func (profile) pathArgNames() []string {
+	return []string{"name"}
+}
+
 type project struct {
 	typeInfoCommon
 }
@@ -244,6 +260,10 @@ func (project) requiresProject() bool {
 
 func (project) path() []string {
 	return []string{"projects", pathPlaceholder}
+}
+
+func (project) pathArgNames() []string {
+	return []string{"name"}
 }
 
 type certificate struct {
@@ -258,6 +278,10 @@ func (certificate) path() []string {
 	return []string{"certificates", pathPlaceholder}
 }
 
+func (certificate) pathArgNames() []string {
+	return []string{"name"}
+}
+
 type instance struct {
 	typeInfoCommon
 }
@@ -268,6 +292,10 @@ func (instance) requiresProject() bool {
 
 func (instance) path() []string {
 	return []string{"instances", pathPlaceholder}
+}
+
+func (instance) pathArgNames() []string {
+	return []string{"name"}
 }
 
 type instanceBackup struct {
@@ -282,6 +310,10 @@ func (instanceBackup) path() []string {
 	return []string{"instances", pathPlaceholder, "backups", pathPlaceholder}
 }
 
+func (instanceBackup) pathArgNames() []string {
+	return []string{"instance", "name"}
+}
+
 type instanceSnapshot struct {
 	typeInfoCommon
 }
@@ -292,6 +324,10 @@ func (instanceSnapshot) requiresProject() bool {
 
 func (instanceSnapshot) path() []string {
 	return []string{"instances", pathPlaceholder, "snapshots", pathPlaceholder}
+}
+
+func (instanceSnapshot) pathArgNames() []string {
+	return []string{"instance", "name"}
 }
 
 type network struct {
@@ -306,6 +342,10 @@ func (network) path() []string {
 	return []string{"networks", pathPlaceholder}
 }
 
+func (network) pathArgNames() []string {
+	return []string{"name"}
+}
+
 type networkACL struct {
 	typeInfoCommon
 }
@@ -316,6 +356,10 @@ func (networkACL) requiresProject() bool {
 
 func (networkACL) path() []string {
 	return []string{"network-acls", pathPlaceholder}
+}
+
+func (networkACL) pathArgNames() []string {
+	return []string{"name"}
 }
 
 type clusterMember struct {
@@ -330,6 +374,10 @@ func (clusterMember) path() []string {
 	return []string{"cluster", "members", pathPlaceholder}
 }
 
+func (clusterMember) pathArgNames() []string {
+	return []string{"name"}
+}
+
 type operation struct {
 	typeInfoCommon
 }
@@ -340,6 +388,10 @@ func (operation) requiresProject() bool {
 
 func (operation) path() []string {
 	return []string{"operations", pathPlaceholder}
+}
+
+func (operation) pathArgNames() []string {
+	return []string{"id"}
 }
 
 type storagePool struct {
@@ -354,9 +406,17 @@ func (storagePool) path() []string {
 	return []string{"storage-pools", pathPlaceholder}
 }
 
+func (storagePool) pathArgNames() []string {
+	return []string{"name"}
+}
+
 type storageVolume struct{}
 
 func (storageVolume) requiresProject() bool {
+	return true
+}
+
+func (storageVolume) requiresLocation() bool {
 	return true
 }
 
@@ -364,8 +424,8 @@ func (storageVolume) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder}
 }
 
-func (storageVolume) requiresLocation() bool {
-	return true
+func (storageVolume) pathArgNames() []string {
+	return []string{"pool", "type", "name"}
 }
 
 type storageVolumeBackup struct{}
@@ -374,12 +434,16 @@ func (storageVolumeBackup) requiresProject() bool {
 	return true
 }
 
+func (storageVolumeBackup) requiresLocation() bool {
+	return true
+}
+
 func (storageVolumeBackup) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder, "backups", pathPlaceholder}
 }
 
-func (storageVolumeBackup) requiresLocation() bool {
-	return true
+func (storageVolumeBackup) pathArgNames() []string {
+	return []string{"pool", "type", "volume", "name"}
 }
 
 type storageVolumeSnapshot struct{}
@@ -388,12 +452,16 @@ func (storageVolumeSnapshot) requiresProject() bool {
 	return true
 }
 
+func (storageVolumeSnapshot) requiresLocation() bool {
+	return true
+}
+
 func (storageVolumeSnapshot) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder, "snapshots", pathPlaceholder}
 }
 
-func (storageVolumeSnapshot) requiresLocation() bool {
-	return true
+func (storageVolumeSnapshot) pathArgNames() []string {
+	return []string{"pool", "type", "volume", "name"}
 }
 
 type warning struct {
@@ -408,6 +476,10 @@ func (warning) path() []string {
 	return []string{"warnings", pathPlaceholder}
 }
 
+func (warning) pathArgNames() []string {
+	return []string{"id"}
+}
+
 type clusterGroup struct {
 	typeInfoCommon
 }
@@ -418,6 +490,10 @@ func (clusterGroup) requiresProject() bool {
 
 func (clusterGroup) path() []string {
 	return []string{"cluster", "groups", pathPlaceholder}
+}
+
+func (clusterGroup) pathArgNames() []string {
+	return []string{"name"}
 }
 
 type storageBucket struct {
@@ -432,6 +508,10 @@ func (storageBucket) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "buckets", pathPlaceholder}
 }
 
+func (storageBucket) pathArgNames() []string {
+	return []string{"pool", "name"}
+}
+
 type server struct {
 	typeInfoCommon
 }
@@ -441,6 +521,10 @@ func (server) requiresProject() bool {
 }
 
 func (server) path() []string {
+	return []string{}
+}
+
+func (server) pathArgNames() []string {
 	return []string{}
 }
 
@@ -456,6 +540,10 @@ func (imageAlias) path() []string {
 	return []string{"images", "aliases", pathPlaceholder}
 }
 
+func (imageAlias) pathArgNames() []string {
+	return []string{"name"}
+}
+
 type networkZone struct {
 	typeInfoCommon
 }
@@ -466,6 +554,10 @@ func (networkZone) requiresProject() bool {
 
 func (networkZone) path() []string {
 	return []string{"network-zones", pathPlaceholder}
+}
+
+func (networkZone) pathArgNames() []string {
+	return []string{"name"}
 }
 
 type identity struct {
@@ -480,6 +572,10 @@ func (identity) path() []string {
 	return []string{"auth", "identities", pathPlaceholder, pathPlaceholder}
 }
 
+func (identity) pathArgNames() []string {
+	return []string{"authentication_method", "name"}
+}
+
 type authGroup struct {
 	typeInfoCommon
 }
@@ -490,6 +586,10 @@ func (authGroup) requiresProject() bool {
 
 func (authGroup) path() []string {
 	return []string{"auth", "groups", pathPlaceholder}
+}
+
+func (authGroup) pathArgNames() []string {
+	return []string{"name"}
 }
 
 type identityProviderGroup struct {
@@ -504,6 +604,10 @@ func (identityProviderGroup) path() []string {
 	return []string{"auth", "identity-provider-groups", pathPlaceholder}
 }
 
+func (identityProviderGroup) pathArgNames() []string {
+	return []string{"name"}
+}
+
 type placementGroup struct {
 	typeInfoCommon
 }
@@ -514,4 +618,8 @@ func (placementGroup) requiresProject() bool {
 
 func (placementGroup) path() []string {
 	return []string{"placement-groups", pathPlaceholder}
+}
+
+func (placementGroup) pathArgNames() []string {
+	return []string{"name"}
 }
