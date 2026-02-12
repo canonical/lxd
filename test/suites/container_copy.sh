@@ -63,6 +63,24 @@ do_copy() {
   lxc exec c2 -- test -f /root/testfile1
   lxc stop -f c2
 
+  sub_test "Refresh applies config override for local copy"
+  lxc config set c1 user.refresh-copy-config source
+  c2_idmap_next_before="$(lxc config get c2 volatile.idmap.next)"
+  c2_last_state_power_before="$(lxc config get c2 volatile.last_state.power)"
+  [ "$(lxc config get c1 volatile.last_state.power)" = "RUNNING" ]
+  [ "${c2_last_state_power_before}" = "STOPPED" ]
+  # shellcheck disable=2086
+  lxc copy c1 c2 --refresh -c user.refresh-copy-config=override -c user.refresh-copy-new-key=added ${targetPoolFlag}
+  # Verify refresh config override is applied on target.
+  [ "$(lxc config get c2 user.refresh-copy-config)" = "override" ]
+  # Verify refresh can add a new config key on target.
+  [ "$(lxc config get c2 user.refresh-copy-new-key)" = "added" ]
+  # Verify root disk pool stays on the chosen target pool.
+  lxc query /1.0/instances/c2 | jq --exit-status --arg target_pool "${target_pool}" '.expanded_devices | to_entries | any(.value.type == "disk" and .value.path == "/" and .value.pool == $target_pool)'
+  # Verify refresh with config overrides does not clobber volatile keys.
+  [ "$(lxc config get c2 volatile.idmap.next)" = "${c2_idmap_next_before}" ]
+  [ "$(lxc config get c2 volatile.last_state.power)" = "${c2_last_state_power_before}" ]
+
   # This will create snapshot c1/snap0
   lxc storage volume set "${source_pool}" container/c1 user.foo=snap0
   lxc snapshot c1
