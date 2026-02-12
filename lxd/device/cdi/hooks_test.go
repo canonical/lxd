@@ -2,6 +2,7 @@ package cdi
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,9 +11,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// localFS implements containerFS using the local filesystem for testing.
+// Paths are interpreted relative to rootFS, mirroring how sftpContainerFS treats
+// them relative to the container root.
+type localFS struct {
+	rootFS string
+}
+
+func (l *localFS) MkdirAll(path string) error {
+	return os.MkdirAll(l.rootFS+filepath.Clean(path), 0755)
+}
+
+func (l *localFS) Symlink(oldname, newname string) error {
+	return os.Symlink(oldname, l.rootFS+filepath.Clean(newname))
+}
+
+func (l *localFS) OpenFile(path string, flags int) (io.ReadWriteCloser, error) {
+	return os.OpenFile(l.rootFS+filepath.Clean(path), flags, 0644)
+}
+
+// TestApplyHooksToContainer tests the ApplyHooksToContainer function.
 func TestApplyHooksToContainer(t *testing.T) {
 	t.Run("invalid hooks file path", func(t *testing.T) {
-		err := ApplyHooksToContainer("/nonexistent/path.json", "/tmp")
+		tmpDir := t.TempDir()
+		err := applyHooksWithFS("/nonexistent/path.json", &localFS{rootFS: tmpDir})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Failed opening the CDI hooks file")
 	})
@@ -23,29 +45,23 @@ func TestApplyHooksToContainer(t *testing.T) {
 		err := os.WriteFile(hooksFile, []byte("not json"), 0644)
 		require.NoError(t, err)
 
-		err = ApplyHooksToContainer(hooksFile, tmpDir)
+		err = applyHooksWithFS(hooksFile, &localFS{rootFS: tmpDir})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Failed decoding the CDI hooks file")
 	})
 
 	t.Run("empty hooks", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		rootFS := filepath.Join(tmpDir, "rootfs")
-		err := os.MkdirAll(rootFS, 0755)
-		require.NoError(t, err)
 
 		hooks := Hooks{}
 		hooksFile := writeHooksFile(t, tmpDir, hooks)
 
-		err = ApplyHooksToContainer(hooksFile, rootFS)
+		err := applyHooksWithFS(hooksFile, &localFS{rootFS: tmpDir})
 		assert.NoError(t, err)
 	})
 
 	t.Run("creates symlinks", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		rootFS := filepath.Join(tmpDir, "rootfs")
-		err := os.MkdirAll(rootFS, 0755)
-		require.NoError(t, err)
 
 		hooks := Hooks{
 			Symlinks: []SymlinkEntry{
@@ -56,12 +72,12 @@ func TestApplyHooksToContainer(t *testing.T) {
 
 		hooksFile := writeHooksFile(t, tmpDir, hooks)
 
-		err = ApplyHooksToContainer(hooksFile, rootFS)
+		err := applyHooksWithFS(hooksFile, &localFS{rootFS: tmpDir})
 		require.NoError(t, err)
 
 		// Verify symlinks were created
 		for _, sl := range hooks.Symlinks {
-			linkPath := filepath.Join(rootFS, sl.Link)
+			linkPath := filepath.Join(tmpDir, sl.Link)
 			target, err := os.Readlink(linkPath)
 			require.NoError(t, err)
 
@@ -73,10 +89,9 @@ func TestApplyHooksToContainer(t *testing.T) {
 
 	t.Run("symlink already exists", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		rootFS := filepath.Join(tmpDir, "rootfs")
 
 		// Pre-create the symlink
-		linkDir := filepath.Join(rootFS, "usr", "lib")
+		linkDir := filepath.Join(tmpDir, "usr", "lib")
 		err := os.MkdirAll(linkDir, 0755)
 		require.NoError(t, err)
 		err = os.Symlink("libfoo.so.1", filepath.Join(linkDir, "libfoo.so"))
@@ -91,15 +106,12 @@ func TestApplyHooksToContainer(t *testing.T) {
 		hooksFile := writeHooksFile(t, tmpDir, hooks)
 
 		// Should not error on existing symlink
-		err = ApplyHooksToContainer(hooksFile, rootFS)
+		err = applyHooksWithFS(hooksFile, &localFS{rootFS: tmpDir})
 		assert.NoError(t, err)
 	})
 
 	t.Run("creates symlinks in nested directories", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		rootFS := filepath.Join(tmpDir, "rootfs")
-		err := os.MkdirAll(rootFS, 0755)
-		require.NoError(t, err)
 
 		hooks := Hooks{
 			Symlinks: []SymlinkEntry{
@@ -109,19 +121,16 @@ func TestApplyHooksToContainer(t *testing.T) {
 
 		hooksFile := writeHooksFile(t, tmpDir, hooks)
 
-		err = ApplyHooksToContainer(hooksFile, rootFS)
+		err := applyHooksWithFS(hooksFile, &localFS{rootFS: tmpDir})
 		require.NoError(t, err)
 
-		linkPath := filepath.Join(rootFS, "usr", "lib", "x86_64", "libdeep.so")
+		linkPath := filepath.Join(tmpDir, "usr", "lib", "x86_64", "libdeep.so")
 		_, err = os.Lstat(linkPath)
 		assert.NoError(t, err)
 	})
 
 	t.Run("creates new ld conf file", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		rootFS := filepath.Join(tmpDir, "rootfs")
-		err := os.MkdirAll(rootFS, 0755)
-		require.NoError(t, err)
 
 		hooks := Hooks{
 			LDCacheUpdates: []string{"/usr/lib/x86_64-linux-gnu", "/usr/lib/aarch64-linux-gnu"},
@@ -129,10 +138,10 @@ func TestApplyHooksToContainer(t *testing.T) {
 
 		hooksFile := writeHooksFile(t, tmpDir, hooks)
 
-		err = ApplyHooksToContainer(hooksFile, rootFS)
+		err := applyHooksWithFS(hooksFile, &localFS{rootFS: tmpDir})
 		require.NoError(t, err)
 
-		ldConfPath := filepath.Join(rootFS, "etc", "ld.so.conf.d", customCDILinkerConfFile)
+		ldConfPath := filepath.Join(tmpDir, "etc", "ld.so.conf.d", customCDILinkerConfFile)
 		content, err := os.ReadFile(ldConfPath)
 		require.NoError(t, err)
 
@@ -142,8 +151,8 @@ func TestApplyHooksToContainer(t *testing.T) {
 
 	t.Run("appends to existing ld conf file without duplicates", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		rootFS := filepath.Join(tmpDir, "rootfs")
-		ldConfDir := filepath.Join(rootFS, "etc", "ld.so.conf.d")
+
+		ldConfDir := filepath.Join(tmpDir, "etc", "ld.so.conf.d")
 		err := os.MkdirAll(ldConfDir, 0755)
 		require.NoError(t, err)
 
@@ -158,7 +167,7 @@ func TestApplyHooksToContainer(t *testing.T) {
 
 		hooksFile := writeHooksFile(t, tmpDir, hooks)
 
-		err = ApplyHooksToContainer(hooksFile, rootFS)
+		err = applyHooksWithFS(hooksFile, &localFS{rootFS: tmpDir})
 		require.NoError(t, err)
 
 		content, err := os.ReadFile(ldConfPath)
@@ -170,9 +179,6 @@ func TestApplyHooksToContainer(t *testing.T) {
 
 	t.Run("symlinks and ld cache combined", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		rootFS := filepath.Join(tmpDir, "rootfs")
-		err := os.MkdirAll(rootFS, 0755)
-		require.NoError(t, err)
 
 		hooks := Hooks{
 			Symlinks: []SymlinkEntry{
@@ -183,16 +189,16 @@ func TestApplyHooksToContainer(t *testing.T) {
 
 		hooksFile := writeHooksFile(t, tmpDir, hooks)
 
-		err = ApplyHooksToContainer(hooksFile, rootFS)
+		err := applyHooksWithFS(hooksFile, &localFS{rootFS: tmpDir})
 		require.NoError(t, err)
 
 		// Verify symlink
-		linkPath := filepath.Join(rootFS, "usr", "lib", "libfoo.so")
+		linkPath := filepath.Join(tmpDir, "usr", "lib", "libfoo.so")
 		_, err = os.Lstat(linkPath)
 		assert.NoError(t, err)
 
 		// Verify ld conf
-		ldConfPath := filepath.Join(rootFS, "etc", "ld.so.conf.d", customCDILinkerConfFile)
+		ldConfPath := filepath.Join(tmpDir, "etc", "ld.so.conf.d", customCDILinkerConfFile)
 		content, err := os.ReadFile(ldConfPath)
 		require.NoError(t, err)
 		assert.Contains(t, string(content), "/usr/lib\n")
@@ -200,9 +206,6 @@ func TestApplyHooksToContainer(t *testing.T) {
 
 	t.Run("symlink with relative link path errors", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		rootFS := filepath.Join(tmpDir, "rootfs")
-		err := os.MkdirAll(rootFS, 0755)
-		require.NoError(t, err)
 
 		hooks := Hooks{
 			Symlinks: []SymlinkEntry{
@@ -212,7 +215,7 @@ func TestApplyHooksToContainer(t *testing.T) {
 
 		hooksFile := writeHooksFile(t, tmpDir, hooks)
 
-		err = ApplyHooksToContainer(hooksFile, rootFS)
+		err := applyHooksWithFS(hooksFile, &localFS{rootFS: tmpDir})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Failed resolving a CDI symlink")
 	})

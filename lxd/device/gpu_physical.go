@@ -376,7 +376,7 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, err
 			}
 
-			// Persist the hooks to be run on a `lxc.hook.mount` LXC hook.
+			// Generate hooks file path for use with ApplyHooksToContainer
 			hooksFile := d.generateCDIHooksFilePath()
 			f, err := os.Create(hooksFile)
 			if err != nil {
@@ -389,10 +389,12 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, fmt.Errorf("Could not write to the CDI hooks file: %w", err)
 			}
 
-			runConf.GPUDevice = append(runConf.GPUDevice,
-				[]deviceConfig.RunConfigItem{
-					{Key: cdi.CDIHookDefinitionKey, Value: filepath.Base(hooksFile)},
-				}...)
+			err = cdi.ApplyHooksToContainer(hooksFile, d.inst)
+			if err != nil {
+				return nil, err
+			}
+
+			cdi.UpdateLDCache(d.inst)
 
 			return &runConf, nil
 		}
@@ -683,26 +685,9 @@ func (d *gpuPhysical) stopCDIDevices(configDevices cdi.ConfigDevices, runConf *d
 }
 
 // CanHotPlug returns whether the device can be managed whilst the instance is running.
-// CDI GPU are not hotpluggable because the configuration of a CDI GPU requires a LXC hook that
-// is only run at instance start. A classic GPU device can be hotplugged.
+// Both CDI and classic GPU devices can be hotplugged for containers.
 func (d *gpuPhysical) CanHotPlug() bool {
-	if d.inst.Type() != instancetype.Container {
-		return false
-	}
-
-	if d.config["id"] == "" {
-		return true
-	}
-
-	// Check if the id of the device matches a CDI format.
-	cdiID, _ := cdi.ToCDI(d.config["id"])
-	if cdiID != nil {
-		// CDI devices cannot be hot-plugged because they rely on a start hook for setting
-		// up files inside the container.
-		return false
-	}
-
-	return true
+	return d.inst.Type() == instancetype.Container
 }
 
 // Stop is run when the device is removed from the instance.
