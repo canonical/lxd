@@ -1259,12 +1259,12 @@ func isCapableInCtInitUserns(siov *Iovec, capability C.int) (bool, error) {
 	containerInitPID := int(siov.msg.init_pid)
 	targetPID := int(siov.req.pid)
 
-	ctInitUserNS, err := os.Readlink("/proc/" + strconv.FormatInt(int64(containerInitPID), 10) + "/ns/user")
+	ctInitUserNS, err := os.Readlink("/proc/" + strconv.Itoa(containerInitPID) + "/ns/user")
 	if err != nil {
 		return false, fmt.Errorf("Can't get userns for container's init process: %w", err)
 	}
 
-	reqUserNS, err := os.Readlink("/proc/" + strconv.FormatInt(int64(targetPID), 10) + "/ns/user")
+	reqUserNS, err := os.Readlink("/proc/" + strconv.Itoa(targetPID) + "/ns/user")
 	if err != nil {
 		return false, fmt.Errorf("Can't get userns for requestor process: %w", err)
 	}
