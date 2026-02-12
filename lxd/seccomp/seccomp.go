@@ -664,6 +664,7 @@ type Instance interface {
 var (
 	headerUID  = []byte("Uid:")
 	headerGID  = []byte("Gid:")
+	headerTGID = []byte("Tgid:")
 )
 
 var seccompPath = shared.VarPath("security", "seccomp")
@@ -1226,15 +1227,14 @@ func FindTGID(procFd int) (uint32, error) {
 		return 0, err
 	}
 
-	reTGID, err := regexp.Compile(`^Tgid:\s+([0-9]+)`)
-	if err != nil {
-		return 0, err
-	}
+	for line := range bytes.SplitSeq(status, []byte("\n")) {
+		if bytes.HasPrefix(line, headerTGID) {
+			fields := bytes.Fields(line)
+			if len(fields) < 2 {
+				continue
+			}
 
-	for _, line := range strings.Split(string(status), "\n") {
-		m := reTGID.FindStringSubmatch(line)
-		if len(m) > 1 {
-			result, err := strconv.ParseUint(m[1], 10, 32)
+			result, err := strconv.ParseUint(string(fields[1]), 10, 32)
 			if err != nil {
 				return 0, err
 			}
