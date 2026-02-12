@@ -89,6 +89,7 @@ type Operation struct {
 	status      api.StatusCode
 	url         string
 	resources   map[entity.Type][]api.URL
+	entityURL   *api.URL
 	metadata    map[string]any
 	err         error
 	readonly    bool
@@ -122,6 +123,7 @@ type OperationArgs struct {
 	ProjectName string
 	Type        operationtype.Type
 	Class       OperationClass
+	EntityURL   *api.URL
 	Resources   map[entity.Type][]api.URL
 	Metadata    map[string]any
 	RunHook     func(ctx context.Context, op *Operation) error
@@ -166,6 +168,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.updatedAt = op.createdAt
 	op.status = api.OperationCreated
 	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
+	op.entityURL = args.EntityURL
 	op.resources = args.Resources
 	op.finished = cancel.New()
 	op.running = cancel.New()
@@ -538,6 +541,12 @@ func (op *Operation) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// EntityURL returns the primary entity URL for the Operation.
+// This is used by the LXD shutdown process to determine if it should wait for any operations to complete.
+func (op *Operation) EntityURL() *api.URL {
+	return op.entityURL
 }
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
