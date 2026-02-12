@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -170,8 +171,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		return err
 	}
 
+	needsRefreshClientFallback := c.flagRefresh && !dest.HasExtension("instance_refresh_config")
+
 	var op lxd.RemoteOperation
 	var writable api.InstancePut
+	var refreshTarget *api.Instance
+	var refreshTargetETag string
 	var start bool
 
 	sourceParentName, sourceSnapName, sourceIsSnap := api.GetParentAndSnapshotName(sourceName)
@@ -250,6 +255,20 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			return err
 		}
 
+		if c.flagRefresh && !needsRefreshClientFallback {
+			refreshTarget, _, err = dest.GetInstance(destName)
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return fmt.Errorf("Failed loading refresh target instance %q: %w", destName, err)
+			}
+
+			if err == nil {
+				writableEntry := entry.Writable()
+				writableEntry.ApplyRefreshConfig(*refreshTarget)
+				entry.Config = writableEntry.Config
+				entry.Devices = writableEntry.Devices
+			}
+		}
+
 		// Traditionally, if instance with snapshots is transferred across projects,
 		// the snapshots keep their own profiles.
 		// This doesn't work if the snapshot profiles don't exist in the target project.
@@ -272,7 +291,9 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			return err
 		}
 
-		writable = entry.Writable()
+		if needsRefreshClientFallback {
+			writable = entry.Writable()
+		}
 	}
 
 	// Watch the background operation
@@ -296,25 +317,16 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 	progress.Done("")
 
-	if c.flagRefresh {
-		inst, etag, err := dest.GetInstance(destName)
+	// Compatibility fallback for older servers that don't apply refresh config server-side.
+	if needsRefreshClientFallback {
+		refreshTarget, refreshTargetETag, err = dest.GetInstance(destName)
 		if err != nil {
 			return fmt.Errorf("Failed to refresh target instance %q: %v", destName, err)
 		}
 
-		// Ensure we don't change the target's volatile.idmap.next value.
-		if inst.Config["volatile.idmap.next"] != writable.Config["volatile.idmap.next"] {
-			writable.Config["volatile.idmap.next"] = inst.Config["volatile.idmap.next"]
-		}
+		writable.ApplyRefreshConfig(*refreshTarget)
 
-		// Ensure we don't change the target's root disk pool.
-		srcRootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(writable.Devices)
-		destRootDiskDeviceKey, destRootDiskDevice, _ := instancetype.GetRootDiskDevice(inst.Devices)
-		if srcRootDiskDeviceKey != "" && srcRootDiskDeviceKey == destRootDiskDeviceKey {
-			writable.Devices[destRootDiskDeviceKey]["pool"] = destRootDiskDevice["pool"]
-		}
-
-		op, err := dest.UpdateInstance(destName, writable, etag)
+		op, err := dest.UpdateInstance(destName, writable, refreshTargetETag)
 		if err != nil {
 			return err
 		}
@@ -378,20 +390,18 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 	}
 
 	if config != nil {
-		// Strip the volatile keys from source if requested.
+		// Remove the volatile keys from source if requested.
 		if !keepVolatile {
-			for k := range *config {
-				if !instancetype.InstanceIncludeWhenCopying(k, true) {
-					delete(*config, k)
-				}
-			}
+			api.InstanceRemoteCopyConfigKeyPolicy.Apply(*config, nil)
 		}
 
 		// Apply config overrides.
 		maps.Copy(*config, configOverrides)
 
-		// Strip the last_state.power key in all cases.
-		delete(*config, "volatile.last_state.power")
+		// Remove create-only keys client-side only when server-side refresh config handling is supported.
+		if dest.HasExtension("instance_refresh_config") {
+			api.InstanceCreateConfigKeyPolicy.Apply(*config, nil)
+		}
 	}
 
 	if devices != nil {
