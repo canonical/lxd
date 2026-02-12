@@ -513,10 +513,7 @@ func isInstanceBusy(inst instance.Instance, instancesToOps map[string]*operation
 func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 	// List all pending operations tied to instances.
 	instancesToOpsMu := sync.Mutex{}
-	instancesToOps, err := pendingInstanceOperations()
-	if err != nil {
-		logger.Error("Failed to get entity to pending operations map", logger.Ctx{"err": err})
-	}
+	instancesToOps := runningInstanceOperations()
 
 	sort.Sort(instanceStopList(instances))
 
