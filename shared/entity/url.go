@@ -147,6 +147,33 @@ entityTypeLoop:
 	return entityType, projectName, u.Query().Get("target"), pathArguments, nil
 }
 
+// ParseURLWithNamedArgs parses a raw URL string and returns the Type and a map of named arguments,
+// where each entry maps an argument name to its corresponding value parsed from the URL.
+func ParseURLWithNamedArgs(u url.URL) (entityType Type, projectName string, location string, args map[string]string, err error) {
+	entityType, projectName, location, pathArgs, err := ParseURL(u)
+	if err != nil {
+		return "", "", "", nil, err
+	}
+
+	entityInfo, ok := entityTypes[entityType]
+	if !ok {
+		return "", "", "", nil, fmt.Errorf("Unknown entity type %q", entityType)
+	}
+
+	pathArgNames := entityInfo.pathArgNames()
+
+	if len(pathArgs) != len(pathArgNames) {
+		return "", "", "", nil, fmt.Errorf("Argument count mismatch for entity type %q: expected %d, got %d", entityType, len(pathArgNames), len(pathArgs))
+	}
+
+	args = make(map[string]string, len(pathArgs))
+	for i, argName := range pathArgNames {
+		args[argName] = pathArgs[i]
+	}
+
+	return entityType, projectName, location, args, nil
+}
+
 // urlMust is used internally when we know that creation of an *api.URL ought to succeed. If an error does occur an
 // empty string is return and the error is logged with as much context as possible, including the file and line number
 // of the caller.
