@@ -274,3 +274,40 @@ func IdentityProviderGroupURL(identityProviderGroupName string) *api.URL {
 func PlacementGroupURL(projectName string, placementGroupName string) *api.URL {
 	return TypePlacementGroup.urlMust(projectName, "", placementGroupName)
 }
+
+// PathArgument represents a name and a value of entity path argument.
+type PathArgument struct {
+	Name  string
+	Value string
+}
+
+// ParseURLWithNamedArgs parses a raw URL string and returns the Type and a slice of named arguments,
+// where each element represents an argument with its name and corresponding value parsed from the URL.
+// The returned slice of arguments maintains the order they are found in the URL.
+func ParseURLWithNamedArgs(u url.URL) (entityType Type, projectName string, location string, args []PathArgument, err error) {
+	entityType, projectName, location, pathArgs, err := ParseURL(u)
+	if err != nil {
+		return "", "", "", nil, err
+	}
+
+	entityInfo, ok := entityTypes[entityType]
+	if !ok {
+		return "", "", "", nil, fmt.Errorf("Unknown entity type %q", entityType)
+	}
+
+	pathArgNames := entityInfo.pathArgNames()
+
+	if len(pathArgs) != len(pathArgNames) {
+		return "", "", "", nil, fmt.Errorf("Argument count mismatch for entity type %q: expected %d, got %d", entityType, len(pathArgNames), len(pathArgs))
+	}
+
+	args = make([]PathArgument, len(pathArgs))
+	for i, argName := range pathArgNames {
+		args[i] = PathArgument{
+			Name:  argName,
+			Value: pathArgs[i],
+		}
+	}
+
+	return entityType, projectName, location, args, nil
+}
