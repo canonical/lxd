@@ -1231,8 +1231,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	// Set to true once we find that the request has to be forwarded to the source.
 	redirectToSource := false
 
+	target := request.QueryParam(r, "target")
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		target := request.QueryParam(r, "target")
 		if !s.ServerClustered && target != "" {
 			return api.StatusErrorf(http.StatusBadRequest, "Target only allowed when clustered")
 		}
@@ -1478,15 +1478,18 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Redirect the copy request to the cluster member which currently holds the instance.
-	if redirectToSource && sourceMemberInfo != nil && targetMemberInfo != nil {
+	if redirectToSource && sourceMemberInfo != nil {
 		client, err := cluster.Connect(r.Context(), sourceMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		// Keep the intended target around for the final move operation.
+		// If no target is supplied, source member auto-placement will apply.
 		client = client.UseProject(targetProjectName)
-		client = client.UseTarget(targetMemberInfo.Name)
+		if target != "" {
+			client = client.UseTarget(target)
+		}
 
 		logger.Debug("Forward instance post copy request", logger.Ctx{"local": s.ServerName, "target": sourceMemberInfo.Name, "targetAddress": sourceMemberInfo.Address})
 		op, err := client.CreateInstance(req)
