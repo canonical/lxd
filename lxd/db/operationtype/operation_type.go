@@ -96,6 +96,7 @@ const (
 	VolumeDelete
 	ImageUploadToken
 	ImageUpload
+	InstanceCopy
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -130,6 +131,8 @@ func (t Type) Description() string {
 		return "Showing console"
 	case InstanceCreate:
 		return "Creating instance"
+	case InstanceCopy:
+		return "Copying instance"
 	case InstanceUpdate:
 		return "Updating instance"
 	case InstanceRename:
@@ -284,7 +287,7 @@ func (t Type) EntityType() entity.Type {
 	// Instance operations.
 	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
 		InstanceStart, InstanceStop, InstanceRestart, InstanceRename, InstanceMigrate, InstanceLiveMigrate,
-		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate:
+		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate, InstanceCopy:
 		return entity.TypeInstance
 
 	// Instance backup operations.
