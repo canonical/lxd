@@ -1136,7 +1136,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 
 // TaskIDs returns the task IDs for a process.
 func TaskIDs(pid int) (UID int64, GID int64, fsUID int64, fsGID int64, err error) {
-	status, err := os.ReadFile("/proc/" + strconv.FormatInt(int64(pid), 10) + "/status")
+	status, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/status")
 	if err != nil {
 		return -1, -1, -1, -1, err
 	}
