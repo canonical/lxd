@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
@@ -87,7 +88,7 @@ type Operation struct {
 	updatedAt   time.Time
 	status      api.StatusCode
 	url         string
-	resources   map[string][]api.URL
+	resources   map[entity.Type][]api.URL
 	metadata    map[string]any
 	err         error
 	readonly    bool
@@ -121,7 +122,7 @@ type OperationArgs struct {
 	ProjectName string
 	Type        operationtype.Type
 	Class       OperationClass
-	Resources   map[string][]api.URL
+	Resources   map[entity.Type][]api.URL
 	Metadata    map[string]any
 	RunHook     func(ctx context.Context, op *Operation) error
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
@@ -484,7 +485,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 				values = append(values, c.Project(op.Project()).String())
 			}
 
-			tmpResources[key] = values
+			tmpResources[string(key)] = values
 		}
 
 		renderedResources = tmpResources
@@ -636,7 +637,7 @@ func (op *Operation) URL() string {
 }
 
 // Resources returns the operation resources.
-func (op *Operation) Resources() map[string][]api.URL {
+func (op *Operation) Resources() map[entity.Type][]api.URL {
 	return op.resources
 }
 
