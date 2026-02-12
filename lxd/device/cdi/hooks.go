@@ -156,6 +156,12 @@ func ApplyHooksToContainer(hooksFilePath string, containerRootFS string) error {
 				existingLinkerEntries[strings.TrimSpace(scanner.Text())] = true
 			}
 
+			err = scanner.Err()
+			if err != nil {
+				ldConfFile.Close()
+				return fmt.Errorf("Failed reading the linker conf file at %q: %w", ldConfFilePath, err)
+			}
+
 			for _, update := range hooks.LDCacheUpdates {
 				if !existingLinkerEntries[update] {
 					_, err = fmt.Fprintln(ldConfFile, update)
