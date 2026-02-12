@@ -57,7 +57,7 @@ const (
 	SnapshotDelete
 	ImageDownload
 	ImageDelete
-	ImageToken
+	ImageDownloadToken
 	ImageRefresh
 	VolumeCopy
 	VolumeCreate
@@ -94,6 +94,7 @@ const (
 	ProfileUpdate
 	VolumeUpdate
 	VolumeDelete
+	ImageUploadToken
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -170,8 +171,10 @@ func (t Type) Description() string {
 		return "Downloading image"
 	case ImageDelete:
 		return "Deleting image"
-	case ImageToken:
+	case ImageDownloadToken:
 		return "Image download token"
+	case ImageUploadToken:
+		return "Image upload token"
 	case ImageRefresh:
 		return "Refreshing image"
 	case VolumeCopy:
@@ -264,7 +267,7 @@ func (t Type) EntityType() entity.Type {
 	// Project level operations.
 	// If creating a resource, then the parent project is the primary entity
 	// (the entity being created is not yet referenceable).
-	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload:
+	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken:
 		return entity.TypeProject
 
 	// Volume operations.
@@ -287,7 +290,7 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeInstanceSnapshot
 
 	// Image operations.
-	case ImageDelete, ImageRefresh, ImageToken:
+	case ImageDelete, ImageRefresh, ImageDownloadToken:
 		return entity.TypeImage
 
 	// Volume backup operations.
