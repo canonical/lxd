@@ -503,7 +503,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		for key, value := range resources {
 			var values = make([]string, 0, len(value))
 			for _, c := range value {
-				values = append(values, c.Project(op.Project()).String())
+				values = append(values, c.String())
 			}
 
 			tmpResources[string(key)] = values
