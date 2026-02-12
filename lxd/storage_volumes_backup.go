@@ -438,16 +438,16 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName)}
-	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName)}
-
+	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(requestProjectName)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
+		EntityURL:   volumeURL,
 		Type:        operationtype.CustomVolumeBackupCreate,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     backup,
+		Resources: map[entity.Type][]api.URL{
+			entity.TypeStorageVolume: {*volumeURL},
+		},
 		Metadata: map[string]any{
 			operations.EntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName).String(),
 		},
@@ -660,16 +660,16 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName)}
-	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", oldName)}
-
+	backupURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", oldName)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
+		EntityURL:   backupURL,
 		Type:        operationtype.CustomVolumeBackupRename,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     rename,
+		Resources: map[entity.Type][]api.URL{
+			entity.TypeStorageVolumeBackup: {*backupURL},
+		},
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, args)
@@ -769,16 +769,16 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName)}
-	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName)}
-
+	backupURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
+		EntityURL:   backupURL,
 		Type:        operationtype.CustomVolumeBackupRemove,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     remove,
+		Resources: map[entity.Type][]api.URL{
+			entity.TypeStorageVolumeBackup: {*backupURL},
+		},
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, args)
