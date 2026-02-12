@@ -132,12 +132,12 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 	ws.uid = post.User
 	ws.gid = post.Group
 
-	resources := map[string][]api.URL{}
-
 	args := operations.OperationArgs{
-		Type:        operationtype.CommandExec,
+		Type: operationtype.CommandExec,
+		// This dummy URL is required because the agent shares its operations
+		// implementation with LXD. As such, the entity URL has to match the operation type.
+		EntityURL:   api.NewURL().Path("1.0", "instances", "dummy"),
 		Class:       operations.OperationClassWebsocket,
-		Resources:   resources,
 		Metadata:    ws.Metadata(),
 		RunHook:     ws.Do,
 		ConnectHook: ws.Connect,
