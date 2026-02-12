@@ -535,6 +535,27 @@ test_network_ovn() {
   echo "Clean up the instance."
   lxc delete c1 --force
 
+  sub_test "Check that network forwards and load balancers can be created for IPv4 only network."
+  # 1. Disable the ipv6.address for the network.
+  lxc network set "${ovn_network}" ipv6.address=none ipv6.nat=false
+  # 2. Create one external and one internal network forwards.
+  lxc network forward create "${ovn_network}" 192.0.2.1
+  lxc network forward create "${ovn_network}" 10.24.140.10
+  # 3. Clean up network forwards.
+  lxc network forward delete "${ovn_network}" 192.0.2.1
+  lxc network forward delete "${ovn_network}" 10.24.140.10
+  # 4. Create one external and one internal load balancers.
+  lxc network load-balancer create "${ovn_network}" 192.0.2.1
+  lxc network load-balancer create "${ovn_network}" 10.24.140.10
+  # 5. Clean up load balancers.
+  lxc network load-balancer delete "${ovn_network}" 192.0.2.1
+  lxc network load-balancer delete "${ovn_network}" 10.24.140.10
+  # 6. Check that IPv6 forwards and load balancers cannot be created for IPv4 only network.
+  ! lxc network forward create "${ovn_network}" 2001:db8:1:2::1 || false
+  ! lxc network load-balancer create "${ovn_network}" 2001:db8:1:2::1 || false
+  # 7. Enable the ipv6.address back.
+  lxc network set "${ovn_network}" ipv6.address=fd42:bd85:5f89:5293::1/64 ipv6.nat=true
+
   echo "Check that instance NIC passthrough with ipv4.routes.external does not allow using volatile.network.ipv4.address."
   ! lxc launch testimage c1 -n "${ovn_network}" -d eth0,ipv4.routes.external="${volatile_ip4}/32" || false
 
