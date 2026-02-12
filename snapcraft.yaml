@@ -405,6 +405,12 @@ parts:
           SRC_CODE="OVMF_CODE_4M.secboot.fd"
           SRC_VARS="OVMF_VARS_4M.fd"
           SRC_VARS_MS="OVMF_VARS_4M.ms.fd"
+          # Add DEBUG_VERBOSE to print error level for DEBUG build
+          # * 0x80000000 (DEBUG_ERROR)
+          # * 0x00000040 (DEBUG_INFO)
+          # * 0x0000000F (Bits 0-3: DEBUG_INIT, DEBUG_WARN, DEBUG_LOAD, DEBUG_FS)
+          # = 0x8000004F
+          # Adding 0x00400000 (DEBUG_VERBOSE) gives 0x8040004F
           SED_EXPR="s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g"
       elif [ "$(uname -m)" = "aarch64" ]; then
           DSC="ArmVirtPkg/ArmVirt.dsc.inc"
@@ -413,13 +419,14 @@ parts:
           SRC_CODE="AAVMF_CODE.secboot.fd"
           SRC_VARS="AAVMF_VARS.fd"
           SRC_VARS_MS="AAVMF_VARS.ms.fd"
+          # See note in `x86_64` section for DEBUG_VERBOSE explanation
           SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
       fi
 
       # Function to run build and install
       run_build() {
-          TYPE=$1
-          SUFFIX=$2
+          local TYPE="${1}"
+          local SUFFIX="${2}"
 
           # Clean up previous build stamps/artifacts to ensure clean rebuild with new TYPE
           rm -f debian/setup-build-stamp
@@ -427,8 +434,8 @@ parts:
           rm -rf Build
 
           if [ "${TYPE}" = "DEBUG" ]; then
-              cp "${DSC}" "${DSC}.bak"
-              sed -i "${SED_EXPR}" "${DSC}"
+              # Add `DEBUG_VERBOSE` to print error level for DEBUG build
+              sed --in-place=.bak "${SED_EXPR}" "${DSC}"
           fi
 
           /usr/bin/make -f debian/rules "${BUILD_TARGET}" BUILD_TYPE="${TYPE}"
@@ -933,8 +940,9 @@ parts:
       # `edk2` is only built for `amd64` and `arm64` and Launchpad `amd64`
       # builders support KVM acceleration so TCG is only needed on `arm64`.
       if [ "${QEMUARCH}" = "aarch64" ]; then
-        # Append `--enable-tcg`. If `--disable-tcg` was previously set, this will override it.
-        sed -i '1 a set -- "$@" --enable-tcg' configure
+          # `set -- "$@"`: preserve arguments passed to `configure` and append
+          # `--enable-tcg` at the end to override the previous `--disable-tcg`.
+          sed -i '1 a set -- "$@" --enable-tcg' configure
       fi
 
       # Extract efi-virtio.rom from ipxe-qemu.
