@@ -25,6 +25,16 @@ type operation struct {
 	chActive chan bool
 }
 
+// disconnectListener disconnects the event listener associated with the operation.
+// It must be called under [operation.handlerLock].
+func (op *operation) disconnectListener() {
+	if op.listener != nil {
+		op.listener.Disconnect()
+		op.listener = nil
+		close(op.chActive)
+	}
+}
+
 // AddHandler adds a function to be called whenever an event is received.
 func (op *operation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
 	if op.skipListener {
@@ -229,16 +239,12 @@ func (op *operation) setupListener() error {
 
 		// And check if we're done
 		if op.StatusCode.IsFinal() {
-			op.listener.Disconnect()
-			op.listener = nil
-			close(op.chActive)
+			op.disconnectListener()
 			return
 		}
 	})
 	if err != nil {
-		op.listener.Disconnect()
-		op.listener = nil
-		close(op.chActive)
+		op.disconnectListener()
 		close(chReady)
 
 		return err
@@ -266,7 +272,7 @@ func (op *operation) setupListener() error {
 			op.handlerLock.Lock()
 			if op.listener != nil {
 				op.Err = listener.err.Error()
-				close(op.chActive)
+				op.disconnectListener()
 			}
 
 			op.handlerLock.Unlock()
@@ -278,9 +284,7 @@ func (op *operation) setupListener() error {
 	// And do a manual refresh to avoid races
 	err = op.Refresh()
 	if err != nil {
-		op.listener.Disconnect()
-		op.listener = nil
-		close(op.chActive)
+		op.disconnectListener()
 		close(chReady)
 
 		return err
@@ -288,9 +292,7 @@ func (op *operation) setupListener() error {
 
 	// Check if not done already
 	if op.StatusCode.IsFinal() {
-		op.listener.Disconnect()
-		op.listener = nil
-		close(op.chActive)
+		op.disconnectListener()
 		close(chReady)
 
 		if op.Err != "" {
