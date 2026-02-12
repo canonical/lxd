@@ -1286,7 +1286,7 @@ type operationWaitPost struct {
 	Duration  string                    `json:"duration" yaml:"duration"`
 	OpClass   operations.OperationClass `json:"op_class" yaml:"op_class"`
 	OpType    operationtype.Type        `json:"op_type" yaml:"op_type"`
-	Resources map[string][]string       `json:"resources" yaml:"resources"`
+	EntityURL string                    `json:"entity_url" yaml:"entity_url"`
 }
 
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
@@ -1309,27 +1309,6 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Extract and validate resources
-	var resources map[string][]api.URL
-	if req.Resources != nil {
-		resources = make(map[string][]api.URL)
-		for resourceType, entityURLs := range req.Resources {
-			for _, entityURL := range entityURLs {
-				parsedURL, err := url.Parse(entityURL)
-				if err != nil {
-					return response.BadRequest(err)
-				}
-
-				_, _, _, _, err = entity.ParseURL(*parsedURL)
-				if err != nil {
-					return response.BadRequest(err)
-				}
-
-				resources[resourceType] = append(resources[resourceType], api.URL{URL: *parsedURL})
-			}
-		}
-	}
-
 	err = operationtype.Validate(req.OpType)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Invalid operation type code %d", req.OpType))
@@ -1346,6 +1325,11 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
+	u, err := url.Parse(req.EntityURL)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Failed parsing operation entity URL: %w", err))
+	}
+
 	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
 	if req.OpClass == operations.OperationClassWebsocket {
 		onConnect = func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
@@ -1358,9 +1342,9 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		ProjectName: request.QueryParam(r, "project"),
 		Type:        req.OpType,
 		Class:       req.OpClass,
-		Resources:   resources,
 		RunHook:     run,
 		ConnectHook: onConnect,
+		EntityURL:   &api.URL{URL: *u},
 	}
 
 	op, err := operations.CreateUserOperation(d.State(), requestor, args)
