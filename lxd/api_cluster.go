@@ -79,31 +79,31 @@ var clusterCmd = APIEndpoint{
 	Put: APIEndpointAction{Handler: clusterPut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
-var clusterNodesCmd = APIEndpoint{
+var clusterMembersCmd = APIEndpoint{
 	Path:        "cluster/members",
 	MetricsType: entity.TypeClusterMember,
 
-	Get:  APIEndpointAction{Handler: clusterNodesGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: clusterNodesPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Get:  APIEndpointAction{Handler: clusterMembersGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: clusterMembersPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
-var clusterNodeCmd = APIEndpoint{
+var clusterMemberCmd = APIEndpoint{
 	Path:        "cluster/members/{name}",
 	MetricsType: entity.TypeClusterMember,
 
-	Delete: APIEndpointAction{Handler: clusterNodeDelete, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
-	Get:    APIEndpointAction{Handler: clusterNodeGet, AccessHandler: allowAuthenticated},
-	Patch:  APIEndpointAction{Handler: clusterNodePatch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
-	Put:    APIEndpointAction{Handler: clusterNodePut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
-	Post:   APIEndpointAction{Handler: clusterNodePost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: clusterMemberDelete, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Get:    APIEndpointAction{Handler: clusterMemberGet, AccessHandler: allowAuthenticated},
+	Patch:  APIEndpointAction{Handler: clusterMemberPatch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: clusterMemberPut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post:   APIEndpointAction{Handler: clusterMemberPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
-var clusterNodeStateCmd = APIEndpoint{
+var clusterMemberStateCmd = APIEndpoint{
 	Path:        "cluster/members/{name}/state",
 	MetricsType: entity.TypeClusterMember,
 
-	Get:  APIEndpointAction{Handler: clusterNodeStateGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: clusterNodeStatePost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Get:  APIEndpointAction{Handler: clusterMemberStateGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: clusterMemberStatePost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterCertificateCmd = APIEndpoint{
@@ -1255,7 +1255,7 @@ func clusterAcceptMember(client lxd.InstanceServer, name string, address string,
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
+func clusterMembersGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 	s := d.State()
 
@@ -1339,7 +1339,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, urls)
 }
 
-var clusterNodesPostMu sync.Mutex // Used to prevent races when creating cluster join tokens.
+var clusterMembersPostMu sync.Mutex // Used to prevent races when creating cluster join tokens.
 
 // swagger:operation POST /1.0/cluster/members cluster cluster_members_post
 //
@@ -1368,7 +1368,7 @@ var clusterNodesPostMu sync.Mutex // Used to prevent races when creating cluster
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
+func clusterMembersPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
@@ -1431,8 +1431,8 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Lock to prevent concurrent requests racing the operationsGetByType function and creating duplicates.
 	// We have to do this because collecting all of the operations from existing cluster members can take time.
-	clusterNodesPostMu.Lock()
-	defer clusterNodesPostMu.Unlock()
+	clusterMembersPostMu.Lock()
+	defer clusterMembersPostMu.Unlock()
 
 	// Remove any existing join tokens for the requested cluster member, this way we only ever have one active
 	// join token for each potential new member, and it has the most recent active members list for joining.
@@ -1539,7 +1539,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
+func clusterMemberGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	leaderInfo, err := s.LeaderInfo()
@@ -1650,8 +1650,8 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func clusterNodePatch(d *Daemon, r *http.Request) response.Response {
-	return updateClusterNode(d.State(), d.gateway, r, true)
+func clusterMemberPatch(d *Daemon, r *http.Request) response.Response {
+	return updateClusterMember(d.State(), d.gateway, r, true)
 }
 
 // swagger:operation PUT /1.0/cluster/members/{name} cluster cluster_member_put
@@ -1683,12 +1683,12 @@ func clusterNodePatch(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func clusterNodePut(d *Daemon, r *http.Request) response.Response {
-	return updateClusterNode(d.State(), d.gateway, r, false)
+func clusterMemberPut(d *Daemon, r *http.Request) response.Response {
+	return updateClusterMember(d.State(), d.gateway, r, false)
 }
 
-// updateClusterNode is shared between clusterNodePut and clusterNodePatch.
-func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request, isPatch bool) response.Response {
+// updateClusterMember is shared between clusterMemberPut and clusterMemberPatch.
+func updateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Request, isPatch bool) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -2031,7 +2031,7 @@ func clusterValidateConfig(config map[string]string) error {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func clusterNodePost(d *Daemon, r *http.Request) response.Response {
+func clusterMemberPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	memberName, err := url.PathUnescape(mux.Vars(r)["name"])
@@ -2091,7 +2091,7 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
+func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// Redirect all requests to the leader, which is the one with
@@ -3101,7 +3101,7 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func clusterNodeStateGet(d *Daemon, r *http.Request) response.Response {
+func clusterMemberStateGet(d *Daemon, r *http.Request) response.Response {
 	memberName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -3150,7 +3150,7 @@ func clusterNodeStateGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
+func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
