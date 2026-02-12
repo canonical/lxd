@@ -2657,6 +2657,15 @@ test_clustering_dns() {
 }
 
 test_clustering_fan() {
+  # FAN bridge is not working on Noble+6.14 kernel
+  # https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2141703 and https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2141715
+  if grep -qxF 'VERSION_ID="24.04"' /etc/os-release && runsMinimumKernel 6.14; then
+    local kernel_version
+    kernel_version="$(uname -r)"
+    export TEST_UNMET_REQUIREMENT="Broken FAN bridge on ${kernel_version} kernel"
+    return 0
+  fi
+
   local LXD_DIR
 
   setup_clustering_bridge
