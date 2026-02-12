@@ -37,6 +37,7 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
@@ -148,15 +149,13 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 		return instanceCreateFinish(s, req, args, nil)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
-
-	if dbType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", p.Name)},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: p.Name,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", p.Name),
 		Type:        operationtype.InstanceCreate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
@@ -221,15 +220,13 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 		return instanceCreateFinish(s, req, args, nil)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
-
-	if dbType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
 	}
 
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
@@ -398,15 +395,13 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
-
-	if dbType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
 	}
 
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
 		Resources:   resources,
 		RunHook:     run,
@@ -527,17 +522,15 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
-
-	if dbType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
 	}
 
 	metadata := sink.Metadata()
 	metadata[operations.EntityURL] = api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String()
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
 		Class:       operations.OperationClassWebsocket,
 		Resources:   resources,
@@ -740,23 +733,21 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		return instanceCreateFinish(s, req, args, targetClient)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
+	}
 
 	if shared.IsSnapshot(req.Source.Source) {
 		cName, sName, _ := api.GetParentAndSnapshotName(req.Source.Source)
-		resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", cName, "snapshots", sName)}
+		resources[entity.TypeInstanceSnapshot] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", cName, "snapshots", sName).Project(req.Source.Project)}
 	} else {
-		resources["instances"] = append(resources["instances"], *api.NewURL().Path(version.APIVersion, "instances", req.Source.Source))
-	}
-
-	if dbType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+		resources[entity.TypeInstance] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Source.Source).Project(req.Source.Project)}
 	}
 
 	opArgs := operations.OperationArgs{
 		ProjectName: targetProject,
-		Type:        operationtype.InstanceCreate,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", req.Source.Source).Project(req.Source.Project),
+		Type:        operationtype.InstanceCopy,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     run,
@@ -1004,11 +995,13 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return instanceCreateFinish(s, &req, db.InstanceArgs{Name: bInfo.Name, Project: bInfo.Project}, nil)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", bInfo.Name)}
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
+	}
 
 	args := operations.OperationArgs{
 		ProjectName: bInfo.Project,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.BackupRestore,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,

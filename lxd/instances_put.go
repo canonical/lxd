@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
@@ -156,12 +157,6 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		names = append(names, inst.Name())
 	}
 
-	// Determine operation type.
-	opType, err := instanceActionToOptype(req.State.Action)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
 	// Batch the changes.
 	do := func(ctx context.Context, op *operations.Operation) error {
 		localAction := func(local bool) error {
@@ -274,14 +269,15 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		return coalesceErrors(true, failures)
 	}
 
-	resources := map[string][]api.URL{}
+	resources := map[entity.Type][]api.URL{}
 	for _, instName := range names {
-		resources["instances"] = append(resources["instances"], *api.NewURL().Path(version.APIVersion, "instances", instName))
+		resources[entity.TypeInstance] = append(resources[entity.TypeInstance], *api.NewURL().Path(version.APIVersion, "instances", instName))
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
-		Type:        opType,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
+		Type:        operationtype.InstanceStateUpdateBulk,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     do,
