@@ -15,7 +15,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -24,6 +23,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
@@ -202,15 +202,13 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		opType = operationtype.SnapshotRestore
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        opType,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,

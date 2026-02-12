@@ -32,6 +32,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
@@ -695,21 +696,18 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		ws.instance = inst
 		ws.req = post
 
-		resources := map[string][]api.URL{}
-		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", ws.instance.Name())}
-
-		if ws.instance.Type() == instancetype.Container {
-			resources["containers"] = resources["instances"]
-		}
-
+		instanceURL := api.NewURL().Path(version.APIVersion, "instances", ws.instance.Name()).Project(projectName)
 		args := operations.OperationArgs{
 			ProjectName: projectName,
+			EntityURL:   instanceURL,
 			Type:        operationtype.CommandExec,
 			Class:       operations.OperationClassWebsocket,
-			Resources:   resources,
 			Metadata:    ws.Metadata(),
 			RunHook:     ws.Do,
 			ConnectHook: ws.Connect,
+			Resources: map[entity.Type][]api.URL{
+				entity.TypeInstance: {*instanceURL},
+			},
 		}
 
 		op, err := operations.CreateUserOperation(s, requestor, args)
@@ -781,19 +779,16 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
-	}
-
+	instanceURL := api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   instanceURL,
 		Type:        operationtype.CommandExec,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     run,
+		Resources: map[entity.Type][]api.URL{
+			entity.TypeInstance: {*instanceURL},
+		},
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, args)

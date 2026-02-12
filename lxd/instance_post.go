@@ -436,15 +436,14 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return nil
 			}
 
-			resources := map[string][]api.URL{}
-			resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-			if inst.Type() == instancetype.Container {
-				resources["containers"] = resources["instances"]
+			instanceURL := api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)
+			resources := map[entity.Type][]api.URL{
+				entity.TypeInstance: {*instanceURL},
 			}
 
 			args := operations.OperationArgs{
 				ProjectName: projectName,
+				EntityURL:   instanceURL,
 				Type:        operationtype.InstanceMigrate,
 				Class:       operations.OperationClassTask,
 				Resources:   resources,
@@ -466,11 +465,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		resources := map[string][]api.URL{}
-		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-		if inst.Type() == instancetype.Container {
-			resources["containers"] = resources["instances"]
+		resources := map[entity.Type][]api.URL{
+			entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
 		}
 
 		run := func(ctx context.Context, op *operations.Operation) error {
@@ -495,6 +491,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			// Push mode.
 			args := operations.OperationArgs{
 				ProjectName: projectName,
+				EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 				Type:        operationtype.InstanceMigrate,
 				Class:       operations.OperationClassTask,
 				Resources:   resources,
@@ -512,6 +509,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		// Pull mode.
 		args := operations.OperationArgs{
 			ProjectName: projectName,
+			EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 			Type:        operationtype.InstanceMigrate,
 			Class:       operations.OperationClassWebsocket,
 			Resources:   resources,
@@ -544,15 +542,13 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return inst.Rename(req.Name, true)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.InstanceRename,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
@@ -834,9 +830,9 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 		}
 
 		dest = dest.UseTarget(newMember.Name).UseProject(targetProject)
-
-		resources := map[string][]api.URL{}
-		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", srcInstName)}
+		resources := map[entity.Type][]api.URL{
+			entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", srcInstName).Project(srcInst.Project().Name)},
+		}
 
 		srcInstRunning := srcInst.IsRunning()
 		live := stateful && srcInstRunning
@@ -920,6 +916,7 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 
 		args := operations.OperationArgs{
 			ProjectName: targetProject,
+			EntityURL:   api.NewURL().Path(version.APIVersion, "instances", srcInstName).Project(srcInst.Project().Name),
 			Type:        operationtype.InstanceMigrate,
 			Class:       operations.OperationClassWebsocket,
 			Resources:   resources,
