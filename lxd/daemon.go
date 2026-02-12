@@ -1115,7 +1115,7 @@ func (d *Daemon) init() error {
 	events.LoggingServer = d.events
 
 	// Setup internal event listener
-	d.internalListener = events.NewInternalListener(d.shutdownCtx, d.events)
+	d.internalListener = events.NewInternalListener(d.shutdownCtx, d.events, []string{api.EventTypeLifecycle, api.EventTypeLogging, api.EventTypeOVN}, []events.EventSource{events.EventSourcePull})
 
 	// Lets check if there's an existing LXD running
 	err = endpoints.CheckAlreadyRunning(d.os.GetUnixSocket())

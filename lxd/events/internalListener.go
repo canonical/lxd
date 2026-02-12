@@ -18,14 +18,18 @@ type InternalListener struct {
 	listenerCtx    context.Context
 	listenerCancel context.CancelFunc
 	lock           sync.Mutex
+	messageTypes   []string
+	excludeSources []EventSource
 }
 
 // NewInternalListener returns an InternalListener.
-func NewInternalListener(ctx context.Context, server *Server) *InternalListener {
+func NewInternalListener(ctx context.Context, server *Server, messageTypes []string, excludeSources []EventSource) *InternalListener {
 	return &InternalListener{
-		ctx:      ctx,
-		handlers: map[string]EventHandler{},
-		server:   server,
+		ctx:            ctx,
+		handlers:       map[string]EventHandler{},
+		server:         server,
+		messageTypes:   messageTypes,
+		excludeSources: excludeSources,
 	}
 }
 
@@ -38,7 +42,7 @@ func (l *InternalListener) startListener() {
 	aEnd, bEnd := memorypipe.NewPipePair(l.listenerCtx)
 	listenerConnection := NewSimpleListenerConnection(aEnd)
 
-	l.listener, err = l.server.AddListener("", true, nil, listenerConnection, []string{api.EventTypeLifecycle, api.EventTypeLogging, api.EventTypeOVN}, []EventSource{EventSourcePull}, nil, nil)
+	l.listener, err = l.server.AddListener("", true, nil, listenerConnection, l.messageTypes, l.excludeSources, nil, nil)
 	if err != nil {
 		return
 	}
