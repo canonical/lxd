@@ -99,6 +99,7 @@ const (
 	InstanceCopy
 	VolumeSnapshotsCreateScheduled
 	InstanceStateUpdateBulk
+	VolumeSnapshotTransfer
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -257,6 +258,8 @@ func (t Type) Description() string {
 		return "Creating scheduled volume snapshots"
 	case InstanceStateUpdateBulk:
 		return "Updating the state of multiple instances"
+	case VolumeSnapshotTransfer:
+		return "Transferring volume snapshot"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -288,7 +291,7 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeStorageVolume
 
 	// Volume snapshot operations
-	case VolumeSnapshotRename, VolumeSnapshotUpdate, VolumeSnapshotDelete:
+	case VolumeSnapshotRename, VolumeSnapshotUpdate, VolumeSnapshotDelete, VolumeSnapshotTransfer:
 		return entity.TypeStorageVolumeSnapshot
 
 	// Instance operations.
