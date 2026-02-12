@@ -627,6 +627,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 
 		args := operations.OperationArgs{
 			ProjectName: requestProjectName,
+			EntityURL:   api.NewURL().Path(version.APIVersion, "profiles", details.profileName).Project(details.effectiveProject.Name),
 			Type:        operationtype.ProfileUpdate,
 			Class:       operations.OperationClassTask,
 			RunHook:     run,
@@ -704,11 +705,14 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["profiles"] = []api.URL{*api.NewURL().Path(version.APIVersion, "profiles", details.profileName)}
+	profileURL := api.NewURL().Path(version.APIVersion, "profiles", details.profileName).Project(details.effectiveProject.Name)
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProfile: {*profileURL},
+	}
 
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
+		EntityURL:   profileURL,
 		Type:        operationtype.ProfileUpdate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
@@ -851,11 +855,14 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		return doProfileUpdate(ctx, s, details.effectiveProject, details.profileName, profile, req)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["profiles"] = []api.URL{*api.NewURL().Path(version.APIVersion, "profiles", details.profileName)}
+	requestProjectName := request.ProjectParam(r)
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProfile: {*api.NewURL().Path(version.APIVersion, "profiles", details.profileName).Project(details.effectiveProject.Name)},
+	}
 
 	args := operations.OperationArgs{
-		ProjectName: request.ProjectParam(r),
+		ProjectName: requestProjectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "profiles", details.profileName).Project(details.effectiveProject.Name),
 		Type:        operationtype.ProfileUpdate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
