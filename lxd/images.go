@@ -1461,6 +1461,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	args := operations.OperationArgs{
 		ProjectName: dbProject.Name,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", dbProject.Name),
 		Type:        operationtype.ImageDownload,
 		Class:       operations.OperationClassTask,
 		Metadata:    metadata,
@@ -3161,14 +3162,11 @@ func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imag
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", fingerprint)}
-
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(projectName),
 		Type:        operationtype.ImageDelete,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     do,
 	}
 
@@ -4771,7 +4769,8 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
-		Type:        operationtype.ImageDownload,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint).Project(details.image.Project),
+		Type:        operationtype.ImageUpload,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 	}
@@ -4981,6 +4980,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint).Project(details.image.Project),
 		Type:        operationtype.ImageRefresh,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
