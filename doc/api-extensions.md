@@ -2225,9 +2225,13 @@ This introduces:
 
 ## `security_csm`
 
-Introduce a new {config:option}`instance-security:security.csm` configuration key to control the use of
+Introduce a new `instance-security:security.csm` configuration key to control the use of
 `CSM` (Compatibility Support Module) to allow legacy operating systems to
 be run in LXD VMs.
+
+```{note}
+The `security.csm` key has been replaced by `boot.mode`. See {ref}`extension-instance-boot-mode`.
+```
 
 ## `instances_rebuild`
 
@@ -2906,3 +2910,14 @@ The field is only included when a resource is being created asynchronously (oper
 For synchronous resource creation, clients should inspect the `Location` header.
 
 The `resources` field should no longer be relied upon for this information.
+
+(extension-instance-boot-mode)=
+## `instance_boot_mode`
+
+Introduces the new {config:option}`instance-boot:boot.mode` configuration key to control the VM boot firmware mode.
+This replaces the removed `security.csm` and `security.secureboot` settings.
+
+The new setting accepts:
+* `uefi-secureboot` (default) - Use UEFI firmware with secure boot enabled
+* `uefi-nosecureboot` - Use UEFI firmware with secure boot disabled
+* `bios` - Use legacy BIOS firmware (SeaBIOS), `x86_64` (`amd64`) only

@@ -51,7 +51,7 @@ You can use UEFI variables to disable secure boot, for example.
 
 ```{important}
 Use this method only for debugging purposes.
-LXD provides the {config:option}`instance-security:security.secureboot` option to control the secure boot behavior.
+LXD provides the {config:option}`instance-boot:boot.mode` option to control the secure boot behavior.
 ```
 
 The following command checks the secure boot state:

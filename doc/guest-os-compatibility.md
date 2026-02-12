@@ -60,11 +60,10 @@ not supported  | ❌
 The LXD agent provides the ability to execute commands inside of the virtual machine guest without relying on traditional access solution like secure shell (SSH) or Remote Desktop Protocol (RDP). This agent is only supported on Linux guests using `systemd`.
 For how to manually setup the agent, see {ref}`lxd-agent-manual-install`.
 
-### CSM/BIOS boot
+### BIOS boot
 
 ```bash
-lxc config set v1 security.secureboot=false
-lxc config set v1 security.csm=true
+lxc config set v1 boot.mode=bios
 ```
 
 ### Virtual TPM
