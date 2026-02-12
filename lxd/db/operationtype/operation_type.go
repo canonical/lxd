@@ -98,6 +98,7 @@ const (
 	ImageUpload
 	InstanceCopy
 	VolumeSnapshotsCreateScheduled
+	InstanceStateUpdateBulk
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -254,6 +255,8 @@ func (t Type) Description() string {
 		return "Uploading image"
 	case VolumeSnapshotsCreateScheduled:
 		return "Creating scheduled volume snapshots"
+	case InstanceStateUpdateBulk:
+		return "Updating the state of multiple instances"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -276,7 +279,8 @@ func (t Type) EntityType() entity.Type {
 	// Project level operations.
 	// If creating a resource, then the parent project is the primary entity
 	// (the entity being created is not yet referenceable).
-	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore, BackupRestore:
+	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore,
+		InstanceStateUpdateBulk, BackupRestore:
 		return entity.TypeProject
 
 	// Volume operations.
