@@ -473,6 +473,7 @@ var APIExtensions = []string{
 	"instance_force_delete",
 	"operation_metadata_entity_url",
 	"instance_boot_mode",
+	"auth_bearer",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
