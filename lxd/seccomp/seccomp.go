@@ -1853,7 +1853,8 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 
 	instMetrics := Sysinfo{} // Architecture independent place to hold instance metrics.
 
-	cg, err := cgroup.NewFileReadWriter(int(siov.msg.init_pid))
+	initPID := int(siov.msg.init_pid)
+	cg, err := cgroup.NewFileReadWriter(initPID)
 	if err != nil {
 		l.Warn("Failed loading cgroup", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1862,7 +1863,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 	}
 
 	// Get instance uptime.
-	pidStat, err := os.ReadFile("/proc/" + strconv.FormatInt(int64(siov.msg.init_pid), 10) + "/stat")
+	pidStat, err := os.ReadFile("/proc/" + strconv.Itoa(initPID) + "/stat")
 	if err != nil {
 		l.Warn("Failed getting init process info", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
