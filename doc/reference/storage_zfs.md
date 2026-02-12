@@ -55,6 +55,51 @@ Then use the following commands to make sure that trimming is automatically enab
     zpool set autotrim=on ZPOOL-NAME
     zpool trim ZPOOL-NAME
 
+(storage-zfs-image-variants)=
+### Image variants and optimized instance creation
+
+The ZFS driver supports optimized image volumes that significantly reduce instance creation time.
+
+If an image is unpacked into an optimized image volume, when LXD creates an instance from that image, it can clone the instance from that volume rather than unpacking from scratch.
+This makes instance creation nearly instantaneous.
+
+The ZFS driver can maintain multiple variants of the same optimized image volume to support fast instance creation when using instance-specific initial root disk settings (see {ref}`devices-disk-initial-config`).
+
+#### Variant types
+
+LXD can maintain multiple optimized image volumes for the same image, representing different volume configurations:
+
+- **Dataset variant** (dataset mode): A `ZFS filesystem` dataset created when {config:option}`storage-zfs-volume-conf:zfs.block_mode` is `false`.
+- **Block-backed variants**: ZFS volumes with specific filesystems (ext4, btrfs, xfs) created when {config:option}`storage-zfs-volume-conf:zfs.block_mode` is `true`.
+
+#### Variant lifecycle
+
+Variants are created lazily on-demand when an instance requests a configuration that doesn't match an existing variant.
+
+A variant is deleted when one of the following events occurs:
+
+- The last instance that uses the variant is removed.
+- The image is deleted and no instances use the variant.
+- The pool configuration changes (for example, switching from dataset mode to block mode) and the variant no longer matches the new pool defaults and has no active instances.
+
+Variants with active instances are always preserved regardless of image deletion or configuration changes.
+
+#### Configuration
+
+To optimize instance creation, use instance configurations that match your pool defaults:
+
+- **Pool default**: Set {config:option}`storage-zfs-volume-conf:zfs.block_mode` and {config:option}`storage-zfs-volume-conf:block.filesystem` at the pool level (using the `volume.` prefix) at pool creation.
+- **Instance override**: Use `initial.zfs.block_mode` and `initial.block.filesystem` {ref}`device configuration <devices-disk-initial-config>` for instances requiring different settings.
+
+Changing pool configuration frequently can reduce optimization benefits, as variants may need to be recreated.
+
+#### Performance benefits
+
+Using image variants provides:
+- Near-instantaneous instance creation (2-3 seconds vs. 10-30 seconds for traditional unpacking).
+- Minimal disk I/O during instance creation (metadata operations only).
+- Copy-on-write space efficiency (instances initially share data with the image variant).
+
 (storage-zfs-limitations)=
 ### Limitations
 
