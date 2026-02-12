@@ -456,21 +456,30 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 }
 
 // isInstanceBusy checks if the instance is currently busy: if it has an associated operation that is in a running state.
-func isInstanceBusy(inst instance.Instance, instancesToOps map[string]*operations.Operation, instancesToOpsMu *sync.Mutex) bool {
-	if instancesToOps == nil {
+func isInstanceBusy(inst instance.Instance, instanceOperations map[string]map[string][]*operations.Operation, instancesToOpsMu *sync.Mutex) bool {
+	if instanceOperations == nil {
 		return false
 	}
 
-	if len(instancesToOps) == 0 {
+	if len(instanceOperations) == 0 {
 		return false
 	}
 
-	instanceURL := entity.InstanceURL(inst.Project().Name, inst.Name()).String()
 	instancesToOpsMu.Lock()
 	defer instancesToOpsMu.Unlock()
 
-	op, ok := instancesToOps[instanceURL]
-	return ok && op != nil && op.Status() == api.Running && op.Class() != operations.OperationClassToken
+	projectInstances, ok := instanceOperations[inst.Project().Name]
+	if !ok {
+		return false
+	}
+
+	for _, op := range projectInstances[inst.Name()] {
+		if op.IsRunning() {
+			return true
+		}
+	}
+
+	return false
 }
 
 // instancesShutdown orchestrates a controlled, priority-based shutdown of multiple instances while handling
