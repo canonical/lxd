@@ -523,7 +523,7 @@ func (d *common) postMigrateSendCommon(inst instance.Instance, clusterMoveSource
 	for devName, devConfig := range d.ExpandedDevices() {
 		dev, err := d.deviceLoad(inst, devName, devConfig)
 		if err != nil {
-			logger.Error("Failed to load device %q during post-migration steps on source: %v", logger.Ctx{"devName": devName, "err": err})
+			logger.Error("Failed to load device during post-migration steps on source", logger.Ctx{"devName": devName, "err": err})
 		}
 
 		if dev != nil {
