@@ -62,8 +62,8 @@ test_tls_restrictions() {
   lxc storage volume create "${pool_name}" vol1
   lxc profile create p1 --project blah
 
-  kill -9 "${mon_root_pid}" || true
-  kill -9 "${mon_restricted_pid}" || true
+  kill_go_proc "${mon_root_pid}" || true
+  kill_go_proc "${mon_restricted_pid}" || true
 
   # The events for the restricted caller should have only the profile creation lifecycle event because this occurred
   # "blah". The storage volume creation event should not be visible because it occurred in "default".
@@ -122,7 +122,7 @@ test_tls_restrictions() {
 
   # Check we can export the public image:
   lxc image export localhost:testimage "${TEST_DIR}/" --project default
-  [ "${test_image_fingerprint}" = "$(sha256sum "${TEST_DIR}/${test_image_fingerprint}.tar.xz" | cut -d' ' -f1)" ]
+  [ "${test_image_fingerprint}" = "$(sha256sum "${TEST_DIR}/${test_image_fingerprint}.tar"* | cut -d' ' -f1)" ]
 
   # While the image is public, copy it to the blah project and create an alias for it.
   lxc_remote image copy localhost:testimage localhost: --project default --target-project blah
@@ -175,7 +175,7 @@ test_tls_restrictions() {
   lxc_remote image delete "localhost:${test_image_fingerprint}" --project blah
 
   # The restricted client can create images.
-  lxc_remote image import "${TEST_DIR}/${test_image_fingerprint}.tar.xz" localhost: --project blah
+  lxc_remote image import "${TEST_DIR}/${test_image_fingerprint}.tar"* localhost: --project blah
 
   # Clean up
   lxc_remote image delete "localhost:${test_image_fingerprint}" --project blah
@@ -460,7 +460,7 @@ test_tls_restrictions() {
 
   # Cleanup
   delete_object_storage_pool s3
-  rm "${TEST_DIR}/${test_image_fingerprint}.tar.xz"
+  rm "${TEST_DIR}/${test_image_fingerprint}.tar"*
 
   # First clear projects (while still restricted=true, so validation allows it).
   lxc config trust show "${FINGERPRINT}" | sed -e '/^- blah$/d' -e 's/^projects:$/projects: []/' | lxc config trust edit "${FINGERPRINT}"

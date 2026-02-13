@@ -328,7 +328,7 @@ type cmdClusterGet struct {
 func (c *cmdClusterGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", "[<remote>:]<member> <key>")
-	cmd.Short = "Get values for cluster member configuration key"
+	cmd.Short = "Get value for cluster member configuration key"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as a cluster property")
@@ -1296,7 +1296,11 @@ func (c *cmdClusterEvacuate) command() *cobra.Command {
 Evacuation actions:
  - stop: stop all instances on the member
  - migrate: migrate all instances on the member to other members
- - live-migrate: live migrate all instances on the member to other members
+ - live-migrate: live migrate eligible instances on the member to other members
+
+Note: Live migration is supported for virtual machines only.
+If no target member is available, an instance is skipped.
+If a live migration attempt fails, the evacuation operation fails.
 `)
 
 	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, "Force evacuation without user confirmation")

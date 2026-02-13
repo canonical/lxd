@@ -166,7 +166,7 @@ test_filemanip() {
   sleep 0.1
 
   [ "$(curl -s -S --insecure sftp://127.0.0.1:2022/foo)" = "foo" ]
-  kill -9 "${mountPID}"
+  kill_go_proc "${mountPID}"
 
   CREDS_FILE="$(mktemp)"
   "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 > "${CREDS_FILE}" &
@@ -176,7 +176,7 @@ test_filemanip() {
   rm "${CREDS_FILE}"
 
   [ "$(curl -s -S --insecure --user "${userCreds}" sftp://127.0.0.1:2022/foo)" = "foo" ]
-  kill -9 "${mountPID}"
+  kill_go_proc "${mountPID}"
 
   lxc delete -f filemanip
 

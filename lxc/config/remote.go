@@ -1,9 +1,7 @@
 package config
 
 import (
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"net"
@@ -213,7 +211,10 @@ func (c *Config) connectRemote(remote Remote, args *lxd.ConnectionArgs) (lxd.Ins
 	}
 
 	// HTTPS
-	if !slices.Contains([]string{api.AuthenticationMethodOIDC}, remote.AuthType) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
+	// If bearer token is provided, we don't need TLS client certificate and key.
+	// However, do not advertise that bearer token can be configured.
+	// The support for bearer token in LXC is purely for testing purposes.
+	if !slices.Contains([]string{api.AuthenticationMethodOIDC}, remote.AuthType) && (args.TLSClientCert == "" || args.TLSClientKey == "") && args.BearerToken == "" {
 		return nil, errors.New("Missing TLS client certificate and key")
 	}
 
@@ -394,6 +395,14 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		return &args, nil
 	}
 
+	// Check for LXD_AUTH_BEARER_TOKEN environment variable
+	// Stop here if bearer token is used. It takes precedence over the TLS client certificate and key.
+	token, ok := os.LookupEnv("LXD_AUTH_BEARER_TOKEN")
+	if ok && token != "" {
+		args.BearerToken = token
+		return &args, nil
+	}
+
 	// Client certificate
 	if shared.PathExists(c.ConfigPath("client.crt")) {
 		content, err := os.ReadFile(c.ConfigPath("client.crt"))
@@ -419,28 +428,6 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		content, err := os.ReadFile(c.ConfigPath("client.key"))
 		if err != nil {
 			return nil, err
-		}
-
-		pemKey, _ := pem.Decode(content)
-		// Golang has deprecated all methods relating to PEM encryption due to a vulnerability.
-		// However, the weakness does not make PEM unsafe for our purposes as it pertains to password protection on the
-		// key file (client.key is only readable to the user in any case), so we'll ignore deprecation.
-		if x509.IsEncryptedPEMBlock(pemKey) { //nolint:staticcheck
-			if c.PromptPassword == nil {
-				return nil, errors.New("Private key is password protected and no helper was configured")
-			}
-
-			password, err := c.PromptPassword("client.crt")
-			if err != nil {
-				return nil, err
-			}
-
-			derKey, err := x509.DecryptPEMBlock(pemKey, []byte(password)) //nolint:staticcheck
-			if err != nil {
-				return nil, err
-			}
-
-			content = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: derKey})
 		}
 
 		args.TLSClientKey = string(content)

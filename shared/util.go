@@ -21,7 +21,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"runtime"
 	"slices"
@@ -942,32 +941,6 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 	return content, nil
 }
 
-// ParseMetadata converts the provided metadata into a map[string]any. An error is
-// returned if the input is not a valid map or if the keys are not strings.
-func ParseMetadata(metadata any) (map[string]any, error) {
-	newMetadata := make(map[string]any)
-	s := reflect.ValueOf(metadata)
-	if !s.IsValid() {
-		return nil, nil
-	}
-
-	if s.Kind() == reflect.Map {
-		for _, k := range s.MapKeys() {
-			if k.Kind() != reflect.String {
-				return nil, errors.New("Invalid metadata provided (key isn't a string)")
-			}
-
-			newMetadata[k.String()] = s.MapIndex(k).Interface()
-		}
-	} else if s.Kind() == reflect.Ptr && !s.Elem().IsValid() {
-		return nil, nil
-	} else {
-		return nil, errors.New("Invalid metadata provided (type isn't a map)")
-	}
-
-	return newMetadata, nil
-}
-
 // RemoveDuplicatesFromString removes all duplicates of the string 'sep'
 // from the specified string 's'. Leading and trailing occurrences of sep
 // are NOT removed (duplicate leading/trailing are). Performs poorly if
@@ -1561,4 +1534,16 @@ func IsMicroOVNUsed() bool {
 	}
 
 	return false
+}
+
+// ShellQuote escapes the input string for use in shell command arguments.
+// It is equivalent to strconv.Quote but using a single-quote instead.
+func ShellQuote(in string) string {
+	in = strconv.Quote(in)
+	in = in[1 : len(in)-1]                    // Remove the surrounding double quotes added by strconv.Quote.
+	in = strings.ReplaceAll(in, "\\\"", "\"") // Unescape any escaped double quotes from strconv.Quote.
+
+	// Replace ' with '\'' which translates to:
+	// [End literal string] + [Escaped single quote] + [Start new literal string]
+	return `'` + strings.ReplaceAll(in, `'`, `'\''`) + `'`
 }

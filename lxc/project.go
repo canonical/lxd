@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
 	"github.com/canonical/lxd/shared/units"
 )
@@ -29,9 +28,8 @@ type cmdProject struct {
 func (c *cmdProject) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("project")
-	cmd.Short = i18n.G("Manage projects")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage projects`))
+	cmd.Short = "Manage projects"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	// Create
 	projectCreateCmd := cmdProjectCreate{global: c.global, project: c}
@@ -94,18 +92,17 @@ type cmdProjectCreate struct {
 
 func (c *cmdProjectCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<project>"))
-	cmd.Short = i18n.G("Create projects")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create projects`))
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc project create p1
+	cmd.Use = usage("create", "[<remote>:]<project>")
+	cmd.Short = "Create project"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc project create p1
 
 lxc project create p1 < config.yaml
-    Create a project with configuration from config.yaml`))
+    Create a project with configuration from config.yaml`)
 
-	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new project")+"``")
-	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Add a storage pool to be used as the root device in the default profile")+"``")
-	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", i18n.G("Add a NIC device to the default profile connected to the specified network")+"``")
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, cli.FormatStringFlagLabel("Config key/value to apply to the new project"))
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", cli.FormatStringFlagLabel("Add a storage pool to be used as the root device in the default profile"))
+	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", cli.FormatStringFlagLabel("Add a NIC device to the default profile connected to the specified network"))
 
 	cmd.RunE = c.run
 
@@ -151,7 +148,7 @@ func (c *cmdProjectCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing project name"))
+		return errors.New("Missing project name")
 	}
 
 	// Create the project
@@ -166,7 +163,7 @@ func (c *cmdProjectCreate) run(cmd *cobra.Command, args []string) error {
 		for _, entry := range c.flagConfig {
 			key, value, found := strings.Cut(entry, "=")
 			if !found {
-				return fmt.Errorf(i18n.G("Bad key=value pair: %q"), entry)
+				return fmt.Errorf("Bad key=value pair: %q", entry)
 			}
 
 			project.Config[key] = value
@@ -179,7 +176,7 @@ func (c *cmdProjectCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Project %s created")+"\n", resource.name)
+		fmt.Printf("Project %s created\n", resource.name)
 	}
 
 	return nil
@@ -195,13 +192,12 @@ type cmdProjectDelete struct {
 
 func (c *cmdProjectDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<project>"))
+	cmd.Use = usage("delete", "[<remote>:]<project>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete projects")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete projects`))
+	cmd.Short = "Delete project"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
-	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force delete project and its entities")+"``")
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Force delete project and its entities")
 
 	cmd.RunE = c.run
 
@@ -237,7 +233,7 @@ func (c *cmdProjectDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing project name"))
+		return errors.New("Missing project name")
 	}
 
 	// Delete the project.
@@ -247,7 +243,7 @@ func (c *cmdProjectDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Project %s deleted")+"\n", resource.name)
+		fmt.Printf("Project %s deleted\n", resource.name)
 	}
 
 	// Switch back to default project
@@ -269,13 +265,11 @@ type cmdProjectEdit struct {
 
 func (c *cmdProjectEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<project>"))
-	cmd.Short = i18n.G("Edit project configurations as YAML")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit project configurations as YAML`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc project edit <project> < project.yaml
-    Update a project using the content of project.yaml`))
+	cmd.Use = usage("edit", "[<remote>:]<project>")
+	cmd.Short = "Edit project configurations as YAML"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc project edit <project> < project.yaml
+    Update a project using the content of project.yaml`)
 
 	cmd.RunE = c.run
 
@@ -291,8 +285,7 @@ func (c *cmdProjectEdit) command() *cobra.Command {
 }
 
 func (c *cmdProjectEdit) helpTemplate() string {
-	return i18n.G(
-		`### This is a YAML representation of the project.
+	return `### This is a YAML representation of the project.
 ### Any line starting with a '# will be ignored.
 ###
 ### A project consists of a set of features and a description.
@@ -308,7 +301,7 @@ func (c *cmdProjectEdit) helpTemplate() string {
 ### description: My own project
 ### name: my-project
 ###
-### Note that the name is shown but cannot be changed`)
+### Note that the name is shown but cannot be changed`
 }
 
 func (c *cmdProjectEdit) run(cmd *cobra.Command, args []string) error {
@@ -327,7 +320,7 @@ func (c *cmdProjectEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing project name"))
+		return errors.New("Missing project name")
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -373,8 +366,8 @@ func (c *cmdProjectEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -405,13 +398,12 @@ type cmdProjectGet struct {
 
 func (c *cmdProjectGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("get", i18n.G("[<remote>:]<project> <key>"))
-	cmd.Short = i18n.G("Get values for project configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Get values for project configuration keys`))
+	cmd.Use = usage("get", "[<remote>:]<project> <key>")
+	cmd.Short = "Get value for project configuration key"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a project property"))
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as a project property")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -444,7 +436,7 @@ func (c *cmdProjectGet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing project name"))
+		return errors.New("Missing project name")
 	}
 
 	// Get the configuration key
@@ -457,7 +449,7 @@ func (c *cmdProjectGet) run(cmd *cobra.Command, args []string) error {
 		w := project.Writable()
 		res, err := getFieldByJSONTag(&w, args[1])
 		if err != nil {
-			return fmt.Errorf(i18n.G("The property %q does not exist on the project %q: %v"), args[1], resource.name, err)
+			return fmt.Errorf("The property %q does not exist on the project %q: %v", args[1], resource.name, err)
 		}
 
 		fmt.Printf("%v\n", res)
@@ -478,12 +470,12 @@ type cmdProjectList struct {
 
 func (c *cmdProjectList) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Use = usage("list", "[<remote>:]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List projects")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List projects`))
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Short = "List projects"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
 
 	cmd.RunE = c.run
 
@@ -534,39 +526,39 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 
 	data := [][]string{}
 	for _, project := range projects {
-		images := i18n.G("NO")
+		images := "NO"
 		if shared.IsTrue(project.Config["features.images"]) {
-			images = i18n.G("YES")
+			images = "YES"
 		}
 
-		profiles := i18n.G("NO")
+		profiles := "NO"
 		if shared.IsTrue(project.Config["features.profiles"]) {
-			profiles = i18n.G("YES")
+			profiles = "YES"
 		}
 
-		storageVolumes := i18n.G("NO")
+		storageVolumes := "NO"
 		if shared.IsTrue(project.Config["features.storage.volumes"]) {
-			storageVolumes = i18n.G("YES")
+			storageVolumes = "YES"
 		}
 
-		storageBuckets := i18n.G("NO")
+		storageBuckets := "NO"
 		if shared.IsTrue(project.Config["features.storage.buckets"]) {
-			storageBuckets = i18n.G("YES")
+			storageBuckets = "YES"
 		}
 
-		networks := i18n.G("NO")
+		networks := "NO"
 		if shared.IsTrue(project.Config["features.networks"]) {
-			networks = i18n.G("YES")
+			networks = "YES"
 		}
 
-		networkZones := i18n.G("NO")
+		networkZones := "NO"
 		if shared.IsTrue(project.Config["features.networks.zones"]) {
-			networkZones = i18n.G("YES")
+			networkZones = "YES"
 		}
 
 		name := project.Name
 		if name == info.Project {
-			name = name + " (" + i18n.G("current") + ")"
+			name = name + " (current)"
 		}
 
 		strUsedBy := strconv.Itoa(len(project.UsedBy))
@@ -576,15 +568,15 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("NAME"),
-		i18n.G("IMAGES"),
-		i18n.G("PROFILES"),
-		i18n.G("STORAGE VOLUMES"),
-		i18n.G("STORAGE BUCKETS"),
-		i18n.G("NETWORKS"),
-		i18n.G("NETWORK ZONES"),
-		i18n.G("DESCRIPTION"),
-		i18n.G("USED BY"),
+		"NAME",
+		"IMAGES",
+		"PROFILES",
+		"STORAGE VOLUMES",
+		"STORAGE BUCKETS",
+		"NETWORKS",
+		"NETWORK ZONES",
+		"DESCRIPTION",
+		"USED BY",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, projects)
@@ -598,11 +590,10 @@ type cmdProjectRename struct {
 
 func (c *cmdProjectRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("rename", i18n.G("[<remote>:]<project> <new-name>"))
+	cmd.Use = usage("rename", "[<remote>:]<project> <new-name>")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = i18n.G("Rename projects")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Rename projects`))
+	cmd.Short = "Rename project"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -633,7 +624,7 @@ func (c *cmdProjectRename) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing project name"))
+		return errors.New("Missing project name")
 	}
 
 	// Rename the project
@@ -648,7 +639,7 @@ func (c *cmdProjectRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Project %s renamed to %s")+"\n", resource.name, args[1])
+		fmt.Printf("Project %s renamed to %s\n", resource.name, args[1])
 	}
 
 	return nil
@@ -664,16 +655,15 @@ type cmdProjectSet struct {
 
 func (c *cmdProjectSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("set", i18n.G("[<remote>:]<project> <key>=<value>..."))
-	cmd.Short = i18n.G("Set project configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set project configuration keys
+	cmd.Use = usage("set", "[<remote>:]<project> <key>=<value>...")
+	cmd.Short = "Set project configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 For backward compatibility, a single configuration key may still be set with:
-    lxc project set [<remote>:]<project> <key> <value>`))
+    lxc project set [<remote>:]<project> <key> <value>`)
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a project property"))
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Set the key as a project property")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -702,7 +692,7 @@ func (c *cmdProjectSet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing project name"))
+		return errors.New("Missing project name")
 	}
 
 	// Get the project
@@ -723,13 +713,13 @@ func (c *cmdProjectSet) run(cmd *cobra.Command, args []string) error {
 			for k := range keys {
 				err := unsetFieldByJSONTag(&writable, k)
 				if err != nil {
-					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+					return fmt.Errorf("Error unsetting property: %v", err)
 				}
 			}
 		} else {
 			err := unpackKVToWritable(&writable, keys)
 			if err != nil {
-				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+				return fmt.Errorf("Error setting properties: %v", err)
 			}
 		}
 	} else {
@@ -750,13 +740,12 @@ type cmdProjectUnset struct {
 
 func (c *cmdProjectUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("unset", i18n.G("[<remote>:]<project> <key>"))
-	cmd.Short = i18n.G("Unset project configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Unset project configuration keys`))
+	cmd.Use = usage("unset", "[<remote>:]<project> <key>")
+	cmd.Short = "Unset project configuration key"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a project property"))
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Unset the key as a project property")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -794,10 +783,9 @@ type cmdProjectShow struct {
 
 func (c *cmdProjectShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<project>"))
-	cmd.Short = i18n.G("Show project options")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show project options`))
+	cmd.Use = usage("show", "[<remote>:]<project>")
+	cmd.Short = "Show project options"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -828,7 +816,7 @@ func (c *cmdProjectShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing project name"))
+		return errors.New("Missing project name")
 	}
 
 	// Show the project
@@ -855,10 +843,9 @@ type cmdProjectSwitch struct {
 
 func (c *cmdProjectSwitch) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("switch", i18n.G("[<remote>:]<project>"))
-	cmd.Short = i18n.G("Switch the current project")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Switch the current project`))
+	cmd.Use = usage("switch", "[<remote>:]<project>")
+	cmd.Short = "Switch the current project"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.RunE = c.run
 
@@ -891,7 +878,7 @@ func (c *cmdProjectSwitch) run(cmd *cobra.Command, args []string) error {
 	// Make sure the remote exists
 	rc, ok := conf.Remotes[remote]
 	if !ok {
-		return fmt.Errorf(i18n.G("Remote %s doesn't exist"), remote)
+		return fmt.Errorf("Remote %s doesn't exist", remote)
 	}
 
 	// Make sure the project exists
@@ -922,11 +909,11 @@ type cmdProjectInfo struct {
 
 func (c *cmdProjectInfo) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("info", i18n.G("[<remote>:]<project>"))
-	cmd.Short = i18n.G("Get a summary of resource allocations")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Get a summary of resource allocations`))
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Use = usage("info", "[<remote>:]<project>")
+	cmd.Short = "Get a summary of resource allocations"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
 
 	cmd.RunE = c.run
 
@@ -957,7 +944,7 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New(i18n.G("Missing project name"))
+		return errors.New("Missing project name")
 	}
 
 	// Get the current allocations
@@ -972,7 +959,7 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 	for k, v := range projectState.Resources {
 		shortKey, _, _ := strings.Cut(k, ".")
 
-		limit := i18n.G("UNLIMITED")
+		limit := "UNLIMITED"
 		if v.Limit >= 0 {
 			if slices.Contains(byteLimits, shortKey) {
 				limit = units.GetByteSizeStringIEC(v.Limit, 2)
@@ -1000,9 +987,9 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
-		i18n.G("RESOURCE"),
-		i18n.G("LIMIT"),
-		i18n.G("USAGE"),
+		"RESOURCE",
+		"LIMIT",
+		"USAGE",
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, projectState)

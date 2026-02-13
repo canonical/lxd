@@ -177,8 +177,6 @@ class BusyBox:
             raise RuntimeError("BusyBox binary path is not set")
         binary_path = self.binary_path
 
-        xz = "pxz" if shutil.which("pxz") else "xz"
-
         destination_tar = os.path.join(workdir, "busybox.tar")
         target_tarball = tarfile.open(destination_tar, "w:")
 
@@ -328,30 +326,11 @@ user.foo: {{ config_get("user.foo", "_unset_") }}
             target_tarball_rootfs.close()
             os.utime(destination_tar_rootfs, (creation_date, creation_date))
 
-        env = os.environ.copy()
-        env.setdefault("SOURCE_DATE_EPOCH", str(creation_date))
-
-        # Compress the tarball deterministically
-        r = subprocess.run(
-            [xz, "-1", "--threads=1", destination_tar],
-            check=False,
-            env=env,
-        )
-        if r.returncode:
-            raise Exception("Failed to compress: %s" % destination_tar)
-
         if split:
             assert destination_tar_rootfs is not None
-            r = subprocess.run(
-                [xz, "-1", "--threads=1", destination_tar_rootfs],
-                check=False,
-                env=env,
-            )
-            if r.returncode:
-                raise Exception("Failed to compress: %s" % destination_tar_rootfs)
-            return destination_tar + ".xz", destination_tar_rootfs + ".xz"
+            return destination_tar, destination_tar_rootfs
         else:
-            return destination_tar + ".xz"
+            return destination_tar
 
 
 if __name__ == "__main__":
@@ -377,8 +356,8 @@ if __name__ == "__main__":
             )
 
             if args.save_image:
-                shutil.copy(meta_path, "busybox.meta.tar.xz")
-                shutil.copy(rootfs_path, "busybox.rootfs.tar.xz")
+                shutil.copy(meta_path, "busybox.meta.tar")
+                shutil.copy(rootfs_path, "busybox.rootfs.tar")
                 return
 
             with open(meta_path, "rb") as meta_fd:
@@ -403,7 +382,7 @@ if __name__ == "__main__":
             if args.save_image:
                 if not isinstance(path, str):
                     raise RuntimeError("Unexpected tarball path type")
-                shutil.copy(path, "busybox.tar.xz")
+                shutil.copy(path, "busybox.tar")
                 return
 
             if not isinstance(path, str):

@@ -3,12 +3,13 @@ package firewall
 import (
 	"github.com/canonical/lxd/lxd/firewall/drivers"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
-// New returns an appropriate firewall implementation.
+// New returns an appropriate firewall implementation using the provided kernel version.
 // Uses xtables if nftables isn't compatible or isn't in use already, otherwise uses nftables.
-func New() Firewall {
-	nftables := drivers.Nftables{}
+func New(kernelVersion version.DottedVersion) Firewall {
+	nftables := drivers.NewNftables(kernelVersion)
 	xtables := drivers.Xtables{}
 
 	nftablesInUse, nftablesCompatErr := nftables.Compat()

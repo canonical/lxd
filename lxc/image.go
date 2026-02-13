@@ -186,8 +186,6 @@ It requires the source to be an alias and for it to be public.`)
 }
 
 func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
-	conf := c.global.conf
-
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -234,23 +232,15 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	// Copy the image
 	var imgInfo *api.Image
 	var fp string
-	if conf.Remotes[remoteName].Protocol == "simplestreams" && !c.flagCopyAliases && len(c.flagAliases) == 0 {
-		// All simplestreams images are always public, so unless we
-		// need the aliases list too or the real fingerprint, we can skip the otherwise very expensive
-		// alias resolution and image info retrieval step.
-		imgInfo = &api.Image{}
-		imgInfo.Fingerprint = name
-		imgInfo.Public = true
-	} else {
-		// Resolve any alias and then grab the image information from the source
-		imgInfo, _, err = c.image.dereferenceAlias(sourceServer, imageType, name)
-		if err != nil {
-			return err
-		}
 
-		// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overridden)
-		fp = imgInfo.Fingerprint
+	// Resolve any alias and then grab the image information from the source
+	imgInfo, _, err = c.image.dereferenceAlias(sourceServer, imageType, name)
+	if err != nil {
+		return err
 	}
+
+	// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overridden)
+	fp = imgInfo.Fingerprint
 
 	if imgInfo.Public && imgInfo.Fingerprint != name && !strings.HasPrefix(imgInfo.Fingerprint, name) {
 		// If dealing with an alias, set the imgInfo fingerprint to match the provided alias (needed for auto-update)
@@ -472,7 +462,7 @@ func (c *cmdImageEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Config parsing error: %s"+"\n", err)
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
 			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 
 			_, err := os.Stdin.Read(make([]byte, 1))
@@ -992,30 +982,30 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 		imgType = info.Type
 	}
 
-	fmt.Printf("Fingerprint: %s"+"\n", info.Fingerprint)
-	fmt.Printf("Size: %.2fMiB"+"\n", float64(info.Size)/1024.0/1024.0)
-	fmt.Printf("Architecture: %s"+"\n", info.Architecture)
-	fmt.Printf("Type: %s"+"\n", imgType)
-	fmt.Printf("Public: %s"+"\n", public)
-	fmt.Print("Timestamps:" + "\n")
+	fmt.Printf("Fingerprint: %s\n", info.Fingerprint)
+	fmt.Printf("Size: %.2fMiB\n", float64(info.Size)/1024.0/1024.0)
+	fmt.Printf("Architecture: %s\n", info.Architecture)
+	fmt.Printf("Type: %s\n", imgType)
+	fmt.Printf("Public: %s\n", public)
+	fmt.Print("Timestamps:\n")
 
 	const layout = "2006/01/02 15:04 UTC"
 	if shared.TimeIsSet(info.CreatedAt) {
-		fmt.Printf("    "+"Created: %s"+"\n", info.CreatedAt.UTC().Format(layout))
+		fmt.Printf("    Created: %s\n", info.CreatedAt.UTC().Format(layout))
 	}
 
-	fmt.Printf("    "+"Uploaded: %s"+"\n", info.UploadedAt.UTC().Format(layout))
+	fmt.Printf("    Uploaded: %s\n", info.UploadedAt.UTC().Format(layout))
 
 	if shared.TimeIsSet(info.ExpiresAt) {
-		fmt.Printf("    "+"Expires: %s"+"\n", info.ExpiresAt.UTC().Format(layout))
+		fmt.Printf("    Expires: %s\n", info.ExpiresAt.UTC().Format(layout))
 	} else {
-		fmt.Print("    " + "Expires: never" + "\n")
+		fmt.Print("    Expires: never\n")
 	}
 
 	if shared.TimeIsSet(info.LastUsedAt) {
-		fmt.Printf("    "+"Last used: %s"+"\n", info.LastUsedAt.UTC().Format(layout))
+		fmt.Printf("    Last used: %s\n", info.LastUsedAt.UTC().Format(layout))
 	} else {
-		fmt.Print("    " + "Last used: never" + "\n")
+		fmt.Print("    Last used: never\n")
 	}
 
 	fmt.Println("Properties:")
@@ -1032,8 +1022,8 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("Cached: %s"+"\n", cached)
-	fmt.Printf("Auto update: %s"+"\n", autoUpdate)
+	fmt.Printf("Cached: %s\n", cached)
+	fmt.Printf("Auto update: %s\n", autoUpdate)
 
 	if info.UpdateSource != nil {
 		fmt.Println("Source:")
@@ -1043,7 +1033,7 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(info.Profiles) == 0 {
-		fmt.Print("Profiles: " + "[]\n")
+		fmt.Print("Profiles: []\n")
 	} else {
 		fmt.Println("Profiles:")
 		for _, name := range info.Profiles {

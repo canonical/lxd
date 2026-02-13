@@ -63,7 +63,6 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
-	"github.com/canonical/lxd/shared/version"
 )
 
 var unavailablePools = make(map[string]struct{})
@@ -2801,28 +2800,6 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 			return err
 		}
 
-		out, err := exec.Command("virt-v2v-in-place", "--version").CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("Failed to get virt-v2v-in-place version: %w (%s)", err, string(out))
-		}
-
-		// Extract virt-v2v-in-place version (format is "virt-v2v-in-place 1.2.3").
-		v2vVersionParts := strings.Split(strings.TrimSpace(string(out)), " ")
-		v2vVersion, err := version.NewDottedVersion(v2vVersionParts[len(v2vVersionParts)-1])
-		if err != nil {
-			return err
-		}
-
-		minVersion, err := version.NewDottedVersion("2.3.4")
-		if err != nil {
-			return err
-		}
-
-		// Ensure virt-v2v-in-place version is higher then or equal to the minimum required version.
-		if v2vVersion.Compare(minVersion) < 0 {
-			return fmt.Errorf("The virt-v2v-in-place version %q does not match the minimum required version %q", v2vVersion, minVersion)
-		}
-
 		// Run virt-v2v-in-place to inject virtio drivers.
 		cmd := exec.Command(
 			// Run with low priority to reduce the CPU impact on other processes.
@@ -2836,7 +2813,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 			"VIRT_TOOLS_DATA_DIR=/usr/share/virt-tools",
 		)
 
-		out, err = cmd.CombinedOutput()
+		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("Failed to inject virtio drivers: %w (%s)", err, string(out))
 		}

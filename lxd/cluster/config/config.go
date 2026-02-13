@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -39,6 +40,11 @@ func Load(ctx context.Context, tx *db.ClusterTx) (*Config, error) {
 	}
 
 	return &Config{m: m}, nil
+}
+
+// UserMicrocloud returns whether the user.microcloud key is set.
+func (c *Config) UserMicrocloud() bool {
+	return c.m.GetString("user.microcloud") != ""
 }
 
 // ClusterUUID returns the static cluster UUID.
@@ -681,7 +687,9 @@ var ConfigSchema = config.Schema{
 		//  scope: global
 		//  defaultdesc: `lifecycle,logging`
 		//  shortdesc: Events to send to the Loki server
-		"loki.types": {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf("lifecycle", "logging", "ovn"))), Default: "lifecycle,logging"},
+		"loki.types": {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf(
+			api.EventTypeLifecycle, api.EventTypeLogging, api.EventTypeOVN,
+		))), Default: "lifecycle,logging"},
 
 		// lxdmeta:generate(entities=server; group=miscellaneous; key=maas.api.key)
 		//

@@ -651,13 +651,8 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
-	if d.state.OS.ContainerCoreScheduling {
+	if d.state.OS.CoreScheduling {
 		err = lxcSetConfigItem(cc, "lxc.sched.core", "1")
-		if err != nil {
-			return nil, err
-		}
-	} else if d.state.OS.CoreScheduling {
-		err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/proc/%d/exe forkcoresched 1", os.Getpid()))
 		if err != nil {
 			return nil, err
 		}
@@ -869,8 +864,11 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
+	projectShellQuoted := shared.ShellQuote(d.Project().Name)
+	instanceShellQuoted := shared.ShellQuote(d.Name())
+
 	// Call the onstart hook on start.
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), projectShellQuoted, instanceShellQuoted))
 	if err != nil {
 		return nil, err
 	}
@@ -886,13 +884,13 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	}
 
 	// Call the onstopns hook on stop but before namespaces are unmounted.
-	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", lxdStopHookPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", lxdStopHookPath, shared.VarPath(""), projectShellQuoted, instanceShellQuoted))
 	if err != nil {
 		return nil, err
 	}
 
 	// Call the onstop hook on stop.
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", lxdStopHookPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", lxdStopHookPath, shared.VarPath(""), projectShellQuoted, instanceShellQuoted))
 	if err != nil {
 		return nil, err
 	}
@@ -989,13 +987,6 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 	for k, v := range d.expandedConfig {
 		// Setup environment
-		// lxdmeta:generate(entities=instance; group=miscellaneous; key=environment.*)
-		// The specified key/value environment variables are exported to the instance and set for `lxc exec`.
-
-		// ---
-		//  type: string
-		//  liveupdate: yes (exec)
-		//  shortdesc: Environment variables to export
 		environmentKey, found := strings.CutPrefix(k, "environment.")
 		if found {
 			err = lxcSetConfigItem(cc, "lxc.environment", environmentKey+"="+v)
@@ -1091,7 +1082,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	}
 
 	if shared.IsTrue(d.expandedConfig["security.delegate_bpf"]) {
-		err = lxcSetConfigItem(cc, "lxc.hook.start-host", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+strconv.Quote(d.Project().Name)+" "+strconv.Quote(d.Name())+" starthost")
+		err = lxcSetConfigItem(cc, "lxc.hook.start-host", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+projectShellQuoted+" "+instanceShellQuoted+" starthost")
 		if err != nil {
 			return nil, err
 		}
@@ -1258,12 +1249,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	}
 
 	// Setup shmounts
-	if d.state.OS.LXCFeatures["mount_injection_file"] {
-		err = lxcSetConfigItem(cc, "lxc.mount.auto", "shmounts:"+d.ShmountsPath()+":/dev/.lxd-mounts")
-	} else {
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", d.ShmountsPath()+" dev/.lxd-mounts none bind,create=dir 0 0")
-	}
-
+	err = lxcSetConfigItem(cc, "lxc.mount.auto", "shmounts:"+d.ShmountsPath()+":/dev/.lxd-mounts")
 	if err != nil {
 		return nil, err
 	}
@@ -1286,7 +1272,7 @@ func (d *lxc) IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
 	var mode idmap.IdmapStorageType = idmap.IdmapStorageNone
 	bindMount := fstype == "none" || fstype == ""
 
-	if !d.state.OS.LXCFeatures["idmapped_mounts_v2"] || !d.state.OS.IdmappedMounts {
+	if !d.state.OS.IdmappedMounts {
 		return mode
 	}
 
@@ -2176,7 +2162,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 	}
 
 	if len(cdiConfigFiles) > 0 {
-		err = lxcSetConfigItem(cc, "lxc.hook.mount", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+strconv.Quote(d.Project().Name)+" "+strconv.Quote(d.Name())+" startmountns --devicesRootFolder "+d.DevicesPath()+" "+strings.Join(cdiConfigFiles, " "))
+		err = lxcSetConfigItem(cc, "lxc.hook.mount", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+shared.ShellQuote(d.Project().Name)+" "+shared.ShellQuote(d.Name())+" startmountns --devicesRootFolder "+d.DevicesPath()+" "+strings.Join(cdiConfigFiles, " "))
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("Unable to set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
 		}
@@ -5572,6 +5558,72 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 		containerMeta["privileged"] = "false"
 	}
 
+	// Setup security checks.
+	checkBeneath := func(targetPath string) error {
+		rootfsPath, err := os.OpenFile(d.RootfsPath(), unix.O_PATH, 0)
+		if err != nil {
+			return fmt.Errorf("Failed opening instance rootfs path: %w", err)
+		}
+
+		defer func() {
+			err := rootfsPath.Close()
+			if err != nil {
+				d.logger.Warn("Failed closing instance rootfs path", logger.Ctx{"err": err})
+			}
+		}()
+
+		fd, err := unix.Openat2(int(rootfsPath.Fd()), targetPath, &unix.OpenHow{
+			Flags:   unix.O_PATH | unix.O_CLOEXEC,
+			Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_MAGICLINKS,
+		})
+		if err != nil {
+			if errors.Is(err, unix.EXDEV) {
+				return errors.New("Template is attempting access to path outside of container")
+			}
+
+			return nil
+		}
+
+		err = unix.Close(fd)
+		if err != nil {
+			return fmt.Errorf("Failed closing file descriptor of %q: %w", targetPath, err)
+		}
+
+		return nil
+	}
+
+	securityChecks := func(path string, templateFile string) error {
+		// Ensure the path is within the container rootfs.
+		err = checkBeneath(path)
+		if err != nil {
+			return err
+		}
+
+		if filepath.Base(templateFile) != templateFile {
+			return errors.New("Template path is attempting to read outside of template directory")
+		}
+
+		tplDirStat, err := os.Lstat(d.TemplatesPath())
+		if err != nil {
+			return fmt.Errorf("Could not access template directory: %w", err)
+		}
+
+		if !tplDirStat.IsDir() {
+			return errors.New("Template directory is not a regular directory")
+		}
+
+		tplFileStat, err := os.Lstat(filepath.Join(d.TemplatesPath(), templateFile))
+		if err != nil {
+			return fmt.Errorf("Could not access template file: %w", err)
+		}
+
+		if tplFileStat.Mode()&os.ModeSymlink == os.ModeSymlink {
+			return errors.New("Template file is a symlink")
+		}
+
+		return nil
+	}
+
 	// Go through the templates
 	for tplPath, tpl := range metadata.Templates {
 		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
@@ -5584,8 +5636,16 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 				return nil
 			}
 
+			relPath := strings.TrimLeft(tplPath, "/")
+
+			// Perform some security checks.
+			err = securityChecks(relPath, tpl.Template)
+			if err != nil {
+				return fmt.Errorf("Template security check failed for %q: %w", tplPath, err)
+			}
+
 			// Open the file to template, create if needed
-			fullpath := filepath.Join(d.RootfsPath(), strings.TrimLeft(tplPath, "/"))
+			fullpath := filepath.Join(d.RootfsPath(), relPath)
 			if shared.PathExists(fullpath) {
 				if tpl.CreateOnly {
 					return nil
@@ -6089,29 +6149,24 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 
 	// Prepare the subcommand
 	cname := project.Instance(d.Project().Name, d.Name())
-	args := []string{
+	args := make([]string, 0, 8+2+len(envSlice)+2+len(req.Command))
+	args = append(args,
 		d.state.OS.ExecPath,
 		"forkexec",
 		cname,
 		d.state.OS.LxcPath,
-		filepath.Join(d.LogPath(), "lxc.conf"),
+		configPath,
 		req.Cwd,
 		strconv.FormatUint(uint64(req.User), 10),
 		strconv.FormatUint(uint64(req.Group), 10),
-	}
+	)
 
-	if d.state.OS.CoreScheduling && !d.state.OS.ContainerCoreScheduling {
-		args = append(args, "1")
-	} else {
-		args = append(args, "0")
-	}
-
-	args = append(args, "--")
-	args = append(args, "env")
+	// Environment
+	args = append(args, "--", "env")
 	args = append(args, envSlice...)
 
-	args = append(args, "--")
-	args = append(args, "cmd")
+	// Command
+	args = append(args, "--", "cmd")
 	args = append(args, req.Command...)
 
 	cmd := exec.Cmd{}
@@ -6663,7 +6718,7 @@ func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType id
 		return d.moveMount(source, target, fstype, flags, idmapType)
 	}
 
-	if d.state.OS.LXCFeatures["mount_injection_file"] && idmapType == idmap.IdmapStorageNone {
+	if idmapType == idmap.IdmapStorageNone {
 		return d.insertMountLXC(source, target, fstype, flags)
 	}
 
@@ -6678,47 +6733,25 @@ func (d *lxc) removeMount(mount string) error {
 		return errors.New("Can't remove mount from stopped container")
 	}
 
-	if d.state.OS.LXCFeatures["mount_injection_file"] {
-		configPath := filepath.Join(d.LogPath(), "lxc.conf")
-		cname := project.Instance(d.Project().Name, d.Name())
+	configPath := filepath.Join(d.LogPath(), "lxc.conf")
+	cname := project.Instance(d.Project().Name, d.Name())
 
-		if !strings.HasPrefix(mount, "/") {
-			mount = "/" + mount
-		}
+	if !strings.HasPrefix(mount, "/") {
+		mount = "/" + mount
+	}
 
-		_, err := shared.RunCommand(
-			context.TODO(),
-			d.state.OS.ExecPath,
-			"forkmount",
-			"lxc-umount",
-			"--",
-			cname,
-			d.state.OS.LxcPath,
-			configPath,
-			mount)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Remove the mount from the container
-		pidFdNr, pidFd := d.inheritInitPidFd()
-		if pidFdNr >= 0 {
-			defer func() { _ = pidFd.Close() }()
-		}
-
-		_, err := shared.RunCommandInheritFds(
-			context.TODO(),
-			[]*os.File{pidFd},
-			d.state.OS.ExecPath,
-			"forkmount",
-			"lxd-umount",
-			"--",
-			strconv.Itoa(pid),
-			strconv.Itoa(pidFdNr),
-			mount)
-		if err != nil {
-			return err
-		}
+	_, err := shared.RunCommand(
+		context.TODO(),
+		d.state.OS.ExecPath,
+		"forkmount",
+		"lxc-umount",
+		"--",
+		cname,
+		d.state.OS.LxcPath,
+		configPath,
+		mount)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -7006,10 +7039,6 @@ func (d *lxc) DevptsFd() (*os.File, error) {
 
 	defer d.release()
 
-	if !liblxc.HasAPIExtension("devpts_fd") {
-		return nil, errors.New("Missing devpts_fd extension")
-	}
-
 	return cc.DevptsFd()
 }
 
@@ -7134,7 +7163,7 @@ func (d *lxc) cgroup(cc *liblxc.Container, running bool) (*cgroup.CGroup, error)
 		return nil, err
 	}
 
-	cg.UnifiedCapable = liblxc.HasAPIExtension("cgroup2")
+	cg.UnifiedCapable = true // cgroup2: introduced in lxc 4.0.0
 	return cg, nil
 }
 

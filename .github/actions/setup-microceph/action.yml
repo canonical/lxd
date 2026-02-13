@@ -1,5 +1,5 @@
 name: Setup MicroCeph
-description: Setup MicroCeph to use the ephemeral disk of GHA runners
+description: Setup MicroCeph using loop device(s)
 
 inputs:
   microceph-channel:
@@ -18,33 +18,25 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Ephemeral disk checks
+    - name: Setup loop devices for OSDs
       shell: bash
+      id: prepare_disk
+      env:
+        INPUTS_OSD_COUNT: ${{ inputs.osd-count }}
       run: |
           set -eux
 
-          # If the rootfs and the ephemeral part are on the same physical disk, giving the whole
-          # disk to microceph would wipe our rootfs. Since it is pretty rare for GitHub Action
-          # runners to have a single disk, we immediately bail rather than trying to gracefully
-          # handle it.
-          if [ "$(stat -c '%d' /)" = "$(stat -c '%d' /mnt)" ]; then
-            echo "FAIL: rootfs and ephemeral part on the same disk, aborting"
-            exit 1
-          fi
+          # Create one loop device per OSD (5GiB each)
+          disks=()
+          for i in $(seq 1 "${INPUTS_OSD_COUNT}"); do
+            backing_file="$(sudo mktemp -p /mnt microceph.XXXX)"
+            sudo truncate -s 10G "${backing_file}"
 
-    - name: Free-up ephemeral disk
-      shell: bash
-      id: free_ephemeral_disk
-      run: |
-          set -eux
+            loop_device="$(sudo losetup --show -f "${backing_file}")"
+            disks+=("${loop_device}")
+          done
 
-          # Avoid LXD snap holding on to swap (https://github.com/canonical/lxd/issues/14768)
-          sudo snap remove --purge lxd || true
-
-          sudo swapoff /mnt/swapfile
-          ephemeral_disk="$(findmnt --noheadings --output SOURCE --target /mnt | sed 's/[0-9]\+$//')"
-          sudo umount /mnt
-          echo "ephemeral_disk=${ephemeral_disk}" >> "${GITHUB_OUTPUT}"
+          echo "ephemeral_disks=${disks[*]}" >> "${GITHUB_OUTPUT}"
 
     - name: Install MicroCeph snap
       shell: bash
@@ -60,11 +52,13 @@ runs:
     - name: Configure MicroCeph snap
       shell: bash
       env:
-        EPHEMERAL_DISK: ${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}
+        EPHEMERAL_DISKS: ${{ steps.prepare_disk.outputs.ephemeral_disks }}
         INPUTS_OSD_COUNT: ${{ inputs.osd-count }}
       run: |
           set -eux
-          sudo "${GITHUB_ACTION_PATH}/setup-microceph.sh" configure-microceph "${EPHEMERAL_DISK}" "${INPUTS_OSD_COUNT}"
+          read -r -a disks <<< "${EPHEMERAL_DISKS}"
+
+          sudo "${GITHUB_ACTION_PATH}/setup-microceph.sh" configure-microceph "${disks[@]}" "${INPUTS_OSD_COUNT}"
 
     - name: Install ceph-common package
       shell: bash

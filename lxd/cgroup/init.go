@@ -186,7 +186,10 @@ func (info *Info) Warnings() []cluster.Warning {
 		})
 	}
 
-	if !info.Supports(NetPrio, nil) {
+	// Only warn about missing net_prio on cgroup v1 systems.
+	// The net_prio controller doesn't exist in cgroup v2 and LXD uses
+	// per-device limits.priority as the modern alternative.
+	if info.Layout != CgroupsUnified && !info.Supports(NetPrio, nil) {
 		warnings = append(warnings, cluster.Warning{
 			TypeCode:    warningtype.MissingCGroupNetworkPriorityController,
 			LastMessage: "per-instance network priority will be ignored. Please use per-device limits.priority instead",

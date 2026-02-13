@@ -8,7 +8,7 @@ test_basic_usage() {
   # Test image export
   sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
   lxc image export testimage "${LXD_DIR}/"
-  [ "${sum}" = "$(sha256sum "${LXD_DIR}/${sum}.tar.xz" | cut -d' ' -f1)" ]
+  [ "${sum}" = "$(sha256sum "${LXD_DIR}/${sum}.tar"* | cut -d' ' -f1)" ]
 
   # Test an alias with slashes
   lxc image show "${sum}"
@@ -54,23 +54,23 @@ test_basic_usage() {
   my_curl --fail --output /dev/null "https://${LXD_ADDR}/1.0/instances"
 
   # Re-import the image
-  mv "${LXD_DIR}/${sum}.tar.xz" "${LXD_DIR}/testimage.tar.xz"
-  lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage user.foo=bar --public
+  mv "${LXD_DIR}/${sum}.tar"* "${LXD_DIR}/testimage.tar"
+  lxc image import "${LXD_DIR}/testimage.tar" --alias testimage user.foo=bar --public
   [ "$(lxc image get-property testimage user.foo)" = "bar" ]
   lxc image show testimage | grep -xF "public: true"
   lxc image delete testimage
-  lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage
-  rm "${LXD_DIR}/testimage.tar.xz"
+  lxc image import "${LXD_DIR}/testimage.tar" --alias testimage
+  rm "${LXD_DIR}/testimage.tar"
 
   # Test filename for image export
   lxc image export testimage "${LXD_DIR}/"
-  [ "${sum}" = "$(sha256sum "${LXD_DIR}/${sum}.tar.xz" | cut -d' ' -f1)" ]
-  rm "${LXD_DIR}/${sum}.tar.xz"
+  [ "${sum}" = "$(sha256sum "${LXD_DIR}/${sum}.tar"* | cut -d' ' -f1)" ]
+  rm "${LXD_DIR}/${sum}.tar"*
 
   # Test custom filename for image export
   lxc image export testimage "${LXD_DIR}/foo"
-  [ "${sum}" = "$(sha256sum "${LXD_DIR}/foo.tar.xz" | cut -d' ' -f1)" ]
-  rm "${LXD_DIR}/foo.tar.xz"
+  [ "${sum}" = "$(sha256sum "${LXD_DIR}/foo.tar"* | cut -d' ' -f1)" ]
+  rm "${LXD_DIR}/foo.tar"*
 
   # Test image export with a split image.
   deps/import-busybox --split --alias splitimage
@@ -78,11 +78,10 @@ test_basic_usage() {
   sum="$(lxc image info splitimage | awk '/^Fingerprint/ {print $2}')"
 
   lxc image export splitimage "${LXD_DIR}"
-  [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar.xz" "${LXD_DIR}/${sum}.tar.xz" | sha256sum | cut -d' ' -f1)" ]
+  [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar"* "${LXD_DIR}/${sum}.tar"* | sha256sum | cut -d' ' -f1)" ]
 
   # Delete the split image and exported files
-  rm "${LXD_DIR}/${sum}.tar.xz"
-  rm "${LXD_DIR}/meta-${sum}.tar.xz"
+  rm "${LXD_DIR}/meta-${sum}.tar"* "${LXD_DIR}/${sum}.tar"*
   lxc image delete splitimage
 
   # Redo the split image export test, this time with the --filename flag
@@ -91,11 +90,11 @@ test_basic_usage() {
   deps/import-busybox --split --filename --alias splitimage
 
   lxc image export splitimage "${LXD_DIR}"
-  [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar.xz" "${LXD_DIR}/${sum}.tar.xz" | sha256sum | cut -d' ' -f1)" ]
+  [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar"* "${LXD_DIR}/${sum}.tar"* | sha256sum | cut -d' ' -f1)" ]
 
   # Delete the split image and exported files
-  rm "${LXD_DIR}/${sum}.tar.xz"
-  rm "${LXD_DIR}/meta-${sum}.tar.xz"
+  rm "${LXD_DIR}/${sum}.tar"*
+  rm "${LXD_DIR}/meta-${sum}.tar"*
   lxc image delete splitimage
 
   # Test --no-profiles flag
@@ -300,8 +299,9 @@ test_basic_usage() {
   LXD_DIR="${LXD2_DIR}" lxc init localhost:testimage c1 --project bar --target-project foo
   LXD_DIR="${LXD2_DIR}" lxc launch localhost:testimage c2 --project bar --target-project foo
   LXD_DIR="${LXD2_DIR}" lxc file push --quiet "$(command -v devlxd-client)" c2/bin/ --project foo
+  LXD_DIR="${LXD2_DIR}" setup_instance_gocoverage c2 foo
   LXD_DIR="${LXD2_DIR}" lxc exec c2 --project foo -- devlxd-client get-state
-  LXD_DIR="${LXD2_DIR}" lxc stop c2 --project foo
+  LXD_DIR="${LXD2_DIR}" lxc stop c2 --project foo --force
   LXD_DIR="${LXD2_DIR}" lxc rebuild localhost:testimage c2 --project bar --target-project foo
   LXD_DIR="${LXD2_DIR}" lxc start c2 --project foo
   ! LXD_DIR="${LXD2_DIR}" lxc exec c2 --project foo -- devlxd-client get-state || false
@@ -530,6 +530,13 @@ test_basic_usage() {
 
   # check that environment variables work with profiles
   lxc profile create clash
+
+  # check that environment variables cannot contain line breaks
+  local invalidEnvValue="foo
+  bar"
+  ! lxc profile set clash environment.INVALID_ENV_VALUE="${invalidEnvValue}" || false
+  ! lxc config set foo environment.INVALID_ENV_VALUE="${invalidEnvValue}" || false
+
   lxc profile set clash environment.BEST_BAND=clash
   lxc profile add foo clash
   lxc exec foo -- env | grep -xF BEST_BAND=clash
@@ -794,7 +801,9 @@ EOF
   lxc launch testimage c2 --ephemeral
   lxc launch testimage c3 --ephemeral
 
-  lxc stop -f c1 c2 c3
+  # Check deletion via force delete and force stop code paths
+  lxc delete -f c1
+  lxc stop -f c2 c3
   [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 
   # Cleanup

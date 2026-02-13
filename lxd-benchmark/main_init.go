@@ -18,7 +18,7 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Use = "init [[<remote>:]<image>]"
 	cmd.Short = "Create containers"
 	cmd.RunE = c.Run
-	cmd.Flags().IntVarP(&c.flagCount, "count", "C", 1, "Number of containers to create"+"``")
+	cmd.Flags().IntVarP(&c.flagCount, "count", "C", 1, "Number of containers to create")
 	cmd.Flags().BoolVar(&c.flagPrivileged, "privileged", false, "Use privileged containers")
 
 	return cmd

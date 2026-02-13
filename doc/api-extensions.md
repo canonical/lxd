@@ -2225,9 +2225,13 @@ This introduces:
 
 ## `security_csm`
 
-Introduce a new {config:option}`instance-security:security.csm` configuration key to control the use of
+Introduce a new `instance-security:security.csm` configuration key to control the use of
 `CSM` (Compatibility Support Module) to allow legacy operating systems to
 be run in LXD VMs.
+
+```{note}
+The `security.csm` key has been replaced by `boot.mode`. See {ref}`extension-instance-boot-mode`.
+```
 
 ## `instances_rebuild`
 
@@ -2876,6 +2880,7 @@ Endpoints converted to asynchronous behavior:
 * `PUT /1.0/profiles/{name}` - Update profile
 * `PATCH /1.0/profiles/{name}` - Patch profile
 
+(extension-storage-source-recover)=
 ## `storage_source_recover`
 
 As part of the recovery process it might be necessary to recover existing storage pools previously created by LXD.
@@ -2884,3 +2889,47 @@ Before this was only partially possible for some of the drivers (e.g. by using `
 The new pool `source.recover` configuration key can be set per cluster member to allow reuse of an existing pool `source`.
 What it does not allow is reusing the same source for multiple storage pools.
 The LVM storage driver has the specific `lvm.vg.force_reuse` configuration key for this purpose.
+
+(extension-instance-force-delete)=
+## `instance_force_delete`
+
+This adds support for a `force` query parameter to the `DELETE /1.0/instances/{name}` endpoint. When set, running instances will be forcibly stopped before deletion.
+
+(extension-operation-metadata-entity-name)=
+## `operation_metadata_entity_url`
+
+Each {ref}`operation event <ref-events-operation>` has a `resources` field that contains URLs of LXD entities that the operation depends on.
+
+When an instance, instance backup, or storage volume backup is created, it is not strictly required for the caller to provide the name of the new resource.
+In this case, the URL of the expected resource is added to the resources map for clients to inspect and use.
+The `resources` field then contains both a dependency of the operation, and the newly created resource (which may not exist yet).
+
+To improve consistency, this API extension adds an `entity_url` field to operation metadata.
+The field contains the expected URL of the created entity.
+The field is only included when a resource is being created asynchronously (operation response), and where it is not required for the entity name to be specified by the client.
+For synchronous resource creation, clients should inspect the `Location` header.
+
+The `resources` field should no longer be relied upon for this information.
+
+(extension-instance-boot-mode)=
+## `instance_boot_mode`
+
+Introduces the new {config:option}`instance-boot:boot.mode` configuration key to control the VM boot firmware mode.
+This replaces the removed `security.csm` and `security.secureboot` settings.
+
+The new setting accepts:
+* `uefi-secureboot` (default) - Use UEFI firmware with secure boot enabled
+* `uefi-nosecureboot` - Use UEFI firmware with secure boot disabled
+* `bios` - Use legacy BIOS firmware (SeaBIOS), `x86_64` (`amd64`) only
+
+(extension-auth-bearer-lxd)=
+## `auth_bearer`
+
+Adds new identity type `bearer` that allows authentication with the LXD API using bearer tokens.
+See {ref}`LXD bearer tokens <authentication-bearer>`.
+
+(extension-vm-limits-max-bus-ports)=
+## `vm_limits_max_bus_ports`
+
+This introduces support for the {config:option}`instance-resource-limits:limits.max_bus_ports` configuration key for virtual machines. This option controls the maximum allowed number of user configurable devices requiring a dedicated PCI/PCIe port for a virtual machine.
+This number includes both the devices attached before the instance start and the devices hotplugged at runtime.

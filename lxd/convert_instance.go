@@ -58,8 +58,8 @@ func newConversionSink(args *conversionSinkArgs) (*conversionSink, error) {
 }
 
 // Metadata returns metadata for the conversion sink.
-func (s *conversionSink) Metadata() any {
-	return shared.Jmap{
+func (s *conversionSink) Metadata() map[string]any {
+	return map[string]any{
 		api.SecretNameFilesystem: s.fsConn.Secret(),
 	}
 }

@@ -32,6 +32,13 @@ const ConfigVolatilePrefix = "volatile."
 // TargetClusterGroupPrefix indicates the prefix used for target cluster group names.
 const TargetClusterGroupPrefix = "@"
 
+// Boot mode configuration values.
+const (
+	BootModeUEFISecureBoot   = "uefi-secureboot"
+	BootModeUEFINoSecureBoot = "uefi-nosecureboot"
+	BootModeBIOS             = "bios"
+)
+
 // ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
 var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image.", "cloud-init.ssh-keys."}
 
@@ -224,7 +231,10 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//   - `auto` *(default)*: The system will automatically decide the best evacuation method based on the instance's type and configured devices:
 	//     + If any device is not suitable for migration, the instance will not be migrated (only stopped).
 	//     + Live migration will be used only for virtual machines with the `migration.stateful` setting enabled and for which all its devices can be migrated as well.
-	//   - `live-migrate`: Instances are live-migrated to another node. This means the instance remains running and operational during the migration process, ensuring minimal disruption.
+	//   - `live-migrate`: Eligible instances are live-migrated to another node. This means the instance remains running and operational during the migration process, ensuring minimal disruption.
+	//     Note: Live migration is supported for virtual machines only.
+	//     If no target member is available, an instance is skipped.
+	//     If a live migration attempt fails, the evacuation operation fails.
 	//   - `migrate`: In this mode, instances are migrated to another node in the cluster. The migration process will not be live, meaning there will be a brief downtime for the instance during the migration.
 	//   -  `stop`: Instances are not migrated. Instead, they are stopped on the current node.
 	//
@@ -1089,6 +1099,16 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: VM CPU auto pinning strategy
 	"limits.cpu.pin_strategy": validate.Optional(validate.IsOneOf("none", "auto")),
 
+	// lxdmeta:generate(entities=instance; group=resource-limits; key=limits.max_bus_ports)
+	// Total number of user configurable PCI/PCIe devices that can be attached to the VM.
+	// ---
+	//  type: integer
+	//  defaultdesc: `8`
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Limit of allowed PCI/PCIe devices
+	"limits.max_bus_ports": validate.Optional(validate.IsUint8),
+
 	// lxdmeta:generate(entities=instance; group=migration; key=migration.stateful)
 	// Enabling this option prevents the use of some features that are incompatible with it.
 	// ---
@@ -1129,25 +1149,17 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: Whether the `lxd-agent` is queried for state information and metrics
 	"security.agent.metrics": validate.Optional(validate.IsBool),
 
-	// lxdmeta:generate(entities=instance; group=security; key=security.csm)
-	// When enabling this option, set {config:option}`instance-security:security.secureboot` to `false`.
+	// lxdmeta:generate(entities=instance; group=boot; key=boot.mode)
+	// The `uefi-secureboot` mode uses UEFI firmware with secure boot enabled.
+	// The `uefi-nosecureboot` mode uses UEFI firmware with secure boot disabled.
+	// The `bios` mode is supported only on `x86_64` (`amd64`).
 	// ---
-	//  type: bool
-	//  defaultdesc: `false`
+	//  type: string
+	//  defaultdesc: `uefi-secureboot`
 	//  liveupdate: no
 	//  condition: virtual machine
-	//  shortdesc: Whether to use a firmware that supports UEFI-incompatible operating systems
-	"security.csm": validate.Optional(validate.IsBool),
-
-	// lxdmeta:generate(entities=instance; group=security; key=security.secureboot)
-	// When disabling this option, consider enabling {config:option}`instance-security:security.csm`.
-	// ---
-	//  type: bool
-	//  defaultdesc: `true`
-	//  liveupdate: no
-	//  condition: virtual machine
-	//  shortdesc: Whether UEFI secure boot is enabled with the default Microsoft keys
-	"security.secureboot": validate.Optional(validate.IsBool),
+	//  shortdesc: Boot firmware mode for the VM (uefi-secureboot, uefi-nosecureboot or bios)
+	"boot.mode": validate.Optional(validate.IsOneOf(BootModeUEFISecureBoot, BootModeUEFINoSecureBoot, BootModeBIOS)),
 
 	// lxdmeta:generate(entities=instance; group=security; key=security.sev)
 	//
@@ -1437,6 +1449,22 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		if strings.HasSuffix(key, ".devlxd.owner") {
 			return validate.IsAny, nil
 		}
+	}
+
+	// lxdmeta:generate(entities=instance; group=miscellaneous; key=environment.*)
+	// Extra environment variables to set on boot (for containers) and during exec.
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  shortdesc: Free-form environment key/value
+	if strings.HasPrefix(key, "environment.") {
+		return func(val string) error {
+			if strings.Contains(val, "\n") {
+				return errors.New("Environment variables cannot contain line breaks")
+			}
+
+			return nil
+		}, nil
 	}
 
 	if (instanceType == Any || instanceType == Container) && strings.HasPrefix(key, "linux.sysctl.") {

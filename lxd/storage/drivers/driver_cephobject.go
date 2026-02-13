@@ -51,19 +51,12 @@ func (d *cephobject) load() error {
 
 	// Detect and record the version.
 	if cephobjectVersion == "" {
-		out, err := shared.RunCommand(d.state.ShutdownCtx, "radosgw-admin", "--version")
+		ver, err := radosgwVersion()
 		if err != nil {
 			return err
 		}
 
-		out = strings.TrimSpace(out)
-
-		fields := strings.Split(out, " ")
-		if strings.HasPrefix(out, "ceph version ") && len(fields) > 2 {
-			cephobjectVersion = fields[2]
-		} else {
-			cephobjectVersion = out
-		}
+		cephobjectVersion = ver
 	}
 
 	cephobjectLoaded = true

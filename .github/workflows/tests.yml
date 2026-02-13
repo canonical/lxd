@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
@@ -117,12 +117,12 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && runner.debug == '1' && !cancelled() }}
 
       - name: Install Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version-file: 'go.mod'
 
       - name: Install Python
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         if: github.event_name != 'pull_request'
         with:
           cache: 'pip' # caching pip dependencies
@@ -137,16 +137,21 @@ jobs:
       - name: Download go dependencies
         run: |
           set -eux
-          sudo chmod o+w {go.mod,go.sum}
+          # Resolve dependencies and download modules
           go mod download
 
           # Check compatibility with min Go version
           make check-gomin
 
+          # Ensure go.mod and go.sum were not modified by the above
+          # commands which would indicate an issue (hint: run `make update-gomod`)
+          git diff --exit-code
+
       - name: Make GOCOVERDIR
         run: |
           set -eux
           mkdir -p coverage
+          chmod 0777 coverage
           cd coverage
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
@@ -192,11 +197,23 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
         run: |
           set -eux
-          sudo chmod o+w ./lxd/metadata/configuration.json
-          sudo chmod o+w ./doc/metadata.txt
-          sudo chmod o+w ./lxd/auth/entitlements_generated.go
-          sudo chmod o+w ./lxd/auth/drivers/openfga_model.openfga
+          # For `make update-api`
+          sudo chmod o+w ./doc/rest-api.yaml
+          # For `make update-auth`
+          sudo chmod o+w ./lxd/auth/entitlements_generated.go ./lxd/auth/drivers/openfga_model.openfga
+          # For `make update-metadata`
+          sudo chmod o+w ./lxd/metadata/configuration.json ./doc/metadata.txt
+
           make static-analysis
+          # If `git diff` does not come out clean, you likely forgot a `make update-*`
+          git diff --exit-code
+
+          # If coverage data collection is enabled, run schema checks to
+          # exercise `lxd-generate` code paths.
+          if [ "${GOCOVERDIR}" != "" ]; then
+            make check-schema
+            git diff --exit-code
+          fi
 
       - name: Unit tests
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests == 'true' }}
@@ -205,6 +222,7 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           sudo --preserve-env="${SUDO_PRESERVE_ENV}" LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
+          git diff --exit-code
 
       - name: Upload coverage data
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -305,7 +323,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -370,6 +388,7 @@ jobs:
         run: |
           set -eux
           mkdir -p coverage
+          chmod 0777 coverage
           cd coverage
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
@@ -526,7 +545,9 @@ jobs:
         test:
           - cgroup
           - cloud-init
-          - cluster
+          # Known broken on 24.04 with HWE kernel (used by GHA runners starting on 2026-02-12)
+          # (https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2141715)
+          #- cluster
           - container
           - container-copy
           - container-nesting
@@ -574,7 +595,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -582,7 +603,7 @@ jobs:
         uses: ./.github/actions/tune-disk-performance
 
       - name: Checkout lxd-ci
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: 'canonical/lxd-ci'
           ref: main
@@ -654,7 +675,7 @@ jobs:
 
       # for simplicity, just use one cache directory
       # and make it valid for one day
-      - uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+      - uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         id: cache-restore
         if: ${{ matrix.test == 'qemu-external-vm' }}
         with:
@@ -677,6 +698,7 @@ jobs:
         run: |
           set -eux
           mkdir -p coverage
+          chmod 0777 coverage
           cd coverage
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
@@ -750,6 +772,14 @@ jobs:
 
           sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./bin/local-run "tests/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
 
+          # Cleanly stopping `snap.lxd.daemon.service` will ensure that any Go
+          # coverage data is flushed to disk and can be collected by the upload
+          # step below. If the service is not stopped, we might end up with
+          # partial or no coverage data at all.
+          if [ -n "${GOCOVERDIR:-}" ] && systemctl is-active --quiet snap.lxd.daemon.service; then
+            sudo systemctl stop snap.lxd.daemon.service
+          fi
+
       # always update cache as we have our own logic of
       # cache invalidation and updates in addition to a date check
       - name: Delete previous cache
@@ -760,7 +790,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+      - uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         if: ${{ matrix.test == 'qemu-external-vm' }}
         with:
           path: /home/runner/work/cache
@@ -814,7 +844,7 @@ jobs:
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -828,7 +858,7 @@ jobs:
         uses: ./.github/actions/disable-docker
 
       - name: Install Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version-file: 'go.mod'
 
@@ -890,7 +920,7 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        uses: tiobe/tics-github-action@768de18bedf164ee461bc9ef5e2f2fa1a20b122a # v3.7.0
+        uses: tiobe/tics-github-action@faf5066082a31b2517574270b45e3df92aa39a35 # v3.7.1
         with:
           mode: qserver
           project: LXD
@@ -915,12 +945,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Install Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version-file: 'go.mod'
 
@@ -934,7 +964,11 @@ jobs:
           set -eux
           mkdir -p coverage
           cd coverage
-          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+          DIR="$(pwd)"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            DIR="$(cygpath -m "$DIR")"
+          fi
+          echo "GOCOVERDIR=$DIR" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
 
       - name: Build static lxc
@@ -1029,7 +1063,7 @@ jobs:
       LXD_OIDC_GROUPS_CLAIM: "lxd-idp-groups"
     steps:
       - name: Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -1037,7 +1071,7 @@ jobs:
         uses: ./.github/actions/tune-disk-performance
 
       - name: Checkout LXD-UI
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: 'canonical/lxd-ui'
           ref: main
@@ -1054,7 +1088,7 @@ jobs:
           cd lxd-ui
           dotrun install
 
-      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: 22
 
@@ -1223,31 +1257,25 @@ jobs:
     needs: code-tests
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # A non-shallow clone is needed for the sitemap generation
           fetch-depth: 0
           persist-credentials: false
 
       - name: Install Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version-file: 'go.mod'
 
       - name: Install Python
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
             doc/requirements.txt
             doc/conf.py
           python-version: '3.x'  # satisfied by any 3.x version already installed
-
-      - name: Install dependencies
-        run: |
-          set -eux
-          sudo apt-get install aspell aspell-en
-          sudo snap install mdl
 
       - name: Build docs (Sphinx)
         run: |
@@ -1286,17 +1314,17 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Install Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version-file: 'go.mod'
 
       - name: Install Python
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
@@ -1337,7 +1365,7 @@ jobs:
         }')[github.ref_name] }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 

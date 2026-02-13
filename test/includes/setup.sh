@@ -19,7 +19,6 @@ ensure_import_testimage() {
     fi
 
     if [ -e "${LXD_TEST_IMAGE:-}" ]; then
-        echo "Importing ${LXD_TEST_IMAGE} test image from disk"
         lxc image import --quiet "${LXD_TEST_IMAGE}" --alias "${alias}" --project "${project}"
     else
         if [ "${project:-}" = "" ]; then
@@ -37,6 +36,10 @@ _import_ubuntu_image() {
         shift
         alias="ubuntu-vm"
         data_file="ubuntu.img"
+    else
+        echo "Please re-enable the download of the official Ubuntu container image if you see this message"
+        echo "To do so, revert the commit introducing this very message"
+        false
     fi
     local project="${1:-}"
 
@@ -85,7 +88,6 @@ download_test_images() {
         # For VMs: .img (primary disk) and the -lxd.tar.xz (metadata) files are needed.
         exec curl --show-error --silent --retry 3 --retry-delay 5 \
           --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}-lxd.tar.xz" --output "ubuntu.metadata" \
-          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.squashfs"   --output "ubuntu.squashfs" \
           --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.img"        --output "ubuntu.img"
     )
 }

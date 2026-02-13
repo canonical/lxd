@@ -174,23 +174,17 @@ test_image_list_remotes() {
 }
 
 test_image_import_dir() {
-    ensure_import_testimage
-    lxc image export testimage
-    local image
-    image="$(ls -1 -- *.tar.xz)"
     mkdir -p unpacked
-    tar -C unpacked -xf "$image"
+    tar -C unpacked -xf "${LXD_TEST_IMAGE}"
     local fingerprint
     fingerprint="$(lxc image import unpacked | awk '{print $NF;}')"
-    rm -rf "$image" unpacked
+    rm -rf unpacked
 
-    lxc image export "$fingerprint"
+    lxc image export "${fingerprint}"
     lxc image delete "${fingerprint}"
-    local exported
-    exported="${fingerprint}.tar.xz"
 
-    tar tvf "$exported" --occurrence=1 metadata.yaml
-    rm "$exported"
+    tar tvf "${fingerprint}.tar"* --occurrence=1 metadata.yaml
+    rm "${fingerprint}.tar"*
 }
 
 test_image_import_existing_alias() {
@@ -201,15 +195,15 @@ test_image_import_existing_alias() {
     lxc image export testimage testimage.file
     lxc image delete testimage
 
-    # XXX: ensure_import_testimage imports a `.tar.xz` image which is why once exported, those extensions are appended
+    # XXX: ensure_import_testimage imports a `.tar` image which is why once exported, those extensions are appended
     # the image can be imported with an existing alias
-    lxc image import testimage.file.tar.xz --alias newimage
+    lxc image import testimage.file.tar* --alias newimage
 
     # Test for proper error message when importing an image to a non-existing project
-    output="$(! lxc image import testimage.file.tar.xz --project nonexistingproject 2>&1 || false)"
+    output="$(! lxc image import testimage.file.tar* --project nonexistingproject 2>&1 || false)"
     echo "${output}" | grep -F "Project not found"
 
-    rm testimage.file.tar.xz
+    rm testimage.file.tar*
     lxc image delete newimage image2
 }
 
@@ -458,4 +452,113 @@ run_images_public() {
   lxc image delete "${fingerprint}" --project foo
   lxc project delete foo
   lxc image delete "${fingerprint}"
+}
+
+test_image_cached() {
+  echo "==> Test that images are being cached consistently between projects."
+
+  if lxc image alias list testimage | grep -wF "testimage"; then
+    lxc image delete testimage
+  fi
+
+  # Set up a local LXD server as an image remote.
+  local LXD2_DIR LXD2_ADDR
+  LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD2_DIR}" true
+  LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
+
+  LXD_DIR="${LXD2_DIR}" deps/import-busybox --alias testimage --public
+
+  token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
+  lxc remote add l2 "${LXD2_ADDR}" --token "${token}"
+
+  echo "==> Verify that image caching works correctly for the default project."
+
+  # 1. Create a new instance in the default project with a remote image that is not stored locally.
+  lxc init l2:testimage c1
+
+  local fingerprint
+  fingerprint="$(lxc config get c1 volatile.base_image)"
+
+  lxc delete c1
+
+  # 2. Check that the locally saved image is marked as cached.
+  lxc image info "${fingerprint}" | grep -xF "Cached: yes"
+
+  # 3. Explicitly copy the same remote image to local storage.
+  lxc image copy l2:testimage local:
+
+  # 4. Check that the locally saved image is now marked as non-cached.
+  lxc image info "${fingerprint}" | grep -xF "Cached: no"
+
+  lxc image delete "${fingerprint}"
+
+  echo "==> Verify that image caching works correctly for a custom project with features.images=true."
+
+  # 1. Create a new project p1. It has features.images=true by default.
+  defaultPoolName="$(lxc profile device get default root pool)"
+  lxc project create --storage "${defaultPoolName}" p1
+
+  # 2. Create a new instance in the p1 project with a remote image that is not stored locally.
+  lxc init l2:testimage c1 --target-project p1
+
+  lxc delete c1 --project p1
+
+  # 3. Check that the locally saved image is marked as cached.
+  lxc image info "${fingerprint}" --project p1 | grep -xF "Cached: yes"
+
+  # 4. Explicitly copy the same remote image to local storage.
+  lxc image copy l2:testimage local: --target-project p1
+
+  # 5. Check that the locally saved image is now marked as non-cached.
+  lxc image info "${fingerprint}" --project p1 | grep -xF "Cached: no"
+
+  lxc image delete "${fingerprint}" --project p1
+
+  echo "==> Verify that image caching works correctly for a custom project with features.images=false."
+
+  # 1. Set features.images=false for project p1.
+  lxc project set p1 features.images=false
+
+  # 2. Create a new instance in the p1 project with a remote image that is not stored locally.
+  lxc init l2:testimage c1 --target-project p1
+
+  lxc delete c1 --project p1
+
+  # 3. Check that the locally saved image is marked as cached.
+  lxc image info "${fingerprint}" --project p1 | grep -xF "Cached: yes"
+
+  # 4. Explicitly copy the same remote image to local storage.
+  lxc image copy l2:testimage local: --target-project p1
+
+  # 5. Check that the locally saved image is now marked as non-cached.
+  lxc image info "${fingerprint}" --project p1 | grep -xF "Cached: no"
+
+  lxc image delete "${fingerprint}" --project p1
+
+  echo "==> Verify that image caching works correctly across the projects."
+
+  # 1. Set features.images=true for project p1.
+  lxc project set p1 features.images=true
+
+  # 2. Create a new instance in the default project with a remote image that is not stored locally.
+  lxc init l2:testimage c1
+
+  lxc delete c1
+
+  # 3. Explicitly copy the same remote image to local storage in project p1.
+  lxc image copy l2:testimage local: --target-project p1
+
+  # 4. Check that the locally saved image in the default project is marked as cached.
+  lxc image info "${fingerprint}" | grep -xF "Cached: yes"
+
+  # 5. Check that the locally saved image in the p1 project is marked as non-cached.
+  lxc image info "${fingerprint}" --project p1 | grep -xF "Cached: no"
+
+  # Clean up.
+  lxc image delete "${fingerprint}" --project p1
+  lxc image delete "${fingerprint}"
+  lxc project delete p1
+  lxc remote remove l2
+  kill_lxd "${LXD2_DIR}"
 }

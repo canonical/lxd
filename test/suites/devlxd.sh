@@ -144,8 +144,8 @@ EOF
     break
   done
 
-  kill -9 "${client_websocket}"
-  kill -9 "${client_stream}"
+  kill_go_proc "${client_websocket}"
+  kill_go_proc "${client_stream}"
 
   lxc monitor --type=lifecycle > "${TEST_DIR}/devlxd.log" &
   monitorDevlxdPID=$!
@@ -165,7 +165,7 @@ EOF
 
   [ "$(lxc list -f csv -c s devlxd)" = "RUNNING" ]
 
-  kill -9 "${monitorDevlxdPID}"
+  kill_go_proc "${monitorDevlxdPID}"
   rm "${TEST_DIR}/devlxd.log"
 
   # Expedite LXD shutdown by forcibly killing the running instance
@@ -199,7 +199,7 @@ EOF
   lxc exec devlxd -- devlxd-client devices | jq --exit-status ".eth0.hwaddr == \"${hwaddr}\""
 
   lxc delete devlxd --force
-  kill -9 "${monitorDevlxdPID}"
+  kill_go_proc "${monitorDevlxdPID}"
   rm "${TEST_DIR}/devlxd.log"
 
   [ "${MATCH}" = "1" ]
@@ -243,6 +243,8 @@ test_devlxd_volume_management() {
     lxc launch "${image}" "${inst}" $opts --project "${project}"
     waitInstanceReady "${inst}" "${project}"
 
+    setup_instance_gocoverage "${inst}" "${project}"
+
     # Install devlxd-client and make sure it works.
     lxc file push --project "${project}" --quiet "$(command -v devlxd-client)" "${inst}/bin/"
     lxc exec --project "${project}" "${inst}" -- devlxd-client
@@ -278,8 +280,24 @@ test_devlxd_volume_management() {
     lxc auth group permission add "${authGroup}" instance "${inst}" can_view project="${project}"
     lxc auth identity group add "${authIdentity}" "${authGroup}"
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq --exit-status .name
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered == false'
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment.server_clustered == false'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq --exit-status '.auth == "trusted"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq --exit-status '.auth == "trusted"'
+
+    # Ensure DevLXD authentication does not accept LXD bearer token.
+    # Set same permissions to the LXD bearer token as to DevLXD bearer token
+    # and ensure it is not allowed to do any operation.
+    lxc auth identity create bearer/test-with-devlxd --group "${authGroup}"
+    lxdToken=$(lxc auth identity token issue bearer/test-with-devlxd --quiet)
+
+    # First, query LXD API directly to ensure the token is trusted by LXD API.
+    curl -s -k -H "Authorization: Bearer ${lxdToken}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+    # Now, ensure that the valid LXD token is not trusted by DevLXD.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${lxdToken}" -- devlxd-client get-state | jq --exit-status '.auth == "untrusted"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${lxdToken}" -- devlxd-client query GET /1.0 | jq --exit-status '.auth == "untrusted"'
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${lxdToken}" -- devlxd-client instance get "${inst}")" = "You must be authenticated" ]
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${lxdToken}" -- devlxd-client storage get invalid-pool)" = "You must be authenticated" ]
+    lxc auth identity delete bearer/test-with-devlxd
 
     # Test devLXD authorization (volume management security flag).
     # Fail when the security flag is not set.
@@ -506,6 +524,8 @@ EOF
     if [ "${instType}" = "virtual-machine" ]; then
       lxc image delete "$(lxc config get "${inst}" volatile.base_image --project "${project}")" --project "${project}"
     fi
+    # Coverage data requires clean lxd-agent stop
+    prepare_vm_for_hard_stop "${inst}" "${project}"
     lxc delete "${inst}" --project "${project}" --force
     lxc auth identity delete "${authIdentity}"
     lxc auth group delete "${authGroup}"
@@ -555,6 +575,8 @@ test_devlxd_volume_management_snapshots() {
     # shellcheck disable=SC2086 # Variable "opts" must not be quoted, we want word splitting.
     lxc launch "${image}" "${inst}" $opts --project "${project}"
     waitInstanceReady "${inst}" "${project}"
+
+    setup_instance_gocoverage "${inst}" "${project}"
 
     # Install devlxd-client and make sure it works.
     lxc file push --project "${project}" --quiet "$(command -v devlxd-client)" "${inst}/bin/"
@@ -685,6 +707,8 @@ EOF
 
     # Cleanup.
     imageFingerprint="$(lxc config get "${inst}" volatile.base_image --project "${project}")"
+    # Coverage data requires clean lxd-agent stop
+    prepare_vm_for_hard_stop "${inst}" "${project}"
     lxc delete "${inst}" --project "${project}" --force
     lxc image delete "${imageFingerprint}" --project "${project}"
     lxc auth identity delete "${authIdentity}"
@@ -713,7 +737,7 @@ test_devlxd_vm() {
   lxc start v1
   waitInstanceReady v1
 
-  setup_lxd_agent_gocoverage v1
+  setup_instance_gocoverage v1
 
   echo "==> Check that devlxd is enabled by default and works"
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
@@ -725,12 +749,8 @@ test_devlxd_vm() {
   # Run sync before forcefully restarting the VM otherwise the filesystem will be corrupted.
   lxc exec v1 -- "sync"
 
-  # Coverage data requires clean shutdown
-  if coverage_enabled; then
-    # Errors are possible if the service is stopped before the exec completes
-    # as it kills the communication channel
-    lxc exec v1 -- systemctl stop --no-block lxd-agent.service || true
-  fi
+  # Coverage data requires clean lxd-agent stop
+  prepare_vm_for_hard_stop v1
 
   lxc restart -f v1
   waitInstanceReady v1
@@ -787,9 +807,8 @@ runcmd:
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
   [ "$(lxc config get v1 volatile.last_state.ready)" = "true" ]
 
-  # If gathering coverage data, the lxd-agent.service needs to be stopped
-  # cleanly to allow the coverage file to be flushed.
-  teardown_lxd_agent_gocoverage v1
+  # Coverage data requires clean lxd-agent stop
+  prepare_vm_for_hard_stop v1
 
   lxc stop -f v1
   [ "$(lxc config get v1 volatile.last_state.ready)" = "false" ]

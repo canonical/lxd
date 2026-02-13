@@ -279,8 +279,8 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx con
 		networks.name,
 		networks.type,
 		networks_load_balancers.listen_address,
-		nc_ipv4.value AS ipv4_address,
-		nc_ipv6.value AS ipv6_address
+		COALESCE(nc_ipv4.value, '') AS ipv4_address,
+		COALESCE(nc_ipv6.value, '') AS ipv6_address
 	FROM networks_load_balancers
 	JOIN networks ON networks.id = networks_load_balancers.network_id
 	JOIN projects ON projects.id = networks.project_id

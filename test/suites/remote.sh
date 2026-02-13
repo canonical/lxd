@@ -146,8 +146,8 @@ test_remote_url_with_token() {
 
   # Check token prune task
   lxc config trust add --name foo --quiet # Create a token
-  [ "$(lxc operation list --format csv | grep -cF 'TOKEN,Executing operation,RUNNING')" -eq 1 ] # Expect only one token operation to be running
-  running_token_operation_uuid="$(lxc operation list --format csv | grep -F 'TOKEN,Executing operation,RUNNING' | cut -d, -f1)" # Get the operation UUID
+  [ "$(lxc operation list --format csv | grep -cF 'TOKEN,Certificate add token,RUNNING')" -eq 1 ] # Expect only one token operation to be running
+  running_token_operation_uuid="$(lxc operation list --format csv | grep -F 'TOKEN,Certificate add token,RUNNING' | cut -d, -f1)" # Get the operation UUID
   sleep 1.1 # Wait for token to expire (expiry still set to short expiry)
   lxc query --request POST /internal/testing/prune-tokens # Prune tokens
   [ "$(lxc query "/1.0/operations/${running_token_operation_uuid}" | jq -r '.status')" = "Cancelled" ] # Expect the operation to be cancelled
@@ -229,8 +229,8 @@ test_remote_usage() {
 
   lxc_remote image export localhost:testimage "${LXD_DIR}/foo"
   lxc_remote image delete localhost:testimage
-  sum=$(sha256sum "${LXD_DIR}/foo.tar.xz" | cut -d' ' -f1)
-  lxc_remote image import "${LXD_DIR}/foo.tar.xz" localhost: --public
+  sum=$(sha256sum "${LXD_DIR}/foo.tar"* | cut -d' ' -f1)
+  lxc_remote image import "${LXD_DIR}/foo.tar"* localhost: --public
   lxc_remote image alias create localhost:testimage "${sum}"
 
   lxc_remote image delete "lxd2:${sum}" || true
@@ -406,8 +406,32 @@ test_remote_usage() {
   # The alias should be set to `bar`.
   [ "${alias}" = "bar" ]
 
+  echo "==> Ensure that the copied image properties are set from source image."
+
+  # Check that the copied image has the same filename as the source image.
+  filename=$(lxc_remote query localhost:"/1.0/images/${fingerprint}" | jq --exit-status '.filename')
+  lxc_remote query lxd2:"/1.0/images/${fingerprint}" | jq --exit-status --raw-output ".filename == ${filename}"
+
+  # Now, change the description property for the downloaded image in the default project.
+  lxc_remote image set-property lxd2:bar description "TEST"
+
+  # Create another project to download the image into.
+  lxc_remote project create lxd2:foo
+
+  # Copy the same image from source into newly created project.
+  lxc_remote image copy --quiet localhost:testimage lxd2: --alias bar --target-project foo
+
+  # Check that the downloaded image in the new project has the description property from source.
+  [ "$(lxc_remote image get-property lxd2:bar description --project foo)" = "$(lxc_remote image get-property localhost:testimage description)" ]
+
+  # Check that the downloaded image in the default project still has custom description.
+  [ "$(lxc_remote image get-property lxd2:bar description --project default)" = "TEST" ]
+
+  # Clean up.
   lxc_remote image alias delete localhost:foo
-  lxc_remote image delete lxd2:bar
+  lxc_remote image delete lxd2:bar --project default
+  lxc_remote image delete lxd2:bar --project foo
+  lxc_remote project delete lxd2:foo
 
   echo "==> Test copying image on the same remote into a different project."
   lxc_remote project create localhost:p1

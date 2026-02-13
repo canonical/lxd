@@ -4,13 +4,13 @@
 
 The LXD team welcomes contributions through pull requests, issue reports, and discussions.
 - Contribute to the code or documentation, report bugs, or request features in the [GitHub repository](https://github.com/canonical/lxd)
-- Ask questions or join discussions in the [LXD forum](https://discourse.ubuntu.com/c/lxd/126).
+- Ask questions or join discussions in the [LXD forum](https://discourse.ubuntu.com/c/project/lxd/126).
 
 Review the following guidelines before contributing to the project.
 
 ## Code of Conduct
 
-All contributors must adhere to the [Ubuntu Code of Conduct](https://ubuntu.com/community/ethos/code-of-conduct).
+All contributors must adhere to the [Ubuntu Code of Conduct](https://ubuntu.com/community/docs/ethos/code-of-conduct).
 
 ## License and copyright
 
@@ -41,7 +41,7 @@ Use separate commits for different types of changes:
 | **Go client package**| Files in `client/`                               | `client: Add XYZ`                   |
 | **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         |
 | **LXD daemon**       | Files in `lxd/`                                  | `lxd/<package>: Add support for XYZ`|
-| **Tests**            | Files in `tests/`                                | `tests: Add test for XYZ`           |
+| **Tests**            | Files in `test/`                                 | `test/<path>: Add test for XYZ`     |
 | **GitHub**           | Files in `.github/`                              | `github: Update XYZ`                |
 | **Makefile**         | `Makefile`                                       | `Makefile: Update XYZ`              |
 

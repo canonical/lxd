@@ -76,28 +76,27 @@ func (c *cmdConvert) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	// Instance flags.
-	cmd.Flags().StringVar(&c.flagInstanceName, "name", "", "Name of the new instance"+"``")
-	cmd.Flags().StringVar(&c.flagInstanceType, "type", "", "Type of the instance to create (container or vm)"+"``")
-	cmd.Flags().StringVar(&c.flagProject, "project", "", "Project name"+"``")
-	cmd.Flags().StringSliceVar(&c.flagProfiles, "profiles", nil, "Profiles to apply on the new instance"+"``")
-	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied"+"``")
-	cmd.Flags().StringVar(&c.flagStorage, "storage", "", "Storage pool name"+"``")
-	cmd.Flags().StringVar(&c.flagStorageSize, "storage-size", "", "Size of the instance's storage volume"+"``")
-	cmd.Flags().StringVar(&c.flagNetwork, "network", "", "Network name"+"``")
-	cmd.Flags().StringArrayVar(&c.flagMountPaths, "mount-path", nil, "Additional container mount paths"+"``")
-	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, "Config key/value to apply to the new instance"+"``")
-	cmd.Flags().StringVar(&c.flagSource, "source", "", "Path to the root filesystem for containers, or to the block device or disk image file for virtual machines"+"``")
-
+	cmd.Flags().StringVar(&c.flagInstanceName, "name", "", cli.FormatStringFlagLabel("Name of the new instance"))
+	cmd.Flags().StringVar(&c.flagInstanceType, "type", "", cli.FormatStringFlagLabel("Type of the instance to create (container or vm)"))
+	cmd.Flags().StringVar(&c.flagProject, "project", "", cli.FormatStringFlagLabel("Project name"))
+	cmd.Flags().StringSliceVar(&c.flagProfiles, "profiles", nil, cli.FormatStringFlagLabel("Profiles to apply on the new instance"))
+	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied")
+	cmd.Flags().StringVar(&c.flagStorage, "storage", "", cli.FormatStringFlagLabel("Storage pool name"))
+	cmd.Flags().StringVar(&c.flagStorageSize, "storage-size", "", cli.FormatStringFlagLabel("Size of the instance's storage volume"))
+	cmd.Flags().StringVar(&c.flagNetwork, "network", "", cli.FormatStringFlagLabel("Network name"))
+	cmd.Flags().StringArrayVar(&c.flagMountPaths, "mount-path", nil, cli.FormatStringFlagLabel("Additional container mount paths"))
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, cli.FormatStringFlagLabel("Config key/value to apply to the new instance"))
+	cmd.Flags().StringVar(&c.flagSource, "source", "", cli.FormatStringFlagLabel("Path to the root filesystem for containers, or to the block device or disk image file for virtual machines"))
 	// Target server.
-	cmd.Flags().StringVar(&c.flagServer, "server", "", "Unix or HTTPS URL of the target server"+"``")
-	cmd.Flags().StringVar(&c.flagToken, "token", "", "Authentication token for HTTPS remote"+"``")
-	cmd.Flags().StringVar(&c.flagCertPath, "cert-path", "", "Trusted certificate path"+"``")
-	cmd.Flags().StringVar(&c.flagKeyPath, "key-path", "", "Trusted certificate key path"+"``")
+	cmd.Flags().StringVar(&c.flagServer, "server", "", cli.FormatStringFlagLabel("Unix or HTTPS URL of the target server"))
+	cmd.Flags().StringVar(&c.flagToken, "token", "", cli.FormatStringFlagLabel("Authentication token for HTTPS remote"))
+	cmd.Flags().StringVar(&c.flagCertPath, "cert-path", "", cli.FormatStringFlagLabel("Trusted certificate path"))
+	cmd.Flags().StringVar(&c.flagKeyPath, "key-path", "", cli.FormatStringFlagLabel("Trusted certificate key path"))
 
 	// Other flags.
-	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
-	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "options", []string{"format"}, "Comma-separated list of conversion options to apply. Allowed values are: [format, virtio]")
-	cmd.Flags().BoolVar(&c.flagNonInteractive, "non-interactive", false, "Prevent further interaction if migration questions are incomplete"+"``")
+	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", cli.FormatStringFlagLabel("Extra arguments to pass to rsync"))
+	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "options", []string{"format"}, cli.FormatStringFlagLabel("Comma-separated list of conversion options to apply. Allowed values are: [format, virtio]"))
+	cmd.Flags().BoolVar(&c.flagNonInteractive, "non-interactive", false, "Prevent further interaction if migration questions are incomplete")
 
 	return cmd
 }
@@ -619,7 +618,7 @@ func (c *cmdConvert) runInteractive(config *cmdConvertData, server lxd.InstanceS
 		}
 	}
 
-	// Ask VM supports the secureboot. In non-interactive mode, security.secureboot can be
+	// Ask whether the VM supports UEFI secure boot. In non-interactive mode, boot.mode can be
 	// configured using --config flag.
 	if !c.flagNonInteractive && config.InstanceArgs.Type == api.InstanceTypeVM {
 		architectureName, _ := osarch.ArchitectureGetLocal()
@@ -631,7 +630,7 @@ func (c *cmdConvert) runInteractive(config *cmdConvertData, server lxd.InstanceS
 			}
 
 			if !hasSecureBoot {
-				config.InstanceArgs.Config["security.secureboot"] = "false"
+				config.InstanceArgs.Config["boot.mode"] = "uefi-nosecureboot"
 			}
 		}
 	}
@@ -942,7 +941,7 @@ func (c *cmdConvert) run(cmd *cobra.Command, args []string) error {
 	}
 
 	revert.Add(func() {
-		_, _ = server.DeleteInstance(config.InstanceArgs.Name)
+		_, _ = server.DeleteInstance(config.InstanceArgs.Name, false)
 	})
 
 	progressPrefix := "Transferring instance: %s"

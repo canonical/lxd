@@ -373,7 +373,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			if project.Config["features.images"] == "false" {
+			if shared.IsFalseOrEmpty(project.Config["features.images"]) {
 				err = dbCluster.InitProjectWithoutImages(ctx, tx.Tx(), project.Name)
 				if err != nil {
 					return err
@@ -829,7 +829,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 			}
 		}
 
-		if slices.Contains(configChanged, "features.images") && shared.IsFalse(req.Config["features.images"]) && shared.IsTrue(req.Config["features.profiles"]) {
+		if slices.Contains(configChanged, "features.images") && shared.IsFalseOrEmpty(req.Config["features.images"]) && shared.IsTrue(req.Config["features.profiles"]) {
 			err = dbCluster.InitProjectWithoutImages(ctx, tx.Tx(), project.Name)
 			if err != nil {
 				return err

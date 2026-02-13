@@ -20,8 +20,8 @@ fi
 # Create LXD_LOGS if needed
 [ -n "${LXD_LOGS:-}" ] && mkdir -p "${LXD_LOGS}"
 
-# Create GOCOVERDIR if needed
-[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}"
+# Create GOCOVERDIR if needed and make it world-writable
+[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}" && chmod 0777 "${GOCOVERDIR}"
 
 # === export needed environment variables with defaults === #
 # OVN
@@ -98,7 +98,7 @@ fi
 
 # Default sizes to be used with storage pools
 export DEFAULT_VOLUME_SIZE="24MiB"
-export DEFAULT_POOL_SIZE="3GiB"
+export DEFAULT_POOL_SIZE="7GiB"
 
 export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
@@ -168,9 +168,9 @@ run_dependency_checks() {
     # Cache the busybox testimage for reuse
     deps/import-busybox --save-image
 
-    # Avoid `.tar.xz` extension that may conflict with some tests
-    mv busybox.tar.xz busybox.tar.xz.cache
-    export LXD_TEST_IMAGE="busybox.tar.xz.cache"
+    # Avoid `.tar` extension that may conflict with some tests
+    mv busybox.tar busybox.tar.cache
+    export LXD_TEST_IMAGE="busybox.tar.cache"
     echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
   fi
 }
@@ -232,10 +232,16 @@ export _LXC
 ulimit -c unlimited
 echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
 
-# Check for core dumps, ignoring qemu crashes (known issue)
+# Check for core dumps, ignoring known issues.
 check_coredumps() {
   if ! compgen -G "/var/crash/core-*.gz" > /dev/null; then
     return 0  # No core dumps at all
+  fi
+
+  # Ignore unattended-upgrades core dumps (https://bugs.launchpad.net/ubuntu/+source/unattended-upgrades/+bug/2139433)
+  if compgen -G "/var/crash/core-unattended-upgr*.gz" > /dev/null 2>&1; then
+    echo "::notice::==> CORE: unattended-upgrades core dump ignored (LP: #2139433)"
+    rm /var/crash/core-unattended-upgr*.gz
   fi
 
   # Ignore qemu core dumps (known crasher, to be fixed later)
@@ -251,7 +257,7 @@ check_coredumps() {
   fi
   shopt -u extglob
 
-  # Only QEMU core dumps (known issue)
+  # Only QEMU core dumps (known issue, fixed by QEMU 10.2.0+)
   echo "::notice::==> CORE: QEMU core dump ignored"
 
   return 0
@@ -390,10 +396,12 @@ generate_duration_table() {
 
     # Collect all unique test names
     local -a test_names=()
+    local -A seen_names
     for key in "${!durations[@]}"; do
         local test_name="${key%,*}"
-        if [[ ! " ${test_names[*]} " =~ (^|[[:space:]])${test_name}([[:space:]]|$) ]]; then
+        if [ -z "${seen_names["${test_name}"]:-}" ]; then
             test_names+=("${test_name}")
+            seen_names["${test_name}"]=1
         fi
     done
 

@@ -485,7 +485,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -661,6 +660,12 @@ type Instance interface {
 	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 }
 
+var (
+	headerUID  = []byte("Uid:")
+	headerGID  = []byte("Gid:")
+	headerTGID = []byte("Tgid:")
+)
+
 var seccompPath = shared.VarPath("security", "seccomp")
 
 // ProfilePath returns the seccomp path for the instance.
@@ -789,17 +794,9 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	allowlist := config["security.syscalls.allow"]
 
 	if allowlist != "" {
-		if !s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
-			return "", fmt.Errorf("Unable to configure allowlist, liblxc is does not support: %q", "seccomp_allow_deny_syntax")
-		}
-
 		policy += "allowlist\n[all]\n"
 		policy += allowlist
 	} else {
-		if !s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
-			return "", fmt.Errorf("Unable to configure denylist, liblxc is does not support: %q", "seccomp_allow_deny_syntax")
-		}
-
 		policy += "denylist\n[all]\n"
 
 		defaultFlag, ok := config["security.syscalls.deny_default"]
@@ -1144,17 +1141,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 
 // TaskIDs returns the task IDs for a process.
 func TaskIDs(pid int) (UID int64, GID int64, fsUID int64, fsGID int64, err error) {
-	status, err := os.ReadFile("/proc/" + strconv.FormatInt(int64(pid), 10) + "/status")
-	if err != nil {
-		return -1, -1, -1, -1, err
-	}
-
-	reUID, err := regexp.Compile(`^Uid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)`)
-	if err != nil {
-		return -1, -1, -1, -1, err
-	}
-
-	reGID, err := regexp.Compile(`^Gid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)`)
+	status, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/status")
 	if err != nil {
 		return -1, -1, -1, -1, err
 	}
@@ -1165,60 +1152,58 @@ func TaskIDs(pid int) (UID int64, GID int64, fsUID int64, fsGID int64, err error
 	fsGID = -1
 	UIDFound := false
 	GIDFound := false
-	for _, line := range strings.Split(string(status), "\n") {
+	for line := range bytes.SplitSeq(status, []byte("\n")) {
 		if UIDFound && GIDFound {
 			break
 		}
 
-		if !UIDFound {
-			m := reUID.FindStringSubmatch(line)
-			if len(m) > 2 {
-				// effective uid
-				result, err := strconv.ParseInt(m[2], 10, 64)
-				if err != nil {
-					return -1, -1, -1, -1, err
-				}
-
-				UID = result
-				UIDFound = true
+		if !UIDFound && bytes.HasPrefix(line, headerUID) {
+			fields := bytes.Fields(line)
+			if len(fields) < 5 {
+				continue
 			}
 
-			if len(m) > 4 {
-				// fsuid
-				result, err := strconv.ParseInt(m[4], 10, 64)
-				if err != nil {
-					return -1, -1, -1, -1, err
-				}
-
-				fsUID = result
+			// effective uid
+			result, err := strconv.ParseInt(string(fields[2]), 10, 64)
+			if err != nil {
+				return -1, -1, -1, -1, err
 			}
 
+			UID = result
+			UIDFound = true
+
+			// fsuid
+			result, err = strconv.ParseInt(string(fields[4]), 10, 64)
+			if err != nil {
+				return -1, -1, -1, -1, err
+			}
+
+			fsUID = result
 			continue
 		}
 
-		if !GIDFound {
-			m := reGID.FindStringSubmatch(line)
-			if len(m) > 2 {
-				// effective gid
-				result, err := strconv.ParseInt(m[2], 10, 64)
-				if err != nil {
-					return -1, -1, -1, -1, err
-				}
-
-				GID = result
-				GIDFound = true
+		if !GIDFound && bytes.HasPrefix(line, headerGID) {
+			fields := bytes.Fields(line)
+			if len(fields) < 5 {
+				continue
 			}
 
-			if len(m) > 4 {
-				// fsgid
-				result, err := strconv.ParseInt(m[4], 10, 64)
-				if err != nil {
-					return -1, -1, -1, -1, err
-				}
-
-				fsGID = result
+			// effective gid
+			result, err := strconv.ParseInt(string(fields[2]), 10, 64)
+			if err != nil {
+				return -1, -1, -1, -1, err
 			}
 
+			GID = result
+			GIDFound = true
+
+			// fsgid
+			result, err = strconv.ParseInt(string(fields[4]), 10, 64)
+			if err != nil {
+				return -1, -1, -1, -1, err
+			}
+
+			fsGID = result
 			continue
 		}
 	}
@@ -1241,15 +1226,14 @@ func FindTGID(procFd int) (uint32, error) {
 		return 0, err
 	}
 
-	reTGID, err := regexp.Compile(`^Tgid:\s+([0-9]+)`)
-	if err != nil {
-		return 0, err
-	}
+	for line := range bytes.SplitSeq(status, []byte("\n")) {
+		if bytes.HasPrefix(line, headerTGID) {
+			fields := bytes.Fields(line)
+			if len(fields) < 2 {
+				continue
+			}
 
-	for _, line := range strings.Split(string(status), "\n") {
-		m := reTGID.FindStringSubmatch(line)
-		if len(m) > 1 {
-			result, err := strconv.ParseUint(m[1], 10, 32)
+			result, err := strconv.ParseUint(string(fields[1]), 10, 32)
 			if err != nil {
 				return 0, err
 			}
@@ -1267,12 +1251,12 @@ func isCapableInCtInitUserns(siov *Iovec, capability C.int) (bool, error) {
 	containerInitPID := int(siov.msg.init_pid)
 	targetPID := int(siov.req.pid)
 
-	ctInitUserNS, err := os.Readlink("/proc/" + strconv.FormatInt(int64(containerInitPID), 10) + "/ns/user")
+	ctInitUserNS, err := os.Readlink("/proc/" + strconv.Itoa(containerInitPID) + "/ns/user")
 	if err != nil {
 		return false, fmt.Errorf("Can't get userns for container's init process: %w", err)
 	}
 
-	reqUserNS, err := os.Readlink("/proc/" + strconv.FormatInt(int64(targetPID), 10) + "/ns/user")
+	reqUserNS, err := os.Readlink("/proc/" + strconv.Itoa(targetPID) + "/ns/user")
 	if err != nil {
 		return false, fmt.Errorf("Can't get userns for requestor process: %w", err)
 	}
@@ -1861,7 +1845,8 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 
 	instMetrics := Sysinfo{} // Architecture independent place to hold instance metrics.
 
-	cg, err := cgroup.NewFileReadWriter(int(siov.msg.init_pid), liblxc.HasAPIExtension("cgroup2"))
+	initPID := int(siov.msg.init_pid)
+	cg, err := cgroup.NewFileReadWriter(initPID)
 	if err != nil {
 		l.Warn("Failed loading cgroup", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1870,7 +1855,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 	}
 
 	// Get instance uptime.
-	pidStat, err := os.ReadFile("/proc/" + strconv.FormatInt(int64(siov.msg.init_pid), 10) + "/stat")
+	pidStat, err := os.ReadFile("/proc/" + strconv.Itoa(initPID) + "/stat")
 	if err != nil {
 		l.Warn("Failed getting init process info", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -2137,7 +2122,7 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 	inAllowList := false
 	kernelModules := c.ExpandedConfig()["linux.kernel_modules"]
 	if kernelModules != "" {
-		for _, module := range strings.Split(kernelModules, ",") {
+		for module := range strings.SplitSeq(kernelModules, ",") {
 			module = strings.TrimPrefix(module, " ")
 
 			if module == moduleName {
@@ -2678,13 +2663,9 @@ func lxcSupportSeccompNotify(state *state.State) error {
 		return errors.New("Seccomp notify not supported")
 	}
 
-	if !state.OS.LXCFeatures["seccomp_notify"] {
-		return errors.New("LXC doesn't support seccomp notify")
-	}
-
 	c, err := liblxc.NewContainer("test-seccomp", state.OS.LxcPath)
 	if err != nil {
-		return errors.New("Failed to load seccomp notify test container")
+		return errors.New("Failed loading seccomp notify test container")
 	}
 
 	err = c.SetConfigItem("lxc.seccomp.notify.proxy", "unix:"+shared.VarPath("seccomp.socket"))

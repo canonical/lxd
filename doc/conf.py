@@ -57,7 +57,7 @@ ogp_site_name = html_title
 ogp_image = 'https://documentation.ubuntu.com/lxd/latest/_static/lxd_tag.png'
 
 # Product favicon; shown in bookmarks, browser tabs, etc.
-html_favicon = '.sphinx/_static/favicon.ico'
+html_favicon = '_static/favicon.ico'
 
 # Dictionary of values to pass into the Sphinx context for all pages:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-html_context
@@ -108,7 +108,7 @@ html_context = {
     'github_issues': 'enabled',
 }
 
-html_extra_path = ['.sphinx/_extra']
+html_extra_path = ['_extra']
 
 # Enables the pencil icon to edit pages on GitHub, shown at the top of each page
 html_theme_options = {
@@ -144,8 +144,8 @@ sitemap_excludes = [
 # Template and asset locations
 #######################
 
-html_static_path = ['.sphinx/_static']
-templates_path = ['.sphinx/_templates']
+html_static_path = ['_static']
+templates_path = ['_templates']
 
 
 #############
@@ -331,14 +331,14 @@ remove_from_toctrees = ['reference/manpages/lxc/*.md']
 if not os.path.isdir('.sphinx/deps/swagger-ui'):
     Repo.clone_from('https://github.com/swagger-api/swagger-ui', '.sphinx/deps/swagger-ui', depth=1)
 
-os.makedirs('.sphinx/_static/swagger-ui/', exist_ok=True)
+os.makedirs('_static/swagger-ui/', exist_ok=True)
 
-if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui-bundle.js'):
-    os.symlink('../../deps/swagger-ui/dist/swagger-ui-bundle.js', '.sphinx/_static/swagger-ui/swagger-ui-bundle.js')
-if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui-standalone-preset.js'):
-    os.symlink('../../deps/swagger-ui/dist/swagger-ui-standalone-preset.js', '.sphinx/_static/swagger-ui/swagger-ui-standalone-preset.js')
-if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui.css'):
-    os.symlink('../../deps/swagger-ui/dist/swagger-ui.css', '.sphinx/_static/swagger-ui/swagger-ui.css')
+if not os.path.islink('_static/swagger-ui/swagger-ui-bundle.js'):
+    os.symlink('../../.sphinx/deps/swagger-ui/dist/swagger-ui-bundle.js', '_static/swagger-ui/swagger-ui-bundle.js')
+if not os.path.islink('_static/swagger-ui/swagger-ui-standalone-preset.js'):
+    os.symlink('../../.sphinx/deps/swagger-ui/dist/swagger-ui-standalone-preset.js', '_static/swagger-ui/swagger-ui-standalone-preset.js')
+if not os.path.islink('_static/swagger-ui/swagger-ui.css'):
+    os.symlink('../../.sphinx/deps/swagger-ui/dist/swagger-ui.css', '_static/swagger-ui/swagger-ui.css')
 
 ### MAN PAGES ###
 
@@ -383,6 +383,7 @@ for page in [x for x in os.listdir('.sphinx/deps/manpages')
 
     with open(os.path.join('.sphinx/deps/manpages/', pagepath), 'w') as mdfile:
         mdfile.write('(' + page + ')=\n')
+        in_code_block = False
         for line in content:
             if line.startswith('###### Auto generated'):
                 continue
@@ -390,6 +391,13 @@ for page in [x for x in os.listdir('.sphinx/deps/manpages')
                 mdfile.write('# `' + line[3:].rstrip() + '`\n')
             elif line.startswith('##'):
                 mdfile.write(line[1:])
+            elif line.startswith('```'):
+                if not in_code_block and line.rstrip() == '```':
+                    mdfile.write('```none\n')
+                else:
+                    mdfile.write(line)
+
+                in_code_block = not in_code_block
             else:
                 mdfile.write(line)
 

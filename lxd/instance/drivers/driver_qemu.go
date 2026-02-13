@@ -92,6 +92,9 @@ const QEMUDefaultCPUCores = 1
 // QEMUDefaultMemSize is the default memory size for VMs if no limit specified.
 const QEMUDefaultMemSize = "1GiB"
 
+// QEMUDefaultMaxBusPorts is the default number of PCI ports available for VMs.
+const QEMUDefaultMaxBusPorts uint8 = 8
+
 // qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
 const qemuSerialChardevName = "qemu_serial-chardev"
 
@@ -1112,25 +1115,21 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
-	// Ensure secureboot is turned off for images that are not secureboot enabled
-	if shared.IsFalse(d.localConfig["image.requirements.secureboot"]) && shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-		return errors.New("The image used by this instance is incompatible with secureboot. Please set security.secureboot=false on the instance")
+	// Ensure secure boot is disabled for images that don't support it.
+	bootMode := d.effectiveBootMode()
+	if shared.IsFalse(d.localConfig["image.requirements.secureboot"]) && bootMode == instancetype.BootModeUEFISecureBoot {
+		return errors.New("The image used by this instance is incompatible with secure boot. Set boot.mode=uefi-nosecureboot")
 	}
 
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
-		// Ensure CSM is turned off for all arches except x86_64
+	if bootMode == instancetype.BootModeBIOS {
+		// Ensure BIOS mode is only used on x86_64.
 		if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
-			return errors.New("CSM can be enabled for x86_64 architecture only. Please set security.csm=false on the instance")
+			return errors.New("BIOS mode is only supported on x86_64. Set boot.mode=uefi-secureboot")
 		}
 
-		// Having boot.debug_edk2 enabled contradicts with enabling CSM
+		// boot.debug_edk2 requires UEFI and cannot be used with BIOS mode.
 		if shared.IsTrue(d.localConfig["boot.debug_edk2"]) {
-			return errors.New("CSM can not be enabled together with boot.debug_edk2. Please set one of them to false")
-		}
-
-		// Ensure secureboot is turned off when CSM is on
-		if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-			return errors.New("Secure boot can't be enabled while CSM is turned on. Please set security.secureboot=false on the instance")
+			return errors.New("boot.debug_edk2 cannot be enabled when boot.mode=bios")
 		}
 	}
 
@@ -2029,6 +2028,15 @@ func (d *qemu) architectureSupportsUEFI(arch int) bool {
 	return slices.Contains([]int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}, arch)
 }
 
+func (d *qemu) effectiveBootMode() string {
+	bootMode := d.expandedConfig["boot.mode"]
+	if bootMode == "" {
+		return instancetype.BootModeUEFISecureBoot
+	}
+
+	return bootMode
+}
+
 func (d *qemu) setupNvram() error {
 	var err error
 
@@ -2044,11 +2052,13 @@ func (d *qemu) setupNvram() error {
 
 	// Determine expected firmware.
 	var firmwares []edk2.FirmwarePair
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+	bootMode := d.effectiveBootMode()
+	switch bootMode {
+	case instancetype.BootModeBIOS:
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.CSM)
-	} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+	case instancetype.BootModeUEFISecureBoot:
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.SECUREBOOT)
-	} else {
+	default:
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.GENERIC)
 	}
 
@@ -2264,6 +2274,24 @@ func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
 	}
 
 	return pciSlots, nil
+}
+
+// getMaxPCISlotCount returns the maximum allowed number of PCI/PCIe slots for the instance.
+func (d *qemu) getMaxPCISlotCount() (pciSlotCountMax uint8, err error) {
+	// Initialize to the default value for "limits.max_bus_ports".
+	pciSlotCountMax = QEMUDefaultMaxBusPorts
+
+	pciSlotCountMaxStr, ok := d.expandedConfig["limits.max_bus_ports"]
+	if ok && pciSlotCountMaxStr != "" {
+		val, err := strconv.ParseUint(pciSlotCountMaxStr, 10, 8)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", "limits.max_bus_ports", err)
+		}
+
+		pciSlotCountMax = uint8(val)
+	}
+
+	return pciSlotCountMax, nil
 }
 
 // busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
@@ -2838,8 +2866,9 @@ func (d *qemu) UEFIVars() (*api.InstanceUEFIVars, error) {
 		return nil, errors.New("UEFI is not supported for this instance architecture")
 	}
 
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
-		return nil, errors.New("UEFI is disabled when CSM mode is active")
+	bootMode := d.effectiveBootMode()
+	if bootMode == instancetype.BootModeBIOS {
+		return nil, errors.New("UEFI is disabled when BIOS boot mode is active")
 	}
 
 	uefiVarsPath := d.nvramPath()
@@ -2878,8 +2907,9 @@ func (d *qemu) UEFIVarsUpdate(newUEFIVarsSet api.InstanceUEFIVars) error {
 		return errors.New("UEFI is not supported for this instance architecture")
 	}
 
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
-		return errors.New("UEFI is disabled when CSM mode is active")
+	bootMode := d.effectiveBootMode()
+	if bootMode == instancetype.BootModeBIOS {
+		return errors.New("UEFI is disabled when BIOS boot mode is active")
 	}
 
 	uefiVarsPath := d.nvramPath()
@@ -3415,11 +3445,13 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Determine expected firmware.
 		var firmwares []edk2.FirmwarePair
-		if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		bootMode := d.effectiveBootMode()
+		switch bootMode {
+		case instancetype.BootModeBIOS:
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.CSM)
-		} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+		case instancetype.BootModeUEFISecureBoot:
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.SECUREBOOT)
-		} else {
+		default:
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.GENERIC)
 		}
 
@@ -3556,7 +3588,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+	bootMode := d.effectiveBootMode()
+	if bootMode == instancetype.BootModeBIOS {
 		// Allocate a direct entry so the SCSI controller can be seen by seabios.
 		devBus, devAddr, multi = bus.allocateDirect()
 	}
@@ -3613,7 +3646,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+	bootMode = d.effectiveBootMode()
+	if bootMode == instancetype.BootModeBIOS {
 		// Allocate a direct entry so the GPU can be seen by seabios.
 		devBus, devAddr, multi = bus.allocateDirect()
 	}
@@ -3668,12 +3702,23 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	lastBusName := ""                      // Use to detect when the main bus name changes from bus.allocate().
 	lastBusNum := qemuPCIDeviceIDStart - 1 // Initialise to last built-in device bus number.
+	usedSlots := 0                         // Calculate used PCI bus slots.
+
+	// Get maximum allowed number of PCI/PCIe slots.
+	pciSlotCountMax, err := d.getMaxPCISlotCount()
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed getting PCI slot limit: %w", err)
+	}
 
 	// busAllocate allocates the next slot and records it into pending volatile for PCIe devices if needed.
 	// This function should be called in the correct order to maintain a device's persistent bus order.
 	busAllocate := func(deviceName string, enableMultifunction bool) (cleanup revert.Hook, busName string, busAddress string, multifunction bool, err error) {
 		if bus.name != "pci" && bus.name != "pcie" {
 			return nil, "", "", false, fmt.Errorf("Bus allocation not supported for bus type %q", bus.name)
+		}
+
+		if usedSlots >= int(pciSlotCountMax) {
+			return nil, "", "", false, fmt.Errorf("PCI devices limit reached: used %d of %d slots; increase %s to allow more devices", usedSlots, pciSlotCountMax, "limits.max_bus_ports")
 		}
 
 		multifunctionGroup := busFunctionGroupNone
@@ -3700,6 +3745,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			}
 		}
 
+		usedSlots++
+
 		return nil, busName, busAddress, multifunction, nil
 	}
 
@@ -3717,7 +3764,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Number of spare hotplug ports to allocate.
 	// Could go negative by the time its used (below) if there are gaps in the bus numbers.
-	spareHotplugPorts := 8
+	spareHotplugPorts := int(pciSlotCountMax)
 
 	// These devices are sorted so that NICs are added first to ensure that the first NIC can use the 5th
 	// PCIe bus port and will be consistently named enp5s0 for compatibility with network configuration in our
@@ -3829,6 +3876,9 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			return "", nil, err
 		}
 	}
+
+	// Account for already used PCIe slots.
+	spareHotplugPorts -= usedSlots
 
 	// Allocate remaining empty PCIe slots for hotplug devices.
 	for range spareHotplugPorts {
@@ -5896,11 +5946,10 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			"cluster.evacuate",
 			"limits.memory",
 			"security.agent.metrics",
-			"security.csm",
+			"boot.mode",
 			"security.devlxd",
 			"security.devlxd.images",
 			"security.devlxd.management.volumes",
-			"security.secureboot",
 		}
 
 		liveUpdateKeyPrefixes := []string{
@@ -5980,10 +6029,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 						return fmt.Errorf("Failed updating memory limit: %w", err)
 					}
 				}
-			case "security.csm":
-				// Defer rebuilding nvram until next start.
-				d.localConfig["volatile.apply_nvram"] = "true"
-			case "security.secureboot":
+			case "boot.mode":
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"
 			case "security.devlxd":
@@ -6011,7 +6057,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	if d.architectureSupportsUEFI(d.architecture) && (slices.Contains(changedConfig, "security.secureboot") || slices.Contains(changedConfig, "security.csm")) {
+	if d.architectureSupportsUEFI(d.architecture) && slices.Contains(changedConfig, "boot.mode") {
 		// setupNvram() requires instance's config volume to be mounted.
 		// The easiest way to detect that is to check if instance is running.
 		// TODO: extend storage API to be able to check if volume is already mounted?
@@ -8920,17 +8966,19 @@ func (d *qemu) Info() instance.Info {
 		return data
 	}
 
-	stdout, stderr, err := shared.RunCommandSplit(context.TODO(), nil, nil, qemuPath, "--version")
+	stdout, err := shared.RunCommandCLocale(qemuPath, "--version")
 	if err != nil {
-		logger.Errorf("Failed getting version during QEMU initialization: %v (%s)", err, stderr)
+		logger.Errorf("Failed getting version during QEMU initialization: %v", err)
 		data.Error = errors.New("Failed getting QEMU version")
 		return data
 	}
 
+	// $ qemu-system-x86_64 --version
+	// QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.11)
+	// Copyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers
 	qemuOutput := strings.Fields(stdout)
 	if len(qemuOutput) >= 4 {
-		qemuVersion := qemuOutput[3]
-		data.Version = qemuVersion
+		data.Version = qemuOutput[3]
 	} else {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
 	}
@@ -9139,10 +9187,9 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 
 // version returns the QEMU version.
 func (d *qemu) version() (*version.DottedVersion, error) {
-	info := DriverStatuses()[instancetype.VM].Info
-	qemuVer, err := version.NewDottedVersion(info.Version)
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing QEMU version: %w", err)
+	qemuVer := DriverStatuses()[instancetype.VM].Version
+	if qemuVer == nil {
+		return nil, errors.New("QEMU version unavailable")
 	}
 
 	return qemuVer, nil

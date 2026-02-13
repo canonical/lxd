@@ -1,10 +1,20 @@
 package lxd
 
 import (
+	"crypto/tls"
 	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/canonical/lxd/shared"
 )
 
 func Test_setQueryParam(t *testing.T) {
@@ -208,6 +218,184 @@ func Test_openBrowser(t *testing.T) {
 			err := openBrowser(tt.url)
 			if err != nil {
 				t.Errorf("openBrowser() unexpected error = %v", err)
+			}
+		})
+	}
+}
+
+func Test_tlsHTTPClient_Fingerprint(t *testing.T) {
+	// Setup a test TLS server
+	certInfo := shared.TestingKeyPair()
+	pubKey, err := certInfo.PublicKeyX509()
+	require.NoError(t, err)
+
+	tlsConfig, err := shared.GetTLSConfig(pubKey)
+	require.NoError(t, err)
+
+	tlsConfig.Certificates = []tls.Certificate{certInfo.KeyPair()}
+
+	// Create a local TCP listener on any available port.
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() { _ = listener.Close() }()
+
+	// Start a simple server
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	server := httptest.NewUnstartedServer(handler)
+	server.Listener = listener
+	server.TLS = tlsConfig
+	server.StartTLS()
+	defer server.Close()
+
+	// Calculate fingerprint
+	fingerprint := certInfo.Fingerprint()
+	require.NotEmpty(t, fingerprint)
+
+	tests := []struct {
+		name         string
+		fingerprint  string
+		serverCert   string
+		insecureSkip bool
+		expectError  error
+	}{
+		{
+			name:         "Valid fingerprint",
+			fingerprint:  fingerprint,
+			insecureSkip: false,
+		},
+		{
+			name:         "Invalid fingerprint",
+			fingerprint:  "badfingerprint",
+			insecureSkip: false,
+			expectError:  errors.New("Server certificate fingerprint mismatch"),
+		},
+		{
+			name:         "Invalid fingerprint, valid server cert (takes precedence)",
+			fingerprint:  "badfingerprint",
+			serverCert:   string(certInfo.PublicKey()),
+			insecureSkip: false,
+		},
+		{
+			name:         "No fingerprint (should fail verification of self-signed cert)",
+			fingerprint:  "",
+			insecureSkip: false,
+			expectError:  errors.New("failed to verify certificate"),
+		},
+		{
+			name:         "No fingerprint but insecure skip (should pass)",
+			fingerprint:  "",
+			insecureSkip: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client, err := tlsHTTPClient(nil, "", "", "", test.serverCert, test.insecureSkip, false, nil, nil, test.fingerprint)
+			require.NoError(t, err)
+
+			resp, err := client.Get(server.URL)
+			if err != nil {
+				if test.expectError == nil {
+					require.FailNow(t, fmt.Sprintf("Expected no error but got: %v", err))
+				}
+
+				require.ErrorContains(t, err, test.expectError.Error())
+			} else {
+				resp.Body.Close()
+
+				if test.expectError != nil {
+					require.FailNow(t, fmt.Sprintf("Expected error %v but got nil", test.expectError))
+				}
+
+				require.Equal(t, http.StatusOK, resp.StatusCode, "Expected HTTP 200 OK")
+			}
+		})
+	}
+}
+
+func Test_tlsHTTPClient_CertificateValidity(t *testing.T) {
+	tests := []struct {
+		name         string
+		validAfter   time.Time
+		validBefore  time.Time
+		insecureSkip bool
+		expectError  error
+	}{
+		{
+			name:        "Valid certificate",
+			validAfter:  time.Now().Add(-time.Hour),
+			validBefore: time.Now().Add(time.Hour),
+		},
+		{
+			name:         "Valid certificate | Skip verification",
+			validAfter:   time.Now().Add(-time.Hour),
+			validBefore:  time.Now().Add(time.Hour),
+			insecureSkip: true,
+		},
+		{
+			name:        "Invalid certificate | Expired",
+			validAfter:  time.Now().Add(-6 * time.Hour),
+			validBefore: time.Now().Add(-4 * time.Hour),
+			expectError: errors.New("expired"),
+		},
+		{
+			name:        "Invalid certificate | Not valid yet",
+			validAfter:  time.Now().Add(2 * time.Hour),
+			validBefore: time.Now().Add(4 * time.Hour),
+			expectError: errors.New("valid after"),
+		},
+		{
+			name:         "Invalid certificate | Skip verification",
+			validAfter:   time.Now().Add(2 * time.Hour),
+			validBefore:  time.Now().Add(4 * time.Hour),
+			insecureSkip: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// Setup a test TLS server
+			certInfo := shared.TestingKeyPairWithValidity(test.validAfter, test.validBefore)
+			pubKey, err := certInfo.PublicKeyX509()
+			require.NoError(t, err)
+
+			tlsConfig, err := shared.GetTLSConfig(pubKey)
+			require.NoError(t, err)
+
+			tlsConfig.Certificates = []tls.Certificate{certInfo.KeyPair()}
+
+			// Create a local TCP listener on any available port.
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			require.NoError(t, err)
+			defer func() { _ = listener.Close() }()
+
+			// Start a simple server
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+
+			server := httptest.NewUnstartedServer(handler)
+			server.Listener = listener
+			server.TLS = tlsConfig
+			server.StartTLS()
+			defer server.Close()
+
+			// Calculate certificate fingerprint.
+			fingerprint := certInfo.Fingerprint()
+			require.NotEmpty(t, fingerprint)
+
+			client, err := tlsHTTPClient(nil, "", "", "", "", test.insecureSkip, false, nil, nil, fingerprint)
+			require.NoError(t, err)
+
+			// Try connecting to the server.
+			_, err = client.Get(server.URL)
+			if test.expectError != nil {
+				require.ErrorContains(t, err, test.expectError.Error())
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

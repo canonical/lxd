@@ -1,7 +1,3 @@
----
-relatedlinks: https://documentation.ubuntu.com/lxd/en/latest/clustering/
----
-
 (ref-placement-groups)=
 # Placement group configuration
 

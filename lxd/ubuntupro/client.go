@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 const (
@@ -62,6 +63,7 @@ type Client struct {
 // pro is an internal interface that is used for mocking calls to the pro CLI.
 type pro interface {
 	getGuestToken(ctx context.Context) (*api.DevLXDUbuntuProGuestTokenResponse, error)
+	isHostAttached(ctx context.Context) (bool, error)
 }
 
 // proCLI calls the actual Ubuntu Pro CLI to implement the interface.
@@ -102,6 +104,41 @@ func (proCLI) getGuestToken(ctx context.Context) (*api.DevLXDUbuntuProGuestToken
 	}
 
 	return &getGuestTokenResponse.Data.Attributes, nil
+}
+
+// isHostAttached returns true if the host is attached to a pro subscription with a valid contract.
+func (proCLI) isHostAttached(ctx context.Context) (bool, error) {
+	// Run pro status command.
+	response, err := shared.RunCommand(ctx, "pro", "api", "u.pro.status.is_attached.v1")
+	if err != nil {
+		return false, fmt.Errorf("Ubuntu Pro client command unsuccessful: %w", err)
+	}
+
+	return parseProAPIIsAttachedV1(response)
+}
+
+// proAPIIsAttachedV1 represents the expected format of calls to `pro api u.pro.status.is_attached.v1`.
+type proAPIIsAttachedV1 struct {
+	Data *struct {
+		Attributes *struct {
+			Attached *bool `json:"is_attached_and_contract_valid"`
+		} `json:"attributes"`
+	} `json:"data"`
+}
+
+func parseProAPIIsAttachedV1(response string) (bool, error) {
+	var statusResponse proAPIIsAttachedV1
+
+	err := json.Unmarshal([]byte(response), &statusResponse)
+	if err != nil {
+		return false, fmt.Errorf("Received unexpected response from Ubuntu Pro client: %w", err)
+	}
+
+	if statusResponse.Data == nil || statusResponse.Data.Attributes == nil || statusResponse.Data.Attributes.Attached == nil {
+		return false, errors.New("Received unexpected response from Ubuntu Pro client: missing attached field")
+	}
+
+	return *statusResponse.Data.Attributes.Attached, nil
 }
 
 // New returns a new Client that watches /var/lib/ubuntu-advantage for changes to LXD configuration and contains a shim
@@ -159,12 +196,24 @@ func (s *Client) GetGuestToken(ctx context.Context, instanceSetting string) (*ap
 
 // init configures the Client to watch the ubuntu advantage directory for file changes.
 func (s *Client) init(ctx context.Context, ubuntuAdvantageDir string, proShim pro) {
-	// Initial setting should be "off".
-	s.guestAttachSetting = guestAttachSettingOff
 	s.pro = proShim
 
+	// Determine if the host is attached to Ubuntu Pro and update the user agent accordingly.
+	isAttached, err := s.pro.isHostAttached(ctx)
+	if err != nil {
+		logger.Debug("Failed to check if host is Ubuntu Pro attached", logger.Ctx{"err": err})
+	} else if isAttached {
+		err = version.UserAgentFeatures([]string{"pro"})
+		if err != nil {
+			logger.Warn("Failed to configure LXD user agent for Ubuntu Pro", logger.Ctx{"err": err})
+		}
+	}
+
+	// Initial setting should be "off".
+	s.guestAttachSetting = guestAttachSettingOff
+
 	// Check that the given directory exists.
-	_, err := os.Stat(ubuntuAdvantageDir)
+	_, err = os.Stat(ubuntuAdvantageDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Debug("Ubuntu Pro guest attachment disabled - host is Ubuntu but no Pro configuration directory exists")

@@ -71,8 +71,8 @@ type consoleWs struct {
 }
 
 // Metadata returns a map of metadata.
-func (s *consoleWs) Metadata() any {
-	fds := shared.Jmap{}
+func (s *consoleWs) Metadata() map[string]any {
+	fds := make(map[string]string, len(s.fds))
 	for fd, secret := range s.fds {
 		if fd == -1 {
 			fds[api.SecretNameControl] = secret
@@ -81,7 +81,7 @@ func (s *consoleWs) Metadata() any {
 		}
 	}
 
-	return shared.Jmap{"fds": fds}
+	return map[string]any{"fds": fds}
 }
 
 // Connect connects to the websocket.
