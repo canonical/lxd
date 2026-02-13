@@ -122,6 +122,7 @@ readonly test_group_standalone=(
     "alias"
     "apparmor"
     "authorization"
+    "ui_temporary_access_link"
     "basic_usage"
     "basic_version"
     "certificate_edit"
