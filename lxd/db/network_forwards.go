@@ -265,8 +265,8 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(ctx context.
 		networks.name,
 		networks.type,
 		networks_forwards.listen_address,
-		nc_ipv4.value AS ipv4_address,
-		nc_ipv6.value AS ipv6_address
+		COALESCE(nc_ipv4.value, '') AS ipv4_address,
+		COALESCE(nc_ipv6.value, '') AS ipv6_address
 	FROM networks_forwards
 	JOIN networks ON networks.id = networks_forwards.network_id
 	JOIN projects ON projects.id = networks.project_id
