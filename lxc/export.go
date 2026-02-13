@@ -142,6 +142,8 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 	if d.HasExtension("operation_metadata_entity_url") {
 		backupName, _, err = getEntityFromOperationMetadata(op.Get().Metadata)
 	} else {
+		// Use "backups" here and not "entity.TypeInstanceBackup" because the change to use entity type names happened
+		// after the operation_metadata_entity_url extension.
 		backupName, _, err = getEntityFromOperationResources(op.Get().Resources, "backups")
 	}
 

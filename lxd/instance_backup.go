@@ -19,7 +19,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
@@ -371,21 +370,17 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
 	}
 
-	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName)}
-
 	metadata := map[string]any{
-		"entity_url": api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(inst.Project().Name).String(),
+		operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(inst.Project().Name).String(),
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.BackupCreate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
@@ -584,15 +579,15 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-	if instanceType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeInstance:       {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
+		entity.TypeInstanceBackup: {*api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(projectName)},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
 		Type:        operationtype.BackupRename,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(projectName),
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     rename,
@@ -684,14 +679,13 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-	if instanceType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(projectName),
 		Type:        operationtype.BackupRemove,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,

@@ -392,14 +392,10 @@ func clusterMembersPost(d *Daemon, r *http.Request) response.Response {
 		"expiresAt":   expiry,
 	}
 
-	resources := map[string][]api.URL{}
-	resources["cluster"] = []api.URL{}
-
 	args := operations.OperationArgs{
-		Type:      operationtype.ClusterJoinToken,
-		Class:     operations.OperationClassToken,
-		Resources: resources,
-		Metadata:  meta,
+		Type:     operationtype.ClusterJoinToken,
+		Class:    operations.OperationClassToken,
+		Metadata: meta,
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, args)

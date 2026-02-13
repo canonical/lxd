@@ -354,9 +354,6 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["cluster"] = []api.URL{}
-
 	// If there's no cluster.https_address set, but core.https_address is,
 	// let's default to it.
 	var config *node.Config
@@ -396,10 +393,9 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	d.globalConfigMu.Unlock()
 
 	args := operations.OperationArgs{
-		Type:      operationtype.ClusterBootstrap,
-		Class:     operations.OperationClassTask,
-		Resources: resources,
-		RunHook:   run,
+		Type:    operationtype.ClusterBootstrap,
+		Class:   operations.OperationClassTask,
+		RunHook: run,
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, args)
@@ -830,14 +826,10 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["cluster"] = []api.URL{}
-
 	opArgs := operations.OperationArgs{
-		Type:      operationtype.ClusterJoin,
-		Class:     operations.OperationClassTask,
-		Resources: resources,
-		RunHook:   run,
+		Type:    operationtype.ClusterJoin,
+		Class:   operations.OperationClassTask,
+		RunHook: run,
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, opArgs)

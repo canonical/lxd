@@ -1204,7 +1204,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// We need to invalidate the secret whether the source is trusted or not.
-	op, err := imageValidSecret(s, r, dbProject.Name, fingerprint, secret)
+	op, err := imageValidSecret(s, r, dbProject.Name, fingerprint, secret, operationtype.ImageUploadToken)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1292,7 +1292,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			"public":     req.Public,
 		}
 
-		return createTokenResponse(s, r, dbProject.Name, req.Source.Fingerprint, metadata)
+		return createImageTokenResponse(s, r, dbProject.Name, req.Source.Fingerprint, metadata, operationtype.ImageUploadToken)
 	}
 
 	if !imageUpload && !slices.Contains([]string{"container", "instance", "virtual-machine", "snapshot", "image", "url"}, req.Source.Type) {
@@ -1461,6 +1461,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	args := operations.OperationArgs{
 		ProjectName: dbProject.Name,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", dbProject.Name),
 		Type:        operationtype.ImageDownload,
 		Class:       operations.OperationClassTask,
 		Metadata:    metadata,
@@ -3161,14 +3162,11 @@ func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imag
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", fingerprint)}
-
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(projectName),
 		Type:        operationtype.ImageDelete,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     do,
 	}
 
@@ -3217,28 +3215,21 @@ func doImageGet(ctx context.Context, tx *db.ClusterTx, project, fingerprint stri
 	return imgInfo, nil
 }
 
-// imageValidSecret searches for an ImageToken operation running on any member in the default project that has an
-// images resource matching the specified fingerprint and the metadata secret field matches the specified secret.
+// imageValidSecret searches for an image upload or download token operation running on any member in the given
+// project that has a matching fingerprint and secret in its metadata.
 // If an operation is found it is returned and the operation is cancelled. Otherwise nil is returned if not found.
-func imageValidSecret(s *state.State, r *http.Request, projectName string, fingerprint string, secret string) (*api.Operation, error) {
-	ops, err := operationsGetByType(r.Context(), s, projectName, operationtype.ImageToken)
+func imageValidSecret(s *state.State, r *http.Request, projectName string, fingerprint string, secret string, tokenType operationtype.Type) (*api.Operation, error) {
+	ops, err := operationsGetByType(r.Context(), s, projectName, tokenType)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting image token operations: %w", err)
 	}
 
-	fingerprintURLPath := api.NewURL().Path(version.APIVersion, "images", fingerprint).String()
-
 	for _, op := range ops {
-		if op.Resources == nil {
+		if op.Metadata == nil {
 			continue
 		}
 
-		opImages, ok := op.Resources["images"]
-		if !ok {
-			continue
-		}
-
-		if !shared.StringPrefixInSlice(fingerprintURLPath, opImages) {
+		if op.Metadata["fingerprint"] != fingerprint {
 			continue
 		}
 
@@ -3413,7 +3404,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	if secret != "" {
 		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
 		// privilege. This is to ensure the image token operation is cancelled.
-		op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret)
+		op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret, operationtype.ImageDownloadToken)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -4527,7 +4518,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	if secret != "" {
 		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
 		// privilege. This is to ensure the image token operation is cancelled.
-		op, err := imageValidSecret(s, r, projectName, imgInfo.Fingerprint, secret)
+		op, err := imageValidSecret(s, r, projectName, imgInfo.Fingerprint, secret, operationtype.ImageDownloadToken)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -4778,7 +4769,8 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
-		Type:        operationtype.ImageDownload,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint).Project(details.image.Project),
+		Type:        operationtype.ImageUpload,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 	}
@@ -4824,7 +4816,7 @@ func imageSecret(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return createTokenResponse(s, r, projectName, details.image.Fingerprint, nil)
+	return createImageTokenResponse(s, r, projectName, details.image.Fingerprint, nil, operationtype.ImageDownloadToken)
 }
 
 func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprint string) error {
@@ -4988,6 +4980,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint).Project(details.image.Project),
 		Type:        operationtype.ImageRefresh,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
@@ -5223,7 +5216,7 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 	return nil
 }
 
-func createTokenResponse(s *state.State, r *http.Request, projectName string, fingerprint string, metadata shared.Jmap) response.Response {
+func createImageTokenResponse(s *state.State, r *http.Request, projectName string, fingerprint string, metadata shared.Jmap, tokenType operationtype.Type) response.Response {
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
@@ -5239,13 +5232,27 @@ func createTokenResponse(s *state.State, r *http.Request, projectName string, fi
 	maps.Copy(meta, metadata)
 
 	meta["secret"] = secret
+	meta["fingerprint"] = fingerprint
 
-	resources := map[string][]api.URL{}
-	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", fingerprint)}
+	// If downloading an image, the image is the primary entity.
+	// If uploading an image, the project is the primary entity.
+	resources := make(map[entity.Type][]api.URL)
+	var entityURL *api.URL
+	switch tokenType {
+	case operationtype.ImageUploadToken:
+		entityURL = api.NewURL().Path(version.APIVersion, "projects", projectName)
+		resources[entity.TypeProject] = []api.URL{*entityURL}
+	case operationtype.ImageDownloadToken:
+		entityURL = api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(projectName)
+		resources[entity.TypeImage] = []api.URL{*entityURL}
+	default:
+		return response.SmartError(errors.New("Not an image token operation type"))
+	}
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
-		Type:        operationtype.ImageToken,
+		EntityURL:   entityURL,
+		Type:        tokenType,
 		Class:       operations.OperationClassToken,
 		Resources:   resources,
 		Metadata:    meta,

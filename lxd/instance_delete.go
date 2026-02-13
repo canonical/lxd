@@ -11,7 +11,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -133,18 +132,11 @@ func doInstanceDelete(ctx context.Context, s *state.State, name string, projectN
 		return inst.Delete(false, "")
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.InstanceDelete,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     rmct,
 	}
 

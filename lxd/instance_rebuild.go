@@ -14,12 +14,12 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -159,15 +159,13 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		return instanceRebuildFromImage(ctx, s, inst, sourceImage, op)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(inst.Project().Name)},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: targetProject.Name,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(inst.Project().Name),
 		Type:        operationtype.InstanceRebuild,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
