@@ -1651,6 +1651,10 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid operation type code %d", req.OpType))
 	}
 
+	inputsDelay1s := map[string]any{
+		"duration": "1s",
+	}
+
 	inputs := map[string]any{
 		"duration": duration.String(),
 	}
@@ -1663,6 +1667,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	// Child operation
 	args := operations.OperationArgs{
 		ProjectName: request.QueryParam(r, "project"),
 		Type:        req.OpType,
@@ -1673,12 +1678,25 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		Inputs:      inputs,
 	}
 
+	// Parent operation
+	parentArgs := operations.OperationArgs{
+		ProjectName: request.QueryParam(r, "project"),
+		Type:        req.OpType,
+		Class:       req.OpClass,
+		Resources:   resources,
+		RunHook:     waitHandlerOperationRunHook,
+		ConnectHook: onConnect,
+		Inputs:      inputsDelay1s,
+		Children:    []*operations.OperationArgs{&args},
+	}
+
 	// Durable operations have their run hook set in the DurableOperations table.
 	if req.OpClass == operations.OperationClassDurable {
 		args.RunHook = nil
+		parentArgs.RunHook = nil
 	}
 
-	op, err := operations.CreateUserOperation(d.State(), requestor, args)
+	op, err := operations.CreateUserOperation(d.State(), requestor, parentArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
