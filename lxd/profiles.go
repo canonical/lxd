@@ -633,7 +633,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			RunHook:     run,
 		}
 
-		op, err := operations.CreateUserOperation(s, requestor, args)
+		op, err := operations.CreateUserOperationFromRequest(s, r, args)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -719,7 +719,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		RunHook:     run,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -763,10 +763,6 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func profilePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
@@ -869,7 +865,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		RunHook:     run,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
