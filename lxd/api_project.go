@@ -1058,7 +1058,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		RunHook:   run,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
