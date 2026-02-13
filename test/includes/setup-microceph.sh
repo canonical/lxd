@@ -1,0 +1,1 @@
+../../.github/actions/setup-microceph/setup-microceph.sh

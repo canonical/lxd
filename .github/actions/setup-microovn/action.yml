@@ -13,11 +13,11 @@ inputs:
   microovn-channel:
     description: MicroOVN snap channel to install
     default: "latest/edge"
-    type: string
+    required: false
   snap-cache-dir:
     description: Directory to use for snap cache
     default: "/home/runner/snap-cache"
-    type: string
+    required: false
 
 runs:
   using: composite
@@ -34,7 +34,7 @@ runs:
           if [ -e test/includes/snap.sh ]; then
             sudo --preserve-env=SNAP_CACHE_DIR bash -c "
               . test/includes/snap.sh; \
-              install_snap snapd latest/candidate; \
+              install_snap snapd latest/beta; \
               install_snap core24 latest/stable; \
               install_snap microovn \"${SNAP_CHANNEL}\"; \
             "
