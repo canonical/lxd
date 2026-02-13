@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/device/filters"
+	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/project"
@@ -116,6 +118,7 @@ var patches = []patch{
 	{name: "update_volatile_attached_volumes_format", stage: patchPostDaemonStorage, run: patchUpdateVolatileAttachedVolumesFormat},
 	{name: "storage_unset_ceph_force_reuse_setting", stage: patchPostDaemonStorage, run: patchUnsetCephForceReuseSetting},
 	{name: "vm_rename_security_csm", stage: patchPostDaemonStorage, run: patchVMRenameSecurityCSM},
+	{name: "vm_set_max_bus_ports", stage: patchPostDaemonStorage, run: patchVMSetMaxBusPorts},
 }
 
 type patch struct {
@@ -2186,6 +2189,81 @@ func patchVMRenameSecurityCSM(name string, d *Daemon) error {
 		}
 
 		return nil
+	})
+}
+
+// patchVMSetMaxBusPorts sets the "limits.max_bus_ports" config option for VMs that have more PCIe devices attached than
+// the default value of "limits.max_bus_ports". It sets the value equal to the number of attached PCIe devices, so that
+// the VM can start successfully.
+func patchVMSetMaxBusPorts(_ string, d *Daemon) error {
+	s := d.State()
+
+	// Only run on a single cluster member to avoid concurrent updates.
+	isSelectedMember, err := selectedPatchClusterMember(s)
+	if err != nil {
+		return err
+	}
+
+	if !isSelectedMember {
+		return nil
+	}
+
+	// countPCIeDevices returns the number of attached PCIe devices.
+	countPCIeDevices := func(config map[string]string) int {
+		pciDevices := 0
+		for key := range config {
+			if strings.HasPrefix(key, "volatile.") && strings.HasSuffix(key, ".bus") {
+				pciDevices++
+			}
+		}
+
+		return pciDevices
+	}
+
+	return s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.InstanceList(ctx, func(inst db.InstanceArgs, project api.Project) error {
+			if inst.Type != instancetype.VM {
+				return nil
+			}
+
+			pcieDevices := countPCIeDevices(inst.Config)
+			_, hasCustomLimitSet := inst.Config["limits.max_bus_ports"]
+
+			// Only update the limit if the instance currently does not have it set
+			// and the number of attached PCIe devices is higher than the default value.
+			if !hasCustomLimitSet && pcieDevices > int(instanceDrivers.QEMUDefaultMaxBusPorts) {
+				err := tx.UpdateInstanceConfig(inst.ID, map[string]string{"limits.max_bus_ports": strconv.Itoa(pcieDevices)})
+				if err != nil {
+					return fmt.Errorf("Failed setting config key %q to value %d for VM %q (project %q): %w", "limits.max_bus_ports", pcieDevices, inst.Name, inst.Project, err)
+				}
+			}
+
+			snaps, err := tx.GetInstanceSnapshotsWithName(ctx, inst.Project, inst.Name)
+			if err != nil {
+				return err
+			}
+
+			for _, snap := range snaps {
+				config, err := dbCluster.GetInstanceSnapshotConfig(ctx, tx.Tx(), snap.ID)
+				if err != nil {
+					return err
+				}
+
+				pcieDevices := countPCIeDevices(config)
+				_, hasCustomLimitSet := config["limits.max_bus_ports"]
+
+				// Only update the limit if the instance snapshot currently does not have it set
+				// and the number of attached PCIe devices is higher than the default value.
+				if !hasCustomLimitSet && pcieDevices > int(instanceDrivers.QEMUDefaultMaxBusPorts) {
+					err = tx.UpdateInstanceSnapshotConfig(snap.ID, map[string]string{"limits.max_bus_ports": strconv.Itoa(pcieDevices)})
+					if err != nil {
+						return fmt.Errorf("Failed setting config key %q to value %d for VM snapshot %q (project %q): %w", "limits.max_bus_ports", pcieDevices, snap.Name, snap.Project, err)
+					}
+				}
+			}
+
+			return nil
+		})
 	})
 }
 

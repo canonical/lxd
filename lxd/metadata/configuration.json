@@ -2406,6 +2406,16 @@
 						}
 					},
 					{
+						"limits.max_bus_ports": {
+							"condition": "virtual machine",
+							"defaultdesc": "`8`",
+							"liveupdate": "no",
+							"longdesc": "Total number of user configurable PCI/PCIe devices that can be attached to the VM.",
+							"shortdesc": "Limit of allowed PCI/PCIe devices",
+							"type": "integer"
+						}
+					},
+					{
 						"limits.memory": {
 							"defaultdesc": "`1GiB` (VMs)",
 							"liveupdate": "yes",

@@ -1099,6 +1099,16 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: VM CPU auto pinning strategy
 	"limits.cpu.pin_strategy": validate.Optional(validate.IsOneOf("none", "auto")),
 
+	// lxdmeta:generate(entities=instance; group=resource-limits; key=limits.max_bus_ports)
+	// Total number of user configurable PCI/PCIe devices that can be attached to the VM.
+	// ---
+	//  type: integer
+	//  defaultdesc: `8`
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Limit of allowed PCI/PCIe devices
+	"limits.max_bus_ports": validate.Optional(validate.IsUint8),
+
 	// lxdmeta:generate(entities=instance; group=migration; key=migration.stateful)
 	// Enabling this option prevents the use of some features that are incompatible with it.
 	// ---

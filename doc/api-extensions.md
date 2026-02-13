@@ -2927,3 +2927,9 @@ The new setting accepts:
 
 Adds new identity type `bearer` that allows authentication with the LXD API using bearer tokens.
 See {ref}`LXD bearer tokens <authentication-bearer>`.
+
+(extension-vm-limits-max-bus-ports)=
+## `vm_limits_max_bus_ports`
+
+This introduces support for the {config:option}`instance-resource-limits:limits.max_bus_ports` configuration key for virtual machines. This option controls the maximum allowed number of user configurable devices requiring a dedicated PCI/PCIe port for a virtual machine.
+This number includes both the devices attached before the instance start and the devices hotplugged at runtime.

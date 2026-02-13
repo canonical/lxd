@@ -135,6 +135,37 @@ test_vm_pcie_bus() {
   lxc exec v1 -- mount -t virtiofs config /mnt
   ! lxc exec v1 -- touch /mnt/foo || false
 
+  sub_test "Check that limits.max_bus_ports config option enforces the number of allowed PCIe devices"
+
+  # The default value for "limits.max_bus_ports" is 8 ports.
+  # Fill all the available slots with PCIe devices.
+  for i in $(seq 1 5); do
+    lxc config device add v1 "aaa${i}" nic nictype=p2p
+  done
+
+  # Check that another device cannot be hotplugged because no more available PCIe ports left.
+  ! lxc config device add v1 aaa6 nic nictype=p2p || false
+
+  # Stop the VM and attach an additional device.
+  lxc stop -f v1
+  lxc config device add v1 aaa6 nic nictype=p2p
+
+  # Check that the instance start fails because PCIe devices limit is exceeded.
+  ! lxc start v1 || false
+
+  # Increase the PCIe devices limit.
+  lxc config set v1 limits.max_bus_ports=10
+
+  # Start the instance, this time there should enough PCIe ports.
+  lxc start v1
+  waitInstanceReady v1
+
+  # Hotplug an additional device, there should still be one available PCIe port.
+  lxc config device add v1 aaa7 nic nictype=p2p
+
+  # Check that another device cannot be hotplugged because no more available PCIe ports left.
+  ! lxc config device add v1 aaa8 nic nictype=p2p || false
+
   # Coverage data requires clean lxd-agent stop
   prepare_vm_for_hard_stop v1
   lxc delete --force v1
