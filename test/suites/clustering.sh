@@ -376,6 +376,38 @@ test_clustering_containers() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L auto-copy)" != "node2" ]
   LXD_DIR="${LXD_THREE_DIR}" lxc delete auto-copy
 
+  echo "Refresh a container and check its placement afterwards."
+  # Create stopped base container.
+  LXD_DIR="${LXD_ONE_DIR}" lxc copy foo test-refresh --target node1
+
+  # Perform copy/refresh matrix test from every cluster member to ensure the request forwards work as expected
+  # and test with both started and stopped containers.
+  for state in "" "--start"; do
+    for member in "node1" "node2" "node3"; do
+      echo "Copy base container to target ${member}."
+      # shellcheck disable=SC2248
+      LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --target "${member}" ${state}
+
+      echo "Check placement is correct."
+      LXD_DIR="${LXD_ONE_DIR}" lxc info test-refresh-target | grep -xF "Location: ${member}"
+
+      echo "Refresh target container."
+      if [ "${state}" = "--start" ]; then
+        echo "Refresh should be blocked if the instance is running."
+        ! LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --refresh || false
+      else
+        LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --refresh
+      fi
+
+      echo "Check placement hasn't changed during refresh."
+      LXD_DIR="${LXD_ONE_DIR}" lxc info test-refresh-target | grep -xF "Location: ${member}"
+
+      LXD_DIR="${LXD_ONE_DIR}" lxc delete -f test-refresh-target
+    done
+  done
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f test-refresh
+
   echo "Copy the container on node2 to node3, using a client connected to node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar --target node3
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L bar)" = "node3" ]
