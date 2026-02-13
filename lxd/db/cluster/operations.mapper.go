@@ -19,44 +19,52 @@ import (
 var _ = api.ServerEnvironment{}
 
 var operationObjects = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, coalesce(nodes.address, '') AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
+  LEFT JOIN nodes ON operations.node_id = nodes.id
+  ORDER BY operations.id, operations.uuid
+`)
+
+var operationObjectsByConflictReference = RegisterStmt(`
+SELECT operations.id, operations.uuid, coalesce(nodes.address, '') AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
+  FROM operations
+  LEFT JOIN nodes ON operations.node_id = nodes.id
+  WHERE ( operations.conflict_reference = ? )
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByNodeID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, coalesce(nodes.address, '') AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
+  LEFT JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.node_id = ? )
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, coalesce(nodes.address, '') AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
+  LEFT JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.id = ? )
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByUUID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, coalesce(nodes.address, '') AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
   FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
+  LEFT JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.uuid = ? )
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationCreate = RegisterStmt(`
-INSERT INTO operations (uuid, project_id, node_id, type)
-  VALUES (?, ?, ?, ?)
+INSERT INTO operations (uuid, project_id, node_id, type, requestor_protocol, requestor_identity_id, entity_id, metadata, class, created_at, updated_at, inputs, status_code, conflict_reference, error, parent, stage)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
 var operationCreateOrReplace = RegisterStmt(`
-INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type)
- VALUES (?, ?, ?, ?)
+INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type, requestor_protocol, requestor_identity_id, entity_id, metadata, class, created_at, updated_at, inputs, status_code, conflict_reference, error, parent, stage)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
 var operationDeleteByUUID = RegisterStmt(`
@@ -73,7 +81,7 @@ func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operatio
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.Parent, &o.Stage)
 		if err != nil {
 			return err
 		}
@@ -97,7 +105,7 @@ func getOperationsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) 
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.Parent, &o.Stage)
 		if err != nil {
 			return err
 		}
@@ -136,7 +144,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 	}
 
 	for i, filter := range filters {
-		if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
+		if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil && filter.ConflictReference == nil {
 			args = append(args, []any{filter.UUID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByUUID)
@@ -160,7 +168,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
+		} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil && filter.ConflictReference == nil {
 			args = append(args, []any{filter.NodeID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByNodeID)
@@ -184,7 +192,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
+		} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil && filter.ConflictReference == nil {
 			args = append(args, []any{filter.ID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByID)
@@ -208,7 +216,31 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
+		} else if filter.ConflictReference != nil && filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
+			args = append(args, []any{filter.ConflictReference}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, operationObjectsByConflictReference)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"operationObjectsByConflictReference\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(operationObjectsByConflictReference)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil && filter.ConflictReference == nil {
 			return nil, errors.New("Cannot filter on empty OperationFilter")
 		} else {
 			return nil, errors.New("No statement exists for the given Filter")
@@ -233,13 +265,26 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 // CreateOperation adds a new operation to the database.
 // generator: operation Create
 func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
-	args := make([]any, 4)
+	args := make([]any, 17)
 
 	// Populate the statement arguments.
 	args[0] = object.UUID
 	args[1] = object.ProjectID
 	args[2] = object.NodeID
 	args[3] = object.Type
+	args[4] = object.RequestorProtocol
+	args[5] = object.RequestorIdentityID
+	args[6] = object.EntityID
+	args[7] = object.Metadata
+	args[8] = object.Class
+	args[9] = object.CreatedAt
+	args[10] = object.UpdatedAt
+	args[11] = object.Inputs
+	args[12] = object.Status
+	args[13] = object.ConflictReference
+	args[14] = object.Error
+	args[15] = object.Parent
+	args[16] = object.Stage
 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreate)
@@ -268,13 +313,26 @@ func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, 
 // CreateOrReplaceOperation adds a new operation to the database.
 // generator: operation CreateOrReplace
 func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
-	args := make([]any, 4)
+	args := make([]any, 17)
 
 	// Populate the statement arguments.
 	args[0] = object.UUID
 	args[1] = object.ProjectID
 	args[2] = object.NodeID
 	args[3] = object.Type
+	args[4] = object.RequestorProtocol
+	args[5] = object.RequestorIdentityID
+	args[6] = object.EntityID
+	args[7] = object.Metadata
+	args[8] = object.Class
+	args[9] = object.CreatedAt
+	args[10] = object.UpdatedAt
+	args[11] = object.Inputs
+	args[12] = object.Status
+	args[13] = object.ConflictReference
+	args[14] = object.Error
+	args[15] = object.Parent
+	args[16] = object.Stage
 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreateOrReplace)

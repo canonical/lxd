@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/schema"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 )
@@ -119,6 +120,60 @@ var updates = map[int]schema.Update{
 	76: updateFromV75,
 	77: updateFromV76,
 	78: updateFromV77,
+	79: updateFromV78,
+}
+
+func updateFromV78(ctx context.Context, tx *sql.Tx) error {
+	statusCodeRunning := strconv.Itoa(int(api.Running))
+	statusCodeCancelling := strconv.Itoa(int(api.Cancelling))
+
+	_, err := tx.ExecContext(ctx, `
+-- All nodes clear their entries in the operations table on node startup and shutdown.
+-- So there should be no entries in the operations table when the update is run and we can just drop it.
+DROP TABLE operations;
+
+-- Create the new version of the operations table.
+CREATE TABLE operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    uuid TEXT NOT NULL,
+    node_id INTEGER NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER,
+    requestor_protocol INTEGER,
+    requestor_identity_id INTEGER,
+    entity_id INTEGER NOT NULL DEFAULT 0,
+    metadata TEXT NOT NULL,
+    class INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT 0,
+    inputs TEXT NOT NULL,
+    status_code INTEGER NOT NULL DEFAULT 100,
+    error TEXT NOT NULL,
+    conflict_reference TEXT NOT NULL,
+    parent INTEGER,
+    stage INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (uuid),
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    FOREIGN KEY (requestor_identity_id) REFERENCES identities (id) ON DELETE CASCADE,
+    FOREIGN KEY (parent) REFERENCES operations (id) ON DELETE CASCADE
+);
+
+-- Create a conditional unique index to prevent multiple running operations with the same conflict_reference.
+CREATE UNIQUE INDEX operations_conflict_reference ON operations (conflict_reference)
+    WHERE conflict_reference != ""
+    AND status_code IN (`+statusCodeRunning+`,`+statusCodeCancelling+`);
+
+-- Create new table to store opertaion resources.
+CREATE TABLE operations_resources (
+    operation_id INTEGER NOT NULL,
+	entity_id INTEGER NOT NULL,
+	entity_type INTEGER NOT NULL,
+	FOREIGN KEY (operation_id) REFERENCES operations (id) ON DELETE CASCADE,
+	PRIMARY KEY (entity_type, entity_id, operation_id)
+) WITHOUT ROWID;
+`)
+	return err
 }
 
 func updateFromV77(ctx context.Context, tx *sql.Tx) error {
