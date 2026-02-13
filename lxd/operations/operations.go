@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -89,22 +90,23 @@ func OperationGetInternal(id string) (*Operation, error) {
 
 // Operation represents an operation.
 type Operation struct {
-	projectName string
-	id          string
-	class       OperationClass
-	createdAt   time.Time
-	updatedAt   time.Time
-	status      api.StatusCode
-	url         string
-	resources   map[entity.Type][]api.URL
-	entityURL   *api.URL
-	metadata    map[string]any
-	err         error
-	readonly    bool
-	description string
-	dbOpType    operationtype.Type
-	requestor   *request.Requestor
-	logger      logger.Logger
+	projectName   string
+	id            string
+	class         OperationClass
+	createdAt     time.Time
+	updatedAt     time.Time
+	status        api.StatusCode
+	url           string
+	resources     map[entity.Type][]api.URL
+	entityURL     *api.URL
+	metadata      map[string]any
+	err           error
+	readonly      bool
+	description   string
+	dbOpType      operationtype.Type
+	requestor     *request.Requestor
+	parentRequest *http.Request
+	logger        logger.Logger
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(context.Context, *Operation) error
@@ -290,10 +292,19 @@ func (op *Operation) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 	return op.requestor.EventLifecycleRequestor()
 }
 
+// statusToMetricsResult converts the operation status to a [metrics.RequestResult].
+func statusToMetricsResult(status api.StatusCode) metrics.RequestResult {
+	switch status {
+	case api.Success, api.Cancelled:
+		return metrics.Success
+	default:
+		return metrics.ErrorServer
+	}
+}
+
 func (op *Operation) done() {
-	if op.onDone != nil {
-		// This can mark the request that spawned this operation as completed for the API metrics.
-		op.onDone(op)
+	if op.parentRequest != nil {
+		metrics.UseMetricsCallback(op.parentRequest, statusToMetricsResult(op.status))
 	}
 
 	if op.readonly {
