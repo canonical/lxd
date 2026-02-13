@@ -1325,7 +1325,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 
 				if sourceMemberInfo == nil {
-					return fmt.Errorf("Failed to find source cluster member %q", sourceInst.Node)
+					return fmt.Errorf("Failed finding source cluster member %q", sourceInst.Node)
 				}
 
 				// Exit the transaction early and indicate we have to forward the request to the source.
