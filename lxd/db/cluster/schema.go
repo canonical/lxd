@@ -96,6 +96,18 @@ CREATE TABLE identity_provider_groups (
     name TEXT NOT NULL,
     UNIQUE (name)
 );
+CREATE TABLE image_registries (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	url TEXT NOT NULL,
+	source_project TEXT NULL,
+	public INTEGER NOT NULL,
+	protocol INTEGER NOT NULL,
+	cluster_link_id INTEGER NULL,
+	UNIQUE (name),
+	UNIQUE (url, source_project),
+	FOREIGN KEY (cluster_link_id) REFERENCES cluster_links (id) ON DELETE CASCADE
+);
 CREATE TABLE "images" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     fingerprint TEXT NOT NULL,
@@ -754,5 +766,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (81, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (82, strftime("%s"))
 `
