@@ -8,6 +8,7 @@ SPHINXOPTS    ?= -c . -d $(SPHINXDIR)/.doctrees -j auto
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = _build
+MANPAGEDIR    = reference/manpages
 VENVDIR       = $(SPHINXDIR)/venv
 PA11Y         = $(SPHINXDIR)/node_modules/pa11y/bin/pa11y.js --config $(SPHINXDIR)/pa11y.json
 VENV          = $(VENVDIR)/bin/activate
@@ -64,7 +65,7 @@ pa11y-install:
 		}
 
 pymarkdownlnt-install:
-	. $(VENV); test -d $(VENVDIR)/lib/python*/site-packages/pymarkdown || pip install pymarkdownlnt
+	. $(VENV); test -d $(VENVDIR)/lib/python*/site-packages/pymarkdown || pip install pymarkdownlnt==0.9.35
 
 client:
 	cd .. && $(MAKE) -f Makefile client
@@ -112,9 +113,9 @@ lint lint-md: pymarkdownlnt-install
 	@. $(VENV); \
 	pymarkdownlnt --config .sphinx/.pymarkdown.json scan \
 		--recurse \
-		--exclude=./.sphinx \
-		--exclude=./_build \
-		--exclude=./reference/manpages/lxc \
+		--exclude=$(SPHINXDIR) \
+		--exclude=$(BUILDDIR) \
+		--exclude=$(MANPAGEDIR)/lxc \
 		. \
 	&& echo "Passed" \
 	|| (echo "Failed"; exit 1)

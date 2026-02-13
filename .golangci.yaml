@@ -31,6 +31,13 @@ linters:
         - name: unchecked-type-assertion
           arguments:
             - acceptIgnoredAssertionResult: true
+        # https://github.com/mgechev/revive/blob/2a1701aadbedfcc175cb92836a51407bec382652/RULES_DESCRIPTIONS.md#var-naming
+        - name: var-naming
+          arguments: # The arguments here are quite odd looking. See the rule description.
+            - []
+            - []
+            - - upperCaseConst: true
+                skipPackageNameCollisionWithGoStd: true
         # https://github.com/mgechev/revive/blob/2a1701aadbedfcc175cb92836a51407bec382652/RULES_DESCRIPTIONS.md#early-return
         - name: early-return
         # https://github.com/mgechev/revive/blob/2a1701aadbedfcc175cb92836a51407bec382652/RULES_DESCRIPTIONS.md#redundant-import-alias
