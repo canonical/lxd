@@ -6121,6 +6121,7 @@ definitions:
             auth_methods:
                 description: List of supported authentication methods
                 example:
+                    - bearer
                     - tls
                     - oidc
                 items:
@@ -6397,6 +6398,7 @@ definitions:
             auth_methods:
                 description: List of supported authentication methods
                 example:
+                    - bearer
                     - tls
                     - oidc
                 items:
