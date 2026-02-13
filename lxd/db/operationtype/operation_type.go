@@ -95,6 +95,7 @@ const (
 	VolumeUpdate
 	VolumeDelete
 	ImageUploadToken
+	ImageUpload
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -245,6 +246,8 @@ func (t Type) Description() string {
 		return "Certificate add token"
 	case RemoveExpiredOIDCSessions:
 		return "Removing expired OIDC sessions"
+	case ImageUpload:
+		return "Uploading image"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -290,7 +293,7 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeInstanceSnapshot
 
 	// Image operations.
-	case ImageDelete, ImageRefresh, ImageDownloadToken:
+	case ImageDelete, ImageRefresh, ImageDownloadToken, ImageUpload:
 		return entity.TypeImage
 
 	// Volume backup operations.
