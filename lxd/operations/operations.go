@@ -458,9 +458,9 @@ func updateStatus(op *Operation, newStatus api.StatusCode) {
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
-	if op.status != api.OperationCreated {
+	if op.status.IsFinal() {
 		op.lock.Unlock()
-		return errors.New("Only pending operations can be started")
+		return errors.New("Only operations in running states can be started")
 	}
 
 	runCtx := context.Context(op.running)
