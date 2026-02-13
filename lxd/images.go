@@ -1468,7 +1468,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		RunHook:     run,
 	}
 
-	imageOp, err := operations.CreateUserOperation(s, requestor, args)
+	imageOp, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		cleanup(builddir, post)
 		return response.InternalError(err)
@@ -2995,7 +2995,11 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	op, err := doImageDelete(r.Context(), s, details.image.Fingerprint, details.imageID, projectName)
+	var opCreator operations.OperationCreator = func(s *state.State, args operations.OperationArgs) (*operations.Operation, error) {
+		return operations.CreateUserOperationFromRequest(s, r, args)
+	}
+
+	op, err := doImageDelete(r.Context(), opCreator, s, details.image.Fingerprint, details.imageID, projectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3004,7 +3008,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 // doImageDelete deletes an image with the given fingerprint and imageID in the given project.
-func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imageID int, projectName string) (*operations.Operation, error) {
+func doImageDelete(ctx context.Context, opCreator operations.OperationCreator, s *state.State, fingerprint string, imageID int, projectName string) (*operations.Operation, error) {
 	requestor, err := request.GetRequestor(ctx)
 	if err != nil {
 		return nil, err
@@ -3170,7 +3174,7 @@ func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imag
 		RunHook:     do,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := opCreator(s, args)
 	if err != nil {
 		return nil, err
 	}
@@ -4658,10 +4662,6 @@ func imageExportFiles(ctx context.Context, s *state.State, imgInfo *api.Image, r
 //	    $ref: "#/responses/InternalServerError"
 func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
@@ -4775,7 +4775,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		RunHook:     run,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, opArgs)
+	op, err := operations.CreateUserOperationFromRequest(s, r, opArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4917,10 +4917,6 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 //	    $ref: "#/responses/InternalServerError"
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
@@ -4986,7 +4982,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		RunHook:     run,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -5217,11 +5213,6 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 }
 
 func createImageTokenResponse(s *state.State, r *http.Request, projectName string, fingerprint string, metadata shared.Jmap, tokenType operationtype.Type) response.Response {
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	secret, err := shared.RandomCryptoString()
 	if err != nil {
 		return response.InternalError(err)
@@ -5258,7 +5249,7 @@ func createImageTokenResponse(s *state.State, r *http.Request, projectName strin
 		Metadata:    meta,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
