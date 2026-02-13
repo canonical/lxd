@@ -2933,3 +2933,19 @@ See {ref}`LXD bearer tokens <authentication-bearer>`.
 
 This introduces support for the {config:option}`instance-resource-limits:limits.max_bus_ports` configuration key for virtual machines. This option controls the maximum allowed number of user configurable devices requiring a dedicated PCI/PCIe port for a virtual machine.
 This number includes both the devices attached before the instance start and the devices hotplugged at runtime.
+
+(extension-cluster-links)=
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see {ref}`rest-api` for details):
+
+* [`GET /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_get)
+* [`GET /1.0/cluster/links`](swagger:/cluster-links/cluster_links_get)
+* [`GET /1.0/cluster/links/<name>/state`](swagger:/cluster-links/cluster_link_state_get)
+* [`PUT /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_put)
+* [`PATCH /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_patch)
+* [`POST /1.0/cluster/links`](swagger:/cluster-links/cluster_links_post)
+* [`POST /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_post)
+* [`DELETE /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_delete)

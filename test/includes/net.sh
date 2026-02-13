@@ -16,6 +16,13 @@ my_curl() {
     curl --insecure --silent --cert "${LXD_CONF}/${CERTNAME}.crt" --key "${LXD_CONF}/${CERTNAME}.key" "$@"
 }
 
+# Certificate-aware curl wrapper with strict TLS verification.
+trusted_curl() {
+    local CERTNAME="${CERTNAME:-"client"}"
+    local CACERT="${CACERT:-"${LXD_CONF}/server.crt"}"
+    curl --silent --cert "${LXD_CONF}/${CERTNAME}.crt" --key "${LXD_CONF}/${CERTNAME}.key" --cacert "${CACERT}" "$@"
+}
+
 # Wait for duplicate address detection to complete.
 # Usage: Either "wait_for_dad <device>" or "wait_for_dad <container> <device>".
 wait_for_dad() {

@@ -135,6 +135,63 @@ By default, all cluster members belong to the `default` group.
 
 See {ref}`howto-cluster-groups` and {ref}`cluster-target-instance` for more information.
 
+(exp-cluster-links)=
+## Cluster links
+
+Cluster links enable secure, authenticated communication between separate LXD clusters by establishing a bidirectional trust relationship using mutual TLS certificates. This feature allows different LXD clusters to interact with each other while maintaining strict security controls.
+
+### How cluster links work
+
+1. **Trust establishment**: Each cluster presents its certificate to the other, establishing mutual trust.
+1. **Identity creation**: LXD automatically creates a special identity for each linked cluster with type `Cluster link certificate`.
+1. **Permission control**: The linked cluster's permissions are managed through LXD's {ref}`fine-grained-authorization` system.
+1. **Secure communication**: All communication between clusters uses TLS encryption with certificate verification.
+
+#### Connection process
+
+Creating a cluster link requires coordination between both clusters:
+
+1. **Cluster A** creates a pending cluster link and generates a trust token.
+1. **Cluster B** uses this token to establish the connection and send its certificate back.
+1. Both clusters validate certificates and activate the bidirectional link.
+1. The link becomes active and both clusters can communicate.
+
+For more information, see: {ref}`howto-cluster-links-create`.
+
+#### Types
+
+LXD supports two types of cluster links:
+
+- **User-created links** (`USER`): Manually created links between clusters.
+- **Delegated links** (`DELEGATED`): Links managed by external systems.
+
+(exp-clusters-links-identity)=
+### Identity management for cluster links
+
+When you create a cluster link, LXD automatically creates an identity for the linked cluster. This identity is of type `Cluster link certificate` and is used to authenticate that cluster. These identities are managed using {ref}`fine-grained-authorization`.
+
+The identity goes through two states:
+
+- **Pending**: When a trust token is generated but the link hasn't been activated yet.
+- **Active**: When both clusters have exchanged certificates and the link is operational.
+
+#### Security considerations
+
+- **Certificate validation**: All connections verify certificate fingerprints.
+- **Fine-grained permissions**: Linked clusters can be granted specific entitlements (for example, only backup operations).
+- **Identity isolation**: Each cluster link gets its own identity that can be managed independently.
+- **Group membership**: Cluster link identities can be assigned to authentication groups for bulk permission management.
+
+Together, these controls limit the blast radius of a compromised link by enforcing mutual authentication and least-privilege access. They also make it possible to revoke a single link’s access without impacting other cluster-to-cluster trust relationships.
+
+#### Cluster link member status
+
+A cluster link member can have one of the following statuses. You can see member status with `lxc cluster link info` (while `lxc cluster link list` shows the link identity status); see {ref}`howto-cluster-links-view`.
+
+- `ACTIVE`: Reachable and authenticated. The link is usable for requests according to the entitlements you granted.
+- `UNTRUSTED`: Reachable but not authenticated. The remote cluster cannot use the link yet; resolve the trust exchange before relying on it.
+- `UNREACHABLE`: Not reachable. Requests that depend on the link will fail until connectivity is restored or the remote cluster is online.
+
 (clustering-instance-placement)=
 ## Automatic placement of instances
 

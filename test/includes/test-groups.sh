@@ -46,6 +46,8 @@ readonly test_group_cluster=(
     "clustering_heal_networks_stop"
     "clustering_placement_groups"
     "clustering_force_removal"
+    "clustering_link_auth"
+    "clustering_link_info"
 )
 
 readonly test_group_cluster_storage=(

@@ -274,3 +274,8 @@ func IdentityProviderGroupURL(identityProviderGroupName string) *api.URL {
 func PlacementGroupURL(projectName string, placementGroupName string) *api.URL {
 	return TypePlacementGroup.urlMust(projectName, "", placementGroupName)
 }
+
+// ClusterLinkURL returns an [*api.URL] to a cluster link.
+func ClusterLinkURL(clusterLinkName string) *api.URL {
+	return TypeClusterLink.urlMust("", "", clusterLinkName)
+}
