@@ -206,7 +206,7 @@ type ServerUntrusted struct {
 
 	// List of supported authentication methods
 	// Read only: true
-	// Example: ["tls", "oidc"]
+	// Example: ["bearer", "tls", "oidc"]
 	//
 	// API extension: oidc
 	AuthMethods []string `json:"auth_methods" yaml:"auth_methods"`
