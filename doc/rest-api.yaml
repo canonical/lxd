@@ -7707,6 +7707,47 @@ paths:
             tags:
                 - identities
     /1.0/auth/identities/bearer:
+        get:
+            description: Returns a list of bearer identities (URLs).
+            operationId: identities_get_bearer
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/auth/identities/bearer/my-identity",
+                                      "/1.0/auth/identities/bearer/2040864b-df39-4267-a8e2-e55cde33601d"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the bearer identities
+            tags:
+                - identities
         post:
             consumes:
                 - application/json
@@ -7749,6 +7790,154 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Revoke a bearer identity token.
+            tags:
+                - identities
+    /1.0/auth/identities/bearer/{nameOrIdentifier}:
+        delete:
+            description: Removes the bearer identity.
+            operationId: identity_delete_bearer
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+                "501":
+                    $ref: '#/responses/NotImplemented'
+            summary: Delete the bearer identity
+            tags:
+                - identities
+        get:
+            description: Gets a specific bearer identity.
+            operationId: identity_get_bearer
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/Identity'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the bearer identity
+            tags:
+                - identities
+        patch:
+            consumes:
+                - application/json
+            description: Updates the editable fields of a bearer identity
+            operationId: identity_patch_bearer
+            parameters:
+                - description: Update request
+                  in: body
+                  name: identity
+                  schema:
+                    $ref: '#/definitions/IdentityPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+                "501":
+                    $ref: '#/responses/NotImplemented'
+            summary: Partially update the bearer identity
+            tags:
+                - identities
+        put:
+            consumes:
+                - application/json
+            description: Replaces the editable fields of a bearer identity
+            operationId: identity_put_bearer
+            parameters:
+                - description: Update request
+                  in: body
+                  name: identity
+                  schema:
+                    $ref: '#/definitions/IdentityPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+                "501":
+                    $ref: '#/responses/NotImplemented'
+            summary: Update the bearer identity
+            tags:
+                - identities
+    /1.0/auth/identities/bearer?recursion=1:
+        get:
+            description: Returns a list of bearer identities.
+            operationId: identities_get_bearer_recursion1
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of identities
+                                items:
+                                    $ref: '#/definitions/Identity'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the bearer identities
             tags:
                 - identities
     /1.0/auth/identities/current:
