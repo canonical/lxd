@@ -104,6 +104,10 @@ type Operation struct {
 	// Inputs for the operation, which are stored in the database.
 	inputs map[string]any
 
+	// If this operation is part of a bulk operation, parent will point to the parent operation.
+	parent   *Operation
+	children []*Operation
+
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
@@ -132,6 +136,7 @@ type OperationArgs struct {
 	// Empty ConflictReference means the operation can be started anytime.
 	ConflictReference string
 	Inputs            map[string]any
+	Children          []*OperationArgs
 }
 
 // CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
@@ -211,9 +216,31 @@ func initOperation(s *state.State, requestor *request.Requestor, args OperationA
 
 // operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
 func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+	// If this is a bulk operation, don't allow more than one level of nesting.
+	if args.Children != nil {
+		for _, child := range args.Children {
+			if child.Children != nil {
+				return nil, errors.New("Bulk operations cannot have nested bulk operations")
+			}
+		}
+	}
+
+	// Create the parent operation
 	op, err := initOperation(s, requestor, args)
 	if err != nil {
 		return nil, err
+	}
+
+	// Create the child operations, if any.
+	op.children = make([]*Operation, 0, len(args.Children))
+	for _, childArgs := range args.Children {
+		childOp, err := initOperation(s, requestor, *childArgs)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create child operation: %w", err)
+		}
+
+		childOp.parent = op
+		op.children = append(op.children, childOp)
 	}
 
 	err = registerDBOperation(op, args.ConflictReference)
@@ -226,6 +253,10 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 
 	operationsLock.Lock()
 	operations[op.id] = op
+	for _, childOp := range op.children {
+		operations[childOp.id] = childOp
+	}
+
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
@@ -292,6 +323,11 @@ func (op *Operation) done() {
 	op.finished.Cancel()
 	op.lock.Unlock()
 
+	// If we are a child operation, we're done. The parent operation will clean all the child entries when it finishes.
+	if op.parent != nil {
+		return
+	}
+
 	go func() {
 		shutdownCtx := context.Background()
 		if op.state != nil {
@@ -305,6 +341,7 @@ func (op *Operation) done() {
 		}
 
 		operationsLock.Lock()
+
 		_, ok := operations[op.id]
 		if !ok {
 			operationsLock.Unlock()
@@ -312,6 +349,15 @@ func (op *Operation) done() {
 		}
 
 		delete(operations, op.id)
+
+		// Clear the child operations
+		for _, childOp := range op.children {
+			_, ok := operations[childOp.id]
+			if ok {
+				delete(operations, childOp.id)
+			}
+		}
+
 		operationsLock.Unlock()
 
 		if op.state == nil {
@@ -357,6 +403,15 @@ func (op *Operation) Start() error {
 		return fmt.Errorf("Failed updating Operation %q (%q) status: %w", op.id, op.description, err)
 	}
 
+	// Start child operations
+	for _, childOp := range op.children {
+		err := childOp.Start()
+		if err != nil {
+			op.lock.Unlock()
+			return fmt.Errorf("Failed to start child operation: %w", err)
+		}
+	}
+
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
 		// The requestor is available directly on the operation, but we should still put it in the context.
@@ -368,6 +423,18 @@ func (op *Operation) Start() error {
 
 		go func(ctx context.Context, op *Operation) {
 			err := op.onRun(ctx, op)
+
+			// If we're a parent operation with children, wait until all of our child operations are done.
+			// This is to ensure that the parent operation remains visible in the API until all child operations have completed,
+			// which is important for operations that spawn multiple child operations (e.g. bulk operations),
+			// so that the user can see the overall progress of the operation until everything is done.
+			if op.parent == nil && len(op.children) > 0 {
+				for _, childOp := range op.children {
+					// Ignore the child error here, the overal result of the bulk operation should be determined by the parent operation, not the child operations.
+					_ = childOp.Wait(context.Background())
+				}
+			}
+
 			if err != nil {
 				op.lock.Lock()
 
@@ -441,6 +508,11 @@ func (op *Operation) Cancel() {
 	// Signal the operation to stop.
 	op.running.Cancel()
 
+	// Signal the child operations to stop as well.
+	for _, childOp := range op.children {
+		childOp.Cancel()
+	}
+
 	// If the operation has a run hook, then set the status to cancelling.
 	// When the hook returns, the status will be set to cancelled because the run context is cancelled.
 	// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
@@ -450,6 +522,21 @@ func (op *Operation) Cancel() {
 	if op.onRun != nil {
 		updateStatus(op, api.Cancelling)
 	} else {
+		op.lock.Unlock()
+
+		// If we're a parent operation with children, wait until all of our child operations are done.
+		// This is to ensure that the parent operation remains visible in the API until all child operations have completed,
+		// which is important for operations that spawn multiple child operations (e.g. bulk operations),
+		// so that the user can see the overall progress of the operation until everything is done.
+		if op.parent == nil && len(op.children) > 0 {
+			for _, childOp := range op.children {
+				// Ignore the child error here, the overal result of the bulk operation should be determined by the parent operation, not the child operations.
+				_ = childOp.Wait(context.Background())
+			}
+		}
+
+		op.lock.Lock()
+
 		updateStatus(op, api.Cancelled)
 	}
 
