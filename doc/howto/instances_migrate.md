@@ -22,7 +22,7 @@ To migrate an instance (move it from one LXD server to another) using the CLI, u
 
 When migrating a container, you must stop it first.
 
-When migrating a virtual machine, you must either enable {ref}`live-migration-vms` or stop it first.
+When migrating a virtual machine, you must either enable {ref}`live-migration` or stop it first.
 
 ## Copy instances
 
@@ -55,12 +55,7 @@ If you need to adapt the configuration for the instance to run on the target ser
 (live-migration)=
 ## Live migration
 
-Live migration means migrating an instance to another server while it is running. This method is supported for virtual machines.
-
-(live-migration-vms)=
-### Live migration for virtual machines
-
-Virtual machines can be migrated to another server while they are running, thus avoiding any downtime.
+Live migration means migrating an instance to another server while it is running, avoiding any downtime. This method is supported for virtual machines.
 
 For a virtual machine to be eligible for live migration, it must meet the following criteria:
 
