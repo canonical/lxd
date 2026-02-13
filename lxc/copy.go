@@ -10,6 +10,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -302,9 +303,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			return fmt.Errorf("Failed to refresh target instance %q: %v", destName, err)
 		}
 
-		// Ensure we don't change the target's volatile.idmap.next value.
-		if inst.Config["volatile.idmap.next"] != writable.Config["volatile.idmap.next"] {
-			writable.Config["volatile.idmap.next"] = inst.Config["volatile.idmap.next"]
+		// Ensure we don't remove protected volatile keys.
+		for _, key := range []string{"volatile.idmap.next", "volatile.idmap.current", "volatile.last_state.idmap"} {
+			_, found := inst.Config[key]
+			if found {
+				writable.Config[key] = inst.Config[key]
+			}
 		}
 
 		// Ensure we don't change the target's root disk pool.
@@ -312,6 +316,16 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		destRootDiskDeviceKey, destRootDiskDevice, _ := instancetype.GetRootDiskDevice(inst.Devices)
 		if srcRootDiskDeviceKey != "" && srcRootDiskDeviceKey == destRootDiskDeviceKey {
 			writable.Devices[destRootDiskDeviceKey]["pool"] = destRootDiskDevice["pool"]
+		}
+
+		// Ensure we don't change the target's root disk initial.zfs.promote value.
+		if srcRootDiskDeviceKey != "" && srcRootDiskDeviceKey == destRootDiskDeviceKey {
+			_, found := destRootDiskDevice["initial.zfs.promote"]
+			if found {
+				writable.Devices[destRootDiskDeviceKey]["initial.zfs.promote"] = destRootDiskDevice["initial.zfs.promote"]
+			} else {
+				delete(writable.Devices[destRootDiskDeviceKey], "initial.zfs.promote")
+			}
 		}
 
 		op, err := dest.UpdateInstance(destName, writable, etag)
@@ -414,6 +428,15 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 			profileDevices, err = getProfileDevices(dest, *profiles)
 			if err != nil {
 				return err
+			}
+		}
+
+		// Ensure that any initial. device config is not applied from source.
+		for devName, devConfig := range *devices {
+			for devKey := range devConfig {
+				if strings.HasPrefix(devKey, deviceConfig.ConfigInitialPrefix) {
+					delete((*devices)[devName], devKey)
+				}
 			}
 		}
 
