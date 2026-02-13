@@ -476,6 +476,7 @@ var APIExtensions = []string{
 	"auth_bearer",
 	"vm_limits_max_bus_ports",
 	"instances_state_selective_recursion",
+	"project_delete_operation",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
