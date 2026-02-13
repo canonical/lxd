@@ -81,8 +81,12 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	var opCreater operations.OperationCreator = func(s *state.State, args operations.OperationArgs) (*operations.Operation, error) {
+		return operations.CreateUserOperationFromRequest(s, r, args)
+	}
+
 	force := shared.IsTrue(r.FormValue("force"))
-	op, err := doInstanceDelete(r.Context(), s, name, projectName, force)
+	op, err := doInstanceDelete(opCreater, s, name, projectName, force)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -94,12 +98,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 // If the instance is running and force is true, the instance is force stopped asynchronously
 // as part of the delete operation. If the instance is running and force is false, the request
 // fails before the operation is created.
-func doInstanceDelete(ctx context.Context, s *state.State, name string, projectName string, force bool) (*operations.Operation, error) {
-	requestor, err := request.GetRequestor(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize instance delete operation: %w", err)
-	}
-
+func doInstanceDelete(opCreater operations.OperationCreator, s *state.State, name string, projectName string, force bool) (*operations.Operation, error) {
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return nil, err
@@ -140,7 +139,7 @@ func doInstanceDelete(ctx context.Context, s *state.State, name string, projectN
 		RunHook:     rmct,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := opCreater(s, args)
 	if err != nil {
 		return nil, err
 	}

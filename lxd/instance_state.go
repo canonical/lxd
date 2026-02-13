@@ -145,10 +145,6 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -222,7 +218,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		RunHook:     do,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

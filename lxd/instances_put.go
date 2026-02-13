@@ -83,10 +83,6 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 	<-d.waitReady.Done()
 
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	c, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
@@ -283,7 +279,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		RunHook:     do,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

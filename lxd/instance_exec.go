@@ -535,10 +535,6 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 //	    $ref: "#/responses/InternalServerError"
 func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -710,7 +706,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			},
 		}
 
-		op, err := operations.CreateUserOperation(s, requestor, args)
+		op, err := operations.CreateUserOperationFromRequest(s, r, args)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -791,7 +787,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		},
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

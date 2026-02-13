@@ -231,10 +231,6 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -388,7 +384,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		Metadata:    metadata,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -512,10 +508,6 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -593,7 +585,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		RunHook:     rename,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -629,10 +621,6 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -692,7 +680,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		RunHook:     remove,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

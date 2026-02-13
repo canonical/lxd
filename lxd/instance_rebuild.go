@@ -60,10 +60,6 @@ import (
 //	    $ref: "#/responses/InternalServerError"
 func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	targetProjectName := request.ProjectParam(r)
 
@@ -172,7 +168,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		RunHook:     run,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
