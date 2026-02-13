@@ -914,6 +914,13 @@ definitions:
                     $ref: '#/definitions/Permission'
                 type: array
                 x-go-name: EffectivePermissions
+            expires_at:
+                description: |-
+                    ExpiresAt is the expiration time of the credential used to authenticate the caller.
+                    It is set only when client is trusted, and authentication method is either bearer or TLS.
+                format: date-time
+                type: string
+                x-go-name: ExpiresAt
             fine_grained:
                 description: |-
                     FineGrained is a boolean indicating whether the identity is fine-grained,
