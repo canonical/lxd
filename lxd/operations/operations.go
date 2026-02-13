@@ -111,7 +111,6 @@ type Operation struct {
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(context.Context, *Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
-	onDone    func(*Operation)
 
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
@@ -271,11 +270,6 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 	}
 
 	return nil
-}
-
-// SetOnDone sets the operation onDone function that is called after the operation completes.
-func (op *Operation) SetOnDone(f func(*Operation)) {
-	op.onDone = f
 }
 
 // Requestor returns the initial requestor for this operation.
