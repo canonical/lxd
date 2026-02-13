@@ -949,6 +949,49 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 
+// swagger:operation GET /1.0/auth/identities/bearer identities identities_get_bearer
+//
+//	Get the bearer identities
+//
+//	Returns a list of bearer identities (URLs).
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of endpoints
+//	          items:
+//	            type: string
+//	          example: |-
+//	            [
+//	              "/1.0/auth/identities/bearer/my-identity",
+//	              "/1.0/auth/identities/bearer/2040864b-df39-4267-a8e2-e55cde33601d"
+//	            ]
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+
 // swagger:operation GET /1.0/auth/identities/tls identities identities_get_tls
 //
 //	Get the TLS identities
@@ -1030,6 +1073,44 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 //	              "/1.0/auth/identities/oidc/jane.doe@example.com",
 //	              "/1.0/auth/identities/oidc/joe.bloggs@example.com"
 //	            ]
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/auth/identities/bearer?recursion=1 identities identities_get_bearer_recursion1
+//
+//	Get the bearer identities
+//
+//	Returns a list of bearer identities.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of identities
+//	          items:
+//	            $ref: "#/definitions/Identity"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
@@ -1271,6 +1352,41 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 	}
 }
 
+// swagger:operation GET /1.0/auth/identities/bearer/{nameOrIdentifier} identities identity_get_bearer
+//
+//	Get the bearer identity
+//
+//	Gets a specific bearer identity.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/Identity"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+
 // swagger:operation GET /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_get_tls
 //
 //	Get the TLS identity
@@ -1492,6 +1608,37 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 		FineGrained:          identityType.IsFineGrained(),
 	})
 }
+
+// swagger:operation PUT /1.0/auth/identities/bearer/{nameOrIdentifier} identities identity_put_bearer
+//
+//	Update the bearer identity
+//
+//	Replaces the editable fields of a bearer identity
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: identity
+//	    description: Update request
+//	    schema:
+//	      $ref: "#/definitions/IdentityPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
 
 // swagger:operation PUT /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_put_tls
 //
@@ -1725,6 +1872,37 @@ func updateIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Iden
 
 	return response.EmptySyncResponse
 }
+
+// swagger:operation PATCH /1.0/auth/identities/bearer/{nameOrIdentifier} identities identity_patch_bearer
+//
+//	Partially update the bearer identity
+//
+//	Updates the editable fields of a bearer identity
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: identity
+//	    description: Update request
+//	    schema:
+//	      $ref: "#/definitions/IdentityPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
 
 // swagger:operation PATCH /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_patch_tls
 //
@@ -1973,6 +2151,27 @@ func patchSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluster
 
 	return response.EmptySyncResponse
 }
+
+// swagger:operation DELETE /1.0/auth/identities/bearer/{nameOrIdentifier} identities identity_delete_bearer
+//
+//	Delete the bearer identity
+//
+//	Removes the bearer identity.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//	  "501":
+//	    $ref: "#/responses/NotImplemented"
 
 // swagger:operation DELETE /1.0/auth/identities/tls/{nameOrIdentifier} identities identity_delete_tls
 //
