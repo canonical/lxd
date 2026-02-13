@@ -129,32 +129,55 @@ type Operation struct {
 
 // OperationArgs contains all the arguments for operation creation.
 type OperationArgs struct {
-	ProjectName string
-	Type        operationtype.Type
-	Class       OperationClass
-	EntityURL   *api.URL
-	Resources   map[entity.Type][]api.URL
-	Metadata    map[string]any
-	RunHook     func(ctx context.Context, op *Operation) error
-	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
+	ProjectName   string
+	Type          operationtype.Type
+	Class         OperationClass
+	EntityURL     *api.URL
+	Resources     map[entity.Type][]api.URL
+	Metadata      map[string]any
+	RunHook       func(ctx context.Context, op *Operation) error
+	ConnectHook   func(op *Operation, r *http.Request, w http.ResponseWriter) error
+	requestor     *request.Requestor
+	parentRequest *http.Request
 }
 
-// CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
-func CreateUserOperation(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
-	if requestor == nil || requestor.OriginAddress() == "" {
-		return nil, errors.New("Cannot create user operation, the requestor must be set")
+// OperationCreator is used as a function argument in scenarios where an operation may be spawned within a request or
+// from within another operation.
+type OperationCreator func(s *state.State, args OperationArgs) (*Operation, error)
+
+// CreateUserOperationFromRequest creates a new [Operation] from the given HTTP request. The request context must
+// contain the requestor as that is used for auditing. The operation will keep a reference to the parent HTTP request
+// until it completes so that it can report success or failure for API metrics.
+func CreateUserOperationFromRequest(s *state.State, r *http.Request, args OperationArgs) (*Operation, error) {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return nil, fmt.Errorf("Cannot create user operation: %w", err)
 	}
 
-	return operationCreate(s, requestor, args)
+	args.requestor = requestor
+	args.parentRequest = r
+	return operationCreate(s, args)
+}
+
+// CreateUserOperationFromOperation creates a new [Operation] from the given operation. The operation must have a
+// requestor as that is used for auditing.
+func CreateUserOperationFromOperation(s *state.State, op *Operation, args OperationArgs) (*Operation, error) {
+	requestor := op.Requestor()
+	if requestor == nil {
+		return nil, errors.New("Cannot create user operation: No requestor present in parent operation")
+	}
+
+	args.requestor = requestor
+	return operationCreate(s, args)
 }
 
 // CreateServerOperation creates a new [Operation] that runs as a server background task.
 func CreateServerOperation(s *state.State, args OperationArgs) (*Operation, error) {
-	return operationCreate(s, nil, args)
+	return operationCreate(s, args)
 }
 
 // operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
-func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+func operationCreate(s *state.State, args OperationArgs) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -200,7 +223,8 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.finished = cancel.New()
 	op.running = cancel.New()
 	op.state = s
-	op.requestor = requestor
+	op.requestor = args.requestor
+	op.parentRequest = args.parentRequest
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	if s != nil {
