@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -208,10 +209,13 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		return doInstanceStatePut(inst, req)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
+	resources := map[entity.Type][]api.URL{
+		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
+	}
+
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        opType,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,

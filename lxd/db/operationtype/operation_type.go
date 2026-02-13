@@ -57,7 +57,7 @@ const (
 	SnapshotDelete
 	ImageDownload
 	ImageDelete
-	ImageToken
+	ImageDownloadToken
 	ImageRefresh
 	VolumeCopy
 	VolumeCreate
@@ -94,6 +94,12 @@ const (
 	ProfileUpdate
 	VolumeUpdate
 	VolumeDelete
+	ImageUploadToken
+	ImageUpload
+	InstanceCopy
+	VolumeSnapshotsCreateScheduled
+	InstanceStateUpdateBulk
+	VolumeSnapshotTransfer
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -128,6 +134,8 @@ func (t Type) Description() string {
 		return "Showing console"
 	case InstanceCreate:
 		return "Creating instance"
+	case InstanceCopy:
+		return "Copying instance"
 	case InstanceUpdate:
 		return "Updating instance"
 	case InstanceRename:
@@ -170,8 +178,10 @@ func (t Type) Description() string {
 		return "Downloading image"
 	case ImageDelete:
 		return "Deleting image"
-	case ImageToken:
+	case ImageDownloadToken:
 		return "Image download token"
+	case ImageUploadToken:
+		return "Image upload token"
 	case ImageRefresh:
 		return "Refreshing image"
 	case VolumeCopy:
@@ -242,6 +252,14 @@ func (t Type) Description() string {
 		return "Certificate add token"
 	case RemoveExpiredOIDCSessions:
 		return "Removing expired OIDC sessions"
+	case ImageUpload:
+		return "Uploading image"
+	case VolumeSnapshotsCreateScheduled:
+		return "Creating scheduled volume snapshots"
+	case InstanceStateUpdateBulk:
+		return "Updating the state of multiple instances"
+	case VolumeSnapshotTransfer:
+		return "Transferring volume snapshot"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -258,28 +276,32 @@ func (t Type) EntityType() entity.Type {
 		ImagesSynchronize, RemoveExpiredOIDCSessions, RemoveExpiredTokens, RemoveOrphanedOperations,
 		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
-		ClusterHeal, ImagesUpdate:
+		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled:
 		return entity.TypeServer
 
 	// Project level operations.
 	// If creating a resource, then the parent project is the primary entity
 	// (the entity being created is not yet referenceable).
-	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload:
+	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore,
+		InstanceStateUpdateBulk, BackupRestore:
 		return entity.TypeProject
 
 	// Volume operations.
-	case VolumeSnapshotRename, VolumeSnapshotUpdate, VolumeSnapshotDelete, VolumeMigrate,
-		VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete:
+	case VolumeMigrate, VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete:
 		return entity.TypeStorageVolume
+
+	// Volume snapshot operations
+	case VolumeSnapshotRename, VolumeSnapshotUpdate, VolumeSnapshotDelete, VolumeSnapshotTransfer:
+		return entity.TypeStorageVolumeSnapshot
 
 	// Instance operations.
 	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
 		InstanceStart, InstanceStop, InstanceRestart, InstanceRename, InstanceMigrate, InstanceLiveMigrate,
-		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate:
+		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate, InstanceCopy:
 		return entity.TypeInstance
 
 	// Instance backup operations.
-	case BackupRename, BackupRemove, BackupRestore:
+	case BackupRename, BackupRemove:
 		return entity.TypeInstanceBackup
 
 	// Instance snapshot operations.
@@ -287,11 +309,11 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeInstanceSnapshot
 
 	// Image operations.
-	case ImageDelete, ImageRefresh, ImageToken:
+	case ImageDelete, ImageRefresh, ImageDownloadToken, ImageUpload:
 		return entity.TypeImage
 
 	// Volume backup operations.
-	case CustomVolumeBackupRemove, CustomVolumeBackupRename, CustomVolumeBackupRestore:
+	case CustomVolumeBackupRemove, CustomVolumeBackupRename:
 		return entity.TypeStorageVolumeBackup
 
 	// Profile operations.

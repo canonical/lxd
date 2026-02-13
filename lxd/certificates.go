@@ -216,10 +216,6 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, joinToken *api
 			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
 		}
 
-		if op.Resources == nil {
-			continue
-		}
-
 		opSecret, ok := op.Metadata["secret"]
 		if !ok {
 			continue

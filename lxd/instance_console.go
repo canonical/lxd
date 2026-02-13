@@ -30,6 +30,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
@@ -544,21 +545,18 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	ws.height = post.Height
 	ws.protocol = post.Type
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", ws.instance.Name())}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
-	}
-
+	instanceURL := api.NewURL().Path(version.APIVersion, "instances", ws.instance.Name()).Project(projectName)
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   instanceURL,
 		Type:        operationtype.ConsoleShow,
 		Class:       operations.OperationClassWebsocket,
-		Resources:   resources,
 		Metadata:    ws.Metadata(),
 		RunHook:     ws.Do,
 		ConnectHook: ws.Connect,
+		Resources: map[entity.Type][]api.URL{
+			entity.TypeInstance: {*instanceURL},
+		},
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, args)

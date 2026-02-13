@@ -1026,11 +1026,13 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
+	// This operation does not happen "inside" a project and
+	// therefore does not have a project set.
 	args := operations.OperationArgs{
-		ProjectName: "",
-		Type:        operationtype.ProjectRename,
-		Class:       operations.OperationClassTask,
-		RunHook:     run,
+		EntityURL: api.NewURL().Path(version.APIVersion, "projects", name),
+		Type:      operationtype.ProjectRename,
+		Class:     operations.OperationClassTask,
+		RunHook:   run,
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, args)

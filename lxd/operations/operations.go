@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
@@ -47,6 +48,14 @@ func (t OperationClass) String() string {
 		OperationClassToken:     api.OperationClassToken,
 	}[t]
 }
+
+const (
+	// EntityURL is set in the operation metadata if the caller requests a resource that might have a generated name.
+	// For example, EntityURL is set on instance creation because a name is generated if one is not provided by the client.
+	// Whereas EntityURL is not set on creation of a custom storage volume, because a name must be provided.
+	// The value corresponding to EntityURL must be a string.
+	EntityURL = "entity_url"
+)
 
 // Init sets the debug value for the operations package.
 func Init(d bool) {
@@ -87,7 +96,8 @@ type Operation struct {
 	updatedAt   time.Time
 	status      api.StatusCode
 	url         string
-	resources   map[string][]api.URL
+	resources   map[entity.Type][]api.URL
+	entityURL   *api.URL
 	metadata    map[string]any
 	err         error
 	readonly    bool
@@ -121,7 +131,8 @@ type OperationArgs struct {
 	ProjectName string
 	Type        operationtype.Type
 	Class       OperationClass
-	Resources   map[string][]api.URL
+	EntityURL   *api.URL
+	Resources   map[entity.Type][]api.URL
 	Metadata    map[string]any
 	RunHook     func(ctx context.Context, op *Operation) error
 	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
@@ -148,6 +159,24 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 		return nil, errors.New("LXD is shutting down")
 	}
 
+	// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
+	// can be reconstructed from a database record (where it is saved as an entity ID).
+	operationEntityType := args.Type.EntityType()
+	if args.EntityURL != nil {
+		entityType, _, _, _, err := entity.ParseURL(args.EntityURL.URL)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid operation entity URL: %w", err)
+		}
+
+		if entityType != operationEntityType {
+			return nil, fmt.Errorf("Entity type for URL %q does not match operation entity type %q", args.EntityURL, operationEntityType)
+		}
+	} else if operationEntityType != entity.TypeServer {
+		return nil, errors.New("Operation entity URL required")
+	} else {
+		args.EntityURL = entity.ServerURL()
+	}
+
 	// Use a v7 UUID for the operation ID.
 	uuid, err := uuid.NewV7()
 	if err != nil {
@@ -165,6 +194,7 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.updatedAt = op.createdAt
 	op.status = api.OperationCreated
 	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
+	op.entityURL = args.EntityURL
 	op.resources = args.Resources
 	op.finished = cancel.New()
 	op.running = cancel.New()
@@ -481,10 +511,10 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		for key, value := range resources {
 			var values = make([]string, 0, len(value))
 			for _, c := range value {
-				values = append(values, c.Project(op.Project()).String())
+				values = append(values, c.String())
 			}
 
-			tmpResources[key] = values
+			tmpResources[string(key)] = values
 		}
 
 		renderedResources = tmpResources
@@ -537,6 +567,12 @@ func (op *Operation) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// EntityURL returns the primary entity URL for the Operation.
+// This is used by the LXD shutdown process to determine if it should wait for any operations to complete.
+func (op *Operation) EntityURL() *api.URL {
+	return op.entityURL
 }
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
@@ -636,7 +672,7 @@ func (op *Operation) URL() string {
 }
 
 // Resources returns the operation resources.
-func (op *Operation) Resources() map[string][]api.URL {
+func (op *Operation) Resources() map[entity.Type][]api.URL {
 	return op.resources
 }
 
@@ -668,7 +704,7 @@ func validateMetadata(metadata map[string]any) (map[string]any, error) {
 	}
 
 	// If the entity_url field is used, it must always be a string and must always be a valid URL.
-	entityURLAny, ok := metadata["entity_url"]
+	entityURLAny, ok := metadata[EntityURL]
 	if ok {
 		entityURL, ok := entityURLAny.(string)
 		if !ok {
