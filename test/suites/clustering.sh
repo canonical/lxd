@@ -369,6 +369,8 @@ test_clustering_containers() {
   LXD_DIR="${LXD_THREE_DIR}" lxc delete bar
 
   echo "Copy the container on node2 without specifying a target, using a client connected to non-source node1."
+  # Ensure the source container is on node2
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L foo)" = "node2" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo auto-copy
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c n auto-copy)" = "auto-copy" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L auto-copy)" != "node2" ]
