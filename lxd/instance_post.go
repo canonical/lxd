@@ -30,6 +30,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -734,6 +735,43 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 		return err
 	}
 
+	// Rename the original instance to a temporary name to free up the name slot for the copy.
+	// This avoids deleting the source before the rename completes, which previously could
+	// result in data loss if the rename failed after a non-atomic delete had already
+	// destroyed the source's storage volume.
+	//
+	// The parking name appends "-orig" to the copy's temporary name to avoid collision,
+	// since MoveTemporaryName is deterministic per instance UUID.
+	var srcParkedName string
+	if tempNameRequired {
+		srcParkedName = targetArgs.Name + "-orig"
+
+		err = inst.Rename(srcParkedName, false)
+		if err != nil {
+			// Original couldn't be renamed — it's still intact under its original name.
+			// Clean up the copy.
+			_ = targetInst.Delete(true, "")
+			return fmt.Errorf("Failed parking source instance: %w", err)
+		}
+	}
+
+	// Rename copy from temporary name to the final name now that the name slot is free.
+	if tempNameRequired {
+		err = targetInst.Rename(req.Name, false) // Don't apply templates when moving.
+		if err != nil {
+			// Rollback: rename source back to its original name.
+			rollbackErr := inst.Rename(sourceName, false)
+			if rollbackErr != nil {
+				logger.Error("Failed to rollback source instance rename during move",
+					logger.Ctx{"source": srcParkedName, "target": sourceName, "err": rollbackErr})
+			}
+
+			// Clean up the copy.
+			_ = targetInst.Delete(true, "")
+			return fmt.Errorf("Failed renaming target instance: %w", err)
+		}
+	}
+
 	// Update any permissions relating to the old instance to point to the new instance before it is deleted.
 	// Warnings relating to the old instance will be deleted.
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -745,15 +783,16 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 		return fmt.Errorf("Failed copying instance permissions: %w", err)
 	}
 
-	// Delete original instance.
-	err = inst.Delete(true, "")
-	if err != nil {
-		return err
-	}
-
-	// Rename copy from temporary name to original name if needed.
+	// Delete the parked source instance. This is the last step — if it fails, the move
+	// has already succeeded and the source is left under its temporary name for manual cleanup.
 	if tempNameRequired {
-		err = targetInst.Rename(req.Name, false) // Don't apply templates when moving.
+		err = inst.Delete(true, "")
+		if err != nil {
+			logger.Warn(fmt.Sprintf("Failed to delete parked source instance %q after successful move; manual cleanup required", srcParkedName),
+				logger.Ctx{"source": srcParkedName, "err": err})
+		}
+	} else {
+		err = inst.Delete(true, "")
 		if err != nil {
 			return err
 		}
