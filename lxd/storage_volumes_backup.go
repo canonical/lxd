@@ -286,10 +286,6 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
@@ -453,7 +449,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		},
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -590,10 +586,6 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
@@ -672,7 +664,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		},
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -713,10 +705,6 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
@@ -781,7 +769,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		},
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
