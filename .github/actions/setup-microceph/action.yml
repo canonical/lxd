@@ -1,0 +1,73 @@
+name: Setup MicroCeph
+description: Setup MicroCeph using loop device(s)
+
+inputs:
+  microceph-channel:
+    description: MicroCeph snap channel to install
+    default: "latest/edge"
+    required: false
+  osd-count:
+    description: Number of OSDs to add to MicroCeph
+    default: "1"
+    required: false
+  snap-cache-dir:
+    description: Directory to use for snap cache
+    default: "/home/runner/snap-cache"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup loop devices for OSDs
+      shell: bash
+      id: prepare_disk
+      env:
+        INPUTS_OSD_COUNT: ${{ inputs.osd-count }}
+      run: |
+          set -eux
+
+          # Create one loop device per OSD (5GiB each)
+          disks=()
+          for i in $(seq 1 "${INPUTS_OSD_COUNT}"); do
+            backing_file="$(sudo mktemp -p /mnt microceph.XXXX)"
+            sudo truncate -s 10G "${backing_file}"
+
+            loop_device="$(sudo losetup --show -f "${backing_file}")"
+            disks+=("${loop_device}")
+          done
+
+          echo "ephemeral_disks=${disks[*]}" >> "${GITHUB_OUTPUT}"
+
+    - name: Install MicroCeph snap
+      shell: bash
+      env:
+        SNAP_CACHE_DIR: ${{ inputs.snap-cache-dir }}
+        SNAP_CHANNEL: ${{ inputs.microceph-channel }}
+      run: |
+          set -eux
+          # External repos using this action won't have access to the `test/includes/snap.sh` file
+          # so install directly from the store instead.
+          sudo --preserve-env=SNAP_CACHE_DIR "${GITHUB_ACTION_PATH}/setup-microceph.sh" install-microceph "${SNAP_CHANNEL}"
+
+    - name: Configure MicroCeph snap
+      shell: bash
+      env:
+        EPHEMERAL_DISKS: ${{ steps.prepare_disk.outputs.ephemeral_disks }}
+        INPUTS_OSD_COUNT: ${{ inputs.osd-count }}
+      run: |
+          set -eux
+          read -r -a disks <<< "${EPHEMERAL_DISKS}"
+
+          sudo "${GITHUB_ACTION_PATH}/setup-microceph.sh" configure-microceph "${disks[@]}" "${INPUTS_OSD_COUNT}"
+
+    - name: Install ceph-common package
+      shell: bash
+      run: |
+          set -eux
+          sudo "${GITHUB_ACTION_PATH}/setup-microceph.sh" install-ceph-common
+
+    - name: Wait for MicroCeph to be ready
+      shell: bash
+      run: |
+          set -eux
+          sudo "${GITHUB_ACTION_PATH}/setup-microceph.sh" wait-for-microceph
