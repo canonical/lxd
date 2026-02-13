@@ -677,7 +677,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 				RunHook: opRun,
 			}
 
-			op, err := operations.CreateServerOperation(s, args)
+			op, err := operations.ScheduleServerOperation(s, args)
 			if err != nil {
 				logger.Error("Failed creating instance snapshots expiry operation", logger.Ctx{"err": err})
 			} else {
@@ -709,7 +709,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 				RunHook: opRun,
 			}
 
-			op, err := operations.CreateServerOperation(s, args)
+			op, err := operations.ScheduleServerOperation(s, args)
 			if err != nil {
 				logger.Error("Failed creating scheduled instance snapshot operation", logger.Ctx{"err": err})
 			} else {
