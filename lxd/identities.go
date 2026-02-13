@@ -1606,6 +1606,7 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 		EffectiveGroups:      effectiveGroups,
 		EffectivePermissions: effectivePermissions,
 		FineGrained:          identityType.IsFineGrained(),
+		TokenExpiresAt:       requestor.TokenExpiresAt(),
 	})
 }
 
