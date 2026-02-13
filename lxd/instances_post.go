@@ -162,7 +162,7 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(p.Name).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(p.Name).String(),
 		},
 	}
 
@@ -235,7 +235,7 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
@@ -411,7 +411,7 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
@@ -535,7 +535,7 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 	}
 
 	metadata := sink.Metadata()
-	metadata["entity_url"] = api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String()
+	metadata[operations.EntityURL] = api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String()
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
 		Type:        operationtype.InstanceCreate,
@@ -761,7 +761,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
@@ -1014,7 +1014,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 

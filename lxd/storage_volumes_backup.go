@@ -449,7 +449,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		Resources:   resources,
 		RunHook:     backup,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName).String(),
 		},
 	}
 

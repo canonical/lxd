@@ -49,6 +49,14 @@ func (t OperationClass) String() string {
 	}[t]
 }
 
+const (
+	// EntityURL is set in the operation metadata if the caller requests a resource that might have a generated name.
+	// For example, EntityURL is set on instance creation because a name is generated if one is not provided by the client.
+	// Whereas EntityURL is not set on creation of a custom storage volume, because a name must be provided.
+	// The value corresponding to EntityURL must be a string.
+	EntityURL = "entity_url"
+)
+
 // Init sets the debug value for the operations package.
 func Init(d bool) {
 	debug = d
@@ -696,7 +704,7 @@ func validateMetadata(metadata map[string]any) (map[string]any, error) {
 	}
 
 	// If the entity_url field is used, it must always be a string and must always be a valid URL.
-	entityURLAny, ok := metadata["entity_url"]
+	entityURLAny, ok := metadata[EntityURL]
 	if ok {
 		entityURL, ok := entityURLAny.(string)
 		if !ok {
