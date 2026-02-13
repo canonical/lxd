@@ -627,12 +627,13 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 
 		args := operations.OperationArgs{
 			ProjectName: requestProjectName,
+			EntityURL:   api.NewURL().Path(version.APIVersion, "profiles", details.profileName).Project(details.effectiveProject.Name),
 			Type:        operationtype.ProfileUpdate,
 			Class:       operations.OperationClassTask,
 			RunHook:     run,
 		}
 
-		op, err := operations.CreateUserOperation(s, requestor, args)
+		op, err := operations.CreateUserOperationFromRequest(s, r, args)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -704,18 +705,21 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["profiles"] = []api.URL{*api.NewURL().Path(version.APIVersion, "profiles", details.profileName)}
+	profileURL := api.NewURL().Path(version.APIVersion, "profiles", details.profileName).Project(details.effectiveProject.Name)
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProfile: {*profileURL},
+	}
 
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
+		EntityURL:   profileURL,
 		Type:        operationtype.ProfileUpdate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     run,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -759,10 +763,6 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func profilePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
@@ -851,18 +851,21 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		return doProfileUpdate(ctx, s, details.effectiveProject, details.profileName, profile, req)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["profiles"] = []api.URL{*api.NewURL().Path(version.APIVersion, "profiles", details.profileName)}
+	requestProjectName := request.ProjectParam(r)
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProfile: {*api.NewURL().Path(version.APIVersion, "profiles", details.profileName).Project(details.effectiveProject.Name)},
+	}
 
 	args := operations.OperationArgs{
-		ProjectName: request.ProjectParam(r),
+		ProjectName: requestProjectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "profiles", details.profileName).Project(details.effectiveProject.Name),
 		Type:        operationtype.ProfileUpdate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     run,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

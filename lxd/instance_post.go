@@ -75,10 +75,6 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	<-d.waitReady.Done()
 
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -436,22 +432,21 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return nil
 			}
 
-			resources := map[string][]api.URL{}
-			resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-			if inst.Type() == instancetype.Container {
-				resources["containers"] = resources["instances"]
+			instanceURL := api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)
+			resources := map[entity.Type][]api.URL{
+				entity.TypeInstance: {*instanceURL},
 			}
 
 			args := operations.OperationArgs{
 				ProjectName: projectName,
+				EntityURL:   instanceURL,
 				Type:        operationtype.InstanceMigrate,
 				Class:       operations.OperationClassTask,
 				Resources:   resources,
 				RunHook:     run,
 			}
 
-			op, err := operations.CreateUserOperation(s, requestor, args)
+			op, err := operations.CreateUserOperationFromRequest(s, r, args)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -466,11 +461,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		resources := map[string][]api.URL{}
-		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-		if inst.Type() == instancetype.Container {
-			resources["containers"] = resources["instances"]
+		resources := map[entity.Type][]api.URL{
+			entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
 		}
 
 		run := func(ctx context.Context, op *operations.Operation) error {
@@ -495,13 +487,14 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			// Push mode.
 			args := operations.OperationArgs{
 				ProjectName: projectName,
+				EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 				Type:        operationtype.InstanceMigrate,
 				Class:       operations.OperationClassTask,
 				Resources:   resources,
 				RunHook:     run,
 			}
 
-			op, err := operations.CreateUserOperation(s, requestor, args)
+			op, err := operations.CreateUserOperationFromRequest(s, r, args)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -512,6 +505,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		// Pull mode.
 		args := operations.OperationArgs{
 			ProjectName: projectName,
+			EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 			Type:        operationtype.InstanceMigrate,
 			Class:       operations.OperationClassWebsocket,
 			Resources:   resources,
@@ -520,7 +514,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			ConnectHook: ws.Connect,
 		}
 
-		op, err := operations.CreateUserOperation(s, requestor, args)
+		op, err := operations.CreateUserOperationFromRequest(s, r, args)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -544,22 +538,20 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return inst.Rename(req.Name, true)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.InstanceRename,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     run,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -771,7 +763,7 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 
 // Migrate an instance to another cluster node (supports both local and remote storage).
 // Source and target members must be online.
-func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, req api.InstancePost, targetArgs *db.InstanceArgs, srcMember db.NodeInfo, newMember db.NodeInfo, targetGroupName string) (func(ctx context.Context, op *operations.Operation) error, error) {
+func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, req api.InstancePost, targetArgs *db.InstanceArgs, srcMember db.NodeInfo, newMember db.NodeInfo, targetGroupName string) (func(ctx context.Context, op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 	// Make sure that the source member is online if we end up being called from another member after a
@@ -834,9 +826,9 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 		}
 
 		dest = dest.UseTarget(newMember.Name).UseProject(targetProject)
-
-		resources := map[string][]api.URL{}
-		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", srcInstName)}
+		resources := map[entity.Type][]api.URL{
+			entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", srcInstName).Project(srcInst.Project().Name)},
+		}
 
 		srcInstRunning := srcInst.IsRunning()
 		live := stateful && srcInstRunning
@@ -920,6 +912,7 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 
 		args := operations.OperationArgs{
 			ProjectName: targetProject,
+			EntityURL:   api.NewURL().Path(version.APIVersion, "instances", srcInstName).Project(srcInst.Project().Name),
 			Type:        operationtype.InstanceMigrate,
 			Class:       operations.OperationClassWebsocket,
 			Resources:   resources,
@@ -928,7 +921,7 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 			ConnectHook: srcMigration.Connect,
 		}
 
-		srcOp, err := operations.CreateUserOperation(s, op.Requestor(), args)
+		srcOp, err := operations.CreateUserOperationFromOperation(s, op, args)
 		if err != nil {
 			return err
 		}
@@ -1183,7 +1176,7 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 		return f(ctx, op)
 	}
 
-	f, err := instancePostClusteringMigrate(ctx, s, srcPool, inst, req, targetArgs, srcMember, newMember, targetGroupName)
+	f, err := instancePostClusteringMigrate(s, srcPool, inst, req, targetArgs, srcMember, newMember, targetGroupName)
 	if err != nil {
 		return err
 	}

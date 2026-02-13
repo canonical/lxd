@@ -37,6 +37,7 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
@@ -91,7 +92,7 @@ func ensureDownloadedImageFitWithinBudget(ctx context.Context, s *state.State, o
 	return imgDownloaded, nil
 }
 
-func createFromImage(ctx context.Context, s *state.State, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
+func createFromImage(r *http.Request, s *state.State, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
@@ -99,11 +100,6 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
 		return response.BadRequest(err)
-	}
-
-	requestor, err := request.GetRequestor(ctx)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
@@ -148,25 +144,23 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 		return instanceCreateFinish(s, req, args, nil)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
-
-	if dbType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", p.Name)},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: p.Name,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", p.Name),
 		Type:        operationtype.InstanceCreate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(p.Name).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(p.Name).String(),
 		},
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -174,14 +168,9 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 	return operations.OperationResponse(op)
 }
 
-func createFromNone(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromNone(r *http.Request, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
-	}
-
-	requestor, err := request.GetRequestor(ctx)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -221,25 +210,23 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 		return instanceCreateFinish(s, req, args, nil)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
-
-	if dbType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
 	}
 
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, opArgs)
+	op, err := operations.CreateUserOperationFromRequest(s, r, opArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -247,8 +234,8 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 	return operations.OperationResponse(op)
 }
 
-func createFromMigration(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, isClusterNotification bool) response.Response {
-	requestor, err := request.GetRequestor(ctx)
+func createFromMigration(r *http.Request, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, isClusterNotification bool) response.Response {
+	requestor, err := request.GetRequestor(r.Context())
 	if err == nil {
 		if requestor.CallerProtocol() == "" {
 			return response.SmartError(errors.New("Failed to check request origin: Protocol not set in request context"))
@@ -398,20 +385,18 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
-
-	if dbType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
 	}
 
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
@@ -423,7 +408,7 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 		opArgs.Class = operations.OperationClassTask
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, opArgs)
+	op, err := operations.CreateUserOperationFromRequest(s, r, opArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -434,14 +419,9 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 
 // createFromConversion receives the root disk (container FS or VM block volume) from the client and creates an
 // instance from it. Conversion options also allow the uploaded image to be converted into a raw format.
-func createFromConversion(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromConversion(r *http.Request, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
-	}
-
-	requestor, err := request.GetRequestor(ctx)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Validate migration mode.
@@ -527,17 +507,15 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 		return nil
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
-
-	if dbType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
 	}
 
 	metadata := sink.Metadata()
-	metadata["entity_url"] = api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String()
+	metadata[operations.EntityURL] = api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String()
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
 		Class:       operations.OperationClassWebsocket,
 		Resources:   resources,
@@ -546,7 +524,7 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 		ConnectHook: sink.Connect,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, opArgs)
+	op, err := operations.CreateUserOperationFromRequest(s, r, opArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -555,18 +533,13 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 	return operations.OperationResponse(op)
 }
 
-func createFromCopy(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, targetMemberInfo *db.NodeInfo) response.Response {
+func createFromCopy(r *http.Request, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, targetMemberInfo *db.NodeInfo) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
 
 	if req.Source.Source == "" {
 		return response.BadRequest(errors.New("Must specify a source instance"))
-	}
-
-	requestor, err := request.GetRequestor(ctx)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	sourceProject := req.Source.Project
@@ -597,7 +570,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 
 			if sourcePoolName != destPoolName {
 				// Redirect to migration
-				return clusterCopyContainerInternal(ctx, s, source, projectName, profiles, req)
+				return clusterCopyContainerInternal(r, s, source, projectName, profiles, req)
 			}
 
 			pool, err := storagePools.LoadByName(s, sourcePoolName)
@@ -614,7 +587,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 			// as it's cheaper to perform the copy on the storage array directly without performing migration.
 			if !pool.Driver().Info().Remote {
 				// Redirect to migration
-				return clusterCopyContainerInternal(ctx, s, source, projectName, profiles, req)
+				return clusterCopyContainerInternal(r, s, source, projectName, profiles, req)
 			}
 		}
 	}
@@ -740,32 +713,30 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		return instanceCreateFinish(s, req, args, targetClient)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
+	}
 
 	if shared.IsSnapshot(req.Source.Source) {
 		cName, sName, _ := api.GetParentAndSnapshotName(req.Source.Source)
-		resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", cName, "snapshots", sName)}
+		resources[entity.TypeInstanceSnapshot] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", cName, "snapshots", sName).Project(req.Source.Project)}
 	} else {
-		resources["instances"] = append(resources["instances"], *api.NewURL().Path(version.APIVersion, "instances", req.Source.Source))
-	}
-
-	if dbType == instancetype.Container {
-		resources["containers"] = resources["instances"]
+		resources[entity.TypeInstance] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Source.Source).Project(req.Source.Project)}
 	}
 
 	opArgs := operations.OperationArgs{
 		ProjectName: targetProject,
-		Type:        operationtype.InstanceCreate,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", req.Source.Source).Project(req.Source.Project),
+		Type:        operationtype.InstanceCopy,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, opArgs)
+	op, err := operations.CreateUserOperationFromRequest(s, r, opArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -776,11 +747,6 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 func createFromBackup(s *state.State, r *http.Request, projectName string, data io.Reader, pool string, instanceName string, devices map[string]map[string]string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
-
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	backupsPath := s.BackupsStoragePath(projectName)
 
@@ -1004,21 +970,23 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return instanceCreateFinish(s, &req, db.InstanceArgs{Name: bInfo.Name, Project: bInfo.Project}, nil)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", bInfo.Name)}
+	resources := map[entity.Type][]api.URL{
+		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
+	}
 
 	args := operations.OperationArgs{
 		ProjectName: bInfo.Project,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.BackupRestore,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			"entity_url": api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1540,15 +1508,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case api.SourceTypeImage:
-		return createFromImage(r.Context(), s, *targetProject, profiles, sourceImage, sourceImageRef, &req)
+		return createFromImage(r, s, *targetProject, profiles, sourceImage, sourceImageRef, &req)
 	case api.SourceTypeNone:
-		return createFromNone(r.Context(), s, targetProjectName, profiles, &req)
+		return createFromNone(r, s, targetProjectName, profiles, &req)
 	case api.SourceTypeMigration:
-		return createFromMigration(r.Context(), s, targetProjectName, profiles, &req, clusterNotification)
+		return createFromMigration(r, s, targetProjectName, profiles, &req, clusterNotification)
 	case api.SourceTypeConversion:
-		return createFromConversion(r.Context(), s, targetProjectName, profiles, &req)
+		return createFromConversion(r, s, targetProjectName, profiles, &req)
 	case api.SourceTypeCopy:
-		return createFromCopy(r.Context(), s, targetProjectName, profiles, &req, targetMemberInfo)
+		return createFromCopy(r, s, targetProjectName, profiles, &req, targetMemberInfo)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
@@ -1663,10 +1631,10 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
 }
 
-func clusterCopyContainerInternal(ctx context.Context, s *state.State, source instance.Instance, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func clusterCopyContainerInternal(r *http.Request, s *state.State, source instance.Instance, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	// Locate the source of the container
 	var nodeAddress string
-	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Load source node.
@@ -1686,7 +1654,7 @@ func clusterCopyContainerInternal(ctx context.Context, s *state.State, source in
 	}
 
 	// Connect to the container source
-	client, err := cluster.Connect(ctx, nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	client, err := cluster.Connect(r.Context(), nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1749,7 +1717,7 @@ func clusterCopyContainerInternal(ctx context.Context, s *state.State, source in
 	req.Source.Project = ""
 
 	// Run the migration
-	return createFromMigration(ctx, s, projectName, profiles, req, false)
+	return createFromMigration(r, s, projectName, profiles, req, false)
 }
 
 // instanceCreateFinish finalizes the creation process of an instance by starting it based on

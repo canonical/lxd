@@ -216,10 +216,6 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, joinToken *api
 			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
 		}
 
-		if op.Resources == nil {
-			continue
-		}
-
 		opSecret, ok := op.Metadata["secret"]
 		if !ok {
 			continue
@@ -656,7 +652,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			Metadata:    meta,
 		}
 
-		op, err := operations.CreateUserOperation(s, requestor, args)
+		op, err := operations.CreateUserOperationFromRequest(s, r, args)
 		if err != nil {
 			return response.InternalError(err)
 		}

@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -261,10 +260,6 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -354,23 +349,21 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful, req.DiskVolumesMode)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-	resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name, "snapshots", req.Name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	instanceURL := api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)
+	resources := map[entity.Type][]api.URL{
+		entity.TypeInstance: {*instanceURL},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   instanceURL,
 		Type:        operationtype.SnapshotCreate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     snapshot,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -497,14 +490,9 @@ func snapshotPatch(s *state.State, r *http.Request, snapInst instance.Instance) 
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Validate the ETag
 	etag := []any{snapInst.ExpiryDate()}
-	err = util.EtagCheck(r, etag)
+	err := util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
@@ -564,23 +552,15 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 	opType := operationtype.SnapshotUpdate
 	parentName, snapName, _ := api.GetParentAndSnapshotName(snapInst.Name())
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName)}
-	resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName)}
-
-	if snapInst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: snapInst.Project().Name,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 		Type:        opType,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     do,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -682,11 +662,6 @@ func snapshotGet(s *state.State, _ *http.Request, snapInst instance.Instance) re
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return response.InternalError(err)
@@ -734,12 +709,8 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			return response.SmartError(err)
 		}
 
-		resources := map[string][]api.URL{}
-		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName)}
-		resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName)}
-
-		if snapInst.Type() == instancetype.Container {
-			resources["containers"] = resources["instances"]
+		resources := map[entity.Type][]api.URL{
+			entity.TypeInstanceSnapshot: {*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name)},
 		}
 
 		run := func(ctx context.Context, op *operations.Operation) error {
@@ -750,13 +721,14 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			// Push mode.
 			args := operations.OperationArgs{
 				ProjectName: snapInst.Project().Name,
+				EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 				Type:        operationtype.SnapshotTransfer,
 				Class:       operations.OperationClassTask,
 				Resources:   resources,
 				RunHook:     run,
 			}
 
-			op, err := operations.CreateUserOperation(s, requestor, args)
+			op, err := operations.CreateUserOperationFromRequest(s, r, args)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -767,6 +739,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		// Pull mode.
 		args := operations.OperationArgs{
 			ProjectName: snapInst.Project().Name,
+			EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 			Type:        operationtype.SnapshotTransfer,
 			Class:       operations.OperationClassWebsocket,
 			Resources:   resources,
@@ -775,7 +748,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			ConnectHook: ws.Connect,
 		}
 
-		op, err := operations.CreateUserOperation(s, requestor, args)
+		op, err := operations.CreateUserOperationFromRequest(s, r, args)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -813,23 +786,20 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		return snapInst.Rename(fullName, false)
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName)}
-	resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName)}
-
-	if snapInst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	resources := map[entity.Type][]api.URL{
+		entity.TypeInstanceSnapshot: {*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name)},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: snapInst.Project().Name,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 		Type:        operationtype.SnapshotRename,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     rename,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -869,11 +839,6 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	diskVolumesMode := request.QueryParam(r, "disk-volumes")
 	if diskVolumesMode == "" {
 		diskVolumesMode = api.DiskVolumesModeRoot
@@ -884,24 +849,15 @@ func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance)
 	}
 
 	parentName, snapName, _ := api.GetParentAndSnapshotName(snapInst.Name())
-
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName)}
-	resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName)}
-
-	if snapInst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: snapInst.Project().Name,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 		Type:        operationtype.SnapshotDelete,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     remove,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

@@ -11,7 +11,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -82,8 +81,12 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	var opCreater operations.OperationCreator = func(s *state.State, args operations.OperationArgs) (*operations.Operation, error) {
+		return operations.CreateUserOperationFromRequest(s, r, args)
+	}
+
 	force := shared.IsTrue(r.FormValue("force"))
-	op, err := doInstanceDelete(r.Context(), s, name, projectName, force)
+	op, err := doInstanceDelete(opCreater, s, name, projectName, force)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -95,12 +98,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 // If the instance is running and force is true, the instance is force stopped asynchronously
 // as part of the delete operation. If the instance is running and force is false, the request
 // fails before the operation is created.
-func doInstanceDelete(ctx context.Context, s *state.State, name string, projectName string, force bool) (*operations.Operation, error) {
-	requestor, err := request.GetRequestor(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize instance delete operation: %w", err)
-	}
-
+func doInstanceDelete(opCreater operations.OperationCreator, s *state.State, name string, projectName string, force bool) (*operations.Operation, error) {
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return nil, err
@@ -133,22 +131,15 @@ func doInstanceDelete(ctx context.Context, s *state.State, name string, projectN
 		return inst.Delete(false, "")
 	}
 
-	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.InstanceDelete,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     rmct,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := opCreater(s, args)
 	if err != nil {
 		return nil, err
 	}

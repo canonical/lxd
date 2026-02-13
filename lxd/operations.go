@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -60,59 +61,64 @@ var operationWebsocket = APIEndpoint{
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }
 
-// pendingInstanceOperations returns a map of instance URLs to operations that are currently running.
+// runningInstanceOperations returns a map of project name to map of instance name to list of running operations.
 // This is used to determine if an instance is busy and should not be shut down immediately.
-func pendingInstanceOperations() (map[string]*operations.Operation, error) {
-	// Get all the operations
-	ops := operations.Clone()
-	res := make(map[string]*operations.Operation)
+func runningInstanceOperations() map[string]map[string][]*operations.Operation {
+	res := make(map[string]map[string][]*operations.Operation)
 
+	// function to parse a URL into project an instance name and set the operation if not already present in the map for
+	// that instance.
+	setInstanceOp := func(u url.URL, op *operations.Operation) {
+		_, project, _, pathParts, err := entity.ParseURL(u)
+		if err != nil || len(pathParts) != 1 {
+			logger.Error("Failed to parse operation entity or resource URL during shutdown", logger.Ctx{"err": err, "url": u})
+			return
+		}
+
+		_, ok := res[project]
+		if !ok {
+			res[project] = map[string][]*operations.Operation{
+				pathParts[0]: {op},
+			}
+
+			return
+		}
+
+		alreadySet := slices.ContainsFunc(res[project][pathParts[0]], func(operation *operations.Operation) bool {
+			return op.ID() == operation.ID()
+		})
+
+		if alreadySet {
+			return
+		}
+
+		res[project][pathParts[0]] = append(res[project][pathParts[0]], op)
+	}
+
+	// Collect all running operations that reference an instance.
+	// A single operation may reference multiple instances via resources (e.g. bulk state update).
+	// A single instance may be referenced by multiple operations (e.g. multiple exec websockets).
+	ops := operations.Clone()
 	for _, op := range ops {
-		if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
+		if !op.IsRunning() || op.Class() == operations.OperationClassToken {
 			continue
 		}
 
-		_, opAPI, err := op.Render()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to render an operation while listing all operations: %w", err)
+		if op.Type().EntityType() == entity.TypeInstance {
+			setInstanceOp(op.EntityURL().URL, op)
 		}
 
-		// If the current operations has a hold on some resources, we keep track of them in the `resourceMap`.
-		// This is used to mark instances and storage volumes as busy to avoid shutting them down / unmounting them prematurely.
-		// This avoids the situation where a single very long running operation can block the shutdown of unrelated instances and the unmount of unrelated storage volumes.
-		for resourceName, resourceEntries := range opAPI.Resources {
-			if resourceName != "instances" {
-				continue
-			}
+		resources := op.Resources()
+		if resources == nil {
+			continue
+		}
 
-			for _, rawURL := range resourceEntries {
-				u := api.NewURL()
-				parsedURL, err := u.Parse(rawURL)
-				if err != nil {
-					logger.Warn("Failed to parse raw URL", logger.Ctx{"rawURL": rawURL, "err": err})
-					continue
-				}
-
-				entityType, projectName, location, pathArgs, err := entity.ParseURL(*parsedURL)
-				if err != nil {
-					logger.Warn("Failed to parse URL into a LXD entity", logger.Ctx{"url": parsedURL.String(), "err": err})
-					continue
-				}
-
-				if entityType == entity.TypeInstance {
-					entityURL, err := entityType.URL(projectName, location, pathArgs...)
-					if err != nil {
-						logger.Warn("Failed to generate entity URL", logger.Ctx{"entityType": entityType, "projectName": projectName, "location": location, "pathArgs": pathArgs, "err": err})
-						continue
-					}
-
-					res[entityURL.String()] = op
-				}
-			}
+		for _, instanceURL := range resources[entity.TypeInstance] {
+			setInstanceOp(instanceURL.URL, op)
 		}
 	}
 
-	return res, nil
+	return res
 }
 
 // API functions
@@ -1280,19 +1286,14 @@ type operationWaitPost struct {
 	Duration  string                    `json:"duration" yaml:"duration"`
 	OpClass   operations.OperationClass `json:"op_class" yaml:"op_class"`
 	OpType    operationtype.Type        `json:"op_type" yaml:"op_type"`
-	Resources map[string][]string       `json:"resources" yaml:"resources"`
+	EntityURL string                    `json:"entity_url" yaml:"entity_url"`
 }
 
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
 func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Extract the entity URL and duration from the request.
 	req := operationWaitPost{}
-	err = json.NewDecoder(r.Body).Decode(&req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1301,27 +1302,6 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	duration, err := time.ParseDuration(req.Duration)
 	if err != nil {
 		return response.BadRequest(err)
-	}
-
-	// Extract and validate resources
-	var resources map[string][]api.URL
-	if req.Resources != nil {
-		resources = make(map[string][]api.URL)
-		for resourceType, entityURLs := range req.Resources {
-			for _, entityURL := range entityURLs {
-				parsedURL, err := url.Parse(entityURL)
-				if err != nil {
-					return response.BadRequest(err)
-				}
-
-				_, _, _, _, err = entity.ParseURL(*parsedURL)
-				if err != nil {
-					return response.BadRequest(err)
-				}
-
-				resources[resourceType] = append(resources[resourceType], api.URL{URL: *parsedURL})
-			}
-		}
 	}
 
 	err = operationtype.Validate(req.OpType)
@@ -1340,6 +1320,11 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
+	u, err := url.Parse(req.EntityURL)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Failed parsing operation entity URL: %w", err))
+	}
+
 	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
 	if req.OpClass == operations.OperationClassWebsocket {
 		onConnect = func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
@@ -1352,12 +1337,12 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		ProjectName: request.QueryParam(r, "project"),
 		Type:        req.OpType,
 		Class:       req.OpClass,
-		Resources:   resources,
 		RunHook:     run,
 		ConnectHook: onConnect,
+		EntityURL:   &api.URL{URL: *u},
 	}
 
-	op, err := operations.CreateUserOperation(d.State(), requestor, args)
+	op, err := operations.CreateUserOperationFromRequest(d.State(), r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}

@@ -13,11 +13,13 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
@@ -47,6 +49,14 @@ func (t OperationClass) String() string {
 		OperationClassToken:     api.OperationClassToken,
 	}[t]
 }
+
+const (
+	// EntityURL is set in the operation metadata if the caller requests a resource that might have a generated name.
+	// For example, EntityURL is set on instance creation because a name is generated if one is not provided by the client.
+	// Whereas EntityURL is not set on creation of a custom storage volume, because a name must be provided.
+	// The value corresponding to EntityURL must be a string.
+	EntityURL = "entity_url"
+)
 
 // Init sets the debug value for the operations package.
 func Init(d bool) {
@@ -80,26 +90,27 @@ func OperationGetInternal(id string) (*Operation, error) {
 
 // Operation represents an operation.
 type Operation struct {
-	projectName string
-	id          string
-	class       OperationClass
-	createdAt   time.Time
-	updatedAt   time.Time
-	status      api.StatusCode
-	url         string
-	resources   map[string][]api.URL
-	metadata    map[string]any
-	err         error
-	readonly    bool
-	description string
-	dbOpType    operationtype.Type
-	requestor   *request.Requestor
-	logger      logger.Logger
+	projectName   string
+	id            string
+	class         OperationClass
+	createdAt     time.Time
+	updatedAt     time.Time
+	status        api.StatusCode
+	url           string
+	resources     map[entity.Type][]api.URL
+	entityURL     *api.URL
+	metadata      map[string]any
+	err           error
+	readonly      bool
+	description   string
+	dbOpType      operationtype.Type
+	requestor     *request.Requestor
+	parentRequest *http.Request
+	logger        logger.Logger
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(context.Context, *Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
-	onDone    func(*Operation)
 
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
@@ -118,34 +129,76 @@ type Operation struct {
 
 // OperationArgs contains all the arguments for operation creation.
 type OperationArgs struct {
-	ProjectName string
-	Type        operationtype.Type
-	Class       OperationClass
-	Resources   map[string][]api.URL
-	Metadata    map[string]any
-	RunHook     func(ctx context.Context, op *Operation) error
-	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
+	ProjectName   string
+	Type          operationtype.Type
+	Class         OperationClass
+	EntityURL     *api.URL
+	Resources     map[entity.Type][]api.URL
+	Metadata      map[string]any
+	RunHook       func(ctx context.Context, op *Operation) error
+	ConnectHook   func(op *Operation, r *http.Request, w http.ResponseWriter) error
+	requestor     *request.Requestor
+	parentRequest *http.Request
 }
 
-// CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
-func CreateUserOperation(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
-	if requestor == nil || requestor.OriginAddress() == "" {
-		return nil, errors.New("Cannot create user operation, the requestor must be set")
+// OperationCreator is used as a function argument in scenarios where an operation may be spawned within a request or
+// from within another operation.
+type OperationCreator func(s *state.State, args OperationArgs) (*Operation, error)
+
+// CreateUserOperationFromRequest creates a new [Operation] from the given HTTP request. The request context must
+// contain the requestor as that is used for auditing. The operation will keep a reference to the parent HTTP request
+// until it completes so that it can report success or failure for API metrics.
+func CreateUserOperationFromRequest(s *state.State, r *http.Request, args OperationArgs) (*Operation, error) {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return nil, fmt.Errorf("Cannot create user operation: %w", err)
 	}
 
-	return operationCreate(s, requestor, args)
+	args.requestor = requestor
+	args.parentRequest = r
+	return operationCreate(s, args)
+}
+
+// CreateUserOperationFromOperation creates a new [Operation] from the given operation. The operation must have a
+// requestor as that is used for auditing.
+func CreateUserOperationFromOperation(s *state.State, op *Operation, args OperationArgs) (*Operation, error) {
+	requestor := op.Requestor()
+	if requestor == nil {
+		return nil, errors.New("Cannot create user operation: No requestor present in parent operation")
+	}
+
+	args.requestor = requestor
+	return operationCreate(s, args)
 }
 
 // CreateServerOperation creates a new [Operation] that runs as a server background task.
 func CreateServerOperation(s *state.State, args OperationArgs) (*Operation, error) {
-	return operationCreate(s, nil, args)
+	return operationCreate(s, args)
 }
 
 // operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
-func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+func operationCreate(s *state.State, args OperationArgs) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
+	}
+
+	// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
+	// can be reconstructed from a database record (where it is saved as an entity ID).
+	operationEntityType := args.Type.EntityType()
+	if args.EntityURL != nil {
+		entityType, _, _, _, err := entity.ParseURL(args.EntityURL.URL)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid operation entity URL: %w", err)
+		}
+
+		if entityType != operationEntityType {
+			return nil, fmt.Errorf("Entity type for URL %q does not match operation entity type %q", args.EntityURL, operationEntityType)
+		}
+	} else if operationEntityType != entity.TypeServer {
+		return nil, errors.New("Operation entity URL required")
+	} else {
+		args.EntityURL = entity.ServerURL()
 	}
 
 	// Use a v7 UUID for the operation ID.
@@ -165,11 +218,13 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.updatedAt = op.createdAt
 	op.status = api.OperationCreated
 	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
+	op.entityURL = args.EntityURL
 	op.resources = args.Resources
 	op.finished = cancel.New()
 	op.running = cancel.New()
 	op.state = s
-	op.requestor = requestor
+	op.requestor = args.requestor
+	op.parentRequest = args.parentRequest
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	if s != nil {
@@ -241,11 +296,6 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 	return nil
 }
 
-// SetOnDone sets the operation onDone function that is called after the operation completes.
-func (op *Operation) SetOnDone(f func(*Operation)) {
-	op.onDone = f
-}
-
 // Requestor returns the initial requestor for this operation.
 func (op *Operation) Requestor() *request.Requestor {
 	return op.requestor
@@ -260,10 +310,19 @@ func (op *Operation) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 	return op.requestor.EventLifecycleRequestor()
 }
 
+// statusToMetricsResult converts the operation status to a [metrics.RequestResult].
+func statusToMetricsResult(status api.StatusCode) metrics.RequestResult {
+	switch status {
+	case api.Success, api.Cancelled:
+		return metrics.Success
+	default:
+		return metrics.ErrorServer
+	}
+}
+
 func (op *Operation) done() {
-	if op.onDone != nil {
-		// This can mark the request that spawned this operation as completed for the API metrics.
-		op.onDone(op)
+	if op.parentRequest != nil {
+		metrics.UseMetricsCallback(op.parentRequest, statusToMetricsResult(op.status))
 	}
 
 	if op.readonly {
@@ -481,10 +540,10 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		for key, value := range resources {
 			var values = make([]string, 0, len(value))
 			for _, c := range value {
-				values = append(values, c.Project(op.Project()).String())
+				values = append(values, c.String())
 			}
 
-			tmpResources[key] = values
+			tmpResources[string(key)] = values
 		}
 
 		renderedResources = tmpResources
@@ -537,6 +596,12 @@ func (op *Operation) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// EntityURL returns the primary entity URL for the Operation.
+// This is used by the LXD shutdown process to determine if it should wait for any operations to complete.
+func (op *Operation) EntityURL() *api.URL {
+	return op.entityURL
 }
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
@@ -636,7 +701,7 @@ func (op *Operation) URL() string {
 }
 
 // Resources returns the operation resources.
-func (op *Operation) Resources() map[string][]api.URL {
+func (op *Operation) Resources() map[entity.Type][]api.URL {
 	return op.resources
 }
 
@@ -668,7 +733,7 @@ func validateMetadata(metadata map[string]any) (map[string]any, error) {
 	}
 
 	// If the entity_url field is used, it must always be a string and must always be a valid URL.
-	entityURLAny, ok := metadata["entity_url"]
+	entityURLAny, ok := metadata[EntityURL]
 	if ok {
 		entityURL, ok := entityURLAny.(string)
 		if !ok {
