@@ -281,7 +281,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		clusterDB.NodeID(memberID)
 
 		// Delete any operation tied to this member
-		err = cluster.DeleteOperations(ctx, tx.tx, memberID)
+		err = cluster.DeleteNonDurableOperations(ctx, tx.tx, memberID)
 		if err != nil {
 			return err
 		}

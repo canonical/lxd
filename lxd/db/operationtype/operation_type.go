@@ -87,6 +87,7 @@ const (
 	ClusterMemberRestore
 	CertificateAddToken
 	RemoveOrphanedOperations
+	PruneExpiredDurableOperations
 	RenewServerCertificate
 	RemoveExpiredTokens
 	ClusterHeal
@@ -94,6 +95,7 @@ const (
 	ProfileUpdate
 	VolumeUpdate
 	VolumeDelete
+	Wait
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -230,6 +232,8 @@ func (t Type) Description() string {
 		return "Restoring cluster member"
 	case RemoveOrphanedOperations:
 		return "Remove orphaned operations"
+	case PruneExpiredDurableOperations:
+		return "Pruning expired durable operations"
 	case RenewServerCertificate:
 		return "Renewing server certificate"
 	case RemoveExpiredTokens:
@@ -242,6 +246,8 @@ func (t Type) Description() string {
 		return "Certificate add token"
 	case RemoveExpiredOIDCSessions:
 		return "Removing expired OIDC sessions"
+	case Wait:
+		return "Just chilling"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -258,7 +264,7 @@ func (t Type) EntityType() entity.Type {
 		ImagesSynchronize, RemoveExpiredOIDCSessions, RemoveExpiredTokens, RemoveOrphanedOperations,
 		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
-		ClusterHeal, ImagesUpdate:
+		ClusterHeal, ImagesUpdate, PruneExpiredDurableOperations:
 		return entity.TypeServer
 
 	// Project level operations.
@@ -275,7 +281,8 @@ func (t Type) EntityType() entity.Type {
 	// Instance operations.
 	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
 		InstanceStart, InstanceStop, InstanceRestart, InstanceRename, InstanceMigrate, InstanceLiveMigrate,
-		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate:
+		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate,
+		Wait:
 		return entity.TypeInstance
 
 	// Instance backup operations.
@@ -303,4 +310,22 @@ func (t Type) EntityType() entity.Type {
 	default:
 		return ""
 	}
+}
+
+// ConflictAction returns the action to take if a conflicting operation is already running.
+type ConflictAction int
+
+const (
+	// ConflictActionNone means operation has no conflicts, all operations of this type can run concurrently.
+	ConflictActionNone ConflictAction = iota
+	// ConflictActionFail asks to resolve conflicts by failing to create a new operation if a conflicting operation is already running.
+	ConflictActionFail
+	// ConflictActionWait asks to resolve conflicts by waiting for the conflicting operation to complete before starting a new operation.
+	// TODO not implemented yet.
+	ConflictActionWait
+)
+
+// ConflictAction returns the action to take if a conflicting operation is already running.
+func (t Type) ConflictAction() ConflictAction {
+	return ConflictActionNone
 }
