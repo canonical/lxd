@@ -1433,6 +1433,7 @@ type operationWaitPost struct {
 	OpType            operationtype.Type        `json:"op_type" yaml:"op_type"`
 	EntityURL         string                    `json:"entity_url" yaml:"entity_url"`
 	ConflictReference string                    `json:"conflict_reference" yaml:"conflict_reference"`
+	NumberOfChildren  int                       `json:"number_of_children" yaml:"number_of_children"`
 }
 
 func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
@@ -1515,6 +1516,10 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid operation type code %d", req.OpType))
 	}
 
+	inputsDelay1s := map[string]any{
+		"duration": "1s",
+	}
+
 	inputs := map[string]any{
 		"duration": duration.String(),
 	}
@@ -1522,6 +1527,10 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	u, err := url.Parse(req.EntityURL)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Failed parsing operation entity URL: %w", err))
+	}
+
+	if req.NumberOfChildren > 10 {
+		return response.BadRequest(errors.New("Number of child operations cannot be greater than 10"))
 	}
 
 	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
@@ -1532,7 +1541,30 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	args := operations.OperationArgs{
+	// Create child operations if needed.
+	childrenArgs := make([]*operations.OperationArgs, req.NumberOfChildren)
+	for i := 0; i < req.NumberOfChildren; i++ {
+		// Child operation
+		args := operations.OperationArgs{
+			ProjectName: request.QueryParam(r, "project"),
+			Type:        req.OpType,
+			Class:       req.OpClass,
+			RunHook:     waitHandlerOperationRunHook,
+			ConnectHook: onConnect,
+			EntityURL:   &api.URL{URL: *u},
+			Inputs:      inputs,
+		}
+
+		childrenArgs[i] = &args
+	}
+
+	// If there are child operations, restrict parent duration to only 1s so it ends before any child operation.
+	if req.NumberOfChildren > 0 {
+		inputs = inputsDelay1s
+	}
+
+	// Parent operation
+	parentArgs := operations.OperationArgs{
 		ProjectName:       request.QueryParam(r, "project"),
 		Type:              req.OpType,
 		Class:             req.OpClass,
@@ -1541,15 +1573,20 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		EntityURL:         &api.URL{URL: *u},
 		Inputs:            inputs,
 		ConflictReference: req.ConflictReference,
+		Children:          childrenArgs,
 	}
 
 	// Durable operations have their run hook set in the DurableOperations table.
 	if req.OpClass == operations.OperationClassDurable {
-		args.RunHook = nil
+		for _, args := range childrenArgs {
+			args.RunHook = nil
+		}
+
+		parentArgs.RunHook = nil
 	}
 
 	// Internal APIs don't record metrics, so start a server operation which doesn't use metrics callback.
-	op, err := operations.ScheduleServerOperation(d.State(), args)
+	op, err := operations.ScheduleServerOperation(d.State(), parentArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
