@@ -545,7 +545,9 @@ jobs:
         test:
           - cgroup
           - cloud-init
-          - cluster
+          # Known broken on 24.04 with HWE kernel (used by GHA runners starting on 2026-02-12)
+          # (https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2141715)
+          #- cluster
           - container
           - container-copy
           - container-nesting
