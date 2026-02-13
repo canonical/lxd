@@ -135,6 +135,10 @@ type IdentityInfo struct {
 	// FineGrained is a boolean indicating whether the identity is fine-grained,
 	// meaning that permissions are managed via group membership.
 	FineGrained bool `json:"fine_grained" yaml:"fine_grained"`
+
+	// ExpiresAt is the expiration time of the credential used to authenticate the caller.
+	// It is set only when client is trusted, and authentication method is either bearer or TLS.
+	ExpiresAt *time.Time `json:"expires_at,omitempty" yaml:"expires_at,omitempty"`
 }
 
 // IdentityPut contains the editable fields of an IdentityInfo.
