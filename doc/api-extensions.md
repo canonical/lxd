@@ -2933,3 +2933,12 @@ See {ref}`LXD bearer tokens <authentication-bearer>`.
 
 This introduces support for the {config:option}`instance-resource-limits:limits.max_bus_ports` configuration key for virtual machines. This option controls the maximum allowed number of user configurable devices requiring a dedicated PCI/PCIe port for a virtual machine.
 This number includes both the devices attached before the instance start and the devices hotplugged at runtime.
+
+(extension-project-delete-operation)=
+## `project_delete_operation`
+
+The {ref}`forced project deletion <extension-projects-force-delete>` API extension added support for forcibly deleting a project and all of its contents.
+This can take a long time, but the `DELETE /1.0/projects/{name}` endpoint still returned a synchronous response.
+
+This extension converts this endpoint to an asynchronous operation response.
+As with the {ref}`storage and profile operation extension <extension-storage-and-profile-operations>`, this extension is forward compatible only.
