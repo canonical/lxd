@@ -1798,3 +1798,90 @@ entities_enrichment_with_entitlements() {
 
   lxc auth group permission remove test-group server admin
 }
+
+test_ui_temporary_access_link() {
+  echo "==> Generating temporary UI access link"
+  lxd init --ui-temporary-access-link
+
+  echo "==> Delete admins group and recover it during access link generation"
+  lxc auth group delete admins
+  ! lxc auth group show admins || false
+  lxd init --ui-temporary-access-link
+  lxc auth group show admins
+
+  # Parse UI access URL and bearer token.
+  output=$(lxd init --ui-temporary-access-link)
+  url="https://${output#*https://}"
+  token="${url#*token=}"
+
+  echo "==> Testing temporary UI link access"
+  loginOutput=$(curl -k -i -H "User-Agent: Mozilla" "${url}")
+
+  if ! grep -q "token_bearer_session=" <<< "${loginOutput}"; then
+      echo "Error: Cookie not set when accessing generated temporary UI link"
+      return 1
+  fi
+
+  # Check redirect location
+  if ! grep -i "Location: /ui/" <<< "${loginOutput}"; then
+        echo "Error: Redirect to /ui/ not set when accessing generated temporary UI link"
+        return 1
+  fi
+
+  # Extract the cookie value
+  cookie=$(grep -i "set-cookie: token_bearer_session=" <<< "${loginOutput}" | head -n 1 | sed 's/.*token_bearer_session=\([^;]*\).*/\1/')
+  [ "${cookie}" != "${token}" ] && echo "Error: Cookie value does not match token" && return 1
+
+  echo "==> Testing LXD access with cookie"
+  serverInfoOutput=$(curl -s -k -H "User-Agent: Mozilla" -H "Cookie: token_bearer_session=${cookie}" "https://${LXD_ADDR}/1.0")
+
+  # Ensure we are trusted.
+  if ! echo "${serverInfoOutput}" | jq -e '.metadata.auth == "trusted"'; then
+    echo "Error: Client is not trusted when accessing using token_bearer_session cookie"
+    return 1
+  fi
+
+  # Ensure authentication method is bearer.
+  if ! echo "${serverInfoOutput}" | jq -e '.metadata.auth_user_method == "bearer"'; then
+    echo "Error: Auth method is not bearer when accessing using token_bearer_session cookie"
+    return 1
+  fi
+
+  echo "==> Testing current identity information"
+  currentIdentityOutput=$(curl -s -k -H "User-Agent: Mozilla" -H "Cookie: token_bearer_session=${cookie}" "https://${LXD_ADDR}/1.0/auth/identities/current")
+
+  if ! echo "${currentIdentityOutput}" | jq -e '.metadata.authentication_method == "bearer"'; then
+    echo "Error: Current identity information does not include correct token"
+    return 1
+  fi
+
+  # Ensure token expiry date is set.
+  if ! echo "${currentIdentityOutput}" | jq -e '.metadata.token_expires_at? != null'; then
+    echo "Error: LXD info should include bearer token expiration date"
+    return 1
+  fi
+
+  echo "==> Testing bearer logout"
+  logoutOutput=$(curl -k -i -H "Cookie: token_bearer_session=${cookie}" "https://${LXD_ADDR}/bearer/logout")
+
+  # Ensure bearer logout redirects to the UI login page.
+  if ! grep -i "Location: /ui/login" <<< "${logoutOutput}"; then
+      echo "Error: Redirect to /ui/login not found on logout"
+      return 1
+  fi
+
+  # Ensure an empty cookie is set on logout.
+  if ! grep -i "set-cookie: token_bearer_session=;" <<< "${logoutOutput}"; then
+      echo "Error: Cookie not cleared on logout"
+      return 1
+  fi
+
+  # Ensure cookie max-age is set to 0 on logout.
+  if ! grep -i "Max-Age=0" <<< "${logoutOutput}"; then
+      echo "Error: Cookie Max-Age not set to 0 on logout"
+      return 1
+  fi
+
+  # Cleanup.
+  lxc auth identity delete bearer/ui-admin-temporary
+}
