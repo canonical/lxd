@@ -227,7 +227,14 @@ fine_grained: true"
   # When bearer token is passed using environment variable, it will take precedence over the OIDC/TLS
   # authentication, however, we need HTTPS remote to get the identity info. We simply reuse the remote
   # used for testing TLS authentication.
-  [ "$(LXD_CONF="${LXD_CONF4}" LXD_AUTH_BEARER_TOKEN="${bearer_identity_token}" lxc auth identity info bearer:)" = "${expectedBearerInfo}" ]
+  currentIdentity="$(LXD_CONF="${LXD_CONF4}" LXD_AUTH_BEARER_TOKEN="${bearer_identity_token}" lxc auth identity info bearer:)"
+
+  # Compare result without token expiry, which is non-deterministic.
+  [ "$(printf '%s\n' "${currentIdentity}" | sed '/^expires_at: /d')" = "${expectedBearerInfo}" ]
+
+  # Ensure the expiration date in response has valid format ("YYYY-MM-DDThh:mm:ssZ").
+  tokenExpiresAt="$(printf '%s\n' "${currentIdentity}" | sed -n 's/^expires_at: //p')"
+  [[ "${tokenExpiresAt}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
 
   # Identity permissions.
   ! lxc auth group permission add test-group identity test-user@example.com can_view || false # Missing authentication method
