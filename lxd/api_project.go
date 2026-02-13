@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -227,9 +228,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, apiProjects)
 }
 
-// projectUsedBy returns a list of URLs for all instances, images, profiles,
-// storage volumes, storage buckets, networks, acls, and placement groups that use this project.
-func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Project) ([]string, error) {
+func projectUsedByMap(ctx context.Context, tx *sql.Tx, projectName string) (map[entity.Type]map[int]*api.URL, error) {
 	reportedEntityTypes := []entity.Type{
 		entity.TypeInstance,
 		entity.TypeProfile,
@@ -241,13 +240,29 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Pro
 		entity.TypePlacementGroup,
 	}
 
-	entityURLs, err := dbCluster.GetEntityURLs(ctx, tx.Tx(), project.Name, reportedEntityTypes...)
+	entityURLs, err := dbCluster.GetEntityURLs(ctx, tx, projectName, reportedEntityTypes...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get project used-by URLs: %w", err)
 	}
 
+	return entityURLs, nil
+}
+
+// projectUsedBy returns a list of URLs for all instances, images, profiles,
+// storage volumes, storage buckets, networks, acls, and placement groups that use this project.
+func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Project) ([]string, error) {
+	m, err := projectUsedByMap(ctx, tx.Tx(), project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	return projectUsedByListFromMap(m), nil
+}
+
+// projectUsedByListFromMap takes the output of projectUsedByMap and converts it into a string list for API usage.
+func projectUsedByListFromMap(m map[entity.Type]map[int]*api.URL) []string {
 	var usedBy []string
-	for _, entityIDToURL := range entityURLs {
+	for _, entityIDToURL := range m {
 		for _, u := range entityIDToURL {
 			// Omit the project query parameter if it is the default project.
 			if u.Query().Get("project") == api.ProjectDefaultName {
@@ -260,7 +275,7 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Pro
 		}
 	}
 
-	return usedBy, nil
+	return usedBy
 }
 
 // swagger:operation POST /1.0/projects projects projects_post
@@ -734,8 +749,15 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 
 // isProjectInUse checks if a project is in use by any instances, images, profiles, storage volumes, etc.
 // Only use by a default profile is allowed in an empty project.
-func isProjectInUse(projectUsedBy []string) bool {
-	usedByLen := len(projectUsedBy)
+func isProjectInUse(projectUsedBy []string, skipURLs ...string) bool {
+	filtered := projectUsedBy
+	if len(skipURLs) > 0 {
+		filtered = slices.DeleteFunc(projectUsedBy, func(s string) bool {
+			return slices.Contains(skipURLs, s)
+		})
+	}
+
+	usedByLen := len(filtered)
 	return usedByLen > 1 || (usedByLen == 1 && !strings.Contains(projectUsedBy[0], "/profiles/default"))
 }
 
@@ -1411,20 +1433,7 @@ func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.Clus
 		return false, err
 	}
 
-	if len(skipURLs) > 0 {
-		filtered := make([]string, 0, len(usedBy))
-		for _, u := range usedBy {
-			// Filter out skipURLs.
-			// We use this to skip cached image URLs when checking if a project is empty in [projectDelete].
-			if !slices.Contains(skipURLs, u) {
-				filtered = append(filtered, u)
-			}
-		}
-
-		usedBy = filtered
-	}
-
-	if isProjectInUse(usedBy) {
+	if isProjectInUse(usedBy, skipURLs...) {
 		return false, nil
 	}
 
