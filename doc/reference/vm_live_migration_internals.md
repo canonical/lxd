@@ -5,7 +5,7 @@ discourse: "[Online&#32;VM&#32;live-migration&#32;(QEMU&#32;to&#32;QEMU)](50734)
 (vm-live-migration-internals)=
 # VM live migration implementation
 
-{ref}`live-migration-vms` in LXD is achieved by streaming instance state from a source {abbr}`QEMU (Quick Emulator)` to a target QEMU. VM live migration is supported for all storage pool types.
+{ref}`live-migration` in LXD is achieved by streaming instance state from a source {abbr}`QEMU (Quick Emulator)` to a target QEMU. VM live migration is supported for all storage pool types.
 
 API extension: `migration_vm_live`
 
