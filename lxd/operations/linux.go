@@ -25,27 +25,28 @@ func registerDBOperation(op *Operation) error {
 		return nil
 	}
 
-	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64) (int64, error) {
 		// Conflict reference should only be provided for operation types that support conflicts.
 		if op.dbOpType.ConflictAction() == operationtype.ConflictActionNone && op.conflictReference != "" {
-			return fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())
+			return 0, fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())
 		}
 
 		opInfo := cluster.Operation{
 			UUID:              op.id,
 			Type:              op.dbOpType,
 			NodeID:            tx.GetNodeID(),
-			Class:             (int64)(op.class),
+			Class:             int64(op.class),
 			CreatedAt:         op.createdAt,
 			UpdatedAt:         op.updatedAt,
 			Status:            int64(op.Status()),
+			Parent:            parentOpID,
 			ConflictReference: op.conflictReference,
 		}
 
 		if op.projectName != "" {
 			projectID, err := cluster.GetProjectID(ctx, tx.Tx(), op.projectName)
 			if err != nil {
-				return fmt.Errorf("Fetch project ID: %w", err)
+				return 0, fmt.Errorf("Failed fetching project ID: %w", err)
 			}
 
 			opInfo.ProjectID = &projectID
@@ -70,11 +71,11 @@ func registerDBOperation(op *Operation) error {
 		if op.entityURL != nil {
 			entityReference, err := cluster.GetEntityReferenceFromURL(ctx, tx.Tx(), op.entityURL)
 			if err != nil {
-				return fmt.Errorf("Failed fetching entity reference: %w", err)
+				return 0, fmt.Errorf("Failed fetching entity reference: %w", err)
 			}
 
 			if entityReference.EntityType != cluster.EntityType(op.dbOpType.EntityType()) {
-				return fmt.Errorf("Entity type %q does not match operation type's entity type %q", entityReference.EntityType, op.dbOpType.EntityType())
+				return 0, fmt.Errorf("Entity type %q does not match operation type's entity type %q", entityReference.EntityType, op.dbOpType.EntityType())
 			}
 
 			opInfo.EntityID = entityReference.EntityID
@@ -82,19 +83,34 @@ func registerDBOperation(op *Operation) error {
 
 		inputsJSON, err := json.Marshal(op.inputs)
 		if err != nil {
-			return fmt.Errorf("Failed marshalling operation inputs: %w", err)
+			return 0, fmt.Errorf("Failed marshalling operation inputs: %w", err)
 		}
 
 		opInfo.Inputs = string(inputsJSON)
 
 		metadataJSON, err := json.Marshal(op.metadata)
 		if err != nil {
-			return fmt.Errorf("Failed marshalling operation metadata: %w", err)
+			return 0, fmt.Errorf("Failed marshalling operation metadata: %w", err)
 		}
 
 		opInfo.Metadata = string(metadataJSON)
 
 		dbOpID, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+		if err != nil {
+			return 0, err
+		}
+
+		err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
+		if err != nil {
+			return 0, err
+		}
+
+		return dbOpID, nil
+	}
+
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Create parent operation record.
+		parentOpID, err := registerSingleOperation(ctx, tx, op, nil)
 		if err != nil {
 			// The operations table has unique index on uuid, and confiditional unique index on conflict_reference.
 			// Conflict on generated uuid is higly unlikely, so conflicts will most likely happen due to conflict on conflict_reference.
@@ -106,12 +122,14 @@ func registerDBOperation(op *Operation) error {
 			return err
 		}
 
-		err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
-		if err != nil {
-			return err
+		for _, childOp := range op.children {
+			_, err := registerSingleOperation(ctx, tx, childOp, &parentOpID)
+			if err != nil {
+				return err
+			}
 		}
 
-		return err
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("Failed creating %q operation record: %w", op.dbOpType.Description(), err)
@@ -174,6 +192,7 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 		running:     cancel.New(),
 		state:       s,
 		location:    dbOp.Location,
+		children:    make([]*Operation, 0),
 	}
 
 	if dbOp.Error != "" {

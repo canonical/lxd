@@ -542,6 +542,11 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, dbOp := range dbOps {
+			// Omit child operations.
+			if dbOp.Parent != nil {
+				continue
+			}
+
 			// Get operation project name if it has one.
 			operationProject := ""
 			if dbOp.ProjectID != nil {
