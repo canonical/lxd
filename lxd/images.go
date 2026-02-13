@@ -1292,7 +1292,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			"public":     req.Public,
 		}
 
-		return createTokenResponse(s, r, dbProject.Name, req.Source.Fingerprint, metadata)
+		return createImageTokenResponse(s, r, dbProject.Name, req.Source.Fingerprint, metadata, operationtype.ImageUploadToken)
 	}
 
 	if !imageUpload && !slices.Contains([]string{"container", "instance", "virtual-machine", "snapshot", "image", "url"}, req.Source.Type) {
@@ -4824,7 +4824,7 @@ func imageSecret(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return createTokenResponse(s, r, projectName, details.image.Fingerprint, nil)
+	return createImageTokenResponse(s, r, projectName, details.image.Fingerprint, nil, operationtype.ImageDownloadToken)
 }
 
 func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprint string) error {
@@ -5223,7 +5223,7 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 	return nil
 }
 
-func createTokenResponse(s *state.State, r *http.Request, projectName string, fingerprint string, metadata shared.Jmap) response.Response {
+func createImageTokenResponse(s *state.State, r *http.Request, projectName string, fingerprint string, metadata shared.Jmap, tokenType operationtype.Type) response.Response {
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
@@ -5239,13 +5239,27 @@ func createTokenResponse(s *state.State, r *http.Request, projectName string, fi
 	maps.Copy(meta, metadata)
 
 	meta["secret"] = secret
+	meta["fingerprint"] = fingerprint
 
-	resources := map[string][]api.URL{}
-	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", fingerprint)}
+	// If downloading an image, the image is the primary entity.
+	// If uploading an image, the project is the primary entity.
+	resources := make(map[entity.Type][]api.URL)
+	var entityURL *api.URL
+	switch tokenType {
+	case operationtype.ImageUploadToken:
+		entityURL = api.NewURL().Path(version.APIVersion, "projects", projectName)
+		resources[entity.TypeProject] = []api.URL{*entityURL}
+	case operationtype.ImageDownloadToken:
+		entityURL = api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(projectName)
+		resources[entity.TypeImage] = []api.URL{*entityURL}
+	default:
+		return response.SmartError(errors.New("Not an image token operation type"))
+	}
 
 	args := operations.OperationArgs{
 		ProjectName: projectName,
-		Type:        operationtype.ImageToken,
+		EntityURL:   entityURL,
+		Type:        tokenType,
 		Class:       operations.OperationClassToken,
 		Resources:   resources,
 		Metadata:    meta,
