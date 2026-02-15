@@ -1169,6 +1169,11 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 		return nil, nil
 	}
 
+	// Always return nil if the volume has security.shared enabled, allowing it to be attached to multiple instances across cluster members.
+	if shared.IsTrue(vol.Config["security.shared"]) {
+		return nil, nil
+	}
+
 	// Find if volume is attached to a remote instance.
 	var remoteInstance *db.InstanceArgs
 	err = VolumeUsedByInstanceDevices(s, poolName, projectName, vol, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
