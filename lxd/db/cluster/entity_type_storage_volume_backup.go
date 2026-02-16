@@ -71,7 +71,7 @@ WHERE projects.name = ?
 		WHEN %d THEN '%s' 
 	END = ? 
 	AND storage_volumes.name = ? 
-	AND storage_volumes_backups.name = ?
+	AND storage_volumes_backups.name = concat(storage_volumes.name, '/', ?)
 `, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeNameContainer,
 		StoragePoolVolumeTypeImage, StoragePoolVolumeTypeNameImage,
 		StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeNameCustom,
