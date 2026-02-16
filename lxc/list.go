@@ -26,6 +26,8 @@ type column struct {
 	Data           columnData
 	NeedsState     bool
 	NeedsSnapshots bool
+	NeedsDisk      bool
+	NeedsNetwork   bool
 }
 
 type columnData func(api.InstanceFull) string
@@ -486,16 +488,42 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if needsData && d.HasExtension("container_full") {
-		// Using the GetInstancesFull shortcut
 		var instances []api.InstanceFull
 
 		serverFilters, clientFilters := getServerSupportedFilters(filters, api.InstanceFull{})
 
-		if c.flagAllProjects {
-			instances, err = d.GetInstancesFullAllProjectsWithFilter(api.InstanceTypeAny, serverFilters)
-		} else {
-			instances, err = d.GetInstancesFullWithFilter(api.InstanceTypeAny, serverFilters)
+		// Determine which state fields are needed based on requested columns.
+		var recursionFields []string
+		if d.HasExtension("instances_state_selective_recursion") {
+			needsDisk := false
+			needsNetwork := false
+
+			for _, col := range columns {
+				if col.NeedsDisk {
+					needsDisk = true
+				}
+
+				if col.NeedsNetwork {
+					needsNetwork = true
+				}
+			}
+
+			if needsDisk {
+				recursionFields = append(recursionFields, "state.disk")
+			}
+
+			if needsNetwork {
+				recursionFields = append(recursionFields, "state.network")
+			}
 		}
+
+		// Use the unified GetInstancesFull API.
+		instances, err = d.GetInstancesFull(lxd.GetInstancesFullArgs{
+			InstanceType: api.InstanceTypeAny,
+			Filters:      serverFilters,
+			AllProjects:  c.flagAllProjects,
+			Fields:       recursionFields,
+		})
 
 		if err != nil {
 			return err
@@ -534,27 +562,27 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 
 func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	columnsShorthandMap := map[rune]column{
-		'4': {"IPV4", c.ipv4ColumnData, true, false},
-		'6': {"IPV6", c.ipv6ColumnData, true, false},
-		'a': {"ARCHITECTURE", c.architectureColumnData, false, false},
-		'b': {"STORAGE POOL", c.storagePoolColumnData, false, false},
-		'c': {"CREATED AT", c.createdColumnData, false, false},
-		'd': {"DESCRIPTION", c.descriptionColumnData, false, false},
-		'D': {"DISK USAGE", c.diskUsageColumnData, true, false},
-		'e': {"PROJECT", c.projectColumnData, false, false},
-		'f': {"BASE IMAGE", c.baseImageColumnData, false, false},
-		'F': {"BASE IMAGE", c.baseImageFullColumnData, false, false},
-		'l': {"LAST USED AT", c.lastUsedColumnData, false, false},
-		'm': {"MEMORY USAGE", c.memoryUsageColumnData, true, false},
-		'M': {"MEMORY USAGE%", c.memoryUsagePercentColumnData, true, false},
-		'n': {"NAME", c.nameColumnData, false, false},
-		'N': {"PROCESSES", c.numberOfProcessesColumnData, true, false},
-		'p': {"PID", c.pidColumnData, true, false},
-		'P': {"PROFILES", c.profilesColumnData, false, false},
-		'S': {"SNAPSHOTS", c.numberSnapshotsColumnData, false, true},
-		's': {"STATE", c.statusColumnData, false, false},
-		't': {"TYPE", c.typeColumnData, false, false},
-		'u': {"CPU USAGE", c.cpuUsageSecondsColumnData, true, false},
+		'4': {"IPV4", c.ipv4ColumnData, true, false, false, true},
+		'6': {"IPV6", c.ipv6ColumnData, true, false, false, true},
+		'a': {"ARCHITECTURE", c.architectureColumnData, false, false, false, false},
+		'b': {"STORAGE POOL", c.storagePoolColumnData, false, false, false, false},
+		'c': {"CREATED AT", c.createdColumnData, false, false, false, false},
+		'd': {"DESCRIPTION", c.descriptionColumnData, false, false, false, false},
+		'D': {"DISK USAGE", c.diskUsageColumnData, true, false, true, false},
+		'e': {"PROJECT", c.projectColumnData, false, false, false, false},
+		'f': {"BASE IMAGE", c.baseImageColumnData, false, false, false, false},
+		'F': {"BASE IMAGE", c.baseImageFullColumnData, false, false, false, false},
+		'l': {"LAST USED AT", c.lastUsedColumnData, false, false, false, false},
+		'm': {"MEMORY USAGE", c.memoryUsageColumnData, true, false, false, false},
+		'M': {"MEMORY USAGE%", c.memoryUsagePercentColumnData, true, false, false, false},
+		'n': {"NAME", c.nameColumnData, false, false, false, false},
+		'N': {"PROCESSES", c.numberOfProcessesColumnData, true, false, false, false},
+		'p': {"PID", c.pidColumnData, true, false, false, false},
+		'P': {"PROFILES", c.profilesColumnData, false, false, false, false},
+		'S': {"SNAPSHOTS", c.numberSnapshotsColumnData, false, true, false, false},
+		's': {"STATE", c.statusColumnData, false, false, false, false},
+		't': {"TYPE", c.typeColumnData, false, false, false, false},
+		'u': {"CPU USAGE", c.cpuUsageSecondsColumnData, true, false, false, false},
 	}
 
 	// Add project column if --all-projects flag specified and
@@ -580,7 +608,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 
 	if clustered {
 		columnsShorthandMap['L'] = column{
-			"LOCATION", c.locationColumnData, false, false}
+			"LOCATION", c.locationColumnData, false, false, false, false}
 	} else {
 		if c.flagColumns != defaultColumns && c.flagColumns != defaultColumnsAllProjects {
 			if strings.ContainsAny(c.flagColumns, "L") {

@@ -12537,12 +12537,22 @@ paths:
                 Gets a specific instance (full struct).
 
                 recursion=1 also includes information about state, snapshots and backups.
+
+                Selective recursion is supported using bracket notation in the recursion parameter:
+                recursion=[state.disk,state.network] to fetch only specific state fields.
+                Valid fields are: state.disk, state.network.
+                Use recursion=[] to fetch instance data without any state fields.
             operationId: instance_get_recursion1
             parameters:
                 - description: Project name
                   example: default
                   in: query
                   name: project
+                  type: string
+                - description: Recursion level (0, 1) or selective recursion ([state.disk,state.network])
+                  example: 1
+                  in: query
+                  name: recursion
                   type: string
             produces:
                 - application/json
@@ -12567,6 +12577,8 @@ paths:
                                 example: sync
                                 type: string
                         type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
                 "500":
@@ -12650,6 +12662,11 @@ paths:
                   in: query
                   name: all-projects
                   type: boolean
+                - description: Recursion level (0, 1, 2)
+                  example: 2
+                  in: query
+                  name: recursion
+                  type: string
             produces:
                 - application/json
             responses:
@@ -12676,6 +12693,8 @@ paths:
                                 example: sync
                                 type: string
                         type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
                 "500":

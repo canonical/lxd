@@ -67,6 +67,11 @@ import (
 //
 //	recursion=1 also includes information about state, snapshots and backups.
 //
+//	Selective recursion is supported using bracket notation in the recursion parameter:
+//	recursion=[state.disk,state.network] to fetch only specific state fields.
+//	Valid fields are: state.disk, state.network.
+//	Use recursion=[] to fetch instance data without any state fields.
+//
 //	---
 //	produces:
 //	  - application/json
@@ -76,6 +81,11 @@ import (
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: recursion
+//	    description: Recursion level (0, 1) or selective recursion ([state.disk,state.network])
+//	    type: string
+//	    example: 1
 //	responses:
 //	  "200":
 //	    description: Instance
@@ -97,6 +107,8 @@ import (
 //	          example: 200
 //	        metadata:
 //	          $ref: "#/definitions/Instance"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
@@ -119,8 +131,21 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
-	// Parse the recursion field
 	recursive := util.IsRecursionRequest(r)
+
+	recursionStr := r.FormValue("recursion")
+
+	// Get fields parameter (can have multiple values)
+	fields := r.URL.Query()["fields"]
+
+	recursionLevel, stateOpts, err := instance.ParseRecursionFields(recursionStr, fields)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	if recursionLevel >= 1 {
+		recursive = true
+	}
 
 	// Detect if we want to also return entitlements for each instance.
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstance, false)
@@ -155,7 +180,7 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 		state, etag, err = c.Render()
 	} else {
 		hostInterfaces, _ := net.Interfaces()
-		state, etag, err = c.RenderFull(hostInterfaces)
+		state, etag, err = c.RenderFull(hostInterfaces, stateOpts)
 	}
 
 	if err != nil {

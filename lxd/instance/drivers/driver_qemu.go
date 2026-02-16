@@ -8172,7 +8172,7 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 }
 
 // RenderFull returns all info about the instance.
-func (d *qemu) RenderFull(_ []net.Interface) (*api.InstanceFull, any, error) {
+func (d *qemu) RenderFull(_ []net.Interface, opts ...instance.StateRenderOptions) (*api.InstanceFull, any, error) {
 	if d.IsSnapshot() {
 		return nil, nil, errors.New("RenderFull doesn't work with snapshots")
 	}
@@ -8186,8 +8186,8 @@ func (d *qemu) RenderFull(_ []net.Interface) (*api.InstanceFull, any, error) {
 	// Convert to InstanceFull.
 	vmState := api.InstanceFull{Instance: *base.(*api.Instance)}
 
-	// Add the InstanceState.
-	vmState.State, err = d.renderState(vmState.StatusCode)
+	// Add the InstanceState (pass through opts).
+	vmState.State, err = d.renderState(vmState.StatusCode, opts...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -8231,8 +8231,14 @@ func (d *qemu) RenderFull(_ []net.Interface) (*api.InstanceFull, any, error) {
 }
 
 // renderState returns just state info about the instance.
-func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error) {
+func (d *qemu) renderState(statusCode api.StatusCode, opts ...instance.StateRenderOptions) (*api.InstanceState, error) {
 	var err error
+
+	// Determine which fields to include
+	options := instance.DefaultStateRenderOptions()
+	if len(opts) > 0 {
+		options = opts[0]
+	}
 
 	status := &api.InstanceState{}
 	pid, _ := d.pid()
@@ -8250,40 +8256,59 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 				status = &api.InstanceState{}
 				status.Processes = -1
 
-				status.Network, err = d.getNetworkState()
-				if err != nil {
-					return nil, err
+				if options.IncludeNetwork {
+					status.Network, err = d.getNetworkState()
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					status.Network = nil
+				}
+			} else {
+				// Agent returned state - apply selective recursion filtering
+				if !options.IncludeNetwork {
+					status.Network = nil
+				}
+
+				if !options.IncludeDisk {
+					status.Disk = nil
 				}
 			}
 		} else {
 			status.Processes = -1
 
-			status.Network, err = d.getNetworkState()
-			if err != nil {
-				return nil, err
+			if options.IncludeNetwork {
+				status.Network, err = d.getNetworkState()
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				status.Network = nil
 			}
 		}
 
-		// Populate host_name for network devices.
-		for k, m := range d.ExpandedDevices() {
-			// We only care about nics.
-			if m["type"] != "nic" {
-				continue
-			}
+		// Populate host_name for network devices (only if network is included).
+		if options.IncludeNetwork && status.Network != nil {
+			for k, m := range d.ExpandedDevices() {
+				// We only care about nics.
+				if m["type"] != "nic" {
+					continue
+				}
 
-			// Get hwaddr from static or volatile config.
-			hwaddr := m["hwaddr"]
-			if hwaddr == "" {
-				hwaddr = d.localConfig["volatile."+k+".hwaddr"]
-			}
+				// Get hwaddr from static or volatile config.
+				hwaddr := m["hwaddr"]
+				if hwaddr == "" {
+					hwaddr = d.localConfig["volatile."+k+".hwaddr"]
+				}
 
-			// We have to match on hwaddr as device name can be different from the configured device
-			// name when reported from the lxd-agent inside the VM (due to the guest OS choosing name).
-			for netName, netStatus := range status.Network {
-				if netStatus.Hwaddr == hwaddr {
-					if netStatus.HostName == "" {
-						netStatus.HostName = d.localConfig["volatile."+k+".host_name"]
-						status.Network[netName] = netStatus
+				// We have to match on hwaddr as device name can be different from the configured device
+				// name when reported from the lxd-agent inside the VM (due to the guest OS choosing name).
+				for netName, netStatus := range status.Network {
+					if netStatus.Hwaddr == hwaddr {
+						if netStatus.HostName == "" {
+							netStatus.HostName = d.localConfig["volatile."+k+".host_name"]
+							status.Network[netName] = netStatus
+						}
 					}
 				}
 			}
@@ -8293,17 +8318,23 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 	status.Pid = int64(pid)
 	status.Status = statusCode.String()
 	status.StatusCode = statusCode
-	status.Disk, err = d.diskState()
-	if err != nil && !errors.Is(err, storageDrivers.ErrNotSupported) {
-		d.logger.Info("Unable to get disk usage", logger.Ctx{"err": err})
+
+	// Disk - conditionally fetch (expensive operation)
+	if options.IncludeDisk {
+		status.Disk, err = d.diskState()
+		if err != nil && !errors.Is(err, storageDrivers.ErrNotSupported) {
+			d.logger.Info("Unable to get disk usage", logger.Ctx{"err": err})
+		}
+	} else {
+		status.Disk = nil
 	}
 
 	return status, nil
 }
 
 // RenderState returns just state info about the instance.
-func (d *qemu) RenderState(_ []net.Interface) (*api.InstanceState, error) {
-	return d.renderState(d.statusCode())
+func (d *qemu) RenderState(_ []net.Interface, opts ...instance.StateRenderOptions) (*api.InstanceState, error) {
+	return d.renderState(d.statusCode(), opts...)
 }
 
 // diskState gets disk usage info.
