@@ -569,10 +569,14 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 					}
 				}
 
+				// Get expiration date of the matched certificate.
+				certExpiresAt := peerCertificates[matchedFingerprint].NotAfter
+
 				return &request.RequestorArgs{
-					Trusted:  trusted,
-					Protocol: protocol,
-					Username: matchedFingerprint,
+					Trusted:   trusted,
+					Protocol:  protocol,
+					Username:  matchedFingerprint,
+					ExpiresAt: &certExpiresAt,
 				}, nil
 			}
 
