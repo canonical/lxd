@@ -2197,6 +2197,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	// If the driver doesn't support optimized image volumes or the optimized image volume should not be used,
 	// create a new empty volume and populate it with the contents of the image archive.
 	if !useOptimizedImage {
+		l.Debug("Not using optimized image path")
 		volFiller := drivers.VolumeFiller{
 			Fingerprint: fingerprint,
 			Fill:        b.imageFiller(fingerprint, op, inst.Project().Name),
@@ -4399,13 +4400,15 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation, p
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, api.ProjectDefaultName, image.Fingerprint, "", drivers.VolumeTypeImage, false, imgVol.Config(), time.Now().UTC(), time.Time{}, contentType, false, false)
-	if err != nil {
-		return err
-	}
+	// Validate config and create database entry for new storage volume (if it doesn't already exist).
+	if imgDBVol == nil {
+		err = VolumeDBCreate(b, api.ProjectDefaultName, image.Fingerprint, "", drivers.VolumeTypeImage, false, imgVol.Config(), time.Now().UTC(), time.Time{}, contentType, false, false)
+		if err != nil {
+			return err
+		}
 
-	revert.Add(func() { _ = VolumeDBDelete(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage) })
+		revert.Add(func() { _ = VolumeDBDelete(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage) })
+	}
 
 	err = b.driver.CreateVolume(imgVol, &volFiller, op)
 	if err != nil {
@@ -4434,12 +4437,51 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation, p
 // It returns true if the volume config aligns with the pool's default configuration, and an optimized image does
 // not exist or also matches the pool's default configuration.
 func (b *lxdBackend) shouldUseOptimizedImage(fingerprint string, contentType drivers.ContentType, volConfig map[string]string) (bool, error) {
-	canOptimizeImage := b.driver.Info().OptimizedImages
-
 	// If the volume config is empty, the default pool configuration is used, making the driver's support
 	// for optimized images the determining factor. However, an optimized image cannot be utilized if the
 	// driver lacks support for it.
-	if !canOptimizeImage || len(volConfig) == 0 {
+
+	l := b.logger.AddContext(logger.Ctx{"fingerprint": fingerprint})
+	canOptimizeImage := b.driver.Info().OptimizedImages
+
+	if !canOptimizeImage {
+		return canOptimizeImage, nil
+	}
+
+	// For ZFS with empty volConfig: check if pool config differs from existing image
+	if b.driver.Info().Name == "zfs" && len(volConfig) == 0 {
+		imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage)
+		if err != nil && !response.IsNotFoundError(err) {
+			return false, err
+		}
+
+		if imgDBVol != nil {
+			existingImgVol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
+
+			poolDefaultVol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+			err = b.Driver().FillVolumeConfig(poolDefaultVol)
+			if err != nil {
+				return false, err
+			}
+
+			if !volumeConfigsMatch(existingImgVol, poolDefaultVol) {
+				return false, nil
+			}
+
+			// Even if configs match, check if the specific variant exists on disk.
+			volExists, err := b.driver.HasVolume(poolDefaultVol)
+			if err != nil {
+				return false, err
+			}
+
+			if !volExists {
+				return false, nil
+			}
+		}
+	}
+
+	// If the volume config is empty, the default pool configuration is used
+	if len(volConfig) == 0 {
 		return canOptimizeImage, nil
 	}
 
@@ -4459,6 +4501,7 @@ func (b *lxdBackend) shouldUseOptimizedImage(fingerprint string, contentType dri
 
 	// If the new volume's config doesn't match the pool's default configuration, don't use an optimized image.
 	if !volumeConfigsMatch(newImgVol, poolDefaultImgVol) {
+		l.Debug("ZFS: pool config differs from existing image, using slow path")
 		return false, nil
 	}
 

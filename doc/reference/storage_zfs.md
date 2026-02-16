@@ -55,6 +55,52 @@ Then use the following commands to make sure that trimming is automatically enab
     zpool set autotrim=on ZPOOL-NAME
     zpool trim ZPOOL-NAME
 
+(storage-zfs-image-variants)=
+### Image variants and optimized instance creation
+
+The ZFS driver in LXD implements an optimization mechanism called *image variants* that significantly improves instance creation performance.
+When creating an instance from an image, LXD can clone the instance from a pre-unpacked image variant instead of unpacking the image from scratch, making instance creation nearly instantaneous.
+
+#### How image variants work
+
+LXD maintains multiple versions of the same image with different storage configurations:
+
+- **Base variant** (dataset mode): A {spellexception}`ZFS filesystem` dataset created when {config:option}`storage-zfs-volume-conf:zfs.block_mode` is `false`.
+- **Block-backed variants**: ZFS volumes with specific filesystems (ext4, btrfs, xfs) created when {config:option}`storage-zfs-volume-conf:zfs.block_mode` is `true`.
+
+Each variant is stored with a naming convention: `<pool>/images/<fingerprint>` for the base variant, and `<pool>/images/<fingerprint>_<filesystem>` for block-backed variants (for example, `pool/images/abc123_ext4`).
+
+#### Variant lifecycle
+
+Variants are created lazily on-demand when an instance requests a configuration that doesn't match existing variants.
+Each variant includes a `@readonly` snapshot that serves as the clone source for new instances.
+
+When you delete an image:
+- If instances are still using a variant, it's moved to `<pool>/deleted/images/` (soft deletion).
+- If no instances use the variant, it's permanently deleted.
+- When the last instance using a soft-deleted variant is removed, the variant is permanently deleted.
+
+When you change pool configuration (for example, switching from dataset mode to block mode):
+- LXD automatically scans for variants that no longer match the new configuration.
+- Variants without active clones that don't match the new pool defaults are automatically deleted.
+- Variants with active clones are preserved regardless of configuration changes.
+
+#### Configuration
+
+To optimize instance creation, ensure your instances use configurations that match your pool defaults:
+
+- **Pool default**: Set {config:option}`storage-zfs-volume-conf:zfs.block_mode` and {config:option}`storage-zfs-volume-conf:block.filesystem` at the pool level (using the `volume.` prefix) at pool creation.
+- **Instance override**: Use `initial.zfs.block_mode` and `initial.block.filesystem` device configuration for instances requiring different settings.
+
+Changing pool configuration frequently can reduce optimization benefits, as variants may need to be recreated.
+
+#### Performance benefits
+
+Using image variants provides:
+- Near-instantaneous instance creation (typically < 1 second vs. 10-30 seconds for traditional unpacking).
+- Minimal disk I/O during instance creation (metadata operations only).
+- Copy-on-write space efficiency (instances initially share data with the image variant).
+
 (storage-zfs-limitations)=
 ### Limitations
 
