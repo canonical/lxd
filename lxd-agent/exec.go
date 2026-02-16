@@ -143,7 +143,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		ConnectHook: ws.Connect,
 	}
 
-	op, err := operations.CreateServerOperation(nil, args)
+	op, err := operations.ScheduleServerOperation(nil, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
