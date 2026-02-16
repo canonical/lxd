@@ -365,6 +365,9 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     snapshot,
+		Metadata: map[string]any{
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", name, "snapshots", req.Name).Project(projectName).String(),
+		},
 	}
 
 	op, err := operations.CreateUserOperation(s, requestor, args)

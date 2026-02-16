@@ -1945,7 +1945,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation, p
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
 					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpacking image", percent, 0, speed)
-					_ = op.UpdateMetadata(metadata)
+					_ = op.ExtendMetadata(metadata)
 				}}
 		}
 
