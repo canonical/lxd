@@ -1929,7 +1929,7 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 		ProjectName: request.ProjectParam(r),
 		Type:        operationtype.VolumeMove,
 		Class:       operations.OperationClassTask,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, req.Name).Project(projectName),
+		EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, vol.Name).Project(projectName),
 		RunHook:     run,
 	}
 
