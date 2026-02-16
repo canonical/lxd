@@ -1290,6 +1290,27 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			// Identify source member to be able to forward the request to the source in case the request
 			// was made on a different cluster member and the type is copy.
 			if s.ServerClustered && !clusterNotification && req.Source.Type == api.SourceTypeCopy {
+				// When performing a copy with refresh, don't trigger another placement but instead
+				// populate the targetMemberInfo based on the target instance's location.
+				// This ensures the instance isn't moved across the cluster after refresh and
+				// we don't try to identify a different eligible cluster member.
+				if req.Source.Refresh {
+					targetInst, err := instance.LoadInstanceDatabaseObject(ctx, tx, targetProjectName, req.Name)
+					if err != nil {
+						return fmt.Errorf("Failed loading target instance %q", req.Name)
+					}
+
+					for _, member := range allMembers {
+						if member.Name == targetInst.Node {
+							targetMemberInfo = &member
+						}
+					}
+
+					if targetMemberInfo == nil {
+						return fmt.Errorf("Failed finding target cluster member %q", targetInst.Node)
+					}
+				}
+
 				for _, member := range allMembers {
 					if member.Name == sourceInst.Node {
 						sourceMemberInfo = &member
@@ -1297,7 +1318,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 
 				if sourceMemberInfo == nil {
-					return fmt.Errorf("Failed to find source cluster member %q", sourceInst.Node)
+					return fmt.Errorf("Failed finding source cluster member %q", sourceInst.Node)
 				}
 
 				// Exit the transaction early and indicate we have to forward the request to the source.
