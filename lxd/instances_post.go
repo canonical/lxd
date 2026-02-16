@@ -743,7 +743,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		}
 
 		// Actually create the instance.
-		_, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
+		targetInst, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
 			sourceInstance: source,
 			targetInstance: args,
 			// We keep the ContainerOnly for backward compatibility.
@@ -760,7 +760,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		revert.Success()
 
 		// Move the instance in case it's not yet at its requested target.
-		if s.ServerClustered && targetMemberInfo != nil && targetMemberInfo.Name != s.ServerName {
+		if s.ServerClustered && targetMemberInfo != nil && targetInst.Location() != targetMemberInfo.Name {
 			logger.Debug("Migrate instance to final target after copy", logger.Ctx{"local": s.ServerName, "target": targetMemberInfo.Name, "targetAddress": targetMemberInfo.Address})
 
 			// At this stage we move the entire instance with all of its snapshots.
