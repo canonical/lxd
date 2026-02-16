@@ -206,7 +206,6 @@ fine_grained: true"
 
   [ "$(LXD_CONF="${LXD_CONF2}" lxc auth identity info tls:)" = "${expectedTLSInfo}" ]
 
-  # Need heredoc to retain double quotes for empty TLS certificate.
   expectedBearerInfo="authentication_method: bearer
 type: Client token bearer
 id: ${bearer_identity_id}
