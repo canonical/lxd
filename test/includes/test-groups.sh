@@ -136,6 +136,7 @@ readonly test_group_standalone=(
     "fdleak"
     "filtering"
     "get_operations"
+    "instances_selective_recursion"
     "kernel_limits"
     "lxd_user"
     "metrics"
