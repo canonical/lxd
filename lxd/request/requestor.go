@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"time"
 
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared"
@@ -30,6 +31,10 @@ type RequestorArgs struct {
 	// Protocol is the caller protocol. If the request was forwarded this may be the certificate fingerprint of another
 	// cluster member. It is only set if the Trusted is true.
 	Protocol string
+
+	// TokenExpiresAt is the expiry of the token used to authenticate the caller. It is only set if the Trusted is true
+	// and the authentication method is [api.AuthenticationMethodBearer].
+	TokenExpiresAt *time.Time
 
 	// IdentityProviderGroups contains identity provider groups. These are only set if the caller protocol is
 	// [api.AuthenticationMethodOIDC]. They are centrally defined groups that may map to LXD groups via identity
@@ -56,6 +61,7 @@ type Requestor struct {
 	mappedAuthGroups                []string
 	projects                        []string
 	identityType                    identity.Type
+	tokenExpiresAt                  *time.Time
 }
 
 // IsClusterNotification returns true if this an API request coming from a
@@ -81,6 +87,12 @@ func (r *Requestor) IsAdmin() bool {
 	}
 
 	return r.identityType.IsAdmin()
+}
+
+// TokenExpiresAt returns the expiration date of the bearer token used to authenticate the caller.
+// Returns nil if the caller is not authenticated using a bearer token.
+func (r *Requestor) TokenExpiresAt() *time.Time {
+	return r.tokenExpiresAt
 }
 
 // OriginAddress returns the original address of the caller.
@@ -319,6 +331,7 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 		protocol:               args.Protocol,
 		identityProviderGroups: args.IdentityProviderGroups,
 		clientType:             clientType,
+		tokenExpiresAt:         args.TokenExpiresAt,
 	}
 
 	err := r.setForwardingDetails(req)

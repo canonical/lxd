@@ -5,15 +5,19 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -26,12 +30,13 @@ type cmdInit struct {
 	flagPreseed bool
 	flagDump    bool
 
-	flagNetworkAddress  string
-	flagNetworkPort     int64
-	flagStorageBackend  string
-	flagStorageDevice   string
-	flagStorageLoopSize int
-	flagStoragePool     string
+	flagNetworkAddress        string
+	flagNetworkPort           int64
+	flagStorageBackend        string
+	flagStorageDevice         string
+	flagStorageLoopSize       int
+	flagStoragePool           string
+	flagUITemporaryAccessLink bool
 
 	hostname string
 }
@@ -45,11 +50,16 @@ func (c *cmdInit) Command() *cobra.Command {
   Configure the LXD daemon
 `
 	cmd.Example = `  init --minimal
-  init --auto [--network-address=IP] [--network-port=8443] [--storage-backend=dir]
-              [--storage-create-device=DEVICE] [--storage-create-loop=SIZE]
+  init --auto [--network-address=IP]
+              [--network-port=8443]
+              [--storage-backend=dir]
+              [--storage-create-device=DEVICE]
+              [--storage-create-loop=SIZE]
               [--storage-pool=POOL]
+              [--ui-temporary-access-link]
   init --preseed
   init --dump
+  init --ui-temporary-access-link
 `
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagAuto, "auto", false, "Automatic (non-interactive) mode")
@@ -63,6 +73,7 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagStorageDevice, "storage-create-device", "", cli.FormatStringFlagLabel("Setup device based storage using DEVICE"))
 	cmd.Flags().IntVar(&c.flagStorageLoopSize, "storage-create-loop", -1, "Setup loop based storage with SIZE in GiB")
 	cmd.Flags().StringVar(&c.flagStoragePool, "storage-pool", "", cli.FormatStringFlagLabel("Storage pool to use or create"))
+	cmd.Flags().BoolVar(&c.flagUITemporaryAccessLink, "ui-temporary-access-link", false, "Generate the URL for accessing LXD UI temporarily")
 
 	return cmd
 }
@@ -80,6 +91,10 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 
 	if c.flagMinimal && c.flagAuto {
 		return errors.New("Can't use --minimal and --auto together")
+	}
+
+	if c.flagUITemporaryAccessLink && (c.flagPreseed || c.flagDump || c.flagMinimal) {
+		return errors.New("Can't use --ui-temporary-access-link with --preseed, --dump, or --minimal")
 	}
 
 	if !c.flagAuto && (c.flagNetworkAddress != "" || c.flagNetworkPort != -1 ||
@@ -105,6 +120,12 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	server, _, err := d.GetServer()
 	if err != nil {
 		return fmt.Errorf("Failed to connect to get LXD server info: %w", err)
+	}
+
+	// If UI temporary access link flag is set, but auto mode is not enabled,
+	// generate the link and exit.
+	if c.flagUITemporaryAccessLink && !c.flagAuto {
+		return c.createUITemporaryAccessLink(d)
 	}
 
 	// Dump mode
@@ -240,6 +261,13 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.flagUITemporaryAccessLink {
+		err = c.createUITemporaryAccessLink(d)
+		if err != nil {
+			return err
+		}
+	}
+
 	revert.Success()
 	return nil
 }
@@ -257,4 +285,114 @@ func (c *cmdInit) defaultHostname() string {
 
 	c.hostname = hostName
 	return hostName
+}
+
+func (c *cmdInit) createUITemporaryAccessLink(d lxd.InstanceServer) error {
+	// Refresh server info.
+	server, _, err := d.GetServer()
+	if err != nil {
+		return fmt.Errorf("Failed to refresh LXD server info: %w", err)
+	}
+
+	var serverAddress string
+	if len(server.Environment.Addresses) > 0 {
+		serverAddress = server.Environment.Addresses[0]
+	}
+
+	if serverAddress == "" {
+		return errors.New("LXD server address is not set, can't create UI temporary access link")
+	}
+
+	uiAdminIdentityName := "ui-admin-temporary"
+	uiAdminIdentityGroup := "admins"
+	uiAdminIdentityGroupDesc := "Server administrators"
+	uiAdminIdentityGroupPerm := api.Permission{
+		Entitlement:     string(auth.EntitlementAdmin),
+		EntityType:      entity.TypeServer.String(),
+		EntityReference: "/" + version.APIVersion,
+	}
+
+	// Ensure admins group exists and has the expected permissions.
+	adminsGroup, etag, err := d.GetAuthGroup(uiAdminIdentityGroup)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed to check for existing temporary UI identity: %w", err)
+	}
+
+	if adminsGroup == nil {
+		// Create group if it doesn't exist.
+		adminsGroupReq := api.AuthGroupsPost{
+			AuthGroupPost: api.AuthGroupPost{
+				Name: uiAdminIdentityGroup,
+			},
+			AuthGroupPut: api.AuthGroupPut{
+				Description: uiAdminIdentityGroupDesc,
+				Permissions: []api.Permission{uiAdminIdentityGroupPerm},
+			},
+		}
+
+		err := d.CreateAuthGroup(adminsGroupReq)
+		if err != nil {
+			return fmt.Errorf("Failed to create admin auth group: %w", err)
+		}
+	} else if len(adminsGroup.Permissions) != 1 ||
+		adminsGroup.Permissions[0].Entitlement != uiAdminIdentityGroupPerm.Entitlement ||
+		adminsGroup.Permissions[0].EntityType != uiAdminIdentityGroupPerm.EntityType ||
+		adminsGroup.Permissions[0].EntityReference != uiAdminIdentityGroupPerm.EntityReference {
+		// Ensure admins group has the correct permissions.
+		adminsGroupReq := api.AuthGroupPut{
+			Description: uiAdminIdentityGroupDesc,
+			Permissions: []api.Permission{uiAdminIdentityGroupPerm},
+		}
+
+		err := d.UpdateAuthGroup(uiAdminIdentityGroup, adminsGroupReq, etag)
+		if err != nil {
+			return fmt.Errorf("Failed to update admin auth group: %w", err)
+		}
+	}
+
+	// Check if identity already exists.
+	uiAdminIdentity, etag, err := d.GetIdentity(api.AuthenticationMethodBearer, uiAdminIdentityName)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed to check for existing temporary UI identity: %w", err)
+	}
+
+	if uiAdminIdentity == nil {
+		// Create identity if it doesn't exist.
+		uiAdminIdentityReq := api.IdentitiesBearerPost{
+			Name:   uiAdminIdentityName,
+			Type:   api.IdentityTypeBearerTokenClient,
+			Groups: []string{uiAdminIdentityGroup},
+		}
+
+		err := d.CreateIdentityBearer(uiAdminIdentityReq)
+		if err != nil {
+			return fmt.Errorf("Failed to create temporary UI identity: %w", err)
+		}
+	} else if len(uiAdminIdentity.Groups) != 1 || uiAdminIdentity.Groups[0] != uiAdminIdentityGroup {
+		// Ensure identity is part of group admins.
+		uiAdminIdentityReq := api.IdentityPut{
+			Groups: []string{uiAdminIdentityGroup},
+		}
+
+		err := d.UpdateIdentity(api.AuthenticationMethodBearer, uiAdminIdentityName, uiAdminIdentityReq, etag)
+		if err != nil {
+			return fmt.Errorf("Failed to update temporary UI identity: %w", err)
+		}
+	}
+
+	// Issue bearer token for the identity (validity 1 day).
+	tokenRequest := api.IdentityBearerTokenPost{
+		Expiry: "1d",
+	}
+
+	token, err := d.IssueBearerIdentityToken(uiAdminIdentityName, tokenRequest)
+	if err != nil {
+		return fmt.Errorf("Failed to issue bearer token for temporary UI access link: %w", err)
+	}
+
+	tokenExpiry := time.Now().Add(24 * time.Hour).Format("2006-01-02 15:04")
+	uiAccessLink := api.NewURL().Scheme("https").Host(serverAddress).WithQuery("token", token.Token)
+	fmt.Println("UI temporary identity (type: Client token bearer): " + uiAdminIdentityName)
+	fmt.Println("UI temporary access link (expires: " + tokenExpiry + "): " + uiAccessLink.String())
+	return nil
 }

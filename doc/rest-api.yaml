@@ -948,6 +948,11 @@ definitions:
                     API extension: access_management_tls.
                 type: string
                 x-go-name: TLSCertificate
+            token_expires_at:
+                description: TokenExpiresAt is the time at which the token for a bearer identity will expire.
+                format: date-time
+                type: string
+                x-go-name: TokenExpiresAt
             type:
                 description: Type is the type of identity.
                 example: oidc-service-account

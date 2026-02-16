@@ -623,6 +623,13 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 
 	// Check if the caller has a bearer token.
 	isBearerRequest, token, subject := bearer.IsAPIRequest(r, d.globalConfig.ClusterUUID())
+	if !isBearerRequest {
+		// The bearer token is not included in the authorization header.
+		// Check if the caller has a cookie with a bearer token, which is
+		// the case when the user is logged into the UI using a bearer token.
+		isBearerRequest, token, subject = bearer.IsCookieRequest(r, d.globalConfig.ClusterUUID())
+	}
+
 	if isBearerRequest {
 		bearerRequestor, err := bearer.Authenticate(token, subject, d.identityCache)
 		if err != nil {
