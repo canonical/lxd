@@ -1217,7 +1217,7 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 		return nil
 	}
 
-	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Source.Type, req.Source.Name).Project(req.Source.Project)
+	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Source.Type, req.Source.Name).Project(srcProjectName)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		Type:        operationtype.VolumeCopy,
@@ -1272,7 +1272,7 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		}
 	} else {
 		opType = operationtype.VolumeCopy
-		sourceVolumeURL := entity.StorageVolumeURL(req.Source.Project, req.Source.Location, req.Source.Pool, req.Source.Type, req.Source.Name)
+		sourceVolumeURL := entity.StorageVolumeURL(srcProjectName, req.Source.Location, req.Source.Pool, req.Source.Type, req.Source.Name)
 		resources[entity.TypeStorageVolume] = []api.URL{*sourceVolumeURL}
 		resources[entity.TypeProject] = []api.URL{*projectURL}
 		entityURL = sourceVolumeURL
