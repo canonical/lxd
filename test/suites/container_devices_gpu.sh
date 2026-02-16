@@ -114,6 +114,17 @@ gpu_verify_nvidia_mounts() {
   lxc exec "${ctName}" -- mount | grep -wF /dev/nvidia-uvm
   lxc exec "${ctName}" -- mount | grep -wF /dev/nvidia-uvm-tools
   lxc exec "${ctName}" -- mount | grep -wF /dev/nvidiactl
+
+  # Verify ldconfig configuration exists
+  lxc exec "${ctName}" -- test -f /etc/ld.so.conf.d/00-lxdcdi.conf
+
+  # Verify the CDI library paths are in the config
+  lxc exec "${ctName}" -- grep -q "/usr/lib" /etc/ld.so.conf.d/00-lxdcdi.conf
+
+  # Verify key NVIDIA libraries are accessible (mounted via CDI)
+  lxc exec "${ctName}" -- test -f /usr/lib/x86_64-linux-gnu/libcuda.so.1 || \
+    lxc exec "${ctName}" -- test -f /usr/lib64/libcuda.so.1 || \
+    lxc exec "${ctName}" -- test -f /usr/lib/libcuda.so.1
 }
 
 gpu_run_nvidia_tests() {
@@ -133,26 +144,23 @@ gpu_run_nvidia_tests() {
     return
   fi
 
-  # Check the Nvidia specific devices are mounted correctly.
+  # The instance is stopped.
   lxc stop -f "${ctName}"
+  lxc config device add "${ctName}" gpu-cdi-stopped gpu id=nvidia.com/gpu=0
+  lxc start "${ctName}"
+  gpu_verify_nvidia_mounts "${ctName}"
+  lxc stop -f "${ctName}"
+  lxc config device remove "${ctName}" gpu-cdi-stopped
+  lxc start "${ctName}"
+
+  # The instance is running (hot plugging).
   lxc config device add "${ctName}" gpu-cdi gpu id=nvidia.com/gpu=0
-  lxc start "${ctName}"
-
   gpu_verify_nvidia_mounts "${ctName}"
-
-  lxc stop -f "${ctName}"
   lxc config device remove "${ctName}" gpu-cdi
-  lxc start "${ctName}"
 
-  lxc stop -f "${ctName}"
-  lxc config device add "${ctName}" gpu-cdi gpu id=nvidia.com/gpu=all
-  lxc start "${ctName}"
-
+  lxc config device add "${ctName}" gpu-cdi-all gpu id=nvidia.com/gpu=all
   gpu_verify_nvidia_mounts "${ctName}"
-
-  lxc stop -f "${ctName}"
-  lxc config device remove "${ctName}" gpu-cdi
-  lxc start "${ctName}"
+  lxc config device remove "${ctName}" gpu-cdi-all
 }
 
 gpu_run_amd_tests() {
@@ -171,41 +179,47 @@ gpu_run_amd_tests() {
     return
   fi
 
-  lxc stop -f "${ctName}"
-  lxc config device add "${ctName}" gpu-amd gpu id=amd.com/gpu=0
-  lxc start "${ctName}"
-
-  lxc exec "${ctName}" -- mount | grep -wF /dev/kfd
-  lxc exec "${ctName}" -- mount | grep -wF "${amdDeviceName}"
-
   hostKfdUid="$(stat -c '%u' /dev/kfd)"
   hostKfdGid="$(stat -c '%g' /dev/kfd)"
-
-  [ "$(lxc exec "${ctName}" -- stat -c '%u' /dev/kfd)" = "${hostKfdUid}" ]
-  [ "$(lxc exec "${ctName}" -- stat -c '%g' /dev/kfd)" = "${hostKfdGid}" ]
-
   hostCardUid="$(stat -c '%u' /dev/dri/"${amdDeviceName}")"
   hostCardGid="$(stat -c '%g' /dev/dri/"${amdDeviceName}")"
 
-  [ "$(lxc exec "${ctName}" -- stat -c '%u' /dev/dri/"${amdDeviceName}")" = "${hostCardUid}" ]
-  [ "$(lxc exec "${ctName}" -- stat -c '%g' /dev/dri/"${amdDeviceName}")" = "${hostCardGid}" ]
-
-  lxc restart "${ctName}"
-
+  # The instance is stopped.
   lxc stop -f "${ctName}"
-  lxc config device remove "${ctName}" gpu-amd
-  lxc start "${ctName}"
-
-  lxc stop -f "${ctName}"
-  lxc config device add "${ctName}" gpu-amd gpu id=amd.com/gpu=all
+  lxc config device add "${ctName}" gpu-amd-stopped gpu id=amd.com/gpu=0
   lxc start "${ctName}"
 
   lxc exec "${ctName}" -- mount | grep -wF /dev/kfd
   lxc exec "${ctName}" -- mount | grep -wF "${amdDeviceName}"
 
+  [ "$(lxc exec "${ctName}" -- stat -c '%u' /dev/kfd)" = "${hostKfdUid}" ]
+  [ "$(lxc exec "${ctName}" -- stat -c '%g' /dev/kfd)" = "${hostKfdGid}" ]
+  [ "$(lxc exec "${ctName}" -- stat -c '%u' /dev/dri/"${amdDeviceName}")" = "${hostCardUid}" ]
+  [ "$(lxc exec "${ctName}" -- stat -c '%g' /dev/dri/"${amdDeviceName}")" = "${hostCardGid}" ]
+
   lxc stop -f "${ctName}"
-  lxc config device remove "${ctName}" gpu-amd
+  lxc config device remove "${ctName}" gpu-amd-stopped
   lxc start "${ctName}"
+
+  # The instance is running (hot plugging).
+  lxc config device add "${ctName}" gpu-amd gpu id=amd.com/gpu=0
+
+  lxc exec "${ctName}" -- mount | grep -wF /dev/kfd
+  lxc exec "${ctName}" -- mount | grep -wF "${amdDeviceName}"
+
+  [ "$(lxc exec "${ctName}" -- stat -c '%u' /dev/kfd)" = "${hostKfdUid}" ]
+  [ "$(lxc exec "${ctName}" -- stat -c '%g' /dev/kfd)" = "${hostKfdGid}" ]
+  [ "$(lxc exec "${ctName}" -- stat -c '%u' /dev/dri/"${amdDeviceName}")" = "${hostCardUid}" ]
+  [ "$(lxc exec "${ctName}" -- stat -c '%g' /dev/dri/"${amdDeviceName}")" = "${hostCardGid}" ]
+
+  lxc config device remove "${ctName}" gpu-amd
+
+  lxc config device add "${ctName}" gpu-amd-all gpu id=amd.com/gpu=all
+
+  lxc exec "${ctName}" -- mount | grep -wF /dev/kfd
+  lxc exec "${ctName}" -- mount | grep -wF "${amdDeviceName}"
+
+  lxc config device remove "${ctName}" gpu-amd-all
 }
 
 test_container_devices_gpu() {
