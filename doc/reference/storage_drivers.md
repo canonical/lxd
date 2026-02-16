@@ -1,20 +1,84 @@
 ---
 relatedlinks: "[Benchmarking&#32;LXD&#32;storage&#32;drivers&#32;-&#32;YouTube](https://www.youtube.com/watch?v=z_OKwO5TskA)"
+myst:
+  html_meta:
+    description: Overview of LXD storage drivers, with feature comparison tables for local and non-local drivers and descriptions of their features.
 ---
 
 (storage-drivers)=
 # Storage drivers
 
-LXD supports several storage drivers for storing images, instances and custom volumes.
+LXD supports several storage drivers for storing images, instances, and custom volumes. Where possible, LXD uses the advanced features of each driver to optimize operations.
 
-Storage drivers are divided into subgroups based on their accessibility.
-See the corresponding pages for driver-specific information and configuration options.
+Storage drivers are divided into local and non-local storage, based on their accessibility.
+
+(storage-drivers-features)=
+## Feature comparison
+
+Legend: ✅ supported, ❌ not supported, ➖ not applicable
+
+(storage-drivers-features-local)=
+### Local storage features
+
+Feature                                     | Directory | Btrfs | LVM   | ZFS
+:---                                        | :---      | :---  | :---  | :---
+{ref}`storage-optimized-image-storage`      | ❌        | ✅   | ✅     | ✅
+{ref}`storage-optimized-instance-creation`  | ❌        | ✅   | ✅     | ✅
+{ref}`storage-optimized-snapshot-creation`  | ❌        | ✅   | ✅     | ✅
+{ref}`storage-optimized-backup`             | ❌        | ✅   | ❌     | ✅
+{ref}`storage-optimized-volume-transfer`    | ❌        | ✅   | ❌     | ✅
+{ref}`storage-optimized-volume-refresh`     | ❌        | ✅   | ✅[^1] | ✅
+{ref}`storage-copy-on-write`                | ❌        | ✅   | ✅     | ✅
+{ref}`storage-block-based`                  | ❌        | ❌   | ✅     | ❌
+{ref}`storage-instant-cloning`              | ❌        | ✅   | ✅     | ✅
+{ref}`storage-driver-usable-in-container`   | ✅        | ✅   | ❌     | ✅[^2]
+{ref}`storage-restore-older-snapshots`      | ✅        | ✅   | ✅     | ❌
+{ref}`storage-quotas`                       | ✅[^3]    | ✅   | ✅     | ✅
+{ref}`storage-available-init`               | ✅        | ✅   | ✅     | ✅
+{ref}`storage-object-storage`               | ✅        | ✅   | ✅     | ✅
+{ref}`storage-volume-recovery`              | ✅        | ✅   | ✅     | ✅
+
+[^1]: Requires {config:option}`storage-lvm-pool-conf:lvm.use_thinpool` to be enabled. Only when refreshing local volumes.
+[^2]: Requires {config:option}`storage-zfs-volume-conf:zfs.delegate` to be enabled.
+[^3]: % Include content from [storage_dir.md](storage_dir.md)
+
+      ```{include} storage_dir.md
+         :start-after: <!-- Include start dir quotas -->
+         :end-before: <!-- Include end dir quotas -->
+      ```
+
+(storage-drivers-features-nonlocal)=
+### Non-local storage features
+
+Feature                                     | Ceph RBD | CephFS | Ceph Object | Dell PowerFlex | Pure Storage | HPE Alletra
+:---                                        | :---     | :---   | :---        | :---           | :---         | :---
+{ref}`storage-optimized-image-storage`      | ✅       | ➖     | ➖          | ❌              | ✅          | ✅
+{ref}`storage-optimized-instance-creation`  | ✅       | ➖     | ➖          | ❌              | ✅          | ✅
+{ref}`storage-optimized-snapshot-creation`  | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
+{ref}`storage-optimized-backup`             | ❌       | ➖     | ➖          | ❌              | ❌          | ❌
+{ref}`storage-optimized-volume-transfer`    | ✅[^4]   | ➖     | ➖          | ❌              | ❌          | ❌
+{ref}`storage-optimized-volume-refresh`     | ✅[^5]   | ➖     | ➖          | ❌              | ✅[^6]      | ✅[^6]
+{ref}`storage-copy-on-write`                | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
+{ref}`storage-block-based`                  | ✅       | ❌     | ➖          | ✅              | ✅          | ✅
+{ref}`storage-instant-cloning`              | ✅       | ✅     | ➖          | ❌              | ✅          | ❌
+{ref}`storage-driver-usable-in-container`   | ❌       | ➖     | ➖          | ❌              | ❌          | ❌
+{ref}`storage-restore-older-snapshots`      | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
+{ref}`storage-quotas`                       | ✅       | ✅     | ✅          | ✅              | ✅          | ✅
+{ref}`storage-available-init`               | ✅       | ❌     | ❌          | ❌              | ❌          | ❌
+{ref}`storage-object-storage`               | ❌       | ❌     | ✅          | ❌              | ❌          | ❌
+{ref}`storage-volume-recovery`              | ✅       | ✅     | ✅          | ✅[^7]          | ✅[^7]      | ❌
+
+[^4]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
+[^5]: Only for volumes of type `block`.
+[^6]: Only when refreshing volumes on the same LXD server using the same storage array.
+[^7]: Custom volumes can only be recovered when attached to an instance due to the use of transformed volume names.
+
+For driver-specific information and configuration options, see the pages for the individual drivers, linked below.
 
 (storage-drivers-local)=
 ## Local
 
-A local volume resides on the storage pool of a single LXD server and is only accessible to instances running on that server.
-In a cluster, other members cannot access local volumes directly.
+LXD provides drivers for the following types of local storage:
 
 ```{toctree}
 :maxdepth: 1
@@ -25,11 +89,17 @@ storage_lvm
 storage_zfs
 ```
 
-(storage-drivers-remote)=
-## Remote
+A local volume resides on the storage pool of a single LXD server and is only accessible to instances running on that server. In a cluster, other members cannot access local volumes directly.
 
-A remote volume is stored on a storage backend that supports cluster-wide access.
-These volumes can be attached or detached from any instance in the cluster, but they cannot be accessed concurrently by multiple instances.
+(storage-drivers-nonlocal)=
+## Non-local
+
+LXD supports three categories of non-local storage drivers, described below.
+
+(storage-drivers-remote)=
+### Remote
+
+LXD provides drivers for the following types of remote storage:
 
 ```{toctree}
 :maxdepth: 1
@@ -40,11 +110,14 @@ storage_pure
 storage_alletra
 ```
 
-(storage-drivers-shared)=
-## Shared
+A remote volume is stored on a storage backend that supports cluster-wide access. It is a block volume rather than a shared file system. A remote volume can be attached from any cluster member, but concurrent access by multiple instances or members is not allowed by default and not considered safe. Even when concurrent attachment is allowed (for example, with the volume's `security.shared` option enabled), it can still risk data corruption.
 
-A shared filesystem volume can be mounted concurrently by multiple instances, allowing them to read and write simultaneously.
-Like remote volumes, shared volumes are accessible cluster-wide.
+Compared to local storage, remote pools make {ref}`instance migration <howto-instances-migrate>` faster because the instance’s root volume can be re-attached from another cluster member without copying the disk data. With local storage, the root disk must be transferred over the network during migration, which takes more time.
+
+(storage-drivers-shared)=
+### Shared
+
+LXD provides the following driver for shared storage:
 
 ```{toctree}
 :maxdepth: 1
@@ -52,12 +125,12 @@ Like remote volumes, shared volumes are accessible cluster-wide.
 storage_cephfs
 ```
 
-(storage-drivers-objectonly)=
-## Object storage
+Like remote volumes, shared volumes are accessible cluster-wide. Unlike remote volumes, shared volumes can be mounted concurrently by multiple instances or cluster members while remaining safe for concurrent access. Shared pools only support custom filesystem volumes; they cannot host instance root volumes or custom block volumes.
 
-Object storage provides access to data over HTTP(S).
-It stores data as discrete objects within buckets, making it ideal for unstructured data such as backups, images, and logs.
-Unlike volumes, object storage is not mounted to instances but accessed through APIs.
+(storage-drivers-object)=
+### Object storage backend
+
+LXD provides the following driver for an object storage backend:
 
 ```{toctree}
 :maxdepth: 1
@@ -65,57 +138,57 @@ Unlike volumes, object storage is not mounted to instances but accessed through 
 storage_cephobject
 ```
 
-(storage-drivers-features)=
-## Feature comparison
+Ceph Object is a dedicated object storage backend that exposes buckets over HTTP(S). It uses the S3-compatible API and stores data as discrete objects instead of mounted volumes. Like shared storage, using an object storage backend allows concurrent access by multiple instances across the cluster.
 
-Where possible, LXD uses the advanced features of each storage system to optimize operations.
+(storage-drivers-recommended-setup)=
+## Recommended setup
 
-Feature                                     | Directory | Btrfs | LVM   | ZFS    | Ceph RBD | CephFS | Ceph Object | Dell PowerFlex | Pure Storage | HPE Alletra
-:---                                        | :---      | :---  | :---  | :---   | :---     | :---   | :---        | :---           | :---         | :---
-{ref}`storage-optimized-image-storage`      | ❌        | ✅   | ✅     | ✅     | ✅       | ➖     | ➖          | ❌              | ✅          | ✅
-Optimized instance creation                 | ❌        | ✅   | ✅     | ✅     | ✅       | ➖     | ➖          | ❌              | ✅          | ✅
-Optimized snapshot creation                 | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
-Optimized image transfer                    | ❌        | ✅   | ❌     | ✅     | ✅       | ➖     | ➖          | ❌              | ❌          | ❌
-Optimized backup (import/export)            | ❌        | ✅   | ❌     | ✅     | ❌       | ➖     | ➖          | ❌              | ❌          | ❌
-{ref}`storage-optimized-volume-transfer`    | ❌        | ✅   | ❌     | ✅     | ✅[^1]   | ➖     | ➖          | ❌              | ❌          | ❌
-{ref}`storage-optimized-volume-refresh`     | ❌        | ✅   | ✅[^2] | ✅     | ✅[^3]   | ➖     | ➖          | ❌              | ✅[^4]      | ✅[^4]
-Copy on write                               | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
-Block based                                 | ❌        | ❌   | ✅     | ❌      | ✅      | ❌     | ➖          | ✅              | ✅          | ✅
-Instant cloning                             | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ❌              | ✅          | ❌
-Storage driver usable inside a container    | ✅        | ✅   | ❌     | ✅[^5] | ❌       | ➖     | ➖          | ❌              | ❌          | ❌
-Restore from older snapshots (not latest)   | ✅        | ✅   | ✅     | ❌      | ✅      | ✅     | ➖          | ✅              | ✅          | ✅
-Storage quotas                              | ✅[^6]    | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅              | ✅          | ✅
-Available on `lxd init`                     | ✅        | ✅   | ✅     | ✅     | ✅       | ❌     | ❌          | ❌              | ❌          | ❌
-Object storage                              | ✅        | ✅   | ✅     | ✅     | ❌       | ❌     | ✅          | ❌              | ❌          | ❌
-Volume recovery                             | ✅        | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅[^7]          | ✅[^7]      | ❌
+The two best options for use with LXD are ZFS (local) and Ceph (non-local).
 
-[^1]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
-[^2]: Requires {config:option}`storage-lvm-pool-conf:lvm.use_thinpool` to be enabled. Only when refreshing local volumes.
-[^3]: Only for volumes of type `block`.
-[^4]: Only when refreshing volumes on the same LXD server using the same storage array.
-[^5]: Requires {config:option}`storage-zfs-volume-conf:zfs.delegate` to be enabled.
-[^6]: % Include content from [storage_dir.md](storage_dir.md)
+Whenever possible, dedicate a full disk or partition to your LXD storage pool. LXD allows you to create loop-based storage, but this isn't recommended for production use. See {ref}`storage-location` for more information.
 
-      ```{include} storage_dir.md
-         :start-after: <!-- Include start dir quotas -->
-         :end-before: <!-- Include end dir quotas -->
-      ```
+The {ref}`Directory <storage-dir>` backend should be considered as a last resort option. It supports all main LXD features, but is slow and inefficient because it cannot perform instant copies or snapshots. Therefore, it constantly copies the instance's full storage.
 
-[^7]: Custom volumes can only be recovered when attached to an instance due to the use of transformed volume names.
+(storage-drivers-security)=
+## Security considerations
+
+Currently, the Linux kernel might silently ignore mount options and not apply them when a block-based file system (for example, `ext4`) is already mounted with different mount options.
+
+This means when dedicated disk devices are shared between different storage pools with different mount options set, the second mount might not have the expected mount options.
+
+This becomes security relevant when, for example, one storage pool is supposed to provide `acl` support and the second one is supposed to not provide `acl` support.
+
+For this reason, it is currently recommended to either have dedicated disk devices per storage pool or to ensure that all storage pools that share the same dedicated disk device use the same mount options.
+
+(storage-drivers-features-reference)=
+## Features reference
 
 (storage-optimized-image-storage)=
 ### Optimized image storage
 
-Most of the storage drivers have some kind of optimized image storage format.
-To make instance creation near instantaneous, LXD clones a pre-made image volume when creating an instance rather than unpacking the image tarball from scratch.
+Most LXD storage drivers provide an optimized image storage format. To make instance creation near instantaneous, LXD clones a pre-made image volume when creating an instance rather than unpacking the image tarball from scratch.
 
-To prevent preparing such a volume on a storage pool that might never be used with that image, the volume is generated on demand.
-Therefore, the first instance takes longer to create than subsequent ones.
+To prevent preparing such a volume on a storage pool that might never be used with that image, the volume is generated on demand. Therefore, the first instance takes longer to create than subsequent ones.
+
+(storage-optimized-instance-creation)=
+### Optimized instance creation
+
+Some storage drivers can create instances by cloning an existing volume rather than copying all data, which reduces the amount of data that must be written.
+
+(storage-optimized-snapshot-creation)=
+### Optimized snapshot creation
+
+Some storage drivers can create snapshots without copying full volumes. This optimizes speed and resources compared to full-copy snapshots.
+
+(storage-optimized-backup)=
+### Optimized backup (import/export)
+
+Some storage drivers support LXD’s optimized backup path when exporting and importing instance or volume backups. Optimized exports are usually faster, and snapshots are stored as deltas from the main volume.
 
 (storage-optimized-volume-transfer)=
 ### Optimized volume transfer
 
-Btrfs, ZFS and Ceph RBD have an internal send/receive mechanism that allows for optimized volume transfer.
+Btrfs, ZFS, and Ceph RBD have an internal send/receive mechanism that allows for optimized volume transfer.
 
 LXD uses this optimized transfer when transferring instances and snapshots between storage pools that use the same storage driver, if the storage driver supports optimized transfer and the optimized transfer is actually quicker.
 Otherwise, LXD uses `rsync` to transfer container and file system volumes, or raw block transfer to transfer virtual machine and custom block volumes.
@@ -141,27 +214,50 @@ On the other hand, refreshing copies of instances without snapshots (either beca
 In such cases, the optimized transfer would transfer the difference between the (non-existent) latest snapshot and the main volume, thus the full volume.
 Therefore, LXD uses `rsync` or raw block transfer instead of the optimized transfer for refreshes without snapshots.
 
-## Recommended setup
+(storage-copy-on-write)=
+### Copy-on-write
 
-The two best options for use with LXD are ZFS and Btrfs.
-They have similar functionalities, but ZFS is more reliable.
+Copy-on-write (CoW) means the storage driver can share unchanged data between a volume and its snapshots. Only changed blocks are written to new locations, which reduces duplication and can improve snapshot performance.
 
-Whenever possible, you should dedicate a full disk or partition to your LXD storage pool.
-LXD allows to create loop-based storage, but this isn't recommended for production use.
-See {ref}`storage-location` for more information.
+(storage-block-based)=
+### Block-based
 
-The directory backend should be considered as a last resort option.
-It supports all main LXD features, but is slow and inefficient because it cannot perform instant copies or snapshots.
-Therefore, it constantly copies the instance's full storage.
+Block-based storage presents volumes as block devices rather than mounted file systems. If a file system is needed, LXD can format the block volume for containers and custom file system volumes, or the instance can format it (for example, for virtual machines). See {ref}`Pure Storage <storage-pure>`, {ref}`HPE Alletra <storage-alletra>`, and {ref}`Ceph RBD <storage-ceph>` for driver-specific details.
 
-(storage-drivers-security)=
-## Security considerations
+(storage-instant-cloning)=
+### Instant cloning
 
-Currently, the Linux kernel might silently ignore mount options and not apply them when a block-based file system (for example, `ext4`) is already mounted with different mount options.
-This means when dedicated disk devices are shared between different storage pools with different mount options set, the second mount might not have the expected mount options.
-This becomes security relevant when, for example, one storage pool is supposed to provide `acl` support and the second one is supposed to not provide `acl` support.
+Instant cloning means LXD can quickly create a new volume by cloning an existing one without copying all data.
 
-For this reason, it is currently recommended to either have dedicated disk devices per storage pool or to ensure that all storage pools that share the same dedicated disk device use the same mount options.
+(storage-driver-usable-in-container)=
+### Storage driver usable inside a container
+
+Some storage drivers can be used when LXD itself is running inside a container. Drivers that cannot be used inside a container often need access to host capabilities or devices that containers normally don’t have, and other container limits can also apply.
+
+(storage-restore-older-snapshots)=
+### Restore from older snapshots (not latest)
+
+Indicates whether LXD can restore a volume or instance to a snapshot older than the most recent one. Some drivers only allow restoring to the latest snapshot.
+
+(storage-quotas)=
+### Storage quotas
+
+Shows whether the storage driver supports enforcing size limits on storage volumes.
+
+(storage-available-init)=
+### Available on `lxd init`
+
+Shows whether the storage driver can be selected during `lxd init` (interactive or preseed). Drivers that depend on external storage systems require those systems to be set up first.
+
+(storage-object-storage)=
+### Object storage
+
+Object storage provides access to data over HTTP(S). It stores data as discrete objects within buckets, making it ideal for unstructured data such as backups, images, and logs. Unlike volumes, object storage is not mounted to instances but accessed through APIs.
+
+(storage-volume-recovery)=
+### Volume recovery
+
+Shows whether {ref}`lxd recover <disaster-recovery>` can re-discover and import existing volumes for the driver after a database loss. Some non-local storage drivers have limitations (see the table footnotes).
 
 ## Related topics
 
