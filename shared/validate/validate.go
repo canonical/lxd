@@ -868,6 +868,48 @@ func IsValidCPUSet(value string) error {
 	return nil
 }
 
+// IsNoLessThanUnit checks if value is greater or equal to the provided unit.
+func IsNoLessThanUnit(unit string) func(value string) error {
+	return func(value string) error {
+		bytes, err := units.ParseByteSizeString(value)
+		if err != nil {
+			return fmt.Errorf("Invalid value: %s", value)
+		}
+
+		minBytes, err := units.ParseByteSizeString(unit)
+		if err != nil {
+			return fmt.Errorf("Invalid unit value: %s", unit)
+		}
+
+		if bytes < minBytes {
+			return fmt.Errorf("Value %s is smaller than minimum %s", value, unit)
+		}
+
+		return nil
+	}
+}
+
+// IsNoGreaterThanUnit checks if value is less or equal to the provided unit.
+func IsNoGreaterThanUnit(unit string) func(value string) error {
+	return func(value string) error {
+		bytes, err := units.ParseByteSizeString(value)
+		if err != nil {
+			return fmt.Errorf("Invalid value: %s", value)
+		}
+
+		maxBytes, err := units.ParseByteSizeString(unit)
+		if err != nil {
+			return fmt.Errorf("Invalid unit value: %s", unit)
+		}
+
+		if bytes > maxBytes {
+			return fmt.Errorf("Value %s is larger than maximum %s", value, unit)
+		}
+
+		return nil
+	}
+}
+
 // IsMultipleOfUnit checks if value is in multiples of unit.
 func IsMultipleOfUnit(unit string) func(value string) error {
 	return func(value string) error {

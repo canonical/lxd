@@ -940,3 +940,66 @@ func TestIsEntityName(t *testing.T) {
 		})
 	}
 }
+
+func TestIsNoLessThanUnit(t *testing.T) {
+	tests := []struct {
+		unit     string
+		value    string
+		expected bool
+	}{
+		{"1MiB", "1MiB", true},
+		{"1MiB", "1GiB", true},
+		{"1MiB", "1KiB", false},
+		{"non-unit", "1MiB", false},
+		{"1MiB", "non-unit", false},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNoLessThanUnit(test.unit)(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNoLessThanUnit(%q)(%q) = %v, want %v; err=%v", test.unit, test.value, err == nil, test.expected, err)
+		}
+	}
+}
+
+func TestIsNoGreaterThanUnit(t *testing.T) {
+	tests := []struct {
+		unit     string
+		value    string
+		expected bool
+	}{
+		{"1MiB", "1MiB", true},
+		{"1GiB", "1MiB", true},
+		{"1KiB", "1MiB", false},
+		{"non-unit", "1MiB", false},
+		{"1MiB", "non-unit", false},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNoGreaterThanUnit(test.unit)(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNoGreaterThanUnit(%q)(%q) = %v, want %v; err=%v", test.unit, test.value, err == nil, test.expected, err)
+		}
+	}
+}
+
+func TestIsMultipleOfUnit(t *testing.T) {
+	tests := []struct {
+		unit     string
+		value    string
+		expected bool
+	}{
+		{"1MiB", "1MiB", true},
+		{"1MiB", "1GiB", true},
+		{"3KiB", "1MiB", false},
+		{"non-unit", "1MiB", false},
+		{"1MiB", "non-unit", false},
+	}
+
+	for _, test := range tests {
+		err := validate.IsMultipleOfUnit(test.unit)(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsMultipleOfUnit(%q)(%q) = %v, want %v; err=%v", test.unit, test.value, err == nil, test.expected, err)
+		}
+	}
+}
