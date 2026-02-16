@@ -1254,6 +1254,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var targetProject *api.Project
 	var profiles []api.Profile
 	var sourceInst *dbCluster.Instance
+	var sourceInstPoolName string
 	var sourceImage *api.Image
 	var sourceImageRef string
 	var sourceMemberInfo *db.NodeInfo
@@ -1361,6 +1362,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 				if sourceMemberInfo == nil {
 					return fmt.Errorf("Failed finding source cluster member %q", sourceInst.Node)
+				}
+
+				// If we cannot find the source instance's pool name this indicates the request is currently handled
+				// by another cluster member.
+				sourceInstPoolName, err = tx.GetInstancePool(ctx, sourceInst.Project, sourceInst.Name)
+				if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+					return fmt.Errorf("Failed loading pool name of instance %q in project %q: %w", sourceInst.Name, sourceInst.Project, err)
 				}
 
 				// Exit the transaction early and indicate we have to forward the request to the source.
@@ -1533,8 +1541,24 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Redirect the copy request to the cluster member which currently holds the instance.
-	if redirectToSource && sourceMemberInfo != nil {
+	poolSupportsInternalCopy := false
+
+	if s.ServerClustered && req.Source.Type == api.SourceTypeCopy && sourceInstPoolName != "" {
+		// Try loading the instance's pool.
+		// If the request is running on a member different to the one hosting the source instance, the pool won't be found.
+		// In this case it's already clear we cannot support internal copy and won't attempt to load the driver.
+		sourceInstPool, err := storagePools.LoadByName(s, sourceInstPoolName)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return response.SmartError(err)
+		}
+
+		if sourceInstPool != nil {
+			poolSupportsInternalCopy = sourceInstPool.Driver().Info().Remote
+		}
+	}
+
+	// Redirect the copy request to the cluster member which currently holds the source instance.
+	if redirectToSource && sourceMemberInfo != nil && poolSupportsInternalCopy {
 		client, err := cluster.Connect(r.Context(), sourceMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 		if err != nil {
 			return response.SmartError(err)
@@ -1574,8 +1598,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Config["volatile.cluster.group"] = targetGroupName
 	}
 
-	// Redirect the request to the target cluster member when not doing an actual copy.
-	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName && req.Source.Type != api.SourceTypeCopy {
+	// Redirect the request to the target cluster member if we cannot perform an internal copy.
+	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName && !poolSupportsInternalCopy {
 		client, err := cluster.Connect(r.Context(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
 			return response.SmartError(err)
