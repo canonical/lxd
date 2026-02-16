@@ -3258,7 +3258,7 @@ func (d *lxc) Render(options ...func(response any) error) (state any, etag any, 
 }
 
 // RenderFull renders the full state of the instance.
-func (d *lxc) RenderFull(hostInterfaces []net.Interface) (*api.InstanceFull, any, error) {
+func (d *lxc) RenderFull(hostInterfaces []net.Interface, opts ...instance.StateRenderOptions) (*api.InstanceFull, any, error) {
 	if d.IsSnapshot() {
 		return nil, nil, errors.New("RenderFull only works with containers")
 	}
@@ -3272,8 +3272,8 @@ func (d *lxc) RenderFull(hostInterfaces []net.Interface) (*api.InstanceFull, any
 	// Convert to ContainerFull
 	ct := api.InstanceFull{Instance: *base.(*api.Instance)}
 
-	// Add the ContainerState
-	ct.State, err = d.renderState(ct.StatusCode, hostInterfaces)
+	// Add the ContainerState (pass through opts)
+	ct.State, err = d.renderState(ct.StatusCode, hostInterfaces, opts...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -3317,7 +3317,13 @@ func (d *lxc) RenderFull(hostInterfaces []net.Interface) (*api.InstanceFull, any
 }
 
 // renderState renders just the running state of the instance.
-func (d *lxc) renderState(statusCode api.StatusCode, hostInterfaces []net.Interface) (*api.InstanceState, error) {
+func (d *lxc) renderState(statusCode api.StatusCode, hostInterfaces []net.Interface, opts ...instance.StateRenderOptions) (*api.InstanceState, error) {
+	// Determine which fields to include
+	options := instance.DefaultStateRenderOptions()
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+
 	status := api.InstanceState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
@@ -3327,14 +3333,28 @@ func (d *lxc) renderState(statusCode api.StatusCode, hostInterfaces []net.Interf
 	processesState, _ := d.processesState(pid)
 
 	if d.isRunningStatusCode(statusCode) {
+		// CPU and Memory are always included (can't be nil)
 		status.CPU = d.cpuState()
 		status.Memory = d.memoryState()
-		status.Network = d.networkState(hostInterfaces)
+
+		// Network - conditionally fetch
+		if options.IncludeNetwork {
+			status.Network = d.networkState(hostInterfaces)
+		} else {
+			status.Network = nil
+		}
+
+		// Always include PID and processes (lightweight)
 		status.Pid = int64(pid)
 		status.Processes = processesState
 	}
 
-	status.Disk = d.diskState()
+	// Disk - conditionally fetch (this is the expensive one!)
+	if options.IncludeDisk {
+		status.Disk = d.diskState()
+	} else {
+		status.Disk = nil
+	}
 
 	d.release()
 
@@ -3342,8 +3362,8 @@ func (d *lxc) renderState(statusCode api.StatusCode, hostInterfaces []net.Interf
 }
 
 // RenderState renders just the running state of the instance.
-func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, error) {
-	return d.renderState(d.statusCode(), hostInterfaces)
+func (d *lxc) RenderState(hostInterfaces []net.Interface, opts ...instance.StateRenderOptions) (*api.InstanceState, error) {
+	return d.renderState(d.statusCode(), hostInterfaces, opts...)
 }
 
 // snapshot creates a snapshot of the instance.
