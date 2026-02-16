@@ -2990,6 +2990,11 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 
 	projectName := request.ProjectParam(r)
 
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -2999,7 +3004,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		return operations.ScheduleUserOperationFromRequest(s, r, args)
 	}
 
-	op, err := doImageDelete(r.Context(), opCreator, s, details.image.Fingerprint, details.imageID, projectName)
+	op, err := doImageDelete(r.Context(), opCreator, s, details.image.Fingerprint, details.imageID, projectName, effectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3008,7 +3013,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 // doImageDelete deletes an image with the given fingerprint and imageID in the given project.
-func doImageDelete(ctx context.Context, opCreator operations.OperationScheduler, s *state.State, fingerprint string, imageID int, projectName string) (*operations.Operation, error) {
+func doImageDelete(ctx context.Context, opCreator operations.OperationScheduler, s *state.State, fingerprint string, imageID int, requestProjectName string, effectiveProjectName string) (*operations.Operation, error) {
 	requestor, err := request.GetRequestor(ctx)
 	if err != nil {
 		return nil, err
@@ -3030,7 +3035,7 @@ func doImageDelete(ctx context.Context, opCreator operations.OperationScheduler,
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check image still exists and another request hasn't removed it since we resolved the image
 			// fingerprint above.
-			exist, err = tx.ImageExists(ctx, projectName, fingerprint)
+			exist, err = tx.ImageExists(ctx, requestProjectName, fingerprint)
 
 			return err
 		})
@@ -3056,9 +3061,9 @@ func doImageDelete(ctx context.Context, opCreator operations.OperationScheduler,
 				}
 
 				// See if any other project with this image has the same storage volume
-				projectImagesVolume := s.LocalConfig.StorageImagesVolume(projectName)
+				projectImagesVolume := s.LocalConfig.StorageImagesVolume(requestProjectName)
 				for _, project := range projects {
-					if project == projectName {
+					if project == requestProjectName {
 						continue
 					}
 
@@ -3092,7 +3097,7 @@ func doImageDelete(ctx context.Context, opCreator operations.OperationScheduler,
 			}
 
 			err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-				op, err := client.UseProject(projectName).DeleteImage(fingerprint)
+				op, err := client.UseProject(requestProjectName).DeleteImage(fingerprint)
 				if err != nil {
 					return fmt.Errorf("Failed to request to delete image from peer node: %w", err)
 				}
@@ -3146,7 +3151,7 @@ func doImageDelete(ctx context.Context, opCreator operations.OperationScheduler,
 		}
 
 		// Remove main image file from disk.
-		err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(projectName), fingerprint)
+		err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(requestProjectName), fingerprint)
 		if err != nil {
 			return err
 		}
@@ -3161,14 +3166,14 @@ func doImageDelete(ctx context.Context, opCreator operations.OperationScheduler,
 			}
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(fingerprint, projectName, op.EventLifecycleRequestor(), nil))
+		s.Events.SendLifecycle(requestProjectName, lifecycle.ImageDeleted.Event(fingerprint, requestProjectName, op.EventLifecycleRequestor(), nil))
 
 		return nil
 	}
 
 	args := operations.OperationArgs{
-		ProjectName: projectName,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(projectName),
+		ProjectName: requestProjectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(effectiveProjectName),
 		Type:        operationtype.ImageDelete,
 		Class:       operations.OperationClassTask,
 		RunHook:     do,
