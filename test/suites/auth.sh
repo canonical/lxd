@@ -204,7 +204,13 @@ effective_groups:
 effective_permissions: []
 fine_grained: true"
 
-  [ "$(LXD_CONF="${LXD_CONF2}" lxc auth identity info tls:)" = "${expectedTLSInfo}" ]
+  # Compare result without certificate expiry, which is non-deterministic.
+  currentIdentity="$(LXD_CONF="${LXD_CONF2}" lxc auth identity info tls:)"
+  [ "$(printf '%s\n' "${currentIdentity}" | sed '/^expires_at: /d')" = "${expectedTLSInfo}" ]
+
+  # Ensure the expiration date in response has valid format ("YYYY-MM-DDThh:mm:ssZ").
+  certExpiresAt="$(printf '%s\n' "${currentIdentity}" | sed -n 's/^expires_at: //p')"
+  [[ "${certExpiresAt}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
 
   expectedBearerInfo="authentication_method: bearer
 type: Client token bearer
