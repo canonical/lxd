@@ -135,6 +135,9 @@ type IdentityInfo struct {
 	// FineGrained is a boolean indicating whether the identity is fine-grained,
 	// meaning that permissions are managed via group membership.
 	FineGrained bool `json:"fine_grained" yaml:"fine_grained"`
+
+	// TokenExpiresAt is the time at which the token for a bearer identity will expire.
+	TokenExpiresAt *time.Time `json:"token_expires_at,omitempty" yaml:"token_expires_at,omitempty"`
 }
 
 // IdentityPut contains the editable fields of an IdentityInfo.
