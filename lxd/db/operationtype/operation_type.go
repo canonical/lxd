@@ -55,6 +55,7 @@ const (
 	SnapshotTransfer
 	SnapshotUpdate
 	SnapshotDelete
+	SnapshotCopy
 	ImageDownload
 	ImageDelete
 	ImageDownloadToken
@@ -175,6 +176,8 @@ func (t Type) Description() string {
 		return "Updating snapshot"
 	case SnapshotDelete:
 		return "Deleting snapshot"
+	case SnapshotCopy:
+		return "Copying snapshot"
 	case ImageDownload:
 		return "Downloading image"
 	case ImageDelete:
@@ -308,7 +311,7 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeInstanceBackup
 
 	// Instance snapshot operations.
-	case SnapshotRename, SnapshotTransfer, SnapshotUpdate, SnapshotDelete:
+	case SnapshotRename, SnapshotTransfer, SnapshotUpdate, SnapshotDelete, SnapshotCopy:
 		return entity.TypeInstanceSnapshot
 
 	// Image operations.
