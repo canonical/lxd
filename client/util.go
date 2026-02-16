@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -61,7 +62,7 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 
 			// Verify fingerprint.
 			fingerprint := shared.CertFingerprint(serverCert)
-			if !strings.EqualFold(fingerprint, serverCertFingerprint) {
+			if subtle.ConstantTimeCompare([]byte(fingerprint), []byte(serverCertFingerprint)) != 1 {
 				return fmt.Errorf("Server certificate fingerprint mismatch: got %q, want %q", fingerprint, serverCertFingerprint)
 			}
 
