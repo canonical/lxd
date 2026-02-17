@@ -20,40 +20,46 @@ import (
 )
 
 var devLXDStoragePoolEndpoint = APIEndpoint{
-	Path: "storage-pools/{poolName}",
-	Get:  APIEndpointAction{Handler: devLXDStoragePoolGetHandler, AccessHandler: allowDevLXDAuthenticated},
+	MetricsType: entity.TypeStoragePool,
+	Path:        "storage-pools/{poolName}",
+	Get:         APIEndpointAction{Handler: devLXDStoragePoolGetHandler, AccessHandler: allowDevLXDAuthenticated},
 }
 
 var devLXDStoragePoolVolumesEndpoint = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes",
-	Get:  APIEndpointAction{Handler: devLXDStoragePoolVolumesGetHandler, AccessHandler: allowDevLXDAuthenticated},
-	Post: APIEndpointAction{Handler: devLXDStoragePoolVolumesPostHandler, AccessHandler: allowDevLXDPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
+	MetricsType: entity.TypeStoragePool,
+	Path:        "storage-pools/{poolName}/volumes",
+	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumesGetHandler, AccessHandler: allowDevLXDAuthenticated},
+	Post:        APIEndpointAction{Handler: devLXDStoragePoolVolumesPostHandler, AccessHandler: allowDevLXDPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
 }
 
 var devLXDStoragePoolVolumesTypeEndpoint = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}",
-	Get:  APIEndpointAction{Handler: devLXDStoragePoolVolumesGetHandler, AccessHandler: allowDevLXDAuthenticated},
-	Post: APIEndpointAction{Handler: devLXDStoragePoolVolumesPostHandler, AccessHandler: allowDevLXDPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
+	MetricsType: entity.TypeStoragePool,
+	Path:        "storage-pools/{poolName}/volumes/{type}",
+	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumesGetHandler, AccessHandler: allowDevLXDAuthenticated},
+	Post:        APIEndpointAction{Handler: devLXDStoragePoolVolumesPostHandler, AccessHandler: allowDevLXDPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
 }
 
 var devLXDStoragePoolVolumeTypeEndpoint = APIEndpoint{
-	Path:   "storage-pools/{poolName}/volumes/{type}/{volumeName}",
-	Get:    APIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
-	Put:    APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
-	Patch:  APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
-	Delete: APIEndpointAction{Handler: devLXDStoragePoolVolumeDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanDelete)},
+	MetricsType: entity.TypeStoragePool,
+	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}",
+	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
+	Put:         APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
+	Patch:       APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
+	Delete:      APIEndpointAction{Handler: devLXDStoragePoolVolumeDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanDelete)},
 }
 
 var devLXDStoragePoolVolumeSnapshotsEndpoint = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
-	Get:  APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotsGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
-	Post: APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotsPostHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots)},
+	MetricsType: entity.TypeStoragePool,
+	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
+	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotsGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
+	Post:        APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotsPostHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots)},
 }
 
 var devLXDStoragePoolVolumeSnapshotEndpoint = APIEndpoint{
-	Path:   "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
-	Get:    APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanView)},
-	Delete: APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanDelete)},
+	MetricsType: entity.TypeStoragePool,
+	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
+	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanView)},
+	Delete:      APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanDelete)},
 }
 
 // devLXDStoragePoolGetHandler retrieves information about the specified storage pool.

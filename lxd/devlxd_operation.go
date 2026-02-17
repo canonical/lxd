@@ -9,16 +9,19 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 var devLXDOperationWaitEndpoint = APIEndpoint{
-	Path: "operations/{id}/wait",
-	Get:  APIEndpointAction{Handler: devLXDOperationsWaitHandler, AccessHandler: allowDevLXDAuthenticated},
+	MetricsType: entity.TypeOperation,
+	Path:        "operations/{id}/wait",
+	Get:         APIEndpointAction{Handler: devLXDOperationsWaitHandler, AccessHandler: allowDevLXDAuthenticated},
 }
 
 var devLXDOperationEndpoint = APIEndpoint{
-	Path:   "operations/{id}",
-	Delete: APIEndpointAction{Handler: devLXDOperationDeleteHandler, AccessHandler: allowDevLXDAuthenticated},
+	MetricsType: entity.TypeOperation,
+	Path:        "operations/{id}",
+	Delete:      APIEndpointAction{Handler: devLXDOperationDeleteHandler, AccessHandler: allowDevLXDAuthenticated},
 }
 
 func devLXDOperationsWaitHandler(d *Daemon, r *http.Request) response.Response {

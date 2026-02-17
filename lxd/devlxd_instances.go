@@ -20,9 +20,10 @@ import (
 type devLXDDeviceAccessValidator func(device map[string]string) bool
 
 var devLXDInstanceEndpoint = APIEndpoint{
-	Path:  "instances/{name}",
-	Get:   APIEndpointAction{Handler: devLXDInstanceGetHandler, AccessHandler: allowDevLXDPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
-	Patch: APIEndpointAction{Handler: devLXDInstancePatchHandler, AccessHandler: allowDevLXDPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
+	MetricsType: entity.TypeInstance,
+	Path:        "instances/{name}",
+	Get:         APIEndpointAction{Handler: devLXDInstanceGetHandler, AccessHandler: allowDevLXDPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Patch:       APIEndpointAction{Handler: devLXDInstancePatchHandler, AccessHandler: allowDevLXDPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
 // devLXDInstanceGetHandler retrieves instance information for the specified instance name.
