@@ -178,5 +178,7 @@ func verifyToken(token string, keyFunc func() ([]byte, error)) (expiresAt *time.
 		return nil, api.StatusErrorf(http.StatusForbidden, "Token does not have an expiration time: %w", err)
 	}
 
-	return &expiry.Time, nil
+	tokenExpiresAt := expiry.UTC()
+
+	return &tokenExpiresAt, nil
 }
