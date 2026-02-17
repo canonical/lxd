@@ -1941,11 +1941,9 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation, p
 	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
 		var tracker *ioprogress.ProgressTracker
 		if op != nil { // Not passed when being done as part of pre-migration setup.
-			metadata := make(map[string]any)
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
-					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpacking image", percent, 0, speed)
-					_ = op.ExtendMetadata(metadata)
+					_ = op.UpdateProgress("create_instance_from_image_unpack", "Unpacking image", percent, 0, speed)
 				}}
 		}
 
@@ -1988,12 +1986,10 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 		// Setup the progress tracker.
 		var tracker *ioprogress.ProgressTracker
 		if op != nil {
-			metadata := make(map[string]any)
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
 					displayPrefix := "Converting image format from " + imgFormat + " to raw"
-					shared.SetProgressMetadata(metadata, "format_progress", displayPrefix, percent, 0, speed)
-					_ = op.UpdateMetadata(metadata)
+					_ = op.UpdateProgress("format_progress", displayPrefix, percent, 0, speed)
 				},
 			}
 		}
