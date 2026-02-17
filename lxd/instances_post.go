@@ -304,6 +304,11 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 		}
 	}
 
+	// Reject any attempts to refresh a running instance.
+	if req.Source.Refresh && inst != nil && inst.IsRunning() {
+		return response.BadRequest(fmt.Errorf("Cannot refresh running instance %q", req.Name))
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
