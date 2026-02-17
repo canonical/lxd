@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
@@ -533,6 +534,9 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
+		// Track request metrics
+		metrics.TrackStartedRequest(r, ep.MetricsType)
+
 		// Indicate whether the devLXD is being accessed over vsock. This allows the handler
 		// to determine the correct response type. The responses over vsock are always
 		// in api.Response format, while the responses over Unix socket are in devLXDResponse format.
