@@ -1586,18 +1586,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return operations.ForwardedOperationResponse(&opAPI)
 	}
 
-	if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			expandedConfig := instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), req.Config, profiles)
-			placementGroupName = expandedConfig["placement.group"]
-			targetMemberInfo, err = instancesPostSelectClusterMember(ctx, tx, placementGroupName, candidateMembers, targetProject.Name)
-			return err
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-	}
-
 	// Record the cluster group as a volatile config key if present.
 	if !clusterNotification && placementGroupName == "" && targetGroupName != "" {
 		req.Config["volatile.cluster.group"] = targetGroupName
