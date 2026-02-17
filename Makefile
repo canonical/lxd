@@ -427,9 +427,6 @@ ifeq "$(LXD_OFFLINE)" ""
 	@# XXX: if zerolint becomes available as a golangci-lint linter, remove this and update golangci-lint config
 	go install fillmore-labs.com/zerolint@latest
 endif
-ifeq ($(shell command -v golangci-lint),)
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin
-endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml
 endif
