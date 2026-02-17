@@ -71,6 +71,32 @@ func (t Type) URL(projectName string, location string, pathArguments ...string) 
 	return u, nil
 }
 
+// URLFromNamedArgs returns a string URL for the Type.
+//
+// If the Type is project specific and no project name is given, the project name will be set to api.ProjectDefaultName.
+//
+// Warning: All arguments to this function will be URL encoded. They must not be URL encoded before calling this method.
+func (t Type) URLFromNamedArgs(projectName string, location string, pathArguments map[string]string) (*api.URL, error) {
+	info, ok := entityTypes[t]
+	if !ok {
+		return nil, fmt.Errorf("Invalid entity type %q", t)
+	}
+
+	// Convert the map of named path arguments to a slice of path arguments.
+	argNames := info.pathArgNames()
+	args := make([]string, len(argNames))
+	for i, name := range argNames {
+		_, ok := pathArguments[name]
+		if !ok {
+			return nil, fmt.Errorf("Entity type %q requires path argument %q", t, name)
+		}
+
+		args[i] = pathArguments[name]
+	}
+
+	return t.URL(projectName, location, args...)
+}
+
 // ParseURL parses a raw URL string and returns the Type, project, location, and path arguments (mux vars).
 //
 // Path arguments are returned in the order they are found in the URL. If there is no project query parameter and the
