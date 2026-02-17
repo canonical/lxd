@@ -1217,10 +1217,20 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 		return nil
 	}
 
-	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Type, req.Source.Name).Project(srcProjectName)
+	var opType operationtype.Type
+	var volumeURL *api.URL
+	if shared.IsSnapshot(req.Source.Name) {
+		opType = operationtype.VolumeSnapshotCopy
+		vName, sName, _ := api.GetParentAndSnapshotName(req.Source.Name)
+		volumeURL = api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Type, vName, "snapshots", sName).Project(srcProjectName)
+	} else {
+		opType = operationtype.VolumeCopy
+		volumeURL = api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Type, req.Source.Name).Project(srcProjectName)
+	}
+
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		Type:        operationtype.VolumeCopy,
+		Type:        opType,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   volumeURL,
@@ -1279,11 +1289,17 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 			location = req.Source.Location
 		}
 
-		opType = operationtype.VolumeCopy
-		sourceVolumeURL := entity.StorageVolumeURL(srcProjectName, location, req.Source.Pool, req.Type, req.Source.Name)
-		resources[entity.TypeStorageVolume] = []api.URL{*sourceVolumeURL}
+		if shared.IsSnapshot(req.Source.Name) {
+			opType = operationtype.VolumeSnapshotCopy
+			vName, sName, _ := api.GetParentAndSnapshotName(req.Source.Name)
+			entityURL = entity.StorageVolumeSnapshotURL(srcProjectName, location, req.Source.Pool, req.Type, vName, sName)
+		} else {
+			opType = operationtype.VolumeCopy
+			entityURL = entity.StorageVolumeURL(srcProjectName, location, req.Source.Pool, req.Type, req.Source.Name)
+		}
+
+		resources[entity.TypeStorageVolume] = []api.URL{*entityURL}
 		resources[entity.TypeProject] = []api.URL{*projectURL}
-		entityURL = sourceVolumeURL
 		run = func(ctx context.Context, op *operations.Operation) error {
 			return pool.CreateCustomVolumeFromCopy(projectName, srcProjectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
 		}

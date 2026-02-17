@@ -64,6 +64,7 @@ const (
 	VolumeCreate
 	VolumeMigrate
 	VolumeMove
+	VolumeSnapshotCopy
 	VolumeSnapshotCreate
 	VolumeSnapshotDelete
 	VolumeSnapshotUpdate
@@ -200,6 +201,8 @@ func (t Type) Description() string {
 		return "Migrating storage volume"
 	case VolumeMove:
 		return "Moving storage volume"
+	case VolumeSnapshotCopy:
+		return "Copying storage volume snapshot"
 	case VolumeSnapshotCreate:
 		return "Creating storage volume snapshot"
 	case VolumeSnapshotDelete:
@@ -297,7 +300,7 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeStorageVolume
 
 	// Volume snapshot operations
-	case VolumeSnapshotRename, VolumeSnapshotUpdate, VolumeSnapshotDelete, VolumeSnapshotTransfer:
+	case VolumeSnapshotRename, VolumeSnapshotUpdate, VolumeSnapshotDelete, VolumeSnapshotTransfer, VolumeSnapshotCopy:
 		return entity.TypeStorageVolumeSnapshot
 
 	// Instance operations.
