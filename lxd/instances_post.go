@@ -1268,8 +1268,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var targetGroupName string
 	var placementGroupName string
 
-	// Set to true once we find that the request has to be forwarded to the source.
-	redirectToSource := false
+	// Set to true once we find that the request is currently handled on a member which isn't hosting the source instance.
+	sourceInstOnDifferentMember := false
 
 	target := request.QueryParam(r, "target")
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1376,9 +1376,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 					return fmt.Errorf("Failed loading pool name of instance %q in project %q: %w", sourceInst.Name, sourceInst.Project, err)
 				}
 
-				// Exit the transaction early and indicate we have to forward the request to the source.
+				// Exit the transaction early and indicate we potentially have to forward the request to the source.
 				if sourceMemberInfo.Name != s.ServerName {
-					redirectToSource = true
+					sourceInstOnDifferentMember = true
 					return nil
 				}
 			}
@@ -1563,7 +1563,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Redirect the copy request to the cluster member which currently holds the source instance.
-	if redirectToSource && sourceMemberInfo != nil && poolSupportsInternalCopy {
+	if sourceInstOnDifferentMember && sourceMemberInfo != nil && poolSupportsInternalCopy {
 		client, err := cluster.Connect(r.Context(), sourceMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 		if err != nil {
 			return response.SmartError(err)
