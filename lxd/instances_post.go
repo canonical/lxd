@@ -1272,6 +1272,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	sourceInstOnDifferentMember := false
 
 	target := request.QueryParam(r, "target")
+
+	// Run a first transaction to figure out details about the source and target.
+	// To accommodate the different scenarios for copy (and refresh), the API handler can go into the following code paths:
+	// 1) Internal copy as the source is using a remote pool:
+	//   a) If the request is currently handled on a member which isn't hosting the source instance, redirect to it.
+	//   b) If we are already on the right member which is hosting the source, continue with the copy.
+	// 2) Regular copy when using local storage for the source instance:
+	//   a) If the request is currently handled on another member than the one elected as the target (placement), redirect to it.
+	//   b) If we are already on the right member which was selected to be the target, continue with the copy.
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if !s.ServerClustered && target != "" {
 			return api.StatusErrorf(http.StatusBadRequest, "Target only allowed when clustered")
@@ -1562,6 +1571,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	// Case 1a).
 	// Redirect the copy request to the cluster member which currently holds the source instance.
 	if sourceInstOnDifferentMember && sourceMemberInfo != nil && poolSupportsInternalCopy {
 		client, err := cluster.Connect(r.Context(), sourceMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
@@ -1591,7 +1601,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Config["volatile.cluster.group"] = targetGroupName
 	}
 
-	// Redirect the request to the target cluster member if we cannot perform an internal copy.
+	// Case 2a).
+	// Redirect the request to the target cluster member.
 	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName && !poolSupportsInternalCopy {
 		client, err := cluster.Connect(r.Context(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
@@ -1611,6 +1622,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return operations.ForwardedOperationResponse(&opAPI)
 	}
 
+	// Cases 1b and 2b).
+	// Perform the actual copy (including internal copy when clustered).
+
 	switch req.Source.Type {
 	case api.SourceTypeImage:
 		return createFromImage(r.Context(), s, *targetProject, profiles, sourceImage, sourceImageRef, &req)
@@ -1621,6 +1635,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	case api.SourceTypeConversion:
 		return createFromConversion(r.Context(), s, targetProjectName, profiles, &req)
 	case api.SourceTypeCopy:
+		// Inside the copy handler we perform additional checks whether or not we can actually do a copy or need to fall back to migration.
+		// This is the case when e.g. different pools are used for source and target instance.
 		return createFromCopy(r.Context(), s, targetProjectName, profiles, &req, targetMemberInfo)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
