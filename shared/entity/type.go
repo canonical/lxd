@@ -158,12 +158,10 @@ var entityTypes = map[Type]typeInfo{
 	TypeNetwork:               network{},
 	TypeNetworkACL:            networkACL{},
 	TypeClusterMember:         clusterMember{},
-	TypeOperation:             operation{},
 	TypeStoragePool:           storagePool{},
 	TypeStorageVolume:         storageVolume{},
 	TypeStorageVolumeBackup:   storageVolumeBackup{},
 	TypeStorageVolumeSnapshot: storageVolumeSnapshot{},
-	TypeWarning:               warning{},
 	TypeClusterGroup:          clusterGroup{},
 	TypeStorageBucket:         storageBucket{},
 	TypeServer:                server{},
@@ -330,18 +328,6 @@ func (clusterMember) path() []string {
 	return []string{"cluster", "members", pathPlaceholder}
 }
 
-type operation struct {
-	typeInfoCommon
-}
-
-func (operation) requiresProject() bool {
-	return false
-}
-
-func (operation) path() []string {
-	return []string{"operations", pathPlaceholder}
-}
-
 type storagePool struct {
 	typeInfoCommon
 }
@@ -394,18 +380,6 @@ func (storageVolumeSnapshot) path() []string {
 
 func (storageVolumeSnapshot) requiresLocation() bool {
 	return true
-}
-
-type warning struct {
-	typeInfoCommon
-}
-
-func (warning) requiresProject() bool {
-	return false
-}
-
-func (warning) path() []string {
-	return []string{"warnings", pathPlaceholder}
 }
 
 type clusterGroup struct {
