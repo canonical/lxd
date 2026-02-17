@@ -2928,6 +2928,10 @@ The new setting accepts:
 Adds new identity type `bearer` that allows authentication with the LXD API using bearer tokens.
 See {ref}`LXD bearer tokens <authentication-bearer>`.
 
+If applicable, the endpoint `/1.0/auth/identities/current` now also exposes the credential expiration time.
+The `expires_at` field is set when the current identity is trusted and the authentication method is either `bearer` or `tls`.
+In these cases, it reports the expiration time of the bearer token or the TLS certificate, respectively.
+
 (extension-vm-limits-max-bus-ports)=
 ## `vm_limits_max_bus_ports`
 
