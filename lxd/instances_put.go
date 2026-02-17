@@ -35,7 +35,7 @@ func coalesceErrors(local bool, errs map[string]error) error {
 
 	for instName, err := range errs {
 		if local {
-			errorMsg.WriteString(fmt.Sprintf(" - Instance: %s: %v\n", instName, err))
+			fmt.Fprintf(&errorMsg, " - Instance: %s: %v\n", instName, err)
 		} else {
 			errorMsg.WriteString(strings.TrimSpace(fmt.Sprintf("%v\n", err)))
 		}
