@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"strings"
 	"time"
 )
@@ -359,6 +360,38 @@ func (c *Instance) SetWritable(put InstancePut) {
 	c.Profiles = put.Profiles
 	c.Stateful = put.Stateful
 	c.Description = put.Description
+}
+
+// ErrNoRootDisk means there is no root disk device found.
+var ErrNoRootDisk = errors.New("No root disk device found")
+
+// ErrMultipleRootDisks means more than one root disk device exists.
+var ErrMultipleRootDisks = errors.New("More than one root disk device found")
+
+// GetRootDiskDevice returns the local root disk device from a device map.
+// The returned values are the device name and its config map.
+// It returns [ErrNoRootDisk] when no root disk device exists.
+// It returns [ErrMultipleRootDisks] when more than one root disk device exists.
+func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string]string, error) {
+	var devName string
+	var dev map[string]string
+
+	for n, d := range devices {
+		if d["type"] == "disk" && d["path"] == "/" && d["source"] == "" {
+			if devName != "" {
+				return "", nil, ErrMultipleRootDisks
+			}
+
+			devName = n
+			dev = d
+		}
+	}
+
+	if devName != "" {
+		return devName, dev, nil
+	}
+
+	return "", nil, ErrNoRootDisk
 }
 
 // IsActive checks whether the instance state indicates the instance is active.
