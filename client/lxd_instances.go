@@ -87,99 +87,47 @@ func (r *ProtocolLXD) GetInstanceNamesAllProjects(instanceType api.InstanceType)
 	return names, nil
 }
 
+// GetInstancesArgs represents the arguments for GetInstances.
+type GetInstancesArgs struct {
+	// InstanceType filters instances by type (container, virtual-machine, or any).
+	InstanceType api.InstanceType
+
+	// Filters is a list of filter expressions to apply (requires api_filtering extension).
+	Filters []string
+
+	// AllProjects indicates whether to query instances from all projects (requires instance_all_projects extension).
+	AllProjects bool
+}
+
 // GetInstances returns a list of instances.
-func (r *ProtocolLXD) GetInstances(instanceType api.InstanceType) ([]api.Instance, error) {
+func (r *ProtocolLXD) GetInstances(args GetInstancesArgs) ([]api.Instance, error) {
 	instances := []api.Instance{}
 
-	path, v, err := r.instanceTypeToPath(instanceType)
+	path, v, err := r.instanceTypeToPath(args.InstanceType)
 	if err != nil {
 		return nil, err
 	}
 
 	v.Set("recursion", "1")
 
-	// Fetch the raw value
-	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
-	if err != nil {
-		return nil, err
+	// Handle all-projects
+	if args.AllProjects {
+		err = r.CheckExtension("instance_all_projects")
+		if err != nil {
+			return nil, err
+		}
+
+		v.Set("all-projects", "true")
 	}
 
-	return instances, nil
-}
+	// Handle filters
+	if len(args.Filters) > 0 {
+		err = r.CheckExtension("api_filtering")
+		if err != nil {
+			return nil, err
+		}
 
-// GetInstancesWithFilter returns a filtered list of instances.
-func (r *ProtocolLXD) GetInstancesWithFilter(instanceType api.InstanceType, filters []string) ([]api.Instance, error) {
-	err := r.CheckExtension("api_filtering")
-	if err != nil {
-		return nil, err
-	}
-
-	instances := []api.Instance{}
-
-	path, v, err := r.instanceTypeToPath(instanceType)
-	if err != nil {
-		return nil, err
-	}
-
-	v.Set("recursion", "1")
-	v.Set("filter", parseFilters(filters))
-
-	// Fetch the raw value
-	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
-	if err != nil {
-		return nil, err
-	}
-
-	return instances, nil
-}
-
-// GetInstancesAllProjects returns a list of instances from all projects.
-func (r *ProtocolLXD) GetInstancesAllProjects(instanceType api.InstanceType) ([]api.Instance, error) {
-	instances := []api.Instance{}
-
-	path, v, err := r.instanceTypeToPath(instanceType)
-	if err != nil {
-		return nil, err
-	}
-
-	v.Set("recursion", "1")
-	v.Set("all-projects", "true")
-
-	err = r.CheckExtension("instance_all_projects")
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch the raw value
-	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
-	if err != nil {
-		return nil, err
-	}
-
-	return instances, nil
-}
-
-// GetInstancesAllProjectsWithFilter returns a filtered list of instances from all projects.
-func (r *ProtocolLXD) GetInstancesAllProjectsWithFilter(instanceType api.InstanceType, filters []string) ([]api.Instance, error) {
-	err := r.CheckExtension("api_filtering")
-	if err != nil {
-		return nil, err
-	}
-
-	instances := []api.Instance{}
-
-	path, v, err := r.instanceTypeToPath(instanceType)
-	if err != nil {
-		return nil, err
-	}
-
-	v.Set("recursion", "1")
-	v.Set("all-projects", "true")
-	v.Set("filter", parseFilters(filters))
-
-	err = r.CheckExtension("instance_all_projects")
-	if err != nil {
-		return nil, err
+		v.Set("filter", parseFilters(args.Filters))
 	}
 
 	// Fetch the raw value
@@ -367,8 +315,7 @@ func (r *ProtocolLXD) GetInstancesFull(args GetInstancesFullArgs) ([]api.Instanc
 		// Use selective recursion if extension is available
 		// Format: recursion=2;fields=state.disk,state.network
 		// An empty slice results in recursion=2;fields= (no expensive fields)
-		fieldsStr := strings.Join(args.Fields, ",")
-		recursionValue = "2;fields=" + fieldsStr
+		recursionValue = "2;fields=" + strings.Join(args.Fields, ",")
 	}
 
 	v.Set("recursion", recursionValue)
