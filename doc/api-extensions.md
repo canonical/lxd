@@ -2933,3 +2933,20 @@ See {ref}`LXD bearer tokens <authentication-bearer>`.
 
 This introduces support for the {config:option}`instance-resource-limits:limits.max_bus_ports` configuration key for virtual machines. This option controls the maximum allowed number of user configurable devices requiring a dedicated PCI/PCIe port for a virtual machine.
 This number includes both the devices attached before the instance start and the devices hotplugged at runtime.
+
+(extension-instances-state-selective-recursion)=
+## `instances_state_selective_recursion`
+
+Adds support for selective recursion when querying instances.
+
+The API now supports selective state field fetching using semicolon-separated syntax in the `recursion` parameter:
+
+* `recursion=2;fields=state.disk` - Fetch only disk information
+* `recursion=2;fields=state.network` - Fetch only network information
+* `recursion=2;fields=state.disk,state.network` - Fetch both disk and network
+* `recursion=2;fields=` - Fetch no expensive state fields (disk and network skipped)
+* `recursion=2` - Fetch all fields (default behavior)
+
+The semicolon and equals signs must be URL-encoded when used in HTTP requests (`%3B` for `;` and `%3D` for `=`).
+
+The `lxc list` command automatically optimizes queries based on requested columns.
