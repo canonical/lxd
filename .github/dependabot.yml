@@ -12,6 +12,15 @@ updates:
     cooldown:
       default-days: 7
 
+  - package-ecosystem: "gomod"
+    directory: "/tools"
+    labels: []
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    cooldown:
+      default-days: 7
+
   - package-ecosystem: "github-actions"
     directories:
       - "/"
