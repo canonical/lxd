@@ -204,12 +204,12 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 
 		sort.Strings(entityTypes)
 
-		builder.WriteString(fmt.Sprintf("\t// Entitlement%s is the \"%s\" entitlement. It applies to the following entities: %s.\n", snakeToPascal(entitlement.Relation), entitlement.Relation, strings.Join(entityTypes, ", ")))
+		fmt.Fprintf(&builder, "\t// Entitlement%s is the \"%s\" entitlement. It applies to the following entities: %s.\n", snakeToPascal(entitlement.Relation), entitlement.Relation, strings.Join(entityTypes, ", "))
 
 		if i == len(allEntitlements)-1 {
-			builder.WriteString(fmt.Sprintf("\tEntitlement%s Entitlement = \"%s\"\n", snakeToPascal(entitlement.Relation), entitlement.Relation))
+			fmt.Fprintf(&builder, "\tEntitlement%s Entitlement = \"%s\"\n", snakeToPascal(entitlement.Relation), entitlement.Relation)
 		} else {
-			builder.WriteString(fmt.Sprintf("\tEntitlement%s Entitlement = \"%s\"\n\n", snakeToPascal(entitlement.Relation), entitlement.Relation))
+			fmt.Fprintf(&builder, "\tEntitlement%s Entitlement = \"%s\"\n\n", snakeToPascal(entitlement.Relation), entitlement.Relation)
 		}
 	}
 
@@ -227,11 +227,11 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 	builder.WriteString("var EntityTypeToEntitlements = map[entity.Type][]Entitlement{\n")
 	for _, entityType := range entityTypes {
 		entitlements := entityToEntitlements[entity.Type(entityType)]
-		builder.WriteString(fmt.Sprintf("\tentity.Type%s: {\n", snakeToPascal(entityType)))
+		fmt.Fprintf(&builder, "\tentity.Type%s: {\n", snakeToPascal(entityType))
 		for _, entitlement := range entitlements {
 			// Here we can add the comment from the OpenFGA model.
-			builder.WriteString(fmt.Sprintf("\t\t// %s\n", entitlement.Description))
-			builder.WriteString(fmt.Sprintf("\t\tEntitlement%s,\n", snakeToPascal(entitlement.Relation)))
+			fmt.Fprintf(&builder, "\t\t// %s\n", entitlement.Description)
+			fmt.Fprintf(&builder, "\t\tEntitlement%s,\n", snakeToPascal(entitlement.Relation))
 		}
 
 		builder.WriteString("\t},\n")
