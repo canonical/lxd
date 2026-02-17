@@ -187,11 +187,11 @@ jobs:
           cd /home/runner/work/lxd/lxd-test
           make
 
-      # XXX: `make static-analysis` also run golangci-lint but this one provides
-      #      useful feedback in the PR through github-code-scanning bot
       - name: Run golangci-lint
         if: github.event_name == 'pull_request' || github.event_name == 'schedule'
-        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v8
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        with:
+          version: v2.10.1
 
       - name: Run static analysis
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
