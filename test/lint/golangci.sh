@@ -7,5 +7,10 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
     exit 0
 fi
 
+if ! command -v golangci-lint >/dev/null; then
+    bin="${GOPATH:-"$(go env GOPATH)"}/bin"
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "${bin}"
+fi
+
 echo "Checking for golangci-lint errors..."
 exec golangci-lint run --timeout 5m

@@ -151,7 +151,7 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 		var msg strings.Builder
 		msg.WriteString("The following instances failed to update (profile change still saved):\n")
 		for inst, err := range failures {
-			msg.WriteString(fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err))
+			fmt.Fprintf(&msg, " - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
 
 		return errors.New(msg.String())
@@ -197,7 +197,7 @@ func doProfileUpdateCluster(ctx context.Context, s *state.State, projectName str
 		var msg strings.Builder
 		msg.WriteString("The following instances failed to update (profile change still saved):\n")
 		for inst, err := range failures {
-			msg.WriteString(fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err))
+			fmt.Fprintf(&msg, " - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
 
 		return errors.New(msg.String())

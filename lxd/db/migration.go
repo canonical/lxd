@@ -128,7 +128,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 
 	// Enable all features for default project.
 	for featureName := range cluster.ProjectFeatures {
-		stmt.WriteString(fmt.Sprintf(`INSERT INTO projects_config (project_id, key, value) VALUES (1, '%s', 'true');`, featureName))
+		fmt.Fprintf(&stmt, `INSERT INTO projects_config (project_id, key, value) VALUES (1, '%s', 'true');`, featureName)
 	}
 
 	_, err = tx.Exec(stmt.String())
