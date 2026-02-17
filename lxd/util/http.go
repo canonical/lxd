@@ -238,16 +238,46 @@ func CheckMutualTLS(cert x509.Certificate, trustedCerts map[string]x509.Certific
 }
 
 // IsRecursionRequest checks whether the given HTTP request is marked with the
-// "recursion" flag in its form values.
-func IsRecursionRequest(r *http.Request) bool {
+// "recursion" flag in its form values. It returns the recursion level and an
+// optional fields slice parsed from the request parameters.
+//
+// The fields slice can be specified either via semicolon-separated syntax in
+// the recursion parameter (e.g. "2;fields=state.disk") or as a separate
+// "fields" query parameter. Semicolon syntax takes priority.
+//
+// A nil fields slice means no fields were specified (default behavior).
+// An empty non-nil fields slice means no expensive fields should be fetched.
+func IsRecursionRequest(r *http.Request) (int, []string) {
 	recursionStr := r.FormValue("recursion")
+	if recursionStr == "" {
+		return 0, nil
+	}
+
+	// Check for separate fields query parameter.
+	fields := r.URL.Query()["fields"]
+
+	// Check if recursion string contains semicolon-separated fields (takes priority).
+	before, after, found := strings.Cut(recursionStr, ";")
+	if found {
+		recursionStr = before
+
+		if strings.HasPrefix(after, "fields=") {
+			fieldsStr := strings.TrimPrefix(after, "fields=")
+			if fieldsStr != "" {
+				fields = strings.Split(fieldsStr, ",")
+			} else {
+				// Empty fields (recursion=2;fields=) means no expensive fields.
+				fields = []string{}
+			}
+		}
+	}
 
 	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
-		return false
+		return 0, nil
 	}
 
-	return recursion != 0
+	return recursion, fields
 }
 
 // ListenAddresses returns a list of <host>:<port> combinations at which this machine can be reached.
