@@ -520,6 +520,10 @@ func devLXDAPI(d *Daemon, authenticator devLXDAuthenticator) http.Handler {
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, handler := range apiDevLXD {
+		if !slices.Contains(entity.APIMetricsEntityTypes(), handler.MetricsType) {
+			panic(fmt.Sprintf("DevLXD endpoint %q has an invalid metrics type %q", handler.Path, handler.MetricsType))
+		}
+
 		registerDevLXDEndpoint(d, m, "1.0", handler, authenticator)
 	}
 
