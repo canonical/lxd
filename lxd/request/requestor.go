@@ -62,7 +62,7 @@ type Requestor struct {
 	mappedAuthGroups                []string
 	projects                        []string
 	identityType                    identity.Type
-	tokenExpiresAt                  *time.Time
+	expiresAt                       *time.Time
 }
 
 // IsClusterNotification returns true if this an API request coming from a
@@ -93,7 +93,7 @@ func (r *Requestor) IsAdmin() bool {
 // ExpiresAt returns the expiration date of the credential used to authenticate the caller.
 // Returns nil if the caller is not authenticated using a bearer token or TLS.
 func (r *Requestor) ExpiresAt() *time.Time {
-	return r.tokenExpiresAt
+	return r.expiresAt
 }
 
 // OriginAddress returns the original address of the caller.
@@ -332,7 +332,7 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 		protocol:               args.Protocol,
 		identityProviderGroups: args.IdentityProviderGroups,
 		clientType:             clientType,
-		tokenExpiresAt:         args.ExpiresAt,
+		expiresAt:              args.ExpiresAt,
 	}
 
 	err := r.setForwardingDetails(req)
