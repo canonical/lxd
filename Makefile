@@ -219,6 +219,10 @@ check-gomin:
 		echo "Error: go.mod Go version is not $(GOMIN)"; \
 		exit 1; \
 	fi
+	@if ! grep -qxF "go $(GOMIN)" tools/go.mod; then \
+		echo "Error: tools/go.mod Go version is not $(GOMIN)"; \
+		exit 1; \
+	fi
 	@echo "Check the doc mentions the right Go minimum version"
 	$(eval DOC_GOMIN := $(shell sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md))
 	if [ "$(DOC_GOMIN)" != "$(GOMIN)" ]; then \
@@ -252,14 +256,14 @@ endif
 	@# Update GOMIN in Makefile
 	sed -i 's/^GOMIN=[0-9.]\+/GOMIN=$(NEW_GOMIN)/' Makefile
 
-	@# Update GOMIN in go.mod
-	sed -i 's/^go [0-9.]\+$$/go $(NEW_GOMIN)/' go.mod
+	@# Update GOMIN in go.mod and tools/go.mod
+	sed -i 's/^go [0-9.]\+$$/go $(NEW_GOMIN)/' go.mod tools/go.mod
 
 	@# Update doc/requirements.md and .github/copilot-instructions.md
 	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md .github/copilot-instructions.md
 
 	@echo "Go minimum version updated to $(NEW_GOMIN)"
-	@./scripts/check-and-commit.sh "Makefile go.mod doc/requirements.md .github/copilot-instructions.md" "go: Update Go minimum version to $(NEW_GOMIN)"
+	@./scripts/check-and-commit.sh "Makefile go.mod tools/go.mod doc/requirements.md .github/copilot-instructions.md" "go: Update Go minimum version to $(NEW_GOMIN)"
 
 .PHONY: update-gomod
 update-gomod:
@@ -276,6 +280,7 @@ endif
 
 	# Enforce minimum go version
 	go mod tidy -go=$(GOMIN)
+	go mod -C tools tidy -go=$(GOMIN)
 	$(MAKE) check-gomin
 
 	# Use the bundled toolchain that meets the minimum go version
@@ -285,7 +290,7 @@ endif
 	@./scripts/licenses.sh
 
 	@echo "Dependencies updated"
-	@./scripts/check-and-commit.sh "go.mod go.sum" "go: Update dependencies"
+	@./scripts/check-and-commit.sh "go.mod go.sum tools/go.mod tools/go.sum" "go: Update dependencies"
 
 .PHONY: update-protobuf
 update-protobuf:
