@@ -151,7 +151,7 @@ var projectStateCmd = APIEndpoint{
 func projectsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProject, true)
 	if err != nil {
 		return response.SmartError(err)
@@ -177,7 +177,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		if recursion {
+		if recursion > 0 {
 			apiProjects = make([]*api.Project, 0, len(projects))
 			for _, project := range projects {
 				apiProject, err := project.ToAPI(ctx, tx.Tx())
@@ -205,7 +205,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, projectURLs)
 	}
 

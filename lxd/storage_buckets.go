@@ -286,7 +286,8 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		return bucketA.Name < bucketB.Name
 	})
 
-	if util.IsRecursionRequest(r) {
+	recursion, _ := util.IsRecursionRequest(r)
+	if recursion > 0 {
 		buckets := make([]*api.StorageBucket, 0, len(filteredDBBuckets))
 		urlToStorageBucket := make(map[*api.URL]auth.EntitlementReporter, len(filteredDBBuckets))
 		for _, dbBucket := range filteredDBBuckets {
@@ -861,7 +862,8 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if util.IsRecursionRequest(r) {
+	recursion, _ := util.IsRecursionRequest(r)
+	if recursion > 0 {
 		bucketKeys := make([]*api.StorageBucketKey, 0, len(dbBucketKeys))
 		for _, dbBucketKey := range dbBucketKeys {
 			bucketKeys = append(bucketKeys, &dbBucketKey.StorageBucketKey)

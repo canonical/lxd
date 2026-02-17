@@ -161,7 +161,7 @@ func validateGroupName(name string) error {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getAuthGroups(d *Daemon, r *http.Request) response.Response {
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 	s := d.State()
 
 	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
@@ -206,7 +206,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		if recursion {
+		if recursion > 0 {
 			// If recursing, we need all identities for all groups, all IDP groups for all groups,
 			// all permissions for all groups, and finally the URLs that those permissions apply to.
 			groupsIdentities, err = dbCluster.GetAllIdentitiesByAuthGroupIDs(ctx, tx.Tx())
@@ -237,7 +237,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if recursion {
+	if recursion > 0 {
 		authGroupPermissionsByGroupID := make(map[int][]dbCluster.Permission, len(groups))
 		for _, permission := range authGroupPermissions {
 			authGroupPermissionsByGroupID[permission.GroupID] = append(authGroupPermissionsByGroupID[permission.GroupID], permission)

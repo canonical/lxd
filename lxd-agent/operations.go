@@ -85,7 +85,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func operationsGet(d *Daemon, r *http.Request) response.Response {
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 
 	localOperationURLs := func() (shared.Jmap, error) {
 		// Get all the operations
@@ -136,7 +136,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	var md shared.Jmap
 	var err error
 
-	if recursion {
+	if recursion > 0 {
 		md, err = localOperations()
 		if err != nil {
 			return response.InternalError(err)

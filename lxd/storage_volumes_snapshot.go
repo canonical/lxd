@@ -371,7 +371,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		return response.SmartError(err)
 	}
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 
 	// Check that the storage volume type is valid.
 	if !slices.Contains(supportedVolumeTypes, details.volumeType) {
@@ -422,7 +422,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 			continue
 		}
 
-		if !recursion {
+		if recursion == 0 {
 			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).String())
 		} else {
 			var vol *db.StorageVolume
@@ -452,7 +452,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		}
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, resultString)
 	}
 

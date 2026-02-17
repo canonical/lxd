@@ -153,7 +153,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 
 	c, err := instance.LoadByProjectAndName(s, projectName, cname)
 	if err != nil {
@@ -183,7 +183,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		if !recursion {
+		if recursion == 0 {
 			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "instances", cname, "backups", backupName).String())
 		} else {
 			render := backup.Render()
@@ -191,7 +191,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, resultString)
 	}
 

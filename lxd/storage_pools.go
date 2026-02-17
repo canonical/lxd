@@ -150,7 +150,7 @@ var storagePoolCmd = APIEndpoint{
 func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStoragePool, true)
 	if err != nil {
 		return response.SmartError(err)
@@ -194,7 +194,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		if !recursion {
+		if recursion == 0 {
 			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "storage-pools", poolName).String())
 		} else {
 			pool, err := storagePools.LoadByName(s, poolName)
@@ -231,7 +231,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, resultString)
 	}
 

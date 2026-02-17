@@ -272,7 +272,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeNetwork, true)
 	if err != nil {
 		return response.SmartError(err)
@@ -370,7 +370,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 					continue
 				}
 
-				if !recursion {
+				if recursion == 0 {
 					resultString = append(resultString, api.NewURL().Path(version.APIVersion, "networks", networkName).String())
 				} else {
 					var projectConfig map[string]string
@@ -392,7 +392,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, resultString)
 	}
 

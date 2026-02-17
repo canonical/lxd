@@ -157,7 +157,7 @@ func filterWarnings(warnings []api.Warning, clauses *filter.ClauseSet) ([]api.Wa
 //	    $ref: "#/responses/InternalServerError"
 func warningsGet(d *Daemon, r *http.Request) response.Response {
 	// Parse the recursion field
-	recursive := util.IsRecursionRequest(r)
+	recursive, _ := util.IsRecursionRequest(r)
 
 	// Parse filter value
 	filterStr := r.FormValue("filter")
@@ -205,7 +205,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var filters []api.Warning
-	if !recursive {
+	if recursive == 0 {
 		var resultList []string
 
 		filters, err = filterWarnings(warnings, clauses)

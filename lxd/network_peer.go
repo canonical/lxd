@@ -161,7 +161,8 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support peering", n.Type()))
 	}
 
-	if util.IsRecursionRequest(r) {
+	recursion, _ := util.IsRecursionRequest(r)
+	if recursion > 0 {
 		var records map[int64]*api.NetworkPeer
 
 		err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {

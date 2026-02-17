@@ -143,7 +143,7 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 
 	// Get the network zone.
 	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
@@ -160,14 +160,14 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 	resultString := []string{}
 	resultMap := []api.NetworkZoneRecord{}
 	for _, record := range records {
-		if !recursion {
+		if recursion == 0 {
 			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "network-zones", details.zoneName, "records", record.Name).String())
 		} else {
 			resultMap = append(resultMap, record)
 		}
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, resultString)
 	}
 

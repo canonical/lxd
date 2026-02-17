@@ -156,11 +156,11 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 	resultString := []string{}
 	resultMap := []*api.InstanceSnapshot{}
 
-	if !recursion {
+	if recursion == 0 {
 		var snaps []string
 
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -219,7 +219,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, resultString)
 	}
 

@@ -1242,7 +1242,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 //	    $ref: "#/responses/InternalServerError"
 func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
-		recursion := util.IsRecursionRequest(r)
+		recursion, _ := util.IsRecursionRequest(r)
 		s := d.State()
 		canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 		if err != nil {
@@ -1304,7 +1304,7 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 				return nil
 			}
 
-			if recursion && len(identities) == 1 {
+			if recursion > 0 && len(identities) == 1 {
 				// If there is only one identity to return (either the caller can only view themselves, or there is only one identity in database)
 				// we can optimise here by only getting the groups for that user. This sets the value of `apiIdentity`
 				// which is to be returned if non-nil.
@@ -1312,7 +1312,7 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 				if err != nil {
 					return err
 				}
-			} else if recursion {
+			} else if recursion > 0 {
 				// Otherwise, get all groups and populate the identities outside of the transaction.
 				// This optimisation prevents us from iterating through each identity and querying the database for the
 				// groups of each identity in turn.
@@ -1340,7 +1340,7 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.SyncResponse(true, []api.Identity{*apiIdentity})
 		}
 
-		if recursion {
+		if recursion > 0 {
 			// Convert the []cluster.Group in the groupsByIdentityID map to string slices of the group names.
 			groupNamesByIdentityID := make(map[int][]string, len(groupsByIdentityID))
 			for identityID, groups := range groupsByIdentityID {
