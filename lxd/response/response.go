@@ -58,6 +58,21 @@ type devLXDResponse struct {
 
 // Render renders a response for requests against the /dev/lxd socket.
 func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
+	// Track metrics after response is rendered.
+	defer func() {
+		if r.err == nil {
+			metrics.UseMetricsCallback(req, metrics.Success)
+			return
+		}
+
+		if r.code < 500 {
+			metrics.UseMetricsCallback(req, metrics.ErrorClient)
+			return
+		}
+
+		metrics.UseMetricsCallback(req, metrics.ErrorServer)
+	}()
+
 	// Handle response when interacting over vsock (LXD Agent running in a VM).
 	// In such case, the response must be returned in api.Response format.
 	isDevLXDOverVsock, _ := req.Context().Value(request.CtxDevLXDOverVsock).(bool)
