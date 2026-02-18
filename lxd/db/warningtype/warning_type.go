@@ -14,23 +14,23 @@ const (
 	MissingCGroupBlkioWeight
 	// MissingCGroupCPUController represents the missing CGroup CPU controller warning.
 	MissingCGroupCPUController
-	// MissingCGroupCPUsetController represents the missing GCgroup CPUset controller warning.
+	// MissingCGroupCPUsetController represents the missing CGroup CPUset controller warning.
 	MissingCGroupCPUsetController
-	// MissingCGroupCPUacctController represents the missing GCgroup CPUacct controller warning.
+	// MissingCGroupCPUacctController represents the missing CGroup CPUacct controller warning.
 	MissingCGroupCPUacctController
-	// MissingCGroupDevicesController represents the missing GCgroup devices controller warning.
+	// MissingCGroupDevicesController represents the missing CGroup devices controller warning.
 	MissingCGroupDevicesController
-	// MissingCGroupFreezerController represents the missing GCgroup freezer controller warning.
+	// MissingCGroupFreezerController represents the missing CGroup freezer controller warning.
 	MissingCGroupFreezerController
-	// MissingCGroupHugetlbController represents the missing GCgroup hugetlb controller warning.
+	// MissingCGroupHugetlbController represents the missing CGroup hugetlb controller warning.
 	MissingCGroupHugetlbController
-	// MissingCGroupMemoryController represents the missing GCgroup memory controller warning.
+	// MissingCGroupMemoryController represents the missing CGroup memory controller warning.
 	MissingCGroupMemoryController
-	// MissingCGroupNetworkPriorityController represents the missing GCgroup network priority controller warning.
+	// MissingCGroupNetworkPriorityController represents the missing CGroup network priority controller warning.
 	MissingCGroupNetworkPriorityController
-	// MissingCGroupPidsController represents the missing GCgroup pids controller warning.
+	// MissingCGroupPidsController represents the missing CGroup pids controller warning.
 	MissingCGroupPidsController
-	// MissingCGroupMemorySwapAccounting represents the missing GCgroup memory swap accounting warning.
+	// MissingCGroupMemorySwapAccounting represents the missing CGroup memory swap accounting warning.
 	MissingCGroupMemorySwapAccounting
 	// ClusterTimeSkew represents the cluster time skew warning.
 	ClusterTimeSkew
