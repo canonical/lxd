@@ -339,3 +339,8 @@ func PlacementGroupURL(projectName string, placementGroupName string) *api.URL {
 func ClusterLinkURL(clusterLinkName string) *api.URL {
 	return TypeClusterLink.urlMust("", "", clusterLinkName)
 }
+
+// ImageRegistryURL returns an [*api.URL] to an image registry.
+func ImageRegistryURL(imageRegistryName string) *api.URL {
+	return TypeImageRegistry.urlMust("", "", imageRegistryName)
+}

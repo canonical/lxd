@@ -86,6 +86,14 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
+			Name:     "Image registry",
+			URL:      "/1.0/image-registries/ubuntu",
+			WantType: TypeImageRegistry,
+			WantArgs: map[string]string{
+				"name": "ubuntu",
+			},
+		},
+		{
 			Name:     "Image",
 			URL:      "/1.0/images/000000000000",
 			WantType: TypeImage,
