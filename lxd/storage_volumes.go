@@ -1387,16 +1387,14 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 		RunHook:     run,
 	}
 
+	args.Type = operationtype.VolumeCreate
+	args.EntityURL = api.NewURL().Path(version.APIVersion, "projects", projectName)
 	if push {
 		args.Class = operations.OperationClassWebsocket
-		args.Type = operationtype.VolumeCreate
 		args.Metadata = sink.Metadata()
 		args.ConnectHook = sink.Connect
-		args.EntityURL = api.NewURL().Path(version.APIVersion, "projects", projectName)
 	} else {
 		args.Class = operations.OperationClassTask
-		args.Type = operationtype.VolumeCopy
-		args.EntityURL = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", req.Name).Project(projectName)
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
