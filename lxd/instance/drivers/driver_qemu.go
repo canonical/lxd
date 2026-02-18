@@ -2967,15 +2967,13 @@ func (d *qemu) generateConfigShare() error {
 		lxdAgentInstallPath := filepath.Join(configDrivePath, "lxd-agent")
 		lxdAgentNeedsInstall := true
 
-		if shared.PathExists(lxdAgentInstallPath) {
-			lxdAgentInstallInfo, err := os.Stat(lxdAgentInstallPath)
-			if err != nil {
-				return fmt.Errorf("Failed getting info for existing lxd-agent install %q: %w", lxdAgentInstallPath, err)
-			}
-
+		lxdAgentInstallInfo, err := os.Stat(lxdAgentInstallPath)
+		if err == nil {
 			if lxdAgentInstallInfo.ModTime().Equal(lxdAgentSrcInfo.ModTime()) && lxdAgentInstallInfo.Size() == lxdAgentSrcInfo.Size() {
 				lxdAgentNeedsInstall = false
 			}
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("Failed getting info for existing lxd-agent install %q: %w", lxdAgentInstallPath, err)
 		}
 
 		// Only install the lxd-agent into config drive if the existing one is different to the source one.
