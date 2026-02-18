@@ -237,7 +237,12 @@ func (c *cmdProjectDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete the project.
-	err = resource.server.DeleteProject(resource.name, c.flagForce)
+	op, err := resource.server.DeleteProject(resource.name, c.flagForce)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
 	if err != nil {
 		return err
 	}

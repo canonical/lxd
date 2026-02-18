@@ -463,7 +463,7 @@ func pruneResolvedWarningsTask(stateFunc func() *state.State) (task.Func, task.S
 			RunHook: opRun,
 		}
 
-		op, err := operations.CreateServerOperation(s, args)
+		op, err := operations.ScheduleServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating prune resolved warnings operation", logger.Ctx{"err": err})
 			return

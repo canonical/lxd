@@ -1218,7 +1218,7 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 			RunHook: opRun,
 		}
 
-		op, err := operations.CreateServerOperation(s, args)
+		op, err := operations.ScheduleServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating remove orphaned operations operation", logger.Ctx{"err": err})
 			return
@@ -1291,14 +1291,9 @@ type operationWaitPost struct {
 
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
 func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Extract the entity URL and duration from the request.
 	req := operationWaitPost{}
-	err = json.NewDecoder(r.Body).Decode(&req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1347,7 +1342,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		EntityURL:   &api.URL{URL: *u},
 	}
 
-	op, err := operations.CreateUserOperation(d.State(), requestor, args)
+	op, err := operations.ScheduleServerOperation(d.State(), args)
 	if err != nil {
 		return response.InternalError(err)
 	}

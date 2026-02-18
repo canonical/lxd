@@ -362,7 +362,7 @@ func pruneExpiredOIDCSessionsTask(stateFunc func() *state.State) (task.Func, tas
 			RunHook: opRun,
 		}
 
-		op, err := operations.CreateServerOperation(s, args)
+		op, err := operations.ScheduleServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating remove expired OIDC sessions operation", logger.Ctx{"err": err})
 			return

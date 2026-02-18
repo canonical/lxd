@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -89,27 +90,27 @@ func OperationGetInternal(id string) (*Operation, error) {
 
 // Operation represents an operation.
 type Operation struct {
-	projectName string
-	id          string
-	class       OperationClass
-	createdAt   time.Time
-	updatedAt   time.Time
-	status      api.StatusCode
-	url         string
-	resources   map[entity.Type][]api.URL
-	entityURL   *api.URL
-	metadata    map[string]any
-	err         error
-	readonly    bool
-	description string
-	dbOpType    operationtype.Type
-	requestor   *request.Requestor
-	logger      logger.Logger
+	projectName     string
+	id              string
+	class           OperationClass
+	createdAt       time.Time
+	updatedAt       time.Time
+	status          api.StatusCode
+	url             string
+	resources       map[entity.Type][]api.URL
+	entityURL       *api.URL
+	metadata        map[string]any
+	err             error
+	readonly        bool
+	description     string
+	dbOpType        operationtype.Type
+	requestor       *request.Requestor
+	metricsCallback func(metrics.RequestResult)
+	logger          logger.Logger
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(context.Context, *Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
-	onDone    func(*Operation)
 
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
@@ -128,32 +129,61 @@ type Operation struct {
 
 // OperationArgs contains all the arguments for operation creation.
 type OperationArgs struct {
-	ProjectName string
-	Type        operationtype.Type
-	Class       OperationClass
-	EntityURL   *api.URL
-	Resources   map[entity.Type][]api.URL
-	Metadata    map[string]any
-	RunHook     func(ctx context.Context, op *Operation) error
-	ConnectHook func(op *Operation, r *http.Request, w http.ResponseWriter) error
+	ProjectName     string
+	Type            operationtype.Type
+	Class           OperationClass
+	EntityURL       *api.URL
+	Resources       map[entity.Type][]api.URL
+	Metadata        map[string]any
+	RunHook         func(ctx context.Context, op *Operation) error
+	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
+	requestor       *request.Requestor
+	metricsCallback func(result metrics.RequestResult)
 }
 
-// CreateUserOperation creates a new [Operation]. The [request.Requestor] argument must be non-nil, as this is required for auditing.
-func CreateUserOperation(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
-	if requestor == nil || requestor.OriginAddress() == "" {
-		return nil, errors.New("Cannot create user operation, the requestor must be set")
+// OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
+// argument initialisation logic where the operation can be scheduled within an HTTP request or within an operation.
+type OperationScheduler func(s *state.State, args OperationArgs) (*Operation, error)
+
+// ScheduleUserOperationFromRequest schedules a new [Operation] from the given HTTP request.
+// The request context must contain the requestor as that is used for auditing.
+// The operation will keep a reference to the parent HTTP request until it completes so that it can report success or
+// failure for API metrics.
+func ScheduleUserOperationFromRequest(s *state.State, r *http.Request, args OperationArgs) (*Operation, error) {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return nil, fmt.Errorf("Cannot create user operation: %w", err)
 	}
 
-	return operationCreate(s, requestor, args)
+	metricsCallback, err := request.GetContextValue[func(metrics.RequestResult)](r.Context(), request.CtxMetricsCallbackFunc)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot create user operation: %w", err)
+	}
+
+	args.requestor = requestor
+	args.metricsCallback = metricsCallback
+	return scheduleOperation(s, args)
 }
 
-// CreateServerOperation creates a new [Operation] that runs as a server background task.
-func CreateServerOperation(s *state.State, args OperationArgs) (*Operation, error) {
-	return operationCreate(s, nil, args)
+// ScheduleUserOperationFromOperation schedules a new [Operation] from the given operation.
+// The operation must have a requestor as that is used for auditing.
+func ScheduleUserOperationFromOperation(s *state.State, op *Operation, args OperationArgs) (*Operation, error) {
+	requestor := op.Requestor()
+	if requestor == nil {
+		return nil, errors.New("Cannot create user operation: No requestor present in parent operation")
+	}
+
+	args.requestor = requestor
+	return scheduleOperation(s, args)
 }
 
-// operationCreate creates a new operation and returns it. If it cannot be created, it returns an error.
-func operationCreate(s *state.State, requestor *request.Requestor, args OperationArgs) (*Operation, error) {
+// ScheduleServerOperation schedules a new [Operation] that runs as a server background task.
+func ScheduleServerOperation(s *state.State, args OperationArgs) (*Operation, error) {
+	return scheduleOperation(s, args)
+}
+
+// scheduleOperation schedules a new operation and returns it. If it cannot be created, it returns an error.
+func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -199,7 +229,8 @@ func operationCreate(s *state.State, requestor *request.Requestor, args Operatio
 	op.finished = cancel.New()
 	op.running = cancel.New()
 	op.state = s
-	op.requestor = requestor
+	op.requestor = args.requestor
+	op.metricsCallback = args.metricsCallback
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	if s != nil {
@@ -271,11 +302,6 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 	return nil
 }
 
-// SetOnDone sets the operation onDone function that is called after the operation completes.
-func (op *Operation) SetOnDone(f func(*Operation)) {
-	op.onDone = f
-}
-
 // Requestor returns the initial requestor for this operation.
 func (op *Operation) Requestor() *request.Requestor {
 	return op.requestor
@@ -290,10 +316,19 @@ func (op *Operation) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 	return op.requestor.EventLifecycleRequestor()
 }
 
+// statusToMetricsResult converts the operation status to a [metrics.RequestResult].
+func statusToMetricsResult(status api.StatusCode) metrics.RequestResult {
+	switch status {
+	case api.Success, api.Cancelled:
+		return metrics.Success
+	default:
+		return metrics.ErrorServer
+	}
+}
+
 func (op *Operation) done() {
-	if op.onDone != nil {
-		// This can mark the request that spawned this operation as completed for the API metrics.
-		op.onDone(op)
+	if op.metricsCallback != nil {
+		op.metricsCallback(statusToMetricsResult(op.status))
 	}
 
 	if op.readonly {

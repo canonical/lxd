@@ -87,7 +87,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 		RunHook: opRun,
 	}
 
-	op, err := operations.CreateServerOperation(s, args)
+	op, err := operations.ScheduleServerOperation(s, args)
 	if err != nil {
 		logger.Warn("Failed creating remove expired tokens operation", logger.Ctx{"err": err})
 		return

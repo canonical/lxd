@@ -137,7 +137,7 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 		RunHook: opRun,
 	}
 
-	op, err := operations.CreateServerOperation(s, args)
+	op, err := operations.ScheduleServerOperation(s, args)
 	if err != nil {
 		logger.Error("Failed creating renew server certificate operation", logger.Ctx{"err": err})
 		return err

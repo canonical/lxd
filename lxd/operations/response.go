@@ -24,18 +24,6 @@ func OperationResponse(op *Operation) response.Response {
 
 // Render builds operationResponse and writes it to http.ResponseWriter.
 func (r *operationResponse) Render(w http.ResponseWriter, req *http.Request) error {
-	// Inject callback function on operation.
-	// If the operation was completed as expected or cancelled by an user, it is considered a success.
-	// Otherwise it is considered a failure.
-	r.op.SetOnDone(func(op *Operation) {
-		sc := op.Status()
-		if sc == api.Success || sc == api.Cancelled {
-			metrics.UseMetricsCallback(req, metrics.Success)
-		} else {
-			metrics.UseMetricsCallback(req, metrics.ErrorServer)
-		}
-	})
-
 	err := r.op.Start()
 	if err != nil {
 		return err

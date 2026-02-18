@@ -221,7 +221,12 @@ func lxdSetupUser(uid uint32) error {
 			return fmt.Errorf("Unable to create project: %w", err)
 		}
 
-		revert.Add(func() { _ = client.DeleteProject(projectName, false) })
+		revert.Add(func() {
+			op, err := client.DeleteProject(projectName, false)
+			if err == nil {
+				_ = op.Wait()
+			}
+		})
 	}
 
 	// Parse the certificate.

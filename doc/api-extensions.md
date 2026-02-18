@@ -2954,3 +2954,12 @@ The API now supports selective state field fetching using semicolon-separated sy
 The semicolon and equals signs must be URL-encoded when used in HTTP requests (`%3B` for `;` and `%3D` for `=`).
 
 The `lxc list` command automatically optimizes queries based on requested columns.
+
+(extension-project-delete-operation)=
+## `project_delete_operation`
+
+The {ref}`forced project deletion <extension-projects-force-delete>` API extension added support for forcibly deleting a project and all of its contents.
+This can take a long time, but the `DELETE /1.0/projects/{name}` endpoint still returned a synchronous response.
+
+This extension converts this endpoint to an asynchronous operation response.
+As with the {ref}`storage and profile operation extension <extension-storage-and-profile-operations>`, this extension is forward compatible only.

@@ -22,6 +22,8 @@ lxd_volume_operation() {
 # check_registered_operations checks for registered operations.
 # It ensures that all the PIDs related to ongoing operations are still running.
 check_registered_operations() {
+  # Sleep for short time to ensure operation has actually started (and not failed to start).
+  sleep 0.1
   local pid
   for pid in "$@"; do
     [ -d "/proc/${pid}" ] || return 1

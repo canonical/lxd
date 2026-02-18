@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -227,9 +229,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, apiProjects)
 }
 
-// projectUsedBy returns a list of URLs for all instances, images, profiles,
-// storage volumes, storage buckets, networks, acls, and placement groups that use this project.
-func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Project) ([]string, error) {
+func projectUsedByMap(ctx context.Context, tx *sql.Tx, projectName string) (map[entity.Type]map[int]*api.URL, error) {
 	reportedEntityTypes := []entity.Type{
 		entity.TypeInstance,
 		entity.TypeProfile,
@@ -241,13 +241,29 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Pro
 		entity.TypePlacementGroup,
 	}
 
-	entityURLs, err := dbCluster.GetEntityURLs(ctx, tx.Tx(), project.Name, reportedEntityTypes...)
+	entityURLs, err := dbCluster.GetEntityURLs(ctx, tx, projectName, reportedEntityTypes...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get project used-by URLs: %w", err)
 	}
 
+	return entityURLs, nil
+}
+
+// projectUsedBy returns a list of URLs for all instances, images, profiles,
+// storage volumes, storage buckets, networks, acls, and placement groups that use this project.
+func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Project) ([]string, error) {
+	m, err := projectUsedByMap(ctx, tx.Tx(), project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	return projectUsedByListFromMap(m), nil
+}
+
+// projectUsedByListFromMap takes the output of projectUsedByMap and converts it into a string list for API usage.
+func projectUsedByListFromMap(m map[entity.Type]map[int]*api.URL) []string {
 	var usedBy []string
-	for _, entityIDToURL := range entityURLs {
+	for _, entityIDToURL := range m {
 		for _, u := range entityIDToURL {
 			// Omit the project query parameter if it is the default project.
 			if u.Query().Get("project") == api.ProjectDefaultName {
@@ -260,7 +276,7 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Pro
 		}
 	}
 
-	return usedBy, nil
+	return usedBy
 }
 
 // swagger:operation POST /1.0/projects projects projects_post
@@ -734,9 +750,16 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 
 // isProjectInUse checks if a project is in use by any instances, images, profiles, storage volumes, etc.
 // Only use by a default profile is allowed in an empty project.
-func isProjectInUse(projectUsedBy []string) bool {
-	usedByLen := len(projectUsedBy)
-	return usedByLen > 1 || (usedByLen == 1 && !strings.Contains(projectUsedBy[0], "/profiles/default"))
+func isProjectInUse(projectUsedBy []string, skipURLs ...string) bool {
+	filtered := projectUsedBy
+	if len(skipURLs) > 0 {
+		filtered = slices.DeleteFunc(projectUsedBy, func(s string) bool {
+			return slices.Contains(skipURLs, s)
+		})
+	}
+
+	usedByLen := len(filtered)
+	return usedByLen > 1 || (usedByLen == 1 && !strings.Contains(filtered[0], "/profiles/default"))
 }
 
 // Common logic between PUT and PATCH.
@@ -1035,7 +1058,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		RunHook:   run,
 	}
 
-	op, err := operations.CreateUserOperation(s, requestor, args)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1096,62 +1119,45 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 }
 
 // doProjectForceDelete handles force deletion of project entities.
-func doProjectForceDelete(ctx context.Context, s *state.State, projectName string) error {
-	// Get the project entities.
-	var usedBy []string
-	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		project, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
-		if err != nil {
-			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
-		}
-
-		usedBy, err = projectUsedBy(ctx, tx, project)
+func doProjectForceDelete(ctx context.Context, op *operations.Operation, s *state.State, projectName string, entities map[entity.Type]map[int]*api.URL) error {
+	// Get the project entities if not provided (not provided on cluster notification)
+	if entities == nil {
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+			entities, err = projectUsedByMap(ctx, tx.Tx(), projectName)
+			return err
+		})
 		if err != nil {
 			return err
 		}
-
-		return nil
-	})
-	if err != nil {
-		return err
 	}
 
 	// Parse entity URLs.
-	defaultProfile := api.NewURL().Path(version.APIVersion, "profiles", api.ProjectDefaultName).Project(projectName).String()
-	toDelete := make([]entity.Reference, 0, len(usedBy))
-	for _, u := range usedBy {
-		// Allow the project default profile to be removed alongside the project even if the
-		// requestor lacks profile delete entitlement. Deleting the project removes the linked
-		// default profile record, so the project delete entitlement already covers this
-		// case and we can skip the per-entity permission checks here.
-		if u == defaultProfile {
-			continue
-		}
+	var toDelete []entity.Reference
+	for entityType, idToURL := range entities {
+		for _, u := range idToURL {
+			// Build an entity reference directly from the URL.
+			ref, err := entity.ReferenceFromURL(u.URL)
+			if err != nil {
+				return err
+			}
 
-		parsedURL, err := url.Parse(u)
-		if err != nil {
-			return fmt.Errorf("Failed parsing URL %q: %w", u, err)
-		}
+			// Allow the project default profile to be removed alongside the project even if the
+			// requestor lacks profile delete entitlement. Deleting the project removes the linked
+			// default profile record, so the project delete entitlement already covers this
+			// case and we can skip the per-entity permission checks here.
+			if entityType == entity.TypeProfile && len(ref.PathArgs) == 1 && ref.PathArgs[0] == api.ProjectDefaultName {
+				continue
+			}
 
-		// Build an entity reference directly from the URL.
-		ref, err := entity.ReferenceFromURL(*parsedURL)
-		if err != nil {
-			return err
-		}
+			// Skip instances and storage volumes not hosted on this node when a location is specified.
+			// These entities will be deleted by the node they are hosted on when a delete request is a cluster notification.
+			if (ref.EntityType == entity.TypeInstance || ref.EntityType == entity.TypeStorageVolume) && ref.Location != "" && ref.Location != s.ServerName {
+				continue
+			}
 
-		// Skip instances and storage volumes not hosted on this node when a location is specified.
-		// These entities will be deleted by the node they are hosted on when a delete request is a cluster notification.
-		if (ref.EntityType == entity.TypeInstance || ref.EntityType == entity.TypeStorageVolume) && ref.Location != "" && ref.Location != s.ServerName {
-			continue
+			toDelete = append(toDelete, *ref)
 		}
-
-		// Early permission check. (entityDeleter).Delete() implementations still perform their own checks, but we should fail fast here to prevent partial deletions.
-		err = s.Authorizer.CheckPermission(ctx, ref.URL(), auth.EntitlementCanDelete)
-		if err != nil {
-			return err
-		}
-
-		toDelete = append(toDelete, *ref)
 	}
 
 	// Sort entities by type to ensure proper deletion order (instances first, then profiles).
@@ -1178,7 +1184,7 @@ func doProjectForceDelete(ctx context.Context, s *state.State, projectName strin
 			return fmt.Errorf("Failed getting deleter for entity type %q: %w", ref.EntityType, err)
 		}
 
-		err = deleter.Delete(ctx, s, ref)
+		err = deleter.Delete(ctx, op, s, ref)
 		if err != nil {
 			return fmt.Errorf("Failed deleting %s %q: %w", ref.EntityType, ref.Name(), err)
 		}
@@ -1202,8 +1208,8 @@ func doProjectForceDelete(ctx context.Context, s *state.State, projectName strin
 //	    description: Force delete project and its entities
 //	    type: boolean
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1232,28 +1238,49 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 	// On cluster notification, clear the node config values and handle force deletion of local entities (if requested).
 	if requestor.IsClusterNotification() {
-		if force {
-			err = doProjectForceDelete(r.Context(), s, name)
-			if err != nil {
-				return response.SmartError(err)
+		run := func(ctx context.Context, op *operations.Operation) error {
+			if force {
+				err = doProjectForceDelete(ctx, op, s, name, nil)
+				if err != nil {
+					return fmt.Errorf("Failed to delete member specific project resources: %w", err)
+				}
 			}
+
+			err = projectNodeConfigDelete(d, s, name)
+			if err != nil {
+				return fmt.Errorf("Failed to remove member specific project configuration: %w", err)
+			}
+
+			return nil
 		}
 
-		err = projectNodeConfigDelete(d, s, name)
+		op, err := operations.ScheduleUserOperationFromRequest(s, r, operations.OperationArgs{
+			Type:      operationtype.ProjectDelete,
+			Class:     operations.OperationClassTask,
+			EntityURL: entity.ProjectURL(name),
+			RunHook:   run,
+		})
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		return response.EmptySyncResponse
+		return operations.OperationResponse(op)
 	}
 
+	var cachedImages []dbCluster.Image
+	var project *dbCluster.Project
+	var projectEntities map[entity.Type]map[int]*api.URL
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
+		project, err = dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return fmt.Errorf("Failed loading project %q: %w", name, err)
 		}
 
-		var cachedImages []dbCluster.Image
+		projectEntities, err = projectUsedByMap(ctx, tx.Tx(), project.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to determine project usage: %w", err)
+		}
+
 		if !force {
 			cached := true
 			cachedImages, err = dbCluster.GetImages(ctx, tx.Tx(), dbCluster.ImageFilter{Project: &project.Name, Cached: &cached})
@@ -1267,31 +1294,8 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Verify the project is empty. Skip checking for cached images as these will be deleted below.
-			empty, err := projectIsEmpty(ctx, project, tx, cachedImageURLs...)
-			if err != nil {
-				return err
-			}
-
-			if !empty {
+			if isProjectInUse(projectUsedByListFromMap(projectEntities), cachedImageURLs...) {
 				return errors.New("Only empty projects can be removed")
-			}
-		}
-
-		// Prune cached images.
-		for _, image := range cachedImages {
-			op, err := doImageDelete(ctx, s, image.Fingerprint, image.ID, project.Name)
-			if err != nil {
-				return fmt.Errorf("Failed creating delete operation for cached image %q: %w", image.Fingerprint, err)
-			}
-
-			err = op.Start()
-			if err != nil {
-				return fmt.Errorf("Failed starting image delete operation for cached image %q: %w", image.Fingerprint, err)
-			}
-
-			err = op.Wait(context.Background())
-			if err != nil {
-				return fmt.Errorf("Failed deleting cached image %q: %w", image.Fingerprint, err)
 			}
 		}
 
@@ -1301,44 +1305,119 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if force {
-		// Force delete all project entities from the local node.
-		err = doProjectForceDelete(r.Context(), s, name)
+	isDefaultProfile := func(u url.URL) bool {
+		return strings.Contains(u.Path, "/profiles/default")
+	}
+
+	for eType, idToURL := range projectEntities {
+		if len(idToURL) == 1 {
+			entityURL := slices.Collect(maps.Values(idToURL))[0]
+			if isDefaultProfile(entityURL.URL) {
+				continue
+			}
+
+			err := s.Authorizer.CheckPermission(r.Context(), slices.Collect(maps.Values(idToURL))[0], auth.EntitlementCanDelete)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			continue
+		}
+
+		canDelete, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanDelete, eType)
 		if err != nil {
 			return response.SmartError(err)
 		}
+
+		for _, u := range idToURL {
+			if isDefaultProfile(u.URL) {
+				continue
+			}
+
+			if !canDelete(u) {
+				return response.Forbidden(nil)
+			}
+		}
 	}
 
-	// Clear the project-specific config keys from the local node config.
-	err = projectNodeConfigDelete(d, s, name)
-	if err != nil {
-		return response.SmartError(err)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		if force {
+			// Force delete all project entities from the local node.
+			err = doProjectForceDelete(ctx, op, s, project.Name, projectEntities)
+			if err != nil {
+				return fmt.Errorf("Failed to force delete project: %w", err)
+			}
+		} else {
+			var opScheduler operations.OperationScheduler = func(s *state.State, args operations.OperationArgs) (*operations.Operation, error) {
+				return operations.ScheduleUserOperationFromOperation(s, op, args)
+			}
+
+			// Prune cached images.
+			for _, image := range cachedImages {
+				op, err := doImageDelete(ctx, opScheduler, s, image.Fingerprint, image.ID, project.Name)
+				if err != nil {
+					return fmt.Errorf("Failed creating delete operation for cached image %q: %w", image.Fingerprint, err)
+				}
+
+				err = op.Start()
+				if err != nil {
+					return fmt.Errorf("Failed starting image delete operation for cached image %q: %w", image.Fingerprint, err)
+				}
+
+				err = op.Wait(context.Background())
+				if err != nil {
+					return fmt.Errorf("Failed deleting cached image %q: %w", image.Fingerprint, err)
+				}
+			}
+		}
+
+		// Clear the project-specific config keys from the local node config.
+		err = projectNodeConfigDelete(d, s, name)
+		if err != nil {
+			return fmt.Errorf("Failed to delete project specific information from local node configuration: %w", err)
+		}
+
+		// Send notification to all cluster members to update the node schema and handle forced project deletion (if requested).
+		// Require all cluster members to process cluster notification to avoid leaving cluster members in an inconsistent state.
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return fmt.Errorf("Failed to get a cluster notifier: %w", err)
+		}
+
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			op, err := client.DeleteProject(name, force)
+			if err != nil {
+				return err
+			}
+
+			return op.Wait()
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to notify other cluster members: %w", err)
+		}
+
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			return dbCluster.DeleteProject(ctx, tx.Tx(), name)
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to delete project: %w", err)
+		}
+
+		s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor.EventLifecycleRequestor(), nil))
+		return nil
 	}
 
-	// Send notification to all cluster members to update the node schema and handle forced project deletion (if requested).
-	// Require all cluster members to process cluster notification to avoid leaving cluster members in an inconsistent state.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		return client.DeleteProject(name, force)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, operations.OperationArgs{
+		Type:      operationtype.ProjectDelete,
+		Class:     operations.OperationClassTask,
+		EntityURL: entity.ProjectURL(project.Name),
+		RunHook:   run,
 	})
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
-	}
-
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.DeleteProject(ctx, tx.Tx(), name)
-	})
-	if err != nil {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor.EventLifecycleRequestor(), nil))
-
-	return response.EmptySyncResponse
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/projects/{name}/state projects project_state_get
@@ -1411,20 +1490,7 @@ func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.Clus
 		return false, err
 	}
 
-	if len(skipURLs) > 0 {
-		filtered := make([]string, 0, len(usedBy))
-		for _, u := range usedBy {
-			// Filter out skipURLs.
-			// We use this to skip cached image URLs when checking if a project is empty in [projectDelete].
-			if !slices.Contains(skipURLs, u) {
-				filtered = append(filtered, u)
-			}
-		}
-
-		usedBy = filtered
-	}
-
-	if isProjectInUse(usedBy) {
+	if isProjectInUse(usedBy, skipURLs...) {
 		return false, nil
 	}
 
