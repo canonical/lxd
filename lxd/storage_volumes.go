@@ -2549,7 +2549,7 @@ func doStoragePoolVolumeDelete(ctx context.Context, opScheduler operations.Opera
 
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", volType.String(), name).Project(requestProjectName),
+		EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", volType.String(), name).Project(effectiveProjectName),
 		Type:        operationtype.VolumeDelete,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
