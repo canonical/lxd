@@ -765,7 +765,7 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 	if len(resources) > 0 {
 		resource := resources[0]
 
-		instances, _ := resource.server.GetInstances("")
+		instances, _ := resource.server.GetInstances(lxd.GetInstancesArgs{InstanceType: api.InstanceTypeAny})
 
 		results = make([]string, 0, len(instances))
 		for _, instance := range instances {

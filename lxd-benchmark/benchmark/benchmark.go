@@ -86,7 +86,7 @@ func LaunchContainers(c lxd.InstanceServer, count int, parallel int, image strin
 func GetContainers(c lxd.InstanceServer) ([]api.Instance, error) {
 	containers := []api.Instance{}
 
-	allContainers, err := c.GetInstances(api.InstanceTypeContainer)
+	allContainers, err := c.GetInstances(lxd.GetInstancesArgs{InstanceType: api.InstanceTypeContainer})
 	if err != nil {
 		return containers, err
 	}
