@@ -58,9 +58,8 @@ func (t Type) URL(projectName string, location string, pathArguments ...string) 
 
 	u := api.NewURL().Path(path...)
 
-	// Set project parameter if provided and the entity type requires a project (operations and warnings may be project
-	// specific but it is not a requirement).
-	if projectName != "" && (info.requiresProject() || t == TypeOperation || t == TypeWarning) {
+	// Set project parameter if provided and the entity type requires a project.
+	if projectName != "" && info.requiresProject() {
 		u = u.WithQuery("project", projectName)
 	}
 
@@ -70,6 +69,32 @@ func (t Type) URL(projectName string, location string, pathArguments ...string) 
 	}
 
 	return u, nil
+}
+
+// URLFromNamedArgs returns a string URL for the Type.
+//
+// If the Type is project specific and no project name is given, the project name will be set to api.ProjectDefaultName.
+//
+// Warning: All arguments to this function will be URL encoded. They must not be URL encoded before calling this method.
+func (t Type) URLFromNamedArgs(projectName string, location string, pathArguments map[string]string) (*api.URL, error) {
+	info, ok := entityTypes[t]
+	if !ok {
+		return nil, fmt.Errorf("Invalid entity type %q", t)
+	}
+
+	// Convert the map of named path arguments to a slice of path arguments.
+	argNames := info.pathArgNames()
+	args := make([]string, len(argNames))
+	for i, name := range argNames {
+		_, ok := pathArguments[name]
+		if !ok {
+			return nil, fmt.Errorf("Entity type %q requires path argument %q", t, name)
+		}
+
+		args[i] = pathArguments[name]
+	}
+
+	return t.URL(projectName, location, args...)
 }
 
 // ParseURL parses a raw URL string and returns the Type, project, location, and path arguments (mux vars).
@@ -129,12 +154,11 @@ entityTypeLoop:
 		return "", "", "", nil, fmt.Errorf("Failed to match entity URL %q", u.String())
 	}
 
-	// Handle the project query parameter. If the entity type requires a project we set it to api.ProjectDefaultName if it does
-	// not exist. For operations and warnings we need to maintain the project paramater if it was set, but don't set it to
-	// default if it is not present (project is optional for these entity types).
+	// Handle the project query parameter. If the entity type requires a project we set it to
+	// [api.ProjectDefaultName] if it does not exist.
 	requiresProject := entityTypeImpl.requiresProject()
 	projectName = ""
-	if requiresProject || entityType == TypeOperation || entityType == TypeWarning {
+	if requiresProject {
 		projectName = u.Query().Get("project")
 		if projectName == "" && requiresProject {
 			projectName = api.ProjectDefaultName
@@ -147,6 +171,33 @@ entityTypeLoop:
 	}
 
 	return entityType, projectName, u.Query().Get("target"), pathArguments, nil
+}
+
+// ParseURLWithNamedArgs parses a raw URL string and returns the Type and a map of named arguments,
+// where each entry maps an argument name to its corresponding value parsed from the URL.
+func ParseURLWithNamedArgs(u url.URL) (entityType Type, projectName string, location string, args map[string]string, err error) {
+	entityType, projectName, location, pathArgs, err := ParseURL(u)
+	if err != nil {
+		return "", "", "", nil, err
+	}
+
+	entityInfo, ok := entityTypes[entityType]
+	if !ok {
+		return "", "", "", nil, fmt.Errorf("Unknown entity type %q", entityType)
+	}
+
+	pathArgNames := entityInfo.pathArgNames()
+
+	if len(pathArgs) != len(pathArgNames) {
+		return "", "", "", nil, fmt.Errorf("Argument count mismatch for entity type %q: expected %d, got %d", entityType, len(pathArgNames), len(pathArgs))
+	}
+
+	args = make(map[string]string, len(pathArgs))
+	for i, argName := range pathArgNames {
+		args[argName] = pathArgs[i]
+	}
+
+	return entityType, projectName, location, args, nil
 }
 
 // urlMust is used internally when we know that creation of an *api.URL ought to succeed. If an error does occur an
