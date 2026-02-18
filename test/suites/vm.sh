@@ -139,7 +139,12 @@ test_vm_pcie_bus() {
 
   # The default value for "limits.max_bus_ports" is 8 ports.
   # Fill all the available slots with PCIe devices.
-  for i in $(seq 1 5); do
+  local lower_bound=1
+  if coverage_enabled; then
+    # When coverage is enabled, the GOCOVERDIR is shared between the host and the VM taking one more port.
+    lower_bound=2
+  fi
+  for i in $(seq "${lower_bound}" 5); do
     lxc config device add v1 "aaa${i}" nic nictype=p2p
   done
 
