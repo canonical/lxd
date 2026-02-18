@@ -690,11 +690,23 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		Stateful:     req.Stateful,
 	}
 
-	moveInstToTarget := func(targetClient lxd.InstanceServer) error {
-		// targetMemberInfo has to be there but this is just a safety check.
-		if targetMemberInfo != nil {
-			targetClient = targetClient.UseTarget(targetMemberInfo.Name)
+	// Define client here to allow reuse.
+	var targetClient lxd.InstanceServer
+
+	moveInstToTarget := func(target string) error {
+		// Safety checks.
+		if targetMemberInfo == nil {
+			return fmt.Errorf("Target information is missing to move instance %q", req.Name)
 		}
+
+		if targetClient == nil {
+			targetClient, err = cluster.Connect(ctx, targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+			if err != nil {
+				return fmt.Errorf("Failed to connect to member %q: %w", targetMemberInfo.Name, err)
+			}
+		}
+
+		targetClient = targetClient.UseTarget(target)
 
 		op, err := targetClient.MigrateInstance(req.Name, api.InstancePost{
 			// We don't have to handle live migration as the instance is always stopped.
@@ -711,30 +723,14 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		revert := revert.New()
 		defer revert.Fail()
 
-		var targetClient lxd.InstanceServer
-
 		if s.ServerClustered && targetMemberInfo != nil && targetMemberInfo.Name != s.ServerName {
-			targetClient, err = cluster.Connect(ctx, targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
-			if err != nil {
-				return err
-			}
-
 			// Move the instance to the source member in case of refresh.
 			// At this stage we only handle instances on remote storage.
 			// An instance creation (refresh) with a running source instance always requires both the source and target instance to be on the same member.
 			// If the source is running, this ensures it can be frozen accordingly.
 			if req.Source.Refresh {
-				targetClient = targetClient.UseTarget(s.ServerName)
-
 				logger.Debug("Migrate instance to local source before copy", logger.Ctx{"local": s.ServerName, "target": targetMemberInfo.Name, "targetAddress": targetMemberInfo.Address})
-				op, err := targetClient.MigrateInstance(req.Name, api.InstancePost{
-					Migration: true,
-				})
-				if err != nil {
-					return err
-				}
-
-				err = op.Wait()
+				err = moveInstToTarget(s.ServerName)
 				if err != nil {
 					return err
 				}
@@ -742,7 +738,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 				// Move the instance back to its target in case of failure during copy.
 				revert.Add(func() {
 					logger.Debug("Migrate instance back to target after failed copy", logger.Ctx{"local": s.ServerName, "target": targetMemberInfo.Name, "targetAddress": targetMemberInfo.Address})
-					_ = moveInstToTarget(targetClient)
+					_ = moveInstToTarget(targetMemberInfo.Name)
 				})
 			}
 		}
@@ -770,7 +766,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 
 			// At this stage we move the entire instance with all of its snapshots.
 			// In case the actual copy operation was requested with InstanceOnly=true, the copied instance doesn't have snapshots.
-			err = moveInstToTarget(targetClient)
+			err = moveInstToTarget(targetMemberInfo.Name)
 			if err != nil {
 				return err
 			}
