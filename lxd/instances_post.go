@@ -693,7 +693,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 	// Define client here to allow reuse.
 	var targetClient lxd.InstanceServer
 
-	moveInstToTarget := func(target string) error {
+	moveInstToTarget := func(ctx context.Context, target string) error {
 		// Safety checks.
 		if targetMemberInfo == nil {
 			return fmt.Errorf("Target information is missing to move instance %q", req.Name)
@@ -730,7 +730,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 			// If the source is running, this ensures it can be frozen accordingly.
 			if req.Source.Refresh {
 				logger.Debug("Migrate instance to local source before copy", logger.Ctx{"local": s.ServerName, "target": targetMemberInfo.Name, "targetAddress": targetMemberInfo.Address})
-				err = moveInstToTarget(s.ServerName)
+				err = moveInstToTarget(ctx, s.ServerName)
 				if err != nil {
 					return err
 				}
@@ -738,7 +738,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 				// Move the instance back to its target in case of failure during copy.
 				revert.Add(func() {
 					logger.Debug("Migrate instance back to target after failed copy", logger.Ctx{"local": s.ServerName, "target": targetMemberInfo.Name, "targetAddress": targetMemberInfo.Address})
-					_ = moveInstToTarget(targetMemberInfo.Name)
+					_ = moveInstToTarget(ctx, targetMemberInfo.Name)
 				})
 			}
 		}
@@ -766,7 +766,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 
 			// At this stage we move the entire instance with all of its snapshots.
 			// In case the actual copy operation was requested with InstanceOnly=true, the copied instance doesn't have snapshots.
-			err = moveInstToTarget(targetMemberInfo.Name)
+			err = moveInstToTarget(ctx, targetMemberInfo.Name)
 			if err != nil {
 				return err
 			}
