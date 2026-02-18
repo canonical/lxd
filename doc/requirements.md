@@ -10,7 +10,7 @@ We recommend having at least 2GiB of RAM to allow the build to complete.
 
 ## Kernel requirements
 
-The minimum supported kernel version is 5.15, but older kernels should also work to some degree.
+The minimum supported kernel version is 6.8, but older kernels should also work to some degree.
 
 LXD requires a kernel with support for:
 
