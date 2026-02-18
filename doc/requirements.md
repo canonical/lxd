@@ -10,7 +10,7 @@ We recommend having at least 2GiB of RAM to allow the build to complete.
 
 ## Kernel requirements
 
-The minimum supported kernel version is 5.15, but older kernels should also work to some degree.
+The minimum supported kernel version is 6.8, but older kernels should also work to some degree.
 
 LXD requires a kernel with support for:
 
@@ -42,7 +42,7 @@ should also be installed.
 
 ## QEMU
 
-For virtual machines, QEMU 6.2 or higher and `virtiofsd` 1.10.0 or higher are required.
+For virtual machines, QEMU 8.2.2 or higher and `virtiofsd` 1.10.0 or higher are required.
 Some features like Confidential Guest support require a more recent QEMU and kernel version.
 
 Hardware-assisted virtualization (Intel VT-x, AMD-V, etc) is required for
@@ -52,8 +52,7 @@ be required for device pass-through.
 (requirements-zfs)=
 ## ZFS
 
-For the ZFS storage driver, ZFS 2.1 or higher is required. Some features
-like `zfs_delegate` requires 2.2 or higher to be used.
+For the ZFS storage driver, ZFS 2.2 or higher is required.
 
 ## Additional libraries (and development headers)
 
