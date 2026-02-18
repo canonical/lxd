@@ -584,7 +584,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		serverName := s.ServerName
 
 		if serverName != source.Location() {
-			// Check if we are copying from a ceph-based container.
+			// Check if we are copying the instance from a different or remote pool.
 			_, rootDevice, _ := instancetype.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
 			sourcePoolName := rootDevice["pool"]
 
