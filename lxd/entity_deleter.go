@@ -48,7 +48,7 @@ func (d instanceDeleter) Delete(ctx context.Context, op *operations.Operation, s
 type imageDeleter struct{}
 
 // Delete deletes an image.
-func (d imageDeleter) Delete(ctx context.Context, imageDeleteOp *operations.Operation, s *state.State, ref entity.Reference) error {
+func (d imageDeleter) Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	fingerprint := ref.Name()
 
 	var imageID int
@@ -62,10 +62,10 @@ func (d imageDeleter) Delete(ctx context.Context, imageDeleteOp *operations.Oper
 	}
 
 	var opScheduler operations.OperationScheduler = func(s *state.State, args operations.OperationArgs) (*operations.Operation, error) {
-		return operations.ScheduleUserOperationFromOperation(s, imageDeleteOp, args)
+		return operations.ScheduleUserOperationFromOperation(s, op, args)
 	}
 
-	imageDeleteOp, err = doImageDelete(ctx, opScheduler, s, fingerprint, imageID, ref.ProjectName)
+	imageDeleteOp, err := doImageDelete(ctx, opScheduler, s, fingerprint, imageID, ref.ProjectName)
 	if err != nil {
 		return fmt.Errorf("Failed deleting image %q: %w", fingerprint, err)
 	}
