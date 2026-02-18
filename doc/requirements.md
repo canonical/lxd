@@ -42,7 +42,7 @@ should also be installed.
 
 ## QEMU
 
-For virtual machines, QEMU 6.2 or higher and `virtiofsd` 1.10.0 or higher are required.
+For virtual machines, QEMU 8.2.2 or higher and `virtiofsd` 1.10.0 or higher are required.
 Some features like Confidential Guest support require a more recent QEMU and kernel version.
 
 Hardware-assisted virtualization (Intel VT-x, AMD-V, etc) is required for
