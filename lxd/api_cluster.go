@@ -1267,8 +1267,8 @@ func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.
 			continue
 		}
 
-		// Tell the node to promote itself.
-		logger.Info("Promoting member during rebalance", logger.Ctx{"candidateAddress": address})
+		// Tell the node to change its role (promotion or demotion).
+		logger.Info("Changing member role during rebalance", logger.Ctx{"candidateAddress": address})
 		err = changeMemberRole(ctx, s, address, nodes)
 		if err != nil {
 			return err
