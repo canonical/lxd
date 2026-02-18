@@ -3031,19 +3031,27 @@ func (d *qemu) generateConfigShare() error {
 		return err
 	}
 
-	// Systemd unit for lxd-agent. It ensures the lxd-agent is copied from the shared filesystem before it is
-	// started. The service is triggered dynamically via udev rules when certain virtio-ports are detected,
-	// rather than being enabled at boot.
-	lxdAgentServiceUnit := `[Unit]
+	lxdAgentServiceUnit := `# Systemd unit for lxd-agent. It ensures the lxd-agent is copied from the shared filesystem before
+# it is started. The service is triggered dynamically when the lxd-agent-generator is run inside a
+# LXD VM, rather than being enabled at boot.
+[Unit]
 Description=LXD - agent
 Documentation=https://documentation.ubuntu.com/lxd/latest/
-Before=multi-user.target cloud-init.target cloud-init.service cloud-init-local.service
+Before=multi-user.target cloud-init-local.service shutdown.target umount.target
+After=local-fs.target systemd-journald.socket
+Conflicts=shutdown.target
 DefaultDependencies=no
+
+# Containers see their host's DMI information, so the generator may add
+# lxd-agent.service to the boot transaction if the container's host is a LXD VM
+# with systemd older than 251. Prevent this by requiring a VM (systemd 244+).
+ConditionVirtualization=vm
 
 [Service]
 Type=notify
+RuntimeDirectory=lxd_agent
 WorkingDirectory=-/run/lxd_agent
-ExecStartPre=/lib/systemd/lxd-agent-setup
+ExecStartPre=/usr/lib/systemd/lxd-agent-setup
 ExecStart=/run/lxd_agent/lxd-agent
 Restart=on-failure
 RestartSec=5s
@@ -3105,19 +3113,31 @@ restorecon -R "${PREFIX}" >/dev/null 2>&1 || true
 		return err
 	}
 
-	err = os.MkdirAll(filepath.Join(configDrivePath, "udev"), 0500)
-	if err != nil {
-		return err
-	}
+	// system generator to start the lxd-agent.service when LXD VMs are detected via DMI `board_name`.
+	lxdAgentGenerator := `#!/bin/sh
 
-	// Udev rules to start the lxd-agent.service when QEMU serial devices (symlinks in virtio-ports) appear.
-	lxdAgentRules := `SYMLINK=="virtio-ports/com.canonical.lxd", TAG+="systemd", ENV{SYSTEMD_WANTS}+="lxd-agent.service"
+# $1 = normal, $2 = early, $3 = late
+OUT_DIR="${2}"
+UNIT_NAME="lxd-agent.service"
+SOURCE_UNIT="/usr/lib/systemd/system/${UNIT_NAME}"
+TARGET_DIR="${OUT_DIR}/multi-user.target.wants"
 
-# Legacy.
-SYMLINK=="virtio-ports/org.linuxcontainers.lxd", TAG+="systemd", ENV{SYSTEMD_WANTS}+="lxd-agent.service"
+# SYSTEMD_VIRTUALIZATION was added in version 251
+[ "${SYSTEMD_VIRTUALIZATION:-vm:kvm}" = "vm:kvm" ] || exit 0
+
+# In a LXD VM, the board name is set to "LXD"
+f="/sys/class/dmi/id/board_name"
+[ -r "${f}" ] || exit 0
+
+read -r board_name < "${f}" || true
+if [ "${board_name}" = "LXD" ]; then
+  [ -d "${TARGET_DIR}" ] || mkdir -p "${TARGET_DIR}"
+  ln -sf "${SOURCE_UNIT}" "${TARGET_DIR}/${UNIT_NAME}"
+fi
 `
 
-	err = os.WriteFile(filepath.Join(configDrivePath, "udev", "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
+	// System generators need to be executable as they are executed directly by systemd to determine which units to enable.
+	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-generator"), []byte(lxdAgentGenerator), 0500)
 	if err != nil {
 		return err
 	}
@@ -3125,7 +3145,7 @@ SYMLINK=="virtio-ports/org.linuxcontainers.lxd", TAG+="systemd", ENV{SYSTEMD_WAN
 	// Install script for manual installs.
 	lxdConfigShareInstall := `#!/bin/sh
 if [ ! -e "systemd" ] || [ ! -e "lxd-agent" ]; then
-    echo "This script must be run from within the 9p mount"
+    echo "This script must be run from within the config mount"
     exit 1
 fi
 
@@ -3135,7 +3155,7 @@ if [ ! -d "/run/systemd/system/" ]; then
     exit 1
 fi
 
-for path in "/lib/systemd" "/usr/lib/systemd"; do
+for path in "/usr/lib/systemd" "/lib/systemd"; do
     [ -d "${path}/system" ] || continue
     LIB_SYSTEMD="${path}"
     break
@@ -3146,33 +3166,26 @@ if [ ! -d "${LIB_SYSTEMD:-}" ]; then
     exit 1
 fi
 
-for path in "/lib/udev" "/usr/lib/udev"; do
-    [ -d "${path}/rules.d/" ] || continue
-    LIB_UDEV="${path}"
-    break
-done
-
-if [ ! -d "${LIB_UDEV:-}" ]; then
-    echo "Could not find path to udev"
-    exit 1
-fi
-
 # Cleanup former units.
 rm -f "${LIB_SYSTEMD}/system/lxd-agent-9p.service" \
     "${LIB_SYSTEMD}/system/lxd-agent-virtiofs.service" \
+    /usr/lib/udev/rules.d/99-lxd-agent.rules \
+    /lib/udev/rules.d/99-lxd-agent.rules \
     /etc/systemd/system/multi-user.target.wants/lxd-agent-9p.service \
     /etc/systemd/system/multi-user.target.wants/lxd-agent-virtiofs.service \
     /etc/systemd/system/multi-user.target.wants/lxd-agent.service
 
 # Install the units.
-cp udev/99-lxd-agent.rules "${LIB_UDEV}/rules.d/"
 cp systemd/lxd-agent-setup "${LIB_SYSTEMD}/"
-if [ "/lib/systemd" = "${LIB_SYSTEMD}" ]; then
-  cp systemd/lxd-agent.service "${LIB_SYSTEMD}/system/"
-else
-  # Adapt paths for systemd's lib location
-  sed "/=\/lib\/systemd/ s|=/lib/systemd|=${LIB_SYSTEMD}|" systemd/lxd-agent.service > "${LIB_SYSTEMD}/system/lxd-agent.service"
+cp systemd/lxd-agent.service "${LIB_SYSTEMD}/system/"
+mkdir -p "${LIB_SYSTEMD}/system-generators"
+cp systemd/lxd-agent-generator "${LIB_SYSTEMD}/system-generators/"
+
+# Adapt paths for systemd's lib location if needed.
+if [ "/usr/lib/systemd" != "${LIB_SYSTEMD}" ]; then
+    sed -i "s|/usr/lib/systemd|${LIB_SYSTEMD}|g" "${LIB_SYSTEMD}/system/lxd-agent.service" "${LIB_SYSTEMD}/system-generators/lxd-agent-generator"
 fi
+
 systemctl daemon-reload
 
 # SELinux handling.
