@@ -1306,7 +1306,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	isDefaultProfile := func(u url.URL) bool {
-		return strings.Contains(u.Path, "/profiles/default")
+		return strings.HasSuffix(u.Path, "projects/"+url.PathEscape(project.Name)+"/profiles/default")
 	}
 
 	for eType, idToURL := range projectEntities {
