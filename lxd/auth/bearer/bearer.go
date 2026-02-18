@@ -16,6 +16,9 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// CookieNameSession is the name of the cookie used to store session bearer tokens.
+const CookieNameSession = "token_bearer_session"
+
 // IsDevLXDRequest returns true if the caller sent a bearer token in the Authorization header that is a JWT and appears to
 // have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
 func IsDevLXDRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
@@ -26,6 +29,43 @@ func IsDevLXDRequest(r *http.Request, clusterUUID string) (isRequest bool, token
 // have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
 func IsAPIRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
 	return isRequestFromAudience(r, clusterUUID, encryption.LXDAudience(clusterUUID))
+}
+
+// IsQueryRequest returns true if the caller sent a bearer token in the "token" query parameter that is a JWT and appears
+// to have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
+func IsQueryRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
+	token = r.URL.Query().Get("token")
+	if token == "" {
+		return false, "", ""
+	}
+
+	subject, _, err := isLXDToken(token, clusterUUID, encryption.LXDAudience(clusterUUID))
+	if err != nil {
+		return false, "", ""
+	}
+
+	return true, token, subject
+}
+
+// IsCookieRequest returns true if the caller sent a cookie [CookieNameSession] that is a JWT and appears
+// to have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
+func IsCookieRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
+	cookie, err := r.Cookie(CookieNameSession)
+	if err != nil {
+		return false, "", ""
+	}
+
+	token = cookie.Value
+	if token == "" {
+		return false, "", ""
+	}
+
+	subject, _, err = isLXDToken(token, clusterUUID, encryption.LXDAudience(clusterUUID))
+	if err != nil {
+		return false, "", ""
+	}
+
+	return true, token, subject
 }
 
 // isRequestFromAudience returns true if the caller sent a bearer token in the Authorization header that is a JWT and appears to
