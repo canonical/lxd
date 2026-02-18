@@ -380,33 +380,43 @@ test_clustering_containers() {
   # Create stopped base container.
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo test-refresh --target node1
 
+  # Create additional target project.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="data" --project foo
+
   # Perform copy/refresh matrix test from every cluster member to ensure the request forwards work as expected
   # and test with both started and stopped containers.
   for state in "" "--start"; do
-    for member in "node1" "node2" "node3"; do
-      echo "Copy base container to target ${member}."
-      # shellcheck disable=SC2248
-      LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --target "${member}" ${state}
+    for project in "default" "foo"; do
+      for member in "node1" "node2" "node3"; do
+        echo "Copy base container to target ${member}."
+        # shellcheck disable=SC2248
+        LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --target "${member}" --target-project "${project}" ${state}
 
-      echo "Check placement is correct."
-      LXD_DIR="${LXD_ONE_DIR}" lxc info test-refresh-target | grep -xF "Location: ${member}"
+        echo "Check placement is correct."
+        LXD_DIR="${LXD_ONE_DIR}" lxc info test-refresh-target --project "${project}" | grep -xF "Location: ${member}"
 
-      echo "Refresh target container."
-      if [ "${state}" = "--start" ]; then
-        echo "Refresh should be blocked if the instance is running."
-        ! LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --refresh || false
-      else
-        LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --refresh
-      fi
+        echo "Refresh target container."
+        if [ "${state}" = "--start" ]; then
+          echo "Refresh should be blocked if the instance is running."
+          ! LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --refresh --target-project "${project}" || false
+        else
+          LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --refresh --target-project "${project}"
+        fi
 
-      echo "Check placement hasn't changed during refresh."
-      LXD_DIR="${LXD_ONE_DIR}" lxc info test-refresh-target | grep -xF "Location: ${member}"
+        echo "Check placement hasn't changed during refresh."
+        LXD_DIR="${LXD_ONE_DIR}" lxc info test-refresh-target --project "${project}" | grep -xF "Location: ${member}"
 
-      LXD_DIR="${LXD_ONE_DIR}" lxc delete -f test-refresh-target
+        echo "Check project hasn't changed during refresh."
+        LXD_DIR="${LXD_ONE_DIR}" lxc info test-refresh-target --project "${project}"
+
+        LXD_DIR="${LXD_ONE_DIR}" lxc delete -f test-refresh-target --project "${project}"
+      done
     done
   done
 
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f test-refresh
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
 
   echo "Copy the container on node2 to node3, using a client connected to node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar --target node3
