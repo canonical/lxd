@@ -533,7 +533,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
-		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
+		// Indicate whether the devLXD is being accessed over vsock. This allows the handler
 		// to determine the correct response type. The responses over vsock are always
 		// in api.Response format, while the responses over Unix socket are in devLXDResponse format.
 		request.SetContextValue(r, request.CtxDevLXDOverVsock, authenticator.IsVsock())
