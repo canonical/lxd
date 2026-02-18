@@ -2963,3 +2963,8 @@ This can take a long time, but the `DELETE /1.0/projects/{name}` endpoint still 
 
 This extension converts this endpoint to an asynchronous operation response.
 As with the {ref}`storage and profile operation extension <extension-storage-and-profile-operations>`, this extension is forward compatible only.
+
+(extension-gpu-cdi-amd)=
+## `gpu_cdi_amd`
+
+Adds support for using the Container Device Interface (CDI) specification to configure AMD GPU passthrough in LXD containers. The `id` field of GPU devices now accepts CDI identifiers (for example, `amd.com/gpu=gpu{INDEX}`) for containers, in addition to DRM card IDs.
