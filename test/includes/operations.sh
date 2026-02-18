@@ -5,6 +5,7 @@ lxd_websocket_operation() {
   local duration="$2"
   local project_name="${3:-default}"
 
+  # op_type 20 is "CommandExec"
   lxc query --wait -X POST -d '{"duration": "'"${duration}"'", "op_class": 2, "op_type": 20, "entity_url": "/1.0/instances/'"${instance_name}"'?project='"${project_name}"'"}' "/internal/testing/operation-wait?project=${project_name}"
 }
 
@@ -16,7 +17,8 @@ lxd_volume_operation() {
   local duration="$3"
   local project_name="${4:-default}"
 
-  lxc query --wait -X POST -d '{"duration": "'"${duration}"'", "op_class": 1, "op_type": 48, "entity_url": "/1.0/storage-pools/'"${pool_name}"'/volumes/custom/'"${volume_name}"'?project='"${project_name}"'"}' "/internal/testing/operation-wait?project=${project_name}"
+  # op_type 32 is "VolumeCopy"
+  lxc query --wait -X POST -d '{"duration": "'"${duration}"'", "op_class": 1, "op_type": 32, "entity_url": "/1.0/storage-pools/'"${pool_name}"'/volumes/custom/'"${volume_name}"'?project='"${project_name}"'"}' "/internal/testing/operation-wait?project=${project_name}"
 }
 
 # check_registered_operations checks for registered operations.
