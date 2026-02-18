@@ -58,9 +58,8 @@ func (t Type) URL(projectName string, location string, pathArguments ...string) 
 
 	u := api.NewURL().Path(path...)
 
-	// Set project parameter if provided and the entity type requires a project (operations and warnings may be project
-	// specific but it is not a requirement).
-	if projectName != "" && (info.requiresProject() || t == TypeOperation || t == TypeWarning) {
+	// Set project parameter if provided and the entity type requires a project.
+	if projectName != "" && info.requiresProject() {
 		u = u.WithQuery("project", projectName)
 	}
 
@@ -129,12 +128,11 @@ entityTypeLoop:
 		return "", "", "", nil, fmt.Errorf("Failed to match entity URL %q", u.String())
 	}
 
-	// Handle the project query parameter. If the entity type requires a project we set it to api.ProjectDefaultName if it does
-	// not exist. For operations and warnings we need to maintain the project paramater if it was set, but don't set it to
-	// default if it is not present (project is optional for these entity types).
+	// Handle the project query parameter. If the entity type requires a project we set it to
+	// [api.ProjectDefaultName] if it does not exist.
 	requiresProject := entityTypeImpl.requiresProject()
 	projectName = ""
-	if requiresProject || entityType == TypeOperation || entityType == TypeWarning {
+	if requiresProject {
 		projectName = u.Query().Get("project")
 		if projectName == "" && requiresProject {
 			projectName = api.ProjectDefaultName
