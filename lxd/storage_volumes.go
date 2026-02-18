@@ -2022,14 +2022,14 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 		return nil
 	}
 
-	volumeURL := entity.StorageVolumeURL(projectName, vol.Location, vol.Pool, vol.Type, vol.Name)
+	volumeURL := entity.StorageVolumeURL(requestProjectName, vol.Location, vol.Pool, vol.Type, vol.Name)
 	resources := map[entity.Type][]api.URL{
 		entity.TypeStorageVolume: {*volumeURL},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   entity.StorageVolumeURL(projectName, vol.Location, vol.Pool, vol.Type, vol.Name),
+		EntityURL:   volumeURL,
 		Type:        operationtype.VolumeMove,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
