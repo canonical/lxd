@@ -803,7 +803,7 @@ func GetNextRoleChange(state *state.State, gateway *Gateway, unavailableMembers 
 
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("Get current raft nodes: %w", err)
+		return "", nil, nil, fmt.Errorf("Failed getting current raft nodes: %w", err)
 	}
 
 	roles, connectivity, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
@@ -1120,7 +1120,7 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 func Handover(state *state.State, gateway *Gateway, address string) (string, []db.RaftNode, error) {
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return "", nil, fmt.Errorf("Get current raft nodes: %w", err)
+		return "", nil, fmt.Errorf("Failed getting current raft nodes: %w", err)
 	}
 
 	var nodeID uint64
