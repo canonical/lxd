@@ -52,8 +52,7 @@ be required for device pass-through.
 (requirements-zfs)=
 ## ZFS
 
-For the ZFS storage driver, ZFS 2.1 or higher is required. Some features
-like `zfs_delegate` requires 2.2 or higher to be used.
+For the ZFS storage driver, ZFS 2.2 or higher is required.
 
 ## Additional libraries (and development headers)
 
