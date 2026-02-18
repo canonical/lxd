@@ -84,10 +84,17 @@ test_network() {
   lxc network delete lxdt$$
 
   # rename network
-  lxc network create lxdt$$ ipv4.address=none ipv6.address=none
+  lxc network create lxdt$$ ipv4.address=192.0.2.1/24 ipv6.address=none
+  old_log="${LXD_DIR}/logs/dnsmasq.lxdt$$.log"
+  new_log="${LXD_DIR}/logs/dnsmasq.newnet$$.log"
+  [ -f "${old_log}" ]
+  [ ! -f "${new_log}" ]
   lxc network rename lxdt$$ newnet$$
   ! lxc network list | grep -wF "lxdt$$" || false # the old name is gone
+  [ ! -f "${old_log}" ]
+  [ -f "${new_log}" ]
   lxc network delete newnet$$
+  [ ! -f "${new_log}" ]
 
   # Check that we can return state for physical networks
   ip link add dummy0 type dummy
