@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
@@ -56,7 +57,8 @@ type devLXDAuthenticator interface {
 
 var apiDevLXD = []APIEndpoint{
 	{
-		Path: "/",
+		Path:        "/",
+		MetricsType: entity.TypeServer,
 		Get: APIEndpointAction{
 			Handler: func(d *Daemon, r *http.Request) response.Response {
 				_, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey)
@@ -90,9 +92,10 @@ var apiDevLXD = []APIEndpoint{
 }
 
 var devLXD10Endpoint = APIEndpoint{
-	Path:  "",
-	Get:   APIEndpointAction{Handler: devLXDAPIGetHandler, AllowUntrusted: true},
-	Patch: APIEndpointAction{Handler: devLXDAPIPatchHandler, AllowUntrusted: true},
+	Path:        "",
+	MetricsType: entity.TypeServer,
+	Get:         APIEndpointAction{Handler: devLXDAPIGetHandler, AllowUntrusted: true},
+	Patch:       APIEndpointAction{Handler: devLXDAPIPatchHandler, AllowUntrusted: true},
 }
 
 func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -209,8 +212,9 @@ func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {
 }
 
 var devLXDConfigEndpoint = APIEndpoint{
-	Path: "config",
-	Get:  APIEndpointAction{Handler: devLXDConfigGetHandler, AllowUntrusted: true},
+	Path:        "config",
+	MetricsType: entity.TypeInstance,
+	Get:         APIEndpointAction{Handler: devLXDConfigGetHandler, AllowUntrusted: true},
 }
 
 func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -260,8 +264,9 @@ func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
 }
 
 var devLXDConfigKeyEndpoint = APIEndpoint{
-	Path: "config/{key}",
-	Get:  APIEndpointAction{Handler: devLXDConfigKeyGetHandler, AllowUntrusted: true},
+	Path:        "config/{key}",
+	MetricsType: entity.TypeInstance,
+	Get:         APIEndpointAction{Handler: devLXDConfigKeyGetHandler, AllowUntrusted: true},
 }
 
 func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -306,8 +311,9 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
 }
 
 var devLXDImageExportEndpoint = APIEndpoint{
-	Path: "images/{fingerprint}/export",
-	Get:  APIEndpointAction{Handler: devLXDImageExportHandler, AllowUntrusted: true},
+	Path:        "images/{fingerprint}/export",
+	MetricsType: entity.TypeImage,
+	Get:         APIEndpointAction{Handler: devLXDImageExportHandler, AllowUntrusted: true},
 }
 
 // devLXDImageExportHandler returns a file response containing the image files. The requested fingerprint must match
@@ -370,8 +376,9 @@ func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
 }
 
 var devLXDMetadataEndpoint = APIEndpoint{
-	Path: "meta-data",
-	Get:  APIEndpointAction{Handler: devLXDMetadataGetHandler, AllowUntrusted: true},
+	Path:        "meta-data",
+	MetricsType: entity.TypeInstance,
+	Get:         APIEndpointAction{Handler: devLXDMetadataGetHandler, AllowUntrusted: true},
 }
 
 func devLXDMetadataGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -386,8 +393,9 @@ func devLXDMetadataGetHandler(d *Daemon, r *http.Request) response.Response {
 }
 
 var devLXDEventsEndpoint = APIEndpoint{
-	Path: "events",
-	Get:  APIEndpointAction{Handler: devLXDEventsGetHandler, AllowUntrusted: true},
+	Path:        "events",
+	MetricsType: entity.TypeInstance,
+	Get:         APIEndpointAction{Handler: devLXDEventsGetHandler, AllowUntrusted: true},
 }
 
 func devLXDEventsGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -452,8 +460,9 @@ func devLXDEventsGetHandler(d *Daemon, r *http.Request) response.Response {
 }
 
 var devLXDDevicesEndpoint = APIEndpoint{
-	Path: "devices",
-	Get:  APIEndpointAction{Handler: devLXDDevicesGetHandler, AllowUntrusted: true},
+	Path:        "devices",
+	MetricsType: entity.TypeInstance,
+	Get:         APIEndpointAction{Handler: devLXDDevicesGetHandler, AllowUntrusted: true},
 }
 
 func devLXDDevicesGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -477,8 +486,9 @@ func devLXDDevicesGetHandler(d *Daemon, r *http.Request) response.Response {
 }
 
 var devLXDUbuntuProEndpoint = APIEndpoint{
-	Path: "ubuntu-pro",
-	Get:  APIEndpointAction{Handler: devLXDUbuntuProGetHandler, AllowUntrusted: true},
+	Path:        "ubuntu-pro",
+	MetricsType: entity.TypeInstance,
+	Get:         APIEndpointAction{Handler: devLXDUbuntuProGetHandler, AllowUntrusted: true},
 }
 
 func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -494,8 +504,9 @@ func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
 }
 
 var devLXDUbuntuProTokenEndpoint = APIEndpoint{
-	Path: "ubuntu-pro/token",
-	Post: APIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler, AllowUntrusted: true},
+	Path:        "ubuntu-pro/token",
+	MetricsType: entity.TypeInstance,
+	Post:        APIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler, AllowUntrusted: true},
 }
 
 func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) response.Response {
@@ -519,6 +530,10 @@ func devLXDAPI(d *Daemon, authenticator devLXDAuthenticator) http.Handler {
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, handler := range apiDevLXD {
+		if !slices.Contains(entity.APIMetricsEntityTypes(), handler.MetricsType) {
+			panic(fmt.Sprintf("DevLXD endpoint %q has an invalid metrics type %q", handler.Path, handler.MetricsType))
+		}
+
 		registerDevLXDEndpoint(d, m, "1.0", handler, authenticator)
 	}
 
@@ -533,17 +548,16 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
-		var requestor request.RequestorArgs
+		// Track request metrics
+		metrics.TrackStartedRequest(r, ep.MetricsType)
 
-		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
+		// Indicate whether the devLXD is being accessed over vsock. This allows the handler
 		// to determine the correct response type. The responses over vsock are always
 		// in api.Response format, while the responses over Unix socket are in devLXDResponse format.
 		request.SetContextValue(r, request.CtxDevLXDOverVsock, authenticator.IsVsock())
 
-		// Set [request.ProtocolDevLXD] by default identify this request as coming from the /dev/lxd socket.
-		requestor.Protocol = request.ProtocolDevLXD
-
 		// Check if the caller has a bearer token.
+		var requestor request.RequestorArgs
 		isBearerRequest, token, subject := bearer.IsDevLXDRequest(r, d.globalConfig.ClusterUUID())
 		if isBearerRequest {
 			bearerRequestor, err := bearer.Authenticate(token, subject, d.identityCache)
