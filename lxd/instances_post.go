@@ -576,7 +576,7 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 
 		if serverName != source.Location() {
 			// Check if we are copying the instance from a different or remote pool.
-			_, rootDevice, _ := instancetype.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
+			_, rootDevice, _ := api.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
 			sourcePoolName := rootDevice["pool"]
 
 			destPoolName, _, _, _, resp := instanceFindStoragePool(s, targetProject, req)
@@ -929,7 +929,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			return response.InternalError(fmt.Errorf("Failed to get default profile: %w", err))
 		}
 
-		_, v, err := instancetype.GetRootDiskDevice(profile.Devices)
+		_, v, err := api.GetRootDiskDevice(profile.Devices)
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Failed to get root disk device: %w", err))
 		}
@@ -1634,7 +1634,7 @@ func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, pla
 
 func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (storagePool string, storagePoolProfile string, localRootDiskDeviceKey string, localRootDiskDevice map[string]string, resp response.Response) {
 	// Grab the container's root device if one is specified
-	localRootDiskDeviceKey, localRootDiskDevice, _ = instancetype.GetRootDiskDevice(req.Devices)
+	localRootDiskDeviceKey, localRootDiskDevice, _ = api.GetRootDiskDevice(req.Devices)
 	if localRootDiskDeviceKey != "" {
 		storagePool = localRootDiskDevice["pool"]
 	}
@@ -1663,7 +1663,7 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 					return err
 				}
 
-				k, v, _ := instancetype.GetRootDiskDevice(p.Devices)
+				k, v, _ := api.GetRootDiskDevice(p.Devices)
 				if k != "" && v["pool"] != "" {
 					// Keep going as we want the last one in the profile chain
 					storagePool = v["pool"]

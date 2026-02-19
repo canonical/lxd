@@ -636,12 +636,12 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 	// profiles in the target project. If the new root disk device differs from the existing
 	// one, add the existing one as a local device to the instance (we don't want to move root
 	// disk device if not necessary, as this is an expensive operation).
-	rootDevKey, rootDev, err := instancetype.GetRootDiskDevice(localDevices.CloneNative())
-	if err != nil && !errors.Is(err, instancetype.ErrNoRootDisk) {
+	rootDevKey, rootDev, err := api.GetRootDiskDevice(localDevices.CloneNative())
+	if err != nil && !errors.Is(err, api.ErrNoRootDisk) {
 		return err
-	} else if errors.Is(err, instancetype.ErrNoRootDisk) {
+	} else if errors.Is(err, api.ErrNoRootDisk) {
 		// Find currently applied root disk device from expanded devices.
-		rootDevKey, rootDev, err = instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		rootDevKey, rootDev, err = api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 		if err != nil {
 			return err
 		}
@@ -651,7 +651,7 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 		// precedence.
 		var profileRootDev map[string]string
 		for i := len(apiProfiles) - 1; i >= 0; i-- {
-			_, profileRootDev, err = instancetype.GetRootDiskDevice(apiProfiles[i].Devices)
+			_, profileRootDev, err = api.GetRootDiskDevice(apiProfiles[i].Devices)
 			if err == nil {
 				break
 			}
