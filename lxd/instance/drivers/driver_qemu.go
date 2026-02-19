@@ -6424,6 +6424,10 @@ func (d *qemu) delete(force bool) error {
 
 		// Clean things up.
 		d.cleanup()
+
+		// Remove the log directory. Not handled by cleanup() as that is
+		// also called during Rename() where logs should be preserved.
+		_ = os.RemoveAll(d.LogPath())
 	}
 
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
