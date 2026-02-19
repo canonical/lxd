@@ -435,7 +435,7 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 
 		// Apply storage pool override if specified.
 		if poolName != "" {
-			rootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(*devices)
+			rootDiskDeviceKey, _, _ := api.GetRootDiskDevice(*devices)
 			if rootDiskDeviceKey != "" {
 				// If a root disk device is already defined, just override the pool.
 				(*devices)[rootDiskDeviceKey]["pool"] = poolName
