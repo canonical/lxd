@@ -838,6 +838,9 @@ parts:
       QEMUARCH="$(uname -m)"
       [ "${QEMUARCH}" = "ppc64le" ] && QEMUARCH="ppc64"
 
+      # Fetch enough history to have the commit we need for git restore
+      git fetch https://git.launchpad.net/ubuntu/+source/qemu 4769f7051b0753455b775ab10c9226e149ed6237 --depth=2
+
       # Apply patches from Ubuntu sources.
       QUILT_PATCHES=debian/patches quilt push -a
 
