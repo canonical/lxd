@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/units"
@@ -84,33 +83,6 @@ func ValidSnapName(snapshotName string) error {
 	}
 
 	return nil
-}
-
-// ErrNoRootDisk means there is no root disk device found.
-var ErrNoRootDisk = errors.New("No root device could be found")
-
-// GetRootDiskDevice returns the instance device that is configured as root disk.
-// Returns the device name and device config map.
-func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string]string, error) {
-	var devName string
-	var dev map[string]string
-
-	for n, d := range devices {
-		if filters.IsRootDisk(d) {
-			if devName != "" {
-				return "", nil, errors.New("More than one root device found")
-			}
-
-			devName = n
-			dev = d
-		}
-	}
-
-	if devName != "" {
-		return devName, dev, nil
-	}
-
-	return "", nil, ErrNoRootDisk
 }
 
 // HugePageSizeKeys is a list of known hugepage size configuration keys.
