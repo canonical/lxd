@@ -448,9 +448,22 @@ fine_grained: true"
   ! lxc query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\"}" || false
   [ "$("${_LXC}" query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\"}" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
 
+  # Make sure the TLS identity can be create from peer certificate when authenticated using a bearer token.
+  lxc auth identity create bearer/tmp
+  lxc auth identity group add bearer/tmp admins
+  LXD_CONF="${TEST_DIR}" gen_cert_and_key "user7"
+  tmp_bearer_identity_token="$(lxc auth identity token issue bearer/tmp --quiet)"
+
+  my_curl -s --cert "${TEST_DIR}/user7.crt" --key "${TEST_DIR}/user7.key" "https://${LXD_ADDR}/1.0/auth/identities/tls" -H "Authorization: Bearer ${tmp_bearer_identity_token}" -d '{"name":"peer-tls-cert", "groups":["admins"]}'
+  info=$(my_curl -s --cert "${TEST_DIR}/user7.crt" --key "${TEST_DIR}/user7.key" "https://${LXD_ADDR}/1.0")
+  echo "${info}" | jq --exit-status '.metadata.auth == "trusted"'
+  echo "${info}" | jq --exit-status '.metadata.auth_user_method == "tls"'
+
   lxc auth identity delete devlxd/test-bearer
   lxc auth identity delete bearer/test-user
+  lxc auth identity delete bearer/tmp
   lxc auth identity delete tls/bearer-remote-user
+  lxc auth identity delete tls/peer-tls-cert
   lxc auth identity group add oidc/test-user@example.com test-group
 
   # Cleanup
@@ -462,7 +475,7 @@ fine_grained: true"
   rm -r "${LXD_CONF3}"
   rm -r "${LXD_CONF4}"
   rm "${TEST_DIR}"/unrestricted.{crt,key}
-  rm "${TEST_DIR}"/user{4,5,6}.{crt,key}
+  rm "${TEST_DIR}"/user{4,5,6,7}.{crt,key}
   lxc config set core.remote_token_expiry="" oidc.issuer="" oidc.client.id=""
   kill_oidc
 }
