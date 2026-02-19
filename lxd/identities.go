@@ -350,7 +350,14 @@ func identitiesTLSPost(d *Daemon, r *http.Request) response.Response {
 		return createIdentityTLSUntrusted(r.Context(), s, r.TLS.PeerCertificates, networkCert, req, notify)
 	}
 
-	return createIdentityTLSTrusted(r.Context(), s, networkCert, req, notify)
+	var peerCertificates []*x509.Certificate
+	if requestor.CallerProtocol() == api.AuthenticationMethodBearer && r.TLS != nil {
+		// When authenticated via bearer token, allow creating a TLS identity from the presented peer certificate.
+		// This allows LXD UI to establish mTLS by injecting a client certificate during temporary bearer-token access.
+		peerCertificates = r.TLS.PeerCertificates
+	}
+
+	return createIdentityTLSTrusted(r.Context(), s, peerCertificates, networkCert, req, notify)
 }
 
 // swagger:operation POST /1.0/auth/identities/bearer identities identities_post_bearer
@@ -642,7 +649,7 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 }
 
 // createIdentityTLSTrusted handles requests to create an identity when the caller is trusted.
-func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertificates []*x509.Certificate, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
 	// Check if the caller has permission to create identities.
 	err := s.Authorizer.CheckPermission(ctx, entity.ServerURL(), auth.EntitlementCanCreateIdentities)
 	if err != nil {
@@ -669,7 +676,20 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 		return createIdentityTLSPending(ctx, s, req, notify)
 	}
 
-	fingerprint, metadata, err := validateIdentityCert(networkCert, req.Certificate)
+	cert := req.Certificate
+	if cert == "" && len(peerCertificates) > 0 {
+		// Use peer certificate if no certificate was provided in the request body.
+		peerCert := peerCertificates[len(peerCertificates)-1]
+		peerCertPEM := &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: peerCert.Raw,
+		}
+
+		cert = string(pem.EncodeToMemory(peerCertPEM))
+	}
+
+	// Validate the certificate.
+	fingerprint, metadata, err := validateIdentityCert(networkCert, cert)
 	if err != nil {
 		return response.SmartError(err)
 	}
