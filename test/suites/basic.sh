@@ -134,6 +134,9 @@ test_basic_usage() {
   [ "$(lxc list -f csv -c S c1)" = "2" ]
   lxc delete --force c1
 
+  # Test log directory cleanup after deletion
+  [ ! -d "${LXD_DIR}/logs/c1" ]
+
   # Test list json format
   lxc list --format json | jq --exit-status '.[] | .name == "foo"'
 

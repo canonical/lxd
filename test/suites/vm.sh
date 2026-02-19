@@ -58,6 +58,9 @@ test_vm_empty() {
   lxc stop -f v1
   [ "$(lxc list -f csv -c s v1)" = "STOPPED" ]
   lxc delete v1
+
+  echo "==> Test VM log directory cleanup after deletion"
+  [ ! -d "${LXD_DIR}/logs/v1" ]
 }
 
 test_vm_pcie_bus() {
