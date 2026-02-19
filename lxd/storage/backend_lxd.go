@@ -1925,6 +1925,15 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
+	// Align target root volume config with source after a successful refresh while preserving immutable target values.
+	newConfig := rootVol.Config
+	instanceVolumeConfigPolicy.Apply(newConfig, dbVol.Config)
+
+	err = b.UpdateInstance(inst, dbVol.Description, newConfig, op)
+	if err != nil {
+		return fmt.Errorf("Failed applying refresh source root volume config: %w", err)
+	}
+
 	err = inst.DeferTemplateApply(instance.TemplateTriggerCopy)
 	if err != nil {
 		return err
