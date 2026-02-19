@@ -62,9 +62,8 @@ To add or remove a {ref}`member role <clustering-member-roles>` for a cluster me
 
     lxc cluster role add <member-name> <role>
 
-Examples:
+Example:
 
-    lxc cluster role add server1 event-hub
     lxc cluster role add server1 control-plane
 
 ```{note}

@@ -56,7 +56,6 @@ Automatic roles are assigned by LXD itself and cannot be modified by the user.
 | `database-leader`     | yes           | Current leader of the distributed database |
 | `database-standby`    | yes           | Stand-by (non-voting) member of the distributed database |
 | `control-plane`       | no            | Eligible to participate in Raft as voter, standby, or leader. When control plane mode is active, members without this role are assigned as spares and excluded from automatic promotion. |
-| `event-hub`           | no            | Exchange point (hub) for the internal LXD events (requires at least two) |
 | `ovn-chassis`         | no            | Uplink gateway candidate for OVN networks |
 
 The default number of voter members ({config:option}`server-cluster:cluster.max_voters`) is three.
@@ -79,6 +78,9 @@ You can assign the `control-plane` role to more members than {config:option}`ser
 For example, if you assign `control-plane` to 5 members when `cluster.max_voters` is 3, all 5 members are eligible for database roles, but only 3 will be promoted to voters based on the configuration.
 
 If no cluster members have the `control-plane` role assigned (the default), or if fewer than 3 members have the role, all members are eligible for automatic promotion to database roles.
+
+When control plane mode is active, members with the `control-plane` role also act as event hubs for internal LXD events.
+If control plane mode is inactive, the cluster uses full-mesh event connectivity.
 
 See {ref}`cluster-manage-control-plane` for instructions on using the `control-plane` role.
 
