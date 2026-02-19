@@ -3047,6 +3047,32 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	return nil
 }
 
+// instanceVolumeConfigPolicy stores immutable config keys for instance root volumes.
+var instanceVolumeConfigPolicy = api.ConfigKeyPolicy{
+	Immutable: []string{
+		"volatile.uuid",
+		"size",
+		"size.state",
+		"block.filesystem",
+	},
+}
+
+// customVolumeConfigPolicy stores immutable config keys for custom volumes.
+var customVolumeConfigPolicy = api.ConfigKeyPolicy{
+	Immutable: []string{
+		"block.filesystem",
+		"volatile.uuid",
+	},
+}
+
+// unmappedVolumeIDMapPolicy stores config keys stripped when volume is unmapped.
+var unmappedVolumeIDMapPolicy = api.ConfigKeyPolicy{
+	Remove: []string{
+		"volatile.idmap.last",
+		"volatile.idmap.next",
+	},
+}
+
 // UpdateInstance updates an instance volume's config.
 func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "newDesc": newDesc, "newConfig": newConfig})
@@ -3087,24 +3113,12 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	// Apply config changes if there are any.
 	changedConfig, userOnly := b.detectChangedConfig(dbVol.Config, newConfig)
 	if len(changedConfig) != 0 {
-		// Check that the volume's size property isn't being changed.
-		if changedConfig["size"] != "" {
-			return errors.New(`Instance volume "size" property cannot be changed`)
-		}
-
-		// Check that the volume's size.state property isn't being changed.
-		if changedConfig["size.state"] != "" {
-			return errors.New(`Instance volume "size.state" property cannot be changed`)
-		}
-
-		// Check that the volume's block.filesystem property isn't being changed.
-		if changedConfig["block.filesystem"] != "" {
-			return errors.New(`Instance volume "block.filesystem" property cannot be changed`)
-		}
-
-		// Check that the volume's volatile.uuid property isn't being changed.
-		if changedConfig["volatile.uuid"] != "" {
-			return errors.New(`Instance volume "volatile.uuid" property cannot be changed`)
+		// Check immutable volume config keys are unchanged.
+		for _, key := range instanceVolumeConfigPolicy.Immutable {
+			_, changed := changedConfig[key]
+			if changed {
+				return fmt.Errorf("Instance volume %q property cannot be changed", key)
+			}
 		}
 
 		if shared.IsFalseOrEmpty(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
@@ -6352,16 +6366,12 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return api.NewStatusError(http.StatusBadRequest, "Custom ISO volume config cannot be changed")
 		}
 
-		// Check that the volume's block.filesystem property isn't being changed.
-		_, ok := changedConfig["block.filesystem"]
-		if ok {
-			return api.NewStatusError(http.StatusBadRequest, `Custom volume "block.filesystem" property cannot be changed`)
-		}
-
-		// Check that the volume's volatile.uuid property isn't being changed.
-		_, ok = changedConfig["volatile.uuid"]
-		if ok {
-			return api.NewStatusError(http.StatusBadRequest, `Custom volume "volatile.uuid" property cannot be changed`)
+		// Check immutable custom volume config keys are unchanged.
+		for _, key := range customVolumeConfigPolicy.Immutable {
+			_, changed := changedConfig[key]
+			if changed {
+				return api.NewStatusError(http.StatusBadRequest, fmt.Sprintf(`Custom volume %q property cannot be changed`, key))
+			}
 		}
 
 		sharedVolume, ok := changedConfig["security.shared"]
@@ -6387,8 +6397,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 	// Unset idmap keys if volume is unmapped.
 	if shared.IsTrue(newConfig["security.unmapped"]) {
-		delete(newConfig, "volatile.idmap.last")
-		delete(newConfig, "volatile.idmap.next")
+		unmappedVolumeIDMapPolicy.Apply(newConfig, nil)
 	}
 
 	revert := revert.New()
