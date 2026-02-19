@@ -611,41 +611,6 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 	// The following must always run on the source LXD.
 	// This ensures that if the instance is running, its filesystem can be frozen before performing the copy.
 
-	// Config override
-	if req.Config == nil {
-		req.Config = make(map[string]string)
-	}
-
-	for key, value := range source.LocalConfig() {
-		if !instancetype.InstanceIncludeWhenCopying(key, false) {
-			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project().Name, "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
-			continue
-		}
-
-		_, exists := req.Config[key]
-		if exists {
-			continue
-		}
-
-		req.Config[key] = value
-	}
-
-	// Devices override
-	sourceDevices := source.LocalDevices()
-
-	if req.Devices == nil {
-		req.Devices = make(map[string]map[string]string)
-	}
-
-	for key, value := range sourceDevices {
-		_, exists := req.Devices[key]
-		if exists {
-			continue // Request has overridden this device.
-		}
-
-		req.Devices[key] = value
-	}
-
 	if req.Stateful {
 		sourceName, _, _ := api.GetParentAndSnapshotName(source.Name())
 		if sourceName != req.Name {
