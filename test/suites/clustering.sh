@@ -4483,30 +4483,30 @@ test_clustering_roles() {
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 invalid-role 2>&1)" = 'Error: Invalid cluster role "invalid-role"' ]
 
   # Reject typo in role name
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hubb 2>&1)" = 'Error: Invalid cluster role "event-hubb"' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-planee 2>&1)" = 'Error: Invalid cluster role "control-planee"' ]
 
   # Reject duplicate roles in request
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub,event-hub 2>&1)" = 'Error: Duplicate role "event-hub" in request' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane,control-plane 2>&1)" = 'Error: Duplicate role "control-plane" in request' ]
 
   # Accept valid manual role addition
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane"
 
   # Accept adding multiple manual roles
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 ovn-chassis
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- ovn-chassis"
 
   # Reject adding role member already has
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub 2>&1)" = 'Error: Member "node1" already has role "event-hub"' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane 2>&1)" = 'Error: Member "node1" already has role "control-plane"' ]
 
   # Accept removing manual role
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 control-plane
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane" || false
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- ovn-chassis"
 
   # Reject removing role member does not have
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub 2>&1)" = 'Error: Member "node1" does not have role "event-hub"' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 control-plane 2>&1)" = 'Error: Member "node1" does not have role "control-plane"' ]
 
   sub_test "Control plane mode behavior"
   # Test safe incremental assignment: add control-plane to 2 members (below minimum for control plane mode)
