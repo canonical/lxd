@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"net"
 	"net/http"
@@ -18,7 +19,7 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
-	lxd "github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/daemon"
@@ -966,8 +967,22 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 		}
 	}
 
+	// Remove dnsmasq log file.
+	dnsmasqLogPath := shared.LogPath("dnsmasq." + n.name + ".log")
+	err := os.Remove(dnsmasqLogPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+
+	// Remove forkdns log file.
+	forkDNSLogPath := shared.LogPath("forkdns." + n.name + ".log")
+	err = os.Remove(forkDNSLogPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+
 	// Delete apparmor profiles.
-	err := apparmor.NetworkDelete(n.state.OS, n)
+	err = apparmor.NetworkDelete(n.state.OS, n)
 	if err != nil {
 		return err
 	}
@@ -1001,6 +1016,15 @@ func (n *bridge) Rename(newName string) error {
 	forkDNSLogPath := shared.LogPath("forkdns." + n.name + ".log")
 	if shared.PathExists(forkDNSLogPath) {
 		err := os.Rename(forkDNSLogPath, shared.LogPath("forkdns."+newName+".log"))
+		if err != nil {
+			return err
+		}
+	}
+
+	// Rename dnsmasq log file.
+	dnsmasqLogPath := shared.LogPath("dnsmasq." + n.name + ".log")
+	if shared.PathExists(dnsmasqLogPath) {
+		err := os.Rename(dnsmasqLogPath, shared.LogPath("dnsmasq."+newName+".log"))
 		if err != nil {
 			return err
 		}
