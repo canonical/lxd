@@ -94,6 +94,13 @@ type common struct {
 	volatileSetPersistDisable bool
 }
 
+var rebuildConfigResetPolicy = api.ConfigKeyPolicy{
+	Remove: []string{
+		"volatile.idmap.next",
+		"volatile.last_state.idmap",
+	},
+}
+
 //
 // SECTION: property getters
 //
@@ -656,8 +663,7 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 	}
 
 	// Reset relevant volatile keys.
-	delete(instLocalConfig, "volatile.idmap.next")
-	delete(instLocalConfig, "volatile.last_state.idmap")
+	rebuildConfigResetPolicy.Apply(instLocalConfig, nil)
 
 	pool, err := d.getStoragePool()
 	if err != nil {
