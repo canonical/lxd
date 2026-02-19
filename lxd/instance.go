@@ -439,7 +439,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	if opts.refresh {
 		err = pool.RefreshInstance(inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
 		if err != nil {
-			return nil, fmt.Errorf("Refresh instance: %w", err)
+			return nil, fmt.Errorf("Failed refreshing instance: %w", err)
 		}
 	} else {
 		err = pool.CreateInstanceFromCopy(inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)
