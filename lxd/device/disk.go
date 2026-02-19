@@ -1368,7 +1368,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	if filters.IsRootDisk(d.config) {
 		// Make sure we have a valid root disk device (and only one).
 		expandedDevices := d.inst.ExpandedDevices()
-		newRootDiskDeviceKey, _, err := instancetype.GetRootDiskDevice(expandedDevices.CloneNative())
+		newRootDiskDeviceKey, _, err := api.GetRootDiskDevice(expandedDevices.CloneNative())
 		if err != nil {
 			return fmt.Errorf("Detect root disk device: %w", err)
 		}
@@ -1493,7 +1493,7 @@ func (d *disk) applyDeferredQuota() error {
 // applyQuota attempts to resize the instance root disk to the specified size.
 // If remount is true, attempts to unmount first before resizing and then mounts again afterwards.
 func (d *disk) applyQuota(remount bool) error {
-	rootDisk, _, err := instancetype.GetRootDiskDevice(d.inst.ExpandedDevices().CloneNative())
+	rootDisk, _, err := api.GetRootDiskDevice(d.inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return fmt.Errorf("Detect root disk device: %w", err)
 	}
