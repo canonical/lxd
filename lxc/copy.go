@@ -328,7 +328,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 		op, err := dest.UpdateInstance(destName, writable, refreshTargetETag)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed applying refresh target instance config for instance %q: %w", destName, err)
 		}
 
 		// Watch the background operation
