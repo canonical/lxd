@@ -266,6 +266,8 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
+		api.InstanceCreateConfigKeyPolicy.Apply(opts.targetInstance.Config, nil)
+
 		// Create the instance.
 		inst, instOp, cleanup, err = instance.CreateInternal(s, opts.targetInstance, true)
 		if err != nil {
