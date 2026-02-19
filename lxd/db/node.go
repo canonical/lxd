@@ -51,9 +51,6 @@ const ClusterRoleDatabaseLeader = ClusterRole("database-leader")
 // ClusterRoleControlPlane represents a control plane cluster member.
 const ClusterRoleControlPlane = ClusterRole("control-plane")
 
-// ClusterRoleEventHub represents a cluster member that operates as an event hub.
-const ClusterRoleEventHub = ClusterRole("event-hub")
-
 // ClusterRoleOVNChassis represents a cluster member that operates as an OVN chassis.
 const ClusterRoleOVNChassis = ClusterRole("ovn-chassis")
 
@@ -69,7 +66,6 @@ var ClusterRoles = map[ClusterRoleClass]map[int]ClusterRole{
 	},
 	// Manual cluster roles are stored in the database and are therefore keyed by their respective IDs.
 	ClusterRoleClassManual: {
-		1: ClusterRoleEventHub,
 		2: ClusterRoleOVNChassis,
 		3: ClusterRoleControlPlane,
 	},
