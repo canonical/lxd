@@ -723,7 +723,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 
 // applyInstanceRootDiskOverrides applies the instance's root disk config to the volume's config.
 func (b *lxdBackend) applyInstanceRootDiskOverrides(inst instance.Instance, vol *drivers.Volume) error {
-	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	_, rootDiskConf, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return err
 	}
@@ -746,7 +746,7 @@ func (b *lxdBackend) applyInstanceRootDiskOverrides(inst instance.Instance, vol 
 
 // applyInstanceRootDiskInitialValues applies the instance's root disk initial config to the volume's config.
 func (b *lxdBackend) applyInstanceRootDiskInitialValues(inst instance.Instance, volConfig map[string]string) error {
-	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	_, rootDiskConf, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return err
 	}
@@ -2308,7 +2308,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	}
 
 	// Now that we got the source details, validate against the instance limits.
-	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	_, rootDiskConf, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return err
 	}
@@ -2683,7 +2683,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 	// Get instance's root disk device from local devices. Do not use expanded devices, as we want
 	// to determine whether the root disk volume size was explicitly set by the client.
 	canResizeRootDiskSize := true
-	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.LocalDevices().CloneNative())
+	_, rootDiskConf, err := api.GetRootDiskDevice(inst.LocalDevices().CloneNative())
 	if err == nil && rootDiskConf != nil && rootDiskConf["size"] != "" {
 		// User has explicitly configured the root disk device. Therefore, we should not mess
 		// with the root disk configuration.
@@ -3490,7 +3490,7 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 	}
 
 	// Get the total size.
-	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	_, rootDiskConf, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return nil, err
 	}
