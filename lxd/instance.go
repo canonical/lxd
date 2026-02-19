@@ -292,7 +292,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 
 	// At this point we have already figured out the instance's root disk device so we can simply retrieve it
 	// from the expanded devices.
-	instRootDiskDeviceKey, instRootDiskDevice, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	instRootDiskDeviceKey, instRootDiskDevice, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +360,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			snapLocalDevices := srcSnap.LocalDevices().Clone()
 
 			// Load snap root disk from expanded devices (in case it doesn't have its own root disk).
-			snapExpandedRootDiskDevKey, snapExpandedRootDiskDev, err := instancetype.GetRootDiskDevice(srcSnap.ExpandedDevices().CloneNative())
+			snapExpandedRootDiskDevKey, snapExpandedRootDiskDev, err := api.GetRootDiskDevice(srcSnap.ExpandedDevices().CloneNative())
 			if err == nil {
 				// If the expanded devices has a root disk, but its pool doesn't match our new
 				// parent instance's pool, then either modify the device if it is local or add a
@@ -380,7 +380,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 						}
 					}
 				}
-			} else if errors.Is(err, instancetype.ErrNoRootDisk) {
+			} else if errors.Is(err, api.ErrNoRootDisk) {
 				// If no root disk defined in either local devices or profiles, then add one to the
 				// snapshot local devices using the same device name from the parent instance.
 				snapLocalDevices[instRootDiskDeviceKey] = map[string]string{
