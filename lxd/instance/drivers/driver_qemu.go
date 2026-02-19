@@ -3059,7 +3059,11 @@ StartLimitInterval=60
 StartLimitBurst=10
 `
 
-	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0400)
+	// Service units are meant to be world-readable. Trying to restrict access
+	// is ineffective as there are other means to access their content. This is
+	// not an issue as the lxd-agent.service unit doesn't contain any sensitive
+	// information.
+	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0644)
 	if err != nil {
 		return err
 	}
