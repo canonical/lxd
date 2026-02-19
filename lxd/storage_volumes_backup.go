@@ -652,7 +652,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return nil
 	}
 
-	backupURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", oldName)
+	backupURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		EntityURL:   backupURL,
@@ -757,7 +757,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return nil
 	}
 
-	backupURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName)
+	backupURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(effectiveProjectName)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		EntityURL:   backupURL,

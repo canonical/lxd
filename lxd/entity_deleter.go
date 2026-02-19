@@ -7,6 +7,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/operations"
+	projectutils "github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared/entity"
@@ -52,9 +53,19 @@ func (d imageDeleter) Delete(ctx context.Context, op *operations.Operation, s *s
 	fingerprint := ref.Name()
 
 	var imageID int
+	var effectiveProjectName string
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		imageID, _, err = tx.GetImage(ctx, fingerprint, dbCluster.ImageFilter{Project: &ref.ProjectName})
+		if err != nil {
+			return err
+		}
+
+		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), ref.ProjectName)
+		if err != nil {
+			return err
+		}
+
 		return err
 	})
 	if err != nil {
@@ -65,7 +76,7 @@ func (d imageDeleter) Delete(ctx context.Context, op *operations.Operation, s *s
 		return operations.ScheduleUserOperationFromOperation(s, op, args)
 	}
 
-	imageDeleteOp, err := doImageDelete(ctx, opScheduler, s, fingerprint, imageID, ref.ProjectName)
+	imageDeleteOp, err := doImageDelete(ctx, opScheduler, s, fingerprint, imageID, ref.ProjectName, effectiveProjectName)
 	if err != nil {
 		return fmt.Errorf("Failed deleting image %q: %w", fingerprint, err)
 	}

@@ -224,6 +224,14 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)
+
+	// We're creating snapshot on this node.
+	// When looking up the entity for the operation, we look for the volumes located on the nodes based on the target parameter.
+	// If the server is clustered, we need to set the target.
+	if s.ServerClustered && !details.pool.Driver().Info().Remote {
+		volumeURL = volumeURL.Target(s.ServerName)
+	}
+
 	resources := map[entity.Type][]api.URL{
 		entity.TypeStorageVolume: {*volumeURL},
 	}
@@ -547,7 +555,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 			Target: req.Target,
 		}
 
-		return storagePoolVolumeTypePostMigration(s, r, requestProjectName, effectiveProjectName, details.pool.Name(), fullSnapshotName, req)
+		return storagePoolVolumeTypePostMigration(s, r, requestProjectName, effectiveProjectName, details.pool.Name(), details.pool.Driver().Info().Remote, fullSnapshotName, req)
 	}
 
 	// Rename the snapshot.

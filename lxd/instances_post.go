@@ -759,17 +759,25 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
 	}
 
+	var opType operationtype.Type
+	var entityURL *api.URL
 	if shared.IsSnapshot(req.Source.Source) {
+		opType = operationtype.SnapshotCopy
 		cName, sName, _ := api.GetParentAndSnapshotName(req.Source.Source)
-		resources[entity.TypeInstanceSnapshot] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", cName, "snapshots", sName).Project(req.Source.Project)}
+		snapshotURL := api.NewURL().Path(version.APIVersion, "instances", cName, "snapshots", sName).Project(req.Source.Project)
+		resources[entity.TypeInstanceSnapshot] = []api.URL{*snapshotURL}
+		entityURL = snapshotURL
 	} else {
-		resources[entity.TypeInstance] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Source.Source).Project(req.Source.Project)}
+		opType = operationtype.InstanceCopy
+		instanceURL := api.NewURL().Path(version.APIVersion, "instances", req.Source.Source).Project(req.Source.Project)
+		resources[entity.TypeInstance] = []api.URL{*instanceURL}
+		entityURL = instanceURL
 	}
 
 	opArgs := operations.OperationArgs{
 		ProjectName: targetProject,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", req.Source.Source).Project(req.Source.Project),
-		Type:        operationtype.InstanceCopy,
+		EntityURL:   entityURL,
+		Type:        opType,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     run,

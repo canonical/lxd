@@ -1217,10 +1217,20 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 		return nil
 	}
 
-	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Source.Type, req.Source.Name).Project(req.Source.Project)
+	var opType operationtype.Type
+	var volumeURL *api.URL
+	if shared.IsSnapshot(req.Source.Name) {
+		opType = operationtype.VolumeSnapshotCopy
+		vName, sName, _ := api.GetParentAndSnapshotName(req.Source.Name)
+		volumeURL = api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Type, vName, "snapshots", sName).Project(srcProjectName)
+	} else {
+		opType = operationtype.VolumeCopy
+		volumeURL = api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Type, req.Source.Name).Project(srcProjectName)
+	}
+
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		Type:        operationtype.VolumeCopy,
+		Type:        opType,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   volumeURL,
@@ -1271,11 +1281,25 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
 		}
 	} else {
-		opType = operationtype.VolumeCopy
-		sourceVolumeURL := entity.StorageVolumeURL(req.Source.Project, req.Source.Location, req.Source.Pool, req.Source.Type, req.Source.Name)
-		resources[entity.TypeStorageVolume] = []api.URL{*sourceVolumeURL}
+		// We're copying a volume from this node.
+		// When looking up the entity for the operation, we look for the volumes located on the nodes based on the target parameter.
+		// If the server is clustered, we need to set the target.
+		location := ""
+		if s.ServerClustered && !pool.Driver().Info().Remote {
+			location = req.Source.Location
+		}
+
+		if shared.IsSnapshot(req.Source.Name) {
+			opType = operationtype.VolumeSnapshotCopy
+			vName, sName, _ := api.GetParentAndSnapshotName(req.Source.Name)
+			entityURL = entity.StorageVolumeSnapshotURL(srcProjectName, location, req.Source.Pool, req.Type, vName, sName)
+		} else {
+			opType = operationtype.VolumeCopy
+			entityURL = entity.StorageVolumeURL(srcProjectName, location, req.Source.Pool, req.Type, req.Source.Name)
+		}
+
+		resources[entity.TypeStorageVolume] = []api.URL{*entityURL}
 		resources[entity.TypeProject] = []api.URL{*projectURL}
-		entityURL = sourceVolumeURL
 		run = func(ctx context.Context, op *operations.Operation) error {
 			return pool.CreateCustomVolumeFromCopy(projectName, srcProjectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
 		}
@@ -1363,16 +1387,14 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 		RunHook:     run,
 	}
 
+	args.Type = operationtype.VolumeCreate
+	args.EntityURL = api.NewURL().Path(version.APIVersion, "projects", projectName)
 	if push {
 		args.Class = operations.OperationClassWebsocket
-		args.Type = operationtype.VolumeCreate
 		args.Metadata = sink.Metadata()
 		args.ConnectHook = sink.Connect
-		args.EntityURL = api.NewURL().Path(version.APIVersion, "projects", projectName)
 	} else {
 		args.Class = operations.OperationClassTask
-		args.Type = operationtype.VolumeCopy
-		args.EntityURL = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", req.Name).Project(projectName)
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -1581,7 +1603,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	// This is a migration request so send back requested secrets.
 	if req.Migration {
-		return storagePoolVolumeTypePostMigration(s, r, requestProjectName, effectiveProjectName, details.pool.Name(), details.volumeName, req)
+		return storagePoolVolumeTypePostMigration(s, r, requestProjectName, effectiveProjectName, details.pool.Name(), details.pool.Driver().Info().Remote, details.volumeName, req)
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
@@ -1832,7 +1854,7 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 }
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
-func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, volumeName string, req api.StorageVolumePost) response.Response {
+func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, poolIsRemote bool, volumeName string, req api.StorageVolumePost) response.Response {
 	ws, err := newStorageMigrationSource(req.VolumeOnly, req.Target)
 	if err != nil {
 		return response.InternalError(err)
@@ -1847,6 +1869,13 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 	} else {
 		opType = operationtype.VolumeMigrate
 		entityURL = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", volumeName)
+	}
+
+	// We're migrating volume on this node.
+	// When looking up the entity for the operation, we look for the volumes located on the nodes based on the target parameter.
+	// If the server is clustered, we need to set the target.
+	if state.ServerClustered && !poolIsRemote {
+		entityURL = entityURL.Target(state.ServerName)
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
@@ -1925,11 +1954,20 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 		return nil
 	}
 
+	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, vol.Name).Project(projectName)
+
+	// We're renaming volume on this node.
+	// When looking up the entity for the operation, we look for the volumes located on the nodes based on the target parameter.
+	// If the server is clustered, we need to set the target.
+	if s.ServerClustered && !pool.Driver().Info().Remote {
+		volumeURL = volumeURL.Target(s.ServerName)
+	}
+
 	args := operations.OperationArgs{
 		ProjectName: request.ProjectParam(r),
 		Type:        operationtype.VolumeMove,
 		Class:       operations.OperationClassTask,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, req.Name).Project(projectName),
+		EntityURL:   volumeURL,
 		RunHook:     run,
 	}
 
@@ -1984,14 +2022,14 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 		return nil
 	}
 
-	volumeURL := entity.StorageVolumeURL(projectName, vol.Location, vol.Pool, vol.Type, vol.Name)
+	volumeURL := entity.StorageVolumeURL(requestProjectName, vol.Location, vol.Pool, vol.Type, vol.Name)
 	resources := map[entity.Type][]api.URL{
 		entity.TypeStorageVolume: {*volumeURL},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   entity.StorageVolumeURL(projectName, vol.Location, vol.Pool, vol.Type, vol.Name),
+		EntityURL:   volumeURL,
 		Type:        operationtype.VolumeMove,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
@@ -2547,9 +2585,18 @@ func doStoragePoolVolumeDelete(ctx context.Context, opScheduler operations.Opera
 		}
 	}
 
+	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", volType.String(), name).Project(effectiveProjectName)
+
+	// We're deleting the volume on this node.
+	// When looking up the entity for the operation, we look for the volumes located on the nodes based on the target parameter.
+	// If the server is clustered, we need to set the target.
+	if s.ServerClustered && !pool.Driver().Info().Remote {
+		volumeURL = volumeURL.Target(s.ServerName)
+	}
+
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", volType.String(), name).Project(requestProjectName),
+		EntityURL:   volumeURL,
 		Type:        operationtype.VolumeDelete,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,

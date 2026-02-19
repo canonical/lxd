@@ -826,9 +826,6 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 		}
 
 		dest = dest.UseTarget(newMember.Name).UseProject(targetProject)
-		resources := map[entity.Type][]api.URL{
-			entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", srcInstName).Project(srcInst.Project().Name)},
-		}
 
 		srcInstRunning := srcInst.IsRunning()
 		live := stateful && srcInstRunning
@@ -910,9 +907,14 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 			return srcMigration.Do(s, op)
 		}
 
+		instanceURL := api.NewURL().Path(version.APIVersion, "instances", srcInstName).Project(srcInst.Project().Name)
+		resources := map[entity.Type][]api.URL{
+			entity.TypeInstance: {*instanceURL},
+		}
+
 		args := operations.OperationArgs{
 			ProjectName: targetProject,
-			EntityURL:   api.NewURL().Path(version.APIVersion, "instances", srcInstName).Project(srcInst.Project().Name),
+			EntityURL:   instanceURL,
 			Type:        operationtype.InstanceMigrate,
 			Class:       operations.OperationClassWebsocket,
 			Resources:   resources,

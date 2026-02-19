@@ -1270,6 +1270,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	var cachedImages []dbCluster.Image
 	var project *dbCluster.Project
 	var projectEntities map[entity.Type]map[int]*api.URL
+	var effectiveProjectName string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err = dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
@@ -1279,6 +1280,11 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		projectEntities, err = projectUsedByMap(ctx, tx.Tx(), project.Name)
 		if err != nil {
 			return fmt.Errorf("Failed to determine project usage: %w", err)
+		}
+
+		effectiveProjectName, err = projecthelpers.ImageProject(ctx, tx.Tx(), project.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to determine effective project name for images: %w", err)
 		}
 
 		if !force {
@@ -1354,7 +1360,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 			// Prune cached images.
 			for _, image := range cachedImages {
-				op, err := doImageDelete(ctx, opScheduler, s, image.Fingerprint, image.ID, project.Name)
+				op, err := doImageDelete(ctx, opScheduler, s, image.Fingerprint, image.ID, project.Name, effectiveProjectName)
 				if err != nil {
 					return fmt.Errorf("Failed creating delete operation for cached image %q: %w", image.Fingerprint, err)
 				}
