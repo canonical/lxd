@@ -1588,7 +1588,7 @@ func (d *common) validateStartup(statusCode api.StatusCode) error {
 	// pre-start check here before the isStartableStatusCode check below so that if there is a problem loading
 	// the instance status because the storage pool isn't available we don't mask the StatusServiceUnavailable
 	// error with an ERROR status code from the instance check instead.
-	_, rootDiskConf, err := instancetype.GetRootDiskDevice(d.expandedDevices.CloneNative())
+	_, rootDiskConf, err := api.GetRootDiskDevice(d.expandedDevices.CloneNative())
 	if err != nil {
 		return err
 	}
@@ -1792,7 +1792,7 @@ func (d *common) getRootDiskDevice() (string, map[string]string, error) {
 	}
 
 	// Retrieve the instance's storage pool.
-	name, configuration, err := instancetype.GetRootDiskDevice(devices.CloneNative())
+	name, configuration, err := api.GetRootDiskDevice(devices.CloneNative())
 	if err != nil {
 		return "", nil, err
 	}
@@ -1913,7 +1913,7 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 // getParentStoragePool retrieves the root disk device from the expanded devices.
 func (d *common) getParentStoragePool() (string, error) {
 	parentStoragePool := ""
-	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := instancetype.GetRootDiskDevice(d.ExpandedDevices().CloneNative())
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := api.GetRootDiskDevice(d.ExpandedDevices().CloneNative())
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
 	}
@@ -2463,8 +2463,8 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 		}
 
 		// Validate root device
-		_, oldRootDev, oldErr := instancetype.GetRootDiskDevice(oldExpandedDevices.CloneNative())
-		_, newRootDev, newErr := instancetype.GetRootDiskDevice(d.expandedDevices.CloneNative())
+		_, oldRootDev, oldErr := api.GetRootDiskDevice(oldExpandedDevices.CloneNative())
+		_, newRootDev, newErr := api.GetRootDiskDevice(d.expandedDevices.CloneNative())
 		if oldErr == nil && newErr == nil && oldRootDev["pool"] != newRootDev["pool"] {
 			return fmt.Errorf("Cannot update root disk device pool name to %q", newRootDev["pool"])
 		}
