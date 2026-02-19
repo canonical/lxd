@@ -4297,21 +4297,22 @@ test_clustering_events() {
     [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "2" ]
   done
 
-  # Switch into event-hub mode.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster role add node2 event-hub
+  # Switch into hub mode by activating control-plane mode.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster role add node2 control-plane
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster role add node3 control-plane
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc event-hub)" = "2" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc control-plane)" = "3" ]
 
   # Check events were distributed.
   for i in 1 2 3; do
-    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "2" ]
+    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "3" ]
   done
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-server"
-  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_FOUR_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_FIVE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
 
@@ -4333,9 +4334,9 @@ test_clustering_events() {
     [ "$(grep -wFc "instance-created" "${TEST_DIR}/node${i}.log")" = "1" ]
   done
 
-  # Switch into full-mesh mode by removing one event-hub role so there is <2 in the cluster.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc event-hub)" = "1" ]
+  # Switch into full-mesh mode by removing one control-plane role so there is <3 in the cluster.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 control-plane
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc control-plane)" = "2" ]
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
@@ -4346,7 +4347,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
-    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "3" ]
+    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "4" ]
   done
 
   # Restart instance generating restart lifecycle event.
@@ -4360,15 +4361,20 @@ test_clustering_events() {
     [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
   done
 
-  # Switch back into event-hub mode by giving the role to node4 and node5.
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster role remove node2 event-hub
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster role add node4 event-hub
-  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster role add node5 event-hub
+  # Switch back into hub mode by reassigning control-plane roles to node3/node4/node5.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster role remove node2 control-plane
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster role add node4 control-plane
+  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster role add node5 control-plane
+
+  # Check events were distributed.
+  for i in 1 2 3; do
+    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "7" ]
+  done
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-client"
-  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_FOUR_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_FIVE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
 
@@ -4376,6 +4382,7 @@ test_clustering_events() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls
 
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
 
@@ -4403,8 +4410,6 @@ test_clustering_events() {
   # `No active cluster event listener clients` and `Failed heartbeat`
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c2
-  LXD_DIR="${LXD_THREE_DIR}" lxc delete c3
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
