@@ -58,6 +58,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/lxd/ubuntupro"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/idmap"
@@ -1361,6 +1362,12 @@ func (d *Daemon) Ready() error {
 		// Take snapshot of custom volumes (minutely check of configurable cron expression)
 		d.tasks.Add(autoCreateCustomVolumeSnapshotsTask(d))
 	}
+
+	// Add the Ubuntu Pro attachment status to the user agent.
+	// The Ubuntu Pro client returned by ubuntupro.New manages state internally and is
+	// only needed for its initialization side effects here, so we intentionally
+	// discard the returned value.
+	_ = ubuntupro.New(d.os.ReleaseInfo["NAME"])
 
 	// Start all background tasks
 	d.tasks.Start(d.shutdownCtx)
