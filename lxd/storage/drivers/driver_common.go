@@ -637,3 +637,9 @@ func (d *common) filesystemFreeze(path string) (func() error, error) {
 
 	return unfreezeFS, nil
 }
+
+// CanOptimizeImageVolume reports whether an existing image volume is compatible
+// with current pool defaults for use in the optimized image path.
+func (d *common) CanOptimizeImageVolume(imgVol Volume, poolDefaultVol Volume) (bool, error) {
+	return false, nil
+}
