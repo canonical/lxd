@@ -173,8 +173,10 @@ dist: doc
 
 	# Create build dir
 	$(eval TMP := $(shell mktemp -d))
-	git archive --prefix=lxd-$(VERSION)/ HEAD | tar -x -C $(TMP)
-	git show-ref HEAD | cut -d' ' -f1 > $(TMP)/lxd-$(VERSION)/.gitref
+	$(eval COMMIT_HASH := $(shell git rev-parse HEAD))
+	# Export the source code at the current commit, excluding irrelevant files and directories
+	git archive --prefix=lxd-$(VERSION)/ $(COMMIT_HASH) | tar -x -C $(TMP) --exclude=.gitignore --exclude=.github --exclude=grafana --exclude=tools
+	echo $(COMMIT_HASH) > $(TMP)/lxd-$(VERSION)/.gitref
 
 	# Download dependencies
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
