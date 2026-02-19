@@ -4526,6 +4526,13 @@ This option specifies the host GID ranges that are allowed in the instance's {co
 This option specifies the host UID ranges that are allowed in the instance's {config:option}`instance-raw:raw.idmap` setting.
 ```
 
+```{config:option} restricted.images.publish project-restricted
+:defaultdesc: "`block`"
+:shortdesc: "When set to `block`, public images cannot be created inside this project"
+:type: "string"
+Possible values are `allow` or `block`.
+```
+
 ```{config:option} restricted.networks.access project-restricted
 :shortdesc: "Which network names are allowed for use in this project"
 :type: "string"
@@ -4557,6 +4564,14 @@ Specify a comma-delimited list of network names that can be used as uplink for n
 :shortdesc: "Which network zones can be used in this project"
 :type: "string"
 Specify a comma-delimited list of network zones that can be used (or something under them) in this project.
+```
+
+```{config:option} restricted.registries project-restricted
+:defaultdesc: "`block`"
+:shortdesc: "Which image registries can be used in this project"
+:type: "string"
+Specify a comma-delimited list of image registry names that are allowed for use in this project.
+If this option is not set, no image registries are accessible.
 ```
 
 ```{config:option} restricted.snapshots project-restricted
@@ -7159,6 +7174,18 @@ using the `zfs` command in the container.
 
 
 <!-- entity group image_alias end -->
+<!-- entity group image_registry start -->
+`can_view`
+: Grants permission to view the image registry.
+
+`can_edit`
+: Grants permission to edit the image registry.
+
+`can_delete`
+: Grants permission to delete the image registry.
+
+
+<!-- entity group image_registry end -->
 <!-- entity group instance start -->
 `user`
 : Grants permission to view the instance, to access files, and to start a terminal or console session.
@@ -7446,7 +7473,7 @@ using the `zfs` command in the container.
 : Grants access to view all resources in the LXD server.
 
 `can_edit`
-: Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to update cluster member certificates, and to edit or delete warnings.
+: Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to create, edit, and delete image registries, to update cluster member certificates, and to edit or delete warnings.
 
 `permission_manager`
 : Grants permission to view permissions, to create, edit, and delete identities, to view, create, edit, and delete authorization groups, and to view, create, edit, and delete identity provider groups. Note that clients with this permission are able to elevate their own privileges.
@@ -7549,6 +7576,18 @@ using the `zfs` command in the container.
 
 `can_delete_cluster_links`
 : Grants permission to delete cluster links.
+
+`can_create_image_registries`
+: Grants permission to create image registries.
+
+`can_view_image_registries`
+: Grants permission to view image registries.
+
+`can_edit_image_registries`
+: Grants permission to edit image registries.
+
+`can_delete_image_registries`
+: Grants permission to delete image registries.
 
 
 <!-- entity group server end -->

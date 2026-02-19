@@ -5064,6 +5064,14 @@
 						}
 					},
 					{
+						"restricted.images.publish": {
+							"defaultdesc": "`block`",
+							"longdesc": "Possible values are `allow` or `block`.",
+							"shortdesc": "When set to `block`, public images cannot be created inside this project",
+							"type": "string"
+						}
+					},
+					{
 						"restricted.networks.access": {
 							"longdesc": "Specify a comma-delimited list of network names that are allowed for use in this project.\nIf this option is not set, all networks are accessible.\n\nNote that this setting depends on the {config:option}`project-restricted:restricted.devices.nic` setting.",
 							"shortdesc": "Which network names are allowed for use in this project",
@@ -5091,6 +5099,14 @@
 							"defaultdesc": "`block`",
 							"longdesc": "Specify a comma-delimited list of network zones that can be used (or something under them) in this project.",
 							"shortdesc": "Which network zones can be used in this project",
+							"type": "string"
+						}
+					},
+					{
+						"restricted.registries": {
+							"defaultdesc": "`block`",
+							"longdesc": "Specify a comma-delimited list of image registry names that are allowed for use in this project.\nIf this option is not set, no image registries are accessible.",
+							"shortdesc": "Which image registries can be used in this project",
 							"type": "string"
 						}
 					},
@@ -7912,6 +7928,23 @@
 				}
 			]
 		},
+		"image_registry": {
+			"project_specific": false,
+			"entitlements": [
+				{
+					"name": "can_view",
+					"description": "Grants permission to view the image registry."
+				},
+				{
+					"name": "can_edit",
+					"description": "Grants permission to edit the image registry."
+				},
+				{
+					"name": "can_delete",
+					"description": "Grants permission to delete the image registry."
+				}
+			]
+		},
 		"instance": {
 			"project_specific": true,
 			"entitlements": [
@@ -8304,7 +8337,7 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to update cluster member certificates, and to edit or delete warnings."
+					"description": "Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to create, edit, and delete image registries, to update cluster member certificates, and to edit or delete warnings."
 				},
 				{
 					"name": "permission_manager",
@@ -8441,6 +8474,22 @@
 				{
 					"name": "can_delete_cluster_links",
 					"description": "Grants permission to delete cluster links."
+				},
+				{
+					"name": "can_create_image_registries",
+					"description": "Grants permission to create image registries."
+				},
+				{
+					"name": "can_view_image_registries",
+					"description": "Grants permission to view image registries."
+				},
+				{
+					"name": "can_edit_image_registries",
+					"description": "Grants permission to edit image registries."
+				},
+				{
+					"name": "can_delete_image_registries",
+					"description": "Grants permission to delete image registries."
 				}
 			]
 		},
