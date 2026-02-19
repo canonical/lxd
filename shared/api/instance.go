@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"maps"
 	"strings"
 	"time"
 )
@@ -362,6 +363,84 @@ func (c *Instance) SetWritable(put InstancePut) {
 	c.Description = put.Description
 }
 
+// ConfigKeyPolicy stores key rules used when transforming config maps.
+type ConfigKeyPolicy struct {
+	// Immutable is a list of keys whose values should be preserved from the source config.
+	Immutable []string
+
+	// Remove is a list of exact keys to remove.
+	Remove []string
+
+	// RemoveVolatile indicates whether to remove all volatile keys (keys with "volatile." prefix).
+	RemoveVolatile bool
+}
+
+// Apply applies the policy transformations to config.
+// It removes keys in Remove, optionally removes volatile keys, and preserves Immutable keys.
+// If immutableSource is nil, immutable keys are preserved from config itself.
+// If immutableSource is non-nil, immutable keys are preserved from immutableSource.
+func (p ConfigKeyPolicy) Apply(config map[string]string, immutableSource map[string]string) {
+	for _, key := range p.Remove {
+		delete(config, key)
+	}
+
+	if p.RemoveVolatile {
+		// Save immutable values before removing.
+		saved := make(map[string]string, len(p.Immutable))
+		for _, key := range p.Immutable {
+			value, exists := config[key]
+			if exists {
+				saved[key] = value
+			}
+		}
+
+		for key := range config {
+			if strings.HasPrefix(key, "volatile.") {
+				delete(config, key)
+			}
+		}
+
+		// Restore immutable keys.
+		maps.Copy(config, saved)
+	}
+
+	if immutableSource != nil {
+		for _, key := range p.Immutable {
+			value, exists := immutableSource[key]
+			if exists {
+				config[key] = value
+			} else {
+				delete(config, key)
+			}
+		}
+	}
+}
+
+// InstanceCreateConfigKeyPolicy is used for preparing config for new instance creation.
+var InstanceCreateConfigKeyPolicy = ConfigKeyPolicy{
+	Remove: []string{"volatile.last_state.power"},
+}
+
+// InstanceRefreshConfigKeyPolicy is used for preserving target-only keys during refresh.
+var InstanceRefreshConfigKeyPolicy = ConfigKeyPolicy{
+	Remove: []string{"volatile.apply_template"},
+	Immutable: []string{
+		"volatile.idmap.base",
+		"volatile.idmap.current",
+		"volatile.idmap.next",
+		"volatile.last_state.idmap",
+		"volatile.last_state.power",
+	},
+}
+
+// InstanceRemoteCopyConfigKeyPolicy is used for preparing config for remote instance copy.
+var InstanceRemoteCopyConfigKeyPolicy = ConfigKeyPolicy{
+	RemoveVolatile: true,
+	Immutable: []string{
+		"volatile.base_image", // Include volatile.base_image always as it can help optimize copies.
+	},
+}
+
 // ErrNoRootDisk means there is no root disk device found.
 var ErrNoRootDisk = errors.New("No root disk device found")
 
@@ -392,6 +471,39 @@ func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string
 	}
 
 	return "", nil, ErrNoRootDisk
+}
+
+// ApplyRefreshConfig adjusts this instance config so it can be used as the body of a
+// refresh request against an existing target instance. The receiver is taken as the base
+// (source) and then selectively patched with values from the target that must not change
+// during a refresh. This helper is intended for clients constructing refresh requests.
+func (i *InstancePut) ApplyRefreshConfig(target Instance) {
+	if i.Config == nil {
+		i.Config = map[string]string{}
+	}
+
+	// Carry forward volatile keys that are specific to the target so the server does not reject the update for deleting protected keys.
+	InstanceRefreshConfigKeyPolicy.Apply(i.Config, target.Config)
+
+	srcRootDiskDeviceKey, _, srcRootErr := GetRootDiskDevice(i.Devices)
+	destRootDiskDeviceKey, destRootDiskDevice, destRootErr := GetRootDiskDevice(target.Devices)
+	if srcRootErr == nil && destRootErr == nil && srcRootDiskDeviceKey == destRootDiskDeviceKey {
+		if i.Devices == nil {
+			i.Devices = map[string]map[string]string{}
+		}
+
+		if i.Devices[destRootDiskDeviceKey] == nil {
+			i.Devices[destRootDiskDeviceKey] = map[string]string{}
+		}
+
+		// Keep the target's root disk pool (source and target may live on different storage pools)
+		pool, poolExists := destRootDiskDevice["pool"]
+		if poolExists {
+			i.Devices[destRootDiskDeviceKey]["pool"] = pool
+		} else {
+			delete(i.Devices[destRootDiskDeviceKey], "pool")
+		}
+	}
 }
 
 // IsActive checks whether the instance state indicates the instance is active.
