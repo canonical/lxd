@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/osarch"
 )
 
 // InotifyTargetInfo records the inotify information associated with a given
@@ -88,6 +89,9 @@ type OS struct {
 
 	// LXC features
 	LXCFeatures map[string]bool
+
+	// OS info
+	ReleaseInfo map[string]string
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
@@ -99,6 +103,7 @@ func DefaultOS() *OS {
 	}
 	newOS.InotifyWatch.Fd = -1
 	newOS.InotifyWatch.Targets = make(map[string]*InotifyTargetInfo)
+	newOS.ReleaseInfo = make(map[string]string)
 	return newOS
 }
 
@@ -161,6 +166,14 @@ func (s *OS) Init() error {
 	s.initAppArmor()
 	cgroup.Init()
 	s.CGInfo = cgroup.GetInfo()
+
+	// Fill in the OS release info.
+	osInfo, err := osarch.GetLSBRelease()
+	if err != nil {
+		return err
+	}
+
+	s.ReleaseInfo = osInfo
 
 	return nil
 }
