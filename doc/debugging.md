@@ -148,7 +148,7 @@ command line tool.
 
 In our continuous integration tests, we have configured the `core_pattern` as follows:
 
-    echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' | sudo tee /proc/sys/kernel/core_pattern
+    echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/%e.%p.gz' | sudo tee /proc/sys/kernel/core_pattern
 
 Additionally, we have set the `GOTRACEBACK` environment variable to `crash`.
 Together, these ensure that when LXD crashes a core dump is compressed with `gzip` and placed in `/var/crash`.
