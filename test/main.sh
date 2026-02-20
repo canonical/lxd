@@ -230,18 +230,18 @@ export _LXC
 
 # Set ulimit to ensure core dump is outputted.
 ulimit -c unlimited
-echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
+echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/%e.%p.gz' > /proc/sys/kernel/core_pattern
 
 # Check for core dumps, ignoring known issues.
 check_coredumps() {
-  if ! compgen -G "/var/crash/core-*.gz" > /dev/null; then
+  if ! compgen -G "/var/crash/*.gz" > /dev/null; then
     return 0  # No core dumps at all
   fi
 
   # Ignore unattended-upgrades core dumps (https://bugs.launchpad.net/ubuntu/+source/unattended-upgrades/+bug/2139433)
-  if compgen -G "/var/crash/core-unattended-upgr*.gz" > /dev/null 2>&1; then
+  if compgen -G "/var/crash/unattended-upgr*.gz" > /dev/null 2>&1; then
     echo "::notice::==> CORE: unattended-upgrades core dump ignored (LP: #2139433)"
-    rm /var/crash/core-unattended-upgr*.gz
+    rm /var/crash/unattended-upgr*.gz
   fi
 
   # Ignore qemu core dumps (known crasher, to be fixed later)
@@ -249,7 +249,7 @@ check_coredumps() {
   #       root cause.
   # Enable extended globbing for the !(pattern) syntax
   shopt -s extglob
-  if compgen -G "/var/crash/core-!(qemu-system-*).gz" > /dev/null 2>&1; then
+  if compgen -G "/var/crash/!(qemu-system-*).gz" > /dev/null 2>&1; then
     echo "==> CORE: coredumps found"
     ls -la /var/crash/
     shopt -u extglob

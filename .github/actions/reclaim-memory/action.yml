@@ -20,11 +20,11 @@ runs:
 
         # turn off .socket and .service that are not relevant on a CI runner
         for u in iscsid multipathd; do
-          sudo systemctl stop "${u}.socket" || true
+          sudo systemctl disable --now "${u}.socket" || true
         done
 
-        for u in cron irqbalance mono-xsp4 multipathd networkd-dispatcher php8.1-fpm php8.3-fpm; do
-          sudo systemctl stop "${u}.service" || true
+        for u in cron irqbalance mono-xsp4 multipathd networkd-dispatcher php8.1-fpm php8.3-fpm unattended-upgrades; do
+          sudo systemctl disable --now "${u}.service" || true
         done
 
         # the mono service doesn't cleanly stop so use pkill
