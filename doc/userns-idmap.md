@@ -103,4 +103,4 @@ be the same size.
 This property requires a container reboot to take effect.
 
 For non-snap installations of LXD, you might need to add an entry for the `root` user into
-`/etc/subid` and/or `/etc/subgid` so the container is allowed to make use of it. See: {ref}`ref-idmap-allowed-ranges`.
+`/etc/subuid` and/or `/etc/subgid` so the container is allowed to make use of it. See: {ref}`ref-idmap-allowed-ranges`.
