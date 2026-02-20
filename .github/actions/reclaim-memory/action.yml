@@ -23,7 +23,7 @@ runs:
           sudo systemctl stop "${u}.socket" || true
         done
 
-        for u in cron irqbalance mono-xsp4 multipathd networkd-dispatcher php8.1-fpm php8.3-fpm; do
+        for u in cron irqbalance mono-xsp4 multipathd networkd-dispatcher php8.1-fpm php8.3-fpm unattended-upgrades; do
           sudo systemctl stop "${u}.service" || true
         done
 
