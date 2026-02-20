@@ -112,6 +112,9 @@ type Operation struct {
 	onRun     func(context.Context, *Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 
+	// Inputs for the operation, which are stored in the database.
+	inputs map[string]any
+
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
@@ -139,6 +142,7 @@ type OperationArgs struct {
 	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
 	requestor       *request.Requestor
 	metricsCallback func(result metrics.RequestResult)
+	Inputs          map[string]any
 }
 
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
@@ -232,6 +236,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op.requestor = args.requestor
 	op.metricsCallback = args.metricsCallback
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+	op.inputs = args.Inputs
 
 	if s != nil {
 		op.SetEventServer(s.Events)
@@ -259,10 +264,6 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
-	operationsLock.Lock()
-	operations[op.id] = &op
-	operationsLock.Unlock()
-
 	err = registerDBOperation(&op)
 	if err != nil {
 		return nil, err
@@ -272,6 +273,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	_, md, _ := op.Render()
 
 	operationsLock.Lock()
+	operations[op.id] = &op
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
@@ -378,6 +380,20 @@ func (op *Operation) done() {
 	}()
 }
 
+func updateStatus(op *Operation, newStatus api.StatusCode) {
+	oldStatus := op.status
+	// We cannot really use operation context as it was already cancelled.
+	err := op.updateStatus(context.TODO(), newStatus)
+	if err != nil {
+		op.logger.Warn("Failed updating operation status", logger.Ctx{
+			"operation": op.id,
+			"err":       err,
+			"oldStatus": oldStatus,
+			"newStatus": newStatus,
+		})
+	}
+}
+
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
@@ -386,14 +402,18 @@ func (op *Operation) Start() error {
 		return errors.New("Only pending operations can be started")
 	}
 
-	op.status = api.Running
+	runCtx := context.Context(op.running)
+	err := op.updateStatus(runCtx, api.Running)
+	if err != nil {
+		op.lock.Unlock()
+		return fmt.Errorf("Failed updating Operation %q (%q) status: %w", op.id, op.description, err)
+	}
 
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
 		// The requestor is available directly on the operation, but we should still put it in the context.
 		// This is so that, if an operation queries another cluster member, the requestor information will be set
 		// in the request headers.
-		runCtx := context.Context(op.running)
 		if op.requestor != nil {
 			runCtx = request.WithRequestor(runCtx, op.requestor)
 		}
@@ -403,16 +423,17 @@ func (op *Operation) Start() error {
 			if err != nil {
 				op.lock.Lock()
 
+				op.err = err
+
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
-					op.status = api.Cancelled
+					updateStatus(op, api.Cancelled)
 				} else {
-					op.status = api.Failure
+					updateStatus(op, api.Failure)
 				}
 
 				// Always call cancel. This is a no-op if already cancelled.
 				op.running.Cancel()
-				op.err = err
 
 				op.lock.Unlock()
 				op.done()
@@ -428,7 +449,7 @@ func (op *Operation) Start() error {
 			}
 
 			op.lock.Lock()
-			op.status = api.Success
+			updateStatus(op, api.Success)
 			op.running.Cancel()
 			op.lock.Unlock()
 			op.done()
@@ -477,10 +498,11 @@ func (op *Operation) Cancel() {
 	// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
 	//
 	// If the operation does not have a run hook, immediately set the status to cancelled because there is nothing to clean up.
+	// We cannot use the operation context here because it has already been cancelled above.
 	if op.onRun != nil {
-		op.status = api.Cancelling
+		updateStatus(op, api.Cancelling)
 	} else {
-		op.status = api.Cancelled
+		updateStatus(op, api.Cancelled)
 	}
 
 	op.lock.Unlock()
@@ -610,6 +632,12 @@ func (op *Operation) EntityURL() *api.URL {
 	return op.entityURL
 }
 
+func (op *Operation) updateStatus(ctx context.Context, newStatus api.StatusCode) error {
+	op.status = newStatus
+	op.updatedAt = time.Now()
+	return updateDBOperation(ctx, op)
+}
+
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
@@ -641,6 +669,16 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	op.lock.Unlock()
 
 	return nil
+}
+
+// CommitMetadata commits the metadata and status of the operation to the database, and updates the updatedAt time.
+func (op *Operation) CommitMetadata() error {
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	op.updatedAt = time.Now()
+	// Use the operation context for the database update, so that if the operation is cancelled, the database update will be cancelled as well.
+	return updateDBOperation(context.Context(op.running), op)
 }
 
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
@@ -729,6 +767,11 @@ func (op *Operation) Class() OperationClass {
 // Type returns the db operation type.
 func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
+}
+
+// Inputs returns the operation inputs from the database.
+func (op *Operation) Inputs() map[string]any {
+	return op.inputs
 }
 
 // validateMetadata is used to enforce some consistency in operation metadata.
