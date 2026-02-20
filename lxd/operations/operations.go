@@ -699,9 +699,11 @@ func (op *Operation) ID() string {
 	return op.id
 }
 
-// Metadata returns the operation Metadata.
+// Metadata returns a copy of the operation Metadata.
 func (op *Operation) Metadata() map[string]any {
-	return op.metadata
+	op.lock.Lock()
+	defer op.lock.Unlock()
+	return maps.Clone(op.metadata)
 }
 
 // URL returns the operation URL.
