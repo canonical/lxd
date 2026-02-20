@@ -36,10 +36,12 @@ runs:
               . test/includes/snap.sh; \
               install_snap snapd latest/beta; \
               install_snap core24 latest/stable; \
+              install_snap core26 latest/edge; \
               install_snap microovn \"${SNAP_CHANNEL}\"; \
             "
           else
             sudo snap refresh snapd --channel latest/beta || sudo snap install snapd --channel latest/beta
+            sudo snap refresh core26 --channel latest/edge || sudo snap install core26 --channel latest/edge
             sudo snap install microovn --channel "${SNAP_CHANNEL}"
           fi
 
