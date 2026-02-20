@@ -72,6 +72,7 @@ runs:
 
         # Seed the snap dependencies cache
         download_snap snapd "latest/beta"
+        download_snap core26 "latest/edge"
         download_snap core24 "latest/stable"
         download_snap core22 "latest/stable"
         download_snap lxd "5.21/edge"
