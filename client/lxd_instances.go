@@ -30,20 +30,8 @@ import (
 // Instance handling functions.
 
 // instanceTypeToPath converts the instance type to a URL path prefix and query string values.
-// If the remote server doesn't have the instances extension then the /containers endpoint is used
-// as long as the requested instanceType is any or container.
 func (r *ProtocolLXD) instanceTypeToPath(instanceType api.InstanceType) (string, url.Values, error) {
 	v := url.Values{}
-
-	// If the remote server doesn't support instances extension, check that only containers
-	// or any type has been requested and then fallback to using the old /containers endpoint.
-	if r.CheckExtension("instances") != nil {
-		if instanceType == api.InstanceTypeContainer || instanceType == api.InstanceTypeAny {
-			return "/containers", v, nil
-		}
-
-		return "", v, errors.New("Requested instance type not supported by server")
-	}
 
 	// If a specific instance type has been requested, add the instance-type filter parameter
 	// to the returned URL values so that it can be used in the final URL if needed to filter
