@@ -379,7 +379,8 @@ dist:
 	# Create build dir
 	$(eval TMP := $(shell mktemp -d))
 	$(eval COMMIT_HASH := $(shell git rev-parse HEAD))
-	git archive --prefix=lxd-$(VERSION)/ $(COMMIT_HASH) | tar -x -C $(TMP)
+	# Export the source code at the current commit, excluding irrelevant files and directories
+	git archive --prefix=lxd-$(VERSION)/ $(COMMIT_HASH) | tar -x -C $(TMP) --exclude=.gitignore --exclude=.github --exclude=grafana --exclude=tools
 	echo $(COMMIT_HASH) > $(TMP)/lxd-$(VERSION)/.gitref
 
 	# Download dependencies
