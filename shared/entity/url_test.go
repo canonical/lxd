@@ -297,3 +297,53 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 		t.Fatalf("Missing test cases for entity types:\n - %v", strings.Join(missingEntityTypes, "\n - "))
 	}
 }
+
+func TestEntityPermissionURL_InvalidArguments(t *testing.T) {
+	tests := []struct {
+		Name      string
+		Type      Type
+		Args      map[string]string
+		WantError bool
+	}{
+		{
+			Name: "Volume - OK",
+			Type: TypeStorageVolume,
+			Args: map[string]string{
+				"name": "my-vol",
+				"type": "custom",
+				"pool": "my-pool",
+			},
+		},
+		{
+			Name: "Volume - Missing type",
+			Type: TypeStorageVolume,
+			Args: map[string]string{
+				"name": "my-vol",
+				"pool": "my-pool",
+			},
+			WantError: true,
+		},
+		{
+			Name: "Volume - Extra argument",
+			Type: TypeStorageVolume,
+			Args: map[string]string{
+				"name":  "my-vol",
+				"type":  "custom",
+				"pool":  "my-pool",
+				"extra": "something",
+			},
+			WantError: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			_, err := test.Type.URLFromNamedArgs("", "", test.Args)
+			if test.WantError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

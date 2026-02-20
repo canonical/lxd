@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/shared/api"
@@ -82,8 +83,15 @@ func (t Type) URLFromNamedArgs(projectName string, location string, pathArgument
 		return nil, fmt.Errorf("Invalid entity type %q", t)
 	}
 
-	// Convert the map of named path arguments to a slice of path arguments.
+	// Ensure only known path arguments are provided.
 	argNames := info.pathArgNames()
+	for name := range pathArguments {
+		if !slices.Contains(argNames, name) {
+			return nil, fmt.Errorf("Unknown path argument %q for entity type %q", name, t)
+		}
+	}
+
+	// Convert the map of named path arguments to a slice of path arguments.
 	args := make([]string, len(argNames))
 	for i, name := range argNames {
 		_, ok := pathArguments[name]
