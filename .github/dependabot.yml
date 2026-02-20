@@ -11,6 +11,10 @@ updates:
     target-branch: "main"
     cooldown:
       default-days: 7
+    groups:
+      gomod:
+        patterns:
+          - "*"
 
   - package-ecosystem: "gomod"
     directory: "/tools"
@@ -20,6 +24,10 @@ updates:
     target-branch: "main"
     cooldown:
       default-days: 7
+    groups:
+      gomod:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directories:
@@ -31,6 +39,10 @@ updates:
     target-branch: "main"
     cooldown:
       default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "gomod"
     directory: "/"
@@ -43,6 +55,10 @@ updates:
     target-branch: "stable-5.21"
     cooldown:
       default-days: 7
+    groups:
+      gomod:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directories:
@@ -54,6 +70,10 @@ updates:
     target-branch: "stable-5.21"
     cooldown:
       default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "gomod"
     directory: "/"
@@ -80,6 +100,10 @@ updates:
     target-branch: "stable-5.0"
     cooldown:
       default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directories:
@@ -91,3 +115,7 @@ updates:
     target-branch: "stable-4.0"
     cooldown:
       default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
