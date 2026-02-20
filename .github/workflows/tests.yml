@@ -507,7 +507,7 @@ jobs:
         with:
           name: crash-dumps-${{ steps.sanitize.outputs.artifact_name }}
           path: |
-            /var/crash/core-*
+            /var/crash/*
           retention-days: 5
           if-no-files-found: ignore
 
@@ -812,7 +812,7 @@ jobs:
         with:
           name: crash-dumps-${{ steps.sanitize.outputs.artifact_name }}
           path: |
-            /var/crash/core-*
+            /var/crash/*
           retention-days: 5
           if-no-files-found: ignore
 
