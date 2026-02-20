@@ -28,10 +28,6 @@ var instanceLogCmd = APIEndpoint{
 	Name:        "instanceLog",
 	Path:        "instances/{name}/logs/{file}",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerLog", Path: "containers/{name}/logs/{file}"},
-		{Name: "vmLog", Path: "virtual-machines/{name}/logs/{file}"},
-	},
 
 	Delete: APIEndpointAction{Handler: instanceLogDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 	Get:    APIEndpointAction{Handler: instanceLogGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
@@ -41,10 +37,6 @@ var instanceLogsCmd = APIEndpoint{
 	Name:        "instanceLogs",
 	Path:        "instances/{name}/logs",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerLogs", Path: "containers/{name}/logs"},
-		{Name: "vmLogs", Path: "virtual-machines/{name}/logs"},
-	},
 
 	Get: APIEndpointAction{Handler: instanceLogsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 }
@@ -53,10 +45,6 @@ var instanceExecOutputCmd = APIEndpoint{
 	Name:        "instanceExecOutput",
 	Path:        "instances/{name}/logs/exec-output/{file}",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerExecOutput", Path: "containers/{name}/logs/exec-output/{file}"},
-		{Name: "vmExecOutput", Path: "virtual-machines/{name}/logs/exec-output/{file}"},
-	},
 
 	Delete: APIEndpointAction{Handler: instanceExecOutputDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 	Get:    APIEndpointAction{Handler: instanceExecOutputGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
@@ -66,10 +54,6 @@ var instanceExecOutputsCmd = APIEndpoint{
 	Name:        "instanceExecOutputs",
 	Path:        "instances/{name}/logs/exec-output",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerExecOutputs", Path: "containers/{name}/logs/exec-output"},
-		{Name: "vmExecOutputs", Path: "virtual-machines/{name}/logs/exec-output"},
-	},
 
 	Get: APIEndpointAction{Handler: instanceExecOutputsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 }
