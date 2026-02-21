@@ -627,20 +627,9 @@ func isSubnetUsable(cidr string) bool {
 func randomSubnetV4() (string, error) {
 	for range 100 {
 		cidr := fmt.Sprintf("10.%d.%d.1/24", rand.Intn(255), rand.Intn(255))
-		_, subnet, err := net.ParseCIDR(cidr)
-		if err != nil {
-			continue
+		if isSubnetUsable(cidr) {
+			return cidr, nil
 		}
-
-		if inRoutingTable(subnet) {
-			continue
-		}
-
-		if pingSubnet(subnet) {
-			continue
-		}
-
-		return cidr, nil
 	}
 
 	return "", errors.New("Failed to automatically find an unused IPv4 subnet, manual configuration required")
@@ -649,20 +638,9 @@ func randomSubnetV4() (string, error) {
 func randomSubnetV6() (string, error) {
 	for range 100 {
 		cidr := fmt.Sprintf("fd42:%x:%x:%x::1/64", rand.Intn(65535), rand.Intn(65535), rand.Intn(65535))
-		_, subnet, err := net.ParseCIDR(cidr)
-		if err != nil {
-			continue
+		if isSubnetUsable(cidr) {
+			return cidr, nil
 		}
-
-		if inRoutingTable(subnet) {
-			continue
-		}
-
-		if pingSubnet(subnet) {
-			continue
-		}
-
-		return cidr, nil
 	}
 
 	return "", errors.New("Failed to automatically find an unused IPv6 subnet, manual configuration required")
