@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -877,21 +878,23 @@ func pingIP(ctx context.Context, ip net.IP) error {
 }
 
 func pingSubnet(subnet *net.IPNet) bool {
-	var fail bool
-	var failLock sync.Mutex
+	// Check if we can find a host in the subnet
+	var fail atomic.Bool
 	var wgChecks sync.WaitGroup
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
 	ping := func(ip net.IP) {
 		defer wgChecks.Done()
 
-		if pingIP(context.TODO(), ip) != nil {
+		if pingIP(ctx, ip) != nil {
 			return
 		}
 
 		// Remote answered
-		failLock.Lock()
-		fail = true
-		failLock.Unlock()
+		fail.Store(true)
+		cancel()
 	}
 
 	poke := func(ip net.IP) {
@@ -902,14 +905,15 @@ func pingSubnet(subnet *net.IPNet) bool {
 			addr = fmt.Sprintf("[%s]:22", ip.String())
 		}
 
-		_, err := net.DialTimeout("tcp", addr, time.Second)
-		if err == nil {
-			// Remote answered
-			failLock.Lock()
-			fail = true
-			failLock.Unlock()
+		d := net.Dialer{}
+		_, err := d.DialContext(ctx, "tcp", addr)
+		if err != nil {
 			return
 		}
+
+		// Remote answered
+		fail.Store(true)
+		cancel()
 	}
 
 	// Ping first IP
@@ -933,7 +937,7 @@ func pingSubnet(subnet *net.IPNet) bool {
 
 	wgChecks.Wait()
 
-	return fail
+	return fail.Load()
 }
 
 // GetHostDevice returns the interface name to use for a combination of parent device name and VLAN ID.
