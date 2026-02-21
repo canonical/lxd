@@ -2968,3 +2968,8 @@ As with the {ref}`storage and profile operation extension <extension-storage-and
 ## `gpu_cdi_amd`
 
 Adds support for using the Container Device Interface (CDI) specification to configure AMD GPU passthrough in LXD containers. The `id` field of GPU devices now accepts CDI identifiers (for example, `amd.com/gpu=gpu{INDEX}`) for containers, in addition to DRM card IDs.
+
+(extension-instance-delete-force-storage)=
+## `instance_delete_force_storage`
+
+This adds support for a `force_storage` query parameter to the `DELETE /1.0/instances/{name}` endpoint. When set, storage errors during instance deletion are ignored, allowing cleanup of instances whose backing storage pool is offline or unreachable (e.g. a destroyed Ceph cluster). Database records are cleaned up regardless of storage errors, but orphaned storage volumes may remain if the storage pool later comes back online.
