@@ -606,6 +606,24 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 	return servers, nil
 }
 
+// isSubnetUsable checks if a subnet is valid and unused.
+func isSubnetUsable(cidr string) bool {
+	_, subnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return false
+	}
+
+	if inRoutingTable(subnet) {
+		return false
+	}
+
+	if pingSubnet(subnet) {
+		return false
+	}
+
+	return true
+}
+
 func randomSubnetV4() (string, error) {
 	for range 100 {
 		cidr := fmt.Sprintf("10.%d.%d.1/24", rand.Intn(255), rand.Intn(255))
