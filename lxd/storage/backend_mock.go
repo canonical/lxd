@@ -166,7 +166,7 @@ func (b *mockBackend) RenameInstance(inst instance.Instance, newName string, op 
 }
 
 // DeleteInstance ...
-func (b *mockBackend) DeleteInstance(inst instance.Instance, op *operations.Operation) error {
+func (b *mockBackend) DeleteInstance(inst instance.Instance, forceStorage bool, op *operations.Operation) error {
 	return nil
 }
 
@@ -271,7 +271,7 @@ func (b *mockBackend) RenameInstanceSnapshot(inst instance.Instance, newName str
 }
 
 // DeleteInstanceSnapshot ...
-func (b *mockBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error {
+func (b *mockBackend) DeleteInstanceSnapshot(inst instance.Instance, forceStorage bool, op *operations.Operation) error {
 	return nil
 }
 

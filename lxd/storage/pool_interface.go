@@ -74,7 +74,7 @@ type Pool interface {
 	CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
 	CreateInstanceFromConversion(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
 	RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error
-	DeleteInstance(inst instance.Instance, op *operations.Operation) error
+	DeleteInstance(inst instance.Instance, forceStorage bool, op *operations.Operation) error
 	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, version uint32, op *operations.Operation) error
 	GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, op *operations.Operation) (*backupConfig.Config, error)
@@ -96,7 +96,7 @@ type Pool interface {
 	// Instance snapshots.
 	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
 	RenameInstanceSnapshot(inst instance.Instance, newName string, op *operations.Operation) error
-	DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
+	DeleteInstanceSnapshot(inst instance.Instance, forceStorage bool, op *operations.Operation) error
 	RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
 	MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (*MountInfo, error)
 	UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
