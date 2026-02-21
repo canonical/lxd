@@ -1155,7 +1155,13 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 }
 
 // DeleteInstance requests that LXD deletes the instance.
-func (r *ProtocolLXD) DeleteInstance(name string, force bool) (Operation, error) {
+func (r *ProtocolLXD) DeleteInstance(name string, args *InstanceDeleteArgs) (Operation, error) {
+	if args == nil {
+		args = &InstanceDeleteArgs{}
+	}
+
+	force := args.Force
+	forceStorage := args.ForceStorage
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {
 		return nil, err
@@ -1196,6 +1202,15 @@ func (r *ProtocolLXD) DeleteInstance(name string, force bool) (Operation, error)
 				}
 			}
 		}
+	}
+
+	if forceStorage {
+		err := r.CheckExtension("instance_delete_force_storage")
+		if err != nil {
+			return nil, err
+		}
+
+		u = u.WithQuery("force_storage", "1")
 	}
 
 	// Send the request
