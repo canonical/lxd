@@ -941,7 +941,7 @@ func (c *cmdConvert) run(cmd *cobra.Command, args []string) error {
 	}
 
 	revert.Add(func() {
-		_, _ = server.DeleteInstance(config.InstanceArgs.Name, false)
+		_, _ = server.DeleteInstance(config.InstanceArgs.Name, nil)
 	})
 
 	progressPrefix := "Transferring instance: %s"
