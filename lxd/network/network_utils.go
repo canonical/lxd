@@ -625,10 +625,23 @@ func isSubnetUsable(cidr string) bool {
 }
 
 func randomSubnetV4() (string, error) {
-	for range 100 {
-		cidr := fmt.Sprintf("10.%d.%d.1/24", rand.Intn(255), rand.Intn(255))
+	// Generate a random permutation of octets to avoid checking the same subnets every time
+	// which can be slow if the first few are used but not routed.
+	octets := rand.Perm(256)
+
+	iterations := 0
+	for _, y := range octets {
+		x := rand.Intn(256)
+
+		cidr := fmt.Sprintf("10.%d.%d.1/24", x, y)
 		if isSubnetUsable(cidr) {
 			return cidr, nil
+		}
+
+		iterations++
+
+		if iterations >= 100 {
+			break
 		}
 	}
 
