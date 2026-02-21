@@ -28,7 +28,7 @@ func (d instanceDeleter) Delete(ctx context.Context, op *operations.Operation, s
 		return operations.ScheduleUserOperationFromOperation(s, op, args)
 	}
 
-	instanceDeleteOp, err := doInstanceDelete(opScheduler, s, ref.Name(), ref.ProjectName, true)
+	instanceDeleteOp, err := doInstanceDelete(opScheduler, s, ref.Name(), ref.ProjectName, true, false)
 	if err != nil {
 		return fmt.Errorf("Failed deleting instance %q: %w", name, err)
 	}

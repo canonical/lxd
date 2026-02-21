@@ -3002,7 +3002,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Destroy ephemeral containers
 		if d.ephemeral {
-			err = d.delete(true)
+			err = d.delete(instance.DeleteArgs{Force: true})
 			if err != nil {
 				op.Done(fmt.Errorf("Failed deleting ephemeral instance: %w", err))
 				return
@@ -3448,12 +3448,14 @@ func (d *lxc) cleanup() {
 }
 
 // Delete deletes the instance.
-func (d *lxc) Delete(force bool, diskVolumesMode string) error {
-	return d.deleteCommon(d, force, diskVolumesMode)
+func (d *lxc) Delete(args instance.DeleteArgs) error {
+	return d.deleteCommon(d, args)
 }
 
 // Delete deletes the instance without creating an operation lock.
-func (d *lxc) delete(force bool) error {
+func (d *lxc) delete(args instance.DeleteArgs) error {
+	force := args.Force
+	forceStorage := args.ForceStorage
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -3485,25 +3487,29 @@ func (d *lxc) delete(force bool) error {
 
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil && !response.IsNotFoundError(err) {
-		return err
+		if forceStorage {
+			d.logger.Warn("Ignoring error loading storage pool during force storage delete", logger.Ctx{"err": err})
+		} else {
+			return err
+		}
 	} else if pool != nil {
 		if d.IsSnapshot() {
 			// Remove snapshot volume and database record.
-			err = pool.DeleteInstanceSnapshot(d, nil)
+			err = pool.DeleteInstanceSnapshot(d, forceStorage, nil)
 			if err != nil {
 				return err
 			}
 		} else {
 			// Remove all snapshots.
 			err := d.deleteSnapshots(func(snapInst instance.Instance) error {
-				return snapInst.(*lxc).delete(true) // Internal delete function that doesn't lock.
+				return snapInst.(*lxc).delete(instance.DeleteArgs{Force: true, ForceStorage: forceStorage}) // Internal delete function that doesn't lock.
 			})
 			if err != nil {
 				return fmt.Errorf("Failed deleting instance snapshots: %w", err)
 			}
 
 			// Remove the storage volume and database records.
-			err = pool.DeleteInstance(d, nil)
+			err = pool.DeleteInstance(d, forceStorage, nil)
 			if err != nil {
 				return err
 			}
@@ -5171,7 +5177,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Delete the extra local snapshots first.
 		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
-			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true, "")
+			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(instance.DeleteArgs{Force: true})
 			if err != nil {
 				return err
 			}
@@ -5386,10 +5392,10 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 				for k := range snapshots {
 					// Delete the snapshots in reverse order.
 					k = snapshotCount - 1 - k
-					_ = pool.DeleteInstanceSnapshot(snapshots[k], nil)
+					_ = pool.DeleteInstanceSnapshot(snapshots[k], false, nil)
 				}
 
-				_ = pool.DeleteInstance(d, nil)
+				_ = pool.DeleteInstance(d, false, nil)
 			})
 		}
 
