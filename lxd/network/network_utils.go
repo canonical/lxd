@@ -861,18 +861,13 @@ func inRoutingTable(subnet *net.IPNet) bool {
 // pingIP sends a single ping packet to the specified IP, returns nil error if IP is reachable.
 // If ctx doesn't have a deadline then the default timeout used is 1s.
 func pingIP(ctx context.Context, ip net.IP) error {
-	cmd := "ping"
-	if ip.To4() == nil {
-		cmd = "ping6"
-	}
-
-	timeout := time.Second * 1
+	timeout := time.Second
 	deadline, ok := ctx.Deadline()
 	if ok {
 		timeout = time.Until(deadline)
 	}
 
-	_, err := shared.RunCommand(ctx, cmd, "-n", "-q", ip.String(), "-c", "1", "-w", strconv.Itoa(int(timeout.Seconds())))
+	_, err := shared.RunCommand(ctx, "ping", "-n", "-q", ip.String(), "-c", "1", "-w", strconv.Itoa(int(timeout.Seconds())))
 
 	return err
 }
