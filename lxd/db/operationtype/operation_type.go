@@ -353,5 +353,10 @@ const (
 
 // ConflictAction returns the action to take if a conflicting operation is already running.
 func (t Type) ConflictAction() ConflictAction {
+	switch t {
+	case Wait:
+		return ConflictActionFail
+	}
+
 	return ConflictActionNone
 }

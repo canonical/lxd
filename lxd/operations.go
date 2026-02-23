@@ -1283,10 +1283,11 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 
 // operationWaitPost represents the fields of a request to register a dummy operation.
 type operationWaitPost struct {
-	Duration  string                    `json:"duration" yaml:"duration"`
-	OpClass   operations.OperationClass `json:"op_class" yaml:"op_class"`
-	OpType    operationtype.Type        `json:"op_type" yaml:"op_type"`
-	EntityURL string                    `json:"entity_url" yaml:"entity_url"`
+	Duration          string                    `json:"duration" yaml:"duration"`
+	OpClass           operations.OperationClass `json:"op_class" yaml:"op_class"`
+	OpType            operationtype.Type        `json:"op_type" yaml:"op_type"`
+	EntityURL         string                    `json:"entity_url" yaml:"entity_url"`
+	ConflictReference string                    `json:"conflict_reference" yaml:"conflict_reference"`
 }
 
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
@@ -1334,12 +1335,13 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	args := operations.OperationArgs{
-		ProjectName: request.QueryParam(r, "project"),
-		Type:        req.OpType,
-		Class:       req.OpClass,
-		RunHook:     run,
-		ConnectHook: onConnect,
-		EntityURL:   &api.URL{URL: *u},
+		ProjectName:       request.QueryParam(r, "project"),
+		Type:              req.OpType,
+		Class:             req.OpClass,
+		RunHook:           run,
+		ConnectHook:       onConnect,
+		EntityURL:         &api.URL{URL: *u},
+		ConflictReference: req.ConflictReference,
 	}
 
 	op, err := operations.ScheduleServerOperation(d.State(), args)
