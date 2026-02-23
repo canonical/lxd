@@ -76,3 +76,17 @@ test_get_operations() {
     lxc delete c2 --force --project "${proj2}"
   )
 }
+
+test_operations_conflict_reference() {
+  conflictRef="test-conflict-ref"
+
+  # operation-wait requires instance for entity_type
+  lxc init --empty c1
+
+  # Create two operations with the same conflict_reference. The second creation should fail.
+  # op_type 75 is "Wait" operation.
+  lxc query -X POST '/internal/testing/operation-wait' -d '{"duration": "5s", "op_class": 1, "op_type": 75, "entity_url": "/1.0/instances/c1", "conflict_reference": "'"${conflictRef}"'"}'
+  ! lxc query -X POST '/internal/testing/operation-wait' -d '{"duration": "5s", "op_class": 1, "op_type": 75, "entity_url": "/1.0/instances/c1", "conflict_reference": "'"${conflictRef}"'"}' || false
+
+  lxc delete c1 --force
+}
