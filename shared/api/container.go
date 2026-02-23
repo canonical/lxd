@@ -134,8 +134,8 @@ func (c Container) IsActive() bool {
 
 // ContainerSource represents the creation source for a new container.
 type ContainerSource struct {
-	Type        string `json:"type" yaml:"type"`
-	Certificate string `json:"certificate" yaml:"certificate"`
+	Type        SourceType `json:"type" yaml:"type"`
+	Certificate string     `json:"certificate" yaml:"certificate"`
 
 	// For "image" type
 	Alias       string            `json:"alias,omitempty" yaml:"alias,omitempty"`

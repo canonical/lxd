@@ -1289,13 +1289,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return createImageTokenResponse(s, r, dbProject.Name, req.Source.Fingerprint, metadata, operationtype.ImageUploadToken)
 	}
 
-	if !imageUpload && !slices.Contains([]string{"container", "instance", "virtual-machine", "snapshot", "image", "url"}, req.Source.Type) {
+	if !imageUpload && !slices.Contains([]api.SourceType{"container", "instance", "virtual-machine", "snapshot", "image", "url"}, req.Source.Type) {
 		cleanup(builddir, post)
 		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
 	// Forward requests for containers on other nodes.
-	if !imageUpload && slices.Contains([]string{"container", "instance", "virtual-machine", "snapshot"}, req.Source.Type) {
+	if !imageUpload && slices.Contains([]api.SourceType{"container", "instance", "virtual-machine", "snapshot"}, req.Source.Type) {
 		name := req.Source.Name
 		if name != "" {
 			_, err = post.Seek(0, io.SeekStart)

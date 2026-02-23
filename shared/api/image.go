@@ -76,7 +76,7 @@ type ImagesPostSource struct {
 
 	// Type of image source (instance, snapshot, image or url)
 	// Example: instance
-	Type string `json:"type" yaml:"type"`
+	Type SourceType `json:"type" yaml:"type"`
 
 	// Source URL (for type "url")
 	// Example: https://some-server.com/some-directory/

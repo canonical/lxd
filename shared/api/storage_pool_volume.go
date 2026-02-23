@@ -205,7 +205,7 @@ type StorageVolumeSource struct {
 
 	// Source type (copy or migration)
 	// Example: copy
-	Type string `json:"type" yaml:"type"`
+	Type SourceType `json:"type" yaml:"type"`
 
 	// Source storage pool (for copy)
 	// Example: local

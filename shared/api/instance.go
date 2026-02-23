@@ -22,22 +22,23 @@ const InstanceTypeContainer = InstanceType("container")
 // InstanceTypeVM defines the instance type value for a virtual-machine.
 const InstanceTypeVM = InstanceType("virtual-machine")
 
-const (
-	// SourceTypeMigration represents instance creation from migration.
-	SourceTypeMigration = "migration"
+// SourceType represents source of the instance creation.
+type SourceType string
 
-	// SourceTypeConversion represents instance creation from conversion.
-	SourceTypeConversion = "conversion"
+// SourceTypeMigration represents instance creation from migration.
+const SourceTypeMigration = SourceType("migration")
 
-	// SourceTypeImage represents instance creation from an image.
-	SourceTypeImage = "image"
+// SourceTypeConversion represents instance creation from conversion.
+const SourceTypeConversion = SourceType("conversion")
 
-	// SourceTypeCopy represents instance creation from a copy operation.
-	SourceTypeCopy = "copy"
+// SourceTypeImage represents instance creation from an image.
+const SourceTypeImage = SourceType("image")
 
-	// SourceTypeNone represents an unknown source type for instance creation.
-	SourceTypeNone = "none"
-)
+// SourceTypeCopy represents instance creation from a copy operation.
+const SourceTypeCopy = SourceType("copy")
+
+// SourceTypeNone represents an unknown source type for instance creation.
+const SourceTypeNone = SourceType("none")
 
 // InstancesPost represents the fields available for a new LXD instance.
 //
@@ -387,7 +388,7 @@ func (c *Instance) URL(apiVersion string, project string) *URL {
 type InstanceSource struct {
 	// Source type
 	// Example: image
-	Type string `json:"type" yaml:"type"`
+	Type SourceType `json:"type" yaml:"type"`
 
 	// Certificate (for remote images or migration)
 	// Example: X509 PEM certificate

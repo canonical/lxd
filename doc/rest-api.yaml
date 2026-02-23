@@ -1560,10 +1560,7 @@ definitions:
                 type: string
                 x-go-name: Server
             type:
-                description: Type of image source (instance, snapshot, image or url)
-                example: instance
-                type: string
-                x-go-name: Type
+                $ref: '#/definitions/SourceType'
             url:
                 description: Source URL (for type "url")
                 example: https://some-server.com/some-directory/
@@ -2645,10 +2642,7 @@ definitions:
                 type: integer
                 x-go-name: SourceDiskSize
             type:
-                description: Source type
-                example: image
-                type: string
-                x-go-name: Type
+                $ref: '#/definitions/SourceType'
         title: InstanceSource represents the creation source for a new instance.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
@@ -6434,6 +6428,10 @@ definitions:
                 x-go-name: Public
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    SourceType:
+        title: SourceType represents source of the instance creation.
+        type: string
+        x-go-package: github.com/canonical/lxd/shared/api
     StatusCode:
         format: int64
         title: StatusCode represents a valid LXD operation and container status.
@@ -7112,10 +7110,7 @@ definitions:
                 type: object
                 x-go-name: Websockets
             type:
-                description: Source type (copy or migration)
-                example: copy
-                type: string
-                x-go-name: Type
+                $ref: '#/definitions/SourceType'
             volume_only:
                 description: Whether snapshots should be discarded (for migration)
                 example: false

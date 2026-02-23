@@ -88,7 +88,7 @@ type DevLXDStorageVolumeSource struct {
 
 	// Source type. Currently, only "copy" is supported.
 	// Example: copy
-	Type string `json:"type" yaml:"type"`
+	Type SourceType `json:"type" yaml:"type"`
 
 	// Source storage pool.
 	// Example: local

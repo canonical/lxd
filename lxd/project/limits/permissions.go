@@ -107,7 +107,7 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 	info.Instances = append(info.Instances, instance)
 
 	// Allow stripping volatile keys if dealing with a copy or migration.
-	strip := slices.Contains([]string{api.SourceTypeCopy, api.SourceTypeMigration}, req.Source.Type)
+	strip := slices.Contains([]api.SourceType{api.SourceTypeCopy, api.SourceTypeMigration}, req.Source.Type)
 
 	// Special case restriction checks on volatile.* keys.
 	err = checkRestrictionsOnVolatileConfig(
