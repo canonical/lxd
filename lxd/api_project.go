@@ -1856,6 +1856,13 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		//  type: string
 		//  shortdesc: Which host GID ranges are allowed in `raw.idmap`
 		"restricted.idmap.gid": validate.Optional(validate.IsListOf(validate.IsUint32Range)),
+		// lxdmeta:generate(entities=project; group=restricted; key=restricted.images.publish)
+		// Possible values are `allow` or `block`.
+		// ---
+		//  type: string
+		//  defaultdesc: `block`
+		//  shortdesc: When set to `block`, public images cannot be created inside this project
+		"restricted.images.publish": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.networks.access)
 		// Specify a comma-delimited list of network names that are allowed for use in this project.
 		// If this option is not set, all networks are accessible.
