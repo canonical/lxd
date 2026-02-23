@@ -14,7 +14,7 @@ func API(certfile, keyfile string, handler http.Handler) (net.Addr, <-chan error
 	mux := http.NewServeMux()
 	mux.Handle("/{any...}", handler)
 
-	sigchan := make(chan os.Signal)
+	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, unix.SIGINT, unix.SIGKILL)
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
