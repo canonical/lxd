@@ -36,9 +36,9 @@ chain pstrt{{.chainSeparator}}{{.networkName}} {
 	# It's important to check for both the destination address and the output interface
 	# to not falsely snat/masquerade multicast traffic whose destination address it outside of the subnet.
 	# In case br_netfilter is loaded on the host multicast traffic also traverses the postrouting chain.
-	{{$ipFamily}} saddr {{$config.Subnet}} {{$ipFamily}} daddr != {{$config.Subnet}} oifname != {{$.networkName}} snat {{$config.SNATAddress}}
+	{{$ipFamily}} saddr {{$config.Subnet}} {{$ipFamily}} daddr != {{$config.Subnet}} oifname != "{{$.networkName}}" snat {{$config.SNATAddress}}
 	{{else -}}
-	{{$ipFamily}} saddr {{$config.Subnet}} {{$ipFamily}} daddr != {{$config.Subnet}} oifname != {{$.networkName}} masquerade
+	{{$ipFamily}} saddr {{$config.Subnet}} {{$ipFamily}} daddr != {{$config.Subnet}} oifname != "{{$.networkName}}" masquerade
 	{{- end}}
 	{{- end}}
 }
