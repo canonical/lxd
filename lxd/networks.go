@@ -901,7 +901,7 @@ func doNetworksCreate(ctx context.Context, s *state.State, n network.Network, cl
 	}
 
 	// Mark local as status as networkCreated.
-	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.NetworkNodeCreated(n.ID())
 	})
 	if err != nil {
