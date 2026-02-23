@@ -237,17 +237,10 @@ To avoid race conditions, the ETag header should be read from the GET response a
 
 PATCH can be used to modify a single field inside an object by only specifying the property that you want to change. To unset a key, setting it to empty will usually do the trick, but there are cases where PATCH won't work and PUT needs to be used instead.
 
-## Instances, containers and virtual-machines
+## Instances
 
-The documentation shows paths such as `/1.0/instances/...`, which were introduced with LXD 3.19.
-Older releases that supported only containers and not virtual machines supply the exact same API at `/1.0/containers/...`.
-
-For backward compatibility reasons, LXD does still expose and support
-that `/1.0/containers` API, though for the sake of brevity, we decided
-not to double-document everything.
-
-An additional endpoint at `/1.0/virtual-machines` is also present and
-much like `/1.0/containers` will only show you instances of that type.
+The documentation shows paths such as `/1.0/instances/...`, which is the canonical API path since LXD 3.19.
+To filter by instance type, use the `instance-type` query parameter (e.g. `/1.0/instances?instance-type=container` or `/1.0/instances?instance-type=virtual-machine`).
 
 ## API structure
 
