@@ -549,7 +549,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 // A nil list indicates that we can't tell at this stage, typically for private images.
 func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx, projectName string, sourceInst *cluster.Instance, sourceImageRef string, req api.InstancesPost) ([]int, error) {
 	// Handle cases where the architecture is already provided.
-	if slices.Contains([]string{api.SourceTypeConversion, api.SourceTypeMigration, api.SourceTypeNone}, req.Source.Type) && req.Architecture != "" {
+	if slices.Contains([]api.SourceType{api.SourceTypeConversion, api.SourceTypeMigration, api.SourceTypeNone}, req.Source.Type) && req.Architecture != "" {
 		id, err := osarch.ArchitectureId(req.Architecture)
 		if err != nil {
 			return nil, err
@@ -559,7 +559,7 @@ func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx
 	}
 
 	// For migration and conversion, an architecture must be specified in the req.
-	if slices.Contains([]string{api.SourceTypeConversion, api.SourceTypeMigration}, req.Source.Type) && req.Architecture == "" {
+	if slices.Contains([]api.SourceType{api.SourceTypeConversion, api.SourceTypeMigration}, req.Source.Type) && req.Architecture == "" {
 		return nil, api.StatusErrorf(http.StatusBadRequest, "An architecture must be specified in migration or conversion requests")
 	}
 
