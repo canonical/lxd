@@ -682,7 +682,7 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 		if targetClient == nil {
 			targetClient, err = cluster.Connect(ctx, targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 			if err != nil {
-				return fmt.Errorf("Failed to connect to member %q: %w", targetMemberInfo.Name, err)
+				return fmt.Errorf("Failed connecting to member %q: %w", targetMemberInfo.Name, err)
 			}
 		}
 

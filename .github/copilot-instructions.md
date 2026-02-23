@@ -242,12 +242,13 @@ For error message assertions, prefer single-quoted strings so error text with `"
 
 ### Common Patterns
 
-**Error handling:**
-```go
-if err != nil {
-    return fmt.Errorf("Failed to do something: %w", err)
-}
-```
+- **Error handling**:
+  ```go
+  if err != nil {
+      return fmt.Errorf("Failed doing something: %w", err)
+  }
+  ```
+- **Error message format**: Use gerund format for error messages: `Failed connecting to target` instead of `Failed to connect to target`. Another example is to better use `Failed retrieving current cluster config` instead of `Failed to retrieve current cluster config`.
 
 ### File Location Patterns
 

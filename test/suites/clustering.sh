@@ -287,6 +287,9 @@ test_clustering_membership() {
 }
 
 test_clustering_containers() {
+  local pool_driver
+  pool_driver="$(storage_backend "${LXD_INITIAL_DIR}")"
+
   echo "Create cluster with 3 nodes."
   spawn_lxd_and_bootstrap_cluster
 
@@ -398,8 +401,18 @@ test_clustering_containers() {
 
         echo "Refresh target container."
         if [ "${state}" = "--start" ]; then
+          local expected_error
+
           echo "Refresh should be blocked if the instance is running."
-          ! LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --refresh --target-project "${project}" || false
+
+          # When using a remote driver or when copying on the same member the internal copy is used instead of the migration protocol.
+          if [ "${pool_driver}" != "ceph" ] && [ "${member}" != "node1" ]; then
+            expected_error='Error: Cannot refresh running instance "test-refresh-target"'
+          else
+            expected_error="Error: Failed getting exclusive access to target instance: Instance is running"
+          fi
+
+          [ "$(LXD_DIR="${LXD_ONE_DIR}" CLIENT_DEBUG="" SHELL_TRACING="" lxc copy test-refresh test-refresh-target --refresh --target-project "${project}" 2>&1)" = "${expected_error}" ]
         else
           LXD_DIR="${LXD_ONE_DIR}" lxc copy test-refresh test-refresh-target --refresh --target-project "${project}"
         fi
