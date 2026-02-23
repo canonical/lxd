@@ -1095,7 +1095,7 @@ func (c *cmdConvert) askNetwork(server lxd.InstanceServer, config *cmdConvertDat
 
 // checkSource checks if the source path is valid and can be used for conversion.
 // Source path can represent a disk, image, or partition.
-func (c *cmdConvert) checkSource(path string, instanceType api.InstanceType, migrationMode string) error {
+func (c *cmdConvert) checkSource(path string, instanceType api.InstanceType, migrationMode api.SourceType) error {
 	if !shared.PathExists(path) {
 		return errors.New("Path does not exist")
 	}
