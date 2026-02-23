@@ -1891,6 +1891,14 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		//  defaultdesc: `block`
 		//  shortdesc: Which network zones can be used in this project
 		"restricted.networks.zones": validate.IsListOf(validate.IsAny),
+		// lxdmeta:generate(entities=project; group=restricted; key=restricted.registries)
+		// Specify a comma-delimited list of image registry names that are allowed for use in this project.
+		// If this option is not set, no image registries are accessible.
+		// ---
+		//  type: string
+		//  defaultdesc: `block`
+		//  shortdesc: Which image registries can be used in this project
+		"restricted.registries": validate.Optional(validate.IsListOf(validate.IsAny)),
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.snapshots)
 		//
 		// ---
