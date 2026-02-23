@@ -229,7 +229,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op.class = args.Class
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
-	op.status = api.OperationCreated
+	op.status = api.Running
 	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
 	op.entityURL = args.EntityURL
 	op.resources = args.Resources
@@ -400,23 +400,12 @@ func updateStatus(op *Operation, newStatus api.StatusCode) {
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
-	if op.status != api.OperationCreated {
-		op.lock.Unlock()
-		return errors.New("Only pending operations can be started")
-	}
-
-	runCtx := context.Context(op.running)
-	err := op.updateStatus(runCtx, api.Running)
-	if err != nil {
-		op.lock.Unlock()
-		return fmt.Errorf("Failed updating Operation %q (%q) status: %w", op.id, op.description, err)
-	}
-
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
 		// The requestor is available directly on the operation, but we should still put it in the context.
 		// This is so that, if an operation queries another cluster member, the requestor information will be set
 		// in the request headers.
+		runCtx := context.Context(op.running)
 		if op.requestor != nil {
 			runCtx = request.WithRequestor(runCtx, op.requestor)
 		}
