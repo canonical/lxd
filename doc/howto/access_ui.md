@@ -41,34 +41,34 @@ If you have already set up access to the UI, you will see the {guilabel}`Instanc
 
 Access to the UI can be obtained in two ways:
 
-- Temporary access via a UI access link (bearer token, valid for 1 day).
+- Initial access via a UI access link (bearer token, valid for 1 day).
 - Permanent access using a browser certificate and trust token.
 
-(access-ui-setup-temporary-access-link)=
-### UI access using temporary link
+(access-ui-setup-initial-access-link)=
+### UI access using initial link
 
 The `lxd init` command guides you through the LXD initialization process.
-When the server address is configured during the initialization process, LXD offers an option to generate a temporary UI access link. If you agree with that option, a temporary LXD UI access URL that is valid for 24 hours is printed at the end of the process, as shown below.
+When the server address is configured during the initialization process, LXD offers an option to generate an initial UI access link. If you agree with that option, an initial LXD UI access URL that is valid for 24 hours is printed at the end of the process, as shown below.
 
 ```bash
 ...
 Would you like the LXD server to be available over the network? (yes/no) [default=no]: yes
 Address to bind LXD to (not including port) [default=all]:
 Port to bind LXD to [default=8443]:
-Would you like to create a temporary LXD UI access link? (yes/no) [default=no]: yes
+Would you like to create an initial LXD UI access link? (yes/no) [default=no]: yes
 ...
-UI temporary identity (type: Client token bearer): ui-admin-temporary
-UI temporary access link (expires: 2026-01-17 16:36): https://127.0.0.1:8443/?token=<bearer_token>
+UI initial identity (type: Initial UI token bearer): ui-admin-initial
+UI initial access link (expires: 2026-01-17 16:36): https://127.0.0.1:8443/?token=<bearer_token>
 ```
 
 Open this URL in your browser to immediately access the UI as an admin.
 This method is intended for initial access and setup only. After logging in, configure the permanent authentication (mTLS or OIDC) for continued access.
 
-To obtain a new temporary UI access link, run `lxd init` again.
-For convenience, the `--ui-temporary-access-link` flag can be used to non-interactively generate a new one.
+To obtain a new initial UI access link, run `lxd init` again.
+For convenience, the `--ui-initial-access-link` flag can be used to non-interactively generate a new one.
 
 ```bash
-lxd init --ui-temporary-access-link
+lxd init --ui-initial-access-link
 ```
 
 (access-ui-setup-certificate)=
