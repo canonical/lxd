@@ -2386,6 +2386,7 @@ func updateIdentityCache(d *Daemon) {
 	clientCerts := make(map[string]*x509.Certificate)
 	metricsCerts := make(map[string]*x509.Certificate)
 	secrets := make(map[string][]byte)
+	var initialUITokenSecret []byte
 	var localServerCerts []dbCluster.Certificate
 	for _, id := range identities {
 		identityType, err := identity.New(string(id.Type))
@@ -2429,6 +2430,11 @@ func updateIdentityCache(d *Daemon) {
 				continue
 			}
 
+			if identityType.Name() == api.IdentityTypeBearerTokenInitialUI {
+				initialUITokenSecret = secret
+				continue
+			}
+
 			secrets[id.Identifier] = secret
 		}
 	}
@@ -2443,7 +2449,7 @@ func updateIdentityCache(d *Daemon) {
 		// continue functioning, and hopefully the write will succeed on next update.
 	}
 
-	d.identityCache.ReplaceAll(serverCerts, clientCerts, metricsCerts, secrets)
+	d.identityCache.ReplaceAll(serverCerts, clientCerts, metricsCerts, secrets, initialUITokenSecret)
 }
 
 // updateIdentityCacheFromLocal loads trusted server certificates from local database into the identity cache.
@@ -2479,6 +2485,6 @@ func updateIdentityCacheFromLocal(d *Daemon) error {
 		serverCerts[dbCert.Fingerprint] = cert
 	}
 
-	d.identityCache.ReplaceAll(serverCerts, nil, nil, nil)
+	d.identityCache.ReplaceAll(serverCerts, nil, nil, nil, nil)
 	return nil
 }
