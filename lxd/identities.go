@@ -388,10 +388,15 @@ func identitiesTLSPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	s := d.State()
 
 	req := api.IdentitiesBearerPost{}
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -407,6 +412,10 @@ func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
 
 	if idType.AuthenticationMethod() != api.AuthenticationMethodBearer {
 		return response.BadRequest(fmt.Errorf("Identities of type %q cannot be created via the bearer API", req.Type))
+	}
+
+	if req.Type == api.IdentityTypeBearerTokenInitialUI && requestor.CallerProtocol() != request.ProtocolUnix {
+		return response.Forbidden(errors.New("Initial UI identities may only be created via unix socket"))
 	}
 
 	newIdentityID := uuid.New()
