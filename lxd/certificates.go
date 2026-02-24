@@ -151,10 +151,10 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var certResponses []*api.Certificate
-	var baseCerts []dbCluster.Certificate
+	var certURLs []string
 	urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		baseCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
+		baseCerts, err := dbCluster.GetCertificates(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -173,6 +173,8 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 				certResponses = append(certResponses, apiCert)
 				urlToCertificate[entity.CertificateURL(apiCert.Fingerprint)] = apiCert
+			} else {
+				certURLs = append(certURLs, api.NewURL().Path(version.APIVersion, "certificates", baseCert.Fingerprint).String())
 			}
 		}
 
@@ -183,13 +185,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !recursion {
-		body := []string{}
-		for _, baseCert := range baseCerts {
-			certificateURL := api.NewURL().Path(version.APIVersion, "certificates", baseCert.Fingerprint).String()
-			body = append(body, certificateURL)
-		}
-
-		return response.SyncResponse(true, body)
+		return response.SyncResponse(true, certURLs)
 	}
 
 	if len(withEntitlements) > 0 {
