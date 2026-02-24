@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2026-02-16 10:12+0000\n"
+"POT-Creation-Date: 2026-02-24 15:05+0000\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -718,7 +718,7 @@ msgstr "--console ne peut être utilisé avec --all"
 msgid "--console only works with a single instance"
 msgstr "--console fonctionne seulement avec une instance seule"
 
-#: lxc/init.go:148 lxc/rebuild.go:77
+#: lxc/init.go:156 lxc/rebuild.go:85
 msgid "--empty cannot be combined with an image name"
 msgstr "--empty ne peut être combiné avec le nom d'une image"
 
@@ -1056,7 +1056,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:350 lxc/rebuild.go:143
+#: lxc/init.go:363 lxc/rebuild.go:156
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -1182,7 +1182,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:153 lxc/init.go:243 lxc/move.go:401 lxc/project.go:169
+#: lxc/copy.go:153 lxc/init.go:251 lxc/move.go:401 lxc/project.go:169
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
 msgstr "Clé de configuration invalide"
@@ -1334,7 +1334,7 @@ msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
 "Impossible de désaffecter la clé '%s', elle n'est pas définie actuellement."
 
-#: lxc/rebuild.go:173
+#: lxc/rebuild.go:186
 msgid "Can't use an image with --empty"
 msgstr ""
 
@@ -1447,7 +1447,7 @@ msgid "Cluster member %s removed from group %s"
 msgstr "Périphérique %s retiré de %s"
 
 #: lxc/config.go:147 lxc/config.go:439 lxc/config.go:593 lxc/config.go:800
-#: lxc/config.go:931 lxc/copy.go:63 lxc/info.go:45 lxc/init.go:63
+#: lxc/config.go:931 lxc/copy.go:63 lxc/info.go:45 lxc/init.go:70
 #: lxc/move.go:68 lxc/network.go:338 lxc/network.go:809 lxc/network.go:890
 #: lxc/network.go:1025 lxc/network.go:1291 lxc/network.go:1382
 #: lxc/network.go:1454 lxc/network_forward.go:185 lxc/network_forward.go:267
@@ -1521,7 +1521,7 @@ msgstr "Définir un algorithme de compression : pour image ou aucun"
 msgid "Compression algorithm to use (none for uncompressed)"
 msgstr "Définir un algorithme de compression : pour image ou aucun"
 
-#: lxc/copy.go:55 lxc/init.go:56
+#: lxc/copy.go:55 lxc/init.go:63
 #, fuzzy
 msgid "Config key/value to apply to the new instance"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
@@ -1723,7 +1723,7 @@ msgstr ""
 msgid "Create a cluster group"
 msgstr ""
 
-#: lxc/init.go:66
+#: lxc/init.go:74
 #, fuzzy
 msgid "Create a virtual machine"
 msgstr "Copie de l'image : %s"
@@ -1732,7 +1732,7 @@ msgstr "Copie de l'image : %s"
 msgid "Create aliases for existing images"
 msgstr ""
 
-#: lxc/init.go:65
+#: lxc/init.go:73
 #, fuzzy
 msgid "Create an empty instance"
 msgstr "Création du conteneur"
@@ -1795,7 +1795,7 @@ msgstr ""
 "Exemple :\n"
 "    lxc snapshot u1 snap0"
 
-#: lxc/init.go:41 lxc/init.go:42
+#: lxc/init.go:42 lxc/init.go:43
 #, fuzzy
 msgid "Create instances from images"
 msgstr "Création du conteneur"
@@ -1868,7 +1868,7 @@ msgstr "Créé : %s"
 msgid "Create storage pools"
 msgstr "Copie de l'image : %s"
 
-#: lxc/copy.go:65 lxc/init.go:64
+#: lxc/copy.go:65 lxc/init.go:72
 #, fuzzy
 msgid "Create the instance with no profiles applied"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -1878,7 +1878,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Created: %s"
 msgstr "Créé : %s"
 
-#: lxc/init.go:188
+#: lxc/init.go:196
 #, c-format
 msgid "Creating %s"
 msgstr "Création de %s"
@@ -1888,7 +1888,7 @@ msgstr "Création de %s"
 msgid "Creating %s: %%s"
 msgstr "Création de %s"
 
-#: lxc/init.go:186
+#: lxc/init.go:194
 #, fuzzy
 msgid "Creating the instance"
 msgstr "Création du conteneur"
@@ -2090,7 +2090,7 @@ msgstr "Récupération de l'image : %s"
 #: lxc/image.go:1092 lxc/image.go:1452 lxc/image.go:1547 lxc/image.go:1613
 #: lxc/image.go:1677 lxc/image.go:1740 lxc/image_alias.go:24
 #: lxc/image_alias.go:60 lxc/image_alias.go:124 lxc/image_alias.go:177
-#: lxc/image_alias.go:288 lxc/import.go:29 lxc/info.go:33 lxc/init.go:42
+#: lxc/image_alias.go:288 lxc/import.go:29 lxc/info.go:33 lxc/init.go:43
 #: lxc/launch.go:24 lxc/list.go:50 lxc/main.go:85 lxc/manpage.go:22
 #: lxc/monitor.go:34 lxc/move.go:39 lxc/network.go:36 lxc/network.go:139
 #: lxc/network.go:241 lxc/network.go:331 lxc/network.go:418 lxc/network.go:476
@@ -2134,7 +2134,7 @@ msgstr "Récupération de l'image : %s"
 #: lxc/project.go:201 lxc/project.go:274 lxc/project.go:410 lxc/project.go:484
 #: lxc/project.go:604 lxc/project.go:669 lxc/project.go:755 lxc/project.go:799
 #: lxc/project.go:860 lxc/project.go:927 lxc/publish.go:34 lxc/query.go:35
-#: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:754
+#: lxc/rebuild.go:29 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:754
 #: lxc/remote.go:792 lxc/remote.go:878 lxc/remote.go:959 lxc/remote.go:1023
 #: lxc/remote.go:1072 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
 #: lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262
@@ -2502,7 +2502,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "Variable d'environnement (de la forme HOME=/home/foo) à positionner"
 
-#: lxc/copy.go:58 lxc/init.go:59
+#: lxc/copy.go:58 lxc/init.go:66
 #, fuzzy
 msgid "Ephemeral instance"
 msgstr "Conteneur éphémère"
@@ -3289,7 +3289,7 @@ msgstr "Profil %s créé"
 msgid "Identity provider group %s deleted"
 msgstr "Profil %s créé"
 
-#: lxc/rebuild.go:33
+#: lxc/rebuild.go:40
 msgid "If an instance is running, stop it and then rebuild it"
 msgstr ""
 
@@ -3443,7 +3443,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/init.go:416
+#: lxc/init.go:429
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -3462,12 +3462,12 @@ msgstr ""
 msgid "Instance published with fingerprint: %s"
 msgstr "Conteneur publié avec l'empreinte : %s"
 
-#: lxc/rebuild.go:87
+#: lxc/rebuild.go:100
 #, fuzzy, c-format
 msgid "Instance snapshots cannot be rebuilt: %s"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/init.go:62
+#: lxc/init.go:69
 msgid "Instance type"
 msgstr ""
 
@@ -3650,12 +3650,12 @@ msgstr "Dernière utilisation : %s"
 msgid "Last used: never"
 msgstr "Dernière utilisation : jamais"
 
-#: lxc/init.go:182
+#: lxc/init.go:190
 #, fuzzy, c-format
 msgid "Launching %s"
 msgstr "Création de %s"
 
-#: lxc/init.go:180
+#: lxc/init.go:188
 #, fuzzy
 msgid "Launching the instance"
 msgstr "Création du conteneur"
@@ -4515,7 +4515,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 #: lxc/config_template.go:100 lxc/config_template.go:155
 #: lxc/config_template.go:209 lxc/config_template.go:306
 #: lxc/config_template.go:377 lxc/profile.go:154 lxc/profile.go:240
-#: lxc/profile.go:922 lxc/rebuild.go:73
+#: lxc/profile.go:922 lxc/rebuild.go:81
 #, fuzzy
 msgid "Missing instance name"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -4894,7 +4894,7 @@ msgstr "Le réseau %s a été créé"
 msgid "Network load balancer %s deleted"
 msgstr "Le réseau %s a été supprimé"
 
-#: lxc/init.go:60
+#: lxc/init.go:67
 msgid "Network name"
 msgstr "Nom du réseau"
 
@@ -4948,7 +4948,7 @@ msgstr "Nouvel alias à définir sur la cible"
 msgid "New aliases to add to the image"
 msgstr "Nouvel alias à définir sur la cible"
 
-#: lxc/copy.go:56 lxc/import.go:37 lxc/init.go:58 lxc/move.go:61
+#: lxc/copy.go:56 lxc/import.go:37 lxc/init.go:65 lxc/move.go:61
 #, fuzzy
 msgid "New key/value to apply to a specific device"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
@@ -5264,7 +5264,7 @@ msgstr "Profil %s ajouté à %s"
 msgid "Profile to apply to the new image"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/copy.go:57 lxc/init.go:57
+#: lxc/copy.go:57 lxc/init.go:64
 #, fuzzy
 msgid "Profile to apply to the new instance"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -5303,6 +5303,14 @@ msgstr "Profil %s supprimé"
 #, fuzzy, c-format
 msgid "Project %s renamed to %s"
 msgstr "Profil %s ajouté à %s"
+
+#: lxc/rebuild.go:41
+msgid "Project containing the instance (if different from --project)"
+msgstr ""
+
+#: lxc/init.go:71
+msgid "Project to create the instance in (if different from --project)"
+msgstr ""
 
 #: lxc/remote.go:110
 msgid "Project to use for the remote"
@@ -5467,12 +5475,12 @@ msgstr ""
 msgid "Read-Only: %v"
 msgstr ""
 
-#: lxc/rebuild.go:32
+#: lxc/rebuild.go:39
 #, fuzzy
 msgid "Rebuild as an empty instance"
 msgstr "Création du conteneur"
 
-#: lxc/rebuild.go:27
+#: lxc/rebuild.go:28
 #, fuzzy
 msgid "Rebuild instances"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -5805,7 +5813,7 @@ msgstr ""
 msgid "Retrieve the container's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/init.go:364
+#: lxc/init.go:377
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
@@ -6598,7 +6606,7 @@ msgstr "Le réseau %s a été supprimé"
 msgid "Storage pool %s pending on member %s"
 msgstr "Le réseau %s a été créé"
 
-#: lxc/copy.go:62 lxc/import.go:36 lxc/init.go:61 lxc/move.go:67
+#: lxc/copy.go:62 lxc/import.go:36 lxc/init.go:68 lxc/move.go:67
 msgid "Storage pool name"
 msgstr "Nom de l'ensemble de stockage"
 
@@ -6760,7 +6768,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:437
+#: lxc/init.go:450
 #, fuzzy
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
@@ -6940,12 +6948,12 @@ msgstr "Temps d'attente du conteneur avant de le tuer"
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:439
+#: lxc/init.go:452
 #, fuzzy
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:438
+#: lxc/init.go:451
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
@@ -7465,10 +7473,20 @@ msgstr ""
 msgid "Whether or not to snapshot the instance's running state"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
 
-#: lxc/rebuild.go:28
+#: lxc/rebuild.go:29
 msgid ""
-"Wipe the instance root disk and re-initialize. The original image is used to "
-"re-initialize the instance if a different image or --empty is not specified."
+"Wipe the instance root disk and re-initialize.\n"
+"The original image is used to re-initialize the instance if a different "
+"image or --empty is not specified.\n"
+"\n"
+"Note: The --project flag sets the project for both the image remote and the "
+"instance remote.\n"
+"If the image remote is a public remote (e.g. simplestreams) then this "
+"project is ignored by the image remote.\n"
+"If the image remote is another LXD server, specify the source project for "
+"the image remote \n"
+"with --project and the instance remote with --target-project (if different "
+"from --project)."
 msgstr ""
 
 #: lxc/network.go:1092 lxc/operation.go:157 lxc/project.go:539
@@ -7496,7 +7514,7 @@ msgstr "vous devez spécifier un nom de conteneur source"
 msgid "You must specify a source instance name"
 msgstr "vous devez spécifier un nom de conteneur source"
 
-#: lxc/rebuild.go:132
+#: lxc/rebuild.go:145
 #, fuzzy
 msgid "You need to specify an image name or use --empty"
 msgstr "vous devez spécifier un nom de conteneur source"
@@ -7832,7 +7850,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/rebuild.go:26
+#: lxc/rebuild.go:27
 #, fuzzy
 msgid "[<remote>:]<image> [<remote>:]<instance>"
 msgstr ""
@@ -7840,7 +7858,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/init.go:40 lxc/launch.go:22
+#: lxc/init.go:41 lxc/launch.go:22
 #, fuzzy
 msgid "[<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
@@ -9107,7 +9125,7 @@ msgstr ""
 "lxc info [<serveur distant>:]\n"
 "    Pour l'information du serveur LXD."
 
-#: lxc/init.go:43
+#: lxc/init.go:44
 msgid ""
 "lxc init ubuntu:24.04 u1\n"
 "    Create a container (but do not start it)\n"
@@ -9121,7 +9139,16 @@ msgid ""
 "lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,"
 "size=32GiB\n"
 "    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of "
-"32GiB"
+"32GiB\n"
+"\n"
+"Note: The --project flag sets the project for both the image remote and the "
+"instance remote.\n"
+"If the image remote is a public remote (e.g. simplestreams) then this "
+"project is ignored by the image remote.\n"
+"If the image remote is another LXD server, specify the source project for "
+"the image remote \n"
+"with --project and the instance remote with --target-project (if different "
+"from --project).\n"
 msgstr ""
 
 #: lxc/launch.go:26
