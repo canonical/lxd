@@ -116,6 +116,10 @@ The `lxc list` command now automatically optimizes queries based on requested co
 
 - API extension: {ref}`extension-instances-state-selective-recursion`
 
+### Container swap reporting on ZFS in `/proc/meminfo`
+
+An updated LXCFS version has been bundled in the snap package that now allows a container's swap usage on ZFS to be reported in the container's `/proc/meminfo` file.
+
 (ref-release-notes-6.7-bugfixes)=
 ## Bug fixes
 
@@ -228,6 +232,7 @@ If you are building LXD from source instead of using a package manager, the mini
 - AMD container-toolkit added at `v1.2.0`
 - EDK2 bumped to `2025.02-8ubuntu3`
 - Dqlite bumped to `v1.18.5`
+- LXCFS bumped to `v6.0.6`
 - LXD-UI bumped to `0.20`
 - NVIDIA-container and toolkit bumped to `v1.18.2`
 - QEMU bumped to `10.2.1+ds-1ubuntu1`
