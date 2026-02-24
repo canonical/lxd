@@ -103,6 +103,9 @@ var topLevelInstanceServerResourceNameFuncs = map[string]func(server lxd.Instanc
 	"replicator": func(server lxd.InstanceServer) ([]string, error) {
 		return server.GetReplicatorNames()
 	},
+	"image_registry": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetImageRegistryNames()
+	},
 }
 
 var topLevelImageServerResourceNameFuncs = map[string]func(server lxd.ImageServer) ([]string, error){
