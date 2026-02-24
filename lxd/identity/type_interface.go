@@ -71,6 +71,9 @@ const (
 
 	// identityTypeBearerClient is the code for [api.IdentityTypeBearerTokenClient].
 	identityTypeBearerClient int64 = 10
+
+	// identityTypeBearerInitialUI is the code for [api.IdentityTypeBearerTokenInitialUI].
+	identityTypeBearerInitialUI int64 = 11
 )
 
 // types is a slice of all identity types that implement the [Type] interface.
@@ -85,6 +88,7 @@ var types = []Type{
 	CertificateServer{},
 	TokenBearerDevLXD{},
 	TokenBearerClient{},
+	TokenBearerInitialUI{},
 }
 
 var nameToType = make(map[string]Type, len(types))
