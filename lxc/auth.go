@@ -1556,7 +1556,7 @@ func (c *cmdIdentityTokenIssue) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if identity.Type != idType {
+	if idType != "" && identity.Type != idType {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
@@ -1614,7 +1614,7 @@ func (c *cmdIdentityTokenRevoke) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if identity.Type != idType {
+	if idType != "" && identity.Type != idType {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
