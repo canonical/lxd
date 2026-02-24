@@ -247,6 +247,8 @@ test_basic_usage() {
     false
   fi
 
+  # Ensure invalid compression algorithm is rejected.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc publish bar --compression=ls 2>&1)" = 'Error: Invalid compression algorithm "ls"' ]
 
   # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
