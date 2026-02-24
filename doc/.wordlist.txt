@@ -12,6 +12,7 @@ Dqlite
 dropdown
 EBS
 EKS
+Enablement
 enablement
 favicon
 FlashArray

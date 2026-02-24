@@ -87,6 +87,7 @@ EiB
 Eibit
 endian
 Entra
+Enablement
 EOL
 ES
 ESA
