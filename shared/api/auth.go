@@ -5,6 +5,11 @@ import (
 )
 
 const (
+	// AuthGroupAdminsName is the name of the admins group.
+	AuthGroupAdminsName = "admins"
+)
+
+const (
 	// AuthenticationMethodTLS is the default authentication method for interacting with LXD remotely.
 	AuthenticationMethodTLS = "tls"
 
@@ -45,6 +50,9 @@ const (
 
 	// IdentityTypeBearerTokenClient represents an identity that bears a LXD token that can be used to interact with the LXD API.
 	IdentityTypeBearerTokenClient = "Client token bearer"
+
+	// IdentityTypeBearerTokenInitialUI is the identity type used for initial connection to LXD via the UI when conventional authentication is not yet configured.
+	IdentityTypeBearerTokenInitialUI = "Initial UI token bearer"
 )
 
 // WithEntitlements is meant to be an embedded struct to API types eligible for entitlement enrichment,
