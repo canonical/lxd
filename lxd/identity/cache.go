@@ -71,7 +71,14 @@ func (c *Cache) GetSecret(bearerIdentityUUID string) ([]byte, error) {
 // ReplaceAll deletes all credentials from the cache and replaces them with the given values.
 func (c *Cache) ReplaceAll(serverCerts map[string]*x509.Certificate, clientCerts map[string]*x509.Certificate, metricsCerts map[string]*x509.Certificate, secrets map[string][]byte) {
 	c.bearerIdentitySecretsMu.Lock()
+	c.serverCertificatesMu.Lock()
+	c.clientCertificatesMu.Lock()
+	c.metricsCertificatesMu.Lock()
+
 	defer c.bearerIdentitySecretsMu.Unlock()
+	defer c.serverCertificatesMu.Unlock()
+	defer c.clientCertificatesMu.Unlock()
+	defer c.metricsCertificatesMu.Unlock()
 
 	c.serverCertificates = serverCerts
 	c.clientCertificates = clientCerts
