@@ -46,7 +46,7 @@ func main() {
 		},
 	}
 
-	provider, err := op.NewOpenIDProvider(issuer, config, storage, op.WithAllowInsecure()) //nolint:staticcheck,unused // SA1019 to be replaced by Mark L.
+	provider, err := op.NewProvider(config, storage, op.StaticIssuer(issuer), op.WithAllowInsecure())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
