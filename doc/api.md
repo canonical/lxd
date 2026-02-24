@@ -1,3 +1,4 @@
+(api-specification)=
 # Main API specification
 
 <link rel="stylesheet" type="text/css" href="../_static/swagger-ui/swagger-ui.css" ></link>

@@ -163,6 +163,14 @@ The new setting accepts:
 
 - API extension: {ref}`extension-instance-boot-mode`
 
+### Instance type specific API endpoints and Container specific Go SDK functions removed
+
+The `/1.0/containers` and `/1.0/virtual-machines` endpoints have been removed along with all the container specific Go SDK functions.
+
+Clients using these endpoints should be updated to use the combined `/1.0/instances` endpoints and `Instance` related Go SDK functions.
+
+Documentation: {ref}`api-specification`
+
 ### Operation resources URL changes
 
 Each {ref}`operation event <ref-events-operation>` has a `resources` field that contains URLs of LXD entities that the operation depends on.
