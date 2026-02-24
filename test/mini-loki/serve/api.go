@@ -10,6 +10,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// API starts an HTTP server with the given handler and returns the address it's
+// listening on, a channel for errors, and any error encountered while starting
+// the server.
 func API(certfile, keyfile string, handler http.Handler) (net.Addr, <-chan error, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/{any...}", handler)
