@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
@@ -27,8 +28,23 @@ func IsDevLXDRequest(r *http.Request, clusterUUID string) (isRequest bool, token
 
 // IsAPIRequest returns true if the caller sent a bearer token in the Authorization header that is a JWT and appears to
 // have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
-func IsAPIRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
-	return isRequestFromAudience(r, clusterUUID, encryption.LXDAudience(clusterUUID))
+func IsAPIRequest(r *http.Request, clusterUUID string) (isRequest bool, location auth.TokenLocation, token string, subject string) {
+	isRequest, token, subject = isAuthorizationHeaderRequestFromAudience(r, clusterUUID, encryption.LXDAudience(clusterUUID))
+	if isRequest {
+		return true, auth.TokenLocationAuthorizationBearer, token, subject
+	}
+
+	isRequest, token, subject = isQueryRequest(r, clusterUUID)
+	if isRequest {
+		return true, auth.TokenLocationQuery, token, subject
+	}
+
+	isRequest, token, subject = isCookieRequest(r, clusterUUID)
+	if isRequest {
+		return true, auth.TokenLocationCookie, token, subject
+	}
+
+	return false, 0, "", ""
 }
 
 // isQueryRequest returns true if the caller sent a bearer token in the "token" query parameter that is a JWT and appears
