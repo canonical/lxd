@@ -190,6 +190,16 @@ type InstanceServer interface {
 	GetImagesAllProjects() (images []api.Image, err error)
 	GetImagesAllProjectsWithFilter(filters []string) (images []api.Image, err error)
 
+	// Image registry functions
+	GetImageRegistry(name string) (imageRegistry *api.ImageRegistry, ETag string, err error)
+	GetImageRegistryNames() (names []string, err error)
+	GetImageRegistryImages(name string) (images []api.Image, err error)
+	GetImageRegistries() (imageRegistries []api.ImageRegistry, err error)
+	CreateImageRegistry(imageRegistry api.ImageRegistriesPost) (op Operation, err error)
+	UpdateImageRegistry(name string, imageRegistry api.ImageRegistryPut, ETag string) (op Operation, err error)
+	RenameImageRegistry(name string, imageRegistry api.ImageRegistryPost) (op Operation, err error)
+	DeleteImageRegistry(name string) (op Operation, err error)
+
 	// Network functions ("network" API extension)
 	GetNetworkNames() (names []string, err error)
 	GetNetworks() (networks []api.Network, err error)
