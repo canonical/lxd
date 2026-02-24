@@ -351,10 +351,13 @@ func identitiesTLSPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var peerCertificates []*x509.Certificate
-	if requestor.CallerProtocol() == api.AuthenticationMethodBearer && r.TLS != nil {
-		// When authenticated via bearer token, allow creating a TLS identity from the presented peer certificate.
-		// This allows LXD UI to establish mTLS by injecting a client certificate during temporary bearer-token access.
-		peerCertificates = r.TLS.PeerCertificates
+	idType, err := requestor.CallerIdentityType()
+	if err == nil {
+		if idType.Name() == api.IdentityTypeBearerTokenInitialUI && r.TLS != nil {
+			// When authenticated as the initial UI identity, allow creating a TLS identity from the presented peer certificate.
+			// This allows LXD UI to establish mTLS by injecting a client certificate during initial UI bearer-token access.
+			peerCertificates = r.TLS.PeerCertificates
+		}
 	}
 
 	return createIdentityTLSTrusted(r.Context(), s, peerCertificates, networkCert, req, notify)
