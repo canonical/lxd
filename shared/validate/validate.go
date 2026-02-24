@@ -540,15 +540,22 @@ func IsPCIAddress(value string) error {
 	return nil
 }
 
+// validCompressionCommands is a list of compression command names supported by LXD.
+var validCompressionCommands = []string{
+	"bzip2",
+	"gzip",
+	"lzma",
+	"pigz",
+	"pzstd",
+	"squashfs",
+	"xz",
+	"zstd",
+}
+
 // IsCompressionAlgorithm validates whether a value is a valid compression algorithm and is available on the system.
 func IsCompressionAlgorithm(value string) error {
 	if value == "none" {
 		return nil
-	}
-
-	// Going to look up tar2sqfs executable binary
-	if value == "squashfs" {
-		value = "tar2sqfs"
 	}
 
 	// Parse the command.
@@ -557,7 +564,23 @@ func IsCompressionAlgorithm(value string) error {
 		return err
 	}
 
-	_, err = exec.LookPath(fields[0])
+	if len(fields) == 0 {
+		return errors.New("No compression algorithm specified")
+	}
+
+	// Trim arguments and just look at the command name.
+	cmd := fields[0]
+
+	if !slices.Contains(validCompressionCommands, cmd) {
+		return fmt.Errorf("Invalid compression algorithm %q", cmd)
+	}
+
+	// Going to look up tar2sqfs executable binary
+	if cmd == "squashfs" {
+		cmd = "tar2sqfs"
+	}
+
+	_, err = exec.LookPath(cmd)
 	return err
 }
 
