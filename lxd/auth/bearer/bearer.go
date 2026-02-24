@@ -22,7 +22,7 @@ const CookieNameSession = "token_bearer_session"
 // IsDevLXDRequest returns true if the caller sent a bearer token in the Authorization header that is a JWT and appears to
 // have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
 func IsDevLXDRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
-	return isRequestFromAudience(r, clusterUUID, encryption.DevLXDAudience(clusterUUID))
+	return isAuthorizationHeaderRequestFromAudience(r, clusterUUID, encryption.DevLXDAudience(clusterUUID))
 }
 
 // IsAPIRequest returns true if the caller sent a bearer token in the Authorization header that is a JWT and appears to
@@ -31,9 +31,9 @@ func IsAPIRequest(r *http.Request, clusterUUID string) (isRequest bool, token st
 	return isRequestFromAudience(r, clusterUUID, encryption.LXDAudience(clusterUUID))
 }
 
-// IsQueryRequest returns true if the caller sent a bearer token in the "token" query parameter that is a JWT and appears
+// isQueryRequest returns true if the caller sent a bearer token in the "token" query parameter that is a JWT and appears
 // to have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
-func IsQueryRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
+func isQueryRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
 	token = r.URL.Query().Get("token")
 	if token == "" {
 		return false, "", ""
@@ -47,9 +47,9 @@ func IsQueryRequest(r *http.Request, clusterUUID string) (isRequest bool, token 
 	return true, token, subject
 }
 
-// IsCookieRequest returns true if the caller sent a cookie [CookieNameSession] that is a JWT and appears
+// isCookieRequest returns true if the caller sent a cookie [CookieNameSession] that is a JWT and appears
 // to have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
-func IsCookieRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
+func isCookieRequest(r *http.Request, clusterUUID string) (isRequest bool, token string, subject string) {
 	cookie, err := r.Cookie(CookieNameSession)
 	if err != nil {
 		return false, "", ""
@@ -68,9 +68,9 @@ func IsCookieRequest(r *http.Request, clusterUUID string) (isRequest bool, token
 	return true, token, subject
 }
 
-// isRequestFromAudience returns true if the caller sent a bearer token in the Authorization header that is a JWT and appears to
-// have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
-func isRequestFromAudience(r *http.Request, clusterUUID string, audience string) (isRequest bool, token string, subject string) {
+// isAuthorizationHeaderRequestFromAudience returns true if the caller sent a bearer token in the Authorization header that is a
+// JWT and appears to have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
+func isAuthorizationHeaderRequestFromAudience(r *http.Request, clusterUUID string, audience string) (isRequest bool, token string, subject string) {
 	// Check Authorization header for bearer token.
 	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if !ok || token == "" {
