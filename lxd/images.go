@@ -1274,6 +1274,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
+	if req.CompressionAlgorithm != "" {
+		err = validate.IsCompressionAlgorithm(req.CompressionAlgorithm)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+	}
+
 	// Forward requests for containers on other nodes.
 	if !imageUpload && slices.Contains([]string{"container", "instance", "virtual-machine", "snapshot"}, req.Source.Type) {
 		name := req.Source.Name
