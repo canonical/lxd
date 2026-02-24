@@ -168,18 +168,59 @@ func isLXDToken(token string, clusterUUID string, expectedAudience string) (stri
 // Authenticate gets a bearer identity from the cache using the given subject, and verifies that it is of the expected
 // type. It then verifies that the token was signed by the secret associated with that identity, and that the token has
 // not expired.
-func Authenticate(token string, subject string, identityCache *identity.Cache) (*request.RequestorArgs, error) {
-	// Get the identity from the cache by the subject.
-	secret, err := identityCache.GetSecret(subject)
-	if err != nil {
-		return nil, api.StatusErrorf(http.StatusForbidden, "Unrecognized token subject: %w", err)
+func Authenticate(subject string, token string, tokenLocation auth.TokenLocation, identityCache *identity.Cache) (*request.RequestorArgs, error) {
+	var secret []byte
+	var getSecretErr error
+	switch tokenLocation {
+	case auth.TokenLocationAuthorizationBearer:
+		// Get the identity from the cache by the subject.
+		secret, getSecretErr = identityCache.GetSecret(subject)
+		if getSecretErr != nil {
+			// If not found, check if the token is for the initial UI identity and report misuse
+			// (the initial UI token should not be set in the authorization header).
+			initialUISecret, err := identityCache.GetInitialUISecret()
+			if err != nil {
+				return nil, api.StatusErrorf(http.StatusForbidden, "Unrecognized token subject: %w", getSecretErr)
+			}
+
+			_, err = verifyToken(token, func() ([]byte, error) {
+				return initialUISecret, nil
+			})
+			if err == nil {
+				return nil, api.NewStatusError(http.StatusForbidden, "The initial UI access token may not be set in the Authorization header")
+			}
+
+			return nil, api.StatusErrorf(http.StatusForbidden, "Unrecognized token subject: %w", getSecretErr)
+		}
+
+	case auth.TokenLocationQuery, auth.TokenLocationCookie:
+		secret, getSecretErr = identityCache.GetInitialUISecret()
+		if getSecretErr != nil {
+			// If not available, check if token is standard bearer token and report misuse (it should not be set in this location).
+			bearerSecret, err := identityCache.GetSecret(subject)
+			if err != nil {
+				return nil, api.StatusErrorf(http.StatusForbidden, "Initial UI authentication not configured: %w", getSecretErr)
+			}
+
+			_, err = verifyToken(token, func() ([]byte, error) {
+				return bearerSecret, nil
+			})
+			if err == nil {
+				return nil, api.NewStatusError(http.StatusForbidden, "Bearer tokens may not be set as a query parameter or as a cookie")
+			}
+
+			return nil, api.StatusErrorf(http.StatusForbidden, "Initial UI authentication not configured: %w", getSecretErr)
+		}
+
+	default:
+		return nil, fmt.Errorf("Invalid token location %d", tokenLocation)
 	}
 
-	expiresAt, err := verifyToken(token, func() ([]byte, error) {
+	expiresAt, getSecretErr := verifyToken(token, func() ([]byte, error) {
 		return secret, nil
 	})
-	if err != nil {
-		return nil, fmt.Errorf("Failed to authenticate bearer token: %w", err)
+	if getSecretErr != nil {
+		return nil, fmt.Errorf("Failed to authenticate bearer token: %w", getSecretErr)
 	}
 
 	return &request.RequestorArgs{
