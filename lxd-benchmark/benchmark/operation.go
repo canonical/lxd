@@ -5,7 +5,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-func createContainer(c lxd.ContainerServer, fingerprint string, name string, privileged bool) error {
+func createContainer(c lxd.InstanceServer, fingerprint string, name string, privileged bool) error {
 	config := map[string]string{}
 	if privileged {
 		config["security.privileged"] = "true"
@@ -13,9 +13,9 @@ func createContainer(c lxd.ContainerServer, fingerprint string, name string, pri
 
 	config[userConfigKey] = "true"
 
-	req := api.ContainersPost{
+	req := api.InstancesPost{
 		Name: name,
-		Source: api.ContainerSource{
+		Source: api.InstanceSource{
 			Type:        api.SourceTypeImage,
 			Fingerprint: fingerprint,
 		},
@@ -23,7 +23,7 @@ func createContainer(c lxd.ContainerServer, fingerprint string, name string, pri
 
 	req.Config = config
 
-	op, err := c.CreateContainer(req)
+	op, err := c.CreateInstance(req)
 	if err != nil {
 		return err
 	}
@@ -31,9 +31,9 @@ func createContainer(c lxd.ContainerServer, fingerprint string, name string, pri
 	return op.Wait()
 }
 
-func startContainer(c lxd.ContainerServer, name string) error {
-	op, err := c.UpdateContainerState(
-		name, api.ContainerStatePut{Action: "start", Timeout: -1}, "")
+func startContainer(c lxd.InstanceServer, name string) error {
+	op, err := c.UpdateInstanceState(
+		name, api.InstanceStatePut{Action: "start", Timeout: -1}, "")
 	if err != nil {
 		return err
 	}
@@ -41,9 +41,9 @@ func startContainer(c lxd.ContainerServer, name string) error {
 	return op.Wait()
 }
 
-func stopContainer(c lxd.ContainerServer, name string) error {
-	op, err := c.UpdateContainerState(
-		name, api.ContainerStatePut{Action: "stop", Timeout: -1, Force: true}, "")
+func stopContainer(c lxd.InstanceServer, name string) error {
+	op, err := c.UpdateInstanceState(
+		name, api.InstanceStatePut{Action: "stop", Timeout: -1, Force: true}, "")
 	if err != nil {
 		return err
 	}
@@ -51,9 +51,9 @@ func stopContainer(c lxd.ContainerServer, name string) error {
 	return op.Wait()
 }
 
-func freezeContainer(c lxd.ContainerServer, name string) error {
-	op, err := c.UpdateContainerState(
-		name, api.ContainerStatePut{Action: "freeze", Timeout: -1}, "")
+func freezeContainer(c lxd.InstanceServer, name string) error {
+	op, err := c.UpdateInstanceState(
+		name, api.InstanceStatePut{Action: "freeze", Timeout: -1}, "")
 	if err != nil {
 		return err
 	}
@@ -61,8 +61,8 @@ func freezeContainer(c lxd.ContainerServer, name string) error {
 	return op.Wait()
 }
 
-func deleteContainer(c lxd.ContainerServer, name string) error {
-	op, err := c.DeleteContainer(name)
+func deleteContainer(c lxd.InstanceServer, name string) error {
+	op, err := c.DeleteInstance(name, false)
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func deleteContainer(c lxd.ContainerServer, name string) error {
 	return op.Wait()
 }
 
-func copyImage(c lxd.ContainerServer, s lxd.ImageServer, image api.Image) error {
+func copyImage(c lxd.InstanceServer, s lxd.ImageServer, image api.Image) error {
 	op, err := c.CopyImage(s, image, nil)
 	if err != nil {
 		return err

@@ -767,7 +767,7 @@ _backup_export_with_project() {
 }
 
 test_backup_rename() {
-  OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{"name": "backupnewname"}' --wait 2>&1 || false)"
+  OUTPUT="$(! lxc query -X POST /1.0/instances/c1/backups/backupmissing -d '{"name": "backupnewname"}' --wait 2>&1 || false)"
   if ! echo "${OUTPUT}" | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing container"
     false
@@ -775,7 +775,7 @@ test_backup_rename() {
 
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
-  OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{"name": "backupnewname"}' --wait 2>&1 || false)"
+  OUTPUT="$(! lxc query -X POST /1.0/instances/c1/backups/backupmissing -d '{"name": "backupnewname"}' --wait 2>&1 || false)"
   if ! echo "${OUTPUT}" | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing backup"
     false

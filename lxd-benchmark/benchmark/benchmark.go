@@ -15,7 +15,7 @@ import (
 const userConfigKey = "user.lxd-benchmark"
 
 // PrintServerInfo prints out information about the server.
-func PrintServerInfo(c lxd.ContainerServer) error {
+func PrintServerInfo(c lxd.InstanceServer) error {
 	server, _, err := c.GetServer()
 	if err != nil {
 		return err
@@ -37,7 +37,7 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 }
 
 // LaunchContainers launches a set of containers.
-func LaunchContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, start bool, freeze bool) (time.Duration, error) {
+func LaunchContainers(c lxd.InstanceServer, count int, parallel int, image string, privileged bool, start bool, freeze bool) (time.Duration, error) {
 	var duration time.Duration
 
 	batchSize := getBatchSize(parallel)
@@ -83,10 +83,10 @@ func LaunchContainers(c lxd.ContainerServer, count int, parallel int, image stri
 }
 
 // GetContainers returns containers created by the benchmark.
-func GetContainers(c lxd.ContainerServer) ([]api.Container, error) {
-	containers := []api.Container{}
+func GetContainers(c lxd.InstanceServer) ([]api.Instance, error) {
+	containers := []api.Instance{}
 
-	allContainers, err := c.GetContainers()
+	allContainers, err := c.GetInstances(api.InstanceTypeContainer)
 	if err != nil {
 		return containers, err
 	}
@@ -101,7 +101,7 @@ func GetContainers(c lxd.ContainerServer) ([]api.Container, error) {
 }
 
 // StartContainers starts containers created by the benchmark.
-func StartContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
+func StartContainers(c lxd.InstanceServer, containers []api.Instance, parallel int) (time.Duration, error) {
 	var duration time.Duration
 
 	batchSize := getBatchSize(parallel)
@@ -127,7 +127,7 @@ func StartContainers(c lxd.ContainerServer, containers []api.Container, parallel
 }
 
 // StopContainers stops containers created by the benchmark.
-func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
+func StopContainers(c lxd.InstanceServer, containers []api.Instance, parallel int) (time.Duration, error) {
 	var duration time.Duration
 
 	batchSize := getBatchSize(parallel)
@@ -153,7 +153,7 @@ func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel 
 }
 
 // DeleteContainers removes containers created by the benchmark.
-func DeleteContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
+func DeleteContainers(c lxd.InstanceServer, containers []api.Instance, parallel int) (time.Duration, error) {
 	var duration time.Duration
 
 	batchSize := getBatchSize(parallel)
@@ -185,7 +185,7 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 	return duration, nil
 }
 
-func ensureImage(c lxd.ContainerServer, image string) (string, error) {
+func ensureImage(c lxd.InstanceServer, image string) (string, error) {
 	var fingerprint string
 
 	if strings.Contains(image, ":") {

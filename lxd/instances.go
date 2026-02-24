@@ -30,10 +30,6 @@ var instancesCmd = APIEndpoint{
 	Name:        "instances",
 	Path:        "instances",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containers", Path: "containers"},
-		{Name: "vms", Path: "virtual-machines"},
-	},
 
 	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowProjectResourceList(false)},
 	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateInstances), ContentTypes: []string{"application/json", "application/octet-stream"}},
@@ -44,10 +40,6 @@ var instanceCmd = APIEndpoint{
 	Name:        "instance",
 	Path:        "instances/{name}",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "container", Path: "containers/{name}"},
-		{Name: "vm", Path: "virtual-machines/{name}"},
-	},
 
 	Get:    APIEndpointAction{Handler: instanceGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Put:    APIEndpointAction{Handler: instancePut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
@@ -60,9 +52,6 @@ var instanceUEFIVarsCmd = APIEndpoint{
 	Name:        "instanceUEFIVars",
 	Path:        "instances/{name}/uefi-vars",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "vmUEFIVars", Path: "virtual-machines/{name}/uefi-vars"},
-	},
 
 	Get: APIEndpointAction{Handler: instanceUEFIVarsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Put: APIEndpointAction{Handler: instanceUEFIVarsPut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
@@ -72,10 +61,6 @@ var instanceRebuildCmd = APIEndpoint{
 	Name:        "instanceRebuild",
 	Path:        "instances/{name}/rebuild",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerRebuild", Path: "containers/{name}/rebuild"},
-		{Name: "vmRebuild", Path: "virtual-machines/{name}/rebuild"},
-	},
 
 	Post: APIEndpointAction{Handler: instanceRebuildPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
@@ -84,10 +69,6 @@ var instanceStateCmd = APIEndpoint{
 	Name:        "instanceState",
 	Path:        "instances/{name}/state",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerState", Path: "containers/{name}/state"},
-		{Name: "vmState", Path: "virtual-machines/{name}/state"},
-	},
 
 	Get: APIEndpointAction{Handler: instanceState, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Put: APIEndpointAction{Handler: instanceStatePut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanUpdateState, "name")},
@@ -97,10 +78,6 @@ var instanceSFTPCmd = APIEndpoint{
 	Name:        "instanceFile",
 	Path:        "instances/{name}/sftp",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerFile", Path: "containers/{name}/sftp"},
-		{Name: "vmFile", Path: "virtual-machines/{name}/sftp"},
-	},
 
 	Get: APIEndpointAction{Handler: instanceSFTPHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanConnectSFTP, "name")},
 }
@@ -109,10 +86,6 @@ var instanceFileCmd = APIEndpoint{
 	Name:        "instanceFile",
 	Path:        "instances/{name}/files",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerFile", Path: "containers/{name}/files"},
-		{Name: "vmFile", Path: "virtual-machines/{name}/files"},
-	},
 
 	Get:    APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessFiles, "name")},
 	Head:   APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessFiles, "name")},
@@ -124,10 +97,6 @@ var instanceSnapshotsCmd = APIEndpoint{
 	Name:        "instanceSnapshots",
 	Path:        "instances/{name}/snapshots",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerSnapshots", Path: "containers/{name}/snapshots"},
-		{Name: "vmSnapshots", Path: "virtual-machines/{name}/snapshots"},
-	},
 
 	Get:  APIEndpointAction{Handler: instanceSnapshotsGet, AccessHandler: allowProjectResourceList(false)},
 	Post: APIEndpointAction{Handler: instanceSnapshotsPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageSnapshots, "name")},
@@ -137,10 +106,6 @@ var instanceSnapshotCmd = APIEndpoint{
 	Name:        "instanceSnapshot",
 	Path:        "instances/{name}/snapshots/{snapshotName}",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerSnapshot", Path: "containers/{name}/snapshots/{snapshotName}"},
-		{Name: "vmSnapshot", Path: "virtual-machines/{name}/snapshots/{snapshotName}"},
-	},
 
 	Get:    APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstanceSnapshot, auth.EntitlementCanView, "name", "snapshotName")},
 	Post:   APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstanceSnapshot, auth.EntitlementCanEdit, "name", "snapshotName")},
@@ -153,10 +118,6 @@ var instanceConsoleCmd = APIEndpoint{
 	Name:        "instanceConsole",
 	Path:        "instances/{name}/console",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerConsole", Path: "containers/{name}/console"},
-		{Name: "vmConsole", Path: "virtual-machines/{name}/console"},
-	},
 
 	Get:    APIEndpointAction{Handler: instanceConsoleLogGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Post:   APIEndpointAction{Handler: instanceConsolePost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessConsole, "name")},
@@ -167,10 +128,6 @@ var instanceExecCmd = APIEndpoint{
 	Name:        "instanceExec",
 	Path:        "instances/{name}/exec",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerExec", Path: "containers/{name}/exec"},
-		{Name: "vmExec", Path: "virtual-machines/{name}/exec"},
-	},
 
 	Post: APIEndpointAction{Handler: instanceExecPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 }
@@ -179,10 +136,6 @@ var instanceMetadataCmd = APIEndpoint{
 	Name:        "instanceMetadata",
 	Path:        "instances/{name}/metadata",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerMetadata", Path: "containers/{name}/metadata"},
-		{Name: "vmMetadata", Path: "virtual-machines/{name}/metadata"},
-	},
 
 	Get:   APIEndpointAction{Handler: instanceMetadataGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Patch: APIEndpointAction{Handler: instanceMetadataPatch, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
@@ -193,10 +146,6 @@ var instanceMetadataTemplatesCmd = APIEndpoint{
 	Name:        "instanceMetadataTemplates",
 	Path:        "instances/{name}/metadata/templates",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerMetadataTemplates", Path: "containers/{name}/metadata/templates"},
-		{Name: "vmMetadataTemplates", Path: "virtual-machines/{name}/metadata/templates"},
-	},
 
 	Get:    APIEndpointAction{Handler: instanceMetadataTemplatesGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name"), ContentTypes: []string{"application/octet-stream"}},
@@ -207,10 +156,6 @@ var instanceBackupsCmd = APIEndpoint{
 	Name:        "instanceBackups",
 	Path:        "instances/{name}/backups",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerBackups", Path: "containers/{name}/backups"},
-		{Name: "vmBackups", Path: "virtual-machines/{name}/backups"},
-	},
 
 	Get:  APIEndpointAction{Handler: instanceBackupsGet, AccessHandler: allowProjectResourceList(false)},
 	Post: APIEndpointAction{Handler: instanceBackupsPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageBackups, "name")},
@@ -220,10 +165,6 @@ var instanceBackupCmd = APIEndpoint{
 	Name:        "instanceBackup",
 	Path:        "instances/{name}/backups/{backupName}",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerBackup", Path: "containers/{name}/backups/{backupName}"},
-		{Name: "vmBackup", Path: "virtual-machines/{name}/backups/{backupName}"},
-	},
 
 	Get:    APIEndpointAction{Handler: instanceBackupGet, AccessHandler: allowPermission(entity.TypeInstanceBackup, auth.EntitlementCanView, "name", "backupName")},
 	Post:   APIEndpointAction{Handler: instanceBackupPost, AccessHandler: allowPermission(entity.TypeInstanceBackup, auth.EntitlementCanEdit, "name", "backupName")},
@@ -234,10 +175,6 @@ var instanceBackupExportCmd = APIEndpoint{
 	Name:        "instanceBackupExport",
 	Path:        "instances/{name}/backups/{backupName}/export",
 	MetricsType: entity.TypeInstance,
-	Aliases: []APIEndpointAlias{
-		{Name: "containerBackupExport", Path: "containers/{name}/backups/{backupName}/export"},
-		{Name: "vmBackupExport", Path: "virtual-machines/{name}/backups/{backupName}/export"},
-	},
 
 	Get: APIEndpointAction{Handler: instanceBackupExportGet, AccessHandler: allowPermission(entity.TypeInstanceBackup, auth.EntitlementCanView, "name", "backupName")},
 }
