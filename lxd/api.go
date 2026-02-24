@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/bearer"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -190,7 +191,11 @@ func restServer(d *Daemon) *http.Server {
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if isBrowserClient(r) {
-			handleUIAccessLink(w, r, d.globalConfig.ClusterUUID(), d.identityCache)
+			err := handleUIAccessLink(w, r, d.globalConfig.ClusterUUID(), d.identityCache)
+			if err != nil {
+				http.Redirect(w, r, "/ui/?initial-access-link-invalid", http.StatusFound)
+				return
+			}
 
 			http.Redirect(w, r, "/ui/", http.StatusFound)
 			return
@@ -468,21 +473,20 @@ func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *clusterCo
 	}
 }
 
-// handleUIAccessLink sets the session cookie if the request represents a temporary UI  access link.
-func handleUIAccessLink(w http.ResponseWriter, r *http.Request, clusterUUID string, identityCache *identity.Cache) {
-	isUIAccessLink, token, subject := bearer.IsQueryRequest(r, clusterUUID)
-	if !isUIAccessLink {
-		return
+// handleUIAccessLink sets the session cookie if the request represents an initial UI  access link.
+func handleUIAccessLink(w http.ResponseWriter, r *http.Request, clusterUUID string, identityCache *identity.Cache) error {
+	isTokenRequest, location, token, subject := bearer.IsAPIRequest(r, clusterUUID)
+	if !isTokenRequest || location != auth.TokenLocationQuery {
+		// Do nothing if no token was sent, or if a token was set as a bearer token or cookie.
+		return nil
 	}
 
-	requestorArgs, err := bearer.Authenticate(token, subject, identityCache)
+	// Authenticate the token. By specifying the location as "query", only the initial UI token secret
+	// will be used to verify the token.
+	requestorArgs, err := bearer.Authenticate(subject, token, auth.TokenLocationQuery, identityCache)
 	if err != nil || requestorArgs == nil || requestorArgs.ExpiresAt == nil {
-		return
-	}
-
-	expiresIn := time.Until(*requestorArgs.ExpiresAt)
-	if expiresIn <= 0 {
-		return
+		// Just return a generic error because errors are shown via the UI instead.
+		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 
 	http.SetCookie(w, &http.Cookie{
@@ -492,7 +496,7 @@ func handleUIAccessLink(w http.ResponseWriter, r *http.Request, clusterUUID stri
 		Secure:   true, // Only send the cookie over HTTPS.
 		HttpOnly: true, // Do not allow JavaScript to access the cookie.
 		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(expiresIn.Seconds()),
+		MaxAge:   int(time.Until(*requestorArgs.ExpiresAt).Seconds()),
 	})
 
 	// Prevent caching of the response containing a session cookie.
@@ -501,6 +505,8 @@ func handleUIAccessLink(w http.ResponseWriter, r *http.Request, clusterUUID stri
 	// Never send a Referer header when navigating away from this site
 	// to avoid leaking URL / query params.
 	w.Header().Set("Referrer-Policy", "no-referrer")
+
+	return nil
 }
 
 type uiHTTPDir struct {
