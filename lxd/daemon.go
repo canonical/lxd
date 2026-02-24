@@ -1074,7 +1074,9 @@ func (d *Daemon) Init() error {
 func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, instanceName string, logLevel string, labels []string, types []string) error {
 	// Stop any existing loki client.
 	if d.lokiClient != nil {
+		d.internalListener.RemoveHandler("loki")
 		d.lokiClient.Stop()
+		d.lokiClient = nil
 	}
 
 	// Check basic requirements for starting a new client.
