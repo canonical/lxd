@@ -480,6 +480,16 @@ The `lxd recover` command output also provides hints about missing storage pools
 ````
 `````
 
+### Get storage pool configuration
+
+Before recovering a storage pool, you need to know its original configuration (driver type, source, and configuration keys).
+
+See {ref}`cluster-config-storage` to learn how to view and export storage pool configuration (use [`lxc storage show`](lxc_storage_show.md) with `--target` for member-specific settings in clusters).
+
+```{note}
+For {ref}`local storage pools <storage-drivers-features-local>` in a cluster, the `source` value is member-specific and must be obtained from each cluster member. For {ref}`non-local storage pools <storage-drivers-features-nonlocal>`, the `source` is shared across all cluster members.
+```
+
 ### Examples
 
 `````{tabs}
