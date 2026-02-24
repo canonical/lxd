@@ -7,18 +7,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"slices"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
-	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -31,13 +28,13 @@ type cmdInit struct {
 	flagPreseed bool
 	flagDump    bool
 
-	flagNetworkAddress        string
-	flagNetworkPort           int64
-	flagStorageBackend        string
-	flagStorageDevice         string
-	flagStorageLoopSize       int
-	flagStoragePool           string
-	flagUITemporaryAccessLink bool
+	flagNetworkAddress      string
+	flagNetworkPort         int64
+	flagStorageBackend      string
+	flagStorageDevice       string
+	flagStorageLoopSize     int
+	flagStoragePool         string
+	flagUIInitialAccessLink bool
 
 	hostname string
 }
@@ -57,10 +54,10 @@ func (c *cmdInit) Command() *cobra.Command {
               [--storage-create-device=DEVICE]
               [--storage-create-loop=SIZE]
               [--storage-pool=POOL]
-              [--ui-temporary-access-link]
+              [--ui-initial-access-link]
   init --preseed
   init --dump
-  init --ui-temporary-access-link
+  init --ui-initial-access-link
 `
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagAuto, "auto", false, "Automatic (non-interactive) mode")
@@ -74,7 +71,7 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagStorageDevice, "storage-create-device", "", cli.FormatStringFlagLabel("Setup device based storage using DEVICE"))
 	cmd.Flags().IntVar(&c.flagStorageLoopSize, "storage-create-loop", -1, "Setup loop based storage with SIZE in GiB")
 	cmd.Flags().StringVar(&c.flagStoragePool, "storage-pool", "", cli.FormatStringFlagLabel("Storage pool to use or create"))
-	cmd.Flags().BoolVar(&c.flagUITemporaryAccessLink, "ui-temporary-access-link", false, "Generate the URL for accessing LXD UI temporarily")
+	cmd.Flags().BoolVar(&c.flagUIInitialAccessLink, "ui-initial-access-link", false, "Generate the URL for accessing LXD UI before remote API authentication is configured")
 
 	return cmd
 }
@@ -94,8 +91,8 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return errors.New("Cannot use --minimal and --auto together")
 	}
 
-	if c.flagUITemporaryAccessLink && (c.flagPreseed || c.flagDump || c.flagMinimal) {
-		return errors.New("Cannot use --ui-temporary-access-link with --preseed, --dump, or --minimal")
+	if c.flagUIInitialAccessLink && (c.flagPreseed || c.flagDump || c.flagMinimal) {
+		return errors.New("Cannot use --ui-initial-access-link with --preseed, --dump, or --minimal")
 	}
 
 	if !c.flagAuto && (c.flagNetworkAddress != "" || c.flagNetworkPort != -1 ||
@@ -123,10 +120,10 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to connect to get LXD server info: %w", err)
 	}
 
-	// If UI temporary access link flag is set, but auto mode is not enabled,
+	// If UI initial access link flag is set, but auto mode is not enabled,
 	// generate the link and exit.
-	if c.flagUITemporaryAccessLink && !c.flagAuto {
-		return c.createUITemporaryAccessLink(d)
+	if c.flagUIInitialAccessLink && !c.flagAuto {
+		return c.createUIInitialAccessLink(d)
 	}
 
 	// Dump mode
@@ -262,8 +259,8 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if c.flagUITemporaryAccessLink {
-		err = c.createUITemporaryAccessLink(d)
+	if c.flagUIInitialAccessLink {
+		err = c.createUIInitialAccessLink(d)
 		if err != nil {
 			return err
 		}
@@ -288,7 +285,7 @@ func (c *cmdInit) defaultHostname() string {
 	return hostName
 }
 
-func (c *cmdInit) createUITemporaryAccessLink(d lxd.InstanceServer) error {
+func (c *cmdInit) createUIInitialAccessLink(d lxd.InstanceServer) error {
 	// Refresh server info.
 	server, _, err := d.GetServer()
 	if err != nil {
@@ -301,95 +298,41 @@ func (c *cmdInit) createUITemporaryAccessLink(d lxd.InstanceServer) error {
 	}
 
 	if serverAddress == "" {
-		return errors.New("LXD server address is not set, cannot create UI temporary access link")
+		return errors.New("LXD server address is not set, cannot create UI initial access link")
 	}
 
-	uiAdminIdentityName := "ui-admin-temporary"
-	uiAdminIdentityGroup := "admins"
-	uiAdminIdentityGroupDesc := "Server administrators"
-	uiAdminIdentityGroupPerm := api.Permission{
-		Entitlement:     string(auth.EntitlementAdmin),
-		EntityType:      entity.TypeServer.String(),
-		EntityReference: "/" + version.APIVersion,
-	}
-
-	// Ensure admins group exists and has the expected permissions.
-	adminsGroup, _, err := d.GetAuthGroup(uiAdminIdentityGroup)
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return fmt.Errorf("Failed to check for existing temporary UI identity: %w", err)
-	}
-
-	if adminsGroup == nil {
-		// Create group if it doesn't exist.
-		adminsGroupReq := api.AuthGroupsPost{
-			AuthGroupPost: api.AuthGroupPost{
-				Name: uiAdminIdentityGroup,
-			},
-			AuthGroupPut: api.AuthGroupPut{
-				Description: uiAdminIdentityGroupDesc,
-				Permissions: []api.Permission{uiAdminIdentityGroupPerm},
-			},
-		}
-
-		err := d.CreateAuthGroup(adminsGroupReq)
-		if err != nil {
-			return fmt.Errorf("Failed to create admin auth group: %w", err)
-		}
-	} else {
-		// Ensure group has the expected permissions.
-		hasServerAdminPerm := false
-		for _, perm := range adminsGroup.Permissions {
-			if perm.Entitlement == uiAdminIdentityGroupPerm.Entitlement &&
-				perm.EntityType == uiAdminIdentityGroupPerm.EntityType &&
-				perm.EntityReference == uiAdminIdentityGroupPerm.EntityReference {
-				hasServerAdminPerm = true
-				break
-			}
-		}
-
-		if !hasServerAdminPerm {
-			return fmt.Errorf("Auth group %q exists, but does not have the expected server admin permissions", uiAdminIdentityGroup)
-		}
-	}
+	uiAdminIdentityName := "ui-admin-initial"
 
 	// Check if identity already exists.
 	uiAdminIdentity, _, err := d.GetIdentity(api.AuthenticationMethodBearer, uiAdminIdentityName)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return fmt.Errorf("Failed to check for existing temporary UI identity: %w", err)
+		return fmt.Errorf("Failed to check for existing initial UI identity: %w", err)
 	}
 
 	if uiAdminIdentity == nil {
 		// Create identity if it doesn't exist.
 		uiAdminIdentityReq := api.IdentitiesBearerPost{
-			Name:   uiAdminIdentityName,
-			Type:   api.IdentityTypeBearerTokenClient,
-			Groups: []string{uiAdminIdentityGroup},
+			Name: uiAdminIdentityName,
+			Type: api.IdentityTypeBearerTokenInitialUI,
 		}
 
 		err := d.CreateIdentityBearer(uiAdminIdentityReq)
 		if err != nil {
-			return fmt.Errorf("Failed to create temporary UI identity: %w", err)
+			return fmt.Errorf("Failed to create initial UI identity: %w", err)
 		}
-	} else {
-		if !slices.Contains(uiAdminIdentity.Groups, uiAdminIdentityGroup) {
-			return fmt.Errorf("Identity %q exists, but is not part of the %q group", uiAdminIdentityName, uiAdminIdentityGroup)
-		}
+	} else if uiAdminIdentity.Type != api.IdentityTypeBearerTokenInitialUI {
+		return fmt.Errorf("A bearer identity with name %q already exists but is not of type %q", uiAdminIdentityName, api.IdentityTypeBearerTokenInitialUI)
 	}
 
-	// Issue bearer token for the identity (validity 1 day).
-	tokenRequest := api.IdentityBearerTokenPost{
-		Expiry: "1d",
-	}
-
-	token, err := d.IssueBearerIdentityToken(uiAdminIdentityName, tokenRequest)
+	token, err := d.IssueBearerIdentityToken(uiAdminIdentityName, api.IdentityBearerTokenPost{})
 	if err != nil {
-		return fmt.Errorf("Failed to issue bearer token for temporary UI access link: %w", err)
+		return fmt.Errorf("Failed to issue bearer token for initial UI access link: %w", err)
 	}
 
 	tokenExpiry := time.Now().Add(24 * time.Hour).Format("2006-01-02 15:04")
 	uiAccessLink := api.NewURL().Scheme("https").Host(serverAddress).WithQuery("token", token.Token)
-	fmt.Println("UI temporary identity (type: Client token bearer): " + uiAdminIdentityName)
-	fmt.Println("UI temporary access link (expires: " + tokenExpiry + "): " + uiAccessLink.String())
+	fmt.Println("UI initial identity (type: " + api.IdentityTypeBearerTokenInitialUI + "): " + uiAdminIdentityName)
+	fmt.Println("UI initial access link (expires: " + tokenExpiry + "): " + uiAccessLink.String())
 
 	return nil
 }
