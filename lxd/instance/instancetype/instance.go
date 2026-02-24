@@ -1450,21 +1450,3 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 
 	return nil, fmt.Errorf("Unknown configuration key: %q", key)
 }
-
-// InstanceIncludeWhenCopying is used to decide whether to include a config item or not when copying an instance.
-// The remoteCopy argument indicates if the copy is remote (i.e between LXD nodes) as this affects the keys kept.
-func InstanceIncludeWhenCopying(configKey string, remoteCopy bool) bool {
-	if configKey == "volatile.base_image" {
-		return true // Include volatile.base_image always as it can help optimize copies.
-	}
-
-	if configKey == "volatile.last_state.idmap" && !remoteCopy {
-		return true // Include volatile.last_state.idmap when doing local copy to avoid needless remapping.
-	}
-
-	if strings.HasPrefix(configKey, ConfigVolatilePrefix) {
-		return false // Exclude all other volatile keys.
-	}
-
-	return true // Keep all other keys.
-}
