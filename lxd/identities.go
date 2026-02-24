@@ -2272,7 +2272,7 @@ func identityDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !identityType.IsFineGrained() {
+	if !identityType.IsFineGrained() && identityType.Name() != api.IdentityTypeBearerTokenInitialUI {
 		return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
 	}
 
