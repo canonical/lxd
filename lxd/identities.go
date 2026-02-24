@@ -485,10 +485,32 @@ func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var req api.IdentityBearerTokenPost
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if id.Type == api.IdentityTypeBearerTokenInitialUI {
+		if requestor.CallerProtocol() != request.ProtocolUnix {
+			return response.Forbidden(errors.New("Initial UI identity tokens may only be issued via unix socket"))
+		}
+
+		if req.Expiry != "" {
+			return response.BadRequest(errors.New("The initial UI token expiry cannot be set"))
+		}
+
+		req.Expiry = "1d"
 	}
 
 	expiry := req.Expiry
@@ -502,11 +524,6 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-
-	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	var secret []byte
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -523,7 +540,7 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 
 	var token string
 	switch id.Type {
-	case api.IdentityTypeBearerTokenClient:
+	case api.IdentityTypeBearerTokenClient, api.IdentityTypeBearerTokenInitialUI:
 		var serverCertFingerprint string
 
 		// When creating LXD bearer tokens, include the server certificate fingerprint.
