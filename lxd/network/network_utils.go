@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -606,23 +607,43 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 	return servers, nil
 }
 
+// isSubnetUsable checks if a subnet is valid and unused.
+func isSubnetUsable(cidr string) bool {
+	_, subnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return false
+	}
+
+	if inRoutingTable(subnet) {
+		return false
+	}
+
+	if pingSubnet(subnet) {
+		return false
+	}
+
+	return true
+}
+
 func randomSubnetV4() (string, error) {
-	for range 100 {
-		cidr := fmt.Sprintf("10.%d.%d.1/24", rand.Intn(255), rand.Intn(255))
-		_, subnet, err := net.ParseCIDR(cidr)
-		if err != nil {
-			continue
+	// Generate a random permutation of octets to avoid checking the same subnets every time
+	// which can be slow if the first few are used but not routed.
+	octets := rand.Perm(256)
+
+	iterations := 0
+	for _, y := range octets {
+		x := rand.Intn(256)
+
+		cidr := fmt.Sprintf("10.%d.%d.1/24", x, y)
+		if isSubnetUsable(cidr) {
+			return cidr, nil
 		}
 
-		if inRoutingTable(subnet) {
-			continue
-		}
+		iterations++
 
-		if pingSubnet(subnet) {
-			continue
+		if iterations >= 100 {
+			break
 		}
-
-		return cidr, nil
 	}
 
 	return "", errors.New("Failed to automatically find an unused IPv4 subnet, manual configuration required")
@@ -631,20 +652,9 @@ func randomSubnetV4() (string, error) {
 func randomSubnetV6() (string, error) {
 	for range 100 {
 		cidr := fmt.Sprintf("fd42:%x:%x:%x::1/64", rand.Intn(65535), rand.Intn(65535), rand.Intn(65535))
-		_, subnet, err := net.ParseCIDR(cidr)
-		if err != nil {
-			continue
+		if isSubnetUsable(cidr) {
+			return cidr, nil
 		}
-
-		if inRoutingTable(subnet) {
-			continue
-		}
-
-		if pingSubnet(subnet) {
-			continue
-		}
-
-		return cidr, nil
 	}
 
 	return "", errors.New("Failed to automatically find an unused IPv6 subnet, manual configuration required")
@@ -851,38 +861,35 @@ func inRoutingTable(subnet *net.IPNet) bool {
 // pingIP sends a single ping packet to the specified IP, returns nil error if IP is reachable.
 // If ctx doesn't have a deadline then the default timeout used is 1s.
 func pingIP(ctx context.Context, ip net.IP) error {
-	cmd := "ping"
-	if ip.To4() == nil {
-		cmd = "ping6"
-	}
-
-	timeout := time.Second * 1
+	timeout := time.Second
 	deadline, ok := ctx.Deadline()
 	if ok {
 		timeout = time.Until(deadline)
 	}
 
-	_, err := shared.RunCommand(ctx, cmd, "-n", "-q", ip.String(), "-c", "1", "-w", strconv.Itoa(int(timeout.Seconds())))
+	_, err := shared.RunCommand(ctx, "ping", "-n", "-q", ip.String(), "-c", "1", "-w", strconv.Itoa(int(timeout.Seconds())))
 
 	return err
 }
 
 func pingSubnet(subnet *net.IPNet) bool {
-	var fail bool
-	var failLock sync.Mutex
+	// Check if we can find a host in the subnet
+	var fail atomic.Bool
 	var wgChecks sync.WaitGroup
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
 	ping := func(ip net.IP) {
 		defer wgChecks.Done()
 
-		if pingIP(context.TODO(), ip) != nil {
+		if pingIP(ctx, ip) != nil {
 			return
 		}
 
 		// Remote answered
-		failLock.Lock()
-		fail = true
-		failLock.Unlock()
+		fail.Store(true)
+		cancel()
 	}
 
 	poke := func(ip net.IP) {
@@ -893,14 +900,15 @@ func pingSubnet(subnet *net.IPNet) bool {
 			addr = fmt.Sprintf("[%s]:22", ip.String())
 		}
 
-		_, err := net.DialTimeout("tcp", addr, time.Second)
-		if err == nil {
-			// Remote answered
-			failLock.Lock()
-			fail = true
-			failLock.Unlock()
+		d := net.Dialer{}
+		_, err := d.DialContext(ctx, "tcp", addr)
+		if err != nil {
 			return
 		}
+
+		// Remote answered
+		fail.Store(true)
+		cancel()
 	}
 
 	// Ping first IP
@@ -924,7 +932,7 @@ func pingSubnet(subnet *net.IPNet) bool {
 
 	wgChecks.Wait()
 
-	return fail
+	return fail.Load()
 }
 
 // GetHostDevice returns the interface name to use for a combination of parent device name and VLAN ID.
