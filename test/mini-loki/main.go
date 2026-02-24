@@ -20,10 +20,7 @@ func main() {
 
 func run() (err error) {
 	var workdir string
-	testDir := os.Getenv("TEST_DIR")
-	if testDir != "" {
-		workdir = testDir
-	} else if len(os.Args) > 1 {
+	if len(os.Args) > 1 {
 		workdir = os.Args[1]
 	} else {
 		workdir, err = os.Getwd()
@@ -41,14 +38,9 @@ func run() (err error) {
 		_ = f.Close()
 	}()
 
-	addr, errCh, err := serve.API("", "", &loki{
+	errCh, err := serve.API(&loki{
 		logfile: f,
 	})
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(filepath.Join(workdir, "loki.addr"), []byte(addr.String()), 0644)
 	if err != nil {
 		return err
 	}

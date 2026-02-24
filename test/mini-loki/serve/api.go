@@ -13,28 +13,23 @@ import (
 // API starts an HTTP server with the given handler and returns the address it's
 // listening on, a channel for errors, and any error encountered while starting
 // the server.
-func API(certfile, keyfile string, handler http.Handler) (net.Addr, <-chan error, error) {
+func API(handler http.Handler) (<-chan error, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/{any...}", handler)
 
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, unix.SIGINT, unix.SIGKILL)
 
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	l, err := net.Listen("tcp", "127.0.0.1:3100")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	s := &http.Server{Handler: handler}
 
 	errCh := make(chan error)
 	go func() {
-		var err error
-		if certfile != "" {
-			err = s.ServeTLS(l, certfile, keyfile)
-		} else {
-			err = s.Serve(l)
-		}
+		err = s.Serve(l)
 
 		if !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
@@ -48,5 +43,5 @@ func API(certfile, keyfile string, handler http.Handler) (net.Addr, <-chan error
 		_ = s.Close()
 	}()
 
-	return l.Addr(), errCh, nil
+	return errCh, nil
 }
