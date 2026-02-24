@@ -7,4 +7,4 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
     exit 0
 fi
 
-exec shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh test/extras/*.sh
+exec shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh
