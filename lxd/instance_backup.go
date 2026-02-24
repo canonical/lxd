@@ -29,6 +29,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -293,6 +294,13 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	err = json.Unmarshal(body, &req)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	if req.CompressionAlgorithm != "" {
+		err = validate.IsCompressionAlgorithm(req.CompressionAlgorithm)
+		if err != nil {
+			return response.BadRequest(err)
+		}
 	}
 
 	if req.Name == "" {
