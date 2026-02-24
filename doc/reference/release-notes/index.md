@@ -25,7 +25,7 @@ For full instructions on updating or upgrading LXD via its [snap package](https:
 
 ```{toctree}
 :titlesonly:
-
+LXD 6.7 </reference/release-notes/release-notes-6.7>
 LXD 6.6 </reference/release-notes/release-notes-6.6>
 ```
 
