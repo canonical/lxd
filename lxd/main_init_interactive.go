@@ -999,7 +999,7 @@ they otherwise would.
 
 		// Ask if the user wants to create a temporary UI access link.
 		// Skip if already enabled using a flag.
-		hasServerAddress := (config.Node.Config["core.https_address"] != "" || len(server.Environment.Addresses) > 0)
+		hasServerAddress := (config.Node.Config["core.https_address"] != nil || len(server.Environment.Addresses) > 0)
 		if hasServerAddress && !c.flagUITemporaryAccessLink {
 			enableUITempAccessLink, err := c.global.asker.AskBool("Would you like to create a temporary LXD UI access link? (yes/no) [default=yes]: ", "yes")
 			if err != nil {
