@@ -221,12 +221,12 @@ func (d *zfs) FillConfig() error {
 
 		// Pick a default size of the loop file if not specified.
 		if d.config["size"] == "" {
-			defaultSize, err := loopFileSizeDefault()
+			size, err := loopFileSizeResolve(loopPath, shared.IsTrue(d.config["source.recover"]))
 			if err != nil {
 				return err
 			}
 
-			d.config["size"] = strconv.FormatUint(defaultSize, 10) + "GiB"
+			d.config["size"] = size
 		}
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Set default pool_name.
