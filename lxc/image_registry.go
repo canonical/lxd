@@ -1,10 +1,14 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"net/url"
 	"sort"
 
 	"github.com/spf13/cobra"
 
+	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 )
 
@@ -19,6 +23,10 @@ func (c *cmdImageRegistry) command() *cobra.Command {
 	cmd.Short = "Manage image registries"
 	cmd.Long = cli.FormatSection("Description", `Manage image registries`)
 
+	// Add
+	imageRegistryAddCmd := cmdImageRegistryAdd{global: c.global, image: c.image}
+	cmd.AddCommand(imageRegistryAddCmd.command())
+
 	// List
 	imageRegistryListCmd := cmdImageRegistryList{global: c.global, image: c.image}
 	cmd.AddCommand(imageRegistryListCmd.command())
@@ -27,6 +35,89 @@ func (c *cmdImageRegistry) command() *cobra.Command {
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
 	return cmd
+}
+
+// Add.
+type cmdImageRegistryAdd struct {
+	global *cmdGlobal
+	image  *cmdImage
+
+	flagProtocol string
+	flagProject  string
+	flagPublic   bool
+	flagCluster  string
+}
+
+func (c *cmdImageRegistryAdd) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("add", "[<remote>:]<registry> <URL>")
+	cmd.Short = "Add image registry"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
+	
+URL must be HTTPS (https://). Basic authentication is not allowed.
+`)
+
+	cmd.RunE = c.run
+	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", cli.FormatStringFlagLabel("Registry server protocol (lxd or simplestreams)"))
+	cmd.Flags().StringVar(&c.flagProject, "project", "", cli.FormatStringFlagLabel("Source project for the LXD registry"))
+	cmd.Flags().BoolVar(&c.flagPublic, "public", false, "Public image registry")
+	cmd.Flags().StringVar(&c.flagCluster, "cluster", "", cli.FormatStringFlagLabel("Cluster link name for the private LXD registry"))
+
+	return cmd
+}
+
+func (c *cmdImageRegistryAdd) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	registryName := resource.name
+	registryURL := args[1]
+
+	if registryName == "" {
+		return errors.New("Image registry name must not be empty")
+	}
+
+	if registryURL == "" {
+		return errors.New("Image registry URL must not be empty")
+	}
+
+	_, err = url.ParseRequestURI(registryURL)
+	if err != nil {
+		return errors.New(`Image registry URL must be an absolute URL with a "https://" scheme`)
+	}
+
+	// Create the image registry.
+	imageRegistry := api.ImageRegistriesPost{}
+	imageRegistry.Name = registryName
+	imageRegistry.URL = registryURL
+	imageRegistry.Protocol = c.flagProtocol
+	imageRegistry.SourceProject = c.flagProject
+	imageRegistry.Public = c.flagPublic
+	imageRegistry.Cluster = c.flagCluster
+
+	// Create the image registry.
+	err = client.CreateImageRegistry(imageRegistry)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Image registry %s added\n", resource.name)
+	}
+
+	return nil
 }
 
 // List.
