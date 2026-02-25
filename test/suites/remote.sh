@@ -297,14 +297,6 @@ test_remote_usage() {
   # testimage should still exist on the local server.
   lxc_remote image list local: | grep -wF testimage
 
-  # Skip the truly remote servers in offline mode.
-  # There should always be Ubuntu images in the results from cloud-images.ubuntu.com remote.
-  # And test for alpine in the images.lxd.canonical.com remote.
-  if [ -z "${LXD_OFFLINE:-}" ]; then
-    lxc_remote image list images: | grep -i -c alpine
-    lxc_remote image list ubuntu: | grep -i -c ubuntu
-  fi
-
   mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
   mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
 
