@@ -5246,7 +5246,12 @@ func createImageTokenResponse(s *state.State, r *http.Request, projectName strin
 		entityURL = api.NewURL().Path(version.APIVersion, "projects", projectName)
 		resources[entity.TypeProject] = []api.URL{*entityURL}
 	case operationtype.ImageDownloadToken:
-		entityURL = api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(projectName)
+		effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		entityURL = api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(effectiveProjectName)
 		resources[entity.TypeImage] = []api.URL{*entityURL}
 	default:
 		return response.SmartError(errors.New("Not an image token operation type"))
