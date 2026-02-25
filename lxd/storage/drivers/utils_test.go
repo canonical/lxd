@@ -2,9 +2,13 @@ package drivers
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test GetVolumeMountPath.
@@ -118,4 +122,42 @@ func TestTryMountEarlyExit(t *testing.T) {
 
 	// Check that TryMount returns an error when being called with an already cancelled context.
 	assert.ErrorIs(t, TryMount(ctx, "", "", "", 0, ""), context.Canceled)
+}
+
+// Test loopFileSizeResolve.
+func TestLoopFileSizeResolve(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("LXD_DIR", dir)
+
+	existingFile := filepath.Join(dir, "test.img")
+
+	f, err := os.Create(existingFile)
+	require.NoError(t, err)
+	require.NoError(t, f.Truncate(3*1024*1024*1024))
+	require.NoError(t, f.Close())
+
+	// sourceRecover=true with a GiB-aligned file: size is expressed in GiB.
+	size, err := loopFileSizeResolve(existingFile, true)
+	assert.NoError(t, err)
+	assert.Equal(t, "3GiB", size)
+
+	// sourceRecover=true with a non-GiB-aligned file: size is expressed in bytes.
+	nonAlignedFile := filepath.Join(dir, "nonaligned.img")
+	g, err := os.Create(nonAlignedFile)
+	require.NoError(t, err)
+	require.NoError(t, g.Truncate(3*1024*1024*1024+512))
+	require.NoError(t, g.Close())
+
+	size, err = loopFileSizeResolve(nonAlignedFile, true)
+	assert.NoError(t, err)
+	assert.Equal(t, strconv.FormatInt(3*1024*1024*1024+512, 10)+"B", size)
+
+	// sourceRecover=false or nonexistent file falls back to loopFileSizeDefault.
+	size, err = loopFileSizeResolve(existingFile, false)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, size)
+
+	size, err = loopFileSizeResolve(filepath.Join(dir, "nonexistent.img"), true)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, size)
 }
