@@ -51,6 +51,7 @@ func Test_ArchitectureId(t *testing.T) {
 		wantErr bool
 	}{
 		{"i686", "i686", ARCH_32BIT_INTEL_X86, false},
+		{"amd64v3", "amd64v3", ARCH_64BIT_INTEL_X86, false},
 		{"x86_64", "x86_64", ARCH_64BIT_INTEL_X86, false},
 		{"armv6l", "armv6l", ARCH_32BIT_ARMV6_LITTLE_ENDIAN, false},
 		{"armv7l", "armv7l", ARCH_32BIT_ARMV7_LITTLE_ENDIAN, false},
