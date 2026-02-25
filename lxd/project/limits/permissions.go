@@ -87,6 +87,11 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 		req.Profiles = []string{"default"}
 	}
 
+	// Restricted projects aren't allowed to use pull migration.
+	if shared.IsTrue(info.Project.Config["restricted"]) && req.Source.Type == "migration" && req.Source.Mode == "pull" {
+		return errors.New("Restricted projects are not allowed to use pull mode migration")
+	}
+
 	err = checkInstanceCountLimit(info, instanceType)
 	if err != nil {
 		return err
@@ -272,6 +277,11 @@ func AllowVolumeCreation(ctx context.Context, globalConfig *clusterConfig.Config
 
 	if info == nil {
 		return nil
+	}
+
+	// Restricted projects aren't allowed to use pull migration.
+	if shared.IsTrue(info.Project.Config["restricted"]) && req.Source.Type == "migration" && req.Source.Mode == "pull" {
+		return errors.New("Restricted projects are not allowed to use pull mode migration")
 	}
 
 	// If "limits.disk" is not set, there's nothing to do.
