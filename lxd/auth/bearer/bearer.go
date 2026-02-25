@@ -26,8 +26,9 @@ func IsDevLXDRequest(r *http.Request, clusterUUID string) (isRequest bool, token
 	return isAuthorizationHeaderRequestFromAudience(r, clusterUUID, encryption.DevLXDAudience(clusterUUID))
 }
 
-// IsAPIRequest returns true if the caller sent a bearer token in the Authorization header that is a JWT and appears to
-// have this LXD cluster as the issuer. If true, it returns the raw token, and the subject.
+// IsAPIRequest returns true if the caller sent a JWT that has this LXD cluster as the issuer.
+// If true, it returns the location that the token was found, the raw token, and the subject.
+// The JWT is not verified. The caller must call [Authenticate] to verify the returned raw token.
 func IsAPIRequest(r *http.Request, clusterUUID string) (isRequest bool, location auth.TokenLocation, token string, subject string) {
 	isRequest, token, subject = isAuthorizationHeaderRequestFromAudience(r, clusterUUID, encryption.LXDAudience(clusterUUID))
 	if isRequest {
