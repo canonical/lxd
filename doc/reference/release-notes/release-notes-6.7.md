@@ -120,6 +120,10 @@ The `lxc list` command now automatically optimizes queries based on requested co
 
 An updated LXCFS version has been bundled in the snap package that now allows a container's swap usage on ZFS to be reported in the container's `/proc/meminfo` file.
 
+### `amd64v3` architecture variant support
+
+Added support for running images built for the `amd64v3` architecture variant. Such optimized images are currently available for the upcoming release of Ubuntu Resolute.
+
 ## UI updates
 
 This release includes significant improvements and new features across networking, instances, clustering, storage, authentication, and overall user experience in the LXD UI.
