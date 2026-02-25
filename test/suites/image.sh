@@ -168,6 +168,24 @@ test_image_list_remotes() {
     done
 }
 
+test_image_architectures() {
+  local url="https://cloud-images.ubuntu.com/daily/"
+  if ! curl --head --silent "${url}" > /dev/null; then
+    export TEST_UNMET_REQUIREMENT="No connectivity to ${url}"
+    return
+  fi
+
+  local arch suffix
+  for arch in "" amd64 amd64v3 arm64 armhf ppc64el riscv64 s390x; do
+    suffix="/${arch}"
+    if [ "${arch}" = "" ]; then
+      suffix=""
+    fi
+
+    lxc image show "ubuntu-daily:26.04${suffix}"
+  done
+}
+
 test_image_import_dir() {
     mkdir -p unpacked
     tar -C unpacked -xf "${LXD_TEST_IMAGE}"
