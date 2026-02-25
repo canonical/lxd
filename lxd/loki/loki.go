@@ -132,6 +132,7 @@ func (c *Client) run() {
 	for {
 		select {
 		case <-c.cancel.Done():
+			c.sendBatch(batch)
 			return
 
 		case e := <-c.entries:

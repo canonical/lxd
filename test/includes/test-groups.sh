@@ -139,6 +139,7 @@ readonly test_group_standalone=(
     "get_operations"
     "instances_selective_recursion"
     "kernel_limits"
+    "loki"
     "lxd_user"
     "metrics"
     "oidc"
