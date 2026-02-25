@@ -216,7 +216,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	_, body = op.Render()
+	_, body = op.RenderWithoutProgress()
 
 	// The [operations.Operation] doesn't contain the node where the operation is running.
 	// If we're loading operations from the DB, we need to set the location here.
@@ -574,7 +574,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			_, apiOp := op.Render()
+			_, apiOp := op.RenderWithoutProgress()
 
 			// The [operations.Operation] doesn't contain the node where the operation is running.
 			// Since we're loading operations from the DB, we need to set the location here.
