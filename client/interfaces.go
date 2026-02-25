@@ -191,6 +191,16 @@ type InstanceServer interface {
 	GetImagesAllProjects() (images []api.Image, err error)
 	GetImagesAllProjectsWithFilter(filters []string) (images []api.Image, err error)
 
+	// Image registry functions
+	GetImageRegistry(name string) (imageRegistry *api.ImageRegistry, ETag string, err error)
+	GetImageRegistryNames() (names []string, err error)
+	GetImageRegistryImages(name string) (images []api.Image, err error)
+	GetImageRegistries() (imageRegistries []api.ImageRegistry, err error)
+	CreateImageRegistry(imageRegistry api.ImageRegistriesPost) (err error)
+	UpdateImageRegistry(name string, imageRegistry api.ImageRegistryPut, ETag string) (err error)
+	RenameImageRegistry(name string, imageRegistry api.ImageRegistryPost) (err error)
+	DeleteImageRegistry(name string) (err error)
+
 	// Network functions ("network" API extension)
 	GetNetworkNames() (names []string, err error)
 	GetNetworks() (networks []api.Network, err error)
@@ -376,6 +386,14 @@ type InstanceServer interface {
 	DeleteClusterGroup(name string) error
 	UpdateClusterGroup(name string, group api.ClusterGroupPut, ETag string) error
 	GetClusterGroup(name string) (*api.ClusterGroup, string, error)
+	GetClusterLink(name string) (clusterLink *api.ClusterLink, ETag string, err error)
+	GetClusterLinkNames() (clusterLinkNames []string, err error)
+	GetClusterLinks() (clusterLinks []api.ClusterLink, err error)
+	GetClusterLinkState(name string) (clusterLinkState *api.ClusterLinkState, ETag string, err error)
+	CreateClusterLink(clusterLink api.ClusterLinkPost) (err error)
+	CreateIdentityClusterLinkToken(clusterLink api.ClusterLinkPost) (certificateAddToken *api.CertificateAddToken, err error)
+	UpdateClusterLink(name string, clusterLink api.ClusterLinkPut, ETag string) (err error)
+	DeleteClusterLink(name string) (err error)
 
 	// Warning functions
 	GetWarningUUIDs() (uuids []string, err error)

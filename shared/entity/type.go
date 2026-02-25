@@ -115,6 +115,12 @@ const (
 
 	// TypePlacementGroup represents placement group resources.
 	TypePlacementGroup Type = "placement_group"
+
+	// TypeClusterLink represents cluster link resources.
+	TypeClusterLink Type = "cluster_link"
+
+	// TypeImageRegistry represents image registry resources.
+	TypeImageRegistry Type = "image_registry"
 )
 
 const (
@@ -175,6 +181,8 @@ var entityTypes = map[Type]typeInfo{
 	TypeAuthGroup:             authGroup{},
 	TypeIdentityProviderGroup: identityProviderGroup{},
 	TypePlacementGroup:        placementGroup{},
+	TypeClusterLink:           clusterLink{},
+	TypeImageRegistry:         imageRegistry{},
 }
 
 // metricsEntityTypes is the source of truth for which entity types can be used to categorize endpoints
@@ -193,6 +201,8 @@ var metricsEntityTypes = []Type{
 	TypeServer,
 	TypeIdentity,
 	TypePlacementGroup,
+	TypeClusterLink,
+	TypeImageRegistry,
 }
 
 // APIMetricsEntityTypes returns the list of entity types relevant for the API metrics.
@@ -587,5 +597,37 @@ func (placementGroup) path() []string {
 }
 
 func (placementGroup) pathArgNames() []string {
+	return []string{"name"}
+}
+
+type clusterLink struct {
+	typeInfoCommon
+}
+
+func (clusterLink) requiresProject() bool {
+	return false
+}
+
+func (clusterLink) path() []string {
+	return []string{"cluster", "links", pathPlaceholder}
+}
+
+func (clusterLink) pathArgNames() []string {
+	return []string{"name"}
+}
+
+type imageRegistry struct {
+	typeInfoCommon
+}
+
+func (imageRegistry) requiresProject() bool {
+	return false
+}
+
+func (imageRegistry) path() []string {
+	return []string{"image-registries", pathPlaceholder}
+}
+
+func (imageRegistry) pathArgNames() []string {
 	return []string{"name"}
 }

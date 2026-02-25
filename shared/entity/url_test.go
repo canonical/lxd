@@ -53,6 +53,14 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
+			Name:     "Cluster link",
+			URL:      "/1.0/cluster/links/foo",
+			WantType: TypeClusterLink,
+			WantArgs: map[string]string{
+				"name": "foo",
+			},
+		},
+		{
 			Name:     "Container",
 			URL:      "/1.0/containers/foo",
 			WantType: TypeContainer,
@@ -75,6 +83,14 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			WantType: TypeIdentityProviderGroup,
 			WantArgs: map[string]string{
 				"name": "test",
+			},
+		},
+		{
+			Name:     "Image registry",
+			URL:      "/1.0/image-registries/ubuntu",
+			WantType: TypeImageRegistry,
+			WantArgs: map[string]string{
+				"name": "ubuntu",
 			},
 		},
 		{

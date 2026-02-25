@@ -10,13 +10,13 @@ import (
 type Entitlement string
 
 const (
-	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStorageVolume.
+	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeImageRegistry, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStorageVolume.
 	EntitlementCanView Entitlement = "can_view"
 
-	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeImageRegistry, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
 	EntitlementCanEdit Entitlement = "can_edit"
 
-	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeImageRegistry, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
 	EntitlementCanDelete Entitlement = "can_delete"
 
 	// EntitlementAdmin is the "admin" entitlement. It applies to the following entities: entity.TypeServer.
@@ -114,6 +114,30 @@ const (
 
 	// EntitlementCanViewUnmanagedNetworks is the "can_view_unmanaged_networks" entitlement. It applies to the following entities: entity.TypeServer.
 	EntitlementCanViewUnmanagedNetworks Entitlement = "can_view_unmanaged_networks"
+
+	// EntitlementCanCreateClusterLinks is the "can_create_cluster_links" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanCreateClusterLinks Entitlement = "can_create_cluster_links"
+
+	// EntitlementCanViewClusterLinks is the "can_view_cluster_links" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanViewClusterLinks Entitlement = "can_view_cluster_links"
+
+	// EntitlementCanEditClusterLinks is the "can_edit_cluster_links" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanEditClusterLinks Entitlement = "can_edit_cluster_links"
+
+	// EntitlementCanDeleteClusterLinks is the "can_delete_cluster_links" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanDeleteClusterLinks Entitlement = "can_delete_cluster_links"
+
+	// EntitlementCanCreateImageRegistries is the "can_create_image_registries" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanCreateImageRegistries Entitlement = "can_create_image_registries"
+
+	// EntitlementCanViewImageRegistries is the "can_view_image_registries" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanViewImageRegistries Entitlement = "can_view_image_registries"
+
+	// EntitlementCanEditImageRegistries is the "can_edit_image_registries" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanEditImageRegistries Entitlement = "can_edit_image_registries"
+
+	// EntitlementCanDeleteImageRegistries is the "can_delete_image_registries" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanDeleteImageRegistries Entitlement = "can_delete_image_registries"
 
 	// EntitlementOperator is the "operator" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeProject.
 	EntitlementOperator Entitlement = "operator"
@@ -305,6 +329,14 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to delete the certificate.
 		EntitlementCanDelete,
 	},
+	entity.TypeClusterLink: {
+		// Grants permission to view the cluster link.
+		EntitlementCanView,
+		// Grants permission to edit the cluster link.
+		EntitlementCanEdit,
+		// Grants permission to delete the cluster link.
+		EntitlementCanDelete,
+	},
 	entity.TypeAuthGroup: {
 		// Grants permission to view the group. Identities can always view groups that they are a member of.
 		EntitlementCanView,
@@ -344,6 +376,14 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanDelete,
 		// Grants permission to view the image alias.
 		EntitlementCanView,
+	},
+	entity.TypeImageRegistry: {
+		// Grants permission to view the image registry.
+		EntitlementCanView,
+		// Grants permission to edit the image registry.
+		EntitlementCanEdit,
+		// Grants permission to delete the image registry.
+		EntitlementCanDelete,
 	},
 	entity.TypeInstance: {
 		// Grants permission to view the instance, to access files, and to start a terminal or console session.
@@ -536,7 +576,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementAdmin,
 		// Grants access to view all resources in the LXD server.
 		EntitlementViewer,
-		// Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to update cluster member certificates, and to edit or delete warnings.
+		// Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to create, edit, and delete image registries, to update cluster member certificates, and to edit or delete warnings.
 		EntitlementCanEdit,
 		// Grants permission to view permissions, to create, edit, and delete identities, to view, create, edit, and delete authorization groups, and to view, create, edit, and delete identity provider groups. Note that clients with this permission are able to elevate their own privileges.
 		EntitlementPermissionManager,
@@ -598,6 +638,22 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanViewWarnings,
 		// Grants permission to view unmanaged networks on the LXD host machines.
 		EntitlementCanViewUnmanagedNetworks,
+		// Grants permission to create cluster links.
+		EntitlementCanCreateClusterLinks,
+		// Grants permission to view cluster links.
+		EntitlementCanViewClusterLinks,
+		// Grants permission to edit cluster links.
+		EntitlementCanEditClusterLinks,
+		// Grants permission to delete cluster links.
+		EntitlementCanDeleteClusterLinks,
+		// Grants permission to create image registries.
+		EntitlementCanCreateImageRegistries,
+		// Grants permission to view image registries.
+		EntitlementCanViewImageRegistries,
+		// Grants permission to edit image registries.
+		EntitlementCanEditImageRegistries,
+		// Grants permission to delete image registries.
+		EntitlementCanDeleteImageRegistries,
 	},
 	entity.TypeStorageBucket: {
 		// Grants permission to edit the storage bucket.

@@ -19,6 +19,51 @@
 						}
 					}
 				]
+			},
+			"link-conf": {
+				"keys": [
+					{
+						"user.*": {
+							"longdesc": "User keys can be used in search.",
+							"shortdesc": "Free form user key/value storage",
+							"type": "string"
+						}
+					}
+				]
+			},
+			"link-volatile-conf": {
+				"keys": [
+					{
+						"volatile.addresses": {
+							"longdesc": "A comma-separated list of cluster link member addresses.",
+							"scope": "global",
+							"shortdesc": "Cluster link member addresses.",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"cluster-link": {
+			"properties": {
+				"keys": [
+					{
+						"description": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Description of the cluster link",
+							"type": "string"
+						}
+					},
+					{
+						"name": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "The name of the cluster link",
+							"type": "string"
+						}
+					}
+				]
 			}
 		},
 		"device-disk": {
@@ -5019,6 +5064,14 @@
 						}
 					},
 					{
+						"restricted.images.publish": {
+							"defaultdesc": "`block`",
+							"longdesc": "Possible values are `allow` or `block`.",
+							"shortdesc": "When set to `block`, public images cannot be created inside this project",
+							"type": "string"
+						}
+					},
+					{
 						"restricted.networks.access": {
 							"longdesc": "Specify a comma-delimited list of network names that are allowed for use in this project.\nIf this option is not set, all networks are accessible.\n\nNote that this setting depends on the {config:option}`project-restricted:restricted.devices.nic` setting.",
 							"shortdesc": "Which network names are allowed for use in this project",
@@ -5046,6 +5099,14 @@
 							"defaultdesc": "`block`",
 							"longdesc": "Specify a comma-delimited list of network zones that can be used (or something under them) in this project.",
 							"shortdesc": "Which network zones can be used in this project",
+							"type": "string"
+						}
+					},
+					{
+						"restricted.registries": {
+							"defaultdesc": "`block`",
+							"longdesc": "Specify a comma-delimited list of image registry names that are allowed for use in this project.\nIf this option is not set, no image registries are accessible.",
+							"shortdesc": "Which image registries can be used in this project",
 							"type": "string"
 						}
 					},
@@ -7765,6 +7826,23 @@
 				}
 			]
 		},
+		"cluster_link": {
+			"project_specific": false,
+			"entitlements": [
+				{
+					"name": "can_view",
+					"description": "Grants permission to view the cluster link."
+				},
+				{
+					"name": "can_edit",
+					"description": "Grants permission to edit the cluster link."
+				},
+				{
+					"name": "can_delete",
+					"description": "Grants permission to delete the cluster link."
+				}
+			]
+		},
 		"group": {
 			"project_specific": false,
 			"entitlements": [
@@ -7847,6 +7925,23 @@
 				{
 					"name": "can_view",
 					"description": "Grants permission to view the image alias."
+				}
+			]
+		},
+		"image_registry": {
+			"project_specific": false,
+			"entitlements": [
+				{
+					"name": "can_view",
+					"description": "Grants permission to view the image registry."
+				},
+				{
+					"name": "can_edit",
+					"description": "Grants permission to edit the image registry."
+				},
+				{
+					"name": "can_delete",
+					"description": "Grants permission to delete the image registry."
 				}
 			]
 		},
@@ -8242,7 +8337,7 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to update cluster member certificates, and to edit or delete warnings."
+					"description": "Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to create, edit, and delete image registries, to update cluster member certificates, and to edit or delete warnings."
 				},
 				{
 					"name": "permission_manager",
@@ -8363,6 +8458,38 @@
 				{
 					"name": "can_view_unmanaged_networks",
 					"description": "Grants permission to view unmanaged networks on the LXD host machines."
+				},
+				{
+					"name": "can_create_cluster_links",
+					"description": "Grants permission to create cluster links."
+				},
+				{
+					"name": "can_view_cluster_links",
+					"description": "Grants permission to view cluster links."
+				},
+				{
+					"name": "can_edit_cluster_links",
+					"description": "Grants permission to edit cluster links."
+				},
+				{
+					"name": "can_delete_cluster_links",
+					"description": "Grants permission to delete cluster links."
+				},
+				{
+					"name": "can_create_image_registries",
+					"description": "Grants permission to create image registries."
+				},
+				{
+					"name": "can_view_image_registries",
+					"description": "Grants permission to view image registries."
+				},
+				{
+					"name": "can_edit_image_registries",
+					"description": "Grants permission to edit image registries."
+				},
+				{
+					"name": "can_delete_image_registries",
+					"description": "Grants permission to delete image registries."
 				}
 			]
 		},
