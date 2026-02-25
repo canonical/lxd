@@ -25,6 +25,8 @@ type Cache struct {
 	metricsCertificatesMu   sync.RWMutex
 	bearerIdentitySecrets   map[string][]byte
 	bearerIdentitySecretsMu sync.RWMutex
+	initialUITokenSecret    []byte
+	initialUITokenSecretMu  sync.Mutex
 }
 
 // GetServerCertificates returns matching server certificates.
@@ -68,13 +70,35 @@ func (c *Cache) GetSecret(bearerIdentityUUID string) ([]byte, error) {
 	return secret, nil
 }
 
+// GetInitialUISecret gets the secret for the initial UI identity.
+func (c *Cache) GetInitialUISecret() ([]byte, error) {
+	c.initialUITokenSecretMu.Lock()
+	defer c.initialUITokenSecretMu.Unlock()
+
+	if len(c.initialUITokenSecret) == 0 {
+		return nil, api.NewStatusError(http.StatusNotFound, "No secret found for initial UI identity")
+	}
+
+	return c.initialUITokenSecret, nil
+}
+
 // ReplaceAll deletes all credentials from the cache and replaces them with the given values.
-func (c *Cache) ReplaceAll(serverCerts map[string]*x509.Certificate, clientCerts map[string]*x509.Certificate, metricsCerts map[string]*x509.Certificate, secrets map[string][]byte) {
+func (c *Cache) ReplaceAll(serverCerts map[string]*x509.Certificate, clientCerts map[string]*x509.Certificate, metricsCerts map[string]*x509.Certificate, secrets map[string][]byte, initialUITokenSecret []byte) {
 	c.bearerIdentitySecretsMu.Lock()
+	c.serverCertificatesMu.Lock()
+	c.clientCertificatesMu.Lock()
+	c.metricsCertificatesMu.Lock()
+	c.initialUITokenSecretMu.Lock()
+
 	defer c.bearerIdentitySecretsMu.Unlock()
+	defer c.serverCertificatesMu.Unlock()
+	defer c.clientCertificatesMu.Unlock()
+	defer c.metricsCertificatesMu.Unlock()
+	defer c.initialUITokenSecretMu.Unlock()
 
 	c.serverCertificates = serverCerts
 	c.clientCertificates = clientCerts
 	c.metricsCertificates = metricsCerts
 	c.bearerIdentitySecrets = secrets
+	c.initialUITokenSecret = initialUITokenSecret
 }

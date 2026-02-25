@@ -59,3 +59,19 @@ type Authorizer interface {
 func IsDeniedError(err error) bool {
 	return api.StatusErrorCheck(err, http.StatusNotFound, http.StatusForbidden)
 }
+
+// TokenLocation describes the found or expected location of a token set by a client for bearer (JWT) authentication.
+type TokenLocation uint8
+
+const (
+	// TokenLocationAuthorizationBearer is used when the token is found in the 'Authorization' header, prefixed with 'Bearer '.
+	TokenLocationAuthorizationBearer TokenLocation = iota + 1
+
+	// TokenLocationCookie is used by the initial UI token identity to gain API access.
+	// Tokens presented as cookies (aside from OIDC session tokens) must be issued for the initial UI access identity.
+	TokenLocationCookie
+
+	// TokenLocationQuery is used only when accessing LXD UI via an initial UI access link.
+	// It may only be set when converting a token issued for the initial UI identity from a query parameter into a cookie.
+	TokenLocationQuery
+)

@@ -448,22 +448,19 @@ fine_grained: true"
   ! lxc query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\"}" || false
   [ "$("${_LXC}" query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\"}" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
 
-  # Make sure the TLS identity can be create from peer certificate when authenticated using a bearer token.
+  # Make sure the TLS identity cannot be created from a peer certificate when authenticated using a bearer token.
+  # This can only be performed by the initial UI identity (bearer identities should send a certificate in the request body).
   lxc auth identity create bearer/tmp
   lxc auth identity group add bearer/tmp admins
   LXD_CONF="${TEST_DIR}" gen_cert_and_key "user7"
   tmp_bearer_identity_token="$(lxc auth identity token issue bearer/tmp --quiet)"
 
-  my_curl -s --cert "${TEST_DIR}/user7.crt" --key "${TEST_DIR}/user7.key" "https://${LXD_ADDR}/1.0/auth/identities/tls" -H "Authorization: Bearer ${tmp_bearer_identity_token}" -d '{"name":"peer-tls-cert", "groups":["admins"]}'
-  info=$(my_curl -s --cert "${TEST_DIR}/user7.crt" --key "${TEST_DIR}/user7.key" "https://${LXD_ADDR}/1.0")
-  echo "${info}" | jq --exit-status '.metadata.auth == "trusted"'
-  echo "${info}" | jq --exit-status '.metadata.auth_user_method == "tls"'
+  my_curl -s --cert "${TEST_DIR}/user7.crt" --key "${TEST_DIR}/user7.key" "https://${LXD_ADDR}/1.0/auth/identities/tls" -H "Authorization: Bearer ${tmp_bearer_identity_token}" -d '{"name":"peer-tls-cert", "groups":["admins"]}' | jq -e '.error_code == 400 and .error == "Must provide a certificate"'
+  my_curl -s --cert "${TEST_DIR}/user7.crt" --key "${TEST_DIR}/user7.key" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
 
-  lxc auth identity delete devlxd/test-bearer
   lxc auth identity delete bearer/test-user
   lxc auth identity delete bearer/tmp
   lxc auth identity delete tls/bearer-remote-user
-  lxc auth identity delete tls/peer-tls-cert
   lxc auth identity group add oidc/test-user@example.com test-group
 
   # Cleanup
@@ -1818,37 +1815,36 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission remove test-group server admin
 }
 
-test_ui_temporary_access_link() {
-  echo "==> Test temporary UI access link"
-  lxd init --ui-temporary-access-link
+test_ui_initial_access_link() {
+  echo "==> Test initial UI access link"
+  lxd init --ui-initial-access-link
 
   # Regenerate while identity already exists.
-  lxd init --ui-temporary-access-link
+  lxd init --ui-initial-access-link
 
-  # Ensure error is returned if identity exists but does not have sufficient permissions.
-  lxc auth identity edit bearer/ui-admin-temporary <<< "groups: []"
-  ! lxd init --ui-temporary-access-link || false
+  # Ensure the identity cannot be edited.
+  ! lxc auth identity edit bearer/ui-admin-initial <<< "groups: []" || false
 
   # Regenerate after deleting the identity.
-  lxc auth identity delete bearer/ui-admin-temporary
-  lxd init --ui-temporary-access-link
+  lxc auth identity delete bearer/ui-admin-initial
+  lxd init --ui-initial-access-link
 
   # Parse UI access URL and bearer token.
-  output=$(lxd init --ui-temporary-access-link)
+  output=$(lxd init --ui-initial-access-link)
   url="https://${output#*https://}"
   token="${url#*token=}"
 
-  echo "==> Testing temporary UI link access"
+  echo "==> Testing initial UI link access"
   loginOutput=$(curl -s -k -i -H "User-Agent: Mozilla" "${url}")
 
   if ! grep -q "token_bearer_session=" <<< "${loginOutput}"; then
-    echo "Error: Cookie not set when accessing generated temporary UI link"
+    echo "Error: Cookie not set when accessing generated initial UI link"
     return 1
   fi
 
   # Check redirect location
   if ! grep -i "Location: /ui/" <<< "${loginOutput}"; then
-    echo "Error: Redirect to /ui/ not set when accessing generated temporary UI link"
+    echo "Error: Redirect to /ui/ not set when accessing generated initial UI link"
     return 1
   fi
 
@@ -1888,6 +1884,21 @@ test_ui_temporary_access_link() {
     return 1
   fi
 
+  echo "==> Testing TLS identity creation from initial UI identity peer certificate"
+  LXD_CONF="${TEST_DIR}" gen_cert_and_key "initial-tls-user"
+  curl --silent --insecure -X "POST" \
+    -H "User-Agent: Mozilla" \
+    -H "Cookie: token_bearer_session=${cookie}" \
+    -H "Content-Type: application/json" \
+    -H "Content-Length: 52" \
+    -d '{"name":"initial-tls-user", "groups":["admins"]}' \
+    --cert "${TEST_DIR}/initial-tls-user.crt" \
+    --key "${TEST_DIR}/initial-tls-user.key" \
+    "https://${LXD_ADDR}/1.0/auth/identities/tls"
+  info=$(curl --silent --insecure --cert "${TEST_DIR}/initial-tls-user.crt" --key "${TEST_DIR}/initial-tls-user.key" "https://${LXD_ADDR}/1.0")
+  echo "${info}" | jq --exit-status '.metadata.auth == "trusted"'
+  echo "${info}" | jq --exit-status '.metadata.auth_user_method == "tls"'
+
   echo "==> Testing bearer logout"
   logoutOutput=$(curl -s -k -i -H "Cookie: token_bearer_session=${cookie}" "https://${LXD_ADDR}/bearer/logout")
 
@@ -1910,17 +1921,17 @@ test_ui_temporary_access_link() {
   fi
 
   echo "==> Testing revoked token access"
-  lxc auth identity token revoke bearer/ui-admin-temporary
+  lxc auth identity token revoke bearer/ui-admin-initial
   loginOutput=$(curl -s -k -i -H "User-Agent: Mozilla" "${url}")
 
   if grep -q "token_bearer_session=" <<< "${loginOutput}"; then
-    echo "Error: Cookie set when accessing generated temporary UI link with invalid token"
+    echo "Error: Cookie set when accessing generated initial UI link with invalid token"
     return 1
   fi
 
-  # Despite invalid token, LXD should still redirect to the UI.
-  if ! grep -i "Location: /ui/" <<< "${loginOutput}"; then
-    echo "Error: Redirect to /ui/ not set when accessing generated temporary UI link"
+  # Despite invalid token, LXD should still redirect to the UI, but it should set a query parameter to indicate the failure.
+  if ! grep -i "Location: /ui/?initial-access-link-invalid" <<< "${loginOutput}"; then
+    echo "Error: Redirect to /ui/ not set when accessing generated initial UI link"
     return 1
   fi
 
@@ -1928,5 +1939,7 @@ test_ui_temporary_access_link() {
   curl -s -k -H "User-Agent: Mozilla" -H "Cookie: token_bearer_session=${cookie}" "https://${LXD_ADDR}/1.0/auth/identities/current" | jq -e '.error_code == 403'
 
   # Cleanup.
-  lxc auth identity delete bearer/ui-admin-temporary
+  lxc auth identity delete bearer/ui-admin-initial
+  lxc auth identity delete tls/initial-tls-user
+  rm "${TEST_DIR}"/initial-tls-user.{crt,key}
 }

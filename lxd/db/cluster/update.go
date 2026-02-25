@@ -14,6 +14,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/schema"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -121,6 +122,13 @@ var updates = map[int]schema.Update{
 	77: updateFromV76,
 	78: updateFromV77,
 	79: updateFromV78,
+	80: updateFromV79,
+}
+
+func updateFromV79(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+CREATE UNIQUE INDEX identities_type_initial_ui ON identities (type) WHERE type = `+strconv.FormatInt(identity.TokenBearerInitialUI{}.Code(), 10))
+	return err
 }
 
 func updateFromV78(ctx context.Context, tx *sql.Tx) error {

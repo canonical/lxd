@@ -556,11 +556,11 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		// in api.Response format, while the responses over Unix socket are in devLXDResponse format.
 		request.SetContextValue(r, request.CtxDevLXDOverVsock, authenticator.IsVsock())
 
-		// Check if the caller has a bearer token.
+		// Check if the caller has a bearer token and sent it in the Authorization header.
 		var requestor request.RequestorArgs
 		isBearerRequest, token, subject := bearer.IsDevLXDRequest(r, d.globalConfig.ClusterUUID())
 		if isBearerRequest {
-			bearerRequestor, err := bearer.Authenticate(token, subject, d.identityCache)
+			bearerRequestor, err := bearer.Authenticate(subject, token, auth.TokenLocationAuthorizationBearer, d.identityCache)
 			if err != nil {
 				// Deny access to DevLXD altogether if the provided token is not verifiable.
 				_ = response.DevLXDErrorResponse(fmt.Errorf("Failed to verify bearer token: %w", err)).Render(w, r)

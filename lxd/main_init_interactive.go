@@ -997,19 +997,19 @@ they otherwise would.
 			config.Node.Config["core.https_address"] = util.CanonicalNetworkAddressFromAddressAndPort(netAddr, netPort, shared.HTTPSDefaultPort)
 		}
 
-		// Ask if the user wants to create a temporary UI access link.
+		// Ask if the user wants to create an initial UI access link.
 		// Skip if already enabled using a flag.
 		hasServerAddress := (config.Node.Config["core.https_address"] != nil || len(server.Environment.Addresses) > 0)
-		if hasServerAddress && !c.flagUITemporaryAccessLink {
-			enableUITempAccessLink, err := c.global.asker.AskBool("Would you like to create a temporary LXD UI access link? (yes/no) [default=yes]: ", "yes")
+		if hasServerAddress && !c.flagUIInitialAccessLink {
+			enableUIInitialAccessLink, err := c.global.asker.AskBool("Would you like to create an initial LXD UI access link? (yes/no) [default=yes]: ", "yes")
 			if err != nil {
 				return err
 			}
 
-			if enableUITempAccessLink {
-				// Enable temporary access link flag, and we will
+			if enableUIInitialAccessLink {
+				// Enable initial access link flag, and we will
 				// generate the link at the end.
-				c.flagUITemporaryAccessLink = true
+				c.flagUIInitialAccessLink = true
 			}
 		}
 	}

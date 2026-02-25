@@ -626,16 +626,13 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 	}
 
 	// Check if the caller has a bearer token.
-	isBearerRequest, token, subject := bearer.IsAPIRequest(r, d.globalConfig.ClusterUUID())
-	if !isBearerRequest {
-		// The bearer token is not included in the authorization header.
-		// Check if the caller has a cookie with a bearer token, which is
-		// the case when the user is logged into the UI using a bearer token.
-		isBearerRequest, token, subject = bearer.IsCookieRequest(r, d.globalConfig.ClusterUUID())
-	}
-
+	isBearerRequest, tokenLocation, token, subject := bearer.IsAPIRequest(r, d.globalConfig.ClusterUUID())
 	if isBearerRequest {
-		bearerRequestor, err := bearer.Authenticate(token, subject, d.identityCache)
+		if tokenLocation == auth.TokenLocationQuery {
+			return nil, api.StatusErrorf(http.StatusForbidden, "Token query parameter usage is not allowed for the /1.0 API")
+		}
+
+		bearerRequestor, err := bearer.Authenticate(subject, token, tokenLocation, d.identityCache)
 		if err != nil {
 			// Deny access if the provided token is not verifiable.
 			return nil, fmt.Errorf("Failed to verify bearer token: %w", err)

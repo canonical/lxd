@@ -734,7 +734,7 @@ func resolveIdentityTypeShorthand(identityArg string) (method string, identityTy
 	case "devlxd":
 		return api.AuthenticationMethodBearer, api.IdentityTypeBearerTokenDevLXD, idName, nil
 	case "bearer":
-		return api.AuthenticationMethodBearer, api.IdentityTypeBearerTokenClient, idName, nil
+		return api.AuthenticationMethodBearer, "", idName, nil
 	}
 
 	return "", "", "", fmt.Errorf("Unrecognized identity type shorthand %q", shorthandType)
@@ -953,6 +953,11 @@ func (c *cmdIdentityCreate) createTLSIdentity(remote string, name string, certFi
 // These parameters, in addition to contents of stdin, are used to compose an [api.IdentitiesBearerPost] request body.
 func (c *cmdIdentityCreate) createBearerIdentity(remoteName string, identityName string, identityType string) error {
 	var stdinData api.IdentitiesBearerPost
+
+	// Default to API client token bearer if shorthand does not return specific type.
+	if identityType == "" {
+		identityType = api.IdentityTypeBearerTokenClient
+	}
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
@@ -1556,7 +1561,7 @@ func (c *cmdIdentityTokenIssue) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if identity.Type != idType {
+	if idType != "" && identity.Type != idType {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
@@ -1614,7 +1619,7 @@ func (c *cmdIdentityTokenRevoke) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if identity.Type != idType {
+	if idType != "" && identity.Type != idType {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 

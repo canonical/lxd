@@ -42,13 +42,13 @@ In particular VM GPU device passthrough now offers increased compatibility due t
 
 ### Simplified initial access to the LXD UI
 
-The `lxd init` command now offers the option to generate a UI temporary access link during initialization.
+The `lxd init` command now offers the option to generate an initial access link for the UI during initialization.
 
-This temporary access URL can be used to directly access the LXD UI as an admin user for 24 hours, after which time the URL stops working.
+This initial access URL can be used to directly access the LXD UI as an admin user for 24 hours, after which time the URL stops working.
 
-The intention is that this temporary access can be used to quickly get started with LXD UI and allows for setting up permanent authentication methods such as {ref}`access-ui-setup-certificate` or {ref}`authentication-openid`.
+The intention is that this initial access can be used to quickly get started with LXD UI and allows for setting up permanent authentication methods such as {ref}`access-ui-setup-certificate` or {ref}`authentication-openid`.
 
-- Documentation: {ref}`access-ui-setup-temporary-access-link`
+- Documentation: {ref}`access-ui-setup-initial-access-link`
 
 ### Storage pool database recovery support for clusters
 

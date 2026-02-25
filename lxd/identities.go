@@ -351,10 +351,13 @@ func identitiesTLSPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var peerCertificates []*x509.Certificate
-	if requestor.CallerProtocol() == api.AuthenticationMethodBearer && r.TLS != nil {
-		// When authenticated via bearer token, allow creating a TLS identity from the presented peer certificate.
-		// This allows LXD UI to establish mTLS by injecting a client certificate during temporary bearer-token access.
-		peerCertificates = r.TLS.PeerCertificates
+	idType, err := requestor.CallerIdentityType()
+	if err == nil {
+		if idType.Name() == api.IdentityTypeBearerTokenInitialUI && r.TLS != nil {
+			// When authenticated as the initial UI identity, allow creating a TLS identity from the presented peer certificate.
+			// This allows LXD UI to establish mTLS by injecting a client certificate during initial UI bearer-token access.
+			peerCertificates = r.TLS.PeerCertificates
+		}
 	}
 
 	return createIdentityTLSTrusted(r.Context(), s, peerCertificates, networkCert, req, notify)
@@ -388,10 +391,15 @@ func identitiesTLSPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	s := d.State()
 
 	req := api.IdentitiesBearerPost{}
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -407,6 +415,10 @@ func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
 
 	if idType.AuthenticationMethod() != api.AuthenticationMethodBearer {
 		return response.BadRequest(fmt.Errorf("Identities of type %q cannot be created via the bearer API", req.Type))
+	}
+
+	if req.Type == api.IdentityTypeBearerTokenInitialUI && requestor.CallerProtocol() != request.ProtocolUnix {
+		return response.Forbidden(errors.New("Initial UI identities may only be created via unix socket"))
 	}
 
 	newIdentityID := uuid.New()
@@ -476,10 +488,32 @@ func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var req api.IdentityBearerTokenPost
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if id.Type == api.IdentityTypeBearerTokenInitialUI {
+		if requestor.CallerProtocol() != request.ProtocolUnix {
+			return response.Forbidden(errors.New("Initial UI identity tokens may only be issued via unix socket"))
+		}
+
+		if req.Expiry != "" {
+			return response.BadRequest(errors.New("The initial UI token expiry cannot be set"))
+		}
+
+		req.Expiry = "1d"
 	}
 
 	expiry := req.Expiry
@@ -493,11 +527,6 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-
-	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	var secret []byte
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -514,7 +543,7 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 
 	var token string
 	switch id.Type {
-	case api.IdentityTypeBearerTokenClient:
+	case api.IdentityTypeBearerTokenClient, api.IdentityTypeBearerTokenInitialUI:
 		var serverCertFingerprint string
 
 		// When creating LXD bearer tokens, include the server certificate fingerprint.
@@ -2246,7 +2275,7 @@ func identityDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !identityType.IsFineGrained() {
+	if !identityType.IsFineGrained() && identityType.Name() != api.IdentityTypeBearerTokenInitialUI {
 		return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
 	}
 
@@ -2357,6 +2386,7 @@ func updateIdentityCache(d *Daemon) {
 	clientCerts := make(map[string]*x509.Certificate)
 	metricsCerts := make(map[string]*x509.Certificate)
 	secrets := make(map[string][]byte)
+	var initialUITokenSecret []byte
 	var localServerCerts []dbCluster.Certificate
 	for _, id := range identities {
 		identityType, err := identity.New(string(id.Type))
@@ -2400,6 +2430,11 @@ func updateIdentityCache(d *Daemon) {
 				continue
 			}
 
+			if identityType.Name() == api.IdentityTypeBearerTokenInitialUI {
+				initialUITokenSecret = secret
+				continue
+			}
+
 			secrets[id.Identifier] = secret
 		}
 	}
@@ -2414,7 +2449,7 @@ func updateIdentityCache(d *Daemon) {
 		// continue functioning, and hopefully the write will succeed on next update.
 	}
 
-	d.identityCache.ReplaceAll(serverCerts, clientCerts, metricsCerts, secrets)
+	d.identityCache.ReplaceAll(serverCerts, clientCerts, metricsCerts, secrets, initialUITokenSecret)
 }
 
 // updateIdentityCacheFromLocal loads trusted server certificates from local database into the identity cache.
@@ -2450,6 +2485,6 @@ func updateIdentityCacheFromLocal(d *Daemon) error {
 		serverCerts[dbCert.Fingerprint] = cert
 	}
 
-	d.identityCache.ReplaceAll(serverCerts, nil, nil, nil)
+	d.identityCache.ReplaceAll(serverCerts, nil, nil, nil, nil)
 	return nil
 }
