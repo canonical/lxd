@@ -166,7 +166,10 @@ test_remote_admin() {
 
   echo "Verify that a bad token does not succeed in adding remote"
   ! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken || false
-  ! lxc_remote remote list | grep -wF badtoken || false
+  if lxc_remote remote list | grep -wF badtoken; then
+    echo "Remote added with bad token"
+    false
+  fi
 
   token="$(lxc config trust add --name foo -q)"
 
@@ -180,8 +183,11 @@ test_remote_admin() {
   [ "$(lxc_remote remote get-default)" = "foo" ]
 
   lxc_remote remote rename foo bar
-  lxc_remote remote list | grep 'bar'
-  ! lxc_remote remote list | grep -F 'foo' || false
+  lxc_remote remote list -f csv | grep '^bar'
+  if lxc_remote remote list -f csv | grep '^foo'; then
+    echo "Remote rename failed, old name still exists"
+    false
+  fi
   [ "$(lxc_remote remote get-default)" = "bar" ]
 
   ! lxc_remote remote remove bar || false
