@@ -272,10 +272,6 @@ endif
 
 .PHONY: update-gomod
 update-gomod:
-ifneq "$(LXD_OFFLINE)" ""
-	@echo "The update-gomod target cannot be run in offline mode."
-	exit 1
-endif
 	# Update gomod dependencies
 	go get -t -v -u ./...
 
@@ -319,9 +315,7 @@ check-schema: update-schema
 
 .PHONY: update-api
 update-api:
-ifeq "$(LXD_OFFLINE)" ""
 	go install github.com/go-swagger/go-swagger/cmd/swagger@latest
-endif
 	@# Generate spec and exclude package from dependency which causes a 'classifier: unknown swagger annotation "extendee"' error.
 	@# For more details see: https://github.com/go-swagger/go-swagger/issues/2917.
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m -x github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2/options
@@ -431,13 +425,11 @@ dist:
 
 .PHONY: static-analysis
 static-analysis: check-api check-auth check-metadata
-ifeq "$(LXD_OFFLINE)" ""
 	@# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
 	go install fillmore-labs.com/errortype@latest
 
 	@# XXX: if zerolint becomes available as a golangci-lint linter, remove this and update golangci-lint config
 	go install fillmore-labs.com/zerolint@latest
-endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml
 endif
