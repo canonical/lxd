@@ -249,7 +249,7 @@ test_storage_local_volume_handling() {
 
           # move images
           lxc storage volume move "${source_pool}/vol2" "${target_pool}/vol4"
-          ! lxc storage volume show "${source_pool}" vol2 | grep -F 'content_type: block' || false
+          ! lxc storage volume show "${source_pool}" vol2 || false
           lxc storage volume show "${target_pool}" vol4 | grep -xF 'content_type: block'
           lxc storage volume show "${target_pool}" vol4/snap0 | grep -xF 'content_type: block'
 
