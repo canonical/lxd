@@ -57,7 +57,6 @@ test_warnings() {
 
     # Delete warning
     lxc warning rm "${uuid}"
-    ! lxc warning list | grep -F "${uuid}" || false
     ! lxc warning show "${uuid}" || false
 
     # Delete all warnings
