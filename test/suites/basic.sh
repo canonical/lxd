@@ -754,10 +754,12 @@ test_basic_usage() {
   ! lxc exec c1 -- stat /data.txt || false
   lxc delete c1 -f
 
-  # Test a forced rebuild
+  # Test a forced rebuild and make sure the volatile.uuid is preserved across the rebuild.
   lxc launch testimage c1
+  ORIGINAL_UUID="$(lxc config get c1 volatile.uuid)"
   ! lxc rebuild testimage c1 || false
   lxc rebuild testimage c1 --force
+  [ "$(lxc config get c1 volatile.uuid)" = "${ORIGINAL_UUID}" ]
   lxc delete c1 -f
 
   # Test rebuilding an instance with a new image.
