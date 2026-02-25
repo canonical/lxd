@@ -1401,6 +1401,7 @@ parts:
 
   lxd:
     source: https://github.com/canonical/lxd
+    # XXX: We often cherry-pick for candidate builds so don't do shallow clone (0 means full clone).
     source-depth: 0
     source-type: git
     after:
