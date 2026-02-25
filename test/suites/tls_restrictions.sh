@@ -41,7 +41,7 @@ test_tls_restrictions() {
 
   # Confirm we cannot view storage pool configuration
   pool_name="$(lxc_remote storage list localhost: --format csv | cut -d, -f1)"
-  ! lxc_remote storage show "localhost:${pool_name}" | grep -F 'source:' || false
+  lxc_remote storage show "localhost:${pool_name}" | yq --exit-status '.config | length == 0'
 
   sub_test "Verify restricted client cannot see other certificates"
   # Add a second (admin) certificate that the restricted client should not be able to see.
