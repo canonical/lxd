@@ -1259,17 +1259,21 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
+		offlineMembers := make([]int64, 0, len(members))
 		for _, member := range members {
 			// Skip online nodes
 			if !member.IsOffline(offlineThreshold) {
 				continue
 			}
 
-			err = dbCluster.DeleteOperations(ctx, tx.Tx(), member.ID)
-			if err != nil {
-				return fmt.Errorf("Failed to delete operations: %w", err)
-			}
+			offlineMembers = append(offlineMembers, member.ID)
 		}
+
+		err = dbCluster.DeleteOperationsFromNodes(ctx, tx.Tx(), offlineMembers...)
+		if err != nil {
+			return fmt.Errorf("Failed deleting operations from offline members: %w", err)
+		}
+
 		return nil
 	})
 	if err != nil {
