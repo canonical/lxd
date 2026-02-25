@@ -28,7 +28,7 @@ test_remote_url() {
   done
 
   # Check that we can add simplestream remotes with valid certs without confirmation
-  if [ -z "${LXD_OFFLINE:-}" ]; then
+  if curl --head --silent https://cloud-images.ubuntu.com/releases/ > /dev/null; then
     lxc_remote remote add ubuntu1 https://cloud-images.ubuntu.com/releases/ --protocol=simplestreams
     lxc_remote remote add ubuntu2 https://cloud-images.ubuntu.com:443/releases/ --protocol=simplestreams
     lxc_remote remote remove ubuntu1
