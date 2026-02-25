@@ -120,6 +120,126 @@ The `lxc list` command now automatically optimizes queries based on requested co
 
 An updated LXCFS version has been bundled in the snap package that now allows a container's swap usage on ZFS to be reported in the container's `/proc/meminfo` file.
 
+## UI updates
+
+This release includes significant improvements and new features across networking, instances, clustering, storage, authentication, and overall user experience in the LXD UI.
+
+### Placement group management
+
+Full management support for **placement groups** has been added.
+You can now create, edit, delete, and manage placement groups directly in the UI, improving workload distribution and cluster-aware placement of instances.
+
+### Instance console and usability improvements
+
+Major improvements were made to the instance console and interaction model:
+
+- Clipboard sync between desktop VM console and host OS (including Windows guests)
+- Allow ALT and CTRL keys in console
+- Proper numpad key handling
+- Better graphic console scaling on narrow layouts
+- Prevent spurious connection close errors when leaving console tabs
+
+Overall, console reliability and UX are significantly improved.
+
+### NIC device configuration UX improvements
+
+Enhanced NIC device configuration for instances and profiles:
+
+- Move NIC device edit mode into side panel
+- Revamp NIC read mode
+- Added UI support for static IP management
+- Support for ACLs and ACL default actions on instance NICs
+
+This provides more reliable and user-friendly network configuration.
+
+### Rich chips and rich tooltips
+
+The UI now includes expanded **rich chips** and **rich tooltips** across multiple entities:
+
+- Instances
+- Profiles
+- Networks
+- Projects
+- Cluster members
+- Storage pools
+
+This improves discoverability and provides more contextual information.
+
+### Cluster improvements
+
+- Display total memory and CPU limits correctly across clusters
+- Show memory information for stand-alone servers
+- Add memory column to cluster member list
+- Ensure partial network lists are shown when one cluster member is down
+
+These enhancements improve cluster visibility and resilience in degraded scenarios.
+
+### Error screens harmonization
+
+All “Not found” and error screens were harmonized for consistency, improving UX coherence across the application.
+
+### Cloud-init full-screen editor
+
+The Cloud-init form now supports a full-screen editor mode, making large configuration editing significantly easier.
+
+### Storage improvements
+
+#### Migrate storage volumes between cluster members
+
+The UI now supports migrating storage volumes to another cluster member, improving cluster flexibility and maintenance workflows.
+
+#### Updated storage visuals
+
+Storage pools, volumes, and buckets now use updated icons for better clarity.
+
+### Force delete and protected instance handling
+
+Instance and project deletion flows were improved:
+
+- Support to force stop and delete running or frozen instances
+- Added project force delete, also showing all contained entities that will be deleted
+
+These updates make destructive actions clearer and more robust.
+
+### Authentication and identity flow improvements
+
+- Improved first user access flow
+- Improved identity creation modal and validation
+
+This strengthens onboarding and identity configuration clarity.
+
+### Network and IPAM UI refinements
+
+- Optimized column widths for IPAM and network leases
+- Improved retry logic for network API requests
+- Better handling when editing networks on localhost
+- Ensure correct link generation for network forwards
+
+These changes improve reliability and layout clarity in networking workflows.
+
+### Instance UX refinements
+
+Numerous refinements improve instance workflows:
+
+- Highlight active configuration sections
+- Allow ISO attach/detach while powered off
+- Improved image selection handling
+- Stable instance sorting during migration
+- Adjust spacing in detail panel
+
+These refinements create a more predictable and polished instance management experience.
+
+### Local Network peering and IPAM improvements
+
+The UI now supports management of **Local Network peering for OVN networks**.
+Additionally, IPAM and network lease pages now link directly to NIC static IP configuration.
+
+### Build and routing improvements
+
+- Improved handling of relative URLs in deployments with a load balancer or reverse proxy
+- Ensured correct root path handling across UI links
+- Updated routing and internal dependency structure
+
 (ref-release-notes-6.7-bugfixes)=
 ## Bug fixes
 
