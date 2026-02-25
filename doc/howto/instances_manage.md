@@ -244,6 +244,9 @@ You can also delete several instances at the same time by selecting them in the 
 This command permanently deletes the instance and all its snapshots.
 ```
 
+To delete an instance whose storage pool is offline or unreachable, pass `--force-storage` to `lxc delete` or add `?force_storage=true` to the DELETE request.
+See {ref}`extension-instance-delete-force-storage` for more information.
+
 ### Prevent accidental deletion of instances
 
 There are different ways to prevent accidental deletion of instances:
