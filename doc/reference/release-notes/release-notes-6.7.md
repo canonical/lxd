@@ -360,7 +360,7 @@ If you are building LXD from source instead of using a package manager, the mini
 - LXD-UI bumped to `0.20`
 - NVIDIA-container and toolkit bumped to `v1.18.2`
 - QEMU bumped to `10.2.1+ds-1ubuntu1`
-- ZFS bumped to `zfs-2.4.0`, `zfs-2.3.5`
+- ZFS bumped to `zfs-2.4.1`, `zfs-2.3.6`
 - virtfs-proxy-helper removed (no longer supported by QEMU 10.2)
 
 (ref-release-notes-6.7-changelog)=
