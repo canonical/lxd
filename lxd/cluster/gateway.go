@@ -71,7 +71,7 @@ func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.Ce
 }
 
 // HeartbeatHook represents a function that can be called as the heartbeat hook.
-type HeartbeatHook func(heartbeatData *APIHeartbeat, isLeader bool, unavailableMembers []string)
+type HeartbeatHook func(heartbeatData *APIHeartbeat, isLeader bool, unavailableMembers []string, mode HeartbeatMode)
 
 // HeartbeatHandler represents a function that can be called when a heartbeat request arrives.
 type HeartbeatHandler func(w http.ResponseWriter, r *http.Request, isLeader bool, hbData *APIHeartbeat)

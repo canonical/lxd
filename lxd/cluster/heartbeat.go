@@ -514,7 +514,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 
 	// If full node state was sent and node refresh task is specified.
 	if g.HeartbeatNodeHook != nil {
-		g.HeartbeatNodeHook(hbState, true, unavailableMembers)
+		g.HeartbeatNodeHook(hbState, true, unavailableMembers, mode)
 	}
 
 	duration := time.Since(startTime)
