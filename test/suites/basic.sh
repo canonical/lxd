@@ -768,8 +768,9 @@ test_basic_usage() {
 
   # Test rebuilding an instance with an empty file system.
   lxc init testimage c1
+  [ "$(lxc config get c1 image.os)" = "Busybox" ]
   lxc rebuild c1 --empty
-  ! lxc config show c1 | grep -F 'image.' || false
+  [ "$(lxc config get c1 image.os || echo fail)" = "" ]
   lxc delete c1
 
   # Test assigning an empty profile (with no root disk device) to an instance.
