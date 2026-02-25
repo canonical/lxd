@@ -347,7 +347,7 @@ migration() {
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote list -c nS l2:
   lxc_remote config show l2:c2/snap0
-  ! lxc_remote config show l2:c2/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z' || false
+  lxc_remote config show l2:c2/snap0 | grep -F 'expires_at: 2'
   [ "$(lxc_remote config device get l2:c2 testdev type)" = "none" ]
   lxc_remote restore l2:c2 snap0
   [ "$(lxc_remote config device get l2:c2 testsnapdev type)" = "none" ]
@@ -607,10 +607,10 @@ migration() {
   # Check snapshot creation dates after migration.
   lxc_remote init testimage l1:c1
   lxc_remote snapshot l1:c1
-  ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
-  ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep '^created_at: 0001-01-01T00:00:00Z' || false
+  lxc_remote storage volume show "l1:${remote_pool1}" container/c1 | grep '^created_at: 2'
+  lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep '^created_at: 2'
   lxc_remote copy l1:c1 l2:c1
-  ! lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
+  lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep '^created_at: 2'
   [ "$(lxc_remote storage volume get --property "l1:${remote_pool1}" container/c1/snap0 created_at)" = "$(lxc_remote storage volume get --property "l2:${remote_pool2}" container/c1/snap0 created_at)" ]
   lxc_remote delete l1:c1 l2:c1
 
