@@ -762,13 +762,15 @@ test_basic_usage() {
 
   # Test rebuilding an instance with a new image.
   lxc init c1 --empty
+  [ "$(lxc config get c1 image.os || echo fail)" = "" ]
   lxc rebuild testimage c1
+  [ "$(lxc config get c1 image.os)" = "BusyBox" ]
   lxc start c1
   lxc delete c1 -f
 
   # Test rebuilding an instance with an empty file system.
   lxc init testimage c1
-  [ "$(lxc config get c1 image.os)" = "Busybox" ]
+  [ "$(lxc config get c1 image.os)" = "BusyBox" ]
   lxc rebuild c1 --empty
   [ "$(lxc config get c1 image.os || echo fail)" = "" ]
   lxc delete c1
