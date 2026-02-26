@@ -120,12 +120,12 @@ func (d *lvm) FillConfig() error {
 
 		// Pick a default size of the loop file if not specified.
 		if d.config["size"] == "" {
-			defaultSize, err := loopFileSizeDefault()
+			size, err := loopFileSizeResolve(defaultSource, shared.IsTrue(d.config["source.recover"]))
 			if err != nil {
 				return err
 			}
 
-			d.config["size"] = strconv.FormatUint(defaultSize, 10) + "GiB"
+			d.config["size"] = size
 		}
 	} else if filepath.IsAbs(d.config["source"]) {
 		if d.config["lvm.vg_name"] == "" {

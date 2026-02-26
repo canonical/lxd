@@ -116,12 +116,12 @@ func (d *btrfs) FillConfig() error {
 	if d.config["source"] == "" || d.config["source"] == loopPath {
 		// Pick a default size of the loop file if not specified.
 		if d.config["size"] == "" {
-			defaultSize, err := loopFileSizeDefault()
+			size, err := loopFileSizeResolve(loopPath, shared.IsTrue(d.config["source.recover"]))
 			if err != nil {
 				return err
 			}
 
-			d.config["size"] = fmt.Sprint(defaultSize, "GiB")
+			d.config["size"] = size
 		}
 	} else {
 		// Unset size property since it's irrelevant.
