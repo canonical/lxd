@@ -388,7 +388,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 		// leader is ourselves, and we were recently elected. In that case
 		// trigger a full heartbeat now: it will be a no-op if we aren't
 		// actually leaders.
-		go g.heartbeat(g.ctx, hearbeatInitial)
+		go g.heartbeat(g.ctx, HeartbeatInitial)
 
 		return conn, nil
 	}
