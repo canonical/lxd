@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -23,6 +24,8 @@ func (c *Config) GenerateClientCertificate() error {
 	if c.HasClientCertificate() {
 		return nil
 	}
+
+	fmt.Fprint(os.Stderr, "Generating a client certificate. This may take a moment...\n")
 
 	certf := c.ConfigPath("client.crt")
 	keyf := c.ConfigPath("client.key")
