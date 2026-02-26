@@ -362,8 +362,9 @@ migration() {
 
   lxc_remote delete -f l1:c1 l2:c2
 
-  remote_pool1="lxdtest-$(basename "${LXD_DIR}")"
-  remote_pool2="lxdtest-$(basename "${lxd2_dir}")"
+  local remote_pool1 remote_pool2
+  remote_pool1="$(lxc_remote profile device get l1:default root pool)"
+  remote_pool2="$(lxc_remote profile device get l2:default root pool)"
 
   lxc_remote storage volume create l1:"$remote_pool1" vol1 size=1MiB
   lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=snap0vol1
