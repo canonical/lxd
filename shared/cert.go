@@ -541,6 +541,8 @@ func GetRemoteCertificate(ctx context.Context, address string, useragent string)
 		return nil, err
 	}
 
+	defer func() { _ = resp.Body.Close() }()
+
 	// Retrieve the certificate
 	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
 		return nil, errors.New("Unable to read remote TLS certificate")
