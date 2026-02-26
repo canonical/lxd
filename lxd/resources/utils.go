@@ -76,9 +76,8 @@ func sysfsNumaNode(path string) (uint64, error) {
 	for _, entry := range entries {
 		entryName := entry.Name()
 
-		if strings.HasPrefix(entryName, "node") && pathExists(filepath.Join(path, entryName, "numastat")) {
-			node := strings.TrimPrefix(entryName, "node")
-
+		node, ok := strings.CutPrefix(entryName, "node")
+		if ok && pathExists(filepath.Join(path, entryName, "numastat")) {
 			nodeNumber, err := strconv.ParseUint(node, 10, 64)
 			if err != nil {
 				return 0, err
