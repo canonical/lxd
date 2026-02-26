@@ -27,7 +27,10 @@ test_fdleak() {
   )
 
   # Check for open handles to liblxc lxc.log files.
-  ! find "/proc/${pid}/fd" -ls | grep lxc.log || false
+  if find "/proc/${pid}/fd" -ls | grep -F lxc.log; then
+    echo "Found open lxc.log file handles"
+    false
+  fi
 
   for i in $(seq 20); do
     afterfds=$(/bin/ls "/proc/${pid}/fd" | wc -l)

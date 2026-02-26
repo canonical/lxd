@@ -778,8 +778,8 @@ user_is_not_server_admin() {
   # Can always see server info (type-bound public access https://openfga.dev/docs/modeling/public-access).
   lxc_remote info "${remote}:" > /dev/null
 
-  # Cannot see any config.
-  ! lxc_remote info "${remote}:" | grep -F 'core.https_address' || false
+  # Cannot get any config.
+  [ "$(lxc_remote config get "${remote}:" core.https_address || echo fail)" = "" ]
 
   # Cannot set any config.
   ! lxc_remote config set "${remote}:" core.proxy_https=https://example.com || false

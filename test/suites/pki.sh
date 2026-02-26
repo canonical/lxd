@@ -79,7 +79,7 @@ EOF
     [ "$(lxc config trust list --format csv | wc -l)" = 2 ]
 
     # The certificate was not restricted, so should be able to view server config
-    lxc_remote info pki-lxd: | grep -F 'core.https_address'
+    [ "$(lxc_remote config get pki-lxd: core.https_address)" != "" ]
     curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"'
 
     # Revoke the client certificate
@@ -128,14 +128,14 @@ EOF
     [ "$(lxc config trust list --format csv | wc -l)" = 2 ]
 
     # The certificate was restricted, so should not be able to view server config
-    ! lxc_remote info pki-lxd: | grep -F 'core.https_address' || false
+    [ "$(lxc_remote config get pki-lxd: core.https_address || echo fail)" = "" ]
     ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
 
     # Enable `core.trust_ca_certificates`.
     lxc config set core.trust_ca_certificates true
 
     # The certificate was restricted, so should not be able to view server config even though `core.trust_ca_certificates` is now enabled.
-    ! lxc_remote info pki-lxd: | grep -F 'core.https_address' || false
+    [ "$(lxc_remote config get pki-lxd: core.https_address || echo fail)" = "" ]
     ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
 
     # Revoke the client certificate
@@ -189,14 +189,14 @@ EOF
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
     # The identity is not a member of any groups, so should not be able to view server config
-    ! lxc_remote info pki-lxd: | grep -F 'core.https_address' || false
+    [ "$(lxc_remote config get pki-lxd: core.https_address || echo fail)" = "" ]
     ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
 
     # Enable `core.trust_ca_certificates`.
     lxc config set core.trust_ca_certificates true
 
     # The identity is not a member of any groups, so should not be able to view server config even though `core.trust_ca_certificates` is now enabled.
-    ! lxc_remote info pki-lxd: | grep -F 'core.https_address' || false
+    [ "$(lxc_remote config get pki-lxd: core.https_address || echo fail)" = "" ]
     ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
 
     # Revoke the client certificate
@@ -251,7 +251,7 @@ EOF
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
     # The certificate is trusted as root because `core.trust_ca_certificates` is enabled.
-    lxc_remote info pki-lxd: | grep -F 'core.https_address'
+    [ "$(lxc_remote config get pki-lxd: core.https_address)" != "" ]
     curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"'
 
     # Unset `core.trust_ca_certificates` (this should work because the certificate is trusted as root as `core.trust_ca_certificates` is still enabled).
@@ -346,7 +346,7 @@ EOF
   LXD_DIR="${LXD5_DIR}" lxc query -X POST "/internal/identity-cache-refresh"
 
   # A server certificate should have root access, so we can see server configuration.
-  lxc_remote info pki-lxd: | grep -F 'core.https_address'
+  [ "$(lxc_remote config get pki-lxd: core.https_address)" != "" ]
   curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"'
 
   # Clean up.

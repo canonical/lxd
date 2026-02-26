@@ -245,11 +245,11 @@ test_storage_local_volume_handling() {
           # copy without snapshots
           lxc storage volume copy "${source_pool}/vol2" "${target_pool}/vol3" --volume-only
           lxc storage volume show "${target_pool}" vol3 | grep -xF 'content_type: block'
-          ! lxc storage volume show "${target_pool}" vol3/snap0 | grep -F 'content_type: block' || false
+          ! lxc storage volume show "${target_pool}" vol3/snap0 || false
 
           # move images
           lxc storage volume move "${source_pool}/vol2" "${target_pool}/vol4"
-          ! lxc storage volume show "${source_pool}" vol2 | grep -F 'content_type: block' || false
+          ! lxc storage volume show "${source_pool}" vol2 || false
           lxc storage volume show "${target_pool}" vol4 | grep -xF 'content_type: block'
           lxc storage volume show "${target_pool}" vol4/snap0 | grep -xF 'content_type: block'
 

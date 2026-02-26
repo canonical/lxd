@@ -41,7 +41,7 @@ test_tls_restrictions() {
 
   # Confirm we cannot view storage pool configuration
   pool_name="$(lxc_remote storage list localhost: --format csv | cut -d, -f1)"
-  ! lxc_remote storage show "localhost:${pool_name}" | grep -F 'source:' || false
+  lxc_remote storage show "localhost:${pool_name}" | yq --exit-status '.config | length == 0'
 
   sub_test "Verify restricted client cannot see other certificates"
   # Add a second (admin) certificate that the restricted client should not be able to see.
@@ -120,8 +120,7 @@ test_tls_restrictions() {
   lxc delete bar --project blah
 
   # Validate restricted view
-  ! lxc_remote project list localhost: | grep -wF default || false
-  lxc_remote project list localhost: | grep -wF blah
+  lxc_remote project list -f json localhost: | jq --exit-status 'map(.name) == ["blah"]'
 
   # Validate that the restricted caller cannot edit or delete the project.
   ! lxc_remote project set localhost:blah user.foo=bar || false

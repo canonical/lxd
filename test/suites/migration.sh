@@ -347,7 +347,7 @@ migration() {
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote list -c nS l2:
   lxc_remote config show l2:c2/snap0
-  ! lxc_remote config show l2:c2/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z' || false
+  lxc_remote config show l2:c2/snap0 | grep -F 'expires_at: 2'
   [ "$(lxc_remote config device get l2:c2 testdev type)" = "none" ]
   lxc_remote restore l2:c2 snap0
   [ "$(lxc_remote config device get l2:c2 testsnapdev type)" = "none" ]
@@ -362,10 +362,21 @@ migration() {
 
   lxc_remote delete -f l1:c1 l2:c2
 
-  remote_pool1="lxdtest-$(basename "${LXD_DIR}")"
-  remote_pool2="lxdtest-$(basename "${lxd2_dir}")"
+  local remote_pool1 remote_pool2
+  remote_pool1="$(lxc_remote profile device get l1:default root pool)"
+  remote_pool2="$(lxc_remote profile device get l2:default root pool)"
 
-  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=1MiB
+  local minimal_size
+  case "$(lxc_remote storage get "l1:${remote_pool1}" volume.block.filesystem)" in
+    btrfs)
+      minimal_size="120MiB";;
+    xfs)
+      minimal_size="300MiB";;
+    *)
+      minimal_size="1MiB";;
+  esac
+
+  lxc_remote storage volume create l1:"$remote_pool1" vol1 size="${minimal_size}"
   lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=snap0vol1
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol1
   lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=snap1vol1
@@ -413,7 +424,7 @@ migration() {
   [ "$(lxc_remote storage volume get l2:"$remote_pool2" vol2/snapremove user.foo)" = "snapremovevol1" ]
 
   # check remote storage volume refresh from a different volume
-  lxc_remote storage volume create l1:"$remote_pool1" vol3 size=1MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol3 size="${minimal_size}"
   lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=snap0vol3
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol3
   lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=snap1vol3
@@ -434,7 +445,7 @@ migration() {
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
 
   # check that a refresh doesn't change the volume's and snapshot's UUID.
-  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=1MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol1 size="${minimal_size}"
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol1
   lxc_remote storage volume copy l1:"$remote_pool1"/vol1 l2:"$remote_pool2"/vol2
   old_uuid="$(lxc storage volume get l2:"$remote_pool2" vol2 volatile.uuid)"
@@ -446,8 +457,8 @@ migration() {
   lxc_remote storage volume delete l1:"$remote_pool1" vol1
 
   # remote storage volume migration in "push" mode
-  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=1MiB
-  lxc_remote storage volume create l1:"$remote_pool1" vol2 size=1MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol1 size="${minimal_size}"
+  lxc_remote storage volume create l1:"$remote_pool1" vol2 size="${minimal_size}"
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol2
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=push
@@ -464,8 +475,8 @@ migration() {
   lxc_remote storage volume delete l2:"$remote_pool2" vol6
 
   # remote storage volume migration in "relay" mode
-  lxc_remote storage volume create l1:"$remote_pool1" vol1 size=1MiB
-  lxc_remote storage volume create l1:"$remote_pool1" vol2 size=1MiB
+  lxc_remote storage volume create l1:"$remote_pool1" vol1 size="${minimal_size}"
+  lxc_remote storage volume create l1:"$remote_pool1" vol2 size="${minimal_size}"
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol2
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=relay
@@ -483,7 +494,7 @@ migration() {
 
   # Test migration when rsync compression is disabled
   lxc_remote storage set l1:"$remote_pool1" rsync.compression false
-  lxc_remote storage volume create l1:"$remote_pool1" foo size=1MiB
+  lxc_remote storage volume create l1:"$remote_pool1" foo size="${minimal_size}"
   lxc_remote storage volume copy l1:"$remote_pool1"/foo l2:"$remote_pool2"/bar
   lxc_remote storage volume delete l1:"$remote_pool1" foo
   lxc_remote storage volume delete l2:"$remote_pool2" bar
@@ -596,10 +607,10 @@ migration() {
   # Check snapshot creation dates after migration.
   lxc_remote init testimage l1:c1
   lxc_remote snapshot l1:c1
-  ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
-  ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep '^created_at: 0001-01-01T00:00:00Z' || false
+  lxc_remote storage volume show "l1:${remote_pool1}" container/c1 | grep '^created_at: 2'
+  lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep '^created_at: 2'
   lxc_remote copy l1:c1 l2:c1
-  ! lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
+  lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep '^created_at: 2'
   [ "$(lxc_remote storage volume get --property "l1:${remote_pool1}" container/c1/snap0 created_at)" = "$(lxc_remote storage volume get --property "l2:${remote_pool2}" container/c1/snap0 created_at)" ]
   lxc_remote delete l1:c1 l2:c1
 
