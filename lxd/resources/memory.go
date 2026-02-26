@@ -170,7 +170,6 @@ func getTotalMemory(sysDevicesBase string) uint64 {
 	var count uint64
 	for _, entry := range entries {
 		entryName := entry.Name()
-		entryPath := filepath.Join(sysDevicesBase, entryName)
 
 		// Ignore directories not starting with "memory"
 		if !strings.HasPrefix(entryName, "memory") {
@@ -178,7 +177,7 @@ func getTotalMemory(sysDevicesBase string) uint64 {
 		}
 
 		// Ignore invalid entries.
-		onlinePath := filepath.Join(entryPath, "online")
+		onlinePath := filepath.Join(sysDevicesBase, entryName, "online")
 		if !pathExists(onlinePath) {
 			continue
 		}
