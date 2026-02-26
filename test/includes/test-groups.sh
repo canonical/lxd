@@ -83,6 +83,7 @@ readonly test_group_instance=(
 
 readonly test_group_image=(
     "image_acl"
+    "image_architectures"
     "image_auto_update"
     "image_expiry"
     "image_import_dir"
