@@ -349,7 +349,7 @@ However the read-only config drive used to bootstrap the lxd-agent inside the gu
 
 ## Updated minimum Go version
 
-If you are building LXD from source instead of using a package manager, the minimum version of Go required to build LXD is now 1.25.6.
+If you are building LXD from source instead of using a package manager, the minimum version of Go required to build LXD is now 1.25.7.
 
 ## Snap packaging changes
 
