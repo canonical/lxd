@@ -2,6 +2,7 @@ package resources
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -176,14 +177,13 @@ func getTotalMemory(sysDevicesBase string) uint64 {
 			continue
 		}
 
-		// Ignore invalid entries.
 		onlinePath := filepath.Join(sysDevicesBase, entryName, "online")
-		if !pathExists(onlinePath) {
-			continue
-		}
-
 		content, err := os.ReadFile(onlinePath)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+
 			return 0
 		}
 
