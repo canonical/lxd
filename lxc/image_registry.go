@@ -35,6 +35,10 @@ func (c *cmdImageRegistry) command() *cobra.Command {
 	imageRegistryRenameCmd := cmdImageRegistryRename{global: c.global, image: c.image}
 	cmd.AddCommand(imageRegistryRenameCmd.command())
 
+	// Delete
+	imageRegistryDeleteCmd := cmdImageRegistryDelete{global: c.global, image: c.image}
+	cmd.AddCommand(imageRegistryDeleteCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -254,6 +258,64 @@ func (c *cmdImageRegistryRename) run(cmd *cobra.Command, args []string) error {
 
 	if !c.global.flagQuiet {
 		fmt.Printf("Image registry %s renamed to %s\n", resource.name, args[1])
+	}
+
+	return nil
+}
+
+// Delete.
+type cmdImageRegistryDelete struct {
+	global *cmdGlobal
+	image  *cmdImage
+}
+
+func (c *cmdImageRegistryDelete) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", "[<remote>:]<registry>")
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = "Delete image registry"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryDelete) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// Delete the image registry.
+	err = resource.server.DeleteImageRegistry(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Image registry %s deleted\n", resource.name)
 	}
 
 	return nil
