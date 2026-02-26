@@ -31,6 +31,10 @@ func (c *cmdImageRegistry) command() *cobra.Command {
 	imageRegistryListCmd := cmdImageRegistryList{global: c.global, imageRegistry: c}
 	cmd.AddCommand(imageRegistryListCmd.command())
 
+	// Rename
+	imageRegistryRenameCmd := cmdImageRegistryRename{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryRenameCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -209,4 +213,62 @@ func (c *cmdImageRegistryList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, imageRegistries)
+}
+
+// Rename.
+type cmdImageRegistryRename struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+}
+
+func (c *cmdImageRegistryRename) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("rename", "[<remote>:]<registry> <new_name>")
+	cmd.Aliases = []string{"mv"}
+	cmd.Short = "Rename image registry"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryRename) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// Rename the image registry.
+	err = resource.server.RenameImageRegistry(resource.name, api.ImageRegistryPost{Name: args[1]})
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Image registry %s renamed to %s\n", resource.name, args[1])
+	}
+
+	return nil
 }
