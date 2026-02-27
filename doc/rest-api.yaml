@@ -4387,7 +4387,7 @@ definitions:
                 type: string
                 x-go-name: Description
             err:
-                description: Operation error mesage
+                description: Operation error message
                 example: Some error message
                 type: string
                 x-go-name: Err
@@ -4431,7 +4431,7 @@ definitions:
                     items:
                         type: string
                     type: array
-                description: Affected resourcs
+                description: Affected resources
                 example:
                     containers:
                         - /1.0/containers/foo
@@ -4452,6 +4452,99 @@ definitions:
                 format: date-time
                 type: string
                 x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    OperationFull:
+        properties:
+            children:
+                description: Children is a list of child operations, if any exist.
+                items:
+                    $ref: '#/definitions/Operation'
+                type: array
+                x-go-name: Children
+            class:
+                description: Type of operation (task, token or websocket)
+                example: websocket
+                type: string
+                x-go-name: Class
+            created_at:
+                description: Operation creation time
+                example: "2021-03-23T17:38:37.753398689-04:00"
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            description:
+                description: Description of the operation
+                example: Executing command
+                type: string
+                x-go-name: Description
+            err:
+                description: Operation error message
+                example: Some error message
+                type: string
+                x-go-name: Err
+            id:
+                description: UUID of the operation
+                example: 6916c8a6-9b7d-4abd-90b3-aedfec7ec7da
+                type: string
+                x-go-name: ID
+            location:
+                description: Which cluster member this record was found on
+                example: lxd01
+                type: string
+                x-go-name: Location
+            may_cancel:
+                description: Whether the operation can be canceled
+                example: false
+                type: boolean
+                x-go-name: MayCancel
+            metadata:
+                additionalProperties: {}
+                description: Operation specific metadata
+                example:
+                    command:
+                        - bash
+                    environment:
+                        HOME: /root
+                        LANG: C.UTF-8
+                        PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+                        TERM: xterm
+                        USER: root
+                    fds:
+                        "0": da3046cf02c0116febf4ef3fe4eaecdf308e720c05e5a9c730ce1a6f15417f66
+                        "1": 05896879d8692607bd6e4a09475667da3b5f6714418ab0ee0e5720b4c57f754b
+                    interactive: true
+                type: object
+                x-go-name: Metadata
+            requestor:
+                $ref: '#/definitions/OperationRequestor'
+            resources:
+                additionalProperties:
+                    items:
+                        type: string
+                    type: array
+                description: Affected resources
+                example:
+                    containers:
+                        - /1.0/containers/foo
+                    instances:
+                        - /1.0/instances/foo
+                type: object
+                x-go-name: Resources
+            status:
+                description: Status name
+                example: Running
+                type: string
+                x-go-name: Status
+            status_code:
+                $ref: '#/definitions/StatusCode'
+            updated_at:
+                description: Operation last change
+                example: "2021-03-23T17:38:37.753398689-04:00"
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+        title: OperationFull is an Operation with its child operations.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     OperationRequestor:
