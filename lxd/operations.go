@@ -30,6 +30,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 var operationCmd = APIEndpoint{
@@ -501,7 +502,10 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed checking caller access to server operations: %w", err))
 	}
 
-	ops := make([]api.Operation, 0)
+	recursion, _ := util.IsRecursionRequest(r)
+
+	// Map of parent operations keyed by the operation ID.
+	parentOps := make(map[int64]*operations.Operation)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projects, err := dbCluster.GetProjectIDsToNames(ctx, tx.Tx())
 		if err != nil {
@@ -523,27 +527,23 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		// Load all operations.
-		dbOps, err := dbCluster.GetOperations(ctx, tx.Tx())
+		// Load the operations.
+		var dbOps []dbCluster.Operation
+		if recursion < 2 {
+			dbOps, err = dbCluster.GetParentOperations(ctx, tx.Tx())
+		} else {
+			dbOps, err = dbCluster.GetOperations(ctx, tx.Tx())
+		}
+
 		if err != nil {
 			return fmt.Errorf("Failed getting operations: %w", err)
 		}
 
-		// Load cluster members.
-		members, err := tx.GetNodes(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed getting cluster members: %w", err)
-		}
-
-		// Create a map of member ID to member info for easy lookup later.
-		membersByID := make(map[int64]*db.NodeInfo)
-		for _, member := range members {
-			membersByID[member.ID] = &member
-		}
-
+		// Map of child operations keyed by their parent operation ID.
+		childOps := make(map[int64][]*operations.Operation)
 		for _, dbOp := range dbOps {
-			// Omit child operations.
-			if dbOp.Parent != nil {
+			// Omit child operations if not requested.
+			if dbOp.Parent != nil && recursion < 2 {
 				continue
 			}
 
@@ -577,17 +577,29 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			_, apiOp := op.RenderWithoutProgress()
+			// If this is a child operations, add it to the list keyed by parent DB ID.
+			// We'll match these to actual parents later.
+			if dbOp.Parent != nil {
+				_, ok := childOps[*dbOp.Parent]
+				if !ok {
+					childOps[*dbOp.Parent] = make([]*operations.Operation, 0)
+				}
 
-			// The [operations.Operation] doesn't contain the node where the operation is running.
-			// Since we're loading operations from the DB, we need to set the location here.
-			apiOp.Location = ""
-			member, ok := membersByID[dbOp.NodeID]
-			if ok {
-				apiOp.Location = member.Name
+				childOps[*dbOp.Parent] = append(childOps[*dbOp.Parent], op)
+			} else {
+				parentOps[dbOp.ID] = op
+			}
+		}
+
+		// Now add the child operations to their parents.
+		for parentID, children := range childOps {
+			parentOp, ok := parentOps[parentID]
+			if !ok {
+				logger.Warn("Failed finding parent operation for child operations, skipping children", logger.Ctx{"parentID": parentID})
+				continue
 			}
 
-			ops = append(ops, *apiOp)
+			parentOp.AddChildren(children...)
 		}
 
 		return nil
@@ -596,26 +608,36 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recursion, _ := util.IsRecursionRequest(r)
+	// Render the operations.
+	apiOps := make([]*api.OperationFull, 0, len(parentOps))
+	for _, op := range parentOps {
+		_, apiOp := op.RenderFullWithoutProgress()
+		apiOps = append(apiOps, apiOp)
+	}
+
+	// Sort operations by UUID. Since we use UUIDv7, this will also sort operations by creation time.
+	slices.SortFunc(apiOps, func(a, b *api.OperationFull) int {
+		return strings.Compare(a.ID, b.ID)
+	})
 
 	// Sort all operations per status.
 	md := map[string]any{}
-	for _, op := range ops {
-		status := strings.ToLower(op.Status)
+	for _, apiOp := range apiOps {
+		status := strings.ToLower(apiOp.Status)
 
 		_, ok := md[status]
 		if !ok {
-			if recursion > 0 {
-				md[status] = make([]*api.Operation, 0)
-			} else {
+			if recursion == 0 {
 				md[status] = make([]string, 0)
+			} else {
+				md[status] = make([]*api.OperationFull, 0)
 			}
 		}
 
-		if recursion > 0 {
-			md[status] = append(md[status].([]*api.Operation), &op)
+		if recursion == 0 {
+			md[status] = append(md[status].([]string), api.NewURL().Path(version.APIVersion, "operations", apiOp.ID).String())
 		} else {
-			md[status] = append(md[status].([]string), "/1.0/operations/"+op.ID)
+			md[status] = append(md[status].([]*api.OperationFull), apiOp)
 		}
 	}
 
