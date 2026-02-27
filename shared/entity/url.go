@@ -120,11 +120,12 @@ func ParseURL(u url.URL) (entityType Type, projectName string, location string, 
 		path = u.RawPath
 	}
 
-	if !strings.HasPrefix(path, "/"+version.APIVersion+"/") {
+	pathSuffix, found := strings.CutPrefix(path, "/"+version.APIVersion+"/")
+	if !found {
 		return "", "", "", nil, fmt.Errorf("URL %q does not contain LXD API version", u.String())
 	}
 
-	pathParts := strings.Split(strings.TrimPrefix(path, "/"+version.APIVersion+"/"), "/")
+	pathParts := strings.Split(pathSuffix, "/")
 	var entityTypeImpl typeInfo
 entityTypeLoop:
 	for t, info := range entityTypes {
