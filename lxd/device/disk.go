@@ -2104,7 +2104,6 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Figure out the paths
-	relativeDestPath := strings.TrimPrefix(d.config["path"], "/")
 	devPath := d.getDevicePath(d.name, d.config)
 
 	// The disk device doesn't exist do nothing.
@@ -2113,6 +2112,7 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Request an unmount of the device inside the instance.
+	relativeDestPath := strings.TrimPrefix(d.config["path"], "/")
 	runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
 		TargetPath: relativeDestPath,
 	})
