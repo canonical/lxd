@@ -94,11 +94,7 @@ func (d *disk) CanMigrate() bool {
 	}
 
 	// Remote disks are migratable.
-	if d.pool.Driver().Info().Remote {
-		return true
-	}
-
-	return false
+	return d.pool.Driver().Info().Remote
 }
 
 // sourceIsCephFs returns true if the disks source config setting is a CephFS share.
