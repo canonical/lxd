@@ -93,8 +93,11 @@ func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
+	tsig := r.IsTsig()
+	tsigOK := w.TsigStatus() == nil
+
 	// Check access.
-	if !d.isAllowed(zone.Info, ip, r.IsTsig(), w.TsigStatus() == nil) {
+	if !d.isAllowed(zone.Info, ip, tsig, tsigOK) {
 		// On auth failure, return NXDOMAIN to avoid information leaks.
 		m := new(dns.Msg)
 		m.SetRcode(r, dns.RcodeNameError)
@@ -130,8 +133,7 @@ func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		m.Answer = append(m.Answer, rr)
 	}
 
-	tsig := r.IsTsig()
-	if tsig != nil && w.TsigStatus() == nil {
+	if tsig != nil && tsigOK {
 		m.SetTsig(tsig.Hdr.Name, tsig.Algorithm, 300, time.Now().Unix())
 	}
 
