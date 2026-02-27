@@ -651,10 +651,9 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 		}
 
 		return &request.RequestorArgs{
-			Trusted:                true,
-			Username:               result.Email,
-			Protocol:               api.AuthenticationMethodOIDC,
-			IdentityProviderGroups: result.IdentityProviderGroups,
+			Trusted:  true,
+			Username: result.Email,
+			Protocol: api.AuthenticationMethodOIDC,
 		}, nil
 	}
 
