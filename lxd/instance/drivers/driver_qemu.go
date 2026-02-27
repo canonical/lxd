@@ -1617,7 +1617,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		// to the VM. In order to ensure that non-root users in the VM cannot access these
 		// files be sure to mount the 9P share in the VM with the "access=0" option to allow
 		// only root user in VM to access the mounted share.
-		err := filepath.Walk(filepath.Join(d.Path(), "config"),
+		err := filepath.Walk(configSrcPath,
 			func(path string, _ os.FileInfo, err error) error {
 				if err != nil {
 					return err
