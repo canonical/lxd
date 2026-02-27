@@ -2572,7 +2572,6 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		return err
 	}
 
-	deviceID := qemuDeviceIDPrefix + filesystem.PathNameEncode(deviceName)
 	blockDevName := qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
 
 	err = monitor.RemoveFDFromFDSet(blockDevName)
@@ -2580,6 +2579,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		return err
 	}
 
+	deviceID := qemuDeviceIDPrefix + filesystem.PathNameEncode(deviceName)
 	err = monitor.RemoveDevice(deviceID)
 	if err != nil {
 		return err
