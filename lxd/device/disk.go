@@ -1481,13 +1481,14 @@ func (d *disk) applyDeferredQuota() error {
 // applyQuota attempts to resize the instance root disk to the specified size.
 // If remount is true, attempts to unmount first before resizing and then mounts again afterwards.
 func (d *disk) applyQuota(remount bool) error {
-	rootDisk, _, err := api.GetRootDiskDevice(d.inst.ExpandedDevices().CloneNative())
+	expandedDevices := d.inst.ExpandedDevices()
+	rootDisk, _, err := api.GetRootDiskDevice(expandedDevices.CloneNative())
 	if err != nil {
 		return fmt.Errorf("Detect root disk device: %w", err)
 	}
 
-	newSize := d.inst.ExpandedDevices()[rootDisk]["size"]
-	newMigrationSize := d.inst.ExpandedDevices()[rootDisk]["size.state"]
+	newSize := expandedDevices[rootDisk]["size"]
+	newMigrationSize := expandedDevices[rootDisk]["size.state"]
 
 	pool, err := storagePools.LoadByInstance(d.state, d.inst)
 	if err != nil {
