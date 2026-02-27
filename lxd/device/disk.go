@@ -1528,6 +1528,7 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	for _, dev := range d.inst.ExpandedDevices().Filter(filters.IsDisk) {
 		if dev["limits.read"] != "" || dev["limits.write"] != "" || dev["limits.max"] != "" {
 			hasDiskLimits = true
+			break
 		}
 	}
 
