@@ -110,11 +110,10 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 // and shouldn't be done in generic way.
 func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) error {
 	for k := range d.config {
-		if !strings.HasPrefix(k, "volume.") {
+		volKey, found := strings.CutPrefix(k, "volume.")
+		if !found {
 			continue
 		}
-
-		volKey := strings.TrimPrefix(k, "volume.")
 
 		isExcluded := slices.Contains(excludedKeys, volKey)
 
