@@ -261,8 +261,8 @@ func IsRecursionRequest(r *http.Request) (int, []string) {
 	if found {
 		recursionStr = before
 
-		if strings.HasPrefix(after, "fields=") {
-			fieldsStr := strings.TrimPrefix(after, "fields=")
+		fieldsStr, found := strings.CutPrefix(after, "fields=")
+		if found {
 			if fieldsStr != "" {
 				fields = strings.Split(fieldsStr, ",")
 			} else {
