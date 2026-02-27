@@ -103,6 +103,7 @@ const (
 	InstanceStateUpdateBulk
 	VolumeSnapshotTransfer
 	ProjectDelete
+	Wait
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -269,6 +270,9 @@ func (t Type) Description() string {
 		return "Transferring volume snapshot"
 	case ProjectDelete:
 		return "Deleting project"
+	// Wait is just a testing operation spawned by the testing/operation-wait API endpoint
+	case Wait:
+		return "Just chilling"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -306,7 +310,8 @@ func (t Type) EntityType() entity.Type {
 	// Instance operations.
 	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
 		InstanceStart, InstanceStop, InstanceRestart, InstanceRename, InstanceMigrate, InstanceLiveMigrate,
-		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate, InstanceCopy:
+		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate, InstanceCopy,
+		Wait:
 		return entity.TypeInstance
 
 	// Instance backup operations.
@@ -334,4 +339,24 @@ func (t Type) EntityType() entity.Type {
 	default:
 		return ""
 	}
+}
+
+// ConflictAction returns the action to take if a conflicting operation is already running.
+type ConflictAction int
+
+const (
+	// ConflictActionNone means operation has no conflicts, all operations of this type can run concurrently.
+	ConflictActionNone ConflictAction = iota
+	// ConflictActionFail asks to resolve conflicts by failing to create a new operation if a conflicting operation is already running.
+	ConflictActionFail
+)
+
+// ConflictAction returns the action to take if a conflicting operation is already running.
+func (t Type) ConflictAction() ConflictAction {
+	switch t {
+	case Wait:
+		return ConflictActionFail
+	}
+
+	return ConflictActionNone
 }

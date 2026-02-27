@@ -6,9 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -18,14 +20,20 @@ func registerDBOperation(op *Operation) error {
 	}
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Conflict reference should only be provided for operation types that support conflicts.
+		if op.dbOpType.ConflictAction() == operationtype.ConflictActionNone && op.conflictReference != "" {
+			return fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())
+		}
+
 		opInfo := cluster.Operation{
-			UUID:      op.id,
-			Type:      op.dbOpType,
-			NodeID:    tx.GetNodeID(),
-			Class:     (int64)(op.class),
-			CreatedAt: op.createdAt,
-			UpdatedAt: op.updatedAt,
-			Status:    int64(op.Status()),
+			UUID:              op.id,
+			Type:              op.dbOpType,
+			NodeID:            tx.GetNodeID(),
+			Class:             (int64)(op.class),
+			CreatedAt:         op.createdAt,
+			UpdatedAt:         op.updatedAt,
+			Status:            int64(op.Status()),
+			ConflictReference: op.conflictReference,
 		}
 
 		if op.projectName != "" {
@@ -82,6 +90,13 @@ func registerDBOperation(op *Operation) error {
 
 		dbOpID, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
 		if err != nil {
+			// The operations table has unique index on uuid, and confiditional unique index on conflict_reference.
+			// Conflict on generated uuid is higly unlikely, so conflicts will most likely happen due to conflict on conflict_reference.
+			// If that is the case, we return a more specific error message.
+			if op.conflictReference != "" && api.StatusErrorCheck(err, http.StatusConflict) {
+				return api.NewStatusError(http.StatusConflict, "An operation with this conflict reference is already running")
+			}
+
 			return err
 		}
 

@@ -118,6 +118,9 @@ type Operation struct {
 	// Inputs for the operation, which are stored in the database.
 	inputs map[string]any
 
+	// Operations which conflict with each other share the same conflict reference.
+	conflictReference string
+
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
@@ -146,6 +149,9 @@ type OperationArgs struct {
 	requestor       *request.Requestor
 	metricsCallback func(result metrics.RequestResult)
 	Inputs          map[string]any
+	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
+	// Empty ConflictReference means the operation can be started anytime.
+	ConflictReference string
 }
 
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
@@ -229,7 +235,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op.class = args.Class
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
-	op.status = api.OperationCreated
+	op.status = api.Running
 	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
 	op.entityURL = args.EntityURL
 	op.resources = args.Resources
@@ -240,6 +246,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op.metricsCallback = args.metricsCallback
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 	op.inputs = args.Inputs
+	op.conflictReference = args.ConflictReference
 
 	if s != nil {
 		op.SetEventServer(s.Events)
@@ -400,23 +407,12 @@ func updateStatus(op *Operation, newStatus api.StatusCode) {
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
 	op.lock.Lock()
-	if op.status != api.OperationCreated {
-		op.lock.Unlock()
-		return errors.New("Only pending operations can be started")
-	}
-
-	runCtx := context.Context(op.running)
-	err := op.updateStatus(runCtx, api.Running)
-	if err != nil {
-		op.lock.Unlock()
-		return fmt.Errorf("Failed updating Operation %q (%q) status: %w", op.id, op.description, err)
-	}
-
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
 		// The requestor is available directly on the operation, but we should still put it in the context.
 		// This is so that, if an operation queries another cluster member, the requestor information will be set
 		// in the request headers.
+		runCtx := context.Context(op.running)
 		if op.requestor != nil {
 			runCtx = request.WithRequestor(runCtx, op.requestor)
 		}
