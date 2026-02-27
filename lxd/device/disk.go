@@ -2278,10 +2278,10 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 				blockStr = block
 			} else {
 				// Attempt to deal with a partition (guess its parent)
-				fields := strings.SplitN(block, ":", 2)
-				fields[1] = "0"
-				if slices.Contains(validBlocks, fields[0]+":"+fields[1]) {
-					blockStr = fields[0] + ":" + fields[1]
+				major, _, _ := strings.Cut(block, ":")
+				parent := major + ":0"
+				if slices.Contains(validBlocks, parent) {
+					blockStr = parent
 				}
 			}
 
