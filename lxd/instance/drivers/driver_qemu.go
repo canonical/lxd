@@ -2015,10 +2015,6 @@ func (d *qemu) advertiseVsockAddress() error {
 // AgentCertificate returns the server certificate of the lxd-agent.
 func (d *qemu) AgentCertificate() *x509.Certificate {
 	agentCert := filepath.Join(d.Path(), "config", "agent.crt")
-	if !shared.PathExists(agentCert) {
-		return nil
-	}
-
 	cert, err := shared.ReadCert(agentCert)
 	if err != nil {
 		return nil
