@@ -1817,11 +1817,9 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 	}
 
 	// Create the devices directory if missing.
-	if !shared.PathExists(d.inst.DevicesPath()) {
-		err := os.Mkdir(d.inst.DevicesPath(), 0711)
-		if err != nil {
-			return nil, "", false, err
-		}
+	err := os.Mkdir(d.inst.DevicesPath(), 0711)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return nil, "", false, err
 	}
 
 	// Clean any existing entry.
@@ -1852,7 +1850,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 	}
 
 	// Mount the fs.
-	err := DiskMount(srcPath, devPath, isRecursive, d.config["propagation"], mntOptions, fsName)
+	err = DiskMount(srcPath, devPath, isRecursive, d.config["propagation"], mntOptions, fsName)
 	if err != nil {
 		return nil, "", false, err
 	}
