@@ -2217,7 +2217,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 	}
 
 	for _, f := range dents {
-		fPath := filepath.Join("/sys/class/block/", f.Name())
+		fPath := "/sys/class/block/" + f.Name()
 		if shared.PathExists(fPath + "/partition") {
 			continue
 		}
