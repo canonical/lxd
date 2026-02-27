@@ -223,8 +223,8 @@ func (r *Requestor) IsForwarded() bool {
 	return r.forwardedOriginAddress != ""
 }
 
-// ForwardProxy returns a proxy function that adds the requestor details as headers to be inspected by the receiving cluster member.
-func (r *Requestor) ForwardProxy() func(req *http.Request) (*url.URL, error) {
+// RequestorForwardProxy returns a proxy function that adds the requestor details as headers to be inspected by the receiving cluster member.
+func RequestorForwardProxy(r RequestorAuditor) func(req *http.Request) (*url.URL, error) {
 	return func(req *http.Request) (*url.URL, error) {
 		req.Header.Add(headerForwardedAddress, r.OriginAddress())
 
