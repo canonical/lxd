@@ -534,8 +534,12 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 		// Check for existing running processes tied to the GPU.
 		// Failing early here in case of attached running processes to the card
 		// avoids a blocking call to os.WriteFile() when unbinding the device.
-		if gpu.Nvidia != nil && gpu.Nvidia.CardName != "" && shared.PathExists(filepath.Join("/dev", gpu.Nvidia.CardName)) {
+		if gpu.Nvidia != nil && gpu.Nvidia.CardName != "" {
 			devPath := filepath.Join("/dev", gpu.Nvidia.CardName)
+			if !shared.PathExists(devPath) {
+				continue
+			}
+
 			runningProcs, err := checkAttachedRunningProcesses(devPath)
 			if err != nil {
 				return nil, err
@@ -567,8 +571,7 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Get PCI information about the GPU device.
-	devicePath := filepath.Join("/sys/bus/pci/devices", pciAddress)
-	pciDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
+	pciDev, err := pcidev.ParseUeventFile(filepath.Join("/sys/bus/pci/devices", pciAddress, "uevent"))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get PCI device info for GPU %q: %w", pciAddress, err)
 	}
