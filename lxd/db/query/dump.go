@@ -81,8 +81,9 @@ func getEntitiesSchemas(ctx context.Context, tx *sql.Tx) (map[string][2]string, 
 		}
 
 		// This is based on logic from dump_callback in sqlite source for sqlite3_db_dump function.
-		if strings.HasPrefix(schema, `CREATE TABLE "`) {
-			schema = strings.Replace(schema, "CREATE TABLE", "CREATE TABLE IF NOT EXISTS", 1)
+		suffix, found := strings.CutPrefix(schema, `CREATE TABLE "`)
+		if found {
+			schema = `CREATE TABLE IF NOT EXISTS "` + suffix
 		}
 
 		names = append(names, name)
