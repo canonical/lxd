@@ -491,10 +491,11 @@ func (d *qemu) unmount() error {
 
 // generateAgentCert creates the necessary server key and certificate if needed.
 func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCert string, clientKey string, err error) {
-	agentCertFile := filepath.Join(d.Path(), "agent.crt")
-	agentKeyFile := filepath.Join(d.Path(), "agent.key")
-	clientCertFile := filepath.Join(d.Path(), "agent-client.crt")
-	clientKeyFile := filepath.Join(d.Path(), "agent-client.key")
+	instancePath := d.Path()
+	agentCertFile := filepath.Join(instancePath, "agent.crt")
+	agentKeyFile := filepath.Join(instancePath, "agent.key")
+	clientCertFile := filepath.Join(instancePath, "agent-client.crt")
+	clientKeyFile := filepath.Join(instancePath, "agent-client.key")
 
 	// Create server certificate.
 	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, false, shared.CertOptions{})
