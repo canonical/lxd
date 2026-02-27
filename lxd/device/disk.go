@@ -412,16 +412,15 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
-	if instConf.Type() == instancetype.Container && d.config["io.threads"] != "" {
-		return errors.New("IO threads configuration cannot be applied to containers")
-	}
-
-	if instConf.Type() == instancetype.Container && d.config["io.bus"] != "" {
-		return errors.New("IO bus configuration cannot be applied to containers")
-	}
-
-	if instConf.Type() == instancetype.Container && d.config["io.cache"] != "" {
-		return errors.New("IO cache configuration cannot be applied to containers")
+	if instConf.Type() == instancetype.Container {
+		switch {
+		case d.config["io.threads"] != "":
+			return errors.New("IO threads configuration cannot be applied to containers")
+		case d.config["io.bus"] != "":
+			return errors.New("IO bus configuration cannot be applied to containers")
+		case d.config["io.cache"] != "":
+			return errors.New("IO cache configuration cannot be applied to containers")
+		}
 	}
 
 	if d.config["required"] != "" && d.config["optional"] != "" {
