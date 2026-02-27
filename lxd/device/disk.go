@@ -2222,12 +2222,12 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 			continue
 		}
 
-		if !shared.PathExists(fPath + "/dev") {
-			continue
-		}
-
 		block, err := os.ReadFile(fPath + "/dev")
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+
 			return nil, err
 		}
 
