@@ -392,6 +392,6 @@ func GetRequestor(ctx context.Context) (*Requestor, error) {
 
 // WithRequestor is used to set the requestor in the given context.
 // This is used by operations to set the requestor in the context of an async task.
-func WithRequestor(ctx context.Context, requestor *Requestor) context.Context {
+func WithRequestor(ctx context.Context, requestor RequestorAuditor) context.Context {
 	return context.WithValue(ctx, ctxRequestor, requestor)
 }
