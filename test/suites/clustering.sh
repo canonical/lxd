@@ -1558,6 +1558,7 @@ test_clustering_publish() {
   sleep 2
 
   # Init a container on node2, using a client connected to node1
+  sub_test "Test image publishing from instance and snapshot"
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage foo
 
@@ -1568,6 +1569,25 @@ test_clustering_publish() {
   LXD_DIR="${LXD_TWO_DIR}" lxc snapshot foo backup
   LXD_DIR="${LXD_ONE_DIR}" lxc publish foo/backup --alias=foo-backup-image
   LXD_DIR="${LXD_ONE_DIR}" lxc image show foo-backup-image | grep -F "public: false"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete foo-backup-image
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete foo --force
+
+  sub_test "Test image publishing in project with disabled image feature"
+  project="img-publish-test"
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create "${project}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set "${project}" features.images=false
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set "${project}" features.storage.volumes=false
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set "${project}" features.profiles=false
+
+  # Create and publish instance as an image in that project.
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage foo --project "${project}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc publish foo --project "${project}" --alias foo-image
+
+  # Cleanup
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete foo-image --project "${project}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete foo --force --project "${project}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete "${project}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
