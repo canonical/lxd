@@ -73,7 +73,7 @@ type Requestor struct {
 // cluster node that is notifying us of some user-initiated API request that
 // needs some action to be taken on this node as well.
 func (r *Requestor) IsClusterNotification() bool {
-	return r.ClientType() == ClientTypeNotifier
+	return r.ClientType().IsClusterNotification()
 }
 
 // IsTrusted returns true if the caller is authenticated and false otherwise.
