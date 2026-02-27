@@ -1673,7 +1673,8 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Setup background process.
-	p, err := subprocess.NewProcess(d.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...), d.EarlyLogFilePath(), d.EarlyLogFilePath())
+	earlyLogFilePath := d.EarlyLogFilePath()
+	p, err := subprocess.NewProcess(d.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...), earlyLogFilePath, earlyLogFilePath)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1706,7 +1707,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	_, err = p.Wait(context.Background())
 	if err != nil {
-		stderr, _ := os.ReadFile(d.EarlyLogFilePath())
+		stderr, _ := os.ReadFile(earlyLogFilePath)
 		err = fmt.Errorf("Failed to run: %s: %s: %w", strings.Join(p.Args, " "), string(stderr), err)
 		op.Done(err)
 		return err
