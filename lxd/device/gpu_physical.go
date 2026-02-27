@@ -618,25 +618,21 @@ func (d *gpuPhysical) pciDeviceDriverOverrideIOMMU(pciDev pcidev.Device, driverO
 			}
 
 			iommuSlotName := filepath.Base(path) // Virtual function's address is dir name.
-			if strings.HasPrefix(iommuSlotName, prefix) {
-				iommuPciDev := pcidev.Device{
-					Driver:   pciDev.Driver,
-					SlotName: iommuSlotName,
-				}
-
-				if iommuSlotName != pciDev.SlotName && restore {
-					// We don't know the original driver for VFs, so just remove override.
-					err = pcidev.DeviceDriverOverride(iommuPciDev, "")
-				} else {
-					err = pcidev.DeviceDriverOverride(iommuPciDev, driverOverride)
-				}
-
-				if err != nil {
-					return err
-				}
+			if !strings.HasPrefix(iommuSlotName, prefix) {
+				return nil
 			}
 
-			return nil
+			iommuPciDev := pcidev.Device{
+				Driver:   pciDev.Driver,
+				SlotName: iommuSlotName,
+			}
+
+			if iommuSlotName != pciDev.SlotName && restore {
+				// We don't know the original driver for VFs, so just remove override.
+				return pcidev.DeviceDriverOverride(iommuPciDev, "")
+			}
+
+			return pcidev.DeviceDriverOverride(iommuPciDev, driverOverride)
 		})
 		if err != nil {
 			return err
