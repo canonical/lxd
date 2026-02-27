@@ -143,11 +143,12 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 
 	hooksFilePath := d.generateCDIHooksFilePath()
 	deviceConfigFilePath := d.generateCDIConfigDevicesFilePath()
+	devicesPath := d.inst.DevicesPath()
 
 	// Check if there are any remaining CDI devices in the instance devices directory.
 	// If there are, we need to remove them. These can be present in the case where the device stop hook was not called
 	// (e.g. due to an abrupt host shutdown).
-	err := filepath.WalkDir(d.inst.DevicesPath(), func(path string, e fs.DirEntry, _ error) error {
+	err := filepath.WalkDir(devicesPath, func(path string, e fs.DirEntry, _ error) error {
 		if e.IsDir() {
 			return nil
 		}
@@ -200,15 +201,15 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		// Here putting a `cdi.CDIUnixPrefix` prefix with 'd.name' as a device name will create an directory entry like:
 		// <lxd_var_path>/devices/<instance_name>/<cdi.CDIUnixPrefix>.<gpu_device_name>.<path_encoded_relative_dest_path>
 		// 'unixDeviceSetupCharNum' is already checking for dupe entries so we have no validation to do here.
-		err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), cdi.CDIUnixPrefix, d.name, conf, uint32(major), uint32(minor), conf["path"], false, runConf)
+		err = unixDeviceSetupCharNum(d.state, devicesPath, cdi.CDIUnixPrefix, d.name, conf, uint32(major), uint32(minor), conf["path"], false, runConf)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Create the devices directory if missing.
-	if !shared.PathExists(d.inst.DevicesPath()) {
-		err := os.Mkdir(d.inst.DevicesPath(), 0711)
+	if !shared.PathExists(devicesPath) {
+		err := os.Mkdir(devicesPath, 0711)
 		if err != nil {
 			return err
 		}
@@ -227,7 +228,7 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		// Multiple CDI GPU devices can require the same runtime files (e.g. /run/nvidia-persistenced/socket).
 		// Only create one mount entry per target path to avoid duplicate lxc.mount.entry conflicts.
 		duplicate := false
-		dents, err := os.ReadDir(d.inst.DevicesPath())
+		dents, err := os.ReadDir(devicesPath)
 		if err == nil {
 			for _, e := range dents {
 				decoded := filesystem.PathNameDecode(e.Name())
@@ -245,7 +246,7 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		// This time, the created path will be like:
 		// <lxd_var_path>/devices/<instance_name>/<cdi.CDIDiskPrefix>.<gpu_device_name>.<path_encoded_relative_dest_path>
 		deviceName := filesystem.PathNameEncode(deviceJoinPath(cdi.CDIDiskPrefix, d.name, relativeDestPath))
-		devPath := filepath.Join(d.inst.DevicesPath(), deviceName)
+		devPath := filepath.Join(devicesPath, deviceName)
 
 		ownerShift := deviceConfig.MountOwnerShiftNone
 		if idmap.CanIdmapMount(devPath, "") {
