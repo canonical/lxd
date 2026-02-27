@@ -2278,9 +2278,6 @@ func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
 
 // getMaxPCISlotCount returns the maximum allowed number of PCI/PCIe slots for the instance.
 func (d *qemu) getMaxPCISlotCount() (pciSlotCountMax uint8, err error) {
-	// Initialize to the default value for "limits.max_bus_ports".
-	pciSlotCountMax = QEMUDefaultMaxBusPorts
-
 	pciSlotCountMaxStr, ok := d.expandedConfig["limits.max_bus_ports"]
 	if ok && pciSlotCountMaxStr != "" {
 		val, err := strconv.ParseUint(pciSlotCountMaxStr, 10, 8)
@@ -2288,10 +2285,11 @@ func (d *qemu) getMaxPCISlotCount() (pciSlotCountMax uint8, err error) {
 			return 0, fmt.Errorf("Failed parsing %q: %w", "limits.max_bus_ports", err)
 		}
 
-		pciSlotCountMax = uint8(val)
+		return uint8(val), nil
 	}
 
-	return pciSlotCountMax, nil
+	// Return the default value for "limits.max_bus_ports".
+	return QEMUDefaultMaxBusPorts, nil
 }
 
 // busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
