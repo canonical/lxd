@@ -807,7 +807,7 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 	}
 
 	var targetProfileNames []string
-	if targetArgs != nil && len(targetArgs.Profiles) > 0 {
+	if targetArgs != nil && targetArgs.Profiles != nil {
 		targetProfileNames = make([]string, 0, len(targetArgs.Profiles))
 		for _, profile := range targetArgs.Profiles {
 			targetProfileNames = append(targetProfileNames, profile.Name)
@@ -981,6 +981,15 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 			err = tx.UpdateInstanceNode(ctx, targetProject, srcInstName, newInstName, srcInst.ID(), newMember.Name, srcPool.ID(), volDBType)
 			if err != nil {
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMember.Name, newInstName, err)
+			}
+
+			// Update instance profiles only if profile changes were explicitly requested.
+			// This preserves existing profiles during internal operations like evacuation.
+			if targetProfileNames != nil {
+				err = dbCluster.UpdateInstanceProfiles(ctx, tx.Tx(), int(srcInst.ID()), targetProject, targetProfileNames)
+				if err != nil {
+					return fmt.Errorf("Failed updating profiles for instance %q in project %q: %w", newInstName, targetProject, err)
+				}
 			}
 
 			// Set the cluster group record if needed.
