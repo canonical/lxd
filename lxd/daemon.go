@@ -2050,19 +2050,21 @@ func (d *Daemon) init() error {
 
 // requestorHook runs for all authenticated (trusted) client requests to the remote API or to the DevLXD API (via bearer auth).
 // It gets the identity by the authentication method (protocol) and identifier (username) and returns authorization details.
-func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (identityID int, idType identity.Type, authGroups []string, mappedAuthGroups []string, projects []string, err error) {
-	err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string, identifier string) (*request.RequestorHookResult, error) {
+	res := &request.RequestorHookResult{}
+	err := d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(authenticationMethod), identifier)
 		if err != nil {
 			return fmt.Errorf("Failed to get identity: %w", err)
 		}
 
-		identityID = id.ID
-
-		idType, err = identity.New(string(id.Type))
+		idType, err := identity.New(string(id.Type))
 		if err != nil {
 			return fmt.Errorf("Failed to determine type of identity: %w", err)
 		}
+
+		res.IdentityID = int64(id.ID)
+		res.IdentityType = idType
 
 		// If client is an admin, there are no groups or projects to get.
 		if idType.IsAdmin() || idType.Name() == api.IdentityTypeCertificateMetricsUnrestricted {
@@ -2076,9 +2078,9 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 				return fmt.Errorf("Failed to get projects for identity: %w", err)
 			}
 
-			projects = make([]string, 0, len(dbProjects))
+			res.Projects = make([]string, 0, len(dbProjects))
 			for _, p := range dbProjects {
-				projects = append(projects, p.Name)
+				res.Projects = append(res.Projects, p.Name)
 			}
 
 			return nil
@@ -2090,26 +2092,34 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 			return fmt.Errorf("Failed to get groups for identity: %w", err)
 		}
 
-		authGroups = make([]string, 0, len(dbGroups))
+		res.AuthGroups = make([]string, 0, len(dbGroups))
 		for _, g := range dbGroups {
-			authGroups = append(authGroups, g.Name)
+			res.AuthGroups = append(res.AuthGroups, g.Name)
 		}
 
-		if len(idpGroups) > 0 {
-			// If IdP groups are set, map them to LXD auth groups.
-			mappedAuthGroups, err = dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), idpGroups)
+		if idType.Name() == api.IdentityTypeOIDCClient {
+			metadata, err := id.OIDCMetadata()
 			if err != nil {
-				return fmt.Errorf("Failed to map identity provider groups to authorization groups: %w", err)
+				return fmt.Errorf("Failed to read OIDC identity metadata: %w", err)
+			}
+
+			if len(metadata.IdentityProviderGroups) > 0 {
+				// If IdP groups are set, map them to LXD auth groups.
+				res.IdentityProviderGroups = metadata.IdentityProviderGroups
+				res.EffectiveAuthGroups, err = dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), metadata.IdentityProviderGroups)
+				if err != nil {
+					return fmt.Errorf("Failed to map identity provider groups to authorization groups: %w", err)
+				}
 			}
 		}
 
 		return nil
 	})
 	if err != nil {
-		return -1, nil, nil, nil, nil, err
+		return nil, err
 	}
 
-	return identityID, idType, authGroups, mappedAuthGroups, projects, nil
+	return res, nil
 }
 
 func (d *Daemon) startClusterTasks() {
