@@ -480,6 +480,7 @@ var APIExtensions = []string{
 	"clustering_control_plane",
 	"storage_remote_drop_source",
 	"storage_ceph_use_rbd_defaults",
+	"bulk_operations",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
