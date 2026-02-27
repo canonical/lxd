@@ -44,6 +44,8 @@ import (
 type evacuateStopFunc func(inst instance.Instance) error
 type evacuateMigrateFunc func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error
 
+const clusterMemberEvacuateConflictReference = "cluster-member-evacuation"
+
 type evacuateOpts struct {
 	s               *state.State
 	gateway         *cluster.Gateway
@@ -1449,6 +1451,8 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 			Type:        operationtype.ClusterMemberEvacuate,
 			Class:       operations.OperationClassTask,
 			RunHook:     run,
+			// Use ConflictReference to enforce cluster-wide evacuation exclusivity; this prevents evacuation race conditions.
+			ConflictReference: clusterMemberEvacuateConflictReference,
 		}
 
 		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
