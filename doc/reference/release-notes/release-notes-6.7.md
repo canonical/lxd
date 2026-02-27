@@ -356,6 +356,7 @@ If you are building LXD from source instead of using a package manager, the mini
 - AMD container-toolkit added at `v1.2.0`
 - EDK2 bumped to `2025.02-8ubuntu3`
 - Dqlite bumped to `v1.18.5`
+- LXC bumped to `v6.0.6`
 - LXCFS bumped to `v6.0.6`
 - LXD-UI bumped to `0.20`
 - NVIDIA-container and toolkit bumped to `v1.18.2`
