@@ -275,11 +275,9 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		srcFDHandlers = append(srcFDHandlers, f)
 
 		// Clean any existing entry.
-		if shared.PathExists(devPath) {
-			err := os.Remove(devPath)
-			if err != nil {
-				return err
-			}
+		err = os.Remove(devPath)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
 		}
 
 		// Create the mount point.
