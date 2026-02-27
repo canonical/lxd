@@ -186,7 +186,7 @@ func (r *Requestor) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 }
 
 // CallerIsEqual returns true if the given Requestor is the same caller as this Requestor.
-func (r *Requestor) CallerIsEqual(requestor *Requestor) bool {
+func (r *Requestor) CallerIsEqual(requestor RequestorAuditor) bool {
 	if requestor == nil {
 		return false
 	}
