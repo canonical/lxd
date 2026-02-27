@@ -2042,8 +2042,9 @@ func (d *qemu) setupNvram() error {
 	d.logger.Debug("Generating NVRAM")
 
 	// Cleanup existing variables file.
+	instancePath := d.Path()
 	for _, varsName := range edk2.GetAchitectureFirmwareVarsCandidates(d.architecture) {
-		err := os.Remove(filepath.Join(d.Path(), varsName))
+		err := os.Remove(filepath.Join(instancePath, varsName))
 		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("Failed removing firmware vars file %q: %w", varsName, err)
 		}
@@ -2082,7 +2083,7 @@ func (d *qemu) setupNvram() error {
 	}
 
 	// Copy the template.
-	err = shared.FileCopy(vmFirmwarePath, filepath.Join(d.Path(), vmFirmwareName))
+	err = shared.FileCopy(vmFirmwarePath, filepath.Join(instancePath, vmFirmwareName))
 	if err != nil {
 		return err
 	}
