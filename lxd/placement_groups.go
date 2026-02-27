@@ -154,7 +154,7 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypePlacementGroup, true)
 	if err != nil {
 		return response.SmartError(err)
@@ -176,7 +176,7 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 			projectFilter = &projectName
 		}
 
-		if !recursion {
+		if recursion == 0 {
 			placementGroups, err := cluster.GetPlacementGroups(ctx, tx.Tx(), cluster.PlacementGroupFilter{Project: projectFilter})
 			if err != nil {
 				return err
@@ -232,7 +232,7 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, placementGroupURLs)
 	}
 

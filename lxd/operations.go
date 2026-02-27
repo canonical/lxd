@@ -582,12 +582,12 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return body, nil
 	}
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 
 	// Check if called from a cluster node.
 	if requestor.IsClusterNotification() {
 		// Only return the local data.
-		if recursion {
+		if recursion > 0 {
 			// Recursive queries.
 			body, err := localOperations()
 			if err != nil {
@@ -609,7 +609,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	// Start with local operations.
 	var md shared.Jmap
 
-	if recursion {
+	if recursion > 0 {
 		md, err = localOperations()
 		if err != nil {
 			return response.InternalError(err)
@@ -707,14 +707,14 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 			_, ok := md[status]
 			if !ok {
-				if recursion {
+				if recursion > 0 {
 					md[status] = make([]*api.Operation, 0)
 				} else {
 					md[status] = make([]string, 0)
 				}
 			}
 
-			if recursion {
+			if recursion > 0 {
 				md[status] = append(md[status].([]*api.Operation), &op)
 			} else {
 				md[status] = append(md[status].([]string), "/1.0/operations/"+op.ID)

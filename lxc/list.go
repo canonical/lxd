@@ -535,11 +535,11 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 	var instances []api.Instance
 	serverFilters, clientFilters := getServerSupportedFilters(filters, api.Instance{})
 
-	if c.flagAllProjects {
-		instances, err = d.GetInstancesAllProjectsWithFilter(api.InstanceTypeAny, serverFilters)
-	} else {
-		instances, err = d.GetInstancesWithFilter(api.InstanceTypeAny, serverFilters)
-	}
+	instances, err = d.GetInstances(lxd.GetInstancesArgs{
+		InstanceType: api.InstanceTypeAny,
+		Filters:      serverFilters,
+		AllProjects:  c.flagAllProjects,
+	})
 
 	if err != nil {
 		return err

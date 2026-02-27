@@ -1902,7 +1902,7 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 func imagesGet(d *Daemon, r *http.Request) response.Response {
 	filterStr := r.FormValue("filter")
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImage, true)
 	if err != nil {
 		return response.SmartError(err)
@@ -1958,7 +1958,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err = doImagesGet(ctx, tx, recursion, projectName, publicOnly, clauses, canViewImage, allProjects)
+		result, err = doImagesGet(ctx, tx, recursion > 0, projectName, publicOnly, clauses, canViewImage, allProjects)
 		if err != nil {
 			return err
 		}
@@ -3876,7 +3876,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 
 	s := d.State()
 
@@ -3911,7 +3911,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		if recursion {
+		if recursion > 0 {
 			responseMap = make([]*api.ImageAliasesEntry, 0, len(names))
 		} else {
 			responseStr = make([]string, 0, len(names))
@@ -3922,7 +3922,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			if !recursion {
+			if recursion == 0 {
 				responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", "aliases", name).String())
 			} else {
 				_, alias, err := tx.GetImageAlias(ctx, projectName, name, true)
@@ -3941,7 +3941,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, responseStr)
 	}
 

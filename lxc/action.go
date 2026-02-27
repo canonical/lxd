@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -344,7 +345,7 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
-			ctslist, err := resource.server.GetInstances(api.InstanceTypeAny)
+			ctslist, err := resource.server.GetInstances(lxd.GetInstancesArgs{InstanceType: api.InstanceTypeAny})
 			if err != nil {
 				return err
 			}

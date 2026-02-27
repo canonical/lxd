@@ -829,7 +829,8 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return dbProject
 	}
 
-	if util.IsRecursionRequest(r) {
+	recursion, _ := util.IsRecursionRequest(r)
+	if recursion > 0 {
 		volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
 		urlToVolume := make(map[*api.URL]auth.EntitlementReporter)
 		for _, dbVol := range dbVolumes {

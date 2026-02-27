@@ -234,7 +234,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProfile, true)
 	if err != nil {
 		return response.SmartError(err)
@@ -266,7 +266,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		if recursion {
+		if recursion > 0 {
 			profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
 			if err != nil {
 				return err
@@ -312,7 +312,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, profileURLs)
 	}
 

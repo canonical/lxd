@@ -163,7 +163,7 @@ var clusterMemberStateCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func clusterMembersGet(d *Daemon, r *http.Request) response.Response {
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 	s := d.State()
 
 	leaderInfo, err := s.LeaderInfo()
@@ -201,7 +201,7 @@ func clusterMembersGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
-		if recursion {
+		if recursion > 0 {
 			memberFailureDomains, err := tx.GetNodesFailureDomains(ctx)
 			if err != nil {
 				return fmt.Errorf("Failed loading member failure domains: %w", err)
@@ -233,7 +233,7 @@ func clusterMembersGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if recursion {
+	if recursion > 0 {
 		return response.SyncResponse(true, membersInfo)
 	}
 

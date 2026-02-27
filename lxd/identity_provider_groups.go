@@ -142,7 +142,7 @@ var identityProviderGroupCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 	s := d.State()
 
 	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
@@ -176,7 +176,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		if recursion {
+		if recursion > 0 {
 			apiIDPGroups = make([]*api.IdentityProviderGroup, 0, len(idpGroups))
 			for _, idpGroup := range idpGroups {
 				apiIDPGroup, err := idpGroup.ToAPI(ctx, tx.Tx(), canViewGroup)
@@ -195,7 +195,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if recursion {
+	if recursion > 0 {
 		if len(withEntitlements) > 0 {
 			err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeIdentityProviderGroup, withEntitlements, urlToIDPGroup)
 			if err != nil {

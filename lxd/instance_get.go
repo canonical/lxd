@@ -131,21 +131,14 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
-	recursive := util.IsRecursionRequest(r)
+	recursion, fields := util.IsRecursionRequest(r)
 
-	recursionStr := r.FormValue("recursion")
-
-	// Get fields parameter (can have multiple values)
-	fields := r.URL.Query()["fields"]
-
-	recursionLevel, stateOpts, err := instance.ParseRecursionFields(recursionStr, fields)
+	stateOpts, err := instance.ParseRecursionFields(fields)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	if recursionLevel >= 1 {
-		recursive = true
-	}
+	recursive := recursion > 0
 
 	// Detect if we want to also return entitlements for each instance.
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstance, false)

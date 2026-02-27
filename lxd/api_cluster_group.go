@@ -216,14 +216,14 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("This server is not clustered"))
 	}
 
-	recursion := util.IsRecursionRequest(r)
+	recursion, _ := util.IsRecursionRequest(r)
 
 	var clusterGroupURIs []string
 	var apiClusterGroups []*api.ClusterGroup
 	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
-		if recursion {
+		if recursion > 0 {
 			clusterGroups, err := dbCluster.GetClusterGroups(ctx, tx.Tx())
 			if err != nil {
 				return err
@@ -264,7 +264,7 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !recursion {
+	if recursion == 0 {
 		return response.SyncResponse(true, clusterGroupURIs)
 	}
 

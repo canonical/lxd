@@ -186,7 +186,7 @@ func oidcSessionAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *h
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func oidcSessionsGet(d *Daemon, r *http.Request) response.Response {
-	recurse := util.IsRecursionRequest(r)
+	recurse, _ := util.IsRecursionRequest(r)
 	email := request.QueryParam(r, "email")
 
 	s := d.State()
@@ -219,14 +219,14 @@ func oidcSessionsGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		if recurse {
+		if recurse > 0 {
 			apiSessions = append(apiSessions, session.ToAPI())
 		} else {
 			sessionURLs = append(sessionURLs, api.NewURL().Path(version.APIVersion, "auth", "oidc-sessions", session.UUID.String()).String())
 		}
 	}
 
-	if recurse {
+	if recurse > 0 {
 		return response.SyncResponse(true, apiSessions)
 	}
 

@@ -481,7 +481,8 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 
 	// Entitlements can only be requested when recursion is enabled for a request returning multiple entities (this function call uses `allowRecursion=true`).
 	// If the request is meant to return a single entity, the entitlements can be requested regardless of the recursion setting (in this case, the function is called with `allowRecursion=false`).
-	if len(validEntitlements) > 0 && (!util.IsRecursionRequest(r) && allowRecursion) {
+	recursion, _ := util.IsRecursionRequest(r)
+	if len(validEntitlements) > 0 && (recursion == 0 && allowRecursion) {
 		return nil, errors.New("Entitlements can only be requested when recursion is enabled")
 	}
 
