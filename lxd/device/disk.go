@@ -116,11 +116,7 @@ func (d *disk) CanHotPlug() bool {
 // isRequired indicates whether the supplied device config requires this device to start OK.
 func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 	// Defaults to required.
-	if shared.IsTrueOrEmpty(devConfig["required"]) && shared.IsFalseOrEmpty(devConfig["optional"]) {
-		return true
-	}
-
-	return false
+	return shared.IsTrueOrEmpty(devConfig["required"]) && shared.IsFalseOrEmpty(devConfig["optional"])
 }
 
 // sourceIsLocalPath returns true if the source supplied should be considered a local path on the host.
