@@ -1418,14 +1418,14 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	if isRunning {
 		runConf := deviceConfig.RunConfig{}
 
-		if d.inst.Type() == instancetype.Container {
+		switch d.inst.Type() {
+		case instancetype.Container:
 			err := d.generateLimits(&runConf)
 			if err != nil {
 				return err
 			}
-		}
 
-		if d.inst.Type() == instancetype.VM {
+		case instancetype.VM:
 			// Parse the limits into usable values.
 			readBps, readIops, writeBps, writeIops, err := d.parseLimit(d.config)
 			if err != nil {
