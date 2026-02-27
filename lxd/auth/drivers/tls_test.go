@@ -46,15 +46,22 @@ func (s *tlsSuite) setupCtx(details request.RequestorArgs) context.Context {
 		RemoteAddr: "127.0.0.1:53423",
 	}
 
-	err := request.SetRequestor(r, func(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (identityID int, idType identity.Type, authGroups []string, effectiveAuthGroups []string, projects []string, err error) {
+	err := request.SetRequestor(r, func(ctx context.Context, authenticationMethod string, identifier string) (*request.RequestorHookResult, error) {
 		switch identifier {
 		case "foo-restricted":
-			return 1, identity.CertificateClientRestricted{}, nil, nil, []string{"foo"}, nil
+			return &request.RequestorHookResult{
+				IdentityID:   1,
+				IdentityType: identity.CertificateClientRestricted{},
+				Projects:     []string{"foo"},
+			}, nil
 		case "unrestricted":
-			return 2, identity.CertificateClientUnrestricted{}, nil, nil, nil, nil
+			return &request.RequestorHookResult{
+				IdentityID:   2,
+				IdentityType: identity.CertificateClientUnrestricted{},
+			}, nil
 		}
 
-		return -1, nil, nil, nil, nil, fmt.Errorf("Unknown identity %q", identifier)
+		return nil, fmt.Errorf("Unknown identity %q", identifier)
 	}, details)
 	s.Require().NoError(err)
 	return r.Context()
