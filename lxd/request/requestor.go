@@ -2,7 +2,6 @@ package request
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,7 +16,7 @@ import (
 
 // RequestorHook is the signature of a hook that is passed into calls to [SetRequestor].
 // This allows the caller to specify how to get authorization information about an identity that has successfully authenticated.
-type RequestorHook func(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (identityID int, idType identity.Type, authGroups []string, effectiveAuthGroups []string, projects []string, err error)
+type RequestorHook func(ctx context.Context, authenticationMethod string, identifier string) (identityID int, idType identity.Type, authGroups []string, effectiveAuthGroups []string, projects []string, err error)
 
 // RequestorArgs contains information that is gathered when the requestor is initially authenticated.
 type RequestorArgs struct {
@@ -36,11 +35,6 @@ type RequestorArgs struct {
 	// It is set only when the client is trusted and the authentication method is either
 	// [api.AuthenticationMethodBearer] or [api.AuthenticationMethodTLS].
 	ExpiresAt *time.Time
-
-	// IdentityProviderGroups contains identity provider groups. These are only set if the caller protocol is
-	// [api.AuthenticationMethodOIDC]. They are centrally defined groups that may map to LXD groups via identity
-	// provider group mappings.
-	IdentityProviderGroups []string
 }
 
 // Requestor contains all fields from RequestorArgs, unexported. Plus additional fields gathered from request headers
@@ -221,14 +215,6 @@ func (r *Requestor) ForwardProxy() func(req *http.Request) (*url.URL, error) {
 			req.Header.Add(headerForwardedProtocol, protocol)
 		}
 
-		identityProviderGroups := r.CallerIdentityProviderGroups()
-		if identityProviderGroups != nil {
-			b, err := json.Marshal(identityProviderGroups)
-			if err == nil {
-				req.Header.Add(headerForwardedIdentityProviderGroups, string(b))
-			}
-		}
-
 		return shared.ProxyFromEnvironment(req)
 	}
 }
@@ -248,30 +234,20 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 	forwardedAddress := req.Header.Get(headerForwardedAddress)
 	forwardedUsername := req.Header.Get(headerForwardedUsername)
 	forwardedProtocol := req.Header.Get(headerForwardedProtocol)
-	forwardedIdentityProviderGroupsJSON := req.Header.Get(headerForwardedIdentityProviderGroups)
 
 	// Requests can only be forwarded from other cluster members.
 	if r.protocol != ProtocolCluster {
 		// No forwarding headers may be set if the protocol is not ProtocolCluster.
-		if forwardedAddress != "" || forwardedUsername != "" || forwardedProtocol != "" || forwardedIdentityProviderGroupsJSON != "" {
+		if forwardedAddress != "" || forwardedUsername != "" || forwardedProtocol != "" {
 			return errors.New("Received forwarded request information from non-cluster member")
 		}
 
 		return nil
 	}
 
-	var forwardedIdentityProviderGroups []string
-	if forwardedIdentityProviderGroupsJSON != "" {
-		err := json.Unmarshal([]byte(forwardedIdentityProviderGroupsJSON), &forwardedIdentityProviderGroups)
-		if err != nil {
-			return fmt.Errorf("Failed to extract forwarded identity provider groups from request header: %w", err)
-		}
-	}
-
 	r.forwardedOriginAddress = forwardedAddress
 	r.forwardedUsername = forwardedUsername
 	r.forwardedProtocol = forwardedProtocol
-	r.forwardedIdentityProviderGroups = forwardedIdentityProviderGroups
 	return nil
 }
 
@@ -300,7 +276,7 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 	}
 
 	// Get the identity details.
-	identityID, idType, authGroups, mappedAuthGroups, projects, err := hook(ctx, method, r.CallerUsername(), r.CallerIdentityProviderGroups())
+	identityID, idType, authGroups, mappedAuthGroups, projects, err := hook(ctx, method, r.CallerUsername())
 	if err != nil {
 		return fmt.Errorf("Failed to get identity details: %w", err)
 	}
@@ -326,13 +302,12 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 	}
 
 	r := &Requestor{
-		trusted:                args.Trusted,
-		originAddress:          req.RemoteAddr,
-		username:               args.Username,
-		protocol:               args.Protocol,
-		identityProviderGroups: args.IdentityProviderGroups,
-		clientType:             clientType,
-		expiresAt:              args.ExpiresAt,
+		trusted:       args.Trusted,
+		originAddress: req.RemoteAddr,
+		username:      args.Username,
+		protocol:      args.Protocol,
+		clientType:    clientType,
+		expiresAt:     args.ExpiresAt,
 	}
 
 	err := r.setForwardingDetails(req)
