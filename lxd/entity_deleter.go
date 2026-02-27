@@ -111,7 +111,7 @@ func (d networkDeleter) Delete(ctx context.Context, clientType request.ClientTyp
 		return fmt.Errorf("Failed getting project %q config: %w", ref.ProjectName, err)
 	}
 
-	err = doNetworkDelete(ctx, s, name, ref.ProjectName, projectConfig, "")
+	err = doNetworkDelete(ctx, s, name, ref.ProjectName, projectConfig, clientType)
 	if err != nil {
 		return fmt.Errorf("Failed deleting network %q: %w", name, err)
 	}
