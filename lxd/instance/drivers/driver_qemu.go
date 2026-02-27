@@ -2150,9 +2150,7 @@ func (d *qemu) RegisterDevices() {
 }
 
 func (d *qemu) saveConnectionInfo(connInfo *agentAPI.API10Put) error {
-	configDrivePath := filepath.Join(d.Path(), "config")
-
-	f, err := os.Create(filepath.Join(configDrivePath, "agent.conf"))
+	f, err := os.Create(filepath.Join(d.Path(), "config", "agent.conf"))
 	if err != nil {
 		return err
 	}
