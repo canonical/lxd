@@ -753,7 +753,7 @@ func (d *disk) Register() error {
 		if err != nil {
 			return err
 		}
-	} else if d.config["path"] != "/" && d.config["source"] != "" && d.config["pool"] != "" {
+	} else if d.config["source"] != "" && d.config["pool"] != "" {
 		volumeName, _, dbVolumeType, err := d.sourceVolumeFields()
 		if err != nil {
 			return err
