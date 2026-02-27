@@ -67,10 +67,11 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		}
 
 		// Get NUMA node
-		if pathExists(filepath.Join(devicePath, "numa_node")) {
-			numaNode, err := readInt(filepath.Join(devicePath, "numa_node"))
+		numaNodePath := filepath.Join(devicePath, "numa_node")
+		if pathExists(numaNodePath) {
+			numaNode, err := readInt(numaNodePath)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "numa_node"), err)
+				return nil, fmt.Errorf("Failed to read %q: %w", numaNodePath, err)
 			}
 
 			if numaNode > 0 {

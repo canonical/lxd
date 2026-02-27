@@ -178,11 +178,12 @@ func getTotalMemory(sysDevicesBase string) uint64 {
 		}
 
 		// Ignore invalid entries.
-		if !pathExists(filepath.Join(entryPath, "online")) {
+		onlinePath := filepath.Join(entryPath, "online")
+		if !pathExists(onlinePath) {
 			continue
 		}
 
-		content, err := os.ReadFile(filepath.Join(entryPath, "online"))
+		content, err := os.ReadFile(onlinePath)
 		if err != nil {
 			return 0
 		}
@@ -249,9 +250,10 @@ func GetMemory() (*api.ResourcesMemory, error) {
 			}
 
 			// Parse NUMA meminfo
-			info, err := parseMeminfo(filepath.Join(entryPath, "meminfo"))
+			meminfoPath := filepath.Join(entryPath, "meminfo")
+			info, err := parseMeminfo(meminfoPath)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse %q: %w", filepath.Join(entryPath, "meminfo"), err)
+				return nil, fmt.Errorf("Failed to parse %q: %w", meminfoPath, err)
 			}
 
 			// Setup the entry

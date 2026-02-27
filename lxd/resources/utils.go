@@ -131,7 +131,8 @@ func pciAddress(devicePath string) (string, error) {
 	}
 
 	// Check if we have a subsystem listed at all.
-	if !pathExists(filepath.Join(deviceDeviceDir, "subsystem")) {
+	subsystemPath := filepath.Join(deviceDeviceDir, "subsystem")
+	if !pathExists(subsystemPath) {
 		return "", nil
 	}
 
@@ -144,7 +145,7 @@ func pciAddress(devicePath string) (string, error) {
 	// Extract the subsystem.
 	subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
 	if err != nil {
-		return "", fmt.Errorf("Failed to find %q: %w", filepath.Join(deviceDeviceDir, "subsystem"), err)
+		return "", fmt.Errorf("Failed to find %q: %w", subsystemPath, err)
 	}
 
 	subsystem := filepath.Base(subsystemTarget)
@@ -154,7 +155,7 @@ func pciAddress(devicePath string) (string, error) {
 		linkTarget = filepath.Dir(linkTarget)
 		subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
 		if err != nil {
-			return "", fmt.Errorf("Failed to find %q: %w", filepath.Join(deviceDeviceDir, "subsystem"), err)
+			return "", fmt.Errorf("Failed to find %q: %w", subsystemPath, err)
 		}
 
 		subsystem = filepath.Base(subsystemTarget)
