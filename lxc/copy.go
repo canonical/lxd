@@ -321,7 +321,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	if needsRefreshClientFallback {
 		refreshTarget, refreshTargetETag, err = dest.GetInstance(destName)
 		if err != nil {
-			return fmt.Errorf("Failed to refresh target instance %q: %v", destName, err)
+			return fmt.Errorf("Failed loading refresh target instance %q: %w", destName, err)
 		}
 
 		writable.ApplyRefreshConfig(*refreshTarget)
