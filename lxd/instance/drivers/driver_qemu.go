@@ -4991,6 +4991,8 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 		}
 	}
 
+	pciDevPath := filepath.Join("/sys/bus/pci/devices", pciSlotName)
+
 	vgaMode := func() bool {
 		// No VGA mode on mdev.
 		if vgpu != "" {
@@ -5003,12 +5005,12 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 		}
 
 		// Only enable if present on the card.
-		if !shared.PathExists(filepath.Join("/sys/bus/pci/devices", pciSlotName, "boot_vga")) {
+		if !shared.PathExists(filepath.Join(pciDevPath, "boot_vga")) {
 			return false
 		}
 
 		// Skip SRIOV VFs as those are shared with the host card.
-		if shared.PathExists(filepath.Join("/sys/bus/pci/devices", pciSlotName, "physfn")) {
+		if shared.PathExists(filepath.Join(pciDevPath, "physfn")) {
 			return false
 		}
 
@@ -5042,7 +5044,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 		iommuGroupPath = filepath.Join("/sys/bus/mdev/devices", vgpu, "iommu_group", "devices")
 	} else {
 		// Add any other related IOMMU VFs as generic PCI devices.
-		iommuGroupPath = filepath.Join("/sys/bus/pci/devices", pciSlotName, "iommu_group", "devices")
+		iommuGroupPath = filepath.Join(pciDevPath, "iommu_group", "devices")
 	}
 
 	if shared.PathExists(iommuGroupPath) {
