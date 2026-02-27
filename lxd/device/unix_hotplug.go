@@ -19,9 +19,10 @@ import (
 
 // unixHotplugDeviceMatch matches a unix-hotplug device based on vendorid, productid and/or subsystem. USB bus and devices with a major number of 0 are ignored. This function is used to indicate whether a unix hotplug event qualifies as part of our registered devices, and to load matching devices.
 func unixHotplugDeviceMatch(config deviceConfig.Device, vendorid string, productid string, subsystem string, major uint32) bool {
-	// Ignore USB bus devices (handled by `usb` device type) since we don't want `unix-hotplug` and `usb` devices conflicting. We want to add all device nodes besides those with a `usb` subsystem.
-	// We ignore devices with a major number of 0, since this indicates they are unnamed devices (e.g. non-device mounts).
-	if strings.HasPrefix(subsystem, "usb") || major == 0 {
+	// Ignore devices with a major number of 0, since this indicates they are unnamed devices (e.g. non-device mounts).
+	// Ignore USB bus devices (handled by `usb` device type) since we don't want `unix-hotplug` and `usb` devices conflicting.
+	// We want to add all device nodes besides those with a `usb` subsystem.
+	if major == 0 || strings.HasPrefix(subsystem, "usb") {
 		return false
 	}
 
