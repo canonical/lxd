@@ -176,15 +176,17 @@ func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
 	}
 }
 
-// Create a new net.Listener bound to the tcp socket of the network endpoint.
-func networkCreateListener(address string, cert *shared.CertInfo) (net.Listener, error) {
-	// Listening on `tcp` network with address 0.0.0.0 will end up with listening
-	// on both IPv4 and IPv6 interfaces. Pass `tcp4` to make it
-	// work only on 0.0.0.0. https://go-review.googlesource.com/c/go/+/45771/
-	listenAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
+// createTLSListener creates a new TLS listener bound to the given address, using defaultPort if none is specified.
+// Listening on `tcp` network with address 0.0.0.0 will end up with listening
+// on both IPv4 and IPv6 interfaces. Pass `tcp4` to make it
+// work only on 0.0.0.0. https://go-review.googlesource.com/c/go/+/45771/
+func createTLSListener(address string, defaultPort int64, cert *shared.CertInfo) (net.Listener, error) {
+	listenAddress := util.CanonicalNetworkAddress(address, defaultPort)
 	protocol := "tcp"
 
-	if strings.HasPrefix(listenAddress, "0.0.0.0") {
+	// Including the ':' avoids accidentally matching on listenAddress like
+	// `0.0.0.0.example.com:8443`.
+	if strings.HasPrefix(listenAddress, "0.0.0.0:") {
 		protocol = "tcp4"
 	}
 
@@ -194,4 +196,9 @@ func networkCreateListener(address string, cert *shared.CertInfo) (net.Listener,
 	}
 
 	return listeners.NewFancyTLSListener(listener, cert), nil
+}
+
+// Create a new net.Listener bound to the tcp socket of the network endpoint.
+func networkCreateListener(address string, cert *shared.CertInfo) (net.Listener, error) {
+	return createTLSListener(address, shared.HTTPSDefaultPort, cert)
 }
