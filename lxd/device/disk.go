@@ -1461,24 +1461,21 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 // If successfully applies new quota then removes the volatile "apply_quota" key.
 func (d *disk) applyDeferredQuota() error {
 	v := d.volatileGet()
-	if v["apply_quota"] != "" {
-		d.logger.Info("Applying deferred quota change")
-
-		// Indicate that we want applyQuota to unmount the volume first, this is so we can perform resizes
-		// that cannot be done when the volume is in use.
-		err := d.applyQuota(true)
-		if err != nil {
-			return fmt.Errorf("Failed to apply deferred quota from %q: %w", "volatile."+d.name+".apply_quota", err)
-		}
-
-		// Remove volatile apply_quota key if successful.
-		err = d.volatileSet(map[string]string{"apply_quota": ""})
-		if err != nil {
-			return err
-		}
+	if v["apply_quota"] == "" {
+		return nil
 	}
 
-	return nil
+	d.logger.Info("Applying deferred quota change")
+
+	// Indicate that we want applyQuota to unmount the volume first, this is so we can perform resizes
+	// that cannot be done when the volume is in use.
+	err := d.applyQuota(true)
+	if err != nil {
+		return fmt.Errorf("Failed to apply deferred quota from %q: %w", "volatile."+d.name+".apply_quota", err)
+	}
+
+	// Remove volatile apply_quota key if successful.
+	return d.volatileSet(map[string]string{"apply_quota": ""})
 }
 
 // applyQuota attempts to resize the instance root disk to the specified size.
