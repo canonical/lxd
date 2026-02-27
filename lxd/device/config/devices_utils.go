@@ -11,7 +11,7 @@ func deviceEquals(old Device, d Device) bool {
 
 // deviceEqualsDiffKeys checks for any difference and addition/removal of properties and returns a list of changes.
 func deviceEqualsDiffKeys(old Device, d Device) []string {
-	keys := []string{}
+	var keys []string
 
 	for k := range d {
 		if d[k] != old[k] {
@@ -20,7 +20,8 @@ func deviceEqualsDiffKeys(old Device, d Device) []string {
 	}
 
 	for k := range old {
-		if d[k] != old[k] {
+		_, found := d[k]
+		if !found {
 			keys = append(keys, k)
 		}
 	}
