@@ -1532,48 +1532,50 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 		}
 	}
 
-	if hasDiskLimits {
-		if !d.state.OS.CGInfo.Supports(cgroup.Blkio, nil) {
-			return errors.New("Cannot apply disk limits as blkio cgroup controller is missing")
+	if !hasDiskLimits {
+		return nil
+	}
+
+	if !d.state.OS.CGInfo.Supports(cgroup.Blkio, nil) {
+		return errors.New("Cannot apply disk limits as blkio cgroup controller is missing")
+	}
+
+	diskLimits, err := d.getDiskLimits()
+	if err != nil {
+		return err
+	}
+
+	cg, err := cgroup.New(&cgroupWriter{runConf})
+	if err != nil {
+		return err
+	}
+
+	for block, limit := range diskLimits {
+		if limit.readBps > 0 {
+			err = cg.SetBlkioLimit(block, "read", "bps", limit.readBps)
+			if err != nil {
+				return err
+			}
 		}
 
-		diskLimits, err := d.getDiskLimits()
-		if err != nil {
-			return err
+		if limit.readIops > 0 {
+			err = cg.SetBlkioLimit(block, "read", "iops", limit.readIops)
+			if err != nil {
+				return err
+			}
 		}
 
-		cg, err := cgroup.New(&cgroupWriter{runConf})
-		if err != nil {
-			return err
+		if limit.writeBps > 0 {
+			err = cg.SetBlkioLimit(block, "write", "bps", limit.writeBps)
+			if err != nil {
+				return err
+			}
 		}
 
-		for block, limit := range diskLimits {
-			if limit.readBps > 0 {
-				err = cg.SetBlkioLimit(block, "read", "bps", limit.readBps)
-				if err != nil {
-					return err
-				}
-			}
-
-			if limit.readIops > 0 {
-				err = cg.SetBlkioLimit(block, "read", "iops", limit.readIops)
-				if err != nil {
-					return err
-				}
-			}
-
-			if limit.writeBps > 0 {
-				err = cg.SetBlkioLimit(block, "write", "bps", limit.writeBps)
-				if err != nil {
-					return err
-				}
-			}
-
-			if limit.writeIops > 0 {
-				err = cg.SetBlkioLimit(block, "write", "iops", limit.writeIops)
-				if err != nil {
-					return err
-				}
+		if limit.writeIops > 0 {
+			err = cg.SetBlkioLimit(block, "write", "iops", limit.writeIops)
+			if err != nil {
+				return err
 			}
 		}
 	}
