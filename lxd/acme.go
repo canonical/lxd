@@ -108,7 +108,7 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 				ClusterCertificateKey: string(newCert.PrivateKey),
 			}
 
-			err = updateClusterCertificate(ctx, s, d.gateway, nil, req)
+			err = updateClusterCertificate(ctx, s, d.gateway, nil, false, req)
 			if err != nil {
 				return err
 			}
