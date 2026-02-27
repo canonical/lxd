@@ -16,7 +16,17 @@ import (
 
 // RequestorHook is the signature of a hook that is passed into calls to [SetRequestor].
 // This allows the caller to specify how to get authorization information about an identity that has successfully authenticated.
-type RequestorHook func(ctx context.Context, authenticationMethod string, identifier string) (identityID int, idType identity.Type, authGroups []string, effectiveAuthGroups []string, projects []string, err error)
+type RequestorHook func(ctx context.Context, authenticationMethod string, identifier string) (result *RequestorHookResult, err error)
+
+// RequestorHookResult contains identity and access management details returned by the [RequestorHook].
+type RequestorHookResult struct {
+	IdentityID             int64
+	IdentityType           identity.Type
+	AuthGroups             []string
+	IdentityProviderGroups []string
+	EffectiveAuthGroups    []string
+	Projects               []string
+}
 
 // RequestorArgs contains information that is gathered when the requestor is initially authenticated.
 type RequestorArgs struct {
@@ -276,16 +286,17 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 	}
 
 	// Get the identity details.
-	identityID, idType, authGroups, mappedAuthGroups, projects, err := hook(ctx, method, r.CallerUsername())
+	res, err := hook(ctx, method, r.CallerUsername())
 	if err != nil {
 		return fmt.Errorf("Failed to get identity details: %w", err)
 	}
 
-	r.identityID = identityID
-	r.identityType = idType
-	r.authGroups = authGroups
-	r.mappedAuthGroups = mappedAuthGroups
-	r.projects = projects
+	r.identityID = res.IdentityID
+	r.identityType = res.IdentityType
+	r.authGroups = res.AuthGroups
+	r.mappedAuthGroups = res.EffectiveAuthGroups
+	r.identityProviderGroups = res.IdentityProviderGroups
+	r.projects = res.Projects
 
 	return nil
 }
