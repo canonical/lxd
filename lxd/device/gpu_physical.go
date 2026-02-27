@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -820,20 +819,14 @@ func (d *gpuPhysical) deviceNumStringToUint32(devNum string) (major uint32, mino
 func (d *gpuPhysical) getNvidiaNonCardDevices() ([]nvidiaNonCardDevice, error) {
 	nvidiaEnts, err := os.ReadDir("/dev")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, err
-		}
-	}
-
-	regexNvidiaCard, err := regexp.Compile(`^nvidia[0-9]+`)
-	if err != nil {
 		return nil, err
 	}
 
 	nvidiaDevices := []nvidiaNonCardDevice{}
 
 	for _, nvidiaEnt := range nvidiaEnts {
-		if !strings.HasPrefix(nvidiaEnt.Name(), "nvidia") {
+		nvidiaEntName := nvidiaEnt.Name()
+		if !strings.HasPrefix(nvidiaEntName, "nvidia") {
 			continue
 		}
 
@@ -842,11 +835,13 @@ func (d *gpuPhysical) getNvidiaNonCardDevices() ([]nvidiaNonCardDevice, error) {
 			continue
 		}
 
-		if regexNvidiaCard.MatchString(nvidiaEnt.Name()) {
+		// Skip card devices (nvidia0, nvidia1, ...) identified by a numeric suffix.
+		_, err := strconv.Atoi(strings.TrimPrefix(nvidiaEntName, "nvidia"))
+		if err == nil {
 			continue
 		}
 
-		nvidiaPath := filepath.Join("/dev", nvidiaEnt.Name())
+		nvidiaPath := filepath.Join("/dev", nvidiaEntName)
 		stat := unix.Stat_t{}
 		err = unix.Stat(nvidiaPath, &stat)
 		if err != nil {
