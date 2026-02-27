@@ -75,6 +75,18 @@ type Operation struct {
 	Requestor *OperationRequestor `json:"requestor,omitempty" yaml:"requestor,omitempty"`
 }
 
+// OperationFull is an Operation with its child operations.
+//
+// swagger:model
+//
+// API extension: bulk_operations.
+type OperationFull struct {
+	Operation `yaml:",inline"`
+
+	// Children is a list of child operations, if any exist.
+	Children []Operation `json:"children,omitempty" yaml:"children,omitempty"`
+}
+
 // OperationRequestor represents the initial requestor of an operation
 //
 // API extension: operation_requestor.
