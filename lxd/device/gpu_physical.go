@@ -208,11 +208,9 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 	}
 
 	// Create the devices directory if missing.
-	if !shared.PathExists(devicesPath) {
-		err := os.Mkdir(devicesPath, 0711)
-		if err != nil {
-			return err
-		}
+	err = os.Mkdir(devicesPath, 0711)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		return err
 	}
 
 	for _, conf := range configDevices.BindMounts {
