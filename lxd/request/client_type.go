@@ -31,3 +31,8 @@ func userAgentClientType(userAgent string) ClientType {
 
 	return ClientTypeNormal
 }
+
+// IsClusterNotification returns true if the ClientType is ClientTypeNotifier.
+func (c ClientType) IsClusterNotification() bool {
+	return c == ClientTypeNotifier
+}
