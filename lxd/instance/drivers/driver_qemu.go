@@ -2197,57 +2197,55 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 		}
 	})
 
-	// If runConf supplied, perform any instance specific setup of device.
-	if runConf != nil {
-		// If instance is running and then live attach device.
-		if instanceRunning {
-			// Attach NIC to running instance.
-			if len(runConf.NetworkInterface) > 0 {
-				err = d.deviceAttachNIC(runConf.NetworkInterface)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			// Attach disk to running instance.
-			for i, mount := range runConf.Mounts {
-				if mount.FSType == "virtiofs" {
-					mountTag, err := d.deviceAttachPath(dev.Name())
-					if err != nil {
-						return nil, err
-					}
-
-					runConf.Mounts[i].Opts = append(runConf.Mounts[i].Opts, "mountTag="+mountTag)
-				} else {
-					err = d.deviceAttachBlockDevice(mount)
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
-
-			// Attach USB to running instance.
-			for _, usbDev := range runConf.USBDevice {
-				err = d.deviceAttachUSB(usbDev)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			// Attach PCI to running instance.
-			if len(runConf.PCIDevice) > 0 {
-				err = d.deviceAttachPCI(runConf.PCIDevice)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			// If running, run post start hooks now (if not, they will be run
-			// once the instance is started).
-			err = d.runHooks(runConf.PostHooks)
+	// If runConf supplied and the instance is running, perform any instance
+	// specific setup of device and then live attach it to the instance.
+	if runConf != nil && instanceRunning {
+		// Attach NIC to running instance.
+		if len(runConf.NetworkInterface) > 0 {
+			err = d.deviceAttachNIC(runConf.NetworkInterface)
 			if err != nil {
 				return nil, err
 			}
+		}
+
+		// Attach disk to running instance.
+		for i, mount := range runConf.Mounts {
+			if mount.FSType == "virtiofs" {
+				mountTag, err := d.deviceAttachPath(dev.Name())
+				if err != nil {
+					return nil, err
+				}
+
+				runConf.Mounts[i].Opts = append(runConf.Mounts[i].Opts, "mountTag="+mountTag)
+			} else {
+				err = d.deviceAttachBlockDevice(mount)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		// Attach USB to running instance.
+		for _, usbDev := range runConf.USBDevice {
+			err = d.deviceAttachUSB(usbDev)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Attach PCI to running instance.
+		if len(runConf.PCIDevice) > 0 {
+			err = d.deviceAttachPCI(runConf.PCIDevice)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// If running, run post start hooks now (if not, they will be run
+		// once the instance is started).
+		err = d.runHooks(runConf.PostHooks)
+		if err != nil {
+			return nil, err
 		}
 	}
 
