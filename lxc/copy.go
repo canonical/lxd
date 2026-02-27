@@ -234,7 +234,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Copy of an instance into a new instance
-		entry, _, err := source.GetInstance(sourceName)
+		sourceInstance, _, err := source.GetInstance(sourceName)
 		if err != nil {
 			return err
 		}
@@ -246,11 +246,11 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		// or when server side move is simply not supported.
 		// The server will switch to migration so we cannot simply populate the Start field of the InstanceCopyArgs as this
 		// information will get lost during migration and is essentially not received by the target.
-		if entry.StatusCode == api.Running && move && !stateful {
+		if sourceInstance.StatusCode == api.Running && move && !stateful {
 			start = true
 		}
 
-		err = c.applyConfigOverrides(dest, pool, keepVolatile, &entry.Profiles, &entry.Config, &entry.Devices, configOverrides, deviceOverrides)
+		err = c.applyConfigOverrides(dest, pool, keepVolatile, &sourceInstance.Profiles, &sourceInstance.Config, &sourceInstance.Devices, configOverrides, deviceOverrides)
 		if err != nil {
 			return err
 		}
@@ -262,10 +262,10 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			}
 
 			if err == nil {
-				writableEntry := entry.Writable()
+				writableEntry := sourceInstance.Writable()
 				writableEntry.ApplyRefreshConfig(*refreshTarget)
-				entry.Config = writableEntry.Config
-				entry.Devices = writableEntry.Devices
+				sourceInstance.Config = writableEntry.Config
+				sourceInstance.Devices = writableEntry.Devices
 			}
 		}
 
@@ -281,18 +281,18 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		// Allow overriding the ephemeral status
 		switch ephemeral {
 		case 1:
-			entry.Ephemeral = true
+			sourceInstance.Ephemeral = true
 		case 0:
-			entry.Ephemeral = false
+			sourceInstance.Ephemeral = false
 		}
 
-		op, err = dest.CopyInstance(source, *entry, &args)
+		op, err = dest.CopyInstance(source, *sourceInstance, &args)
 		if err != nil {
 			return err
 		}
 
 		if needsRefreshClientFallback {
-			writable = entry.Writable()
+			writable = sourceInstance.Writable()
 		}
 	}
 
