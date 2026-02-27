@@ -3023,7 +3023,8 @@ func (d *qemu) generateConfigShare() error {
 	}
 
 	// Systemd units.
-	err = os.MkdirAll(filepath.Join(configDrivePath, "systemd"), 0500)
+	systemdPath := filepath.Join(configDrivePath, "systemd")
+	err = os.MkdirAll(systemdPath, 0500)
 	if err != nil {
 		return err
 	}
@@ -3060,7 +3061,7 @@ StartLimitBurst=10
 	// is ineffective as there are other means to access their content. This is
 	// not an issue as the lxd-agent.service unit doesn't contain any sensitive
 	// information.
-	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0644)
+	err = os.WriteFile(filepath.Join(systemdPath, "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0644)
 	if err != nil {
 		return err
 	}
@@ -3109,7 +3110,7 @@ rmdir "${PREFIX}/.mnt"
 restorecon -R "${PREFIX}" >/dev/null 2>&1 || true
 `
 
-	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
+	err = os.WriteFile(filepath.Join(systemdPath, "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
 	if err != nil {
 		return err
 	}
@@ -3138,7 +3139,7 @@ fi
 `
 
 	// System generators need to be executable as they are executed directly by systemd to determine which units to enable.
-	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-generator"), []byte(lxdAgentGenerator), 0500)
+	err = os.WriteFile(filepath.Join(systemdPath, "lxd-agent-generator"), []byte(lxdAgentGenerator), 0500)
 	if err != nil {
 		return err
 	}
