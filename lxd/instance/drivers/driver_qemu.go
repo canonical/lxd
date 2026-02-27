@@ -1163,7 +1163,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Rotate the log file.
 	logfile := d.LogFilePath()
 	if shared.PathExists(logfile) {
-		_ = os.Remove(logfile + ".old")
 		err := os.Rename(logfile, logfile+".old")
 		if err != nil && !os.IsNotExist(err) {
 			op.Done(err)
