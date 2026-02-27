@@ -11,6 +11,9 @@ import (
 
 var sysBusPci = "/sys/bus/pci/devices"
 
+// isDir returns true if the given path exists and is a directory.
+// Note: it is identical to `shared.IsDir` but we want to avoid importing the
+// whole `shared` package here.
 func isDir(name string) bool {
 	stat, err := os.Stat(name)
 	if err != nil {
