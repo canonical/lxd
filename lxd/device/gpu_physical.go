@@ -708,30 +708,32 @@ func (d *gpuPhysical) Stop() (*deviceConfig.RunConfig, error) {
 		PostHooks: []func() error{d.postStop},
 	}
 
-	if d.inst.Type() == instancetype.Container {
-		cdiID, _ := cdi.ToCDI(d.config["id"])
-		if cdiID != nil {
-			// This is more efficient than GenerateFromCDI as we don't need to re-generate a CDI
-			// specification to parse it again.
-			configDevices, err := cdi.ReloadConfigDevicesFromDisk(d.generateCDIConfigDevicesFilePath())
-			if err != nil {
-				return nil, err
-			}
+	if d.inst.Type() != instancetype.Container {
+		return &runConf, nil
+	}
 
-			err = d.stopCDIDevices(configDevices, &runConf)
-			if err != nil {
-				return nil, err
-			}
-
-			return &runConf, nil
-		}
-
-		// In case of an 'id' not being CDI-compliant (e.g, a legacy DRM card id),
-		// we remove unix devices only as usual.
-		err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
+	cdiID, _ := cdi.ToCDI(d.config["id"])
+	if cdiID != nil {
+		// This is more efficient than GenerateFromCDI as we don't need to re-generate a CDI
+		// specification to parse it again.
+		configDevices, err := cdi.ReloadConfigDevicesFromDisk(d.generateCDIConfigDevicesFilePath())
 		if err != nil {
 			return nil, err
 		}
+
+		err = d.stopCDIDevices(configDevices, &runConf)
+		if err != nil {
+			return nil, err
+		}
+
+		return &runConf, nil
+	}
+
+	// In case of an 'id' not being CDI-compliant (e.g, a legacy DRM card id),
+	// we remove unix devices only as usual.
+	err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
+	if err != nil {
+		return nil, err
 	}
 
 	return &runConf, nil
