@@ -1823,11 +1823,9 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 	}
 
 	// Clean any existing entry.
-	if shared.PathExists(devPath) {
-		err := os.Remove(devPath)
-		if err != nil {
-			return nil, "", false, err
-		}
+	err = os.Remove(devPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, "", false, err
 	}
 
 	// Create the mount point.
