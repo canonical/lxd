@@ -1171,12 +1171,11 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Remove old pid file if needed.
-	if shared.PathExists(d.pidFilePath()) {
-		err = os.Remove(d.pidFilePath())
-		if err != nil {
-			op.Done(err)
-			return fmt.Errorf("Failed removing old PID file %q: %w", d.pidFilePath(), err)
-		}
+	pidFilePath := d.pidFilePath()
+	err = os.Remove(pidFilePath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		op.Done(err)
+		return fmt.Errorf("Failed removing old PID file %q: %w", pidFilePath, err)
 	}
 
 	// Mount the instance's config volume.
