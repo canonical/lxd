@@ -150,24 +150,23 @@ func (d *dnsHandler) isAllowed(zone api.NetworkZone, ip string, tsig *dns.TSIG, 
 	// Build a list of peers.
 	peers := map[string]*peer{}
 	for k, v := range zone.Config {
-		if !strings.HasPrefix(k, "peers.") {
+		suffix, found := strings.CutPrefix(k, "peers.")
+		if !found {
 			continue
 		}
 
 		// Extract the fields.
-		fields := strings.SplitN(k, ".", 3)
-		if len(fields) != 3 {
+		peerName, field, found := strings.Cut(suffix, ".")
+		if !found {
 			continue
 		}
-
-		peerName := fields[1]
 
 		if peers[peerName] == nil {
 			peers[peerName] = &peer{}
 		}
 
 		// Add the correct validation rule for the dynamic field based on last part of key.
-		switch fields[2] {
+		switch field {
 		case "address":
 			peers[peerName].address = v
 		case "key":
