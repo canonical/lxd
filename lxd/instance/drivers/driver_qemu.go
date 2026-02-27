@@ -563,8 +563,9 @@ func (d *qemu) configDriveMountPathClear() error {
 
 // configVirtiofsdPaths returns the path for the socket and PID file to use with config drive virtiofsd process.
 func (d *qemu) configVirtiofsdPaths() (sockPath string, pidPath string) {
-	sockPath = filepath.Join(d.LogPath(), "virtio-fs.config.sock")
-	pidPath = filepath.Join(d.LogPath(), "virtiofsd.pid")
+	logPath := d.LogPath()
+	sockPath = filepath.Join(logPath, "virtio-fs.config.sock")
+	pidPath = filepath.Join(logPath, "virtiofsd.pid")
 
 	return sockPath, pidPath
 }
