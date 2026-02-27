@@ -51,7 +51,7 @@ type Requestor struct {
 	forwardedProtocol               string
 	forwardedIdentityProviderGroups []string
 	clientType                      ClientType
-	identityID                      int
+	identityID                      int64
 	authGroups                      []string
 	mappedAuthGroups                []string
 	projects                        []string
@@ -191,7 +191,7 @@ func (r *Requestor) CallerIdentityType() (identity.Type, error) {
 
 // CallerIdentityID returns the database ID of the calling identity (it is always zero if the calling identity is using
 // an admin protocol - cluster, unix, pki).
-func (r *Requestor) CallerIdentityID() int {
+func (r *Requestor) CallerIdentityID() int64 {
 	return r.identityID
 }
 
