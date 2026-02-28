@@ -58,11 +58,12 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 				return nil
 			}
 
-			if strings.HasPrefix(value, d.state.DevMonitor.PrefixPath()) {
+			prefixPath := d.state.DevMonitor.PrefixPath()
+			if strings.HasPrefix(value, prefixPath) {
 				return nil
 			}
 
-			return &drivers.ErrInvalidPath{PrefixPath: d.state.DevMonitor.PrefixPath()}
+			return &drivers.ErrInvalidPath{PrefixPath: prefixPath}
 		},
 
 		// lxdmeta:generate(entities=device-unix-{char+block}; group=device-conf; key=path)

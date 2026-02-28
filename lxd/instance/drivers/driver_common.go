@@ -473,12 +473,12 @@ func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig device
 	// the same key name present in the new config (i.e the new config is replacing the
 	// old volatile key).
 	for k := range d.localConfig {
-		if !strings.HasPrefix(k, devicePrefix) {
+		devKey, found := strings.CutPrefix(k, devicePrefix)
+		if !found {
 			continue
 		}
 
-		devKey := strings.TrimPrefix(k, devicePrefix)
-		_, found := newConfig[devKey]
+		_, found = newConfig[devKey]
 		if found {
 			volatileClear[k] = ""
 		}

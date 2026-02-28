@@ -92,8 +92,9 @@ func specMountToInstanceDev(configDevices *ConfigDevices, cdiID ID, mounts []*sp
 		}
 
 		if evaluatedHostPath != mount.HostPath && mount.ContainerPath == strings.TrimPrefix(mount.HostPath, rootPath) {
-			indirectSymlinks = append(indirectSymlinks, SymlinkEntry{Target: strings.TrimPrefix(evaluatedHostPath, rootPath), Link: mount.ContainerPath})
-			mount.ContainerPath = strings.TrimPrefix(evaluatedHostPath, rootPath)
+			targetPath := strings.TrimPrefix(evaluatedHostPath, rootPath)
+			indirectSymlinks = append(indirectSymlinks, SymlinkEntry{Target: targetPath, Link: mount.ContainerPath})
+			mount.ContainerPath = targetPath
 		}
 
 		configDevices.BindMounts = append(
