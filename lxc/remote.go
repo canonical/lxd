@@ -161,12 +161,9 @@ func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawTok
 		return errors.New("The --accept-certificate flag is not supported when adding a remote using a trust token")
 	}
 
-	if !conf.HasClientCertificate() {
-		fmt.Fprint(os.Stderr, "Generating a client certificate. This may take a minute...\n")
-		err := conf.GenerateClientCertificate()
-		if err != nil {
-			return err
-		}
+	err := conf.GenerateClientCertificate()
+	if err != nil {
+		return err
 	}
 
 	// If address is provided, use token on that specific address.
@@ -453,12 +450,9 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	// HTTPS server then we need to ensure we have a client certificate before
 	// adding the remote server.
 	if rScheme != "unix" && !c.flagPublic && (c.flagAuthType == api.AuthenticationMethodTLS || c.flagAuthType == "") {
-		if !conf.HasClientCertificate() {
-			fmt.Fprint(os.Stderr, "Generating a client certificate. This may take a minute...\n")
-			err = conf.GenerateClientCertificate()
-			if err != nil {
-				return err
-			}
+		err = conf.GenerateClientCertificate()
+		if err != nil {
+			return err
 		}
 	}
 
