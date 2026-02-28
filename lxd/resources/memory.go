@@ -2,6 +2,7 @@ package resources
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -170,20 +171,19 @@ func getTotalMemory(sysDevicesBase string) uint64 {
 	var count uint64
 	for _, entry := range entries {
 		entryName := entry.Name()
-		entryPath := filepath.Join(sysDevicesBase, entryName)
 
 		// Ignore directories not starting with "memory"
 		if !strings.HasPrefix(entryName, "memory") {
 			continue
 		}
 
-		// Ignore invalid entries.
-		if !pathExists(filepath.Join(entryPath, "online")) {
-			continue
-		}
-
-		content, err := os.ReadFile(filepath.Join(entryPath, "online"))
+		onlinePath := filepath.Join(sysDevicesBase, entryName, "online")
+		content, err := os.ReadFile(onlinePath)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+
 			return 0
 		}
 
@@ -249,9 +249,10 @@ func GetMemory() (*api.ResourcesMemory, error) {
 			}
 
 			// Parse NUMA meminfo
-			info, err := parseMeminfo(filepath.Join(entryPath, "meminfo"))
+			meminfoPath := filepath.Join(entryPath, "meminfo")
+			info, err := parseMeminfo(meminfoPath)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse %q: %w", filepath.Join(entryPath, "meminfo"), err)
+				return nil, fmt.Errorf("Failed to parse %q: %w", meminfoPath, err)
 			}
 
 			// Setup the entry

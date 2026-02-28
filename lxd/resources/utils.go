@@ -11,6 +11,9 @@ import (
 
 var sysBusPci = "/sys/bus/pci/devices"
 
+// isDir returns true if the given path exists and is a directory.
+// Note: it is identical to `shared.IsDir` but we want to avoid importing the
+// whole `shared` package here.
 func isDir(name string) bool {
 	stat, err := os.Stat(name)
 	if err != nil {
@@ -73,9 +76,8 @@ func sysfsNumaNode(path string) (uint64, error) {
 	for _, entry := range entries {
 		entryName := entry.Name()
 
-		if strings.HasPrefix(entryName, "node") && pathExists(filepath.Join(path, entryName, "numastat")) {
-			node := strings.TrimPrefix(entryName, "node")
-
+		node, ok := strings.CutPrefix(entryName, "node")
+		if ok && pathExists(filepath.Join(path, entryName, "numastat")) {
 			nodeNumber, err := strconv.ParseUint(node, 10, 64)
 			if err != nil {
 				return 0, err
@@ -128,7 +130,8 @@ func pciAddress(devicePath string) (string, error) {
 	}
 
 	// Check if we have a subsystem listed at all.
-	if !pathExists(filepath.Join(deviceDeviceDir, "subsystem")) {
+	subsystemPath := filepath.Join(deviceDeviceDir, "subsystem")
+	if !pathExists(subsystemPath) {
 		return "", nil
 	}
 
@@ -141,7 +144,7 @@ func pciAddress(devicePath string) (string, error) {
 	// Extract the subsystem.
 	subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
 	if err != nil {
-		return "", fmt.Errorf("Failed to find %q: %w", filepath.Join(deviceDeviceDir, "subsystem"), err)
+		return "", fmt.Errorf("Failed to find %q: %w", subsystemPath, err)
 	}
 
 	subsystem := filepath.Base(subsystemTarget)
@@ -151,7 +154,7 @@ func pciAddress(devicePath string) (string, error) {
 		linkTarget = filepath.Dir(linkTarget)
 		subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
 		if err != nil {
-			return "", fmt.Errorf("Failed to find %q: %w", filepath.Join(deviceDeviceDir, "subsystem"), err)
+			return "", fmt.Errorf("Failed to find %q: %w", subsystemPath, err)
 		}
 
 		subsystem = filepath.Base(subsystemTarget)

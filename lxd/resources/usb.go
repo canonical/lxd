@@ -45,7 +45,8 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		devicePath := filepath.Join(sysBusUSB, entryName)
 
 		// Skip entries without a bus address
-		if !pathExists(filepath.Join(devicePath, "busnum")) {
+		busnumPath := filepath.Join(devicePath, "busnum")
+		if !pathExists(busnumPath) {
 			continue
 		}
 
@@ -70,15 +71,16 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		device := api.ResourcesUSBDevice{}
 
 		// Get bus address
-		device.BusAddress, err = readUint(filepath.Join(devicePath, "busnum"))
+		device.BusAddress, err = readUint(busnumPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "busnum"), err)
+			return nil, fmt.Errorf("Failed to read %q: %w", busnumPath, err)
 		}
 
 		// Get device address
-		device.DeviceAddress, err = readUint(filepath.Join(devicePath, "devnum"))
+		devnumPath := filepath.Join(devicePath, "devnum")
+		device.DeviceAddress, err = readUint(devnumPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "devnum"), err)
+			return nil, fmt.Errorf("Failed to read %q: %w", devnumPath, err)
 		}
 
 		// Get serial number

@@ -63,18 +63,20 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	}
 
 	// SRIOV
-	if pathExists(filepath.Join(deviceDeviceDir, "sriov_numvfs")) {
+	sriovNumVFsPath := filepath.Join(deviceDeviceDir, "sriov_numvfs")
+	if pathExists(sriovNumVFsPath) {
 		sriov := api.ResourcesNetworkCardSRIOV{}
 
 		// Get maximum and current VF count
-		vfMaximum, err := readUint(filepath.Join(deviceDeviceDir, "sriov_totalvfs"))
+		sriovTotalVFsPath := filepath.Join(deviceDeviceDir, "sriov_totalvfs")
+		vfMaximum, err := readUint(sriovTotalVFsPath)
 		if err != nil {
-			return fmt.Errorf("Failed to read %q: %w", filepath.Join(deviceDeviceDir, "sriov_totalvfs"), err)
+			return fmt.Errorf("Failed to read %q: %w", sriovTotalVFsPath, err)
 		}
 
-		vfCurrent, err := readUint(filepath.Join(deviceDeviceDir, "sriov_numvfs"))
+		vfCurrent, err := readUint(sriovNumVFsPath)
 		if err != nil {
-			return fmt.Errorf("Failed to read %q: %w", filepath.Join(deviceDeviceDir, "sriov_numvfs"), err)
+			return fmt.Errorf("Failed to read %q: %w", sriovNumVFsPath, err)
 		}
 
 		sriov.MaximumVFs = vfMaximum
@@ -85,10 +87,11 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	}
 
 	// NUMA node
-	if pathExists(filepath.Join(deviceDeviceDir, "numa_node")) {
-		numaNode, err := readInt(filepath.Join(deviceDeviceDir, "numa_node"))
+	numaNodePath := filepath.Join(deviceDeviceDir, "numa_node")
+	if pathExists(numaNodePath) {
+		numaNode, err := readInt(numaNodePath)
 		if err != nil {
-			return fmt.Errorf("Failed to read %q: %w", filepath.Join(deviceDeviceDir, "numa_node"), err)
+			return fmt.Errorf("Failed to read %q: %w", numaNodePath, err)
 		}
 
 		if numaNode > 0 {
@@ -180,10 +183,11 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 			}
 
 			// Add type
-			if pathExists(filepath.Join(interfacePath, "type")) {
-				devType, err := readUint(filepath.Join(interfacePath, "type"))
+			typePath := filepath.Join(interfacePath, "type")
+			if pathExists(typePath) {
+				devType, err := readUint(typePath)
 				if err != nil {
-					return fmt.Errorf("Failed to read %q: %w", filepath.Join(interfacePath, "type"), err)
+					return fmt.Errorf("Failed to read %q: %w", typePath, err)
 				}
 
 				protocol, ok := netProtocols[devType]
@@ -195,20 +199,22 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 			}
 
 			// Add MAC address
-			if info.Address == "" && pathExists(filepath.Join(interfacePath, "address")) {
-				address, err := os.ReadFile(filepath.Join(interfacePath, "address"))
+			addressPath := filepath.Join(interfacePath, "address")
+			if info.Address == "" && pathExists(addressPath) {
+				address, err := os.ReadFile(addressPath)
 				if err != nil {
-					return fmt.Errorf("Failed to read %q: %w", filepath.Join(interfacePath, "address"), err)
+					return fmt.Errorf("Failed to read %q: %w", addressPath, err)
 				}
 
 				info.Address = strings.TrimSpace(string(address))
 			}
 
 			// Add port number
-			if pathExists(filepath.Join(interfacePath, "dev_port")) {
-				port, err := readUint(filepath.Join(interfacePath, "dev_port"))
+			devPortPath := filepath.Join(interfacePath, "dev_port")
+			if pathExists(devPortPath) {
+				port, err := readUint(devPortPath)
 				if err != nil {
-					return fmt.Errorf("Failed to read %q: %w", filepath.Join(interfacePath, "dev_port"), err)
+					return fmt.Errorf("Failed to read %q: %w", devPortPath, err)
 				}
 
 				info.Port = port
@@ -229,22 +235,25 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 
 					for _, entry := range entries {
 						entryName := entry.Name()
-						currentPort, err := readUint(filepath.Join(madPath, entryName, "port"))
+						madEntryPath := filepath.Join(madPath, entryName)
+						madEntryPortPath := filepath.Join(madEntryPath, "port")
+						currentPort, err := readUint(madEntryPortPath)
 						if err != nil {
-							return fmt.Errorf("Failed to read %q: %w", filepath.Join(madPath, entryName, "port"), err)
+							return fmt.Errorf("Failed to read %q: %w", madEntryPortPath, err)
 						}
 
 						if currentPort != ibPort {
 							continue
 						}
 
-						if !pathExists(filepath.Join(madPath, entryName, "dev")) {
+						madEntryDevPath := filepath.Join(madEntryPath, "dev")
+						if !pathExists(madEntryDevPath) {
 							continue
 						}
 
-						dev, err := os.ReadFile(filepath.Join(madPath, entryName, "dev"))
+						dev, err := os.ReadFile(madEntryDevPath)
 						if err != nil {
-							return fmt.Errorf("Failed to read %q: %w", filepath.Join(madPath, entryName, "dev"), err)
+							return fmt.Errorf("Failed to read %q: %w", madEntryDevPath, err)
 						}
 
 						if strings.HasPrefix(entryName, "issm") {
@@ -270,13 +279,14 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 						verbName := entries[0].Name()
 						infiniband.VerbName = verbName
 
-						if !pathExists(filepath.Join(verbsPath, verbName, "dev")) {
+						verbDevPath := filepath.Join(verbsPath, verbName, "dev")
+						if !pathExists(verbDevPath) {
 							continue
 						}
 
-						dev, err := os.ReadFile(filepath.Join(verbsPath, verbName, "dev"))
+						dev, err := os.ReadFile(verbDevPath)
 						if err != nil {
-							return fmt.Errorf("Failed to read %q: %w", filepath.Join(verbsPath, verbName, "dev"), err)
+							return fmt.Errorf("Failed to read %q: %w", verbDevPath, err)
 						}
 
 						infiniband.VerbDevice = strings.TrimSpace(string(dev))
@@ -348,7 +358,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			devicePath := filepath.Join(entryPath, "device")
 
 			// Only keep physical network devices
-			if !pathExists(filepath.Join(entryPath, "device")) {
+			if !pathExists(devicePath) {
 				continue
 			}
 
@@ -379,11 +389,12 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			}
 
 			// Add to list
-			if pathExists(filepath.Join(devicePath, "physfn")) {
+			physfnPath := filepath.Join(devicePath, "physfn")
+			if pathExists(physfnPath) {
 				// Virtual functions need to be added to the parent
-				linkTarget, err := filepath.EvalSymlinks(filepath.Join(devicePath, "physfn"))
+				linkTarget, err := filepath.EvalSymlinks(physfnPath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to find %q: %w", filepath.Join(devicePath, "physfn"), err)
+					return nil, fmt.Errorf("Failed to find %q: %w", physfnPath, err)
 				}
 
 				parentAddress := filepath.Base(linkTarget)
@@ -418,13 +429,14 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			}
 
 			// Only care about identifiable devices
-			if !pathExists(filepath.Join(devicePath, "class")) {
+			classPath := filepath.Join(devicePath, "class")
+			if !pathExists(classPath) {
 				continue
 			}
 
-			class, err := os.ReadFile(filepath.Join(devicePath, "class"))
+			class, err := os.ReadFile(classPath)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "class"), err)
+				return nil, fmt.Errorf("Failed to read %q: %w", classPath, err)
 			}
 
 			// Only care about VGA devices
@@ -443,11 +455,12 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			}
 
 			// Add to list
-			if pathExists(filepath.Join(devicePath, "physfn")) {
+			physfnPath := filepath.Join(devicePath, "physfn")
+			if pathExists(physfnPath) {
 				// Virtual functions need to be added to the parent
-				linkTarget, err := filepath.EvalSymlinks(filepath.Join(devicePath, "physfn"))
+				linkTarget, err := filepath.EvalSymlinks(physfnPath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to find %q: %w", filepath.Join(devicePath, "physfn"), err)
+					return nil, fmt.Errorf("Failed to find %q: %w", physfnPath, err)
 				}
 
 				parentAddress := filepath.Base(linkTarget)
