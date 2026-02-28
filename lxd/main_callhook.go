@@ -1,15 +1,9 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -42,175 +36,6 @@ func (c *cmdCallhook) Command() *cobra.Command {
 	return cmd
 }
 
-// resolveTargetRelativeToLink converts a link's target into a path relative to the link's path.
-func resolveTargetRelativeToLink(link string, target string) (string, error) {
-	if !filepath.IsAbs(link) {
-		return "", fmt.Errorf("The link must be an absolute path: %q (target: %q)", link, target)
-	}
-
-	// If target is already relative, return as-is.
-	if !filepath.IsAbs(target) {
-		return target, nil
-	}
-
-	// Clean both paths to normalize them.
-	linkClean := filepath.Clean(link)
-	targetClean := filepath.Clean(target)
-
-	linkDir := filepath.Dir(linkClean)
-
-	// Calculate the relative path from link's directory to the target.
-	relPath, err := filepath.Rel(linkDir, targetClean)
-	if err != nil {
-		return "", err
-	}
-
-	return relPath, nil
-}
-
-// customCDILinkerConfFile is the name of the linker conf file we will write to
-// inside the container. The `00-lxdcdi` prefix is chosen to ensure that these libraries have
-// a higher precedence than other libraries on the system.
-var customCDILinkerConfFile = "00-lxdcdi.conf"
-
-// applyCDIHooksToContainer is called before the container has started but after the container namespace has been setup,
-// and is used whenever CDI devices are added to a container and where symlinks and linker cache entries need to be created.
-// These entries are listed in a 'CDI hooks file' located at `hooksFilePath`.
-func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) error {
-	hookFile, err := os.Open(filepath.Join(devicesRootFolder, hooksFilePath))
-	if err != nil {
-		return fmt.Errorf("Failed opening the CDI hooks file at %q: %w", hooksFilePath, err)
-	}
-
-	defer hookFile.Close()
-
-	hooks := &cdi.Hooks{}
-	err = json.NewDecoder(hookFile).Decode(hooks)
-	if err != nil {
-		return fmt.Errorf("Failed decoding the CDI hooks file at %q: %w\n", hooksFilePath, err)
-	}
-
-	fmt.Println("CDI Hooks file loaded:")
-	prettyHooks, err := json.MarshalIndent(hooks, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	containerRootFSMount := os.Getenv("LXC_ROOTFS_MOUNT")
-	if containerRootFSMount == "" {
-		return errors.New("LXC_ROOTFS_MOUNT is empty")
-	}
-
-	fmt.Println(string(prettyHooks))
-
-	// Creating the symlinks
-	for _, symlink := range hooks.Symlinks {
-		// Resolve hook link from target
-		target, err := resolveTargetRelativeToLink(symlink.Link, symlink.Target)
-		if err != nil {
-			return fmt.Errorf("Failed resolving a CDI symlink: %w\n", err)
-		}
-
-		// Try to create the directory if it doesn't exist
-		err = os.MkdirAll(filepath.Dir(filepath.Join(containerRootFSMount, symlink.Link)), 0755)
-		if err != nil {
-			return fmt.Errorf("Failed creating the directory for the CDI symlink: %w\n", err)
-		}
-
-		// Create the symlink
-		err = os.Symlink(target, filepath.Join(containerRootFSMount, symlink.Link))
-		if err != nil {
-			if !errors.Is(err, fs.ErrExist) {
-				return fmt.Errorf("Failed creating the CDI symlink: %w\n", err)
-			}
-
-			fmt.Printf("Symlink not created because link %q already exists for target %q\n", symlink.Link, target)
-		}
-	}
-
-	// Updating the linker cache
-	l := len(hooks.LDCacheUpdates)
-	if l > 0 {
-		ldConfDirPath := filepath.Join(containerRootFSMount, "etc", "ld.so.conf.d")
-		err = os.MkdirAll(ldConfDirPath, 0755)
-		if err != nil {
-			return fmt.Errorf("Failed creating the linker conf directory at %q: %w\n", ldConfDirPath, err)
-		}
-
-		ldConfFilePath := containerRootFSMount + "/etc/ld.so.conf.d/" + customCDILinkerConfFile
-		_, err = os.Stat(ldConfFilePath)
-		if err == nil {
-			// The file already exists. Read it first, analyze its entries
-			// and add the ones that are not already there.
-			ldConfFile, err := os.OpenFile(ldConfFilePath, os.O_APPEND|os.O_RDWR, 0644)
-			if err != nil {
-				return fmt.Errorf("Failed opening the ld.so.conf file at %q: %w\n", ldConfFilePath, err)
-			}
-
-			existingLinkerEntries := make(map[string]bool)
-			scanner := bufio.NewScanner(ldConfFile)
-			for scanner.Scan() {
-				existingLinkerEntries[strings.TrimSpace(scanner.Text())] = true
-			}
-
-			fmt.Printf("Existing linker entries: %v\n", existingLinkerEntries)
-			for _, update := range hooks.LDCacheUpdates {
-				if !existingLinkerEntries[update] {
-					fmt.Printf("Adding linker entry: %s\n", update)
-					_, err = fmt.Fprintln(ldConfFile, update)
-					if err != nil {
-						ldConfFile.Close()
-						return fmt.Errorf("Failed writing to the linker conf file at %q: %w\n", ldConfFilePath, err)
-					}
-
-					existingLinkerEntries[update] = true
-				}
-			}
-
-			ldConfFile.Close()
-		} else if errors.Is(err, os.ErrNotExist) {
-			// The file does not exist. We simply create it with our entries.
-			ldConfFile, err := os.OpenFile(ldConfFilePath, os.O_CREATE|os.O_WRONLY, 0644)
-			if err != nil {
-				return fmt.Errorf("Failed creating the linker conf file at %q: %w\n", ldConfFilePath, err)
-			}
-
-			for _, update := range hooks.LDCacheUpdates {
-				fmt.Printf("Adding linker entry: %s\n", update)
-				_, err = fmt.Fprintln(ldConfFile, update)
-				if err != nil {
-					ldConfFile.Close()
-					return fmt.Errorf("Failed writing to the linker conf file at %q: %w\n", ldConfFilePath, err)
-				}
-			}
-
-			ldConfFile.Close()
-		} else {
-			return fmt.Errorf("Could not stat the linker conf file to add CDI linker entries at %q: %w\n", ldConfFilePath, err)
-		}
-
-		// Then remove the linker cache and regenerate it
-		linkerCachePath := filepath.Join(containerRootFSMount, "etc", "ld.so.cache")
-		err = os.Remove(linkerCachePath)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return fmt.Errorf("Failed removing the ld.so.cache file: %w\n", err)
-			}
-
-			fmt.Printf("Linker cache not found in %q, skipping removal\n", linkerCachePath)
-		}
-
-		// Run `ldconfig` on the HOST (but targeting the container rootFS) to reduce the risk of running untrusted code in the container.
-		ldexec := exec.Command("/sbin/ldconfig", "-r", containerRootFSMount)
-		output, err := ldexec.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("Failed running ldconfig in the container rootfs: %w: %s", err, string(output))
-		}
-	}
-
-	return nil
-}
-
 // Run executes the `lxd callhook` command.
 func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this.
@@ -239,9 +64,15 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 			return errors.New("Missing required --devicesRootFolder <directory> flag")
 		}
 
+		containerRootFSMount := os.Getenv("LXC_ROOTFS_MOUNT")
+		if containerRootFSMount == "" {
+			return errors.New("LXC_ROOTFS_MOUNT is empty")
+		}
+
 		var err error
 		for _, cdiHooksFile := range cdiHooksFiles {
-			err = applyCDIHooksToContainer(c.devicesRootFolder, cdiHooksFile)
+			cdiHookPath := filepath.Join(c.devicesRootFolder, cdiHooksFile)
+			err = cdi.ApplyHooksToContainer(cdiHookPath, containerRootFSMount)
 			if err != nil {
 				return err
 			}
