@@ -3,32 +3,15 @@ package endpoints
 import (
 	"fmt"
 	"net"
-	"strings"
 	"time"
 
-	"github.com/canonical/lxd/lxd/endpoints/listeners"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
 
 func storageBucketsCreateListener(address string, cert *shared.CertInfo) (net.Listener, error) {
-	// Listening on `tcp` network with address 0.0.0.0 will end up with listening
-	// on both IPv4 and IPv6 interfaces. Pass `tcp4` to make it
-	// work only on 0.0.0.0. https://go-review.googlesource.com/c/go/+/45771/
-	listenAddress := util.CanonicalNetworkAddress(address, shared.HTTPSStorageBucketsDefaultPort)
-	protocol := "tcp"
-
-	if strings.HasPrefix(listenAddress, "0.0.0.0") {
-		protocol = "tcp4"
-	}
-
-	listener, err := net.Listen(protocol, listenAddress)
-	if err != nil {
-		return nil, fmt.Errorf("Bind network address: %w", err)
-	}
-
-	return listeners.NewFancyTLSListener(listener, cert), nil
+	return createTLSListener(address, shared.HTTPSStorageBucketsDefaultPort, cert)
 }
 
 // StorageBucketsAddress returns the network address of the storage buckets endpoint, or an
