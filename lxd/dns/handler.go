@@ -165,7 +165,7 @@ func (d *dnsHandler) isAllowed(zone api.NetworkZone, ip string, tsig *dns.TSIG, 
 			peers[peerName] = &peer{}
 		}
 
-		// Add the correct validation rule for the dynamic field based on last part of key.
+		// Populate peer configuration fields (address, key) based on the last part of the key.
 		switch field {
 		case "address":
 			peers[peerName].address = v
