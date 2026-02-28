@@ -30,7 +30,7 @@ func writeRcode(w dns.ResponseWriter, r *dns.Msg, rcode int) {
 
 // ServeDNS handles each DNS request.
 func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	// Don't allow concurent queries.
+	// Don't allow concurrent queries.
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
