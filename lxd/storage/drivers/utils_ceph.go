@@ -68,6 +68,8 @@ func CephMonitors(cluster string) ([]string, error) {
 		return nil, fmt.Errorf("Failed to open %q: %w", "/etc/ceph/"+cluster+".conf", err)
 	}
 
+	defer func() { _ = cephConf.Close() }()
+
 	// Locate the mon-host key and its values.
 	cephMon := []string{}
 	scan := bufio.NewScanner(cephConf)
@@ -153,6 +155,8 @@ func getCephKeyFromFile(path string) (string, error) {
 		return "", fmt.Errorf("Failed to open %q: %w", path, err)
 	}
 
+	defer func() { _ = cephKeyring.Close() }()
+
 	// Locate the keyring entry and its value.
 	var cephSecret string
 	scan := bufio.NewScanner(cephKeyring)
@@ -206,6 +210,8 @@ func CephKeyring(cluster string, client string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("Failed to open %q: %w", cephConfigPath, err)
 		}
+
+		defer func() { _ = cephConfig.Close() }()
 
 		// Locate the keyring entry and its value.
 		scan := bufio.NewScanner(cephConfig)

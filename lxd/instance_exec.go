@@ -126,9 +126,11 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				s.connsLock.Unlock()
 				return nil
 			} else if !found {
+				s.connsLock.Unlock()
 				return errors.New("Unknown websocket number")
 			}
 
+			s.connsLock.Unlock()
 			return errors.New("Websocket number already connected")
 		}
 	}
