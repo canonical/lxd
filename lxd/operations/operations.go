@@ -362,8 +362,8 @@ func (op *Operation) done() {
 
 		select {
 		case <-shutdownCtx.Done():
-			return // Expect all operation records to be removed by daemon.Stop in one query.
-		case <-time.After(time.Second * 5): // Wait 5s before removing from internal map and database.
+			return // Expect all operation records to be handled by daemon.Stop.
+		case <-time.After(time.Second * 5): // Wait 5s before removing from internal map.
 		}
 
 		operationsLock.Lock()
@@ -373,20 +373,9 @@ func (op *Operation) done() {
 			return
 		}
 
+		// Remove from in-memory map only. The operation record is kept in the database as history.
 		delete(operations, op.id)
 		operationsLock.Unlock()
-
-		if op.state == nil {
-			return
-		}
-
-		err := removeDBOperation(op)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			// Operations can be deleted from the database before the operation clean up go routine has
-			// run in cases where the project that the operation(s) are associated to is deleted first.
-			// So don't log warning if operation not found.
-			op.logger.Warn("Failed to delete operation", logger.Ctx{"status": op.status, "err": err})
-		}
 	}()
 }
 

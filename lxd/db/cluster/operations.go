@@ -50,6 +50,7 @@ type Operation struct {
 	Type                operationtype.Type // Type of the operation
 	RequestorProtocol   *RequestorProtocol // Protocol from the operation requestor
 	RequestorIdentityID *int64             // Identity ID from the operation requestor
+	RequestorAddress    string             // Origin address of the operation requestor
 	EntityID            int                // ID of the entity the operation acts upon
 	Metadata            string             // JSON encoded metadata for the operation
 	Class               int64              // Class of the operation
@@ -176,6 +177,98 @@ func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, updatedAt t
 	}
 
 	return nil
+}
+
+// FailRunningOperationsByNodeID marks all running or cancelling operations for a given node as failed.
+// This is used on node restart or when a node goes offline, to record that those operations were interrupted.
+// Completed operations are preserved as history.
+func FailRunningOperationsByNodeID(ctx context.Context, tx *sql.Tx, nodeID int64, updatedAt time.Time) error {
+	stmt := `UPDATE operations
+		SET status_code = ?, updated_at = ?, error = ?
+		WHERE node_id = ?
+		AND status_code IN (?, ?)`
+
+	_, err := tx.ExecContext(ctx, stmt,
+		api.Failure,
+		updatedAt,
+		"Node restarted",
+		nodeID,
+		api.Running,
+		api.Cancelling,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed marking running operations as failed: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteExpiredOperations deletes operations that completed before the given cutoff time.
+// This is used to prune old operation history.
+func DeleteExpiredOperations(ctx context.Context, tx *sql.Tx, cutoff time.Time) error {
+	stmt := `DELETE FROM operations
+		WHERE status_code NOT IN (?, ?)
+		AND updated_at < ?`
+
+	_, err := tx.ExecContext(ctx, stmt, api.Running, api.Cancelling, cutoff)
+	if err != nil {
+		return fmt.Errorf("Failed deleting expired operations: %w", err)
+	}
+
+	return nil
+}
+
+// GetHistoricalOperations returns completed operations for use in operation history listings.
+// It joins the identities table to include the requestor username.
+func GetHistoricalOperations(ctx context.Context, tx *sql.Tx, projectName string, allProjects bool) ([]Operation, error) {
+	var stmt string
+	var args []any
+
+	if allProjects {
+		stmt = `
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id,
+       operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.requestor_address,
+       operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at,
+       operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent,
+       operations.stage
+  FROM operations
+  JOIN nodes ON operations.node_id = nodes.id
+ WHERE operations.status_code NOT IN (?, ?)
+ ORDER BY operations.updated_at DESC`
+		args = []any{api.Running, api.Cancelling}
+	} else {
+		stmt = `
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id,
+       operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.requestor_address,
+       operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at,
+       operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent,
+       operations.stage
+  FROM operations
+  JOIN nodes ON operations.node_id = nodes.id
+  LEFT JOIN projects ON projects.id = operations.project_id
+ WHERE operations.status_code NOT IN (?, ?)
+   AND (projects.name = ? OR operations.project_id IS NULL)
+ ORDER BY operations.updated_at DESC`
+		args = []any{api.Running, api.Cancelling, projectName}
+	}
+
+	return getOperationsRaw(ctx, tx, stmt, args...)
+}
+
+// GetIdentifierForIdentityID returns the identifier (username/fingerprint) for the given identity ID.
+// Returns empty string if the identity is not found (e.g. it was deleted).
+func GetIdentifierForIdentityID(ctx context.Context, tx *sql.Tx, identityID int64) (string, error) {
+	var identifier string
+	err := tx.QueryRowContext(ctx, `SELECT identifier FROM identities WHERE id = ?`, identityID).Scan(&identifier)
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows") {
+			return "", nil
+		}
+
+		return "", fmt.Errorf("Failed getting identifier for identity %d: %w", identityID, err)
+	}
+
+	return identifier, nil
 }
 
 // GetOperationResources loads operation resources from the cluster db.

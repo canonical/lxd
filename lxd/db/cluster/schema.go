@@ -448,6 +448,7 @@ CREATE TABLE operations (
     project_id INTEGER,
     requestor_protocol INTEGER,
     requestor_identity_id INTEGER,
+    requestor_address TEXT NOT NULL DEFAULT '',
     entity_id INTEGER NOT NULL DEFAULT 0,
     metadata TEXT NOT NULL,
     class INTEGER NOT NULL DEFAULT 0,

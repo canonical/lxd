@@ -2968,3 +2968,15 @@ As with the {ref}`storage and profile operation extension <extension-storage-and
 ## `gpu_cdi_amd`
 
 Adds support for using the Container Device Interface (CDI) specification to configure AMD GPU passthrough in LXD containers. The `id` field of GPU devices now accepts CDI identifiers (for example, `amd.com/gpu=gpu{INDEX}`) for containers, in addition to DRM card IDs.
+
+(extension-operation-history)=
+## `operation_history`
+
+Completed operations are now stored persistently in the database as a history record, rather than being discarded after a few seconds.
+
+This extension adds the following changes:
+
+- `GET /1.0/operations` now accepts an optional `?history=true` query parameter. When set, the response includes completed, failed, and cancelled operations in addition to the currently running ones.
+- Each operation record includes the requestor address field (`requestor_address`) indicating the IP/address from which the request originated.
+- Operations interrupted by a node restart or going offline are marked as `Failure` with an appropriate error message, preserving them in history.
+- The new server configuration key `operations.history_retention` (integer, default `30`) controls how many days of completed operation history to keep. Set to `0` to keep history indefinitely.

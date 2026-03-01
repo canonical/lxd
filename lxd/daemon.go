@@ -2129,6 +2129,9 @@ func (d *Daemon) startClusterTasks() {
 	// Remove orphaned operations
 	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d.State))
 
+	// Prune expired operation history
+	d.clusterTasks.Add(pruneExpiredOperationsTask(d.State))
+
 	// Perform automatic evacuation for offline cluster members
 	d.clusterTasks.Add(autoHealClusterTask(d.State, d.gateway))
 
@@ -2270,9 +2273,10 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		}
 
 		if d.db.Cluster != nil {
-			// Remove remaining operations before closing the database.
+			// Mark any running operations as failed before closing the database.
+			// Completed operations are preserved as history.
 			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				err := dbCluster.DeleteOperations(ctx, tx.Tx(), s.DB.Cluster.GetNodeID())
+				err := dbCluster.FailRunningOperationsByNodeID(ctx, tx.Tx(), s.DB.Cluster.GetNodeID(), time.Now())
 				if err != nil {
 					logger.Error("Failed cleaning up operations")
 				}
@@ -2282,7 +2286,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			if err != nil {
 				logger.Error("Failed cleaning up operations", logger.Ctx{"err": err})
 			} else {
-				logger.Debug("Operations deleted from the database")
+				logger.Debug("Marked running operations as failed in the database")
 			}
 		}
 	}
