@@ -35,7 +35,7 @@ SELECT DISTINCT nodes.address
 	return query.SelectStrings(ctx, c.tx, stmt, project, api.Running, api.Cancelling)
 }
 
-// GetOperationsOfType returns a list operations that belong to the specified project and have the desired type.
+// GetOperationsOfType returns a list of running operations that belong to the specified project and have the desired type.
 func (c *ClusterTx) GetOperationsOfType(ctx context.Context, projectName string, opType operationtype.Type) ([]cluster.Operation, error) {
 	var ops []cluster.Operation
 
@@ -45,8 +45,9 @@ SELECT operations.id, operations.uuid, operations.type, nodes.address
   LEFT JOIN projects on projects.id = operations.project_id
   JOIN nodes on nodes.id = operations.node_id
 WHERE (projects.name = ? OR operations.project_id IS NULL) and operations.type = ?
+  AND operations.status_code IN (?, ?)
 `
-	rows, err := c.tx.QueryContext(ctx, stmt, projectName, opType)
+	rows, err := c.tx.QueryContext(ctx, stmt, projectName, opType, api.Running, api.Cancelling)
 	if err != nil {
 		return nil, err
 	}
