@@ -53,7 +53,7 @@ sudo snap install lxd
 ```{admonition} If snap is not installed or not supported
 :class: note
 
-If you see an error message indicating that `snap` is not installed, visit the [Snap installation documentation](https://snapcraft.io/docs/installing-snapd) and follow the instructions there to install it.
+If you see an error message indicating that `snap` is not installed, visit the {ref}`Snap installation documentation <snap:tutorials-install-the-daemon-index>` and follow the instructions there to install it.
 
 If you use a Linux distribution that does not support `snap`, see {ref}`installing-other` to install LXD by other means if possible, then skip to the {ref}`next section <tutorial-adduser>` of this tutorial.
 ```
