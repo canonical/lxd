@@ -546,9 +546,24 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 					targetIsDir = true
 				}
 
-				err := c.file.recursivePullFile(resource.server, pathSpec[0], pathSpec[1], target)
+				// Open target as a sandboxed root so all recursive writes are
+				// confined to the destination tree, preventing path traversal
+				// and symlink-escape attacks from a malicious server.
+				root, err := os.OpenRoot(target)
 				if err != nil {
 					return err
+				}
+
+				err = c.file.recursivePullFile(resource.server, pathSpec[0], pathSpec[1], root, "")
+				// Capture close error separately; check pull error first so it is
+				// not masked by a close error when both occur.
+				closeErr := root.Close()
+				if err != nil {
+					return err
+				}
+
+				if closeErr != nil {
+					return closeErr
 				}
 
 				continue
@@ -941,18 +956,45 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string, targetDir string) error {
+func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string, root *os.Root, relDir string) error {
 	buf, resp, err := d.GetInstanceFile(inst, p)
 	if err != nil {
 		return err
 	}
 
-	target := filepath.Join(targetDir, filepath.Base(p))
-	logger.Infof("Pulling %s from %s (%s)", target, p, resp.Type)
+	// relTarget is the path of the entry relative to the root, used for all
+	// host-side file operations. absTarget is only used for log messages.
+	relTarget := filepath.Join(relDir, filepath.Base(p))
+	absTarget := filepath.Join(root.Name(), relTarget)
+	logger.Infof("Pulling %s from %s (%s)", absTarget, p, resp.Type)
 
 	switch resp.Type {
 	case "directory":
-		err := os.Mkdir(target, os.FileMode(resp.Mode))
+		// If target is a symlink, remove it so we always create a real directory.
+		// root.MkdirAll and root.Chmod follow symlinks; leaving one in place could
+		// cause writes or permission changes outside the destination tree.
+		fi, err := root.Lstat(relTarget)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		// Remove existing symlink to prevent writes outside the destination tree.
+		if err == nil && fi.Mode()&os.ModeSymlink != 0 {
+			err = root.Remove(relTarget)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Create directory within the sandboxed root.
+		err = root.MkdirAll(relTarget, os.FileMode(resp.Mode))
+		if err != nil {
+			return err
+		}
+
+		// Explicit Chmod so permissions match the source even when the directory
+		// already existed (root.MkdirAll does not update permissions on existing dirs).
+		err = root.Chmod(relTarget, os.FileMode(resp.Mode))
 		if err != nil {
 			return err
 		}
@@ -960,26 +1002,22 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 		for _, ent := range resp.Entries {
 			nextP := path.Join(p, ent)
 
-			err := c.recursivePullFile(d, inst, nextP, target)
+			err := c.recursivePullFile(d, inst, nextP, root, relTarget)
 			if err != nil {
 				return err
 			}
 		}
 	case "file":
-		f, err := os.Create(target)
+		// Open file within sandboxed root. O_TRUNC ensures clean overwrites.
+		f, err := root.OpenFile(relTarget, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(resp.Mode))
 		if err != nil {
 			return err
 		}
 
 		defer func() { _ = f.Close() }()
 
-		err = os.Chmod(target, os.FileMode(resp.Mode))
-		if err != nil {
-			return err
-		}
-
 		progress := cli.ProgressRenderer{
-			Format: fmt.Sprintf("Pulling %s from %s: %%s", p, target),
+			Format: fmt.Sprintf("Pulling %s from %s: %%s", p, absTarget),
 			Quiet:  c.global.flagQuiet,
 		}
 
@@ -1013,9 +1051,38 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 			return err
 		}
 
-		err = os.Symlink(strings.TrimSpace(string(linkTarget)), target)
+		symlinkTarget := strings.TrimSpace(string(linkTarget))
+
+		// Create symlink within the sandboxed root.
+		err = root.Symlink(symlinkTarget, relTarget)
 		if err != nil {
-			return err
+			// Only handle the case where the target already exists; propagate all other errors.
+			if !os.IsExist(err) {
+				return err
+			}
+
+			// Use Lstat to inspect the target itself, not what it points to,
+			// so a symlink to directory is correctly identified as a symlink.
+			fi, err := root.Lstat(relTarget)
+			if err != nil {
+				return err
+			}
+
+			// Refuse to replace a directory with a symlink, consistent with cp -r behaviour.
+			if fi.IsDir() {
+				return fmt.Errorf("Cannot overwrite directory %q with symlink", absTarget)
+			}
+
+			// Remove the existing symlink or file and recreate it with the correct target.
+			err = root.Remove(relTarget)
+			if err != nil {
+				return err
+			}
+
+			err = root.Symlink(symlinkTarget, relTarget)
+			if err != nil {
+				return err
+			}
 		}
 
 	default:
