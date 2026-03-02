@@ -27,10 +27,7 @@ func (device Device) Clone() Device {
 
 // Validate accepts a map of field/validation functions to run against the device's config.
 func (device Device) Validate(rules map[string]func(value string) error) error {
-	checkedFields := map[string]struct{}{}
-
 	for k, validator := range rules {
-		checkedFields[k] = struct{}{} // Mark field as checked.
 		err := validator(device[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for device option %q: %w", k, err)
@@ -39,7 +36,7 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 
 	// Look for any unchecked fields, as these are unknown fields and validation should fail.
 	for k := range device {
-		_, checked := checkedFields[k]
+		_, checked := rules[k]
 		if checked {
 			continue
 		}
