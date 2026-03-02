@@ -7,21 +7,8 @@ import (
 	"database/sql"
 )
 
-// CertificateProject is an association table struct that associates
-// Certificates to Projects.
-type CertificateProject struct {
-	CertificateID int `db:"primary=yes"`
-	ProjectID     int
-}
-
-// CertificateProjectFilter specifies potential query parameter fields.
-type CertificateProjectFilter struct {
-	CertificateID *int
-	ProjectID     *int
-}
-
 // GetCertificateProjects returns all available Projects for the Certificate.
-func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) ([]Project, error) {
+func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int64) ([]Project, error) {
 	return GetIdentityProjects(ctx, tx, certificateID)
 }
 
