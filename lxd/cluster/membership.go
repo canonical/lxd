@@ -819,6 +819,125 @@ func filterPromotionCandidates(candidates []client.NodeInfo, memberRoles map[str
 	return eligible
 }
 
+// adjustRoles determines the next role change using the same generic roles algorithm as [app.RolesChanges.Adjust].
+func adjustRoles(roles *app.RolesChanges, leaderID uint64) (client.NodeRole, []client.NodeInfo) {
+	if roles.Size() == 1 {
+		return -1, nil
+	}
+
+	// If the cluster is too small, keep exactly one voter (the leader).
+	if roles.Size() < app.MinVoters {
+		for node := range roles.State {
+			if node.ID == leaderID || node.Role != client.Voter {
+				continue
+			}
+
+			return client.Spare, []client.NodeInfo{node}
+		}
+
+		return -1, nil
+	}
+
+	onlineVoters := roles.List(client.Voter, true, nil)
+	onlineStandBys := roles.List(client.StandBy, true, nil)
+	offlineVoters := roles.List(client.Voter, false, nil)
+	offlineStandBys := roles.List(client.StandBy, false, nil)
+
+	domainsWithVoters := roles.FailureDomains(onlineVoters)
+	allDomains := roles.AllFailureDomains()
+
+	// Try to spread voters across all failure domains first.
+	if len(domainsWithVoters) < len(allDomains) && len(domainsWithVoters) < len(onlineVoters) {
+		domainsWithoutVoters := roles.DomainsSubtract(allDomains, domainsWithVoters)
+		candidates := roles.List(client.StandBy, true, domainsWithoutVoters)
+		candidates = append(candidates, roles.List(client.Spare, true, domainsWithoutVoters)...)
+
+		if len(candidates) > 0 {
+			roles.SortCandidates(candidates, domainsWithoutVoters)
+			return client.Voter, candidates
+		}
+	}
+
+	// If we have exactly the desired number of voters and stand-bys, and they are all online, we're good.
+	if len(offlineVoters) == 0 && len(onlineVoters) == roles.Config.Voters && len(offlineStandBys) == 0 && len(onlineStandBys) == roles.Config.StandBys {
+		return -1, nil
+	}
+
+	// Promote voters if we're below target.
+	nOnlineVoters := len(onlineVoters)
+	if nOnlineVoters < roles.Config.Voters {
+		candidates := roles.List(client.StandBy, true, nil)
+		candidates = append(candidates, roles.List(client.Spare, true, nil)...)
+
+		if len(candidates) == 0 {
+			return -1, nil
+		}
+
+		domains := roles.FailureDomains(onlineVoters)
+		roles.SortCandidates(candidates, domains)
+		return client.Voter, candidates
+	}
+
+	// Demote extra online voters.
+	nOnlineVoters = len(onlineVoters)
+	if nOnlineVoters > roles.Config.Voters {
+		candidates := make([]client.NodeInfo, 0, len(onlineVoters))
+		for _, node := range onlineVoters {
+			if node.ID == leaderID {
+				continue
+			}
+
+			candidates = append(candidates, node)
+		}
+
+		candidates = roles.SortVoterCandidatesToDemote(candidates)
+		return client.Spare, candidates
+	}
+
+	// Demote offline voters.
+	nOfflineVoters := len(offlineVoters)
+	if nOfflineVoters > 0 {
+		return client.Spare, offlineVoters
+	}
+
+	// Promote standbys if we're below target.
+	nOnlineStandBys := len(onlineStandBys)
+	if nOnlineStandBys < roles.Config.StandBys {
+		candidates := roles.List(client.Spare, true, nil)
+
+		if len(candidates) == 0 {
+			return -1, nil
+		}
+
+		domains := roles.FailureDomains(onlineStandBys)
+		roles.SortCandidates(candidates, domains)
+		return client.StandBy, candidates
+	}
+
+	// Demote extra online standbys.
+	nOnlineStandBys = len(onlineStandBys)
+	if nOnlineStandBys > roles.Config.StandBys {
+		candidates := make([]client.NodeInfo, 0, len(onlineStandBys))
+		for _, node := range onlineStandBys {
+			if node.ID == leaderID {
+				continue
+			}
+
+			candidates = append(candidates, node)
+		}
+
+		return client.Spare, candidates
+	}
+
+	// Demote offline standbys.
+	nOfflineStandBys := len(offlineStandBys)
+	if nOfflineStandBys > 0 {
+		return client.Spare, offlineStandBys
+	}
+
+	return -1, nil
+}
+
 // GetNextRoleChange determines the next raft cluster member role change needed for rebalancing.
 // It checks if there's a spare online node that can be promoted to voter (if below membershipMaxRaftVoters)
 // or to standby (if below membershipMaxStandBys).
@@ -842,7 +961,7 @@ func GetNextRoleChange(state *state.State, gateway *Gateway, unavailableMembers 
 		return "", nil, nil, err
 	}
 
-	role, candidates := roles.Adjust(gateway.info.ID)
+	role, candidates := adjustRoles(roles, gateway.info.ID)
 
 	if role == -1 {
 		// No node to promote
