@@ -311,7 +311,8 @@ if os.path.exists('./related_topics.yaml'):
 # Add configuration for intersphinx mapping
 intersphinx_mapping = {
     'cloud-init': ('https://cloudinit.readthedocs.io/en/latest/', None),
-    'imagebuilder': ('https://canonical-lxd-imagebuilder.readthedocs-hosted.com/en/latest/', None)
+    'imagebuilder': ('https://canonical-lxd-imagebuilder.readthedocs-hosted.com/en/latest/', None),
+    'snap': ('https://snapcraft.io/docs/', None),
 }
 
 if ('LOCAL_SPHINX_BUILD' in os.environ) and (os.environ['LOCAL_SPHINX_BUILD'] == 'True'):

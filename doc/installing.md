@@ -25,7 +25,7 @@ The recommended way to install LXD is its [snap package](https://snapcraft.io/lx
 ### Requirements
 
 - The LXD snap must be [available for your Linux distribution](https://snapcraft.io/lxd#distros).
-- The [`snapd` daemon](https://snapcraft.io/docs/installing-snapd) must be installed.
+- The `snapd` daemon must be installed. See {ref}`snap:tutorials-install-the-daemon-index` in the Snap documentation for details.
 
 ### Install
 
