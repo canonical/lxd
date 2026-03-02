@@ -11,6 +11,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/google/uuid"
@@ -620,19 +621,24 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 	}
 
 	// Devices override
-	sourceDevices := source.LocalDevices()
-
 	if req.Devices == nil {
 		req.Devices = make(map[string]map[string]string)
 	}
 
-	for key, value := range sourceDevices {
-		_, exists := req.Devices[key]
+	for devName, devConfig := range source.LocalDevices() {
+		_, exists := req.Devices[devName]
 		if exists {
 			continue // Request has overridden this device.
 		}
 
-		req.Devices[key] = value
+		// Ensure that any initial. device config is not applied from source.
+		for devKey := range devConfig {
+			if strings.HasPrefix(devKey, deviceConfig.ConfigInitialPrefix) {
+				delete(devConfig, devKey)
+			}
+		}
+
+		req.Devices[devName] = devConfig
 	}
 
 	if req.Stateful {
