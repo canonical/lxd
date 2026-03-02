@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // GetAllNodesWithOperations returns a list of nodes that have operations in any project.
@@ -16,8 +17,9 @@ func (c *ClusterTx) GetAllNodesWithOperations(ctx context.Context) ([]string, er
 SELECT DISTINCT nodes.address
   FROM operations
   JOIN nodes ON nodes.id = operations.node_id
+ WHERE operations.status_code IN (?, ?)
 	`
-	return query.SelectStrings(ctx, c.tx, stmt)
+	return query.SelectStrings(ctx, c.tx, stmt, api.Running, api.Cancelling)
 }
 
 // GetNodesWithOperations returns a list of nodes that have operations.
@@ -27,12 +29,13 @@ SELECT DISTINCT nodes.address
   FROM operations
   LEFT OUTER JOIN projects ON projects.id = operations.project_id
   JOIN nodes ON nodes.id = operations.node_id
- WHERE projects.name = ? OR operations.project_id IS NULL
+ WHERE (projects.name = ? OR operations.project_id IS NULL)
+   AND operations.status_code IN (?, ?)
 `
-	return query.SelectStrings(ctx, c.tx, stmt, project)
+	return query.SelectStrings(ctx, c.tx, stmt, project, api.Running, api.Cancelling)
 }
 
-// GetOperationsOfType returns a list operations that belong to the specified project and have the desired type.
+// GetOperationsOfType returns a list of running operations that belong to the specified project and have the desired type.
 func (c *ClusterTx) GetOperationsOfType(ctx context.Context, projectName string, opType operationtype.Type) ([]cluster.Operation, error) {
 	var ops []cluster.Operation
 
@@ -42,8 +45,9 @@ SELECT operations.id, operations.uuid, operations.type, nodes.address
   LEFT JOIN projects on projects.id = operations.project_id
   JOIN nodes on nodes.id = operations.node_id
 WHERE (projects.name = ? OR operations.project_id IS NULL) and operations.type = ?
+  AND operations.status_code IN (?, ?)
 `
-	rows, err := c.tx.QueryContext(ctx, stmt, projectName, opType)
+	rows, err := c.tx.QueryContext(ctx, stmt, projectName, opType, api.Running, api.Cancelling)
 	if err != nil {
 		return nil, err
 	}

@@ -448,6 +448,7 @@ CREATE TABLE operations (
     project_id INTEGER,
     requestor_protocol INTEGER,
     requestor_identity_id INTEGER,
+    requestor_address TEXT NOT NULL DEFAULT '',
     entity_id INTEGER NOT NULL DEFAULT 0,
     metadata TEXT NOT NULL,
     class INTEGER NOT NULL DEFAULT 0,
@@ -459,6 +460,7 @@ CREATE TABLE operations (
     conflict_reference TEXT NOT NULL,
     parent INTEGER,
     stage INTEGER NOT NULL DEFAULT 0,
+    requestor_address TEXT NOT NULL DEFAULT '',
     UNIQUE (uuid),
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
@@ -736,5 +738,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (80, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (81, strftime("%s"))
 `

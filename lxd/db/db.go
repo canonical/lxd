@@ -280,8 +280,9 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		// Set the local member ID
 		clusterDB.NodeID(memberID)
 
-		// Delete any operation tied to this member
-		err = cluster.DeleteOperations(ctx, tx.tx, memberID)
+		// Mark any running operations for this member as failed (interrupted by restart).
+		// Completed operations are preserved as history.
+		err = cluster.FailRunningOperationsByNodeID(ctx, tx.tx, memberID, time.Now())
 		if err != nil {
 			return err
 		}

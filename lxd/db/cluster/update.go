@@ -123,6 +123,15 @@ var updates = map[int]schema.Update{
 	78: updateFromV77,
 	79: updateFromV78,
 	80: updateFromV79,
+	81: updateFromV80,
+}
+
+func updateFromV80(ctx context.Context, tx *sql.Tx) error {
+	// Add requestor_address column to operations table to persist the caller's origin address.
+	_, err := tx.ExecContext(ctx, `
+ALTER TABLE operations ADD COLUMN requestor_address TEXT NOT NULL DEFAULT '';
+`)
+	return err
 }
 
 func updateFromV79(ctx context.Context, tx *sql.Tx) error {

@@ -192,6 +192,12 @@ func (c *Config) ImagesRemoteCacheExpiryDays() int64 {
 	return c.m.GetInt64("images.remote_cache_expiry")
 }
 
+// OperationsHistoryRetentionDays returns the number of days to keep completed operation history.
+// A value of 0 means operations are kept indefinitely.
+func (c *Config) OperationsHistoryRetentionDays() int64 {
+	return c.m.GetInt64("operations.history_retention")
+}
+
 // InstancesNICHostname returns hostname mode to use for instance NICs.
 func (c *Config) InstancesNICHostname() string {
 	return c.m.GetString("instances.nic.host_name")
@@ -612,6 +618,15 @@ var ConfigSchema = config.Schema{
 		//  defaultdesc: `false`
 		//  shortdesc: Whether to set `migration.stateful` to `true` for the instances
 		"instances.migration.stateful": {Type: config.Bool, Default: "false"},
+
+		// lxdmeta:generate(entities=server; group=operations; key=operations.history_retention)
+		//
+		// ---
+		//  type: integer
+		//  scope: global
+		//  defaultdesc: `30`
+		//  shortdesc: Number of days to keep completed operation history (0 means indefinitely)
+		"operations.history_retention": {Type: config.Int64, Default: "30"},
 
 		// TODO: Remove after sunset period
 		// lxdmeta:generate(entities=server; group=miscellaneous; key=user.instances.placement.scriptlet)

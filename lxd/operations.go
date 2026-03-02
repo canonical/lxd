@@ -183,8 +183,10 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, body)
 	}
 
-	// Then check if the query is from an operation on another node, and, if so, forward it
-	var address string
+	// Not in memory - look it up in the cluster database (covers both running operations on
+	// other nodes and historical completed operations).
+	var dbOp dbCluster.Operation
+	var found bool
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
@@ -200,21 +202,39 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 			return errors.New("More than one operation matches")
 		}
 
-		operation := ops[0]
-
-		address = operation.NodeAddress
+		dbOp = ops[0]
+		found = true
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	if !found {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Operation not found"))
+	}
+
+	// For running or cancelling operations on another cluster node, forward the request.
+	statusCode := api.StatusCode(dbOp.Status)
+	if (statusCode == api.Running || statusCode == api.Cancelling) && s.ServerClustered {
+		localClusterAddress := s.LocalConfig.ClusterAddress()
+		if dbOp.NodeAddress != localClusterAddress {
+			client, err := cluster.Connect(r.Context(), dbOp.NodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			return response.ForwardedResponse(client)
+		}
+	}
+
+	// Reconstruct the operation from the database record (historical or local completed operation).
+	body, err = renderOperationFromDB(r.Context(), s, dbOp)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.ForwardedResponse(client)
+	return response.SyncResponse(true, body)
 }
 
 // swagger:operation DELETE /1.0/operations/{id} operations operation_delete
@@ -277,8 +297,8 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	// Then check if the query is from an operation on another node, and, if so, forward it
-	var address string
+	// Then check if the query is from an operation on another node, and, if so, forward it.
+	var dbOp dbCluster.Operation
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
@@ -294,16 +314,20 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			return errors.New("More than one operation matches")
 		}
 
-		operation := ops[0]
-
-		address = operation.NodeAddress
+		dbOp = ops[0]
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	// Only running or cancelling operations can be cancelled. Historical operations cannot be forwarded.
+	statusCode := api.StatusCode(dbOp.Status)
+	if statusCode != api.Running && statusCode != api.Cancelling {
+		return response.BadRequest(errors.New("Only running operations can be cancelled"))
+	}
+
+	client, err := cluster.Connect(r.Context(), dbOp.NodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -323,8 +347,8 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 		return nil
 	}
 
-	// If not found locally, try connecting to remote member to delete it.
-	var memberAddress string
+	// If not found locally, try connecting to remote member to cancel it.
+	var dbOp dbCluster.Operation
 	var err error
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &op.ID}
@@ -341,26 +365,126 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 			return errors.New("More than one operation matches")
 		}
 
-		operation := ops[0]
-
-		memberAddress = operation.NodeAddress
+		dbOp = ops[0]
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	client, err := cluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	// Only running or cancelling operations can be cancelled.
+	statusCode := api.StatusCode(dbOp.Status)
+	if statusCode != api.Running && statusCode != api.Cancelling {
+		return fmt.Errorf("Operation %q is not running and cannot be cancelled", op.ID)
+	}
+
+	client, err := cluster.Connect(ctx, dbOp.NodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to %q: %w", memberAddress, err)
+		return fmt.Errorf("Failed to connect to %q: %w", dbOp.NodeAddress, err)
 	}
 
 	err = client.UseProject(projectName).DeleteOperation(op.ID)
 	if err != nil {
-		return fmt.Errorf("Failed to delete remote operation %q on %q: %w", op.ID, memberAddress, err)
+		return fmt.Errorf("Failed to delete remote operation %q on %q: %w", op.ID, dbOp.NodeAddress, err)
 	}
 
 	return nil
+}
+
+// renderOperationFromDB constructs an api.Operation from a cluster.Operation database record.
+// It joins the identities table to resolve the requestor username.
+func renderOperationFromDB(ctx context.Context, s *state.State, dbOp dbCluster.Operation) (*api.Operation, error) {
+	// Decode metadata.
+	var metadata map[string]any
+	if dbOp.Metadata != "" && dbOp.Metadata != "null" {
+		err := json.Unmarshal([]byte(dbOp.Metadata), &metadata)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to decode operation metadata: %w", err)
+		}
+	}
+
+	// Build resource map.
+	var resources map[string][]string
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		res, err := dbCluster.GetOperationResources(ctx, tx.Tx(), dbOp.ID)
+		if err != nil {
+			return err
+		}
+
+		if len(res) > 0 {
+			resources = make(map[string][]string, len(res))
+			for entityType, urls := range res {
+				strURLs := make([]string, 0, len(urls))
+				for _, u := range urls {
+					strURLs = append(strURLs, u.String())
+				}
+
+				resources[string(entityType)] = strURLs
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		// Non-fatal: log and continue without resources (entity may have been deleted).
+		logger.Warn("Failed loading resources for historical operation", logger.Ctx{"operation": dbOp.UUID, "err": err})
+	}
+
+	// Determine the class string.
+	classStr := ""
+	switch dbOp.Class {
+	case int64(operations.OperationClassTask):
+		classStr = api.OperationClassTask
+	case int64(operations.OperationClassWebsocket):
+		classStr = api.OperationClassWebsocket
+	case int64(operations.OperationClassToken):
+		classStr = api.OperationClassToken
+	}
+
+	statusCode := api.StatusCode(dbOp.Status)
+
+	retOp := &api.Operation{
+		ID:          dbOp.UUID,
+		Class:       classStr,
+		Description: dbOp.Type.Description(),
+		CreatedAt:   dbOp.CreatedAt,
+		UpdatedAt:   dbOp.UpdatedAt,
+		Status:      statusCode.String(),
+		StatusCode:  statusCode,
+		Resources:   resources,
+		Metadata:    metadata,
+		MayCancel:   false,
+		Err:         dbOp.Error,
+		Location:    dbOp.NodeAddress,
+	}
+
+	// Resolve requestor info.
+	if dbOp.RequestorProtocol != nil {
+		requestor := &api.OperationRequestor{
+			Protocol: string(*dbOp.RequestorProtocol),
+			Address:  dbOp.RequestorAddress,
+		}
+
+		// Resolve username from identity ID.
+		if dbOp.RequestorIdentityID != nil {
+			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				username, err := dbCluster.GetIdentifierForIdentityID(ctx, tx.Tx(), *dbOp.RequestorIdentityID)
+				if err != nil {
+					return err
+				}
+
+				requestor.Username = username
+				return nil
+			})
+			if err != nil {
+				logger.Warn("Failed resolving requestor username for historical operation", logger.Ctx{"operation": dbOp.UUID, "err": err})
+			}
+		}
+
+		retOp.Requestor = requestor
+	}
+
+	return retOp, nil
 }
 
 // swagger:operation GET /1.0/operations operations operations_get
@@ -507,6 +631,9 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed to check caller access to server operations: %w", err))
 	}
 
+	// history=true includes completed/failed/cancelled operations from the database.
+	history := shared.IsTrue(r.FormValue("history"))
+
 	localOperationURLs := func() (shared.Jmap, error) {
 		// Get all the operations.
 		localOps := operations.Clone()
@@ -621,8 +748,15 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// If not clustered, then just return local operations.
+	// If not clustered, merge history (if requested) and return.
 	if !s.ServerClustered {
+		if history {
+			err = mergeHistoricalOperations(r.Context(), s, md, projectName, allProjects, recursion)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
 		return response.SyncResponse(true, md)
 	}
 
@@ -722,7 +856,89 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	// Include historical (completed/failed/cancelled) operations from the cluster database.
+	// Done after collecting remote node operations to avoid duplicates from race conditions
+	// where a recently completed operation is still in a remote node's memory AND in the DB.
+	if history {
+		err = mergeHistoricalOperations(r.Context(), s, md, projectName, allProjects, recursion)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	return response.SyncResponse(true, md)
+}
+
+// mergeHistoricalOperations adds completed/failed/cancelled operations from the database into md,
+// skipping any operation already present (by UUID) in the collected results.
+func mergeHistoricalOperations(ctx context.Context, s *state.State, md shared.Jmap, projectName string, allProjects bool, recursion int) error {
+	var historicalOps []dbCluster.Operation
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		historicalOps, err = dbCluster.GetHistoricalOperations(ctx, tx.Tx(), projectName, allProjects)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading historical operations: %w", err)
+	}
+
+	// Collect UUIDs already in the result set (from local in-memory + remote node ops).
+	knownIDs := make(map[string]struct{})
+	for _, v := range operations.Clone() {
+		knownIDs[v.ID()] = struct{}{}
+	}
+
+	// Also collect UUIDs from the md map itself (which includes remote node ops).
+	for _, v := range md {
+		switch ops := v.(type) {
+		case []*api.Operation:
+			for _, op := range ops {
+				knownIDs[op.ID] = struct{}{}
+			}
+		case []string:
+			for _, opURL := range ops {
+				// Extract UUID from URL like "/1.0/operations/<uuid>".
+				parts := strings.Split(opURL, "/")
+				if len(parts) > 0 {
+					knownIDs[parts[len(parts)-1]] = struct{}{}
+				}
+			}
+		}
+	}
+
+	for _, dbOp := range historicalOps {
+		if _, ok := knownIDs[dbOp.UUID]; ok {
+			continue
+		}
+
+		statusCode := api.StatusCode(dbOp.Status)
+		status := strings.ToLower(statusCode.String())
+
+		if recursion > 0 {
+			apiOp, err := renderOperationFromDB(ctx, s, dbOp)
+			if err != nil {
+				logger.Warn("Failed rendering historical operation", logger.Ctx{"operation": dbOp.UUID, "err": err})
+				continue
+			}
+
+			_, ok := md[status]
+			if !ok {
+				md[status] = make([]*api.Operation, 0)
+			}
+
+			md[status] = append(md[status].([]*api.Operation), apiOp)
+		} else {
+			_, ok := md[status]
+			if !ok {
+				md[status] = make([]string, 0)
+			}
+
+			opURL := api.NewURL().Path("1.0", "operations", dbOp.UUID).String()
+			md[status] = append(md[status].([]string), opURL)
+		}
+	}
+
+	return nil
 }
 
 // operationsGetByType gets all operations for a project and type.
@@ -1000,8 +1216,8 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.ManualResponse(waitResponse)
 	}
 
-	// Then check if the query is from an operation on another node, and, if so, forward it
-	var address string
+	// Then check if the query is from an operation on another node, and, if so, forward it.
+	var dbOp dbCluster.Operation
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
@@ -1017,16 +1233,25 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 			return errors.New("More than one operation matches")
 		}
 
-		operation := ops[0]
-
-		address = operation.NodeAddress
+		dbOp = ops[0]
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	// If the operation already completed, return the result directly from the database.
+	statusCode := api.StatusCode(dbOp.Status)
+	if statusCode != api.Running && statusCode != api.Cancelling && statusCode != api.Pending {
+		body, err := renderOperationFromDB(r.Context(), s, dbOp)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.SyncResponse(true, body)
+	}
+
+	client, err := cluster.Connect(r.Context(), dbOp.NodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1151,7 +1376,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Missing websocket secret"))
 	}
 
-	var address string
+	var dbOp dbCluster.Operation
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
@@ -1167,16 +1392,20 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 			return errors.New("More than one operation matches")
 		}
 
-		operation := ops[0]
-
-		address = operation.NodeAddress
+		dbOp = ops[0]
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	// Websocket connections are only possible for running operations.
+	statusCode := api.StatusCode(dbOp.Status)
+	if statusCode != api.Running && statusCode != api.Cancelling {
+		return response.BadRequest(errors.New("Operation is not running"))
+	}
+
+	client, err := cluster.Connect(r.Context(), dbOp.NodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1265,9 +1494,11 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 				continue
 			}
 
-			err = dbCluster.DeleteOperations(ctx, tx.Tx(), member.ID)
+			// Mark running operations from offline members as failed (interrupted by node going offline).
+			// Completed operations are preserved as history.
+			err = dbCluster.FailRunningOperationsByNodeID(ctx, tx.Tx(), member.ID, time.Now())
 			if err != nil {
-				return fmt.Errorf("Failed to delete operations: %w", err)
+				return fmt.Errorf("Failed to mark orphaned operations as failed: %w", err)
 			}
 		}
 		return nil
@@ -1279,6 +1510,29 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	logger.Debug("Done removing orphaned operations across the cluster")
 
 	return nil
+}
+
+// pruneExpiredOperationsTask returns a task function and schedule that prunes old completed operations.
+func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		s := stateFunc()
+
+		retentionDays := s.GlobalConfig.OperationsHistoryRetentionDays()
+		if retentionDays <= 0 {
+			return
+		}
+
+		cutoff := time.Now().AddDate(0, 0, -int(retentionDays))
+
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			return dbCluster.DeleteExpiredOperations(ctx, tx.Tx(), cutoff)
+		})
+		if err != nil {
+			logger.Error("Failed pruning expired operations", logger.Ctx{"err": err})
+		}
+	}
+
+	return f, task.Daily(task.SkipFirst)
 }
 
 // operationWaitPost represents the fields of a request to register a dummy operation.

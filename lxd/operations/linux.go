@@ -53,6 +53,7 @@ func registerDBOperation(op *Operation) error {
 			// The untrusted requestor is provided eg. in a local image upload operation run as part of an image copy operation.
 			value := cluster.RequestorProtocol(op.requestor.CallerProtocol())
 			opInfo.RequestorProtocol = &value
+			opInfo.RequestorAddress = op.requestor.OriginAddress()
 
 			requestorCallerIdentityID := op.requestor.CallerIdentityID()
 			if requestorCallerIdentityID != 0 {
