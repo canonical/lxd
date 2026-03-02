@@ -1119,7 +1119,7 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 }
 
 // doProjectForceDelete handles force deletion of project entities.
-func doProjectForceDelete(ctx context.Context, op *operations.Operation, s *state.State, projectName string, entities map[entity.Type]map[int]*api.URL) error {
+func doProjectForceDelete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, projectName string, entities map[entity.Type]map[int]*api.URL) error {
 	// Get the project entities if not provided (not provided on cluster notification)
 	if entities == nil {
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1184,7 +1184,7 @@ func doProjectForceDelete(ctx context.Context, op *operations.Operation, s *stat
 			return fmt.Errorf("Failed getting deleter for entity type %q: %w", ref.EntityType, err)
 		}
 
-		err = deleter.Delete(ctx, op, s, ref)
+		err = deleter.Delete(ctx, clientType, op, s, ref)
 		if err != nil {
 			return fmt.Errorf("Failed deleting %s %q: %w", ref.EntityType, ref.Name(), err)
 		}
@@ -1240,7 +1240,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	if requestor.IsClusterNotification() {
 		run := func(ctx context.Context, op *operations.Operation) error {
 			if force {
-				err = doProjectForceDelete(ctx, op, s, name, nil)
+				err = doProjectForceDelete(ctx, requestor.ClientType(), op, s, name, nil)
 				if err != nil {
 					return fmt.Errorf("Failed to delete member specific project resources: %w", err)
 				}
@@ -1349,7 +1349,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	run := func(ctx context.Context, op *operations.Operation) error {
 		if force {
 			// Force delete all project entities from the local node.
-			err = doProjectForceDelete(ctx, op, s, project.Name, projectEntities)
+			err = doProjectForceDelete(ctx, requestor.ClientType(), op, s, project.Name, projectEntities)
 			if err != nil {
 				return fmt.Errorf("Failed to force delete project: %w", err)
 			}
@@ -1360,7 +1360,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 			// Prune cached images.
 			for _, image := range cachedImages {
-				op, err := doImageDelete(ctx, opScheduler, s, image.Fingerprint, image.ID, project.Name, effectiveProjectName)
+				op, err := doImageDelete(false, opScheduler, s, image.Fingerprint, image.ID, project.Name, effectiveProjectName)
 				if err != nil {
 					return fmt.Errorf("Failed creating delete operation for cached image %q: %w", image.Fingerprint, err)
 				}

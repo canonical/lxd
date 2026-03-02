@@ -3007,11 +3007,16 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var opCreator operations.OperationScheduler = func(s *state.State, args operations.OperationArgs) (*operations.Operation, error) {
 		return operations.ScheduleUserOperationFromRequest(s, r, args)
 	}
 
-	op, err := doImageDelete(r.Context(), opCreator, s, details.image.Fingerprint, details.imageID, projectName, effectiveProjectName)
+	op, err := doImageDelete(requestor.IsClusterNotification(), opCreator, s, details.image.Fingerprint, details.imageID, projectName, effectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3020,13 +3025,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 // doImageDelete deletes an image with the given fingerprint and imageID in the given project.
-func doImageDelete(ctx context.Context, opCreator operations.OperationScheduler, s *state.State, fingerprint string, imageID int, requestProjectName string, effectiveProjectName string) (*operations.Operation, error) {
-	requestor, err := request.GetRequestor(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	isClusterNotification := requestor.IsClusterNotification()
+func doImageDelete(isClusterNotification bool, opCreator operations.OperationScheduler, s *state.State, fingerprint string, imageID int, requestProjectName string, effectiveProjectName string) (*operations.Operation, error) {
 	do := func(ctx context.Context, op *operations.Operation) error {
 		// Lock this operation to ensure that concurrent image operations don't conflict.
 		// Other operations will wait for this one to finish.

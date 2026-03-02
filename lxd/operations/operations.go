@@ -107,7 +107,7 @@ type Operation struct {
 	readonly        bool
 	description     string
 	dbOpType        operationtype.Type
-	requestor       *request.Requestor
+	requestor       *opRequestor
 	metricsCallback func(metrics.RequestResult)
 	logger          logger.Logger
 
@@ -146,7 +146,7 @@ type OperationArgs struct {
 	Metadata        map[string]any
 	RunHook         func(ctx context.Context, op *Operation) error
 	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
-	requestor       *request.Requestor
+	requestor       *opRequestor
 	metricsCallback func(result metrics.RequestResult)
 	Inputs          map[string]any
 	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
@@ -173,7 +173,11 @@ func ScheduleUserOperationFromRequest(s *state.State, r *http.Request, args Oper
 		return nil, fmt.Errorf("Cannot create user operation: %w", err)
 	}
 
-	args.requestor = requestor
+	args.requestor = &opRequestor{
+		identityID: requestor.CallerIdentityID(),
+		r:          requestor.OperationRequestor(),
+	}
+
 	args.metricsCallback = metricsCallback
 	return scheduleOperation(s, args)
 }
@@ -315,7 +319,7 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 }
 
 // Requestor returns the initial requestor for this operation.
-func (op *Operation) Requestor() *request.Requestor {
+func (op *Operation) Requestor() *opRequestor {
 	return op.requestor
 }
 

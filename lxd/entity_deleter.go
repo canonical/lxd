@@ -8,6 +8,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/operations"
 	projectutils "github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared/entity"
@@ -15,13 +16,13 @@ import (
 
 // entityDeleter defines how to delete a specific entity type.
 type entityDeleter interface {
-	Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error
+	Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error
 }
 
 type instanceDeleter struct{}
 
 // Delete deletes an instance.
-func (d instanceDeleter) Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error {
+func (d instanceDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	name := ref.Name()
 
 	var opScheduler operations.OperationScheduler = func(s *state.State, args operations.OperationArgs) (*operations.Operation, error) {
@@ -49,7 +50,7 @@ func (d instanceDeleter) Delete(ctx context.Context, op *operations.Operation, s
 type imageDeleter struct{}
 
 // Delete deletes an image.
-func (d imageDeleter) Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error {
+func (d imageDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	fingerprint := ref.Name()
 
 	var imageID int
@@ -76,7 +77,7 @@ func (d imageDeleter) Delete(ctx context.Context, op *operations.Operation, s *s
 		return operations.ScheduleUserOperationFromOperation(s, op, args)
 	}
 
-	imageDeleteOp, err := doImageDelete(ctx, opScheduler, s, fingerprint, imageID, ref.ProjectName, effectiveProjectName)
+	imageDeleteOp, err := doImageDelete(clientType.IsClusterNotification(), opScheduler, s, fingerprint, imageID, ref.ProjectName, effectiveProjectName)
 	if err != nil {
 		return fmt.Errorf("Failed deleting image %q: %w", fingerprint, err)
 	}
@@ -97,7 +98,7 @@ func (d imageDeleter) Delete(ctx context.Context, op *operations.Operation, s *s
 type networkDeleter struct{}
 
 // Delete deletes a network.
-func (d networkDeleter) Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error {
+func (d networkDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	name := ref.Name()
 
 	var projectConfig map[string]string
@@ -110,7 +111,7 @@ func (d networkDeleter) Delete(ctx context.Context, op *operations.Operation, s 
 		return fmt.Errorf("Failed getting project %q config: %w", ref.ProjectName, err)
 	}
 
-	err = doNetworkDelete(ctx, s, name, ref.ProjectName, projectConfig)
+	err = doNetworkDelete(ctx, s, name, ref.ProjectName, projectConfig, clientType)
 	if err != nil {
 		return fmt.Errorf("Failed deleting network %q: %w", name, err)
 	}
@@ -121,7 +122,7 @@ func (d networkDeleter) Delete(ctx context.Context, op *operations.Operation, s 
 type networkACLDeleter struct{}
 
 // Delete deletes a network ACL.
-func (d networkACLDeleter) Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error {
+func (d networkACLDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	name := ref.Name()
 
 	err := doNetworkACLDelete(ctx, s, name, ref.ProjectName)
@@ -135,7 +136,7 @@ func (d networkACLDeleter) Delete(ctx context.Context, op *operations.Operation,
 type networkZoneDeleter struct{}
 
 // Delete deletes a network zone.
-func (d networkZoneDeleter) Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error {
+func (d networkZoneDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	name := ref.Name()
 
 	err := doNetworkZoneDelete(ctx, s, name, ref.ProjectName)
@@ -149,7 +150,7 @@ func (d networkZoneDeleter) Delete(ctx context.Context, op *operations.Operation
 type storageVolumeDeleter struct{}
 
 // Delete deletes a storage volume.
-func (d storageVolumeDeleter) Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error {
+func (d storageVolumeDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	parts := ref.GetPathArgs(3)
 	poolName, volType, name := parts[0], parts[1], parts[2]
 
@@ -193,7 +194,7 @@ func (d storageVolumeDeleter) Delete(ctx context.Context, op *operations.Operati
 type storageBucketDeleter struct{}
 
 // Delete deletes a storage bucket.
-func (d storageBucketDeleter) Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error {
+func (d storageBucketDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	parts := ref.GetPathArgs(2)
 	poolName, bucketName := parts[0], parts[1]
 
@@ -213,7 +214,7 @@ func (d storageBucketDeleter) Delete(ctx context.Context, op *operations.Operati
 type profileDeleter struct{}
 
 // Delete deletes a profile.
-func (d profileDeleter) Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error {
+func (d profileDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	name := ref.Name()
 
 	err := doProfileDelete(ctx, s, name, ref.ProjectName)
@@ -227,7 +228,7 @@ func (d profileDeleter) Delete(ctx context.Context, op *operations.Operation, s 
 type placementGroupDeleter struct{}
 
 // Delete deletes a placement group.
-func (d placementGroupDeleter) Delete(ctx context.Context, op *operations.Operation, s *state.State, ref entity.Reference) error {
+func (d placementGroupDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	name := ref.Name()
 
 	err := doPlacementGroupDelete(ctx, s, name, ref.ProjectName)
