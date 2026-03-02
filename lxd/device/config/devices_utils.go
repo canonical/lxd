@@ -1,14 +1,5 @@
 package config
 
-import (
-	"maps"
-)
-
-// deviceEquals checks for any difference and addition/removal of properties.
-func deviceEquals(old Device, d Device) bool {
-	return maps.Equal(old, d)
-}
-
 // deviceEqualsDiffKeys checks for any difference and addition/removal of properties and returns a list of changes.
 func deviceEqualsDiffKeys(old Device, d Device) []string {
 	var keys []string
