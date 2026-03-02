@@ -819,8 +819,8 @@ func filterPromotionCandidates(candidates []client.NodeInfo, memberRoles map[str
 	return eligible
 }
 
-// adjustRoles determines the next role change using the same generic roles algorithm as [app.RolesChanges.Adjust].
-func adjustRoles(roles *app.RolesChanges, leaderID uint64) (client.NodeRole, []client.NodeInfo) {
+// adjustRoles determines the next role change using the same generic roles algorithm as [app.RolesChanges.Adjust], while applying LXD-specific control-plane restrictions.
+func adjustRoles(roles *app.RolesChanges, leaderID uint64, nodes []db.RaftNode, connectivity map[string]bool, memberRoles map[string][]db.ClusterRole) (client.NodeRole, []client.NodeInfo) {
 	if roles.Size() == 1 {
 		return -1, nil
 	}
@@ -845,6 +845,7 @@ func adjustRoles(roles *app.RolesChanges, leaderID uint64) (client.NodeRole, []c
 
 	domainsWithVoters := roles.FailureDomains(onlineVoters)
 	allDomains := roles.AllFailureDomains()
+	controlPlaneActive := IsControlPlaneActive(memberRoles)
 
 	// Try to spread voters across all failure domains first.
 	if len(domainsWithVoters) < len(allDomains) && len(domainsWithVoters) < len(onlineVoters) {
@@ -852,15 +853,22 @@ func adjustRoles(roles *app.RolesChanges, leaderID uint64) (client.NodeRole, []c
 		candidates := roles.List(client.StandBy, true, domainsWithoutVoters)
 		candidates = append(candidates, roles.List(client.Spare, true, domainsWithoutVoters)...)
 
+		if controlPlaneActive {
+			candidates = filterPromotionCandidates(candidates, memberRoles)
+		}
+
 		if len(candidates) > 0 {
 			roles.SortCandidates(candidates, domainsWithoutVoters)
 			return client.Voter, candidates
 		}
 	}
 
-	// If we have exactly the desired number of voters and stand-bys, and they are all online, we're good.
+	// If we have exactly the desired number of voters and stand-bys, and they are all
+	// online, we're good unless control-plane mode still requires demotions.
 	if len(offlineVoters) == 0 && len(onlineVoters) == roles.Config.Voters && len(offlineStandBys) == 0 && len(onlineStandBys) == roles.Config.StandBys {
-		return -1, nil
+		if !controlPlaneActive {
+			return -1, nil
+		}
 	}
 
 	// Promote voters if we're below target.
@@ -868,6 +876,10 @@ func adjustRoles(roles *app.RolesChanges, leaderID uint64) (client.NodeRole, []c
 	if nOnlineVoters < roles.Config.Voters {
 		candidates := roles.List(client.StandBy, true, nil)
 		candidates = append(candidates, roles.List(client.Spare, true, nil)...)
+
+		if controlPlaneActive {
+			candidates = filterPromotionCandidates(candidates, memberRoles)
+		}
 
 		if len(candidates) == 0 {
 			return -1, nil
@@ -891,19 +903,31 @@ func adjustRoles(roles *app.RolesChanges, leaderID uint64) (client.NodeRole, []c
 		}
 
 		candidates = roles.SortVoterCandidatesToDemote(candidates)
+		if controlPlaneActive {
+			candidates = prioritizeNonControlPlane(candidates, memberRoles)
+		}
+
 		return client.Spare, candidates
 	}
 
 	// Demote offline voters.
 	nOfflineVoters := len(offlineVoters)
 	if nOfflineVoters > 0 {
-		return client.Spare, offlineVoters
+		candidates := offlineVoters
+		if controlPlaneActive {
+			candidates = prioritizeNonControlPlane(candidates, memberRoles)
+		}
+
+		return client.Spare, candidates
 	}
 
 	// Promote standbys if we're below target.
 	nOnlineStandBys := len(onlineStandBys)
 	if nOnlineStandBys < roles.Config.StandBys {
 		candidates := roles.List(client.Spare, true, nil)
+		if controlPlaneActive {
+			candidates = filterPromotionCandidates(candidates, memberRoles)
+		}
 
 		if len(candidates) == 0 {
 			return -1, nil
@@ -926,16 +950,102 @@ func adjustRoles(roles *app.RolesChanges, leaderID uint64) (client.NodeRole, []c
 			candidates = append(candidates, node)
 		}
 
+		if controlPlaneActive {
+			candidates = prioritizeNonControlPlane(candidates, memberRoles)
+		}
+
 		return client.Spare, candidates
 	}
 
 	// Demote offline standbys.
 	nOfflineStandBys := len(offlineStandBys)
 	if nOfflineStandBys > 0 {
-		return client.Spare, offlineStandBys
+		candidates := offlineStandBys
+		if controlPlaneActive {
+			candidates = prioritizeNonControlPlane(candidates, memberRoles)
+		}
+
+		return client.Spare, candidates
+	}
+
+	// No generic changes needed.
+	if controlPlaneActive {
+		hasNonControlPlaneVoter := false
+		for _, node := range nodes {
+			if node.Role != db.RaftVoter || !connectivity[node.Address] {
+				continue
+			}
+
+			if !slices.Contains(memberRoles[node.Address], db.ClusterRoleControlPlane) {
+				hasNonControlPlaneVoter = true
+				break
+			}
+		}
+
+		if hasNonControlPlaneVoter {
+			// Avoid voter demotion unless an eligible control-plane promotion candidate exists.
+			hasEligiblePromotion := false
+			for _, node := range nodes {
+				if node.Role == db.RaftVoter || !connectivity[node.Address] {
+					continue
+				}
+
+				if slices.Contains(memberRoles[node.Address], db.ClusterRoleControlPlane) {
+					hasEligiblePromotion = true
+					break
+				}
+			}
+
+			if !hasEligiblePromotion {
+				return -1, nil
+			}
+		}
+
+		// Phase 1: Demote non-control-plane voters to standby.
+		for _, node := range nodes {
+			if node.Role != db.RaftVoter || !connectivity[node.Address] {
+				continue
+			}
+
+			// Don't demote the leader directly.
+			if node.ID == leaderID {
+				continue
+			}
+
+			if !slices.Contains(memberRoles[node.Address], db.ClusterRoleControlPlane) {
+				return db.RaftStandBy, []client.NodeInfo{node.NodeInfo}
+			}
+		}
+
+		// Phase 2: Demote non-control-plane standbys to spare.
+		for _, node := range nodes {
+			if node.Role != db.RaftStandBy || !connectivity[node.Address] {
+				continue
+			}
+
+			if !slices.Contains(memberRoles[node.Address], db.ClusterRoleControlPlane) {
+				return db.RaftSpare, []client.NodeInfo{node.NodeInfo}
+			}
+		}
 	}
 
 	return -1, nil
+}
+
+// prioritizeNonControlPlane returns candidates with non-control-plane members first.
+func prioritizeNonControlPlane(candidates []client.NodeInfo, memberRoles map[string][]db.ClusterRole) []client.NodeInfo {
+	nonControlPlane := make([]client.NodeInfo, 0, len(candidates))
+	controlPlane := make([]client.NodeInfo, 0, len(candidates))
+
+	for _, candidate := range candidates {
+		if slices.Contains(memberRoles[candidate.Address], db.ClusterRoleControlPlane) {
+			controlPlane = append(controlPlane, candidate)
+		} else {
+			nonControlPlane = append(nonControlPlane, candidate)
+		}
+	}
+
+	return append(nonControlPlane, controlPlane...)
 }
 
 // GetNextRoleChange determines the next raft cluster member role change needed for rebalancing.
@@ -945,7 +1055,7 @@ func adjustRoles(roles *app.RolesChanges, leaderID uint64) (client.NodeRole, []c
 // If a role change is needed, returns the address of the candidate node, the updated list of raft nodes,
 // and a connectivity map keyed by member address.
 // If no changes are needed, returns an empty address.
-func GetNextRoleChange(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, map[string]bool, error) {
+func GetNextRoleChange(state *state.State, gateway *Gateway, unavailableMembers []string, memberRoles map[string][]db.ClusterRole) (string, []db.RaftNode, map[string]bool, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
 		return "", nil, nil, nil
@@ -961,9 +1071,9 @@ func GetNextRoleChange(state *state.State, gateway *Gateway, unavailableMembers 
 		return "", nil, nil, err
 	}
 
-	role, candidates := adjustRoles(roles, gateway.info.ID)
+	role, candidates := adjustRoles(roles, gateway.info.ID, nodes, connectivity, memberRoles)
 
-	if role == -1 {
+	if role == -1 || len(candidates) == 0 {
 		// No node to promote
 		return "", nodes, connectivity, nil
 	}
