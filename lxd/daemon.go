@@ -1770,7 +1770,7 @@ func (d *Daemon) init() error {
 
 		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, d.serverCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
-			return err
+			logger.Warn("Failed to setup OIDC verifier", logger.Ctx{"err": err})
 		}
 	}
 
@@ -2611,7 +2611,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		maxVoters := s.GlobalConfig.MaxVoters()
 		maxStandBy := s.GlobalConfig.MaxStandBy()
 
-		needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys < maxStandBy
+		needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy
 
 		if needsRebalance || hasNodesNotPartOfRaft {
 			d.clusterMembershipMutex.Lock()

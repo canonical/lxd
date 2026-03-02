@@ -26,16 +26,6 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// BlockFsDetect detects the type of block device.
-func BlockFsDetect(dev string) (string, error) {
-	out, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", dev)
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(out), nil
-}
-
 // DiskMount mounts a disk device.
 func DiskMount(srcPath string, dstPath string, recursive bool, propagation string, mountOptions []string, fsName string) error {
 	var err error
@@ -367,7 +357,7 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 
 // DiskVMVirtiofsdStart starts a new virtiofsd process.
 // If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
-// Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
+// Returns UnsupportedError error if the host system or instance does not support virtiofsd, returns normal error
 // type if process cannot be started for other reasons.
 // Returns revert function and listener file handle on success.
 func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry, threadPoolSize uint16) (func(), net.Listener, error) {
