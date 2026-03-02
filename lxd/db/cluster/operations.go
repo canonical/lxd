@@ -266,3 +266,13 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 
 	return nil
 }
+
+// DeleteOperationsFromNodes deletes operations from nodes with the given list of IDs.
+func DeleteOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	_, err := tx.ExecContext(ctx, "DELETE FROM operations WHERE node_id IN "+query.IntParams(nodeIDs...))
+	if err != nil {
+		return fmt.Errorf("Failed deleting operations from nodes: %w", err)
+	}
+
+	return nil
+}
