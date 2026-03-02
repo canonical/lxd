@@ -664,7 +664,7 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 		return err
 	}
 
-	err = pool.DeleteInstance(inst, op)
+	err = pool.DeleteInstance(inst, false, op)
 	if err != nil {
 		return err
 	}
@@ -752,7 +752,8 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 // - Calls driver-specific delete function.
 // - Attached volume snapshot deletion for snapshots (if diskVolumesMode is "all-exclusive").
 // - Parent backup file update for snapshots.
-func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMode string) error {
+func (d *common) deleteCommon(inst instance.Instance, args instance.DeleteArgs) error {
+	diskVolumesMode := args.DiskVolumesMode
 	isSnapshot := inst.IsSnapshot()
 
 	if isSnapshot {
@@ -789,13 +790,13 @@ func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMod
 
 	switch s := inst.(type) {
 	case *lxc:
-		err = s.delete(force)
+		err = s.delete(args)
 		if err != nil {
 			return err
 		}
 
 	case *qemu:
-		err = s.delete(force)
+		err = s.delete(args)
 		if err != nil {
 			return err
 		}
@@ -1020,9 +1021,9 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	revert.Add(func() {
 		switch s := snap.(type) {
 		case *lxc:
-			_ = s.delete(true)
+			_ = s.delete(instance.DeleteArgs{Force: true})
 		case *qemu:
-			_ = s.delete(true)
+			_ = s.delete(instance.DeleteArgs{Force: true})
 		default:
 			d.logger.Error("Failed deleting snapshot during revert", logger.Ctx{"snapshot": snap.Name()})
 		}

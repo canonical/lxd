@@ -738,7 +738,7 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 	}
 
 	// Delete original instance.
-	err = inst.Delete(true, "")
+	err = inst.Delete(instance.DeleteArgs{Force: true})
 	if err != nil {
 		return err
 	}
@@ -1021,13 +1021,13 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 				// Delete the snapshots in reverse order.
 				k = snapshotCount - 1 - k
 
-				err = srcPool.DeleteInstanceSnapshot(snapshots[k], nil)
+				err = srcPool.DeleteInstanceSnapshot(snapshots[k], false, nil)
 				if err != nil {
 					return fmt.Errorf("Failed delete instance snapshot %q on source member: %w", snapshots[k].Name(), err)
 				}
 			}
 
-			err = srcPool.DeleteInstance(srcInst, nil)
+			err = srcPool.DeleteInstance(srcInst, false, nil)
 			if err != nil {
 				return fmt.Errorf("Failed deleting instance on source member: %w", err)
 			}

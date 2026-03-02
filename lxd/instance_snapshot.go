@@ -848,7 +848,7 @@ func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance)
 	}
 
 	remove := func(_ context.Context, _ *operations.Operation) error {
-		return snapInst.Delete(false, diskVolumesMode)
+		return snapInst.Delete(instance.DeleteArgs{DiskVolumesMode: diskVolumesMode})
 	}
 
 	parentName, snapName, _ := api.GetParentAndSnapshotName(snapInst.Name())

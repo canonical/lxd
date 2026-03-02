@@ -114,7 +114,7 @@ type InstanceServer interface {
 	UpdateInstance(name string, instance api.InstancePut, ETag string) (op Operation, err error)
 	RenameInstance(name string, instance api.InstancePost) (op Operation, err error)
 	MigrateInstance(name string, instance api.InstancePost) (op Operation, err error)
-	DeleteInstance(name string, force bool) (op Operation, err error)
+	DeleteInstance(name string, args *InstanceDeleteArgs) (op Operation, err error)
 	UpdateInstances(state api.InstancesPut, ETag string) (op Operation, err error)
 	RebuildInstance(instanceName string, req api.InstanceRebuildPost) (op Operation, err error)
 	RebuildInstanceFromImage(source ImageServer, image api.Image, instanceName string, req api.InstanceRebuildPost) (op RemoteOperation, err error)
@@ -682,6 +682,17 @@ type InstanceCopyArgs struct {
 	// Whether to start the instance after copy.
 	// This was made possible by adding the instance_create_start API extension.
 	Start bool
+}
+
+// The InstanceDeleteArgs struct is used to pass additional options during instance deletion.
+type InstanceDeleteArgs struct {
+	// API extension: instance_force_delete
+	// Force deletion of running instances.
+	Force bool
+
+	// API extension: instance_delete_force_storage
+	// Ignore storage errors, allowing cleanup when the pool is offline.
+	ForceStorage bool
 }
 
 // The InstanceSnapshotCopyArgs struct is used to pass additional options during instance copy.

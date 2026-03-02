@@ -676,7 +676,7 @@ func (d *qemu) onStop(target string) error {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
 	} else if d.ephemeral {
 		// Destroy ephemeral virtual machines.
-		err = d.delete(true)
+		err = d.delete(instance.DeleteArgs{Force: true})
 		if err != nil {
 			op.Done(err)
 			return err
@@ -6396,12 +6396,14 @@ func (d *qemu) init() error {
 }
 
 // Delete the instance.
-func (d *qemu) Delete(force bool, diskVolumesMode string) error {
-	return d.deleteCommon(d, force, diskVolumesMode)
+func (d *qemu) Delete(args instance.DeleteArgs) error {
+	return d.deleteCommon(d, args)
 }
 
 // Delete the instance without creating an operation lock.
-func (d *qemu) delete(force bool) error {
+func (d *qemu) delete(args instance.DeleteArgs) error {
+	force := args.Force
+	forceStorage := args.ForceStorage
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -6432,25 +6434,29 @@ func (d *qemu) delete(force bool) error {
 	// Attempt to initialize storage interface for the instance.
 	pool, err := d.getStoragePool()
 	if err != nil && !response.IsNotFoundError(err) {
-		return err
+		if forceStorage {
+			d.logger.Warn("Ignoring error loading storage pool during force storage delete", logger.Ctx{"err": err})
+		} else {
+			return err
+		}
 	} else if pool != nil {
 		if d.IsSnapshot() {
 			// Remove snapshot volume and database record.
-			err = pool.DeleteInstanceSnapshot(d, nil)
+			err = pool.DeleteInstanceSnapshot(d, forceStorage, nil)
 			if err != nil {
 				return err
 			}
 		} else {
 			// Remove all snapshots.
 			err := d.deleteSnapshots(func(snapInst instance.Instance) error {
-				return snapInst.(*qemu).delete(true) // Internal delete function that doesn't lock.
+				return snapInst.(*qemu).delete(instance.DeleteArgs{Force: true, ForceStorage: forceStorage}) // Internal delete function that doesn't lock.
 			})
 			if err != nil {
 				return fmt.Errorf("Failed deleting instance snapshots: %w", err)
 			}
 
 			// Remove the storage volume and database records.
-			err = pool.DeleteInstance(d, nil)
+			err = pool.DeleteInstance(d, forceStorage, nil)
 			if err != nil {
 				return err
 			}
@@ -7525,7 +7531,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Delete the extra local snapshots first.
 		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
-			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true, "")
+			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(instance.DeleteArgs{Force: true})
 			if err != nil {
 				return err
 			}
@@ -7783,10 +7789,10 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 				for k := range snapshots {
 					// Delete the snapshots in reverse order.
 					k = snapshotCount - 1 - k
-					_ = pool.DeleteInstanceSnapshot(snapshots[k], nil)
+					_ = pool.DeleteInstanceSnapshot(snapshots[k], false, nil)
 				}
 
-				_ = pool.DeleteInstance(d, nil)
+				_ = pool.DeleteInstance(d, false, nil)
 			})
 		}
 

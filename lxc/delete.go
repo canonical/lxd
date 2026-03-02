@@ -20,6 +20,7 @@ type cmdDelete struct {
 
 	flagForce          bool
 	flagForceProtected bool
+	flagForceStorage   bool
 	flagInteractive    bool
 	flagDiskVolumes    string
 }
@@ -33,6 +34,7 @@ func (c *cmdDelete) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Force the removal of running instances")
+	cmd.Flags().BoolVar(&c.flagForceStorage, "force-storage", false, "Ignore storage errors during deletion (e.g. when the storage pool is offline)")
 	cmd.Flags().BoolVarP(&c.flagInteractive, "interactive", "i", false, "Require user confirmation")
 	cmd.Flags().StringVar(&c.flagDiskVolumes, "disk-volumes", "", cli.FormatStringFlagLabel("Disk volumes mode for snapshot deletion. Possible values are \"root\" (default) and \"all-exclusive\". \"root\" only deletes the instance's root disk volume snapshot. \"all-exclusive\" deletes the instance's root disk volume snapshot and any exclusively attached volumes (non-shared) snapshots."))
 
@@ -66,7 +68,7 @@ func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 		op, err = d.DeleteInstanceSnapshot(fields[0], fields[1], c.flagDiskVolumes)
 	} else {
 		// Instance delete
-		op, err = d.DeleteInstance(name, c.flagForce)
+		op, err = d.DeleteInstance(name, &lxd.InstanceDeleteArgs{Force: c.flagForce, ForceStorage: c.flagForceStorage})
 	}
 
 	if err != nil {

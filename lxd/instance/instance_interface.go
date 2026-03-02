@@ -102,7 +102,7 @@ type Instance interface {
 	Rename(newName string, applyTemplateTrigger bool) error
 	Update(newConfig db.InstanceArgs, userRequested bool) error
 
-	Delete(force bool, diskVolumesMode string) error
+	Delete(args DeleteArgs) error
 	Export(w io.Writer, properties map[string]string, expiration time.Time, tracker *ioprogress.ProgressTracker) (api.ImageMetadata, error)
 
 	// Live configuration.
@@ -264,4 +264,11 @@ type ConversionReceiveArgs struct {
 	ConversionArgs
 	SourceDiskSize    int64 // Size of the disk in bytes.
 	ConversionOptions []string
+}
+
+// DeleteArgs represent arguments for Instance.Delete.
+type DeleteArgs struct {
+	Force           bool
+	DiskVolumesMode string
+	ForceStorage    bool
 }

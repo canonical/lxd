@@ -809,7 +809,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
-	revert.Add(func() { _ = b.DeleteInstance(inst, op) })
+	revert.Add(func() { _ = b.DeleteInstance(inst, false, op) })
 
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name(), vol.MountPath())
 	if err != nil {
@@ -1247,7 +1247,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		}
 	}
 
-	revert.Add(func() { _ = b.DeleteInstance(inst, op) })
+	revert.Add(func() { _ = b.DeleteInstance(inst, false, op) })
 
 	if b.Name() == srcPool.Name() {
 		l.Debug("CreateInstanceFromCopy same-pool mode detected")
@@ -2576,7 +2576,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	}
 
 	if !isRemoteClusterMove {
-		revert.Add(func() { _ = b.DeleteInstance(inst, op) })
+		revert.Add(func() { _ = b.DeleteInstance(inst, false, op) })
 	}
 
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name(), vol.MountPath())
@@ -2973,7 +2973,7 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 }
 
 // DeleteInstance removes the instance's root volume (all snapshots need to be removed first).
-func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Operation) error {
+func (b *lxdBackend) DeleteInstance(inst instance.Instance, forceStorage bool, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("DeleteInstance started")
 	defer l.Debug("DeleteInstance finished")
@@ -3017,25 +3017,42 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
-		return err
+		if forceStorage {
+			l.Warn("Ignoring storage error checking if volume exists during force storage delete", logger.Ctx{"err": err})
+			volExists = false
+		} else {
+			return err
+		}
 	}
 
 	if volExists {
 		err = b.driver.DeleteVolume(vol, op)
 		if err != nil {
-			return fmt.Errorf("Error deleting storage volume: %w", err)
+			if forceStorage {
+				l.Warn("Ignoring storage error deleting volume during force storage delete", logger.Ctx{"volName": volStorageName, "err": err})
+			} else {
+				return fmt.Errorf("Error deleting storage volume: %w", err)
+			}
 		}
 	}
 
 	// Remove symlinks.
 	err = b.removeInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name())
 	if err != nil {
-		return err
+		if forceStorage {
+			l.Warn("Ignoring error removing instance symlink during force storage delete", logger.Ctx{"err": err})
+		} else {
+			return err
+		}
 	}
 
 	err = b.removeInstanceSnapshotSymlinkIfUnused(inst.Type(), inst.Project().Name, inst.Name())
 	if err != nil {
-		return err
+		if forceStorage {
+			l.Warn("Ignoring error removing instance snapshot symlink during force storage delete", logger.Ctx{"err": err})
+		} else {
+			return err
+		}
 	}
 
 	// Remove the volume record from the database.
@@ -3900,7 +3917,7 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 }
 
 // DeleteInstanceSnapshot removes the snapshot volume for the supplied snapshot instance.
-func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error {
+func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, forceStorage bool, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("DeleteInstanceSnapshot started")
 	defer l.Debug("DeleteInstanceSnapshot finished")
@@ -3939,28 +3956,45 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 	if b.driver.Info().PopulateParentVolumeUUID {
 		parentUUID, err := b.getParentVolumeUUID(vol, inst.Project().Name)
 		if err != nil {
-			return err
+			if forceStorage {
+				l.Warn("Ignoring error getting parent volume UUID during force storage delete", logger.Ctx{"err": err})
+			} else {
+				return err
+			}
+		} else {
+			vol.SetParentUUID(parentUUID)
 		}
-
-		vol.SetParentUUID(parentUUID)
 	}
 
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
-		return err
+		if forceStorage {
+			l.Warn("Ignoring storage error checking if snapshot volume exists during force storage delete", logger.Ctx{"err": err})
+			volExists = false
+		} else {
+			return err
+		}
 	}
 
 	if volExists {
 		err = b.driver.DeleteVolumeSnapshot(vol, op)
 		if err != nil {
-			return err
+			if forceStorage {
+				l.Warn("Ignoring storage error deleting snapshot volume during force storage delete", logger.Ctx{"snapVolName": snapVolName, "err": err})
+			} else {
+				return err
+			}
 		}
 	}
 
 	// Delete symlink if needed.
 	err = b.removeInstanceSnapshotSymlinkIfUnused(inst.Type(), inst.Project().Name, inst.Name())
 	if err != nil {
-		return err
+		if forceStorage {
+			l.Warn("Ignoring error removing snapshot symlink during force storage delete", logger.Ctx{"err": err})
+		} else {
+			return err
+		}
 	}
 
 	// Remove the snapshot volume record from the database if exists.
@@ -4090,7 +4124,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 				}
 
 				// Delete snapshot instance if listed in the error as one that needs removing.
-				err := snap.Delete(true, "")
+				err := snap.Delete(instance.DeleteArgs{Force: true})
 				if err != nil {
 					return err
 				}

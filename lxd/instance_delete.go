@@ -41,6 +41,10 @@ import (
 //	    name: force
 //	    description: Force delete of running instances
 //	    type: boolean
+//	  - in: query
+//	    name: force_storage
+//	    description: Ignore storage errors during deletion
+//	    type: boolean
 //	responses:
 //	  "202":
 //	    $ref: "#/responses/Operation"
@@ -86,7 +90,8 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	force := shared.IsTrue(r.FormValue("force"))
-	op, err := doInstanceDelete(opScheduler, s, name, projectName, force)
+	forceStorage := shared.IsTrue(r.FormValue("force_storage"))
+	op, err := doInstanceDelete(opScheduler, s, name, projectName, force, forceStorage)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -98,7 +103,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 // If the instance is running and force is true, the instance is force stopped asynchronously
 // as part of the delete operation. If the instance is running and force is false, the request
 // fails before the operation is created.
-func doInstanceDelete(opScheduler operations.OperationScheduler, s *state.State, name string, projectName string, force bool) (*operations.Operation, error) {
+func doInstanceDelete(opScheduler operations.OperationScheduler, s *state.State, name string, projectName string, force bool, forceStorage bool) (*operations.Operation, error) {
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return nil, err
@@ -128,7 +133,7 @@ func doInstanceDelete(opScheduler operations.OperationScheduler, s *state.State,
 			}
 		}
 
-		return inst.Delete(false, "")
+		return inst.Delete(instance.DeleteArgs{ForceStorage: forceStorage})
 	}
 
 	args := operations.OperationArgs{
