@@ -93,6 +93,11 @@ func (d *disk) CanMigrate() bool {
 		return true
 	}
 
+	// Disks without a storage pool (e.g. local host-path) are not migratable.
+	if d.pool == nil {
+		return false
+	}
+
 	// Remote disks are migratable.
 	return d.pool.Driver().Info().Remote
 }
