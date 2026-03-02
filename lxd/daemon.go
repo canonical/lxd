@@ -2556,7 +2556,8 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 		// at the end of the heartbeat so no need to do it here.
 		if !isLeader || !d.gateway.HeartbeatRestart() {
 			// Run heartbeat refresh task async so heartbeat response is sent to leader straight away.
-			go d.nodeRefreshTask(hbData, isLeader, nil)
+			// The heartbeat mode is only set by the leader running the operation, and not by other members receiving it.
+			go d.nodeRefreshTask(hbData, isLeader, nil, -1)
 		}
 	} else {
 		if isLeader {
@@ -2575,7 +2576,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 // When run on the leader, it accepts a list of unavailableMembers that have not responded to the current heartbeat
 // round (but may not be considered actually offline at this stage). These unavailable members will not be used for
 // role rebalancing.
-func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader bool, unavailableMembers []string) {
+func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader bool, unavailableMembers []string, mode cluster.HeartbeatMode) {
 	s := d.State()
 
 	// Don't process the heartbeat until we're fully online.
@@ -2644,8 +2645,9 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		hasNodesNotPartOfRaft := false
 		onlineVoters := int64(0)
 		onlineStandbys := int64(0)
+		offlineMemberIDs := make([]int64, 0, len(heartbeatData.Members))
 
-		for _, node := range heartbeatData.Members {
+		for id, node := range heartbeatData.Members {
 			role := db.RaftRole(node.RaftRole)
 			if node.Online {
 				// Count online members that have voter or stand-by raft role.
@@ -2659,8 +2661,11 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 				if node.RaftID == 0 {
 					hasNodesNotPartOfRaft = true
 				}
-			} else if role != db.RaftSpare {
-				isDegraded = true // Offline member that has voter or stand-by raft role.
+			} else {
+				offlineMemberIDs = append(offlineMemberIDs, id)
+				if role != db.RaftSpare {
+					isDegraded = true // Offline member that has voter or stand-by raft role.
+				}
 			}
 		}
 
@@ -2689,6 +2694,18 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 				if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 					logger.Warn("Failed upgrading raft roles:", logger.Ctx{"err": err, "local": localClusterAddress})
 				}
+			}
+		}
+
+		// On initial heartbeat, if there are offline nodes (whether part of raft or not) delete any orphaned operations
+		// that may be present there. After the initial heartbeat, this is handled by the autoRemoveOrphanedOperationsTask.
+		// It can't be performed at startup in case of stale member state, which can lead to operations being erroneously removed.
+		if mode == cluster.HeartbeatInitial && len(offlineMemberIDs) > 0 {
+			err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+				return dbCluster.DeleteOperationsFromNodes(ctx, tx.Tx(), offlineMemberIDs...)
+			})
+			if err != nil {
+				logger.Warn("Could not remove orphaned operations from offline members after initial heartbeat round", logger.Ctx{"err": err, "local": localClusterAddress})
 			}
 		}
 	}
