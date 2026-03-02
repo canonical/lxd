@@ -18,7 +18,7 @@ import (
 
 // Certificate is here to pass the certificates content from the database around.
 type Certificate struct {
-	ID          int
+	ID          int64
 	Fingerprint string `db:"primary=yes"`
 	Type        certificate.Type
 	Name        string

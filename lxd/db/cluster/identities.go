@@ -170,7 +170,7 @@ func (i IdentityType) toCertificateType() (certificate.Type, error) {
 
 // Identity is a database representation of any authenticated party.
 type Identity struct {
-	ID         int
+	ID         int64
 	AuthMethod AuthMethod `db:"primary=yes"`
 	Type       IdentityType
 	Identifier string `db:"primary=yes"`
