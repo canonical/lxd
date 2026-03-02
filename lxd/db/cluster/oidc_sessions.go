@@ -18,7 +18,7 @@ import (
 type OIDCSession struct {
 	ID           int
 	UUID         uuid.UUID
-	IdentityID   int
+	IdentityID   int64
 	Email        string
 	Username     string
 	IDToken      string
