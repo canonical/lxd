@@ -2968,3 +2968,19 @@ As with the {ref}`storage and profile operation extension <extension-storage-and
 ## `gpu_cdi_amd`
 
 Adds support for using the Container Device Interface (CDI) specification to configure AMD GPU passthrough in LXD containers. The `id` field of GPU devices now accepts CDI identifiers (for example, `amd.com/gpu=gpu{INDEX}`) for containers, in addition to DRM card IDs.
+
+(extension-cluster-links)=
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see {ref}`rest-api` for details):
+
+* [`GET /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_get)
+* [`GET /1.0/cluster/links`](swagger:/cluster-links/cluster_links_get)
+* [`GET /1.0/cluster/links/<name>/state`](swagger:/cluster-links/cluster_link_state_get)
+* [`PUT /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_put)
+* [`PATCH /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_patch)
+* [`POST /1.0/cluster/links`](swagger:/cluster-links/cluster_links_post)
+* [`POST /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_post)
+* [`DELETE /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_delete)
