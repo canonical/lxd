@@ -66,7 +66,7 @@ If you are using the LXD snap, you can also create a full backup by exporting a 
 
        sudo snap export-snapshot <ID> <output_file>
 
-See [Snapshots](https://snapcraft.io/docs/snapshots) in the Snapcraft documentation for details.
+See {ref}`snap:how-to-guides-manage-snaps-create-data-snapshots` in the Snap documentation for details.
 
 ## Partial backup
 
