@@ -603,3 +603,21 @@ WHERE auth_groups.name IN %s
 
 	return nil
 }
+
+// GetIdentityByID gets a single identity with the given ID.
+func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*Identity, error) {
+	identityFilter := IdentityFilter{ID: &id}
+	clusterIdentities, err := GetIdentitys(ctx, tx, identityFilter)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get identity with ID `%d`: %w", id, err)
+	}
+
+	switch len(clusterIdentities) {
+	case 0:
+		return nil, api.NewStatusError(http.StatusNotFound, "No identity found with given ID")
+	case 1:
+		return &clusterIdentities[0], nil
+	default:
+		return nil, fmt.Errorf("Multiple identities found with ID `%d`", id)
+	}
+}
