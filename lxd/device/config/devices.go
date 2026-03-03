@@ -133,7 +133,7 @@ func (list Devices) Contains(k string, d Device) bool {
 
 	old := list[k]
 
-	return deviceEquals(old, d)
+	return maps.Equal(old, d)
 }
 
 // Update returns the difference between two device sets (removed, added, updated devices) and a list of all
@@ -191,7 +191,7 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 		// If after removing the live-updatable keys the devices are equal, then we know the device has
 		// been updated rather than added or removed, so add it to the update list, and remove it from
 		// the added and removed lists.
-		if deviceEquals(oldDevice, newDevice) {
+		if maps.Equal(oldDevice, newDevice) {
 			delete(rmlist, key)
 			delete(addlist, key)
 			updatelist[key] = d
