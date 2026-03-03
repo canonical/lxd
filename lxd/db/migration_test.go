@@ -71,7 +71,7 @@ func TestImportPreClusteringData(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, certs, 1)
 		cert := certs[0]
-		assert.Equal(t, 1, cert.ID)
+		assert.Equal(t, int64(1), cert.ID)
 		assert.Equal(t, "abcd:efgh", cert.Fingerprint)
 		assert.Equal(t, certificate.TypeClient, cert.Type)
 		assert.Equal(t, "foo", cert.Name)
