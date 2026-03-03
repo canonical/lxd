@@ -329,7 +329,8 @@ parts:
     after:
       - nasm
     source: https://github.com/tianocore/edk2
-    source-depth: 1
+    # Avoid shallow clone (0 means full clone)
+    source-depth: 0
     source-commit: 8736b8fdca85e02933cdb0a13309de14c9799ece # edk2-stable202311
     source-submodules: []
     source-type: git
