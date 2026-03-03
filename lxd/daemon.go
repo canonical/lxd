@@ -2063,7 +2063,7 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 			return fmt.Errorf("Failed to determine type of identity: %w", err)
 		}
 
-		res.IdentityID = int64(id.ID)
+		res.IdentityID = id.ID
 		res.IdentityType = idType
 
 		// If client is an admin, there are no groups or projects to get.
@@ -2073,7 +2073,7 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 
 		// If not fine-grained, get the project list.
 		if !idType.IsFineGrained() {
-			dbProjects, err := dbCluster.GetIdentityProjects(ctx, tx.Tx(), id.ID)
+			dbProjects, err := dbCluster.GetCertificateProjects(ctx, tx.Tx(), id.ID)
 			if err != nil {
 				return fmt.Errorf("Failed to get projects for identity: %w", err)
 			}

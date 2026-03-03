@@ -435,7 +435,7 @@ func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(req.Groups) > 0 {
-			return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), int(id), req.Groups)
+			return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id, req.Groups)
 		}
 
 		return nil
@@ -746,7 +746,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertifica
 		}
 
 		if len(req.Groups) > 0 {
-			return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), int(id), req.Groups)
+			return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id, req.Groups)
 		}
 
 		return nil
@@ -853,7 +853,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 		}
 
 		if len(req.Groups) > 0 {
-			return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), int(id), req.Groups)
+			return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id, req.Groups)
 		}
 
 		return nil
@@ -1278,7 +1278,7 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 		}
 
 		var identities []dbCluster.Identity
-		var groupsByIdentityID map[int][]dbCluster.AuthGroup
+		var groupsByIdentityID map[int64][]dbCluster.AuthGroup
 		var apiIdentity *api.Identity
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get all identities, filter by authentication method if present.
@@ -1342,7 +1342,7 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 
 		if recursion > 0 {
 			// Convert the []cluster.Group in the groupsByIdentityID map to string slices of the group names.
-			groupNamesByIdentityID := make(map[int][]string, len(groupsByIdentityID))
+			groupNamesByIdentityID := make(map[int64][]string, len(groupsByIdentityID))
 			for identityID, groups := range groupsByIdentityID {
 				for _, group := range groups {
 					if canViewGroup(entity.AuthGroupURL(group.Name)) {
@@ -2362,7 +2362,7 @@ func updateIdentityCache(d *Daemon) {
 	logger.Debug("Refreshing identity cache")
 
 	var identities []dbCluster.Identity
-	bearerIdentitySecrets := make(map[int]dbCluster.AuthSecretValue)
+	bearerIdentitySecrets := make(map[int64]dbCluster.AuthSecretValue)
 	var err error
 	err = s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		identities, err = dbCluster.GetIdentitys(ctx, tx.Tx())
