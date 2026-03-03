@@ -684,6 +684,16 @@ test_clustering_storage() {
     [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume info pool1 custom/vol1 --target=node1 | grep -cF snapNode1)" = 1 ]
     [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume info pool1 custom/vol1 --target=node2 | grep -cF snapNode2)" = 1 ]
 
+    # Check updating storage volume snapshots works when LXD is clustered.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume set pool1 vol1/snapNode1 --property description=updated --target=node1
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume get pool1 vol1/snapNode1 --property description --target=node1)" = "updated" ]
+
+    # Check deleting storage volume snapshots works when LXD is clustered.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete pool1 vol1/snapNode1 --target=node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete pool1 vol1/snapNode2 --target=node2
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume info pool1 custom/vol1 --target=node1 | grep -cF snapNode1)" = 0 ]
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume info pool1 custom/vol1 --target=node2 | grep -cF snapNode2)" = 0 ]
+
     # Check renaming storage volume works.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 vol2 --target=node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume move pool1/vol2 pool1/vol3 --target=node1
