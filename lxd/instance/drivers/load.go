@@ -120,7 +120,7 @@ func validDevices(state *state.State, p api.Project, instanceType instancetype.T
 
 	if len(expandedDevices) > 0 {
 		// Check we have a root disk if in expanded validation mode.
-		_, _, err := instancetype.GetRootDiskDevice(expandedDevices.CloneNative())
+		_, _, err := api.GetRootDiskDevice(expandedDevices.CloneNative())
 		if err != nil {
 			return fmt.Errorf("Failed detecting root disk device: %w", err)
 		}

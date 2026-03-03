@@ -621,7 +621,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 				// Reinitialise the instance's root disk quota even if no size specified (allows the storage driver the
 				// opportunity to reinitialise the quota based on the new storage volume's DB ID).
-				_, rootConfig, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+				_, rootConfig, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 				if err == nil {
 					err = pool.SetInstanceQuota(inst, rootConfig["size"], rootConfig["size.state"], nil)
 					if err != nil {

@@ -311,6 +311,8 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 			return response.InternalError(err)
 		}
 
+		api.InstanceCreateConfigKeyPolicy.Apply(args.Config, nil)
+
 		// Create the instance DB record for main instance.
 		// Note: At this stage we do not yet know if snapshots are going to be received and so we cannot
 		// create their DB records. This will be done if needed in the migrationSink.Do() function called
@@ -322,6 +324,15 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 
 		revert.Add(cleanup)
 	} else {
+		// For refresh requests, validate and apply target config before migration transfer starts.
+		// Skip this during internal cluster move requests, where config update semantics differ.
+		if req.Source.Refresh && clusterMoveSourceName == "" {
+			err = inst.Update(*args, true)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed applying refresh target instance config: %w", err))
+			}
+		}
+
 		instOp, err = inst.LockExclusive()
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed getting exclusive access to instance: %w", err))
@@ -565,7 +576,7 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 
 		if serverName != source.Location() {
 			// Check if we are copying the instance from a different or remote pool.
-			_, rootDevice, _ := instancetype.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
+			_, rootDevice, _ := api.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
 			sourcePoolName := rootDevice["pool"]
 
 			destPoolName, _, _, _, resp := instanceFindStoragePool(s, targetProject, req)
@@ -599,41 +610,6 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 
 	// The following must always run on the source LXD.
 	// This ensures that if the instance is running, its filesystem can be frozen before performing the copy.
-
-	// Config override
-	if req.Config == nil {
-		req.Config = make(map[string]string)
-	}
-
-	for key, value := range source.LocalConfig() {
-		if !instancetype.InstanceIncludeWhenCopying(key, false) {
-			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project().Name, "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
-			continue
-		}
-
-		_, exists := req.Config[key]
-		if exists {
-			continue
-		}
-
-		req.Config[key] = value
-	}
-
-	// Devices override
-	sourceDevices := source.LocalDevices()
-
-	if req.Devices == nil {
-		req.Devices = make(map[string]map[string]string)
-	}
-
-	for key, value := range sourceDevices {
-		_, exists := req.Devices[key]
-		if exists {
-			continue // Request has overridden this device.
-		}
-
-		req.Devices[key] = value
-	}
 
 	if req.Stateful {
 		sourceName, _, _ := api.GetParentAndSnapshotName(source.Name())
@@ -953,7 +929,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			return response.InternalError(fmt.Errorf("Failed to get default profile: %w", err))
 		}
 
-		_, v, err := instancetype.GetRootDiskDevice(profile.Devices)
+		_, v, err := api.GetRootDiskDevice(profile.Devices)
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Failed to get root disk device: %w", err))
 		}
@@ -1658,7 +1634,7 @@ func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, pla
 
 func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (storagePool string, storagePoolProfile string, localRootDiskDeviceKey string, localRootDiskDevice map[string]string, resp response.Response) {
 	// Grab the container's root device if one is specified
-	localRootDiskDeviceKey, localRootDiskDevice, _ = instancetype.GetRootDiskDevice(req.Devices)
+	localRootDiskDeviceKey, localRootDiskDevice, _ = api.GetRootDiskDevice(req.Devices)
 	if localRootDiskDeviceKey != "" {
 		storagePool = localRootDiskDevice["pool"]
 	}
@@ -1687,7 +1663,7 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 					return err
 				}
 
-				k, v, _ := instancetype.GetRootDiskDevice(p.Devices)
+				k, v, _ := api.GetRootDiskDevice(p.Devices)
 				if k != "" && v["pool"] != "" {
 					// Keep going as we want the last one in the profile chain
 					storagePool = v["pool"]

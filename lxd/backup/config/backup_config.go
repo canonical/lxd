@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -94,7 +93,7 @@ func (c *Config) rootVolPoolName() (string, error) {
 		return "", errors.New("Instance config is missing")
 	}
 
-	_, deviceConfig, err := instancetype.GetRootDiskDevice(c.Instance.ExpandedDevices)
+	_, deviceConfig, err := api.GetRootDiskDevice(c.Instance.ExpandedDevices)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get root disk device: %w", err)
 	}

@@ -261,11 +261,19 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		inst, err = instance.LoadByProjectAndName(s, opts.targetInstance.Project, opts.targetInstance.Name)
 		if err != nil {
 			opts.refresh = false // Instance doesn't exist, so switch to copy mode.
+		} else {
+			// Validate and apply refresh target config before the storage refresh.
+			err = inst.Update(opts.targetInstance, true)
+			if err != nil {
+				return nil, fmt.Errorf("Failed applying refresh target instance config: %w", err)
+			}
 		}
 	}
 
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
+		api.InstanceCreateConfigKeyPolicy.Apply(opts.targetInstance.Config, nil)
+
 		// Create the instance.
 		inst, instOp, cleanup, err = instance.CreateInternal(s, opts.targetInstance, true)
 		if err != nil {
@@ -284,7 +292,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 
 	// At this point we have already figured out the instance's root disk device so we can simply retrieve it
 	// from the expanded devices.
-	instRootDiskDeviceKey, instRootDiskDevice, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	instRootDiskDeviceKey, instRootDiskDevice, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +360,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			snapLocalDevices := srcSnap.LocalDevices().Clone()
 
 			// Load snap root disk from expanded devices (in case it doesn't have its own root disk).
-			snapExpandedRootDiskDevKey, snapExpandedRootDiskDev, err := instancetype.GetRootDiskDevice(srcSnap.ExpandedDevices().CloneNative())
+			snapExpandedRootDiskDevKey, snapExpandedRootDiskDev, err := api.GetRootDiskDevice(srcSnap.ExpandedDevices().CloneNative())
 			if err == nil {
 				// If the expanded devices has a root disk, but its pool doesn't match our new
 				// parent instance's pool, then either modify the device if it is local or add a
@@ -372,7 +380,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 						}
 					}
 				}
-			} else if errors.Is(err, instancetype.ErrNoRootDisk) {
+			} else if errors.Is(err, api.ErrNoRootDisk) {
 				// If no root disk defined in either local devices or profiles, then add one to the
 				// snapshot local devices using the same device name from the parent instance.
 				snapLocalDevices[instRootDiskDeviceKey] = map[string]string{
@@ -431,7 +439,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	if opts.refresh {
 		err = pool.RefreshInstance(inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
 		if err != nil {
-			return nil, fmt.Errorf("Refresh instance: %w", err)
+			return nil, fmt.Errorf("Failed refreshing instance: %w", err)
 		}
 	} else {
 		err = pool.CreateInstanceFromCopy(inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)

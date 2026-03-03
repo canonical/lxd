@@ -7702,7 +7702,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					// comes from a profile on the new instance as well we don't need to do
 					// anything.
 					if snapArgs.Devices != nil {
-						snapLocalRootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+						snapLocalRootDiskDeviceKey, _, _ := api.GetRootDiskDevice(snapArgs.Devices.CloneNative())
 						if snapLocalRootDiskDeviceKey != "" {
 							snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 						}

@@ -1422,7 +1422,7 @@ func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool, sto
 				poolName = fields[1]
 			}
 
-			_, device, err := instancetype.GetRootDiskDevice(instance.Devices)
+			_, device, err := api.GetRootDiskDevice(instance.Devices)
 			if err != nil {
 				return nil, fmt.Errorf("Failed getting root disk device for instance %q in project %q: %w", instance.Name, instance.Project, err)
 			}

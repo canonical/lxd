@@ -191,7 +191,7 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 // specified. Returns true if a root disk device has been found and updated otherwise false.
 func updateRootDevicePool(devices map[string]map[string]string, poolName string) bool {
 	if devices != nil {
-		devName, _, err := instancetype.GetRootDiskDevice(devices)
+		devName, _, err := api.GetRootDiskDevice(devices)
 		if err == nil {
 			devices[devName]["pool"] = poolName
 			return true
