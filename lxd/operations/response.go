@@ -1,7 +1,6 @@
 package operations
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/metrics"
@@ -29,11 +28,7 @@ func (r *operationResponse) Render(w http.ResponseWriter, req *http.Request) err
 		return err
 	}
 
-	url, md, err := r.op.Render()
-	if err != nil {
-		return err
-	}
-
+	url, md := r.op.Render()
 	body := api.ResponseRaw{
 		Type:       api.AsyncResponse,
 		Status:     api.OperationCreated.String(),
@@ -56,11 +51,7 @@ func (r *operationResponse) Render(w http.ResponseWriter, req *http.Request) err
 }
 
 func (r *operationResponse) String() string {
-	_, md, err := r.op.Render()
-	if err != nil {
-		return fmt.Sprintf("error: %s", err)
-	}
-
+	_, md := r.op.Render()
 	return md.ID
 }
 

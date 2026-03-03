@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -76,11 +75,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	_, body, err = op.Render()
-	if err != nil {
-		log.Println(fmt.Errorf("Failed to handle operations request: %w", err))
-	}
-
+	_, body = op.Render()
 	return response.SyncResponse(true, body)
 }
 
@@ -121,11 +116,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				body[status] = make([]*api.Operation, 0)
 			}
 
-			_, op, err := v.Render()
-			if err != nil {
-				return nil, err
-			}
-
+			_, op := v.Render()
 			body[status] = append(body[status].([]*api.Operation), op)
 		}
 
@@ -197,10 +188,6 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	_, opAPI, err := op.Render()
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	_, opAPI := op.Render()
 	return response.SyncResponse(true, opAPI)
 }
