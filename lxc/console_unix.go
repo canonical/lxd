@@ -20,8 +20,7 @@ func (c *cmdConsole) controlSocketHandler(control *websocket.Conn) {
 	defer signal.Stop(ch)
 
 	for {
-		sig := <-ch
-		logger.Debugf("Received '%s signal', updating window geometry.", sig)
+		<-ch
 		err := c.sendTermSize(control)
 		if err != nil {
 			logger.Debugf("error setting term size: %s", err)
