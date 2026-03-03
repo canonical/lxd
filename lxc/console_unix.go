@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -16,22 +17,30 @@ import (
 func (c *cmdConsole) controlSocketHandler(control *websocket.Conn) {
 	ch := make(chan os.Signal, 10)
 	signal.Notify(ch, unix.SIGWINCH)
+	defer signal.Stop(ch)
 
 	for {
-		sig := <-ch
-		logger.Debugf("Received '%s signal', updating window geometry.", sig)
+		<-ch
 		err := c.sendTermSize(control)
 		if err != nil {
-			logger.Debugf("error setting term size %s", err)
+			logger.Debugf("error setting term size: %s", err)
 			break
 		}
 	}
 
 	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-	_ = control.WriteMessage(websocket.CloseMessage, closeMsg)
+	err := control.WriteMessage(websocket.CloseMessage, closeMsg)
+	if err != nil {
+		logger.Debugf("error sending close message: %s", err)
+	}
 }
 
 func (c *cmdConsole) findCommand(name string) string {
-	path, _ := exec.LookPath(name)
+	// Look for the command in the PATH but ignore "not found" errors as multiple candidates may be tried.
+	path, err := exec.LookPath(name)
+	if err != nil && !errors.Is(err, exec.ErrNotFound) {
+		logger.Debugf("error looking for command '%s': %s", name, err)
+	}
+
 	return path
 }
