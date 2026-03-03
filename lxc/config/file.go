@@ -17,14 +17,14 @@ func LoadConfig(path string) (*Config, error) {
 	// Open the config file
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read the configuration file: %w", err)
+		return nil, fmt.Errorf("Unable to read the configuration file (%q): %w", path, err)
 	}
 
 	// Decode the YAML document
 	c := NewConfig(filepath.Dir(path), false)
 	err = yaml.Unmarshal(content, &c)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to decode the configuration: %w", err)
+		return nil, fmt.Errorf("Unable to decode the configuration file (%q): %w", path, err)
 	}
 
 	for k, r := range c.Remotes {
@@ -36,11 +36,12 @@ func LoadConfig(path string) (*Config, error) {
 
 	// Apply the global (system-wide) remotes
 	globalConf := NewConfig("", false)
-	content, err = os.ReadFile(globalConf.GlobalConfigPath("config.yml"))
+	globalConfPath := globalConf.GlobalConfigPath("config.yml")
+	content, err = os.ReadFile(globalConfPath)
 	if err == nil {
 		err = yaml.Unmarshal(content, &globalConf)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to decode the configuration: %w", err)
+			return nil, fmt.Errorf("Unable to decode the configuration file (%q): %w", globalConfPath, err)
 		}
 
 		for k, r := range globalConf.Remotes {
