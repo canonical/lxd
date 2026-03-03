@@ -213,18 +213,25 @@ func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 	// Add the device
 	devname := args[1]
 	device := map[string]string{}
-	device["type"] = args[2]
-	if len(args) > 3 {
-		for _, prop := range args[3:] {
-			results := strings.SplitN(prop, "=", 2)
-			if len(results) != 2 {
-				return fmt.Errorf("No value found in %q", prop)
-			}
+	// Check that providing a key=value pair as the device type positional argument fails.
+	// This prevents config keys (like boot.priority) from being silently dropped when
+	// misinterpreted as the type argument while the actual type is given via type=<value>.
+	if strings.Contains(args[2], "=") {
+		return fmt.Errorf("Invalid device type %q: the device type must be specified as the third positional argument", args[2])
+	}
 
-			k := results[0]
-			v := results[1]
-			device[k] = v
+	device["type"] = args[2]
+	for _, prop := range args[3:] {
+		results := strings.SplitN(prop, "=", 2)
+		if len(results) != 2 {
+			return fmt.Errorf("No value found in %q", prop)
 		}
+
+		if results[0] == "type" {
+			return fmt.Errorf("The device type cannot be set as a key=value pair %q, use the third positional argument instead", prop)
+		}
+
+		device[results[0]] = results[1]
 	}
 
 	if c.profile != nil {
