@@ -17,6 +17,7 @@ import (
 func (c *cmdConsole) controlSocketHandler(control *websocket.Conn) {
 	ch := make(chan os.Signal, 10)
 	signal.Notify(ch, unix.SIGWINCH)
+	defer signal.Stop(ch)
 
 	for {
 		sig := <-ch
