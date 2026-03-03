@@ -609,7 +609,7 @@ func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*Identity, erro
 	identityFilter := IdentityFilter{ID: &id}
 	clusterIdentities, err := GetIdentitys(ctx, tx, identityFilter)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get identity with ID `%d`: %w", id, err)
+		return nil, fmt.Errorf("Failed to get identity with ID %d: %w", id, err)
 	}
 
 	switch len(clusterIdentities) {
