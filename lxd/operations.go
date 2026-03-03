@@ -167,7 +167,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 
 	// Load the operation from the database.
 	var body *api.Operation
-	var dbLocation *string
+	var dbLocation string
 	var operation dbCluster.Operation
 	var op *operations.Operation
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -202,7 +202,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		dbLocation = &ni.Name
+		dbLocation = ni.Name
 
 		op, err = operations.ConstructOperationFromDB(ctx, tx.Tx(), s, &operation, projectName)
 		return err
@@ -220,9 +220,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 
 	// The [operations.Operation] doesn't contain the node where the operation is running.
 	// If we're loading operations from the DB, we need to set the location here.
-	if dbLocation != nil {
-		body.Location = *dbLocation
-	}
+	body.Location = dbLocation
 
 	return response.SyncResponse(true, body)
 }
