@@ -7,30 +7,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
-	"github.com/canonical/lxd/lxd/db/query"
 )
-
-// GetAllNodesWithOperations returns a list of nodes that have operations in any project.
-func (c *ClusterTx) GetAllNodesWithOperations(ctx context.Context) ([]string, error) {
-	stmt := `
-SELECT DISTINCT nodes.address
-  FROM operations
-  JOIN nodes ON nodes.id = operations.node_id
-	`
-	return query.SelectStrings(ctx, c.tx, stmt)
-}
-
-// GetNodesWithOperations returns a list of nodes that have operations.
-func (c *ClusterTx) GetNodesWithOperations(ctx context.Context, project string) ([]string, error) {
-	stmt := `
-SELECT DISTINCT nodes.address
-  FROM operations
-  LEFT OUTER JOIN projects ON projects.id = operations.project_id
-  JOIN nodes ON nodes.id = operations.node_id
- WHERE projects.name = ? OR operations.project_id IS NULL
-`
-	return query.SelectStrings(ctx, c.tx, stmt, project)
-}
 
 // GetOperationsOfType returns a list operations that belong to the specified project and have the desired type.
 func (c *ClusterTx) GetOperationsOfType(ctx context.Context, projectName string, opType operationtype.Type) ([]cluster.Operation, error) {

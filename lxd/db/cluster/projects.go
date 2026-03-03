@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
@@ -95,6 +96,24 @@ func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	return apiProject, nil
 }
 
+// GetProjectByID returns the project with the given ID.
+func GetProjectByID(ctx context.Context, tx *sql.Tx, id int) (*Project, error) {
+	projectFilter := ProjectFilter{ID: &id}
+	projects, err := GetProjects(ctx, tx, projectFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	switch len(projects) {
+	case 0:
+		return nil, api.NewStatusError(http.StatusNotFound, "No project found with given ID")
+	case 1:
+		return &projects[0], nil
+	default:
+		return nil, fmt.Errorf("Multiple projects found with ID %d", id)
+	}
+}
+
 // ProjectHasProfiles is a helper to check if a project has the profiles
 // feature enabled.
 func ProjectHasProfiles(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
@@ -180,6 +199,31 @@ func GetProjectsSharingDefaultImages(ctx context.Context, tx *sql.Tx) ([]string,
 	}
 
 	return projectNames, nil
+}
+
+// GetProjectIDsToNames returns a map associating each project ID to its
+// project name.
+func GetProjectIDsToNames(ctx context.Context, tx *sql.Tx) (map[int64]string, error) {
+	stmt := "SELECT id, name FROM projects"
+
+	result := map[int64]string{}
+	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
+		var id int64
+		var name string
+
+		err := scan(&id, &name)
+		if err != nil {
+			return err
+		}
+
+		result[id] = name
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Fetch project IDs to names: %w", err)
+	}
+
+	return result, nil
 }
 
 // ProjectHasImages is a helper to check if a project has the images

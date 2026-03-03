@@ -618,6 +618,21 @@ func (op *Operation) Render() (string, *api.Operation) {
 	return op.url, retOp
 }
 
+// RenderWithoutProgress renders the operation structure without progress metadata.
+// This is used when operation constructed from the database is returned via API, as database likely contains stale progress metadata.
+// Progress should be consumed from the websocket events, so it doesn't need to be returned in the API response.
+func (op *Operation) RenderWithoutProgress() (string, *api.Operation) {
+	url, retOp := op.Render()
+
+	for key := range retOp.Metadata {
+		if strings.HasSuffix(key, "progress") {
+			delete(retOp.Metadata, key)
+		}
+	}
+
+	return url, retOp
+}
+
 // Wait for the operation to be done.
 // Returns non-nil error if operation failed or context was cancelled.
 func (op *Operation) Wait(ctx context.Context) error {
