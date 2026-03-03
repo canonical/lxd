@@ -175,11 +175,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		_, body, err = op.Render()
-		if err != nil {
-			return response.SmartError(err)
-		}
-
+		_, body = op.Render()
 		return response.SyncResponse(true, body)
 	}
 
@@ -571,11 +567,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				body[status] = make([]*api.Operation, 0)
 			}
 
-			_, op, err := v.Render()
-			if err != nil {
-				return nil, err
-			}
-
+			_, op := v.Render()
 			body[status] = append(body[status].([]*api.Operation), op)
 		}
 
@@ -735,11 +727,7 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 			continue
 		}
 
-		_, apiOp, err := op.Render()
-		if err != nil {
-			return nil, fmt.Errorf("Failed converting local operation %q to API representation: %w", op.ID(), err)
-		}
-
+		_, apiOp := op.Render()
 		ops = append(ops, apiOp)
 	}
 
@@ -987,12 +975,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 				return nil
 			}
 
-			_, body, err := op.Render()
-			if err != nil {
-				_ = response.SmartError(err).Render(w, r)
-				return nil
-			}
-
+			_, body := op.Render()
 			_ = response.SyncResponse(true, body).Render(w, r)
 			return nil
 		}

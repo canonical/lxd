@@ -284,7 +284,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	}
 
 	op.logger.Debug("New operation")
-	_, md, _ := op.Render()
+	_, md := op.Render()
 
 	operationsLock.Lock()
 	operations[op.id] = &op
@@ -442,7 +442,7 @@ func (op *Operation) Start() error {
 				op.done()
 
 				op.logger.Warn("Failure for operation", logger.Ctx{"err": err})
-				_, md, _ := op.Render()
+				_, md := op.Render()
 
 				op.lock.Lock()
 				op.sendEvent(md)
@@ -458,7 +458,7 @@ func (op *Operation) Start() error {
 			op.done()
 
 			op.logger.Debug("Success for operation")
-			_, md, _ := op.Render()
+			_, md := op.Render()
 
 			op.lock.Lock()
 			op.sendEvent(md)
@@ -469,7 +469,7 @@ func (op *Operation) Start() error {
 	op.lock.Unlock()
 
 	op.logger.Debug("Started operation")
-	_, md, _ := op.Render()
+	_, md := op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)
@@ -511,7 +511,7 @@ func (op *Operation) Cancel() {
 	op.lock.Unlock()
 
 	op.logger.Debug("Cancelling operation")
-	_, md, _ := op.Render()
+	_, md := op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)
@@ -562,7 +562,7 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 
 // Render renders the operation structure.
 // Returns URL of operation and operation info.
-func (op *Operation) Render() (string, *api.Operation, error) {
+func (op *Operation) Render() (string, *api.Operation) {
 	// Setup the resource URLs
 	renderedResources := make(map[string][]string)
 	resources := op.resources
@@ -615,7 +615,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 
 	op.lock.Unlock()
 
-	return op.url, retOp, nil
+	return op.url, retOp
 }
 
 // Wait for the operation to be done.
@@ -665,7 +665,7 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	op.lock.Unlock()
 
 	op.logger.Debug("Updated metadata for operation")
-	_, md, _ := op.Render()
+	_, md := op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)
@@ -723,7 +723,7 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 	op.lock.Unlock()
 
 	op.logger.Debug("Updated metadata for operation")
-	_, md, _ := op.Render()
+	_, md := op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)
