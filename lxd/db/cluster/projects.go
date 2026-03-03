@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
@@ -93,6 +94,24 @@ func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	}
 
 	return apiProject, nil
+}
+
+// GetProjectByID returns the project with the given ID.
+func GetProjectByID(ctx context.Context, tx *sql.Tx, id int) (*Project, error) {
+	projectFilter := ProjectFilter{ID: &id}
+	projects, err := GetProjects(ctx, tx, projectFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	switch len(projects) {
+	case 0:
+		return nil, api.NewStatusError(http.StatusNotFound, "No project found with given ID")
+	case 1:
+		return &projects[0], nil
+	default:
+		return nil, fmt.Errorf("Multiple projects found with ID %d", id)
+	}
 }
 
 // ProjectHasProfiles is a helper to check if a project has the profiles
