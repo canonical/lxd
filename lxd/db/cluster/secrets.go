@@ -248,7 +248,7 @@ func createCoreAuthSecret(ctx context.Context, tx *sql.Tx, secret AuthSecret) (i
 }
 
 // createSecret is a general method for creating a secret.
-func createSecret(ctx context.Context, tx *sql.Tx, entityType entity.Type, entityID int, secretType SecretType, value any, createdAt time.Time) (int, error) {
+func createSecret(ctx context.Context, tx *sql.Tx, entityType entity.Type, entityID int64, secretType SecretType, value any, createdAt time.Time) (int, error) {
 	// Add the new secret to the database.
 	res, err := tx.ExecContext(ctx, `INSERT INTO secrets (entity_type, entity_id, type, value, creation_date) VALUES (?, ?, ?, ?, ?)`, EntityType(entityType), entityID, secretType, value, createdAt)
 	if err != nil {
@@ -306,12 +306,12 @@ func deleteSecretsByID(ctx context.Context, tx *sql.Tx, ids ...int) error {
 
 // GetAllBearerIdentitySigningKeys returns a map of identity ID to token signing keys.
 // It should only be used to refresh the identity cache.
-func GetAllBearerIdentitySigningKeys(ctx context.Context, tx *sql.Tx) (map[int]AuthSecretValue, error) {
+func GetAllBearerIdentitySigningKeys(ctx context.Context, tx *sql.Tx) (map[int64]AuthSecretValue, error) {
 	q := `SELECT entity_id, value FROM secrets WHERE entity_type = ? AND type = ?`
 
-	identityIDToSigningKey := make(map[int]AuthSecretValue)
+	identityIDToSigningKey := make(map[int64]AuthSecretValue)
 	scanFunc := func(scan func(dest ...any) error) error {
-		var identityID int
+		var identityID int64
 		var value AuthSecretValue
 		err := scan(&identityID, &value)
 		if err != nil {
@@ -332,7 +332,7 @@ func GetAllBearerIdentitySigningKeys(ctx context.Context, tx *sql.Tx) (map[int]A
 
 // DeleteBearerIdentitySigningKey deletes any signing keys for the identity. It returns an [api.StatusError] with
 // [http.StatusNotFound] if no key exists.
-func DeleteBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID int) error {
+func DeleteBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID int64) error {
 	q := "DELETE FROM secrets WHERE entity_type = ? AND entity_id = ? AND type = ?"
 	res, err := tx.ExecContext(ctx, q, EntityType(entity.TypeIdentity), identityID, SecretTypeBearerSigningKey)
 	if err != nil {
@@ -358,7 +358,7 @@ func DeleteBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID 
 }
 
 // RotateBearerIdentitySigningKey deletes any existing signing keys for the identity and creates a new one.
-func RotateBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID int) (AuthSecretValue, error) {
+func RotateBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID int64) (AuthSecretValue, error) {
 	// Delete any existing key, continuing if there was no key.
 	// If any other error occurs, including the identity having more than one existing signing key, it will not be possible
 	// to rotate the keys.
