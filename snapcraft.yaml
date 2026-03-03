@@ -750,7 +750,8 @@ parts:
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
     source-commit: 63a0a19b660c2ca54eb72130600e563a0857a5f8 # import/1%8.2.2+ds-0ubuntu1.12
-    source-depth: 1
+    # Avoid shallow clone (0 means full clone)
+    source-depth: 0
     source-type: git
     plugin: autotools
     autotools-configure-parameters:
