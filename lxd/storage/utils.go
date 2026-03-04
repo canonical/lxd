@@ -424,15 +424,6 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  type: string
 		//  shortdesc: Quota of the storage bucket
 		//  scope: local
-
-		// lxdmeta:generate(entities=storage-btrfs,storage-lvm,storage-zfs; group=bucket-conf; key=size)
-		//
-		// ---
-		//  type: string
-		//  condition: appropriate driver
-		//  defaultdesc: same as `volume.size`
-		//  shortdesc: Size/quota of the storage bucket
-		//  scope: local
 		"size": validate.Optional(validate.IsSize),
 		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure,storage-alletra; group=volume-conf; key=snapshots.expiry)
 		// Specify an expression like `1M 2H 3d 4w 5m 6y`.
