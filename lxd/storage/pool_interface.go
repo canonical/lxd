@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/storage/drivers"
-	"github.com/canonical/lxd/lxd/storage/s3/miniod"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -115,7 +114,6 @@ type Pool interface {
 	CreateBucketKey(projectName string, bucketName string, key api.StorageBucketKeysPost, op *operations.Operation) (*api.StorageBucketKey, error)
 	UpdateBucketKey(projectName string, bucketName string, keyName string, key api.StorageBucketKeyPut, op *operations.Operation) error
 	DeleteBucketKey(projectName string, bucketName string, keyName string, op *operations.Operation) error
-	ActivateBucket(projectName string, bucketName string, op *operations.Operation) (*miniod.Process, error)
 	GetBucketURL(bucketName string) *url.URL
 
 	// Custom volumes.
