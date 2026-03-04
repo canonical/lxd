@@ -291,6 +291,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
+	_ = op.Start()
 	return &op, nil
 }
 

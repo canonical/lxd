@@ -685,22 +685,16 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 				RunHook: opRun,
 			}
 
+			logger.Info("Pruning expired instance snapshots")
 			op, err := operations.ScheduleServerOperation(s, args)
 			if err != nil {
 				logger.Error("Failed creating instance snapshots expiry operation", logger.Ctx{"err": err})
 			} else {
-				logger.Info("Pruning expired instance snapshots")
-
-				err = op.Start()
+				err = op.Wait(ctx)
 				if err != nil {
-					logger.Error("Failed starting instance snapshots expiry operation", logger.Ctx{"err": err})
+					logger.Error("Failed pruning instance snapshots", logger.Ctx{"err": err})
 				} else {
-					err = op.Wait(ctx)
-					if err != nil {
-						logger.Error("Failed pruning instance snapshots", logger.Ctx{"err": err})
-					} else {
-						logger.Info("Done pruning expired instance snapshots")
-					}
+					logger.Info("Done pruning expired instance snapshots")
 				}
 			}
 		}
@@ -717,22 +711,16 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 				RunHook: opRun,
 			}
 
+			logger.Info("Creating scheduled instance snapshots")
 			op, err := operations.ScheduleServerOperation(s, args)
 			if err != nil {
 				logger.Error("Failed creating scheduled instance snapshot operation", logger.Ctx{"err": err})
 			} else {
-				logger.Info("Creating scheduled instance snapshots")
-
-				err = op.Start()
+				err = op.Wait(ctx)
 				if err != nil {
-					logger.Error("Failed starting scheduled instance snapshot operation", logger.Ctx{"err": err})
+					logger.Error("Failed scheduled instance snapshots", logger.Ctx{"err": err})
 				} else {
-					err = op.Wait(ctx)
-					if err != nil {
-						logger.Error("Failed scheduled instance snapshots", logger.Ctx{"err": err})
-					} else {
-						logger.Info("Done creating scheduled instance snapshots")
-					}
+					logger.Info("Done creating scheduled instance snapshots")
 				}
 			}
 		}
