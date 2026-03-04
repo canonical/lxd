@@ -1107,12 +1107,6 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 			return
 		}
 
-		err = op.Start()
-		if err != nil {
-			logger.Error("Failed starting remove orphaned operations operation", logger.Ctx{"err": err})
-			return
-		}
-
 		err = op.Wait(ctx)
 		if err != nil {
 			logger.Error("Failed removing orphaned operations", logger.Ctx{"err": err})

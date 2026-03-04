@@ -34,16 +34,10 @@ func expireLogsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 			RunHook: opRun,
 		}
 
+		logger.Info("Expiring log files")
 		op, err := operations.ScheduleServerOperation(state, args)
 		if err != nil {
 			logger.Error("Failed creating log files expiry operation", logger.Ctx{"err": err})
-			return
-		}
-
-		logger.Info("Expiring log files")
-		err = op.Start()
-		if err != nil {
-			logger.Error("Failed starting log files expiry operation", logger.Ctx{"err": err})
 			return
 		}
 

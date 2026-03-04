@@ -368,12 +368,6 @@ func pruneExpiredOIDCSessionsTask(stateFunc func() *state.State) (task.Func, tas
 			return
 		}
 
-		err = op.Start()
-		if err != nil {
-			logger.Error("Failed starting remove expired OIDC sessions operation", logger.Ctx{"err": err})
-			return
-		}
-
 		err = op.Wait(ctx)
 		if err != nil {
 			logger.Error("Failed removing expired OIDC sessions", logger.Ctx{"err": err})

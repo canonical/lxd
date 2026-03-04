@@ -1365,11 +1365,6 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 					return fmt.Errorf("Failed creating delete operation for cached image %q: %w", image.Fingerprint, err)
 				}
 
-				err = op.Start()
-				if err != nil {
-					return fmt.Errorf("Failed starting image delete operation for cached image %q: %w", image.Fingerprint, err)
-				}
-
 				err = op.Wait(context.Background())
 				if err != nil {
 					return fmt.Errorf("Failed deleting cached image %q: %w", image.Fingerprint, err)

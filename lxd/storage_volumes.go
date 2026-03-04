@@ -1814,11 +1814,6 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 			return err
 		}
 
-		err = srcOp.Start()
-		if err != nil {
-			return fmt.Errorf("Failed starting migration source operation: %w", err)
-		}
-
 		sourceSecrets := make(map[string]string, len(srcMigration.conns))
 		for connName, conn := range srcMigration.conns {
 			sourceSecrets[connName] = conn.Secret()

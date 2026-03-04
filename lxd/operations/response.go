@@ -23,11 +23,6 @@ func OperationResponse(op *Operation) response.Response {
 
 // Render builds operationResponse and writes it to http.ResponseWriter.
 func (r *operationResponse) Render(w http.ResponseWriter, req *http.Request) error {
-	err := r.op.Start()
-	if err != nil {
-		return err
-	}
-
 	url, md := r.op.Render()
 	body := api.ResponseRaw{
 		Type:       api.AsyncResponse,

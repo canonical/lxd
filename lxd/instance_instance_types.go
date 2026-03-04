@@ -81,16 +81,10 @@ func instanceRefreshTypesTask(stateFunc func() *state.State) (task.Func, task.Sc
 			RunHook: opRun,
 		}
 
+		logger.Info("Updating instance types")
 		op, err := operations.ScheduleServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating instance types update operation", logger.Ctx{"err": err})
-			return
-		}
-
-		logger.Info("Updating instance types")
-		err = op.Start()
-		if err != nil {
-			logger.Error("Failed starting instance types update operation", logger.Ctx{"err": err})
 			return
 		}
 
