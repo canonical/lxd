@@ -15,6 +15,11 @@ import (
 var sysClassDMIID = "/sys/class/dmi/id"
 var systemType string
 
+// HasDMI returns true if the system exposes DMI information via sysfs.
+func HasDMI() bool {
+	return pathExists(sysClassDMIID)
+}
+
 // GetSystem returns a filled api.ResourcesSystem struct ready for use by LXD.
 func GetSystem() (*api.ResourcesSystem, error) {
 	var err error
