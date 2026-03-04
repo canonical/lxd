@@ -244,6 +244,12 @@ check_coredumps() {
     rm /var/crash/unattended-upgr*.gz
   fi
 
+  # Ignore WGA (Windows Azure Guest Agent) crashes.
+  if compgen -G "/var/crash/*wgaagent*" > /dev/null 2>&1; then
+    echo "::notice::==> CORE: WGA agent core dump ignored"
+    rm /var/crash/*wgaagent*
+  fi
+
   # Ignore qemu core dumps (known crasher, to be fixed later)
   # TODO: look at the core dump along with debug builds of qemu to track the
   #       root cause.
