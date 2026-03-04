@@ -99,13 +99,13 @@ func (d *btrfs) Info() Info {
 		OptimizedBackupHeader:        true,
 		PreservesInodes:              !d.state.OS.RunningInUserNS,
 		Remote:                       d.isRemote(),
-		VolumeTypes:                  []VolumeType{VolumeTypeBucket, VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		VolumeTypes:                  []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:                 false,
 		RunningCopyFreeze:            false,
 		DirectIO:                     true,
 		IOUring:                      true,
 		MountedRoot:                  true,
-		Buckets:                      true,
+		Buckets:                      false,
 		PopulateParentVolumeUUID:     false,
 	}
 }
