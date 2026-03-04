@@ -40,80 +40,66 @@ func GetSystem() (*api.ResourcesSystem, error) {
 
 	// Product UUID
 	productUUIDPath := filepath.Join(sysClassDMIID, "product_uuid")
-	if pathExists(productUUIDPath) {
-		content, err := os.ReadFile(productUUIDPath)
-		if err != nil && !os.IsPermission(err) {
-			return nil, fmt.Errorf("Failed to read %q: %w", productUUIDPath, err)
-		}
-
-		system.UUID = strings.TrimSpace(string(content))
+	content, err := os.ReadFile(productUUIDPath)
+	if err != nil && !os.IsNotExist(err) && !os.IsPermission(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", productUUIDPath, err)
 	}
+
+	system.UUID = strings.TrimSpace(string(content))
 
 	// Vendor
 	vendorPath := filepath.Join(sysClassDMIID, "sys_vendor")
-	if pathExists(vendorPath) {
-		content, err := os.ReadFile(vendorPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", vendorPath, err)
-		}
-
-		system.Vendor = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(vendorPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", vendorPath, err)
 	}
+
+	system.Vendor = strings.TrimSpace(string(content))
 
 	// Product name
 	productNamePath := filepath.Join(sysClassDMIID, "product_name")
-	if pathExists(productNamePath) {
-		content, err := os.ReadFile(productNamePath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", productNamePath, err)
-		}
-
-		system.Product = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(productNamePath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", productNamePath, err)
 	}
+
+	system.Product = strings.TrimSpace(string(content))
 
 	// Product family
 	productFamilyPath := filepath.Join(sysClassDMIID, "product_family")
-	if pathExists(productFamilyPath) {
-		content, err := os.ReadFile(productFamilyPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", productFamilyPath, err)
-		}
-
-		system.Family = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(productFamilyPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", productFamilyPath, err)
 	}
+
+	system.Family = strings.TrimSpace(string(content))
 
 	// Product version
-	productVersion := filepath.Join(sysClassDMIID, "product_version")
-	if pathExists(productVersion) {
-		content, err := os.ReadFile(productVersion)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", productVersion, err)
-		}
-
-		system.Version = strings.TrimSpace(string(content))
+	productVersionPath := filepath.Join(sysClassDMIID, "product_version")
+	content, err = os.ReadFile(productVersionPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", productVersionPath, err)
 	}
+
+	system.Version = strings.TrimSpace(string(content))
 
 	// Product SKU
 	productSKUPath := filepath.Join(sysClassDMIID, "product_sku")
-	if pathExists(productSKUPath) {
-		content, err := os.ReadFile(productSKUPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", productSKUPath, err)
-		}
-
-		system.Sku = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(productSKUPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", productSKUPath, err)
 	}
+
+	system.Sku = strings.TrimSpace(string(content))
 
 	// Product serial
 	productSerialPath := filepath.Join(sysClassDMIID, "product_serial")
-	if pathExists(productSerialPath) {
-		content, err := os.ReadFile(productSerialPath)
-		if err != nil && !os.IsPermission(err) {
-			return nil, fmt.Errorf("Failed to read %q: %w", productSerialPath, err)
-		}
-
-		system.Serial = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(productSerialPath)
+	if err != nil && !os.IsNotExist(err) && !os.IsPermission(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", productSerialPath, err)
 	}
+
+	system.Serial = strings.TrimSpace(string(content))
 
 	system.Firmware, err = systemGetFirmware()
 	if err != nil {
