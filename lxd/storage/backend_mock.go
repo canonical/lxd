@@ -325,11 +325,6 @@ func (b *mockBackend) DeleteBucket(projectName string, bucketName string, op *op
 	return nil
 }
 
-// ImportBucket ...
-func (b *mockBackend) ImportBucket(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error) {
-	return nil, nil
-}
-
 // CreateBucketKey ...
 func (b *mockBackend) CreateBucketKey(projectName string, bucketName string, key api.StorageBucketKeysPost, op *operations.Operation) (*api.StorageBucketKey, error) {
 	return nil, nil
