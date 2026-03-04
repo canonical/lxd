@@ -32,7 +32,7 @@ func GetSystem() (*api.ResourcesSystem, error) {
 
 	system.Type = systemType
 
-	if !pathExists(sysClassDMIID) {
+	if !HasDMI() {
 		lshwSystem := getSystemFromLshw()
 		if lshwSystem == nil {
 			return &system, nil
