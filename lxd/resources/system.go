@@ -239,36 +239,30 @@ func systemGetFirmware() (*api.ResourcesSystemFirmware, error) {
 
 	// Firmware vendor
 	biosVendorPath := filepath.Join(sysClassDMIID, "bios_vendor")
-	if pathExists(biosVendorPath) {
-		content, err := os.ReadFile(biosVendorPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", biosVendorPath, err)
-		}
-
-		firmware.Vendor = strings.TrimSpace(string(content))
+	content, err := os.ReadFile(biosVendorPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", biosVendorPath, err)
 	}
+
+	firmware.Vendor = strings.TrimSpace(string(content))
 
 	// Firmware date
 	biosDatePath := filepath.Join(sysClassDMIID, "bios_date")
-	if pathExists(biosDatePath) {
-		content, err := os.ReadFile(biosDatePath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", biosDatePath, err)
-		}
-
-		firmware.Date = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(biosDatePath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", biosDatePath, err)
 	}
+
+	firmware.Date = strings.TrimSpace(string(content))
 
 	// Firmware version
 	biosVersionPath := filepath.Join(sysClassDMIID, "bios_version")
-	if pathExists(biosVersionPath) {
-		content, err := os.ReadFile(biosVersionPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", biosVersionPath, err)
-		}
-
-		firmware.Version = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(biosVersionPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", biosVersionPath, err)
 	}
+
+	firmware.Version = strings.TrimSpace(string(content))
 
 	return &firmware, nil
 }
