@@ -272,14 +272,12 @@ func systemGetChassis() (*api.ResourcesSystemChassis, error) {
 
 	// Chassis vendor
 	chassisVendorPath := filepath.Join(sysClassDMIID, "chassis_vendor")
-	if pathExists(chassisVendorPath) {
-		content, err := os.ReadFile(chassisVendorPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", chassisVendorPath, err)
-		}
-
-		chassis.Vendor = strings.TrimSpace(string(content))
+	content, err := os.ReadFile(chassisVendorPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", chassisVendorPath, err)
 	}
+
+	chassis.Vendor = strings.TrimSpace(string(content))
 
 	// Chassis types according to the DMTF SMBIOS Spec
 	chassisTypes := map[uint64]string{
@@ -323,36 +321,30 @@ func systemGetChassis() (*api.ResourcesSystemChassis, error) {
 
 	// Chassis type
 	chassisTypePath := filepath.Join(sysClassDMIID, "chassis_type")
-	if pathExists(chassisTypePath) {
-		chassisType, err := readUint(chassisTypePath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to parse %q: %w", chassisTypePath, err)
-		}
-
-		chassis.Type = chassisTypes[chassisType]
+	chassisType, err := readUint(chassisTypePath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed parsing %q: %w", chassisTypePath, err)
 	}
+
+	chassis.Type = chassisTypes[chassisType]
 
 	// Chassis serial
 	chassisSerialPath := filepath.Join(sysClassDMIID, "chassis_serial")
-	if pathExists(chassisSerialPath) {
-		content, err := os.ReadFile(chassisSerialPath)
-		if err != nil && !os.IsPermission(err) {
-			return nil, fmt.Errorf("Failed to read %q: %w", chassisSerialPath, err)
-		}
-
-		chassis.Serial = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(chassisSerialPath)
+	if err != nil && !os.IsNotExist(err) && !os.IsPermission(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", chassisSerialPath, err)
 	}
+
+	chassis.Serial = strings.TrimSpace(string(content))
 
 	// Chassis version
 	chassisVersionPath := filepath.Join(sysClassDMIID, "chassis_version")
-	if pathExists(chassisVersionPath) {
-		content, err := os.ReadFile(chassisVersionPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", chassisVersionPath, err)
-		}
-
-		chassis.Version = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(chassisVersionPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", chassisVersionPath, err)
 	}
+
+	chassis.Version = strings.TrimSpace(string(content))
 
 	return &chassis, nil
 }
