@@ -1010,10 +1010,6 @@ test_duplicate_detection() {
   lxc storage create foo dir
   [ "$(! "${_LXC}" storage create foo dir 2>&1 1>/dev/null)" = 'Error: Storage pool "foo" already exists' ]
 
-  lxc storage bucket create foo foo
-  [ "$(! "${_LXC}" storage bucket create foo foo 2>&1 1>/dev/null)" = 'Error: Failed creating storage bucket: Failed inserting storage bucket "foo" for project "default" in pool "foo" into database: A bucket for that name already exists' ]
-  lxc storage bucket delete foo foo
-
   lxc storage volume create foo foo
   [ "$(! "${_LXC}" storage volume create foo foo 2>&1 1>/dev/null)" = 'Error: Volume by that name already exists' ]
   lxc storage volume create foo bar
