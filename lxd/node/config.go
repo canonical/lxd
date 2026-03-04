@@ -99,16 +99,6 @@ func (c *Config) MAASMachine() string {
 	return c.m.GetString("maas.machine")
 }
 
-// StorageBucketsAddress returns the address and port to setup the storage buckets listener on.
-func (c *Config) StorageBucketsAddress() string {
-	objectAddress := c.m.GetString("core.storage_buckets_address")
-	if objectAddress != "" {
-		return util.CanonicalNetworkAddress(objectAddress, shared.HTTPSStorageBucketsDefaultPort)
-	}
-
-	return objectAddress
-}
-
 // daemonStorageVolume returns the volume configured as images or backups storage for target project.
 // If project is not specified, or if project has no specifid storage volume configured, the daemon
 // storage volume is returned.
@@ -248,16 +238,6 @@ var ConfigSchema = config.Schema{
 		//  scope: local
 		//  shortdesc: Address to bind the metrics server to (HTTPS)
 		"core.metrics_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
-
-		// Network address for the storage buckets server
-
-		// lxdmeta:generate(entities=server; group=core; key=core.storage_buckets_address)
-		// See {ref}`howto-storage-buckets`.
-		// ---
-		//  type: string
-		//  scope: local
-		//  shortdesc: Address to bind the storage object server to (HTTPS)
-		"core.storage_buckets_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 		// Syslog socket
 
