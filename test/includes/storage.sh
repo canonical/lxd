@@ -168,21 +168,6 @@ create_object_storage_pool() {
 
 delete_object_storage_pool() {
   poolName="${1}"
-  lxd_backend=$(storage_backend "$LXD_DIR")
 
   lxc storage delete "${poolName}"
-
-  if [ "${lxd_backend}" != "ceph" ]; then
-    lxc config unset core.storage_buckets_address
-  fi
-
-  if [ "$lxd_backend" = "dir" ]; then
-    loop_file="$(< "${TEST_DIR}/s3/${poolName}/file")"
-    loop_device="$(< "${TEST_DIR}/s3/${poolName}/dev")"
-    umount "${TEST_DIR}/s3/${poolName}"
-    rmdir "${TEST_DIR}/s3/${poolName}"
-
-    # shellcheck disable=SC2154
-    deconfigure_loop_device "${loop_file}" "${loop_device}"
-  fi
 }
