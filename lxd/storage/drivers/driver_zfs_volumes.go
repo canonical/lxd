@@ -1656,7 +1656,7 @@ func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 		delete(commonRules, "zfs.block_mode")
 		delete(commonRules, "block.filesystem")
 		delete(commonRules, "block.mount_options")
-	} else if !vol.IsBlockBacked() && slices.Contains([]VolumeType{VolumeTypeCustom, VolumeTypeBucket}, vol.volType) {
+	} else if !vol.IsBlockBacked() && vol.volType == VolumeTypeCustom {
 		delete(commonRules, "block.filesystem")
 		delete(commonRules, "block.mount_options")
 	}
