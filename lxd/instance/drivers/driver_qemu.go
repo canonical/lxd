@@ -3115,37 +3115,37 @@ restorecon -R "${PREFIX}" >/dev/null 2>&1 || true
 		return err
 	}
 
-	udevPath := filepath.Join(configDrivePath, "udev")
-	err = os.MkdirAll(udevPath, 0500)
-	if err != nil {
-		return err
-	}
-
 	// The `lxd-agent.service` unit needs to only start when executing inside a LXD VM.
 	// To achieve this, we use a systemd generator that checks for LXD-specific
 	// DMI information and only adds the `lxd-agent.service` to the boot
 	// transaction if it is running inside a LXD VM. However, some architectures
 	// (like s390x) do not support DMI, so udev rules are used to trigger
 	// the `lxd-agent.service` when either of the virtio ports is detected.
+	if !resources.HasDMI() {
+		udevPath := filepath.Join(configDrivePath, "udev")
+		err = os.MkdirAll(udevPath, 0500)
+		if err != nil {
+			return err
+		}
 
-	// udev conditions are evaluated sequentially so the order matters.
-	// The SUBSYSTEM is part of the event so it is the cheapest check to perform.
-	// The ATTR{name} requires a file read under `/sys`, so it should come last.
+		// udev conditions are evaluated sequentially so the order matters.
+		// The SUBSYSTEM is part of the event so it is the cheapest check to perform.
+		// The ATTR{name} requires a file read under `/sys`, so it should come last.
 
-	// Udev rules to start the lxd-agent.service when QEMU serial devices
-	// (virtio-ports) appear and DMI information isn't available.
-	lxdAgentRules := `# This rule acts as the primary trigger for architectures without DMI
-# (where the systemd generator is skipped). On architectures with DMI, this
-# rule will also fire, but systemd will safely deduplicate the start request.
+		// Udev rules to start the lxd-agent.service when QEMU serial devices
+		// (virtio-ports) appear and DMI information isn't available.
+		lxdAgentRules := `# This rule acts as the primary trigger for architectures without DMI
+# (where the systemd generator is skipped).
 SUBSYSTEM=="virtio-ports", \
 ATTR{name}=="com.canonical.lxd|org.linuxcontainers.lxd", \
 TAG+="systemd", \
 ENV{SYSTEMD_WANTS}+="lxd-agent.service"
 `
 
-	err = os.WriteFile(filepath.Join(udevPath, "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
-	if err != nil {
-		return err
+		err = os.WriteFile(filepath.Join(udevPath, "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
+		if err != nil {
+			return err
+		}
 	}
 
 	// system generator to start the lxd-agent.service when LXD VMs are detected via DMI `board_name`.
@@ -3222,7 +3222,9 @@ rm -f "${LIB_SYSTEMD}/system/lxd-agent-9p.service" \
     /etc/systemd/system/multi-user.target.wants/lxd-agent.service
 
 # Install the units.
-cp udev/99-lxd-agent.rules "${LIB_UDEV}/rules.d/"
+if [ -e udev/99-lxd-agent.rules ]; then
+  cp udev/99-lxd-agent.rules "${LIB_UDEV}/rules.d/"
+fi
 cp systemd/lxd-agent-setup "${LIB_SYSTEMD}/"
 cp systemd/lxd-agent.service "${LIB_SYSTEMD}/system/"
 mkdir -p "${LIB_SYSTEMD}/system-generators"
