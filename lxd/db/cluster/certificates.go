@@ -59,7 +59,7 @@ func (cert *Certificate) ToIdentityType() (IdentityType, error) {
 		return api.IdentityTypeCertificateMetricsUnrestricted, nil
 	}
 
-	return "", fmt.Errorf("Unknown certificate type `%d`", cert.Type)
+	return "", fmt.Errorf("Unknown certificate type %d", cert.Type)
 }
 
 // ToAPI converts the database Certificate struct to an api.Certificate
