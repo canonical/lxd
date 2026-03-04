@@ -137,9 +137,6 @@ run_dependency_checks() {
   if [ "${LXD_VM_TESTS}" = "1" ]; then
     check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
   fi
-  if ! check_dependencies minio mc; then
-    download_minio
-  fi
 
   # Setup MicroCeph if the ceph backend is selected
   if [[ "${LXD_BACKENDS}" == *"ceph"* ]]; then
