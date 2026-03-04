@@ -93,12 +93,13 @@ func (d *disk) CanMigrate() bool {
 		return true
 	}
 
-	// Remote disks are migratable.
-	if d.pool.Driver().Info().Remote {
-		return true
+	// Disks without a storage pool (e.g. local host-path) are not migratable.
+	if d.pool == nil {
+		return false
 	}
 
-	return false
+	// Remote disks are migratable.
+	return d.pool.Driver().Info().Remote
 }
 
 // sourceIsCephFs returns true if the disks source config setting is a CephFS share.
@@ -120,11 +121,7 @@ func (d *disk) CanHotPlug() bool {
 // isRequired indicates whether the supplied device config requires this device to start OK.
 func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 	// Defaults to required.
-	if shared.IsTrueOrEmpty(devConfig["required"]) && shared.IsFalseOrEmpty(devConfig["optional"]) {
-		return true
-	}
-
-	return false
+	return shared.IsTrueOrEmpty(devConfig["required"]) && shared.IsFalseOrEmpty(devConfig["optional"])
 }
 
 // sourceIsLocalPath returns true if the source supplied should be considered a local path on the host.
@@ -420,16 +417,15 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
-	if instConf.Type() == instancetype.Container && d.config["io.threads"] != "" {
-		return errors.New("IO threads configuration cannot be applied to containers")
-	}
-
-	if instConf.Type() == instancetype.Container && d.config["io.bus"] != "" {
-		return errors.New("IO bus configuration cannot be applied to containers")
-	}
-
-	if instConf.Type() == instancetype.Container && d.config["io.cache"] != "" {
-		return errors.New("IO cache configuration cannot be applied to containers")
+	if instConf.Type() == instancetype.Container {
+		switch {
+		case d.config["io.threads"] != "":
+			return errors.New("IO threads configuration cannot be applied to containers")
+		case d.config["io.bus"] != "":
+			return errors.New("IO bus configuration cannot be applied to containers")
+		case d.config["io.cache"] != "":
+			return errors.New("IO cache configuration cannot be applied to containers")
+		}
 	}
 
 	if d.config["required"] != "" && d.config["optional"] != "" {
@@ -762,7 +758,7 @@ func (d *disk) Register() error {
 		if err != nil {
 			return err
 		}
-	} else if d.config["path"] != "/" && d.config["source"] != "" && d.config["pool"] != "" {
+	} else if d.config["source"] != "" && d.config["pool"] != "" {
 		volumeName, _, dbVolumeType, err := d.sourceVolumeFields()
 		if err != nil {
 			return err
@@ -1427,14 +1423,14 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	if isRunning {
 		runConf := deviceConfig.RunConfig{}
 
-		if d.inst.Type() == instancetype.Container {
+		switch d.inst.Type() {
+		case instancetype.Container:
 			err := d.generateLimits(&runConf)
 			if err != nil {
 				return err
 			}
-		}
 
-		if d.inst.Type() == instancetype.VM {
+		case instancetype.VM:
 			// Parse the limits into usable values.
 			readBps, readIops, writeBps, writeIops, err := d.parseLimit(d.config)
 			if err != nil {
@@ -1470,36 +1466,34 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 // If successfully applies new quota then removes the volatile "apply_quota" key.
 func (d *disk) applyDeferredQuota() error {
 	v := d.volatileGet()
-	if v["apply_quota"] != "" {
-		d.logger.Info("Applying deferred quota change")
-
-		// Indicate that we want applyQuota to unmount the volume first, this is so we can perform resizes
-		// that cannot be done when the volume is in use.
-		err := d.applyQuota(true)
-		if err != nil {
-			return fmt.Errorf("Failed to apply deferred quota from %q: %w", "volatile."+d.name+".apply_quota", err)
-		}
-
-		// Remove volatile apply_quota key if successful.
-		err = d.volatileSet(map[string]string{"apply_quota": ""})
-		if err != nil {
-			return err
-		}
+	if v["apply_quota"] == "" {
+		return nil
 	}
 
-	return nil
+	d.logger.Info("Applying deferred quota change")
+
+	// Indicate that we want applyQuota to unmount the volume first, this is so we can perform resizes
+	// that cannot be done when the volume is in use.
+	err := d.applyQuota(true)
+	if err != nil {
+		return fmt.Errorf("Failed to apply deferred quota from %q: %w", "volatile."+d.name+".apply_quota", err)
+	}
+
+	// Remove volatile apply_quota key if successful.
+	return d.volatileSet(map[string]string{"apply_quota": ""})
 }
 
 // applyQuota attempts to resize the instance root disk to the specified size.
 // If remount is true, attempts to unmount first before resizing and then mounts again afterwards.
 func (d *disk) applyQuota(remount bool) error {
-	rootDisk, _, err := api.GetRootDiskDevice(d.inst.ExpandedDevices().CloneNative())
+	expandedDevices := d.inst.ExpandedDevices()
+	rootDisk, _, err := api.GetRootDiskDevice(expandedDevices.CloneNative())
 	if err != nil {
 		return fmt.Errorf("Detect root disk device: %w", err)
 	}
 
-	newSize := d.inst.ExpandedDevices()[rootDisk]["size"]
-	newMigrationSize := d.inst.ExpandedDevices()[rootDisk]["size.state"]
+	newSize := expandedDevices[rootDisk]["size"]
+	newMigrationSize := expandedDevices[rootDisk]["size.state"]
 
 	pool, err := storagePools.LoadByInstance(d.state, d.inst)
 	if err != nil {
@@ -1539,51 +1533,54 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	for _, dev := range d.inst.ExpandedDevices().Filter(filters.IsDisk) {
 		if dev["limits.read"] != "" || dev["limits.write"] != "" || dev["limits.max"] != "" {
 			hasDiskLimits = true
+			break
 		}
 	}
 
-	if hasDiskLimits {
-		if !d.state.OS.CGInfo.Supports(cgroup.Blkio, nil) {
-			return errors.New("Cannot apply disk limits as blkio cgroup controller is missing")
+	if !hasDiskLimits {
+		return nil
+	}
+
+	if !d.state.OS.CGInfo.Supports(cgroup.Blkio, nil) {
+		return errors.New("Cannot apply disk limits as blkio cgroup controller is missing")
+	}
+
+	diskLimits, err := d.getDiskLimits()
+	if err != nil {
+		return err
+	}
+
+	cg, err := cgroup.New(&cgroupWriter{runConf})
+	if err != nil {
+		return err
+	}
+
+	for block, limit := range diskLimits {
+		if limit.readBps > 0 {
+			err = cg.SetBlkioLimit(block, "read", "bps", limit.readBps)
+			if err != nil {
+				return err
+			}
 		}
 
-		diskLimits, err := d.getDiskLimits()
-		if err != nil {
-			return err
+		if limit.readIops > 0 {
+			err = cg.SetBlkioLimit(block, "read", "iops", limit.readIops)
+			if err != nil {
+				return err
+			}
 		}
 
-		cg, err := cgroup.New(&cgroupWriter{runConf})
-		if err != nil {
-			return err
+		if limit.writeBps > 0 {
+			err = cg.SetBlkioLimit(block, "write", "bps", limit.writeBps)
+			if err != nil {
+				return err
+			}
 		}
 
-		for block, limit := range diskLimits {
-			if limit.readBps > 0 {
-				err = cg.SetBlkioLimit(block, "read", "bps", limit.readBps)
-				if err != nil {
-					return err
-				}
-			}
-
-			if limit.readIops > 0 {
-				err = cg.SetBlkioLimit(block, "read", "iops", limit.readIops)
-				if err != nil {
-					return err
-				}
-			}
-
-			if limit.writeBps > 0 {
-				err = cg.SetBlkioLimit(block, "write", "bps", limit.writeBps)
-				if err != nil {
-					return err
-				}
-			}
-
-			if limit.writeIops > 0 {
-				err = cg.SetBlkioLimit(block, "write", "iops", limit.writeIops)
-				if err != nil {
-					return err
-				}
+		if limit.writeIops > 0 {
+			err = cg.SetBlkioLimit(block, "write", "iops", limit.writeIops)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -1825,19 +1822,15 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 	}
 
 	// Create the devices directory if missing.
-	if !shared.PathExists(d.inst.DevicesPath()) {
-		err := os.Mkdir(d.inst.DevicesPath(), 0711)
-		if err != nil {
-			return nil, "", false, err
-		}
+	err := os.Mkdir(d.inst.DevicesPath(), 0711)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return nil, "", false, err
 	}
 
 	// Clean any existing entry.
-	if shared.PathExists(devPath) {
-		err := os.Remove(devPath)
-		if err != nil {
-			return nil, "", false, err
-		}
+	err = os.Remove(devPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, "", false, err
 	}
 
 	// Create the mount point.
@@ -1860,7 +1853,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 	}
 
 	// Mount the fs.
-	err := DiskMount(srcPath, devPath, isRecursive, d.config["propagation"], mntOptions, fsName)
+	err = DiskMount(srcPath, devPath, isRecursive, d.config["propagation"], mntOptions, fsName)
 	if err != nil {
 		return nil, "", false, err
 	}
@@ -2116,7 +2109,6 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Figure out the paths
-	relativeDestPath := strings.TrimPrefix(d.config["path"], "/")
 	devPath := d.getDevicePath(d.name, d.config)
 
 	// The disk device doesn't exist do nothing.
@@ -2125,6 +2117,7 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Request an unmount of the device inside the instance.
+	relativeDestPath := strings.TrimPrefix(d.config["path"], "/")
 	runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
 		TargetPath: relativeDestPath,
 	})
@@ -2229,17 +2222,17 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 	}
 
 	for _, f := range dents {
-		fPath := filepath.Join("/sys/class/block/", f.Name())
+		fPath := "/sys/class/block/" + f.Name()
 		if shared.PathExists(fPath + "/partition") {
-			continue
-		}
-
-		if !shared.PathExists(fPath + "/dev") {
 			continue
 		}
 
 		block, err := os.ReadFile(fPath + "/dev")
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+
 			return nil, err
 		}
 
@@ -2290,10 +2283,10 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 				blockStr = block
 			} else {
 				// Attempt to deal with a partition (guess its parent)
-				fields := strings.SplitN(block, ":", 2)
-				fields[1] = "0"
-				if slices.Contains(validBlocks, fields[0]+":"+fields[1]) {
-					blockStr = fields[0] + ":" + fields[1]
+				major, _, _ := strings.Cut(block, ":")
+				parent := major + ":0"
+				if slices.Contains(validBlocks, parent) {
+					blockStr = parent
 				}
 			}
 
@@ -2376,8 +2369,9 @@ func (d *disk) parseLimit(dev deviceConfig.Device) (readBps int64, readIops int6
 			return bps, iops, nil
 		}
 
-		if strings.HasSuffix(value, "iops") {
-			iops, err = strconv.ParseInt(strings.TrimSuffix(value, "iops"), 10, 64)
+		before, found := strings.CutSuffix(value, "iops")
+		if found {
+			iops, err = strconv.ParseInt(before, 10, 64)
 			if err != nil {
 				return -1, -1, err
 			}
