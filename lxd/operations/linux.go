@@ -112,8 +112,8 @@ func registerDBBulkOperation(op *Operation) error {
 		// Create parent operation record.
 		parentOpID, err := registerDBOperation(ctx, tx, op, nil)
 		if err != nil {
-			// The operations table has unique index on uuid, and confiditional unique index on conflict_reference.
-			// Conflict on generated uuid is higly unlikely, so conflicts will most likely happen due to conflict on conflict_reference.
+			// The operations table has unique index on uuid, and conditional unique index on conflict_reference.
+			// Conflict on generated uuid is highly unlikely, so conflicts will most likely happen due to conflict on conflict_reference.
 			// If that is the case, we return a more specific error message.
 			if op.conflictReference != "" && api.StatusErrorCheck(err, http.StatusConflict) {
 				return api.NewStatusError(http.StatusConflict, "An operation with this conflict reference is already running")
