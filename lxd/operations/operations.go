@@ -535,6 +535,10 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 
 	if op.running.Err() != nil {
 		op.lock.Unlock()
+		if op.err != nil {
+			return nil, fmt.Errorf("Failed to connect to operation: %w", op.err)
+		}
+
 		return nil, api.NewStatusError(http.StatusBadRequest, "Only running operations can be connected")
 	}
 
