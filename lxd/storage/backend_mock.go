@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/drivers"
-	"github.com/canonical/lxd/lxd/storage/s3/miniod"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
@@ -338,11 +337,6 @@ func (b *mockBackend) UpdateBucketKey(projectName string, bucketName string, key
 // DeleteBucketKey ...
 func (b *mockBackend) DeleteBucketKey(projectName string, bucketName string, keyName string, op *operations.Operation) error {
 	return nil
-}
-
-// ActivateBucket ...
-func (b *mockBackend) ActivateBucket(projectName string, bucketName string, op *operations.Operation) (*miniod.Process, error) {
-	return nil, nil
 }
 
 // GetBucketURL ...
