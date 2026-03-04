@@ -1252,6 +1252,14 @@ jobs:
           retention-days: 1
         if: env.GOCOVERDIR != ''
 
+  lxd-csi-e2e-tests:
+    if: ${{ github.repository == 'canonical/lxd' && github.event_name != 'schedule' }}
+    uses: canonical/lxd-csi-driver/.github/workflows/e2e-tests.yml@main
+
+  lxd-csi-e2e-cluster-tests:
+    if: ${{ github.repository == 'canonical/lxd' && github.event_name != 'schedule' }}
+    uses: canonical/lxd-csi-driver/.github/workflows/e2e-cluster-tests.yml@main
+
   documentation:
     name: Documentation
     runs-on: ubuntu-24.04
