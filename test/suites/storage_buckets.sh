@@ -1,32 +1,18 @@
 s3cmdrun () {
-  local backend accessKey secreyKey
-  backend="${1}"
-  accessKey="${2}"
-  secreyKey="${3}"
-  shift 3
+  local accessKey secreyKey
+  accessKey="${1}"
+  secreyKey="${2}"
+  shift 2
 
-  if [ "$backend" = "ceph" ]; then
-    timeout -k 5 5 s3cmd \
-      --access_key="${accessKey}" \
-      --secret_key="${secreyKey}" \
-      --host="${s3Endpoint}" \
-      --host-bucket="${s3Endpoint}" \
-      --stop-on-error \
-      --max-retries=0 \
-      --no-ssl \
-      "$@"
-  else
-    timeout -k 5 5 s3cmd \
-      --access_key="${accessKey}" \
-      --secret_key="${secreyKey}" \
-      --host="${s3Endpoint}" \
-      --host-bucket="${s3Endpoint}" \
-      --stop-on-error \
-      --max-retries=0 \
-      --ssl \
-      --no-check-certificate \
-      "$@"
-  fi
+  timeout -k 5 5 s3cmd \
+    --access_key="${accessKey}" \
+    --secret_key="${secreyKey}" \
+    --host="${s3Endpoint}" \
+    --host-bucket="${s3Endpoint}" \
+    --stop-on-error \
+    --max-retries=0 \
+    --no-ssl \
+    "$@"
 }
 
 test_storage_buckets() {
