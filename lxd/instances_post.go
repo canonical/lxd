@@ -1002,13 +1002,13 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 	args := operations.OperationArgs{
 		ProjectName: bInfo.Project,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", bInfo.Project),
 		Type:        operationtype.BackupRestore,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
 		RunHook:     run,
 		Metadata: map[string]any{
-			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", bInfo.Name).Project(bInfo.Project).String(),
 		},
 	}
 
