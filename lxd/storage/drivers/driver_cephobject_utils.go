@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -200,6 +201,16 @@ func (d *cephobject) radosgwadminBucketDelete(ctx context.Context, bucket string
 	_, err := d.radosgwadmin(ctx, "bucket", "rm", "--bucket", bucket, "--purge-objects")
 
 	return err
+}
+
+// radosgwadminBucketExists checks if a radosgw bucket exists.
+func (d *cephobject) radosgwadminBucketExists(ctx context.Context, bucket string) (bool, error) {
+	buckets, err := d.radosgwadminBucketList(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	return slices.Contains(buckets, bucket), nil
 }
 
 // radosgwadminBucketLink links a bucket to a user.
