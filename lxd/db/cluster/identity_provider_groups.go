@@ -90,7 +90,7 @@ WHERE auth_groups_identity_provider_groups.identity_provider_group_id = ?`
 
 	err := query.Scan(ctx, tx, stmt, dest, idpGroupID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get group mappings for identity provider group with ID `%d`: %w", idpGroupID, err)
+		return nil, fmt.Errorf("Failed to get group mappings for identity provider group with ID %d: %w", idpGroupID, err)
 	}
 
 	return result, nil

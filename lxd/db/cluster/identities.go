@@ -80,7 +80,7 @@ var authMethodCodeToText = map[int64]string{
 func (a *AuthMethod) ScanInteger(authMethodCode int64) error {
 	text, ok := authMethodCodeToText[authMethodCode]
 	if !ok {
-		return fmt.Errorf("Unknown authentication method `%d`", authMethodCode)
+		return fmt.Errorf("Unknown authentication method %d", authMethodCode)
 	}
 
 	*a = AuthMethod(text)
@@ -480,7 +480,7 @@ WHERE identities_auth_groups.identity_id = ?`
 
 	err := query.Scan(ctx, tx, stmt, dest, identityID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get groups for identity with ID `%d`: %w", identityID, err)
+		return nil, fmt.Errorf("Failed to get groups for identity with ID %d: %w", identityID, err)
 	}
 
 	return result, nil
@@ -550,7 +550,7 @@ func GetIdentityByNameOrIdentifier(ctx context.Context, tx *sql.Tx, authenticati
 func SetIdentityAuthGroups(ctx context.Context, tx *sql.Tx, identityID int64, groupNames []string) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM identities_auth_groups WHERE identity_id = ?`, identityID)
 	if err != nil {
-		return fmt.Errorf("Failed to delete existing groups for identity with ID `%d`: %w", identityID, err)
+		return fmt.Errorf("Failed to delete existing groups for identity with ID %d: %w", identityID, err)
 	}
 
 	if len(groupNames) == 0 {
@@ -618,6 +618,6 @@ func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*Identity, erro
 	case 1:
 		return &clusterIdentities[0], nil
 	default:
-		return nil, fmt.Errorf("Multiple identities found with ID `%d`", id)
+		return nil, fmt.Errorf("Multiple identities found with ID %d", id)
 	}
 }
