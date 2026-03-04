@@ -1497,11 +1497,17 @@ test_projects_backups_volume() {
 
 test_projects_force_delete() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
-  create_object_storage_pool s3
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  if [ "${lxd_backend}" = "ceph" ] && [ -n "${LXD_CEPH_CEPHOBJECT_RADOSGW:-}" ]; then
+    create_object_storage_pool s3
+  fi
 
   echo "Capture baseline state before creating project."
   VOLUMES_BEFORE="$(lxc storage volume list "${pool}" -f csv --all-projects)"
-  BUCKETS_BEFORE="$(lxc storage bucket list s3 -f csv --all-projects)"
+  if [ "${lxd_backend}" = "ceph" ] && [ -n "${LXD_CEPH_CEPHOBJECT_RADOSGW:-}" ]; then
+    BUCKETS_BEFORE="$(lxc storage bucket list s3 -f csv --all-projects)"
+  fi
   NETWORKS_BEFORE="$(lxc network list -f csv --all-projects)"
   ACLS_BEFORE="$(lxc network acl list -f csv --all-projects)"
   ZONES_BEFORE="$(lxc network zone list -f csv --all-projects)"
@@ -1515,8 +1521,10 @@ test_projects_force_delete() {
   echo "Create storage volume in project."
   lxc storage volume create "${pool}" custom/vol1 --project foo
 
-  echo "Create storage bucket in project."
-  lxc storage bucket create s3 bucket1 --project foo
+  if [ "${lxd_backend}" = "ceph" ] && [ -n "${LXD_CEPH_CEPHOBJECT_RADOSGW:-}" ]; then
+    echo "Create storage bucket in project."
+    lxc storage bucket create s3 bucket1 --project foo
+  fi
 
   echo "Create network ACL in project."
   lxc network acl create acl1 --project foo
@@ -1601,7 +1609,6 @@ EOF
 
   echo "Verify all entities were cleaned up by comparing before/after state."
   VOLUMES_AFTER="$(lxc storage volume list "${pool}" -f csv --all-projects)"
-  BUCKETS_AFTER="$(lxc storage bucket list s3 -f csv --all-projects)"
   NETWORKS_AFTER="$(lxc network list -f csv --all-projects)"
   ACLS_AFTER="$(lxc network acl list -f csv --all-projects)"
   ZONES_AFTER="$(lxc network zone list -f csv --all-projects)"
@@ -1610,16 +1617,18 @@ EOF
   INSTANCES_AFTER="$(lxc list -f csv --all-projects)"
 
   [ "${VOLUMES_BEFORE}" = "${VOLUMES_AFTER}" ]
-  [ "${BUCKETS_BEFORE}" = "${BUCKETS_AFTER}" ]
+  if [ "${lxd_backend}" = "ceph" ] && [ -n "${LXD_CEPH_CEPHOBJECT_RADOSGW:-}" ]; then
+    BUCKETS_AFTER="$(lxc storage bucket list s3 -f csv --all-projects)"
+    [ "${BUCKETS_BEFORE}" = "${BUCKETS_AFTER}" ]
+    echo "Clean up object storage pool."
+    delete_object_storage_pool s3
+  fi
   [ "${NETWORKS_BEFORE}" = "${NETWORKS_AFTER}" ]
   [ "${ACLS_BEFORE}" = "${ACLS_AFTER}" ]
   [ "${ZONES_BEFORE}" = "${ZONES_AFTER}" ]
   [ "${PROFILES_BEFORE}" = "${PROFILES_AFTER}" ]
   [ "${IMAGES_BEFORE}" = "${IMAGES_AFTER}" ]
   [ "${INSTANCES_BEFORE}" = "${INSTANCES_AFTER}" ]
-
-  echo "Clean up object storage pool."
-  delete_object_storage_pool s3
 }
 
 test_certificate_project_restrictions() {
