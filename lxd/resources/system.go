@@ -15,28 +15,31 @@ import (
 var sysClassDMIID = "/sys/class/dmi/id"
 var systemType string
 
+// HasDMI returns true if the system exposes DMI information via sysfs.
+func HasDMI() bool {
+	return pathExists(sysClassDMIID)
+}
+
 // GetSystem returns a filled api.ResourcesSystem struct ready for use by LXD.
 func GetSystem() (*api.ResourcesSystem, error) {
-	var err error
-	system := api.ResourcesSystem{}
-
 	// Cache the system type
 	if systemType == "" {
 		systemType = systemGetType()
 	}
 
-	system.Type = systemType
-
-	if !pathExists(sysClassDMIID) {
+	if !HasDMI() {
 		lshwSystem := getSystemFromLshw()
 		if lshwSystem == nil {
-			return &system, nil
+			return &api.ResourcesSystem{Type: systemType}, nil
 		}
 
 		lshwSystem.Type = systemType
 
 		return lshwSystem, nil
 	}
+
+	var err error
+	system := api.ResourcesSystem{Type: systemType}
 
 	// Product UUID
 	productUUIDPath := filepath.Join(sysClassDMIID, "product_uuid")
