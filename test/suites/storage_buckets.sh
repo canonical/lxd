@@ -43,6 +43,10 @@ test_storage_buckets() {
   ! lxc storage bucket create "${poolName}" fooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo || false
   ! lxc storage bucket create "${poolName}" "foo bar" || false
 
+  lxc storage bucket create "${poolName}" foo
+  [ "$(! "${_LXC}" storage bucket create "${poolName}" foo 2>&1 1>/dev/null)" = "Error: Failed creating storage bucket: Failed inserting storage bucket \"foo\" for project \"default\" in pool \"${poolName}\" into database: A bucket for that name already exists" ]
+  lxc storage bucket delete "${poolName}" foo
+
   # Ensure storage bucket size can be configured.
   lxc storage bucket create "${poolName}" "${bucketPrefix}.foo-size" size=128MiB
   lxc storage bucket delete "${poolName}" "${bucketPrefix}.foo-size"
