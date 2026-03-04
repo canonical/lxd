@@ -119,6 +119,7 @@ var patches = []patch{
 	{name: "storage_unset_ceph_force_reuse_setting", stage: patchPostDaemonStorage, run: patchUnsetCephForceReuseSetting},
 	{name: "vm_rename_security_csm", stage: patchPostDaemonStorage, run: patchVMRenameSecurityCSM},
 	{name: "vm_set_max_bus_ports", stage: patchPostDaemonStorage, run: patchVMSetMaxBusPorts},
+	{name: "storage_remove_bucket_directories", stage: patchPostDaemonStorage, run: patchStorageRemoveBucketDirectories},
 }
 
 type patch struct {
@@ -2268,3 +2269,37 @@ func patchVMSetMaxBusPorts(_ string, d *Daemon) error {
 }
 
 // Patches end here
+
+// patchStorageRemoveBucketDirectories removes the orphaned "buckets/" directories from local storage pools
+// since local storage drivers no longer support storage buckets.
+func patchStorageRemoveBucketDirectories(_ string, d *Daemon) error {
+	s := d.State()
+
+	var pools []string
+
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		pools, err = tx.GetStoragePoolNames(ctx)
+
+		return err
+	})
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting storage pool names: %w", err)
+	}
+
+	for _, pool := range pools {
+		path := filepath.Join(storageDrivers.GetPoolMountPath(pool), "buckets")
+
+		err := os.Remove(path)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("Failed removing bucket directory %q: %w", path, err)
+		}
+	}
+
+	return nil
+}
