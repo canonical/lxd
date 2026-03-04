@@ -180,7 +180,6 @@ MicroCeph
 MicroCloud
 MicroOVN
 MII
-MinIO
 MITM
 MMIO
 MNIST
