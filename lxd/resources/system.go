@@ -354,47 +354,39 @@ func systemGetMotherboard() (*api.ResourcesSystemMotherboard, error) {
 
 	// Motherboard vendor name
 	boardVendorPath := filepath.Join(sysClassDMIID, "board_vendor")
-	if pathExists(boardVendorPath) {
-		content, err := os.ReadFile(boardVendorPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", boardVendorPath, err)
-		}
-
-		motherboard.Vendor = strings.TrimSpace(string(content))
+	content, err := os.ReadFile(boardVendorPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", boardVendorPath, err)
 	}
+
+	motherboard.Vendor = strings.TrimSpace(string(content))
 
 	// Motherboard product name
 	boardNamePath := filepath.Join(sysClassDMIID, "board_name")
-	if pathExists(boardNamePath) {
-		content, err := os.ReadFile(boardNamePath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", boardNamePath, err)
-		}
-
-		motherboard.Product = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(boardNamePath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", boardNamePath, err)
 	}
+
+	motherboard.Product = strings.TrimSpace(string(content))
 
 	// Motherboard serial
 	boardSerialPath := filepath.Join(sysClassDMIID, "board_serial")
-	if pathExists(boardSerialPath) {
-		content, err := os.ReadFile(boardSerialPath)
-		if err != nil && !os.IsPermission(err) {
-			return nil, fmt.Errorf("Failed to read %q: %w", boardSerialPath, err)
-		}
-
-		motherboard.Serial = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(boardSerialPath)
+	if err != nil && !os.IsNotExist(err) && !os.IsPermission(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", boardSerialPath, err)
 	}
+
+	motherboard.Serial = strings.TrimSpace(string(content))
 
 	// Motherboard version
 	boardVersionPath := filepath.Join(sysClassDMIID, "board_version")
-	if pathExists(boardVersionPath) {
-		content, err := os.ReadFile(boardVersionPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", boardVersionPath, err)
-		}
-
-		motherboard.Version = strings.TrimSpace(string(content))
+	content, err = os.ReadFile(boardVersionPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed reading %q: %w", boardVersionPath, err)
 	}
+
+	motherboard.Version = strings.TrimSpace(string(content))
 
 	return &motherboard, nil
 }
