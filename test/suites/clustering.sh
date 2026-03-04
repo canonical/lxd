@@ -5130,3 +5130,47 @@ EOF
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
 }
+
+test_clustering_project_limits() {
+  # A single-node cluster is sufficient: the bug path fires whenever
+  # s.ServerClustered is true and no explicit target is given.
+  spawn_lxd_and_bootstrap_cluster
+
+  sub_test "Verify limits.instances is enforced in a cluster (no target specified)"
+
+  # Set limits.instances=0 so any creation attempt is immediately rejected.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set default limits.instances 0
+
+  # Creating an instance without a target must fail.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" CLIENT_DEBUG="" SHELL_TRACING="" lxc init --empty c1 2>&1 1>/dev/null)" = 'Error: Reached maximum number of instances in project "default"' ]
+
+  # Verify no instances were created.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c n || echo fail)" = "" ]
+
+  sub_test "Verify limits.instances is enforced in a cluster (explicit target specified)"
+
+  # Creating an instance targeting a specific member must also fail.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" CLIENT_DEBUG="" SHELL_TRACING="" lxc init --empty c1 --target node1 2>&1 1>/dev/null)" = 'Error: Reached maximum number of instances in project "default"' ]
+
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c n || echo fail)" = "" ]
+
+  sub_test "Verify instance creation succeeds after raising the limit"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set default limits.instances 1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c n)" = "c1" ]
+
+  # Lowering the limit below current usage must be denied.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" CLIENT_DEBUG="" SHELL_TRACING="" lxc project set default limits.instances 0 2>&1)" = 'Error: Cannot change "limits.instances" in project "default": "limits.instances" is too low: there currently are 1 total instances in project "default"' ]
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+}
