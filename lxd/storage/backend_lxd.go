@@ -4778,12 +4778,7 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 		return err
 	}
 
-	_ = BucketDBDelete(context.TODO(), b, bucket.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return BucketDBDelete(context.TODO(), b, bucket.ID)
 }
 
 // CreateBucketKey creates an object bucket key.
