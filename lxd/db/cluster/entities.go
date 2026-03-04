@@ -240,7 +240,7 @@ func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("Failed to scan entity URL: %w", err)
 	} else if err != nil {
-		return nil, api.StatusErrorf(http.StatusNotFound, "No entity found with id `%d` and type %q", entityID, entityType)
+		return nil, api.StatusErrorf(http.StatusNotFound, "No entity found with id %d and type %q", entityID, entityType)
 	}
 
 	return entityRef.URL(), nil

@@ -107,7 +107,7 @@ var requestorProtocolCodeToText = map[int64]string{
 func (r *RequestorProtocol) ScanInteger(requestorProtocolCode int64) error {
 	text, ok := requestorProtocolCodeToText[requestorProtocolCode]
 	if !ok {
-		return fmt.Errorf("Unknown requestor protocol `%d`", requestorProtocolCode)
+		return fmt.Errorf("Unknown requestor protocol %d", requestorProtocolCode)
 	}
 
 	*r = RequestorProtocol(text)
