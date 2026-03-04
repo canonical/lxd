@@ -1609,12 +1609,6 @@ func autoHealClusterTask(stateFunc func() *state.State, gateway *cluster.Gateway
 			return
 		}
 
-		err = op.Start()
-		if err != nil {
-			logger.Error("Failed starting cluster instances heal operation", logger.Ctx{"err": err})
-			return
-		}
-
 		err = op.Wait(ctx)
 		if err != nil {
 			logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})

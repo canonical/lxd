@@ -2007,21 +2007,15 @@ func autoUpdateImagesTask(stateFunc func() *state.State) (task.Func, task.Schedu
 			RunHook: opRun,
 		}
 
-		op, err := operations.ScheduleServerOperation(s, args)
-		if err != nil {
-			logger.Error("Failed creating image update operation", logger.Ctx{"err": err})
-			return
-		}
-
 		logger.Debug("Acquiring image task lock")
 		imageTaskMu.Lock()
 		defer imageTaskMu.Unlock()
 		logger.Debug("Acquired image task lock")
 
 		logger.Info("Updating images")
-		err = op.Start()
+		op, err := operations.ScheduleServerOperation(s, args)
 		if err != nil {
-			logger.Error("Failed starting image update operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating image update operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -2616,21 +2610,15 @@ func pruneExpiredImagesTask(stateFunc func() *state.State) (task.Func, task.Sche
 			RunHook: opRun,
 		}
 
-		op, err := operations.ScheduleServerOperation(s, args)
-		if err != nil {
-			logger.Error("Failed creating expired image prune operation", logger.Ctx{"err": err})
-			return
-		}
-
 		logger.Debug("Acquiring image task lock")
 		imageTaskMu.Lock()
 		defer imageTaskMu.Unlock()
 		logger.Debug("Acquired image task lock")
 
 		logger.Info("Pruning expired images")
-		err = op.Start()
+		op, err := operations.ScheduleServerOperation(s, args)
 		if err != nil {
-			logger.Error("Failed starting expired image prune operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating expired image prune operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -2766,21 +2754,15 @@ func pruneLeftoverImages(s *state.State) {
 		RunHook: opRun,
 	}
 
-	op, err := operations.ScheduleServerOperation(s, args)
-	if err != nil {
-		logger.Error("Failed creating leftover image clean up operation", logger.Ctx{"err": err})
-		return
-	}
-
 	logger.Debug("Acquiring image task lock")
 	imageTaskMu.Lock()
 	defer imageTaskMu.Unlock()
 	logger.Debug("Acquired image task lock")
 
 	logger.Info("Cleaning up leftover image files")
-	err = op.Start()
+	op, err := operations.ScheduleServerOperation(s, args)
 	if err != nil {
-		logger.Error("Failed starting leftover image clean up operation", logger.Ctx{"err": err})
+		logger.Error("Failed creating leftover image clean up operation", logger.Ctx{"err": err})
 		return
 	}
 
@@ -5032,21 +5014,15 @@ func autoSyncImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule
 			RunHook: opRun,
 		}
 
-		op, err := operations.ScheduleServerOperation(s, args)
-		if err != nil {
-			logger.Error("Failed creating image synchronization operation", logger.Ctx{"err": err})
-			return
-		}
-
 		logger.Debug("Acquiring image task lock")
 		imageTaskMu.Lock()
 		defer imageTaskMu.Unlock()
 		logger.Debug("Acquired image task lock")
 
 		logger.Info("Synchronizing images across the cluster")
-		err = op.Start()
+		op, err := operations.ScheduleServerOperation(s, args)
 		if err != nil {
-			logger.Error("Failed starting image synchronization operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating image synchronization operation", logger.Ctx{"err": err})
 			return
 		}
 

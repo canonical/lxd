@@ -34,11 +34,6 @@ func (d instanceDeleter) Delete(ctx context.Context, clientType request.ClientTy
 		return fmt.Errorf("Failed deleting instance %q: %w", name, err)
 	}
 
-	err = instanceDeleteOp.Start()
-	if err != nil {
-		return fmt.Errorf("Failed starting instance delete operation: %w", err)
-	}
-
 	err = instanceDeleteOp.Wait(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed deleting instance %q: %w", name, err)
@@ -80,11 +75,6 @@ func (d imageDeleter) Delete(ctx context.Context, clientType request.ClientType,
 	imageDeleteOp, err := doImageDelete(clientType.IsClusterNotification(), opScheduler, s, fingerprint, imageID, ref.ProjectName, effectiveProjectName)
 	if err != nil {
 		return fmt.Errorf("Failed deleting image %q: %w", fingerprint, err)
-	}
-
-	err = imageDeleteOp.Start()
-	if err != nil {
-		return fmt.Errorf("Failed starting image delete operation: %w", err)
 	}
 
 	err = imageDeleteOp.Wait(ctx)
@@ -176,11 +166,6 @@ func (d storageVolumeDeleter) Delete(ctx context.Context, clientType request.Cli
 	volumeDeleteOp, err := doStoragePoolVolumeDelete(ctx, opScheduler, s, name, volTypeCode, pool, ref.ProjectName, ref.ProjectName)
 	if err != nil {
 		return fmt.Errorf("Failed deleting storage volume %q: %w", name, err)
-	}
-
-	err = volumeDeleteOp.Start()
-	if err != nil {
-		return fmt.Errorf("Failed starting storage volume delete operation: %w", err)
 	}
 
 	err = volumeDeleteOp.Wait(ctx)

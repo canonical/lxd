@@ -1296,21 +1296,16 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(stateFunc func() *state.
 				RunHook: opRun,
 			}
 
+			logger.Info("Pruning expired custom volume snapshots")
 			op, err := operations.ScheduleServerOperation(s, args)
 			if err != nil {
 				logger.Error("Failed creating expired custom volume snapshots prune operation", logger.Ctx{"err": err})
 			} else {
-				logger.Info("Pruning expired custom volume snapshots")
-				err = op.Start()
+				err = op.Wait(ctx)
 				if err != nil {
-					logger.Error("Failed starting expired custom volume snapshots prune operation", logger.Ctx{"err": err})
+					logger.Error("Failed pruning expired custom volume snapshots", logger.Ctx{"err": err})
 				} else {
-					err = op.Wait(ctx)
-					if err != nil {
-						logger.Error("Failed pruning expired custom volume snapshots", logger.Ctx{"err": err})
-					} else {
-						logger.Info("Done pruning expired custom volume snapshots")
-					}
+					logger.Info("Done pruning expired custom volume snapshots")
 				}
 			}
 		}
@@ -1327,21 +1322,16 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(stateFunc func() *state.
 				RunHook: opRun,
 			}
 
+			logger.Info("Creating scheduled volume snapshots")
 			op, err := operations.ScheduleServerOperation(s, args)
 			if err != nil {
 				logger.Error("Failed creating scheduled volume snapshot operation", logger.Ctx{"err": err})
 			} else {
-				logger.Info("Creating scheduled volume snapshots")
-				err = op.Start()
+				err = op.Wait(ctx)
 				if err != nil {
-					logger.Error("Failed starting scheduled volume snapshot operation", logger.Ctx{"err": err})
+					logger.Error("Failed scheduled custom volume snapshots", logger.Ctx{"err": err})
 				} else {
-					err = op.Wait(ctx)
-					if err != nil {
-						logger.Error("Failed scheduled custom volume snapshots", logger.Ctx{"err": err})
-					} else {
-						logger.Info("Done creating scheduled volume snapshots")
-					}
+					logger.Info("Done creating scheduled volume snapshots")
 				}
 			}
 		}
