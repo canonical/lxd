@@ -291,6 +291,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
+	op.start()
 	return &op, nil
 }
 
@@ -408,8 +409,8 @@ func updateStatus(op *Operation, newStatus api.StatusCode) {
 	}
 }
 
-// Start a pending operation. It returns an error if the operation cannot be started.
-func (op *Operation) Start() error {
+// start a pending operation.
+func (op *Operation) start() {
 	op.lock.Lock()
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
@@ -474,8 +475,6 @@ func (op *Operation) Start() error {
 	op.lock.Lock()
 	op.sendEvent(md)
 	op.lock.Unlock()
-
-	return nil
 }
 
 // IsRunning returns true if the operation run hook is still in progress.
