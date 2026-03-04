@@ -340,12 +340,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	isClusterNotification := requestor.IsClusterNotification()
+	isClusterNotification := request.UserAgentClientType(r).IsClusterNotification()
 
 	// Get the data
 	wg := sync.WaitGroup{}

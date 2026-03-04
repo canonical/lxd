@@ -260,7 +260,7 @@ func allowAuthenticated(_ *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if requestor.IsTrusted() {
+	if requestor.IsTrusted {
 		return response.EmptySyncResponse
 	}
 
@@ -324,7 +324,7 @@ func allowProjectResourceList(allowAllProjects bool) func(d *Daemon, r *http.Req
 		}
 
 		// The caller must be authenticated.
-		if !requestor.IsTrusted() {
+		if !requestor.IsTrusted {
 			return response.Forbidden(nil)
 		}
 
@@ -375,7 +375,7 @@ func allowProjectResourceList(allowAllProjects bool) func(d *Daemon, r *http.Req
 		}
 
 		// Disallow listing resources in projects the caller does not have access to.
-		if !slices.Contains(requestor.CallerAllowedProjectNames(), requestProjectName) {
+		if !slices.Contains(requestor.Projects, requestProjectName) {
 			return response.Forbidden(errors.New("Certificate is restricted"))
 		}
 

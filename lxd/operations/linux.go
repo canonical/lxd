@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -57,14 +58,9 @@ func registerDBOperation(op *Operation) error {
 			// If there's an untrusted requestor with empty protocol and no identity, we set the
 			// requestor_protocol to `requestorProtocolNone` and leave the requestor_identity_id `null`.
 			// The untrusted requestor is provided eg. in a local image upload operation run as part of an image copy operation.
-			value := cluster.RequestorProtocol(op.requestor.CallerProtocol())
+			value := cluster.RequestorProtocol(op.requestor.Protocol)
 			opInfo.RequestorProtocol = &value
-
-			requestorCallerIdentityID := op.requestor.CallerIdentityID()
-			if requestorCallerIdentityID != 0 {
-				identityID := int64(requestorCallerIdentityID)
-				opInfo.RequestorIdentityID = &identityID
-			}
+			opInfo.RequestorIdentityID = op.requestor.IdentityID
 		}
 
 		if op.entityURL != nil {
@@ -245,12 +241,10 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 			protocol = string(*dbOp.RequestorProtocol)
 		}
 
-		op.requestor = &opRequestor{
-			identityID: *dbOp.RequestorIdentityID,
-			r: &api.OperationRequestor{
-				Username: identity.Identifier,
-				Protocol: protocol,
-			},
+		op.requestor = &request.RequestorAuditor{
+			IdentityID: dbOp.RequestorIdentityID,
+			Username:   identity.Identifier,
+			Protocol:   protocol,
 		}
 	}
 

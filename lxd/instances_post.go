@@ -237,13 +237,13 @@ func createFromNone(r *http.Request, s *state.State, projectName string, profile
 func createFromMigration(r *http.Request, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, isClusterNotification bool) response.Response {
 	requestor, err := request.GetRequestor(r.Context())
 	if err == nil {
-		if requestor.CallerProtocol() == "" {
+		if requestor.Protocol == "" {
 			return response.SmartError(errors.New("Failed to check request origin: Protocol not set in request context"))
 		}
 
 		// If the protocol is not [request.ProtocolCluster] (e.g. not an internal request) and the node has been
 		// evacuated, reject the request.
-		if s.DB.Cluster.LocalNodeIsEvacuated() && requestor.CallerProtocol() != request.ProtocolCluster {
+		if s.DB.Cluster.LocalNodeIsEvacuated() && requestor.Protocol != request.ProtocolCluster {
 			return response.Forbidden(errors.New("Cluster member is evacuated"))
 		}
 	}
@@ -1133,12 +1133,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	targetProjectName := request.ProjectParam(r)
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	clusterNotification := requestor.IsClusterNotification()
+	clusterNotification := request.UserAgentClientType(r).IsClusterNotification()
 
 	logger.Debug("Responding to instance create")
 
@@ -1171,7 +1166,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Parse the request
 	req := api.InstancesPost{}
-	err = json.NewDecoder(r.Body).Decode(&req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}

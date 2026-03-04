@@ -269,7 +269,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If not authenticated, return now.
-	if !requestor.IsTrusted() {
+	if !requestor.IsTrusted {
 		daemonConfig, _ := daemonConfigRender(s)
 		_, flagExists := daemonConfig["user.microcloud"]
 		if flagExists {
@@ -439,8 +439,8 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	fullSrv := &api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
-	fullSrv.AuthUserName = requestor.CallerUsername()
-	fullSrv.AuthUserMethod = requestor.CallerProtocol()
+	fullSrv.AuthUserName = requestor.Username
+	fullSrv.AuthUserMethod = requestor.Protocol
 
 	// Only allow identities that can edit configuration to view it as sensitive information may be stored there.
 	err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanEdit)
@@ -522,14 +522,9 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// If this is a notification from a cluster node, just run the triggers
 	// for reacting to the values that changed.
-	if requestor.IsClusterNotification() {
+	if request.UserAgentClientType(r).IsClusterNotification() {
 		logger.Debug("Handling config changed notification")
 		changed := make(map[string]string)
 		for key, value := range req.Config {

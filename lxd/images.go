@@ -215,7 +215,7 @@ func imagesGetAccessHandler(d *Daemon, r *http.Request) response.Response {
 
 	// An untrusted caller has attempted to list images in a non-default project, or to use the all-projects parameter.
 	// Reject immediately.
-	if !requestor.IsTrusted() {
+	if !requestor.IsTrusted {
 		if allProjects {
 			return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
 		}
@@ -989,15 +989,10 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		return nil, err
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return nil, err
-	}
-
 	if exists {
 		// Do not create a database entry if the request is coming from the internal
 		// cluster communications for image synchronization
-		if !requestor.IsClusterNotification() {
+		if !request.UserAgentClientType(r).IsClusterNotification() {
 			return &info, errors.New("Image with same fingerprint already exists")
 		}
 
@@ -1330,12 +1325,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	isClusterNotification := requestor.IsClusterNotification()
+	isClusterNotification := request.UserAgentClientType(r).IsClusterNotification()
 
 	// Begin background operation
 	run := func(ctx context.Context, op *operations.Operation) error {
@@ -1918,7 +1908,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted := requestor.IsTrusted()
+	trusted := requestor.IsTrusted
 
 	s := d.State()
 	if !allProjects && trusted && projectName != api.ProjectDefaultName {
@@ -3007,16 +2997,11 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	var opCreator operations.OperationScheduler = func(s *state.State, args operations.OperationArgs) (*operations.Operation, error) {
 		return operations.ScheduleUserOperationFromRequest(s, r, args)
 	}
 
-	op, err := doImageDelete(requestor.IsClusterNotification(), opCreator, s, details.image.Fingerprint, details.imageID, projectName, effectiveProjectName)
+	op, err := doImageDelete(request.UserAgentClientType(r).IsClusterNotification(), opCreator, s, details.image.Fingerprint, details.imageID, projectName, effectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3383,7 +3368,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted := requestor.IsTrusted()
+	trusted := requestor.IsTrusted
 	secret := r.FormValue("secret")
 
 	// Unauthenticated clients that do not provide a secret may only view public images.
@@ -4496,7 +4481,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted := requestor.IsTrusted()
+	trusted := requestor.IsTrusted
 
 	// Unauthenticated remote clients that do not provide a secret may only view public images.
 	// For devlxd, we allow querying for private images. We'll subsequently perform additional access checks.

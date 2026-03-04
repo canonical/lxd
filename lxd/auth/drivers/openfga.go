@@ -237,7 +237,7 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 	}
 
 	// Untrusted requests are denied.
-	if !requestor.IsTrusted() {
+	if !requestor.IsTrusted {
 		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 
@@ -246,8 +246,8 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 		return nil
 	}
 
-	logCtx["username"] = requestor.CallerUsername()
-	logCtx["protocol"] = requestor.CallerProtocol()
+	logCtx["username"] = requestor.Username
+	logCtx["protocol"] = requestor.Protocol
 	l := e.logger.AddContext(logCtx)
 
 	identityType, err := requestor.CallerIdentityType()
@@ -278,7 +278,7 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 		return fmt.Errorf("Failed to standardize entity URL: %w", err)
 	}
 
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(requestor.CallerProtocol(), requestor.CallerUsername()).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(requestor.Protocol, requestor.Username).String())
 	entityObject := fmt.Sprintf("%s:%s", entityType, entityURL.String())
 
 	// Construct an OpenFGA check request.
@@ -433,7 +433,7 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 	}
 
 	// Untrusted requests are denied.
-	if !requestor.IsTrusted() {
+	if !requestor.IsTrusted {
 		return allowFunc(false), nil
 	}
 
@@ -442,8 +442,8 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 		return allowFunc(true), nil
 	}
 
-	logCtx["username"] = requestor.CallerUsername()
-	logCtx["protocol"] = requestor.CallerProtocol()
+	logCtx["username"] = requestor.Username
+	logCtx["protocol"] = requestor.Protocol
 	l := e.logger.AddContext(logCtx)
 
 	identityType, err := requestor.CallerIdentityType()
@@ -460,7 +460,7 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 	groups := requestor.CallerEffectiveAuthorizationGroupNames()
 
 	// Construct an OpenFGA list objects request.
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(requestor.CallerProtocol(), requestor.CallerUsername()).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(requestor.Protocol, requestor.Username).String())
 	req := &openfgav1.ListObjectsRequest{
 		StoreId:  dummyDatastoreULID,
 		Type:     entityType.String(),
@@ -513,7 +513,7 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 		}
 
 		l.Error("Failed to list OpenFGA Objects", errLogCtx)
-		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, requestor.CallerUsername(), err)
+		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, requestor.Username, err)
 	}
 
 	objects := resp.GetObjects()
