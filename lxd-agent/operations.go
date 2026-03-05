@@ -160,12 +160,12 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to extract operation ID from URL: %w", err))
+		return response.InternalError(fmt.Errorf("Failed extracting operation ID from URL: %w", err))
 	}
 
 	timeoutSecs, err := shared.AtoiEmptyDefault(r.FormValue("timeout"), -1)
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to extract operation wait timeout from URL: %w", err))
+		return response.InternalError(fmt.Errorf("Failed extracting operation wait timeout from URL: %w", err))
 	}
 
 	var ctx context.Context

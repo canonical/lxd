@@ -38,14 +38,14 @@ func (r *sftpServe) Render(w http.ResponseWriter, request *http.Request) error {
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		http.Error(w, "Webserver doesn't support hijacking", http.StatusInternalServerError)
+		http.Error(w, "Webserver does not support hijacking", http.StatusInternalServerError)
 
 		return nil
 	}
 
 	conn, _, err := hijacker.Hijack()
 	if err != nil {
-		http.Error(w, fmt.Errorf("Failed to hijack connection: %w", err).Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Errorf("Failed hijacking connection: %w", err).Error(), http.StatusInternalServerError)
 
 		return nil
 	}

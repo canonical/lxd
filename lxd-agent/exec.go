@@ -404,7 +404,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 
 				err := unix.Kill(cmd.Process.Pid, unix.SIGKILL)
 				if err != nil {
-					l.Error("Failed to send SIGKILL")
+					l.Error("Failed sending SIGKILL")
 				} else {
 					l.Info("Sent SIGKILL")
 				}
@@ -427,26 +427,26 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 			command := api.InstanceExecControl{}
 			err = json.Unmarshal(buf, &command)
 			if err != nil {
-				l.Debug("Failed to unmarshal control socket command", logger.Ctx{"err": err})
+				l.Debug("Failed unmarshaling control socket command", logger.Ctx{"err": err})
 				continue
 			}
 
 			if command.Command == "window-resize" && s.interactive {
 				winchWidth, err := strconv.Atoi(command.Args["width"])
 				if err != nil {
-					l.Debug("Unable to extract window width", logger.Ctx{"err": err})
+					l.Debug("Cannot extract window width", logger.Ctx{"err": err})
 					continue
 				}
 
 				winchHeight, err := strconv.Atoi(command.Args["height"])
 				if err != nil {
-					l.Debug("Unable to extract window height", logger.Ctx{"err": err})
+					l.Debug("Cannot extract window height", logger.Ctx{"err": err})
 					continue
 				}
 
 				err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
 				if err != nil {
-					l.Debug("Failed to set window size", logger.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
+					l.Debug("Failed setting window size", logger.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
 					continue
 				}
 			} else if command.Command == "signal" {

@@ -115,7 +115,7 @@ func eventsPost(d *Daemon, r *http.Request) response.Response {
 	// Handle device related actions locally.
 	err = eventsProcess(event)
 	if err != nil {
-		logger.Error("Failed to process event", logger.Ctx{"err": err, "type": event.Type, "location": event.Location, "project": event.Project})
+		logger.Error("Failed processing event", logger.Ctx{"err": err, "type": event.Type, "location": event.Location, "project": event.Project})
 	}
 
 	return response.SyncResponse(true, nil)
@@ -173,7 +173,7 @@ func eventsProcess(event api.Event) error {
 	// This is not ideal and not consistent with the way mounts are handled with containers. For consistency make the path absolute.
 	targetPath, err = filepath.Abs(targetPath)
 	if err != nil || !strings.HasPrefix(targetPath, "/") {
-		return fmt.Errorf("Failed to make path %q absolute", targetPath)
+		return fmt.Errorf("Failed making path %q absolute", targetPath)
 	}
 
 	switch e.Action {
@@ -199,7 +199,7 @@ func eventsProcess(event api.Event) error {
 			time.Sleep(500 * time.Millisecond)
 		}
 
-		return fmt.Errorf("Failed to hotplug device %q: %w", mntSource, err)
+		return fmt.Errorf("Failed hotpluging device %q: %w", mntSource, err)
 	case agentAPI.DeviceRemoved:
 		mountInfoFile, err := os.Open("/proc/self/mountinfo")
 		if err != nil {
@@ -233,7 +233,7 @@ func eventsProcess(event api.Event) error {
 
 		err = unix.Unmount(mountPoint, unix.MNT_DETACH)
 		if err != nil {
-			return fmt.Errorf("Failed to unmount %q: %w", mountPoint, err)
+			return fmt.Errorf("Failed unmounting %q: %w", mountPoint, err)
 		}
 	}
 
