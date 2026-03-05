@@ -5108,20 +5108,6 @@ func (b *lxdBackend) GetBucketURL(bucketName string) *url.URL {
 		return nil
 	}
 
-	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
-
-	if memberSpecific {
-		// Handle common MinIO implementation for local storage drivers.
-
-		// Check that the storage buckets listener is configured via core.storage_buckets_address.
-		storageBucketsAddress := b.state.Endpoints.StorageBucketsAddress()
-		if storageBucketsAddress == "" {
-			return nil
-		}
-
-		return &api.NewURL().Scheme("https").Host(storageBucketsAddress).Path(bucketName).URL
-	}
-
 	// Handle per-driver implementation for remote storage drivers.
 	return b.driver.GetBucketURL(bucketName)
 }
