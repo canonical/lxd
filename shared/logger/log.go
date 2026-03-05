@@ -23,7 +23,7 @@ func init() {
 func InitLogger(filepath string, syslogName string, verbose bool, debug bool, hook logrus.Hook) error {
 	logger, err := New(filepath, syslogName, verbose, debug, hook)
 	if err != nil {
-		return fmt.Errorf("Failed to initialize global logger: %w", err)
+		return fmt.Errorf("Failed initializing global logger: %w", err)
 	}
 
 	Log = logger

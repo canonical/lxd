@@ -31,7 +31,7 @@ func NewHMACArgon2(password []byte, salt []byte, conf HMACConf) (HMACFormatter, 
 		salt = make([]byte, 16)
 		_, err := rand.Read(salt)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create salt: %w", err)
+			return nil, fmt.Errorf("Failed creating salt: %w", err)
 		}
 	}
 
@@ -88,12 +88,12 @@ func (h *HMACArgon2) ParseHTTPHeader(header string) (HMACFormatter, []byte, erro
 
 	saltFromHeader, err := hex.DecodeString(authHeaderDetails[0])
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to decode the argon2 salt: %w", err)
+		return nil, nil, fmt.Errorf("Failed decoding the argon2 salt: %w", err)
 	}
 
 	hmacFromHeader, err := hex.DecodeString(authHeaderDetails[1])
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to decode the argon2 HMAC: %w", err)
+		return nil, nil, fmt.Errorf("Failed decoding the argon2 HMAC: %w", err)
 	}
 
 	hNew, err := NewHMACArgon2(h.password, saltFromHeader, NewDefaultHMACConf(version))

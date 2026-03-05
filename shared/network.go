@@ -13,7 +13,7 @@ import (
 )
 
 // connectErrorPrefix used as prefix to error returned from RFC3493Dialer.
-const connectErrorPrefix = "Unable to connect to"
+const connectErrorPrefix = "Cannot connect to"
 
 // RFC3493Dialer connects to the specified server and returns the connection.
 // If the connection cannot be established then an error with the connectErrorPrefix is returned.

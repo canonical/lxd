@@ -142,11 +142,11 @@ func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
 
 	err := filepath.Walk("/dev/disk/by-uuid", readUUID)
 	if err != nil && err != ErrObjectFound {
-		return "", fmt.Errorf("Failed to detect UUID: %s", err)
+		return "", fmt.Errorf("Failed detecting UUID: %s", err)
 	}
 
 	if uuid == "" {
-		return "", errors.New("Failed to detect UUID")
+		return "", errors.New("Failed detecting UUID")
 	}
 
 	lastSlash := strings.LastIndex(uuid, "/")
@@ -191,7 +191,7 @@ func Uname() (*Utsname, error) {
 	 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
 	 * there is really no better way to do this, which is
 	 * unfortunate. Also, we ditch the more accepted CharsToString
-	 * version in that thread, since it doesn't seem as portable,
+	 * version in that thread, since it does not seem as portable,
 	 * viz. github issue #206.
 	 */
 
@@ -282,7 +282,7 @@ func GetMeminfo(field string) (int64, error) {
 		return valueInt * multiplier, nil
 	}
 
-	return -1, fmt.Errorf("Couldn't find %s", field)
+	return -1, fmt.Errorf("Could not find %s", field)
 }
 
 // OpenPtyInDevpts creates a new PTS pair, configures them and returns them.

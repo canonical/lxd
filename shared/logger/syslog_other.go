@@ -9,5 +9,5 @@ import (
 )
 
 func setupSyslog(logger *logrus.Logger, syslogName string) error {
-	return fmt.Errorf("Syslog logging isn't supported on this platform")
+	return fmt.Errorf("Syslog logging is not supported on this platform")
 }

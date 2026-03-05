@@ -134,7 +134,7 @@ func IsInRange(minVal int64, maxVal int64) func(value string) error {
 		}
 
 		if valueInt < minVal || valueInt > maxVal {
-			return fmt.Errorf("Value isn't within valid range. Must be between %d and %d", minVal, maxVal)
+			return fmt.Errorf("Value is not within valid range. Must be between %d and %d", minVal, maxVal)
 		}
 
 		return nil
@@ -658,7 +658,7 @@ func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(v
 
 		_, err = net.LookupHost(host)
 		if err != nil {
-			return fmt.Errorf("Couldn't resolve %q", host)
+			return fmt.Errorf("Could not resolve %q", host)
 		}
 
 		return nil
