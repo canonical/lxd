@@ -4642,15 +4642,13 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 	revert := revert.New()
 	defer revert.Fail()
 
-	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
-
 	bucketVolName := project.StorageVolume(projectName, bucket.Name)
 	bucketVol := b.GetNewVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
 	// Set the new bucket volume's UUID.
 	bucket.Config["volatile.uuid"] = bucketVol.Config()["volatile.uuid"]
 
-	bucketID, err := BucketDBCreate(context.TODO(), b, projectName, memberSpecific, &bucket)
+	bucketID, err := BucketDBCreate(context.TODO(), b, projectName, &bucket)
 	if err != nil {
 		return err
 	}
