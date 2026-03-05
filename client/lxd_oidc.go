@@ -127,7 +127,7 @@ func (o *oidcClient) do(req *http.Request, oidcScopesExtensionPresent bool) (*ht
 
 		err = json.Unmarshal([]byte(scopesJSON), &scopes)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse OIDC scopes: %w", err)
+			return nil, fmt.Errorf("Failed parsing OIDC scopes: %w", err)
 		}
 	} else {
 		// Otherwise, use the default scopes from before the API extension was added, and append the groups claim header
