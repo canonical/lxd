@@ -2,7 +2,6 @@ package storage
 
 import (
 	"archive/tar"
-	"archive/zip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -22,7 +21,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/minio/minio-go/v7"
 	"go.yaml.in/yaml/v2"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
@@ -52,8 +50,6 @@ import (
 	"github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/storage/memorypipe"
-	"github.com/canonical/lxd/lxd/storage/s3"
-	"github.com/canonical/lxd/lxd/storage/s3/miniod"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
