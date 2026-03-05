@@ -75,7 +75,15 @@ type cmdNetworkPeerList struct {
 	flagColumns string
 }
 
-const defaultNetworkPeerColumns = "ndps"
+// columns returns the ordered column definitions for network peer list.
+func (c *cmdNetworkPeerList) columns() []cli.ShorthandColumn[api.NetworkPeer] {
+	return []cli.ShorthandColumn[api.NetworkPeer]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'p', Name: "PEER", Data: c.peerColumnData},
+		{Shorthand: 's', Name: "STATE", Data: c.stateColumnData},
+	}
+}
 
 func (c *cmdNetworkPeerList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -86,7 +94,7 @@ func (c *cmdNetworkPeerList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultNetworkPeerColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -129,7 +137,7 @@ func (c *cmdNetworkPeerList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -139,17 +147,6 @@ func (c *cmdNetworkPeerList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, peers)
-}
-
-func (c *cmdNetworkPeerList) parseColumns() ([]cli.TypedColumn[api.NetworkPeer], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.NetworkPeer]{
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-		'p': {Name: "PEER", Data: c.peerColumnData},
-		's': {Name: "STATE", Data: c.stateColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdNetworkPeerList) nameColumnData(peer api.NetworkPeer) string {

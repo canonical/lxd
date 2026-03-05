@@ -355,7 +355,17 @@ type cmdConfigTrustList struct {
 	flagColumns string
 }
 
-const defaultConfigTrustColumns = "tncfie"
+// columns returns the ordered column definitions for config trust list.
+func (c *cmdConfigTrustList) columns() []cli.ShorthandColumn[trustEntry] {
+	return []cli.ShorthandColumn[trustEntry]{
+		{Shorthand: 't', Name: "TYPE", Data: c.typeColumnData},
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'c', Name: "COMMON NAME", Data: c.commonNameColumnData},
+		{Shorthand: 'f', Name: "FINGERPRINT", Data: c.fingerprintColumnData},
+		{Shorthand: 'i', Name: "ISSUE DATE", Data: c.issueDateColumnData},
+		{Shorthand: 'e', Name: "EXPIRY DATE", Data: c.expiryDateColumnData},
+	}
+}
 
 func (c *cmdConfigTrustList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -364,7 +374,7 @@ func (c *cmdConfigTrustList) command() *cobra.Command {
 	cmd.Short = "List trusted clients"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultConfigTrustColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -424,7 +434,7 @@ func (c *cmdConfigTrustList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -434,19 +444,6 @@ func (c *cmdConfigTrustList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, trust)
-}
-
-func (c *cmdConfigTrustList) parseColumns() ([]cli.TypedColumn[trustEntry], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[trustEntry]{
-		't': {Name: "TYPE", Data: c.typeColumnData},
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		'c': {Name: "COMMON NAME", Data: c.commonNameColumnData},
-		'f': {Name: "FINGERPRINT", Data: c.fingerprintColumnData},
-		'i': {Name: "ISSUE DATE", Data: c.issueDateColumnData},
-		'e': {Name: "EXPIRY DATE", Data: c.expiryDateColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdConfigTrustList) typeColumnData(entry trustEntry) string {
@@ -489,7 +486,14 @@ type cmdConfigTrustListTokens struct {
 	flagColumns string
 }
 
-const defaultConfigTrustTokenColumns = "nte"
+// columns returns the ordered column definitions for config trust list tokens.
+func (c *cmdConfigTrustListTokens) columns() []cli.ShorthandColumn[displayToken] {
+	return []cli.ShorthandColumn[displayToken]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 't', Name: "TOKEN", Data: c.tokenColumnData},
+		{Shorthand: 'e', Name: "EXPIRES AT", Data: c.expiresAtColumnData},
+	}
+}
 
 func (c *cmdConfigTrustListTokens) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -497,7 +501,7 @@ func (c *cmdConfigTrustListTokens) command() *cobra.Command {
 	cmd.Short = "List all active certificate add tokens"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultConfigTrustTokenColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -563,7 +567,7 @@ func (c *cmdConfigTrustListTokens) run(cmd *cobra.Command, args []string) error 
 
 	// Render the table.
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -573,16 +577,6 @@ func (c *cmdConfigTrustListTokens) run(cmd *cobra.Command, args []string) error 
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, displayTokens)
-}
-
-func (c *cmdConfigTrustListTokens) parseColumns() ([]cli.TypedColumn[displayToken], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[displayToken]{
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		't': {Name: "TOKEN", Data: c.tokenColumnData},
-		'e': {Name: "EXPIRES AT", Data: c.expiresAtColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdConfigTrustListTokens) nameColumnData(token displayToken) string {
