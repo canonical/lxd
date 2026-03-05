@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -144,11 +143,12 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 
 	hooksFilePath := d.generateCDIHooksFilePath()
 	deviceConfigFilePath := d.generateCDIConfigDevicesFilePath()
+	devicesPath := d.inst.DevicesPath()
 
 	// Check if there are any remaining CDI devices in the instance devices directory.
 	// If there are, we need to remove them. These can be present in the case where the device stop hook was not called
 	// (e.g. due to an abrupt host shutdown).
-	err := filepath.WalkDir(d.inst.DevicesPath(), func(path string, e fs.DirEntry, _ error) error {
+	err := filepath.WalkDir(devicesPath, func(path string, e fs.DirEntry, _ error) error {
 		if e.IsDir() {
 			return nil
 		}
@@ -201,18 +201,16 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		// Here putting a `cdi.CDIUnixPrefix` prefix with 'd.name' as a device name will create an directory entry like:
 		// <lxd_var_path>/devices/<instance_name>/<cdi.CDIUnixPrefix>.<gpu_device_name>.<path_encoded_relative_dest_path>
 		// 'unixDeviceSetupCharNum' is already checking for dupe entries so we have no validation to do here.
-		err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), cdi.CDIUnixPrefix, d.name, conf, uint32(major), uint32(minor), conf["path"], false, runConf)
+		err = unixDeviceSetupCharNum(d.state, devicesPath, cdi.CDIUnixPrefix, d.name, conf, uint32(major), uint32(minor), conf["path"], false, runConf)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Create the devices directory if missing.
-	if !shared.PathExists(d.inst.DevicesPath()) {
-		err := os.Mkdir(d.inst.DevicesPath(), 0711)
-		if err != nil {
-			return err
-		}
+	err = os.Mkdir(devicesPath, 0711)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		return err
 	}
 
 	for _, conf := range configDevices.BindMounts {
@@ -228,7 +226,7 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		// Multiple CDI GPU devices can require the same runtime files (e.g. /run/nvidia-persistenced/socket).
 		// Only create one mount entry per target path to avoid duplicate lxc.mount.entry conflicts.
 		duplicate := false
-		dents, err := os.ReadDir(d.inst.DevicesPath())
+		dents, err := os.ReadDir(devicesPath)
 		if err == nil {
 			for _, e := range dents {
 				decoded := filesystem.PathNameDecode(e.Name())
@@ -246,7 +244,7 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		// This time, the created path will be like:
 		// <lxd_var_path>/devices/<instance_name>/<cdi.CDIDiskPrefix>.<gpu_device_name>.<path_encoded_relative_dest_path>
 		deviceName := filesystem.PathNameEncode(deviceJoinPath(cdi.CDIDiskPrefix, d.name, relativeDestPath))
-		devPath := filepath.Join(d.inst.DevicesPath(), deviceName)
+		devPath := filepath.Join(devicesPath, deviceName)
 
 		ownerShift := deviceConfig.MountOwnerShiftNone
 		if idmap.CanIdmapMount(devPath, "") {
@@ -277,11 +275,9 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		srcFDHandlers = append(srcFDHandlers, f)
 
 		// Clean any existing entry.
-		if shared.PathExists(devPath) {
-			err := os.Remove(devPath)
-			if err != nil {
-				return err
-			}
+		err = os.Remove(devPath)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
 		}
 
 		// Create the mount point.
@@ -423,58 +419,66 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 
 		// Setup DRM unix-char devices if present.
 		if gpu.DRM != nil {
-			if gpu.DRM.CardName != "" && gpu.DRM.CardDevice != "" && shared.PathExists(filepath.Join(gpuDRIDevPath, gpu.DRM.CardName)) {
+			if gpu.DRM.CardName != "" && gpu.DRM.CardDevice != "" {
 				path := filepath.Join(gpuDRIDevPath, gpu.DRM.CardName)
-				major, minor, err := d.deviceNumStringToUint32(gpu.DRM.CardDevice)
-				if err != nil {
-					return nil, err
-				}
+				if shared.PathExists(path) {
+					major, minor, err := d.deviceNumStringToUint32(gpu.DRM.CardDevice)
+					if err != nil {
+						return nil, err
+					}
 
-				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
-				if err != nil {
-					return nil, err
+					err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 
-			if gpu.DRM.RenderName != "" && gpu.DRM.RenderDevice != "" && shared.PathExists(filepath.Join(gpuDRIDevPath, gpu.DRM.RenderName)) {
+			if gpu.DRM.RenderName != "" && gpu.DRM.RenderDevice != "" {
 				path := filepath.Join(gpuDRIDevPath, gpu.DRM.RenderName)
-				major, minor, err := d.deviceNumStringToUint32(gpu.DRM.RenderDevice)
-				if err != nil {
-					return nil, err
-				}
+				if shared.PathExists(path) {
+					major, minor, err := d.deviceNumStringToUint32(gpu.DRM.RenderDevice)
+					if err != nil {
+						return nil, err
+					}
 
-				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
-				if err != nil {
-					return nil, err
+					err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 
-			if gpu.DRM.ControlName != "" && gpu.DRM.ControlDevice != "" && shared.PathExists(filepath.Join(gpuDRIDevPath, gpu.DRM.ControlName)) {
+			if gpu.DRM.ControlName != "" && gpu.DRM.ControlDevice != "" {
 				path := filepath.Join(gpuDRIDevPath, gpu.DRM.ControlName)
-				major, minor, err := d.deviceNumStringToUint32(gpu.DRM.ControlDevice)
-				if err != nil {
-					return nil, err
-				}
+				if shared.PathExists(path) {
+					major, minor, err := d.deviceNumStringToUint32(gpu.DRM.ControlDevice)
+					if err != nil {
+						return nil, err
+					}
 
-				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
-				if err != nil {
-					return nil, err
+					err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
 
 		// Add Nvidia device if present.
-		if gpu.Nvidia != nil && gpu.Nvidia.CardName != "" && gpu.Nvidia.CardDevice != "" && shared.PathExists(filepath.Join("/dev", gpu.Nvidia.CardName)) {
-			sawNvidia = true
+		if gpu.Nvidia != nil && gpu.Nvidia.CardName != "" && gpu.Nvidia.CardDevice != "" {
 			path := filepath.Join("/dev", gpu.Nvidia.CardName)
-			major, minor, err := d.deviceNumStringToUint32(gpu.Nvidia.CardDevice)
-			if err != nil {
-				return nil, err
-			}
+			if shared.PathExists(path) {
+				sawNvidia = true
+				major, minor, err := d.deviceNumStringToUint32(gpu.Nvidia.CardDevice)
+				if err != nil {
+					return nil, err
+				}
 
-			err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
-			if err != nil {
-				return nil, err
+				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -530,8 +534,12 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 		// Check for existing running processes tied to the GPU.
 		// Failing early here in case of attached running processes to the card
 		// avoids a blocking call to os.WriteFile() when unbinding the device.
-		if gpu.Nvidia != nil && gpu.Nvidia.CardName != "" && shared.PathExists(filepath.Join("/dev", gpu.Nvidia.CardName)) {
+		if gpu.Nvidia != nil && gpu.Nvidia.CardName != "" {
 			devPath := filepath.Join("/dev", gpu.Nvidia.CardName)
+			if !shared.PathExists(devPath) {
+				continue
+			}
+
 			runningProcs, err := checkAttachedRunningProcesses(devPath)
 			if err != nil {
 				return nil, err
@@ -563,8 +571,7 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Get PCI information about the GPU device.
-	devicePath := filepath.Join("/sys/bus/pci/devices", pciAddress)
-	pciDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
+	pciDev, err := pcidev.ParseUeventFile(filepath.Join("/sys/bus/pci/devices", pciAddress, "uevent"))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get PCI device info for GPU %q: %w", pciAddress, err)
 	}
@@ -611,25 +618,21 @@ func (d *gpuPhysical) pciDeviceDriverOverrideIOMMU(pciDev pcidev.Device, driverO
 			}
 
 			iommuSlotName := filepath.Base(path) // Virtual function's address is dir name.
-			if strings.HasPrefix(iommuSlotName, prefix) {
-				iommuPciDev := pcidev.Device{
-					Driver:   pciDev.Driver,
-					SlotName: iommuSlotName,
-				}
-
-				if iommuSlotName != pciDev.SlotName && restore {
-					// We don't know the original driver for VFs, so just remove override.
-					err = pcidev.DeviceDriverOverride(iommuPciDev, "")
-				} else {
-					err = pcidev.DeviceDriverOverride(iommuPciDev, driverOverride)
-				}
-
-				if err != nil {
-					return err
-				}
+			if !strings.HasPrefix(iommuSlotName, prefix) {
+				return nil
 			}
 
-			return nil
+			iommuPciDev := pcidev.Device{
+				Driver:   pciDev.Driver,
+				SlotName: iommuSlotName,
+			}
+
+			if iommuSlotName != pciDev.SlotName && restore {
+				// We don't know the original driver for VFs, so just remove override.
+				return pcidev.DeviceDriverOverride(iommuPciDev, "")
+			}
+
+			return pcidev.DeviceDriverOverride(iommuPciDev, driverOverride)
 		})
 		if err != nil {
 			return err
@@ -683,21 +686,23 @@ func (d *gpuPhysical) stopCDIDevices(configDevices cdi.ConfigDevices, runConf *d
 // CDI GPU are not hotpluggable because the configuration of a CDI GPU requires a LXC hook that
 // is only run at instance start. A classic GPU device can be hotplugged.
 func (d *gpuPhysical) CanHotPlug() bool {
-	if d.inst.Type() == instancetype.Container {
-		if d.config["id"] != "" {
-			// Check if the id of the device matches a CDI format.
-			cdiID, _ := cdi.ToCDI(d.config["id"])
-			if cdiID != nil {
-				// CDI devices cannot be hot-plugged because they rely on a start hook for setting
-				// up files inside the container.
-				return false
-			}
-		}
+	if d.inst.Type() != instancetype.Container {
+		return false
+	}
 
+	if d.config["id"] == "" {
 		return true
 	}
 
-	return false
+	// Check if the id of the device matches a CDI format.
+	cdiID, _ := cdi.ToCDI(d.config["id"])
+	if cdiID != nil {
+		// CDI devices cannot be hot-plugged because they rely on a start hook for setting
+		// up files inside the container.
+		return false
+	}
+
+	return true
 }
 
 // Stop is run when the device is removed from the instance.
@@ -706,30 +711,32 @@ func (d *gpuPhysical) Stop() (*deviceConfig.RunConfig, error) {
 		PostHooks: []func() error{d.postStop},
 	}
 
-	if d.inst.Type() == instancetype.Container {
-		cdiID, _ := cdi.ToCDI(d.config["id"])
-		if cdiID != nil {
-			// This is more efficient than GenerateFromCDI as we don't need to re-generate a CDI
-			// specification to parse it again.
-			configDevices, err := cdi.ReloadConfigDevicesFromDisk(d.generateCDIConfigDevicesFilePath())
-			if err != nil {
-				return nil, err
-			}
+	if d.inst.Type() != instancetype.Container {
+		return &runConf, nil
+	}
 
-			err = d.stopCDIDevices(configDevices, &runConf)
-			if err != nil {
-				return nil, err
-			}
-
-			return &runConf, nil
-		}
-
-		// In case of an 'id' not being CDI-compliant (e.g, a legacy DRM card id),
-		// we remove unix devices only as usual.
-		err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
+	cdiID, _ := cdi.ToCDI(d.config["id"])
+	if cdiID != nil {
+		// This is more efficient than GenerateFromCDI as we don't need to re-generate a CDI
+		// specification to parse it again.
+		configDevices, err := cdi.ReloadConfigDevicesFromDisk(d.generateCDIConfigDevicesFilePath())
 		if err != nil {
 			return nil, err
 		}
+
+		err = d.stopCDIDevices(configDevices, &runConf)
+		if err != nil {
+			return nil, err
+		}
+
+		return &runConf, nil
+	}
+
+	// In case of an 'id' not being CDI-compliant (e.g, a legacy DRM card id),
+	// we remove unix devices only as usual.
+	err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
+	if err != nil {
+		return nil, err
 	}
 
 	return &runConf, nil
@@ -816,20 +823,14 @@ func (d *gpuPhysical) deviceNumStringToUint32(devNum string) (major uint32, mino
 func (d *gpuPhysical) getNvidiaNonCardDevices() ([]nvidiaNonCardDevice, error) {
 	nvidiaEnts, err := os.ReadDir("/dev")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, err
-		}
-	}
-
-	regexNvidiaCard, err := regexp.Compile(`^nvidia[0-9]+`)
-	if err != nil {
 		return nil, err
 	}
 
 	nvidiaDevices := []nvidiaNonCardDevice{}
 
 	for _, nvidiaEnt := range nvidiaEnts {
-		if !strings.HasPrefix(nvidiaEnt.Name(), "nvidia") {
+		nvidiaEntName := nvidiaEnt.Name()
+		if !strings.HasPrefix(nvidiaEntName, "nvidia") {
 			continue
 		}
 
@@ -838,11 +839,13 @@ func (d *gpuPhysical) getNvidiaNonCardDevices() ([]nvidiaNonCardDevice, error) {
 			continue
 		}
 
-		if regexNvidiaCard.MatchString(nvidiaEnt.Name()) {
+		// Skip card devices (nvidia0, nvidia1, ...) identified by a numeric suffix.
+		_, err := strconv.Atoi(strings.TrimPrefix(nvidiaEntName, "nvidia"))
+		if err == nil {
 			continue
 		}
 
-		nvidiaPath := filepath.Join("/dev", nvidiaEnt.Name())
+		nvidiaPath := filepath.Join("/dev", nvidiaEntName)
 		stat := unix.Stat_t{}
 		err = unix.Stat(nvidiaPath, &stat)
 		if err != nil {

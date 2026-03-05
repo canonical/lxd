@@ -3,6 +3,7 @@ test_container_devices_disk() {
 
   lxc init testimage foo
 
+  _container_devices_disk_type_arg
   _container_devices_disk_shift
   _container_devices_disk_mount
   _container_devices_raw_mount_options
@@ -13,6 +14,18 @@ test_container_devices_disk() {
   _container_devices_disk_patch
 
   lxc delete foo
+}
+
+_container_devices_disk_type_arg() {
+  local err
+
+  # Check that providing a key=value pair as the device type positional argument fails.
+  err="$(! lxc config device add foo mnt-test "boot.priority=10" pool=default source=vol path=/mnt type=disk 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${err}")" = 'Error: Invalid device type "boot.priority=10": the device type must be specified as the third positional argument' ]
+
+  # Check that the device type cannot be specified as a key=value pair.
+  err="$(! lxc config device add foo mnt-test disk source=/tmp path=/mnt type=disk 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${err}")" = 'Error: The device type cannot be set as a key=value pair "type=disk", use the third positional argument instead' ]
 }
 
 _container_devices_disk_shift() {

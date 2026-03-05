@@ -45,13 +45,13 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 
 	// Check if the root disk device's pool would be changed or removed and prevent that if there are instances
 	// using that root disk device.
-	oldProfileRootDiskDeviceKey, oldProfileRootDiskDevice, _ := instancetype.GetRootDiskDevice(profile.Devices)
-	_, newProfileRootDiskDevice, _ := instancetype.GetRootDiskDevice(req.Devices)
+	oldProfileRootDiskDeviceKey, oldProfileRootDiskDevice, _ := api.GetRootDiskDevice(profile.Devices)
+	_, newProfileRootDiskDevice, _ := api.GetRootDiskDevice(req.Devices)
 	if len(insts) > 0 && oldProfileRootDiskDevice["pool"] != "" && newProfileRootDiskDevice["pool"] == "" || (oldProfileRootDiskDevice["pool"] != newProfileRootDiskDevice["pool"]) {
 		// Check for instances using the device.
 		for _, inst := range insts {
 			// Check if the device is locally overridden.
-			k, v, _ := instancetype.GetRootDiskDevice(inst.Devices.CloneNative())
+			k, v, _ := api.GetRootDiskDevice(inst.Devices.CloneNative())
 			if k != "" && v["pool"] != "" {
 				continue
 			}

@@ -780,7 +780,18 @@ type cmdRemoteList struct {
 	flagColumns string
 }
 
-const defaultRemoteColumns = "nupaPSg"
+// columns returns the ordered column definitions for remote list.
+func (c *cmdRemoteList) columns() []cli.ShorthandColumn[remoteListEntry] {
+	return []cli.ShorthandColumn[remoteListEntry]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'u', Name: "URL", Data: c.urlColumnData},
+		{Shorthand: 'p', Name: "PROTOCOL", Data: c.protocolColumnData},
+		{Shorthand: 'a', Name: "AUTH TYPE", Data: c.authTypeColumnData},
+		{Shorthand: 'P', Name: "PUBLIC", Data: c.publicColumnData},
+		{Shorthand: 'S', Name: "STATIC", Data: c.staticColumnData},
+		{Shorthand: 'g', Name: "GLOBAL", Data: c.globalColumnData},
+	}
+}
 
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteList) command() *cobra.Command {
@@ -792,7 +803,7 @@ func (c *cmdRemoteList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultRemoteColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	return cmd
 }
@@ -828,7 +839,7 @@ func (c *cmdRemoteList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -839,20 +850,6 @@ func (c *cmdRemoteList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, conf.Remotes)
-}
-
-func (c *cmdRemoteList) parseColumns() ([]cli.TypedColumn[remoteListEntry], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[remoteListEntry]{
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		'u': {Name: "URL", Data: c.urlColumnData},
-		'p': {Name: "PROTOCOL", Data: c.protocolColumnData},
-		'a': {Name: "AUTH TYPE", Data: c.authTypeColumnData},
-		'P': {Name: "PUBLIC", Data: c.publicColumnData},
-		'S': {Name: "STATIC", Data: c.staticColumnData},
-		'g': {Name: "GLOBAL", Data: c.globalColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdRemoteList) nameColumnData(entry remoteListEntry) string {

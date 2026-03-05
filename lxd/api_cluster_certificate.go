@@ -86,30 +86,29 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Private key must be base64 encoded PEM key: %w", err))
 	}
 
-	err = updateClusterCertificate(r.Context(), s, d.gateway, r, req)
+	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterCertificateUpdated.Event("certificate", requestor, nil))
+	err = updateClusterCertificate(r.Context(), s, d.gateway, r, requestor.IsClusterNotification(), req)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterCertificateUpdated.Event("certificate", requestor.EventLifecycleRequestor(), nil))
 
 	return response.EmptySyncResponse
 }
 
-func updateClusterCertificate(ctx context.Context, s *state.State, gateway *cluster.Gateway, r *http.Request, req api.ClusterCertificatePut) error {
+func updateClusterCertificate(ctx context.Context, s *state.State, gateway *cluster.Gateway, r *http.Request, isClusterNotification bool, req api.ClusterCertificatePut) error {
 	revert := revert.New()
 	defer revert.Fail()
 
 	newClusterCertFilename := shared.VarPath(acme.ClusterCertFilename)
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return err
-	}
-
 	// First node forwards request to all other cluster nodes
-	if r == nil || !requestor.IsClusterNotification() {
+	if r == nil || !isClusterNotification {
 		var err error
 
 		revert.Add(func() {
@@ -199,7 +198,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 		}
 	}
 
-	err = util.WriteCert(s.OS.VarDir, "cluster", []byte(req.ClusterCertificate), []byte(req.ClusterCertificateKey), nil)
+	err := util.WriteCert(s.OS.VarDir, "cluster", []byte(req.ClusterCertificate), []byte(req.ClusterCertificateKey), nil)
 	if err != nil {
 		return err
 	}

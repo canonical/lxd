@@ -2,7 +2,6 @@ package request
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,9 +14,32 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// RequestorAuditor is a subset of methods implemented by [Requestor].
+// It is used for auditing, request forwarding within the cluster, and within operations.
+// Permission checks cannot be performed with the requestor auditor, save only for checking if two requestors are equal.
+type RequestorAuditor interface {
+	OriginAddress() string
+	CallerUsername() string
+	CallerProtocol() string
+	EventLifecycleRequestor() *api.EventLifecycleRequestor
+	OperationRequestor() *api.OperationRequestor
+	CallerIsEqual(requestor RequestorAuditor) bool
+	CallerIdentityID() int64
+}
+
 // RequestorHook is the signature of a hook that is passed into calls to [SetRequestor].
 // This allows the caller to specify how to get authorization information about an identity that has successfully authenticated.
-type RequestorHook func(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (identityID int, idType identity.Type, authGroups []string, effectiveAuthGroups []string, projects []string, err error)
+type RequestorHook func(ctx context.Context, authenticationMethod string, identifier string) (result *RequestorHookResult, err error)
+
+// RequestorHookResult contains identity and access management details returned by the [RequestorHook].
+type RequestorHookResult struct {
+	IdentityID             int64
+	IdentityType           identity.Type
+	AuthGroups             []string
+	IdentityProviderGroups []string
+	EffectiveAuthGroups    []string
+	Projects               []string
+}
 
 // RequestorArgs contains information that is gathered when the requestor is initially authenticated.
 type RequestorArgs struct {
@@ -36,11 +58,6 @@ type RequestorArgs struct {
 	// It is set only when the client is trusted and the authentication method is either
 	// [api.AuthenticationMethodBearer] or [api.AuthenticationMethodTLS].
 	ExpiresAt *time.Time
-
-	// IdentityProviderGroups contains identity provider groups. These are only set if the caller protocol is
-	// [api.AuthenticationMethodOIDC]. They are centrally defined groups that may map to LXD groups via identity
-	// provider group mappings.
-	IdentityProviderGroups []string
 }
 
 // Requestor contains all fields from RequestorArgs, unexported. Plus additional fields gathered from request headers
@@ -57,7 +74,7 @@ type Requestor struct {
 	forwardedProtocol               string
 	forwardedIdentityProviderGroups []string
 	clientType                      ClientType
-	identityID                      int
+	identityID                      int64
 	authGroups                      []string
 	mappedAuthGroups                []string
 	projects                        []string
@@ -69,7 +86,7 @@ type Requestor struct {
 // cluster node that is notifying us of some user-initiated API request that
 // needs some action to be taken on this node as well.
 func (r *Requestor) IsClusterNotification() bool {
-	return r.ClientType() == ClientTypeNotifier
+	return r.ClientType().IsClusterNotification()
 }
 
 // IsTrusted returns true if the caller is authenticated and false otherwise.
@@ -169,7 +186,7 @@ func (r *Requestor) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 }
 
 // CallerIsEqual returns true if the given Requestor is the same caller as this Requestor.
-func (r *Requestor) CallerIsEqual(requestor *Requestor) bool {
+func (r *Requestor) CallerIsEqual(requestor RequestorAuditor) bool {
 	if requestor == nil {
 		return false
 	}
@@ -197,7 +214,7 @@ func (r *Requestor) CallerIdentityType() (identity.Type, error) {
 
 // CallerIdentityID returns the database ID of the calling identity (it is always zero if the calling identity is using
 // an admin protocol - cluster, unix, pki).
-func (r *Requestor) CallerIdentityID() int {
+func (r *Requestor) CallerIdentityID() int64 {
 	return r.identityID
 }
 
@@ -206,8 +223,8 @@ func (r *Requestor) IsForwarded() bool {
 	return r.forwardedOriginAddress != ""
 }
 
-// ForwardProxy returns a proxy function that adds the requestor details as headers to be inspected by the receiving cluster member.
-func (r *Requestor) ForwardProxy() func(req *http.Request) (*url.URL, error) {
+// RequestorForwardProxy returns a proxy function that adds the requestor details as headers to be inspected by the receiving cluster member.
+func RequestorForwardProxy(r RequestorAuditor) func(req *http.Request) (*url.URL, error) {
 	return func(req *http.Request) (*url.URL, error) {
 		req.Header.Add(headerForwardedAddress, r.OriginAddress())
 
@@ -219,14 +236,6 @@ func (r *Requestor) ForwardProxy() func(req *http.Request) (*url.URL, error) {
 		protocol := r.CallerProtocol()
 		if protocol != "" {
 			req.Header.Add(headerForwardedProtocol, protocol)
-		}
-
-		identityProviderGroups := r.CallerIdentityProviderGroups()
-		if identityProviderGroups != nil {
-			b, err := json.Marshal(identityProviderGroups)
-			if err == nil {
-				req.Header.Add(headerForwardedIdentityProviderGroups, string(b))
-			}
 		}
 
 		return shared.ProxyFromEnvironment(req)
@@ -248,30 +257,20 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 	forwardedAddress := req.Header.Get(headerForwardedAddress)
 	forwardedUsername := req.Header.Get(headerForwardedUsername)
 	forwardedProtocol := req.Header.Get(headerForwardedProtocol)
-	forwardedIdentityProviderGroupsJSON := req.Header.Get(headerForwardedIdentityProviderGroups)
 
 	// Requests can only be forwarded from other cluster members.
 	if r.protocol != ProtocolCluster {
 		// No forwarding headers may be set if the protocol is not ProtocolCluster.
-		if forwardedAddress != "" || forwardedUsername != "" || forwardedProtocol != "" || forwardedIdentityProviderGroupsJSON != "" {
+		if forwardedAddress != "" || forwardedUsername != "" || forwardedProtocol != "" {
 			return errors.New("Received forwarded request information from non-cluster member")
 		}
 
 		return nil
 	}
 
-	var forwardedIdentityProviderGroups []string
-	if forwardedIdentityProviderGroupsJSON != "" {
-		err := json.Unmarshal([]byte(forwardedIdentityProviderGroupsJSON), &forwardedIdentityProviderGroups)
-		if err != nil {
-			return fmt.Errorf("Failed to extract forwarded identity provider groups from request header: %w", err)
-		}
-	}
-
 	r.forwardedOriginAddress = forwardedAddress
 	r.forwardedUsername = forwardedUsername
 	r.forwardedProtocol = forwardedProtocol
-	r.forwardedIdentityProviderGroups = forwardedIdentityProviderGroups
 	return nil
 }
 
@@ -300,16 +299,17 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 	}
 
 	// Get the identity details.
-	identityID, idType, authGroups, mappedAuthGroups, projects, err := hook(ctx, method, r.CallerUsername(), r.CallerIdentityProviderGroups())
+	res, err := hook(ctx, method, r.CallerUsername())
 	if err != nil {
 		return fmt.Errorf("Failed to get identity details: %w", err)
 	}
 
-	r.identityID = identityID
-	r.identityType = idType
-	r.authGroups = authGroups
-	r.mappedAuthGroups = mappedAuthGroups
-	r.projects = projects
+	r.identityID = res.IdentityID
+	r.identityType = res.IdentityType
+	r.authGroups = res.AuthGroups
+	r.mappedAuthGroups = res.EffectiveAuthGroups
+	r.identityProviderGroups = res.IdentityProviderGroups
+	r.projects = res.Projects
 
 	return nil
 }
@@ -326,13 +326,12 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 	}
 
 	r := &Requestor{
-		trusted:                args.Trusted,
-		originAddress:          req.RemoteAddr,
-		username:               args.Username,
-		protocol:               args.Protocol,
-		identityProviderGroups: args.IdentityProviderGroups,
-		clientType:             clientType,
-		expiresAt:              args.ExpiresAt,
+		trusted:       args.Trusted,
+		originAddress: req.RemoteAddr,
+		username:      args.Username,
+		protocol:      args.Protocol,
+		clientType:    clientType,
+		expiresAt:     args.ExpiresAt,
 	}
 
 	err := r.setForwardingDetails(req)
@@ -391,8 +390,18 @@ func GetRequestor(ctx context.Context) (*Requestor, error) {
 	return r, nil
 }
 
+// GetRequestorAuditor gets an RequestorAuditor from the context.
+func GetRequestorAuditor(ctx context.Context) (RequestorAuditor, error) {
+	r, ok := ctx.Value(ctxRequestor).(RequestorAuditor)
+	if !ok {
+		return nil, ErrRequestorNotPresent
+	}
+
+	return r, nil
+}
+
 // WithRequestor is used to set the requestor in the given context.
 // This is used by operations to set the requestor in the context of an async task.
-func WithRequestor(ctx context.Context, requestor *Requestor) context.Context {
+func WithRequestor(ctx context.Context, requestor RequestorAuditor) context.Context {
 	return context.WithValue(ctx, ctxRequestor, requestor)
 }

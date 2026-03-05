@@ -261,7 +261,12 @@ type cmdConfigTemplateList struct {
 	flagColumns string
 }
 
-const defaultConfigTemplateColumns = "f"
+// columns returns the ordered column definitions for config template list.
+func (c *cmdConfigTemplateList) columns() []cli.ShorthandColumn[string] {
+	return []cli.ShorthandColumn[string]{
+		{Shorthand: 'f', Name: "FILENAME", Data: c.filenameColumnData},
+	}
+}
 
 func (c *cmdConfigTemplateList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -269,7 +274,7 @@ func (c *cmdConfigTemplateList) command() *cobra.Command {
 	cmd.Short = "List instance file templates"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultConfigTemplateColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -311,7 +316,7 @@ func (c *cmdConfigTemplateList) run(cmd *cobra.Command, args []string) error {
 
 	// Render the table
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -321,14 +326,6 @@ func (c *cmdConfigTemplateList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, templates)
-}
-
-func (c *cmdConfigTemplateList) parseColumns() ([]cli.TypedColumn[string], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[string]{
-		'f': {Name: "FILENAME", Data: c.filenameColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdConfigTemplateList) filenameColumnData(template string) string {

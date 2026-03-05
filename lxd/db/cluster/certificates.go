@@ -18,7 +18,7 @@ import (
 
 // Certificate is here to pass the certificates content from the database around.
 type Certificate struct {
-	ID          int
+	ID          int64
 	Fingerprint string `db:"primary=yes"`
 	Type        certificate.Type
 	Name        string
@@ -59,7 +59,7 @@ func (cert *Certificate) ToIdentityType() (IdentityType, error) {
 		return api.IdentityTypeCertificateMetricsUnrestricted, nil
 	}
 
-	return "", fmt.Errorf("Unknown certificate type `%d`", cert.Type)
+	return "", fmt.Errorf("Unknown certificate type %d", cert.Type)
 }
 
 // ToAPI converts the database Certificate struct to an api.Certificate
@@ -83,6 +83,18 @@ func (cert *Certificate) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Certificat
 	}
 
 	return &resp, nil
+}
+
+// GetCertificateProjects returns a slice of [Project] that the [Certificate] with the given ID is related to.
+// This is only valid for restricted legacy certificates.
+func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int64) ([]Project, error) {
+	q := `
+SELECT projects.id, projects.description, projects.name FROM projects 
+    JOIN identities_projects ON projects.id = identities_projects.project_id 
+	WHERE identities_projects.identity_id = ? 
+	ORDER BY projects.name
+`
+	return getProjectsRaw(ctx, tx, q, certificateID)
 }
 
 // ToIdentity converts a Certificate to an Identity.
@@ -147,12 +159,47 @@ func CreateCertificateWithProjects(ctx context.Context, tx *sql.Tx, cert Certifi
 		return -1, err
 	}
 
-	err = UpdateCertificateProjects(ctx, tx, int(id), projectNames)
+	err = UpdateCertificateProjects(ctx, tx, id, projectNames)
 	if err != nil {
 		return -1, err
 	}
 
 	return id, err
+}
+
+// UpdateCertificateProjects deletes and replaces any certificate to project associations.
+func UpdateCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int64, projectNames []string) error {
+	_, err := tx.ExecContext(ctx, "DELETE FROM identities_projects WHERE identity_id = ?", certificateID)
+	if err != nil {
+		return fmt.Errorf("Failed to delete existing certificate project relationships: %w", err)
+	}
+
+	if len(projectNames) == 0 {
+		// No projects to add.
+		return nil
+	}
+
+	args := make([]any, 0, len(projectNames)+1)
+	args = append(args, certificateID)
+	for _, name := range projectNames {
+		args = append(args, name)
+	}
+
+	res, err := tx.ExecContext(ctx, "INSERT INTO identities_projects (identity_id, project_id) SELECT ?, projects.id FROM projects WHERE name IN "+query.Params(len(projectNames)), args...)
+	if err != nil {
+		return fmt.Errorf("Failed to create certificate project relationships: %w", err)
+	}
+
+	nInserted, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to check certificate update was successful: %w", err)
+	}
+
+	if int(nInserted) != len(projectNames) {
+		return api.StatusErrorf(http.StatusNotFound, "Project not found")
+	}
+
+	return nil
 }
 
 // GetCertificates returns all available certificates.

@@ -75,7 +75,7 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.
 
 		u, ok := entityURLs[p.EntityID]
 		if !ok {
-			return nil, fmt.Errorf("Entity URL missing for permission with entity type %q and entity ID `%d`", p.EntityType, p.EntityID)
+			return nil, fmt.Errorf("Entity URL missing for permission with entity type %q and entity ID %d", p.EntityType, p.EntityID)
 		}
 
 		apiPermissions = append(apiPermissions, api.Permission{
@@ -137,7 +137,7 @@ WHERE identities_auth_groups.auth_group_id = ?`
 
 	err := query.Scan(ctx, tx, stmt, dest, groupID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get identities for the group with ID `%d`: %w", groupID, err)
+		return nil, fmt.Errorf("Failed to get identities for the group with ID %d: %w", groupID, err)
 	}
 
 	return result, nil
@@ -195,7 +195,7 @@ WHERE auth_groups_identity_provider_groups.auth_group_id = ?`
 
 	err := query.Scan(ctx, tx, stmt, dest, groupID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get identity provider groups for the group with ID `%d`: %w", groupID, err)
+		return nil, fmt.Errorf("Failed to get identity provider groups for the group with ID %d: %w", groupID, err)
 	}
 
 	return result, nil
@@ -246,7 +246,7 @@ func GetPermissionsByAuthGroupID(ctx context.Context, tx *sql.Tx, groupID int) (
 
 	err := query.Scan(ctx, tx, `SELECT id, auth_group_id, entitlement, entity_type, entity_id FROM auth_groups_permissions WHERE auth_group_id = ?`, dest, groupID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get permissions for the group with ID `%d`: %w", groupID, err)
+		return nil, fmt.Errorf("Failed to get permissions for the group with ID %d: %w", groupID, err)
 	}
 
 	return result, nil
@@ -281,7 +281,7 @@ func GetPermissions(ctx context.Context, tx *sql.Tx) ([]Permission, error) {
 func SetAuthGroupPermissions(ctx context.Context, tx *sql.Tx, groupID int, authGroupPermissions []Permission) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM auth_groups_permissions WHERE auth_group_id = ?`, groupID)
 	if err != nil {
-		return fmt.Errorf("Failed to delete existing permissions for group with ID `%d`: %w", groupID, err)
+		return fmt.Errorf("Failed to delete existing permissions for group with ID %d: %w", groupID, err)
 	}
 
 	if len(authGroupPermissions) == 0 {

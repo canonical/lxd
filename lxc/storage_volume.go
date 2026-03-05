@@ -2174,6 +2174,11 @@ func (c *cmdStorageVolumeSet) run(cmd *cobra.Command, args []string) error {
 		isSnapshot = true
 	}
 
+	// If a target was specified, create the volume on the given member.
+	if c.storage.flagTarget != "" {
+		client = client.UseTarget(c.storage.flagTarget)
+	}
+
 	if isSnapshot {
 		if c.flagIsProperty {
 			snapVol, etag, err := client.GetStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
@@ -2205,11 +2210,6 @@ func (c *cmdStorageVolumeSet) run(cmd *cobra.Command, args []string) error {
 		}
 
 		return errors.New("Snapshots are read-only and can't have their configuration changed")
-	}
-
-	// If a target was specified, create the volume on the given member.
-	if c.storage.flagTarget != "" {
-		client = client.UseTarget(c.storage.flagTarget)
 	}
 
 	// Get the storage volume entry.

@@ -167,7 +167,15 @@ type cmdImageAliasList struct {
 	flagColumns string
 }
 
-const defaultImageAliasColumns = "aftd"
+// columns returns the ordered column definitions for image alias list.
+func (c *cmdImageAliasList) columns() []cli.ShorthandColumn[api.ImageAliasesEntry] {
+	return []cli.ShorthandColumn[api.ImageAliasesEntry]{
+		{Shorthand: 'a', Name: "ALIAS", Data: c.aliasColumnData},
+		{Shorthand: 'f', Name: "FINGERPRINT", Data: c.fingerprintColumnData},
+		{Shorthand: 't', Name: "TYPE", Data: c.typeColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+	}
+}
 
 func (c *cmdImageAliasList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -179,7 +187,7 @@ func (c *cmdImageAliasList) command() *cobra.Command {
 Filters may be part of the image hash or part of the image alias name.
 `)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultImageAliasColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -248,7 +256,7 @@ func (c *cmdImageAliasList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -272,17 +280,6 @@ func (c *cmdImageAliasList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, aliases)
-}
-
-func (c *cmdImageAliasList) parseColumns() ([]cli.TypedColumn[api.ImageAliasesEntry], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.ImageAliasesEntry]{
-		'a': {Name: "ALIAS", Data: c.aliasColumnData},
-		'f': {Name: "FINGERPRINT", Data: c.fingerprintColumnData},
-		't': {Name: "TYPE", Data: c.typeColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdImageAliasList) aliasColumnData(alias api.ImageAliasesEntry) string {

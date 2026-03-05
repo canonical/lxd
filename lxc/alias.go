@@ -118,7 +118,13 @@ type cmdAliasList struct {
 	flagColumns string
 }
 
-const defaultAliasColumns = "at"
+// columns returns the ordered column definitions for alias list.
+func (c *cmdAliasList) columns() []cli.ShorthandColumn[aliasListEntry] {
+	return []cli.ShorthandColumn[aliasListEntry]{
+		{Shorthand: 'a', Name: "ALIAS", Data: c.aliasColumnData},
+		{Shorthand: 't', Name: "TARGET", Data: c.targetColumnData},
+	}
+}
 
 // Command is a method of the cmdAliasList structure that returns a new cobra Command for listing command aliases.
 // It specifies the command usage, description, aliases, and output formatting options, and links it to the RunE method for execution logic.
@@ -129,7 +135,7 @@ func (c *cmdAliasList) command() *cobra.Command {
 	cmd.Short = "List aliases"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultAliasColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -148,7 +154,7 @@ func (c *cmdAliasList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -164,15 +170,6 @@ func (c *cmdAliasList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, conf.Aliases)
-}
-
-func (c *cmdAliasList) parseColumns() ([]cli.TypedColumn[aliasListEntry], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[aliasListEntry]{
-		'a': {Name: "ALIAS", Data: c.aliasColumnData},
-		't': {Name: "TARGET", Data: c.targetColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdAliasList) aliasColumnData(entry aliasListEntry) string {

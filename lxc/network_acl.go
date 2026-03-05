@@ -91,8 +91,14 @@ type cmdNetworkACLList struct {
 	flagAllProjects bool
 }
 
-const defaultNetworkACLColumns = "ndu"
-const defaultNetworkACLColumnsAllProjects = "endu"
+// columns returns the ordered column definitions for network ACL list.
+func (c *cmdNetworkACLList) columns() []cli.ShorthandColumn[api.NetworkACL] {
+	return []cli.ShorthandColumn[api.NetworkACL]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+	}
+}
 
 func (c *cmdNetworkACLList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -103,7 +109,7 @@ func (c *cmdNetworkACLList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultNetworkACLColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display network ACLs from all projects")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -156,7 +162,17 @@ func (c *cmdNetworkACLList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
+	if c.flagAllProjects {
+		projectCol := cli.ShorthandColumn[api.NetworkACL]{Shorthand: 'e', Name: "PROJECT", Data: c.projectColumnData}
+		cols = append([]cli.ShorthandColumn[api.NetworkACL]{projectCol}, cols...)
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = cli.DefaultColumnString(cols)
+		}
+	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
 	if err != nil {
 		return err
 	}
@@ -166,21 +182,6 @@ func (c *cmdNetworkACLList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, acls)
-}
-
-func (c *cmdNetworkACLList) parseColumns() ([]cli.TypedColumn[api.NetworkACL], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.NetworkACL]{
-		'e': {Name: "PROJECT", Data: c.projectColumnData},
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-		'u': {Name: "USED BY", Data: c.usedByColumnData},
-	}
-
-	if c.flagAllProjects && c.flagColumns == defaultNetworkACLColumns {
-		c.flagColumns = defaultNetworkACLColumnsAllProjects
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdNetworkACLList) projectColumnData(acl api.NetworkACL) string {

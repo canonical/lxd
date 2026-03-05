@@ -1138,13 +1138,13 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 		case "limits.instances":
 			err := validateTotalInstanceCountLimit(info.Instances, config[key], projectName)
 			if err != nil {
-				return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
+				return fmt.Errorf("Cannot change %q in project %q: %w", key, projectName, err)
 			}
 
 		case "limits.containers", "limits.virtual-machines":
 			err := validateInstanceCountLimit(info.Instances, key, config[key], projectName)
 			if err != nil {
-				return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
+				return fmt.Errorf("Cannot change %q in project %q: %w", key, projectName, err)
 			}
 
 		case "limits.networks":
@@ -1152,7 +1152,7 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 			if shared.IsTrue(config["features.networks"]) {
 				err := validateNetworksCountLimit(info.Networks, config[key])
 				if err != nil {
-					return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
+					return fmt.Errorf("Cannot change %q in project %q: %w", key, projectName, err)
 				}
 			}
 		}
@@ -1422,7 +1422,7 @@ func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool, sto
 				poolName = fields[1]
 			}
 
-			_, device, err := instancetype.GetRootDiskDevice(instance.Devices)
+			_, device, err := api.GetRootDiskDevice(instance.Devices)
 			if err != nil {
 				return nil, fmt.Errorf("Failed getting root disk device for instance %q in project %q: %w", instance.Name, instance.Project, err)
 			}

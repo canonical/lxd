@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/units"
@@ -84,33 +83,6 @@ func ValidSnapName(snapshotName string) error {
 	}
 
 	return nil
-}
-
-// ErrNoRootDisk means there is no root disk device found.
-var ErrNoRootDisk = errors.New("No root device could be found")
-
-// GetRootDiskDevice returns the instance device that is configured as root disk.
-// Returns the device name and device config map.
-func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string]string, error) {
-	var devName string
-	var dev map[string]string
-
-	for n, d := range devices {
-		if filters.IsRootDisk(d) {
-			if devName != "" {
-				return "", nil, errors.New("More than one root device found")
-			}
-
-			devName = n
-			dev = d
-		}
-	}
-
-	if devName != "" {
-		return devName, dev, nil
-	}
-
-	return "", nil, ErrNoRootDisk
 }
 
 // HugePageSizeKeys is a list of known hugepage size configuration keys.
@@ -311,8 +283,8 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 			return err
 		}
 
-		if num == 0 {
-			return errors.New("Memory limit can't be 0")
+		if num < 1024*1024 {
+			return errors.New("Memory limit is too low (minimum 1MiB)")
 		}
 
 		return nil
@@ -1477,22 +1449,4 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 	}
 
 	return nil, fmt.Errorf("Unknown configuration key: %q", key)
-}
-
-// InstanceIncludeWhenCopying is used to decide whether to include a config item or not when copying an instance.
-// The remoteCopy argument indicates if the copy is remote (i.e between LXD nodes) as this affects the keys kept.
-func InstanceIncludeWhenCopying(configKey string, remoteCopy bool) bool {
-	if configKey == "volatile.base_image" {
-		return true // Include volatile.base_image always as it can help optimize copies.
-	}
-
-	if configKey == "volatile.last_state.idmap" && !remoteCopy {
-		return true // Include volatile.last_state.idmap when doing local copy to avoid needless remapping.
-	}
-
-	if strings.HasPrefix(configKey, ConfigVolatilePrefix) {
-		return false // Exclude all other volatile keys.
-	}
-
-	return true // Keep all other keys.
 }

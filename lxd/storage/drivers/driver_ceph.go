@@ -24,6 +24,15 @@ import (
 var cephVersion string
 var cephLoaded bool
 
+var cephPoolConfigPolicy = api.ConfigKeyPolicy{
+	Immutable: []string{
+		// Changing the cluster name does not work as the volume's won't be moved to the new cluster.
+		"ceph.cluster_name",
+		// Changing the pool name whilst having active volumes does not work as the volumes won't be moved to the new pool.
+		"ceph.osd.pool_name",
+	},
+}
+
 type ceph struct {
 	common
 }
@@ -410,13 +419,6 @@ func (d *ceph) Validate(config map[string]string) error {
 		"volatile.pool.pristine": validate.IsAny,
 	}
 
-	immutableOptions := []string{
-		// Changing the cluster name does not work as the volume's won't be moved to the new cluster.
-		"ceph.cluster_name",
-		// Changing the pool name whilst having active volumes does not work as the volumes won't be moved to the new pool.
-		"ceph.osd.pool_name",
-	}
-
 	for configOption, configOptionValue := range config {
 		oldValue, ok := d.config[configOption]
 
@@ -425,7 +427,7 @@ func (d *ceph) Validate(config map[string]string) error {
 			continue
 		}
 
-		if oldValue != configOptionValue && slices.Contains(immutableOptions, configOption) {
+		if oldValue != configOptionValue && slices.Contains(cephPoolConfigPolicy.Immutable, configOption) {
 			return fmt.Errorf("Cannot update %q", configOption)
 		}
 	}

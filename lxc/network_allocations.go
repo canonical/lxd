@@ -19,11 +19,21 @@ type cmdNetworkListAllocations struct {
 	flagAllProjects bool
 }
 
-const defaultNetworkAllocationsColumns = "uantNh"
+// columns returns the ordered column definitions for network allocations list.
+func (c *cmdNetworkListAllocations) columns() []cli.ShorthandColumn[api.NetworkAllocations] {
+	return []cli.ShorthandColumn[api.NetworkAllocations]{
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+		{Shorthand: 'a', Name: "ADDRESS", Data: c.addressColumnData},
+		{Shorthand: 'n', Name: "NETWORK", Data: c.networkColumnData},
+		{Shorthand: 't', Name: "TYPE", Data: c.typeColumnData},
+		{Shorthand: 'N', Name: "NAT", Data: c.natColumnData},
+		{Shorthand: 'h', Name: "HARDWARE ADDRESS", Data: c.hwaddrColumnData},
+	}
+}
 
 func (c *cmdNetworkListAllocations) pretty(allocs []api.NetworkAllocations) error {
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -45,7 +55,7 @@ func (c *cmdNetworkListAllocations) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultNetworkAllocationsColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Run against all projects")
 	return cmd
 }
@@ -68,19 +78,6 @@ func (c *cmdNetworkListAllocations) run(cmd *cobra.Command, args []string) error
 	}
 
 	return c.pretty(addresses)
-}
-
-func (c *cmdNetworkListAllocations) parseColumns() ([]cli.TypedColumn[api.NetworkAllocations], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.NetworkAllocations]{
-		'u': {Name: "USED BY", Data: c.usedByColumnData},
-		'a': {Name: "ADDRESS", Data: c.addressColumnData},
-		'n': {Name: "NETWORK", Data: c.networkColumnData},
-		't': {Name: "TYPE", Data: c.typeColumnData},
-		'N': {Name: "NAT", Data: c.natColumnData},
-		'h': {Name: "HARDWARE ADDRESS", Data: c.hwaddrColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdNetworkListAllocations) usedByColumnData(alloc api.NetworkAllocations) string {

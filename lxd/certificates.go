@@ -1075,7 +1075,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 			return err
 		}
 
-		return dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), int(id), certProjects)
+		return dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), id, certProjects)
 	})
 	if err != nil {
 		return response.SmartError(err)

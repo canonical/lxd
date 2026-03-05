@@ -97,7 +97,17 @@ type cmdOperationList struct {
 	flagAllProjects bool
 }
 
-const defaultOperationColumns = "itdscC"
+// columns returns the ordered column definitions for operation list.
+func (c *cmdOperationList) columns() []cli.ShorthandColumn[api.Operation] {
+	return []cli.ShorthandColumn[api.Operation]{
+		{Shorthand: 'i', Name: "ID", Data: c.idColumnData},
+		{Shorthand: 't', Name: "TYPE", Data: c.typeColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 's', Name: "STATUS", Data: c.statusColumnData},
+		{Shorthand: 'c', Name: "CANCELABLE", Data: c.cancelableColumnData},
+		{Shorthand: 'C', Name: "CREATED", Data: c.createdColumnData},
+	}
+}
 
 func (c *cmdOperationList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -106,7 +116,7 @@ func (c *cmdOperationList) command() *cobra.Command {
 	cmd.Short = "List background operations"
 	cmd.Long = cli.FormatSection("Description", "List background operations")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultOperationColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "List operations from all projects")
 
@@ -153,7 +163,14 @@ func (c *cmdOperationList) run(cmd *cobra.Command, args []string) error {
 	clustered := resource.server.IsClustered()
 
 	// Parse column flags.
-	columns, err := c.parseColumns(clustered)
+	cols := c.columns()
+	if clustered {
+		cols = append(cols, cli.ShorthandColumn[api.Operation]{Shorthand: 'L', Name: "LOCATION", Data: c.locationColumnData})
+	} else if strings.ContainsAny(c.flagColumns, "L") {
+		return errors.New("Can't use column shorthand char 'L' (LOCATION) when not clustered")
+	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
 	if err != nil {
 		return err
 	}
@@ -164,31 +181,6 @@ func (c *cmdOperationList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, operations)
-}
-
-func (c *cmdOperationList) parseColumns(clustered bool) ([]cli.TypedColumn[api.Operation], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.Operation]{
-		'i': {Name: "ID", Data: c.idColumnData},
-		't': {Name: "TYPE", Data: c.typeColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-		's': {Name: "STATUS", Data: c.statusColumnData},
-		'c': {Name: "CANCELABLE", Data: c.cancelableColumnData},
-		'C': {Name: "CREATED", Data: c.createdColumnData},
-	}
-
-	if clustered {
-		columnsShorthandMap['L'] = cli.TypedColumn[api.Operation]{Name: "LOCATION", Data: c.locationColumnData}
-	} else {
-		if c.flagColumns != defaultOperationColumns {
-			if strings.ContainsAny(c.flagColumns, "L") {
-				return nil, errors.New("Can't use column shorthand char 'L' (LOCATION) when not clustered")
-			}
-		}
-
-		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdOperationList) idColumnData(op api.Operation) string {

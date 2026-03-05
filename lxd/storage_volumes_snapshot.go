@@ -564,6 +564,13 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName)
+
+	// In a clustered environment with a non-remote pool, volumes are pinned to a specific node.
+	// Include the target so that the entity lookup can match by node name.
+	if s.ServerClustered && !details.pool.Driver().Info().Remote {
+		volumeURL = volumeURL.Target(s.ServerName)
+	}
+
 	resources := map[entity.Type][]api.URL{
 		entity.TypeStorageVolumeSnapshot: {*volumeURL},
 	}
@@ -806,13 +813,23 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return doStoragePoolVolumeSnapshotUpdate(ctx, s, details.pool, effectiveProjectName, dbVolume.Name, details.volumeType, req, op)
 	}
 
+	snapshotURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName)
+	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)
+
+	// In a clustered environment with a non-remote pool, volumes are pinned to a specific node.
+	// Include the target so that the entity lookup can match by node name.
+	if s.ServerClustered && !details.pool.Driver().Info().Remote {
+		snapshotURL = snapshotURL.Target(s.ServerName)
+		volumeURL = volumeURL.Target(s.ServerName)
+	}
+
 	resources := map[entity.Type][]api.URL{
-		entity.TypeStorageVolume: {*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)},
+		entity.TypeStorageVolume: {*volumeURL},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName),
+		EntityURL:   snapshotURL,
 		Type:        operationtype.VolumeSnapshotUpdate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
@@ -941,13 +958,23 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 		return doStoragePoolVolumeSnapshotUpdate(ctx, s, details.pool, effectiveProjectName, dbVolume.Name, details.volumeType, req, op)
 	}
 
+	snapshotURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName)
+	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)
+
+	// In a clustered environment with a non-remote pool, volumes are pinned to a specific node.
+	// Include the target so that the entity lookup can match by node name.
+	if s.ServerClustered && !details.pool.Driver().Info().Remote {
+		snapshotURL = snapshotURL.Target(s.ServerName)
+		volumeURL = volumeURL.Target(s.ServerName)
+	}
+
 	resources := map[entity.Type][]api.URL{
-		entity.TypeStorageVolume: {*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)},
+		entity.TypeStorageVolume: {*volumeURL},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName),
+		EntityURL:   snapshotURL,
 		Type:        operationtype.VolumeSnapshotUpdate,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
@@ -1063,13 +1090,23 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return details.pool.DeleteCustomVolumeSnapshot(effectiveProjectName, fullSnapshotName, op)
 	}
 
+	snapshotURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName)
+	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)
+
+	// In a clustered environment with a non-remote pool, volumes are pinned to a specific node.
+	// Include the target so that the entity lookup can match by node name.
+	if s.ServerClustered && !details.pool.Driver().Info().Remote {
+		snapshotURL = snapshotURL.Target(s.ServerName)
+		volumeURL = volumeURL.Target(s.ServerName)
+	}
+
 	resources := map[entity.Type][]api.URL{
-		entity.TypeStorageVolume: {*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)},
+		entity.TypeStorageVolume: {*volumeURL},
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName),
+		EntityURL:   snapshotURL,
 		Type:        operationtype.VolumeSnapshotDelete,
 		Class:       operations.OperationClassTask,
 		Resources:   resources,
@@ -1259,21 +1296,16 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(stateFunc func() *state.
 				RunHook: opRun,
 			}
 
+			logger.Info("Pruning expired custom volume snapshots")
 			op, err := operations.ScheduleServerOperation(s, args)
 			if err != nil {
 				logger.Error("Failed creating expired custom volume snapshots prune operation", logger.Ctx{"err": err})
 			} else {
-				logger.Info("Pruning expired custom volume snapshots")
-				err = op.Start()
+				err = op.Wait(ctx)
 				if err != nil {
-					logger.Error("Failed starting expired custom volume snapshots prune operation", logger.Ctx{"err": err})
+					logger.Error("Failed pruning expired custom volume snapshots", logger.Ctx{"err": err})
 				} else {
-					err = op.Wait(ctx)
-					if err != nil {
-						logger.Error("Failed pruning expired custom volume snapshots", logger.Ctx{"err": err})
-					} else {
-						logger.Info("Done pruning expired custom volume snapshots")
-					}
+					logger.Info("Done pruning expired custom volume snapshots")
 				}
 			}
 		}
@@ -1290,21 +1322,16 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(stateFunc func() *state.
 				RunHook: opRun,
 			}
 
+			logger.Info("Creating scheduled volume snapshots")
 			op, err := operations.ScheduleServerOperation(s, args)
 			if err != nil {
 				logger.Error("Failed creating scheduled volume snapshot operation", logger.Ctx{"err": err})
 			} else {
-				logger.Info("Creating scheduled volume snapshots")
-				err = op.Start()
+				err = op.Wait(ctx)
 				if err != nil {
-					logger.Error("Failed starting scheduled volume snapshot operation", logger.Ctx{"err": err})
+					logger.Error("Failed scheduled custom volume snapshots", logger.Ctx{"err": err})
 				} else {
-					err = op.Wait(ctx)
-					if err != nil {
-						logger.Error("Failed scheduled custom volume snapshots", logger.Ctx{"err": err})
-					} else {
-						logger.Info("Done creating scheduled volume snapshots")
-					}
+					logger.Info("Done creating scheduled volume snapshots")
 				}
 			}
 		}

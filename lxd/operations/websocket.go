@@ -1,7 +1,6 @@
 package operations
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -38,11 +37,7 @@ func (r *operationWebSocket) Render(w http.ResponseWriter, req *http.Request) er
 }
 
 func (r *operationWebSocket) String() string {
-	_, md, err := r.op.Render()
-	if err != nil {
-		return fmt.Sprintf("error: %s", err)
-	}
-
+	_, md := r.op.Render()
 	return md.ID
 }
 

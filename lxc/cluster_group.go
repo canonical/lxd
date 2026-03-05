@@ -432,7 +432,14 @@ type cmdClusterGroupList struct {
 	flagColumns string
 }
 
-const defaultClusterGroupColumns = "ndm"
+// columns returns the ordered column definitions for cluster group list.
+func (c *cmdClusterGroupList) columns() []cli.ShorthandColumn[api.ClusterGroup] {
+	return []cli.ShorthandColumn[api.ClusterGroup]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'm', Name: "MEMBERS", Data: c.membersColumnData},
+	}
+}
 
 // Command returns a cobra command to list all the cluster groups in a specified format.
 func (c *cmdClusterGroupList) command() *cobra.Command {
@@ -442,7 +449,7 @@ func (c *cmdClusterGroupList) command() *cobra.Command {
 	cmd.Short = "List all the cluster groups"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultClusterGroupColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -494,7 +501,7 @@ func (c *cmdClusterGroupList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -505,16 +512,6 @@ func (c *cmdClusterGroupList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, groups)
-}
-
-func (c *cmdClusterGroupList) parseColumns() ([]cli.TypedColumn[api.ClusterGroup], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.ClusterGroup]{
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-		'm': {Name: "MEMBERS", Data: c.membersColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdClusterGroupList) nameColumnData(group api.ClusterGroup) string {
