@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -4789,89 +4788,6 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 	}
 
 	return nil
-}
-
-// ImportBucket takes an existing bucket on the storage backend and ensures that the DB records
-// are restored as needed to make it operational with LXD.
-// Used during the recovery import stage.
-func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error) {
-	if poolVol.Bucket == nil {
-		return nil, errors.New("Invalid pool bucket config supplied")
-	}
-
-	l := b.logger.AddContext(logger.Ctx{"project": projectName, "bucketName": poolVol.Bucket.Name})
-	l.Debug("ImportBucket started")
-	defer l.Debug("ImportBucket finished")
-
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Copy bucket config from backup file if present (so BucketDBCreate can safely modify the copy if needed).
-	bucketConfig := make(map[string]string, len(poolVol.Bucket.Config))
-	maps.Copy(bucketConfig, poolVol.Bucket.Config)
-
-	bucket := &api.StorageBucketsPost{
-		Name:             poolVol.Bucket.Name,
-		StorageBucketPut: poolVol.Bucket.Writable(),
-	}
-
-	// Get the bucket name on storage.
-	storageBucketName := project.StorageVolume(projectName, bucket.Name)
-	storageBucket := b.GetNewVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, storageBucketName, bucketConfig)
-
-	// Set the bucket volume's UUID.
-	bucket.Config["volatile.uuid"] = storageBucket.Config()["volatile.uuid"]
-
-	// Validate config and create database entry for restored bucket.
-	bucketID, err := BucketDBCreate(b.state.ShutdownCtx, b, projectName, true, bucket)
-	if err != nil {
-		return nil, err
-	}
-
-	revert.Add(func() { _ = BucketDBDelete(b.state.ShutdownCtx, b, bucketID) })
-
-	err = b.driver.ValidateVolume(storageBucket, false)
-	if err != nil {
-		return nil, err
-	}
-
-	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
-
-	if !memberSpecific {
-		return nil, errors.New("Importing buckets from a remote storage is not supported")
-	}
-
-	// Handle common MinIO implementation for local storage drivers.
-
-	// Extract existing bucket keys from MinIO.
-	keys, err := b.recoverMinIOKeys(projectName, bucket.Name, op)
-	if err != nil {
-		return nil, err
-	}
-
-	// Insert keys into the database.
-	for _, key := range keys {
-		var keyID int64
-
-		err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			keyID, err = tx.CreateStoragePoolBucketKey(ctx, bucketID, key)
-
-			return err
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		revert.Add(func() {
-			_ = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.DeleteStoragePoolBucketKey(ctx, bucketID, keyID)
-			})
-		})
-	}
-
-	cleanup := revert.Clone().Fail
-	revert.Success()
-	return cleanup, nil
 }
 
 // CreateBucketKey creates an object bucket key.
