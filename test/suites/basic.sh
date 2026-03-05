@@ -186,6 +186,8 @@ test_basic_usage() {
     false
   fi
 
+  # Ensure invalid compression algorithm is rejected.
+  ! lxc publish bar --compression=ls || false
 
   # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
