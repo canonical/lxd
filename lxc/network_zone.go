@@ -125,7 +125,7 @@ func (c *cmdNetworkZoneList) run(cmd *cobra.Command, args []string) error {
 
 	// List the networks.
 	if resource.name != "" {
-		return errors.New("Filtering isn't supported yet")
+		return errors.New("Filtering is not supported yet")
 	}
 
 	var zones []api.NetworkZone
@@ -1545,7 +1545,7 @@ func (c *cmdNetworkZoneRecordEntry) runRemove(cmd *cobra.Command, args []string)
 	}
 
 	if !found {
-		return errors.New("Couldn't find a matching entry")
+		return errors.New("Could not find a matching entry")
 	}
 
 	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)

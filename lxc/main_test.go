@@ -97,14 +97,14 @@ func TestExpandAliases(t *testing.T) {
 
 		if !expanded {
 			if !slicesEqual(tc.input, tc.expected) {
-				t.Errorf("didn't expand when expected to: %s", tc.input)
+				t.Errorf("did not expand when expected to: %s", tc.input)
 			}
 
 			continue
 		}
 
 		if !slicesEqual(result, tc.expected) {
-			t.Errorf("%s didn't match %s", result, tc.expected)
+			t.Errorf("%s did not match %s", result, tc.expected)
 		}
 	}
 }

@@ -922,7 +922,7 @@ func (c *cmdIdentityCreate) createTLSIdentity(remote string, name string, certFi
 		// Encode certificate add token to JSON.
 		tokenJSON, err := json.Marshal(token)
 		if err != nil {
-			return fmt.Errorf("Failed to encode identity token: %w", err)
+			return fmt.Errorf("Failed encoding identity token: %w", err)
 		}
 
 		// Print the base64 encoded token.

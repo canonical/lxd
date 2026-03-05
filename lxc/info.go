@@ -349,7 +349,7 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 
 	if c.flagResources {
 		if !d.HasExtension("resources_v2") {
-			return errors.New("The server doesn't implement the newer v2 resources API")
+			return errors.New("The server does not implement the newer v2 resources API")
 		}
 
 		resources, err := d.GetServerResources()

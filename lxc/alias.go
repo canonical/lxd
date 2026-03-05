@@ -188,7 +188,7 @@ func (c *cmdAliasRename) run(cmd *cobra.Command, args []string) error {
 	// Check for the existing alias
 	target, ok := conf.Aliases[args[0]]
 	if !ok {
-		return fmt.Errorf("Alias %s doesn't exist", args[0])
+		return fmt.Errorf("Alias %s does not exist", args[0])
 	}
 
 	// Check for the new alias
@@ -241,7 +241,7 @@ func (c *cmdAliasRemove) run(cmd *cobra.Command, args []string) error {
 	// Look for the alias
 	_, ok := conf.Aliases[args[0]]
 	if !ok {
-		return fmt.Errorf("Alias %s doesn't exist", args[0])
+		return fmt.Errorf("Alias %s does not exist", args[0])
 	}
 
 	// Delete the alias

@@ -181,7 +181,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 	} else {
 		// This is a rebuild as an empty instance
 		if image != "" || iremote != "" {
-			return errors.New("Can't use an image with --empty")
+			return errors.New("Cannot use an image with --empty")
 		}
 
 		req.Source.Type = api.SourceTypeNone

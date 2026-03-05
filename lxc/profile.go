@@ -929,7 +929,7 @@ func (c *cmdProfileRemove) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !slices.Contains(inst.Profiles, args[1]) {
-		return fmt.Errorf("Profile %s isn't currently applied to %s", args[1], resource.name)
+		return fmt.Errorf("Profile %s is not currently applied to %s", args[1], resource.name)
 	}
 
 	profiles := []string{}

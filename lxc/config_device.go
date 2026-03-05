@@ -366,7 +366,7 @@ func (c *cmdConfigDeviceGet) run(cmd *cobra.Command, args []string) error {
 
 		dev, ok := profile.Devices[devname]
 		if !ok {
-			return errors.New("Device doesn't exist")
+			return errors.New("Device does not exist")
 		}
 
 		fmt.Println(dev[key])
@@ -380,7 +380,7 @@ func (c *cmdConfigDeviceGet) run(cmd *cobra.Command, args []string) error {
 		if !ok {
 			_, ok = inst.ExpandedDevices[devname]
 			if !ok {
-				return errors.New("Device doesn't exist")
+				return errors.New("Device does not exist")
 			}
 
 			return errors.New("Device from profile(s) cannot be retrieved for individual instance")
@@ -528,7 +528,7 @@ func (c *cmdConfigDeviceOverride) run(cmd *cobra.Command, args []string) error {
 
 	device, ok := inst.ExpandedDevices[devname]
 	if !ok {
-		return errors.New("The profile device doesn't exist")
+		return errors.New("The profile device does not exist")
 	}
 
 	if len(args) > 2 {
@@ -635,7 +635,7 @@ func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 		for _, devname := range args[1:] {
 			_, ok := profile.Devices[devname]
 			if !ok {
-				return errors.New("Device doesn't exist")
+				return errors.New("Device does not exist")
 			}
 
 			delete(profile.Devices, devname)
@@ -661,7 +661,7 @@ func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 			if !ok {
 				_, ok := inst.ExpandedDevices[devname]
 				if !ok {
-					return errors.New("Device doesn't exist")
+					return errors.New("Device does not exist")
 				}
 
 				return errors.New("Device from profile(s) cannot be removed from individual instance. Override device or modify profile instead")
@@ -773,7 +773,7 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 
 		dev, ok := profile.Devices[devname]
 		if !ok {
-			return errors.New("Device doesn't exist")
+			return errors.New("Device does not exist")
 		}
 
 		maps.Copy(dev, keys)
@@ -799,7 +799,7 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 		if !ok {
 			_, ok = inst.ExpandedDevices[devname]
 			if !ok {
-				return errors.New("Device doesn't exist")
+				return errors.New("Device does not exist")
 			}
 
 			return fmt.Errorf("Device %q from profile(s) %q cannot be modified for individual instance %q: %w", devname, inst.Profiles, inst.Name, errors.New("Override device or modify profile instead"))
