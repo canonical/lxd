@@ -5064,10 +5064,6 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 		return errors.New("Storage pool does not support buckets")
 	}
 
-	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
-	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Second*30)
-	defer ctxCancel()
-
 	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
 
 	var bucket *db.StorageBucket
@@ -5089,34 +5085,14 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 		return err
 	}
 
-	if memberSpecific {
-		// Handle common MinIO implementation for local storage drivers.
+	// Handle per-driver implementation for remote storage drivers.
+	bucketVolName := project.StorageVolume(projectName, bucket.Name)
+	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
-		// Start minio process.
-		minioProc, err := b.ActivateBucket(projectName, bucket.Name, op)
-		if err != nil {
-			return err
-		}
-
-		adminClient, err := minioProc.AdminClient()
-		if err != nil {
-			return err
-		}
-
-		err = adminClient.DeleteServiceAccount(ctx, bucketKey.AccessKey)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Handle per-driver implementation for remote storage drivers.
-		bucketVolName := project.StorageVolume(projectName, bucket.Name)
-		bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
-
-		// Delete the bucket key from the storage device.
-		err = b.driver.DeleteBucketKey(bucketVol, keyName, op)
-		if err != nil {
-			return err
-		}
+	// Delete the bucket key from the storage device.
+	err = b.driver.DeleteBucketKey(bucketVol, keyName, op)
+	if err != nil {
+		return err
 	}
 
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
