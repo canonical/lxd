@@ -50,6 +50,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/logging"
 	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -119,6 +120,11 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 
 	// Parse the command.
 	fields, err := shellquote.Split(compress)
+	if err != nil {
+		return err
+	}
+
+	err = validate.IsCompressionAlgorithm(fields[0])
 	if err != nil {
 		return err
 	}
@@ -859,7 +865,14 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Invalid images JSON"))
 	}
 
-	/* Forward requests for containers on other nodes */
+	if req.CompressionAlgorithm != "" {
+		err = validate.IsCompressionAlgorithm(req.CompressionAlgorithm)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+	}
+
+	// Forward requests for containers on other nodes.
 	if !imageUpload && shared.StringInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot"}) {
 		name := req.Source.Name
 		if name != "" {
