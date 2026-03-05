@@ -337,13 +337,25 @@ func (c *cmdConfigTrustEdit) run(cmd *cobra.Command, args []string) error {
 }
 
 // List.
+type trustEntry struct {
+	certType    string
+	name        string
+	commonName  string
+	fingerprint string
+	issueDate   string
+	expiryDate  string
+}
+
 type cmdConfigTrustList struct {
 	global      *cmdGlobal
 	config      *cmdConfig
 	configTrust *cmdConfigTrust
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
 }
+
+const defaultConfigTrustColumns = "tncfie"
 
 func (c *cmdConfigTrustList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -352,6 +364,7 @@ func (c *cmdConfigTrustList) command() *cobra.Command {
 	cmd.Short = "List trusted clients"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultConfigTrustColumns, cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -384,7 +397,8 @@ func (c *cmdConfigTrustList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	data := [][]string{}
+	// Build trust entries.
+	entries := make([]trustEntry, 0, len(trust))
 	for _, cert := range trust {
 		fp := cert.Fingerprint[0:12]
 
@@ -399,26 +413,83 @@ func (c *cmdConfigTrustList) run(cmd *cobra.Command, args []string) error {
 		}
 
 		const layout = "Jan 2, 2006 at 3:04pm (MST)"
-		issue := tlsCert.NotBefore.Format(layout)
-		expiry := tlsCert.NotAfter.Format(layout)
-		data = append(data, []string{cert.Type, cert.Name, tlsCert.Subject.CommonName, fp, issue, expiry})
+		entries = append(entries, trustEntry{
+			certType:    cert.Type,
+			name:        cert.Name,
+			commonName:  tlsCert.Subject.CommonName,
+			fingerprint: fp,
+			issueDate:   tlsCert.NotBefore.Format(layout),
+			expiryDate:  tlsCert.NotAfter.Format(layout),
+		})
 	}
 
-	sort.Sort(cli.StringList(data))
+	// Parse column flags.
+	columns, err := c.parseColumns()
+	if err != nil {
+		return err
+	}
 
-	header := []string{"TYPE", "NAME", "COMMON NAME", "FINGERPRINT", "ISSUE DATE", "EXPIRY DATE"}
+	data := cli.ColumnData(columns, entries)
+	sort.Sort(cli.StringList(data))
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, trust)
 }
 
+func (c *cmdConfigTrustList) parseColumns() ([]cli.TypedColumn[trustEntry], error) {
+	columnsShorthandMap := map[rune]cli.TypedColumn[trustEntry]{
+		't': {Name: "TYPE", Data: c.typeColumnData},
+		'n': {Name: "NAME", Data: c.nameColumnData},
+		'c': {Name: "COMMON NAME", Data: c.commonNameColumnData},
+		'f': {Name: "FINGERPRINT", Data: c.fingerprintColumnData},
+		'i': {Name: "ISSUE DATE", Data: c.issueDateColumnData},
+		'e': {Name: "EXPIRY DATE", Data: c.expiryDateColumnData},
+	}
+
+	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
+}
+
+func (c *cmdConfigTrustList) typeColumnData(entry trustEntry) string {
+	return entry.certType
+}
+
+func (c *cmdConfigTrustList) nameColumnData(entry trustEntry) string {
+	return entry.name
+}
+
+func (c *cmdConfigTrustList) commonNameColumnData(entry trustEntry) string {
+	return entry.commonName
+}
+
+func (c *cmdConfigTrustList) fingerprintColumnData(entry trustEntry) string {
+	return entry.fingerprint
+}
+
+func (c *cmdConfigTrustList) issueDateColumnData(entry trustEntry) string {
+	return entry.issueDate
+}
+
+func (c *cmdConfigTrustList) expiryDateColumnData(entry trustEntry) string {
+	return entry.expiryDate
+}
+
 // List tokens.
+type displayToken struct {
+	ClientName string
+	Token      string
+	ExpiresAt  string
+}
+
 type cmdConfigTrustListTokens struct {
 	global      *cmdGlobal
 	config      *cmdConfig
 	configTrust *cmdConfigTrust
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
 }
+
+const defaultConfigTrustTokenColumns = "nte"
 
 func (c *cmdConfigTrustListTokens) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -426,6 +497,7 @@ func (c *cmdConfigTrustListTokens) command() *cobra.Command {
 	cmd.Short = "List all active certificate add tokens"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultConfigTrustTokenColumns, cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -459,12 +531,6 @@ func (c *cmdConfigTrustListTokens) run(cmd *cobra.Command, args []string) error 
 	}
 
 	// Convert the join token operation into encoded form for display.
-	type displayToken struct {
-		ClientName string
-		Token      string
-		ExpiresAt  string
-	}
-
 	displayTokens := make([]displayToken, 0)
 
 	for _, op := range ops {
@@ -496,17 +562,39 @@ func (c *cmdConfigTrustListTokens) run(cmd *cobra.Command, args []string) error 
 	}
 
 	// Render the table.
-	data := [][]string{}
-	for _, token := range displayTokens {
-		line := []string{token.ClientName, token.Token, token.ExpiresAt}
-		data = append(data, line)
+	// Parse column flags.
+	columns, err := c.parseColumns()
+	if err != nil {
+		return err
 	}
 
+	data := cli.ColumnData(columns, displayTokens)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{"NAME", "TOKEN", "EXPIRES AT"}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, displayTokens)
+}
+
+func (c *cmdConfigTrustListTokens) parseColumns() ([]cli.TypedColumn[displayToken], error) {
+	columnsShorthandMap := map[rune]cli.TypedColumn[displayToken]{
+		'n': {Name: "NAME", Data: c.nameColumnData},
+		't': {Name: "TOKEN", Data: c.tokenColumnData},
+		'e': {Name: "EXPIRES AT", Data: c.expiresAtColumnData},
+	}
+
+	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
+}
+
+func (c *cmdConfigTrustListTokens) nameColumnData(token displayToken) string {
+	return token.ClientName
+}
+
+func (c *cmdConfigTrustListTokens) tokenColumnData(token displayToken) string {
+	return token.Token
+}
+
+func (c *cmdConfigTrustListTokens) expiresAtColumnData(token displayToken) string {
+	return token.ExpiresAt
 }
 
 // Remove.
