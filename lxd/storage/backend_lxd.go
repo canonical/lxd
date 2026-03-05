@@ -7394,15 +7394,6 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 			if err != nil {
 				return nil, fmt.Errorf("Failed to detect unknown custom volumes: %w", err)
 			}
-
-		case drivers.VolumeTypeBucket:
-			// Get a new volume from the one returned by the storage driver.
-			// This sets a new UUID for the volume that will be used later on for its database entry.
-			poolVol = b.GetNewVolume(poolVol.Type(), poolVol.ContentType(), poolVol.Name(), poolVol.Config())
-			err = b.detectUnknownBuckets(&poolVol, projectVols)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to detect unknown buckets: %w", err)
-			}
 		}
 	}
 
