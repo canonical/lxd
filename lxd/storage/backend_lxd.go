@@ -7842,52 +7842,6 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 	return nil
 }
 
-// detectUnknownBuckets detects if a bucket is unknown and if so attempts to discover the filesystem of the
-// bucket. It then runs a series of consistency checks, and if all checks out, it generates a simulated backup
-// config for the bucket and adds it to projectVols.
-func (b *lxdBackend) detectUnknownBuckets(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config) error {
-	projectName, bucketName := project.StorageVolumeParts(vol.Name())
-
-	// Check if any entry for the bucket already exists in the DB.
-	bucket, err := BucketDBGet(b, projectName, bucketName, true)
-	if err != nil && !response.IsNotFoundError(err) {
-		return err
-	} else if bucket != nil {
-		return nil // Storage record already exists in DB, no recovery needed.
-	}
-
-	// This may not always be the correct thing to do, but seeing as we don't know what the volume's config
-	// was lets take a best guess that it was the default config.
-	err = b.driver.FillVolumeConfig(*vol)
-	if err != nil {
-		return fmt.Errorf("Failed filling bucket default config: %w", err)
-	}
-
-	// Check the detected filesystem is valid for the storage driver.
-	err = b.driver.ValidateVolume(*vol, false)
-	if err != nil {
-		return fmt.Errorf("Failed bucket validation: %w", err)
-	}
-
-	backupConf := &backupConfig.Config{
-		Bucket: &backupConfig.Bucket{
-			StorageBucket: &api.StorageBucket{
-				Name:   bucketName,
-				Config: vol.Config(),
-			},
-		},
-	}
-
-	// Add the bucket to unknown volumes list for the project.
-	if projectVols[projectName] == nil {
-		projectVols[projectName] = []*backupConfig.Config{backupConf}
-	} else {
-		projectVols[projectName] = append(projectVols[projectName], backupConf)
-	}
-
-	return nil
-}
-
 // ImportInstance takes an existing instance volume on the storage backend and ensures that the volume directories
 // and symlinks are restored as needed to make it operational with LXD. Used during the recovery import stage.
 // If the instance exists on the local cluster member then the local mount status is restored as needed.
