@@ -4738,30 +4738,10 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 
 	changedConfig, userOnly := b.detectChangedConfig(curBucket.Config, bucket.Config)
 	if len(changedConfig) > 0 && !userOnly {
-		if memberSpecific {
-			// Stop MinIO process if running so volume can be resized if needed.
-			minioProc, err := miniod.Get(curBucketVol.Name())
-			if err != nil {
-				return err
-			}
-
-			if minioProc != nil {
-				err = minioProc.Stop(context.Background())
-				if err != nil {
-					return fmt.Errorf("Failed stopping bucket: %w", err)
-				}
-			}
-
-			err = b.driver.UpdateVolume(curBucketVol, changedConfig)
-			if err != nil {
-				return err
-			}
-		} else {
-			// Handle per-driver implementation for remote storage drivers.
-			err = b.driver.UpdateBucket(curBucketVol, changedConfig)
-			if err != nil {
-				return err
-			}
+		// Handle per-driver implementation for remote storage drivers.
+		err = b.driver.UpdateBucket(curBucketVol, changedConfig)
+		if err != nil {
+			return err
 		}
 	}
 
