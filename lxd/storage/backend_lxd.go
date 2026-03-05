@@ -4643,10 +4643,6 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 		return errors.New("Storage pool does not support buckets")
 	}
 
-	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
-	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Second*30)
-	defer ctxCancel()
-
 	// Validate config and create database entry for new storage bucket.
 	revert := revert.New()
 	defer revert.Fail()
@@ -4666,49 +4662,10 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 
 	revert.Add(func() { _ = BucketDBDelete(context.TODO(), b, bucketID) })
 
-	// Create the bucket on the storage device.
-	if memberSpecific {
-		// Handle common MinIO implementation for local storage drivers.
-		err := b.driver.CreateVolume(bucketVol, nil, op)
-		if err != nil {
-			return err
-		}
-
-		revert.Add(func() { _ = b.driver.DeleteVolume(bucketVol, op) })
-
-		// Start minio process.
-		minioProc, err := b.ActivateBucket(projectName, bucket.Name, op)
-		if err != nil {
-			return err
-		}
-
-		s3Client, err := minioProc.S3Client()
-		if err != nil {
-			return err
-		}
-
-		bucketExists, err := s3Client.BucketExists(ctx, bucket.Name)
-		if err != nil {
-			return fmt.Errorf("Failed checking if bucket exists: %w", err)
-		}
-
-		if bucketExists {
-			return api.StatusErrorf(http.StatusConflict, "A bucket for that name already exists")
-		}
-
-		// Create new bucket.
-		err = s3Client.MakeBucket(ctx, bucket.Name, minio.MakeBucketOptions{})
-		if err != nil {
-			return fmt.Errorf("Failed creating bucket: %w", err)
-		}
-
-		revert.Add(func() { _ = s3Client.RemoveBucket(ctx, bucket.Name) })
-	} else {
-		// Handle per-driver implementation for remote storage drivers.
-		err = b.driver.CreateBucket(bucketVol, op)
-		if err != nil {
-			return err
-		}
+	// Handle per-driver implementation for remote storage drivers.
+	err = b.driver.CreateBucket(bucketVol, op)
+	if err != nil {
+		return err
 	}
 
 	revert.Success()
