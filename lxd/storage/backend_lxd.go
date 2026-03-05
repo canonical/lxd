@@ -4964,10 +4964,6 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 		return errors.New("Storage pool does not support buckets")
 	}
 
-	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
-	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Second*30)
-	defer ctxCancel()
-
 	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
 
 	// Get current config to compare what has changed.
@@ -5025,66 +5021,14 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 		return err
 	}
 
-	if memberSpecific {
-		// Handle common MinIO implementation for local storage drivers.
-
-		// Start minio process.
-		minioProc, err := b.ActivateBucket(projectName, bucket.Name, op)
-		if err != nil {
-			return err
-		}
-
-		bucketPolicy, err := s3.BucketPolicy(bucket.Name, key.Role)
-		if err != nil {
-			return err
-		}
-
-		adminClient, err := minioProc.AdminClient()
-		if err != nil {
-			return err
-		}
-
-		// Delete service account if exists (this allows changing the access key).
-		_ = adminClient.DeleteServiceAccount(ctx, curBucketKey.AccessKey)
-
-		newCreds, err := adminClient.AddServiceAccount(ctx, miniod.ServiceAccountArgs{
-			Policy:    bucketPolicy,
-			AccessKey: creds.AccessKey,
-			SecretKey: creds.SecretKey,
-		})
-		if err != nil {
-			return err
-		}
-
-		if creds.SecretKey != "" && newCreds.AccessKey != creds.SecretKey {
-			// There seems to be a bug in MinIO where if the AccessKey isn't specified for a new
-			// service account but a secret key is, *both* the AccessKey and the SecreyKey are randomly
-			// generated, even though it should only have been the AccessKey.
-			// So detect this and update the SecretKey back to what it should have been.
-			err := adminClient.UpdateServiceAccount(ctx, miniod.ServiceAccountArgs{
-				AccessKey: newCreds.AccessKey,
-				SecretKey: creds.SecretKey,
-				Policy:    bucketPolicy, // Ensure policy is also applied.
-			})
-			if err != nil {
-				return err
-			}
-
-			newCreds.SecretKey = creds.SecretKey
-		}
-
-		key.AccessKey = newCreds.AccessKey
-		key.SecretKey = newCreds.SecretKey
-	} else {
-		// Handle per-driver implementation for remote storage drivers.
-		newCreds, err := b.driver.UpdateBucketKey(bucketVol, keyName, creds, key.Role, op)
-		if err != nil {
-			return err
-		}
-
-		key.AccessKey = newCreds.AccessKey
-		key.SecretKey = newCreds.SecretKey
+	// Handle per-driver implementation for remote storage drivers.
+	newCreds, err := b.driver.UpdateBucketKey(bucketVol, keyName, creds, key.Role, op)
+	if err != nil {
+		return err
 	}
+
+	key.AccessKey = newCreds.AccessKey
+	key.SecretKey = newCreds.SecretKey
 
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Update the database record.
