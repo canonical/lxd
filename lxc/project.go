@@ -475,7 +475,20 @@ type cmdProjectList struct {
 	currentProject string
 }
 
-const defaultProjectColumns = "nIPvbNzdu"
+// columns returns the ordered column definitions for project list.
+func (c *cmdProjectList) columns() []cli.ShorthandColumn[api.Project] {
+	return []cli.ShorthandColumn[api.Project]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'I', Name: "IMAGES", Data: c.imagesColumnData},
+		{Shorthand: 'P', Name: "PROFILES", Data: c.profilesColumnData},
+		{Shorthand: 'v', Name: "STORAGE VOLUMES", Data: c.storageVolumesColumnData},
+		{Shorthand: 'b', Name: "STORAGE BUCKETS", Data: c.storageBucketsColumnData},
+		{Shorthand: 'N', Name: "NETWORKS", Data: c.networksColumnData},
+		{Shorthand: 'z', Name: "NETWORK ZONES", Data: c.networkZonesColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+	}
+}
 
 func (c *cmdProjectList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -485,7 +498,7 @@ func (c *cmdProjectList) command() *cobra.Command {
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultProjectColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -537,7 +550,7 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 	c.currentProject = info.Project
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -547,22 +560,6 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, projects)
-}
-
-func (c *cmdProjectList) parseColumns() ([]cli.TypedColumn[api.Project], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.Project]{
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		'I': {Name: "IMAGES", Data: c.imagesColumnData},
-		'P': {Name: "PROFILES", Data: c.profilesColumnData},
-		'v': {Name: "STORAGE VOLUMES", Data: c.storageVolumesColumnData},
-		'b': {Name: "STORAGE BUCKETS", Data: c.storageBucketsColumnData},
-		'N': {Name: "NETWORKS", Data: c.networksColumnData},
-		'z': {Name: "NETWORK ZONES", Data: c.networkZonesColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-		'u': {Name: "USED BY", Data: c.usedByColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdProjectList) nameColumnData(project api.Project) string {

@@ -90,7 +90,14 @@ type cmdNetworkLoadBalancerList struct {
 	flagColumns string
 }
 
-const defaultNetworkLoadBalancerColumns = "ldp"
+// columns returns the ordered column definitions for network load balancer list.
+func (c *cmdNetworkLoadBalancerList) columns() []cli.ShorthandColumn[api.NetworkLoadBalancer] {
+	return []cli.ShorthandColumn[api.NetworkLoadBalancer]{
+		{Shorthand: 'l', Name: "LISTEN ADDRESS", Data: c.listenAddressColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'p', Name: "PORTS", Data: c.portsColumnData},
+	}
+}
 
 func (c *cmdNetworkLoadBalancerList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -101,7 +108,7 @@ func (c *cmdNetworkLoadBalancerList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultNetworkLoadBalancerColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -146,7 +153,14 @@ func (c *cmdNetworkLoadBalancerList) run(cmd *cobra.Command, args []string) erro
 	clustered := resource.server.IsClustered()
 
 	// Parse column flags.
-	columns, err := c.parseColumns(clustered)
+	cols := c.columns()
+	if clustered {
+		cols = append(cols, cli.ShorthandColumn[api.NetworkLoadBalancer]{Shorthand: 'L', Name: "LOCATION", Data: c.locationColumnData})
+	} else if strings.ContainsAny(c.flagColumns, "L") {
+		return errors.New("Can't use column shorthand char 'L' (LOCATION) when not clustered")
+	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
 	if err != nil {
 		return err
 	}
@@ -156,28 +170,6 @@ func (c *cmdNetworkLoadBalancerList) run(cmd *cobra.Command, args []string) erro
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, loadBalancers)
-}
-
-func (c *cmdNetworkLoadBalancerList) parseColumns(clustered bool) ([]cli.TypedColumn[api.NetworkLoadBalancer], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.NetworkLoadBalancer]{
-		'l': {Name: "LISTEN ADDRESS", Data: c.listenAddressColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-		'p': {Name: "PORTS", Data: c.portsColumnData},
-	}
-
-	if clustered {
-		columnsShorthandMap['L'] = cli.TypedColumn[api.NetworkLoadBalancer]{Name: "LOCATION", Data: c.locationColumnData}
-	} else {
-		if c.flagColumns != defaultNetworkLoadBalancerColumns {
-			if strings.ContainsAny(c.flagColumns, "L") {
-				return nil, errors.New("Can't use column shorthand char 'L' (LOCATION) when not clustered")
-			}
-		}
-
-		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdNetworkLoadBalancerList) listenAddressColumnData(lb api.NetworkLoadBalancer) string {

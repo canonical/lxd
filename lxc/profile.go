@@ -22,11 +22,6 @@ import (
 	"github.com/canonical/lxd/shared/termios"
 )
 
-type profileColumn struct {
-	Name string
-	Data func(api.Profile) string
-}
-
 type cmdProfile struct {
 	global *cmdGlobal
 }
@@ -736,7 +731,7 @@ d - Description
 e - Project
 u - Used By`)
 
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultProfileColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
@@ -753,45 +748,12 @@ u - Used By`)
 	return cmd
 }
 
-const (
-	defaultProfileColumns            = "ndu"
-	defaultProfileColumnsAllProjects = "endu"
-)
-
-func (c *cmdProfileList) parseColumns() ([]profileColumn, error) {
-	columnsShorthandMap := map[rune]profileColumn{
-		'n': {"NAME", c.profileNameColumnData},
-		'e': {"PROJECT", c.projectNameColumnData},
-		'd': {"DESCRIPTION", c.descriptionColumnData},
-		'u': {"USED BY", c.usedByColumnData},
+func (c *cmdProfileList) columns() []cli.ShorthandColumn[api.Profile] {
+	return []cli.ShorthandColumn[api.Profile]{
+		{Shorthand: 'n', Name: "NAME", Data: c.profileNameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
 	}
-
-	// Add project column if --all-projects flag specified and no custom column was passed.
-	if c.flagAllProjects {
-		if c.flagColumns == defaultProfileColumns {
-			c.flagColumns = defaultProfileColumnsAllProjects
-		}
-	}
-
-	columnList := strings.Split(c.flagColumns, ",")
-	columns := []profileColumn{}
-
-	for _, columnEntry := range columnList {
-		if columnEntry == "" {
-			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in %q", c.flagColumns)
-		}
-
-		for _, columnRune := range columnEntry {
-			column, ok := columnsShorthandMap[columnRune]
-			if !ok {
-				return nil, fmt.Errorf("Unknown column shorthand char '%c' in %q", columnRune, columnEntry)
-			}
-
-			columns = append(columns, column)
-		}
-	}
-
-	return columns, nil
 }
 
 func (c *cmdProfileList) profileNameColumnData(profile api.Profile) string {
@@ -844,27 +806,25 @@ func (c *cmdProfileList) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	columns, err := c.parseColumns()
+	// Parse column flags.
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
+	if c.flagAllProjects {
+		projectCol := cli.ShorthandColumn[api.Profile]{Shorthand: 'e', Name: "PROJECT", Data: c.projectNameColumnData}
+		cols = append([]cli.ShorthandColumn[api.Profile]{projectCol}, cols...)
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = cli.DefaultColumnString(cols)
+		}
+	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
 	if err != nil {
 		return err
 	}
 
-	data := [][]string{}
-	for _, profile := range profiles {
-		line := []string{}
-		for _, column := range columns {
-			line = append(line, column.Data(profile))
-		}
-
-		data = append(data, line)
-	}
-
+	data := cli.ColumnData(columns, profiles)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{}
-	for _, column := range columns {
-		header = append(header, column.Name)
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, profiles)
 }

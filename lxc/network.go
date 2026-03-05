@@ -1002,8 +1002,19 @@ type cmdNetworkList struct {
 	flagAllProjects bool
 }
 
-const defaultNetworkColumns = "ntm46dus"
-const defaultNetworkColumnsAllProjects = "entm46dus"
+// columns returns the ordered column definitions for network list.
+func (c *cmdNetworkList) columns() []cli.ShorthandColumn[api.Network] {
+	return []cli.ShorthandColumn[api.Network]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 't', Name: "TYPE", Data: c.typeColumnData},
+		{Shorthand: 'm', Name: "MANAGED", Data: c.managedColumnData},
+		{Shorthand: '4', Name: "IPV4", Data: c.ipv4ColumnData},
+		{Shorthand: '6', Name: "IPV6", Data: c.ipv6ColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+		{Shorthand: 's', Name: "STATE", Data: c.stateColumnData},
+	}
+}
 
 func (c *cmdNetworkList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -1014,7 +1025,7 @@ func (c *cmdNetworkList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultNetworkColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display networks from all projects")
 
@@ -1075,7 +1086,17 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
+	if c.flagAllProjects {
+		projectCol := cli.ShorthandColumn[api.Network]{Shorthand: 'e', Name: "PROJECT", Data: c.projectColumnData}
+		cols = append([]cli.ShorthandColumn[api.Network]{projectCol}, cols...)
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = cli.DefaultColumnString(cols)
+		}
+	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
 	if err != nil {
 		return err
 	}
@@ -1094,26 +1115,6 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, networks)
-}
-
-func (c *cmdNetworkList) parseColumns() ([]cli.TypedColumn[api.Network], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.Network]{
-		'e': {Name: "PROJECT", Data: c.projectColumnData},
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		't': {Name: "TYPE", Data: c.typeColumnData},
-		'm': {Name: "MANAGED", Data: c.managedColumnData},
-		'4': {Name: "IPV4", Data: c.ipv4ColumnData},
-		'6': {Name: "IPV6", Data: c.ipv6ColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-		'u': {Name: "USED BY", Data: c.usedByColumnData},
-		's': {Name: "STATE", Data: c.stateColumnData},
-	}
-
-	if c.flagAllProjects && c.flagColumns == defaultNetworkColumns {
-		c.flagColumns = defaultNetworkColumnsAllProjects
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdNetworkList) projectColumnData(network api.Network) string {

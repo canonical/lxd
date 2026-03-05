@@ -639,7 +639,17 @@ type cmdStorageList struct {
 	flagColumns string
 }
 
-const defaultStoragePoolColumns = "nDsduS"
+// columns returns the ordered column definitions for storage pool list.
+func (c *cmdStorageList) columns() []cli.ShorthandColumn[api.StoragePool] {
+	return []cli.ShorthandColumn[api.StoragePool]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'D', Name: "DRIVER", Data: c.driverColumnData},
+		{Shorthand: 's', Name: "SOURCE", Data: c.sourceColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+		{Shorthand: 'S', Name: "STATE", Data: c.stateColumnData},
+	}
+}
 
 func (c *cmdStorageList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -648,7 +658,7 @@ func (c *cmdStorageList) command() *cobra.Command {
 	cmd.Short = "List available storage pools"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel(("Format (csv|json|table|yaml|compact)")))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultStoragePoolColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -692,7 +702,26 @@ func (c *cmdStorageList) run(cmd *cobra.Command, args []string) error {
 	clustered := resource.server.IsClustered()
 
 	// Parse column flags.
-	columns, err := c.parseColumns(clustered)
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
+	if clustered {
+		// Remove SOURCE column when clustered.
+		filteredCols := make([]cli.ShorthandColumn[api.StoragePool], 0, len(cols)-1)
+		for _, col := range cols {
+			if col.Shorthand != 's' {
+				filteredCols = append(filteredCols, col)
+			}
+		}
+
+		cols = filteredCols
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = cli.DefaultColumnString(cols)
+		} else if strings.ContainsAny(c.flagColumns, "s") {
+			return errors.New("Can't use column shorthand char 's' (SOURCE) when clustered")
+		}
+	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
 	if err != nil {
 		return err
 	}
@@ -702,30 +731,6 @@ func (c *cmdStorageList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, pools)
-}
-
-func (c *cmdStorageList) parseColumns(clustered bool) ([]cli.TypedColumn[api.StoragePool], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.StoragePool]{
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		'D': {Name: "DRIVER", Data: c.driverColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-		'u': {Name: "USED BY", Data: c.usedByColumnData},
-		'S': {Name: "STATE", Data: c.stateColumnData},
-	}
-
-	if !clustered {
-		columnsShorthandMap['s'] = cli.TypedColumn[api.StoragePool]{Name: "SOURCE", Data: c.sourceColumnData}
-	} else {
-		if c.flagColumns != defaultStoragePoolColumns {
-			if strings.ContainsAny(c.flagColumns, "s") {
-				return nil, errors.New("Can't use column shorthand char 's' (SOURCE) when clustered")
-			}
-		}
-
-		c.flagColumns = strings.ReplaceAll(c.flagColumns, "s", "")
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdStorageList) nameColumnData(pool api.StoragePool) string {

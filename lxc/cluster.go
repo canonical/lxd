@@ -121,7 +121,19 @@ type cmdClusterList struct {
 	flagColumns string
 }
 
-const defaultClusterColumns = "nurafdsm"
+// columns returns the ordered column definitions for cluster member list.
+func (c *cmdClusterList) columns() []cli.ShorthandColumn[api.ClusterMember] {
+	return []cli.ShorthandColumn[api.ClusterMember]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'u', Name: "URL", Data: c.urlColumnData},
+		{Shorthand: 'r', Name: "ROLES", Data: c.rolesColumnData},
+		{Shorthand: 'a', Name: "ARCHITECTURE", Data: c.architectureColumnData},
+		{Shorthand: 'f', Name: "FAILURE DOMAIN", Data: c.failureDomainColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 's', Name: "STATE", Data: c.stateColumnData},
+		{Shorthand: 'm', Name: "MESSAGE", Data: c.messageColumnData},
+	}
+}
 
 func (c *cmdClusterList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -130,7 +142,7 @@ func (c *cmdClusterList) command() *cobra.Command {
 	cmd.Short = "List all the cluster members"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultClusterColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -182,7 +194,7 @@ func (c *cmdClusterList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
 	if err != nil {
 		return err
 	}
@@ -193,21 +205,6 @@ func (c *cmdClusterList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, members)
-}
-
-func (c *cmdClusterList) parseColumns() ([]cli.TypedColumn[api.ClusterMember], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.ClusterMember]{
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		'u': {Name: "URL", Data: c.urlColumnData},
-		'r': {Name: "ROLES", Data: c.rolesColumnData},
-		'a': {Name: "ARCHITECTURE", Data: c.architectureColumnData},
-		'f': {Name: "FAILURE DOMAIN", Data: c.failureDomainColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-		's': {Name: "STATE", Data: c.stateColumnData},
-		'm': {Name: "MESSAGE", Data: c.messageColumnData},
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdClusterList) nameColumnData(member api.ClusterMember) string {
