@@ -137,7 +137,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		// If no major and minor are set, use those from the device on the host.
 		_, d.Major, d.Minor, err = unixDeviceAttributes(srcPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get device attributes for %q: %w", srcPath, err)
+			return nil, fmt.Errorf("Failed getting device attributes for %q: %w", srcPath, err)
 		}
 	} else if m["major"] == "" || m["minor"] == "" {
 		return nil, fmt.Errorf("Both major and minor must be supplied for device: %s", srcPath)
@@ -173,7 +173,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		if err != nil {
 			errno, isErrno := shared.GetErrno(err)
 			if !isErrno || errno != unix.ENOENT {
-				return nil, fmt.Errorf("Failed to retrieve mode of device %q: %w", srcPath, err)
+				return nil, fmt.Errorf("Failed retrieving mode of device %q: %w", srcPath, err)
 			}
 
 			d.Mode = os.FileMode(unixDefaultMode)
@@ -193,7 +193,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		if m["uid"] == "" {
 			_, uid, err := unixDeviceOwnership(srcPath)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to retrieve host UID of device %q: %w", srcPath, err)
+				return nil, fmt.Errorf("Failed retrieving host UID of device %q: %w", srcPath, err)
 			}
 
 			d.UID = int(uid)
@@ -202,7 +202,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		if m["gid"] == "" {
 			gid, _, err := unixDeviceOwnership(srcPath)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to retrieve host GID of device %q: %w", srcPath, err)
+				return nil, fmt.Errorf("Failed retrieving host GID of device %q: %w", srcPath, err)
 			}
 
 			d.GID = int(gid)
@@ -226,7 +226,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 	// Create the devices directory if missing.
 	err = os.Mkdir(devicesPath, 0711)
 	if err != nil && !errors.Is(err, os.ErrExist) {
-		return nil, fmt.Errorf("Failed to create devices path: %s", err)
+		return nil, fmt.Errorf("Failed creating devices path: %s", err)
 	}
 
 	destPath := unixDeviceDestPath(m)
@@ -237,31 +237,31 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 	// Create the new entry.
 	if !s.OS.RunningInUserNS {
 		if s.OS.Nodev {
-			return nil, errors.New("Can't create device as devices path is mounted nodev")
+			return nil, errors.New("Cannot create device as devices path is mounted nodev")
 		}
 
 		devNum := int(unix.Mkdev(d.Major, d.Minor))
 		err := unix.Mknod(devPath, uint32(d.Mode), devNum)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create device %q for %q: %w", devPath, srcPath, err)
+			return nil, fmt.Errorf("Failed creating device %q for %q: %w", devPath, srcPath, err)
 		}
 
 		err = os.Chown(devPath, d.UID, d.GID)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to chown device %q: %w", devPath, err)
+			return nil, fmt.Errorf("Failed chowning device %q: %w", devPath, err)
 		}
 
 		// Needed as mknod respects the umask.
 		err = os.Chmod(devPath, d.Mode)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to chmod device %q: %w", devPath, err)
+			return nil, fmt.Errorf("Failed chmoding device %q: %w", devPath, err)
 		}
 
 		if idmapSet != nil {
 			err := idmapSet.ShiftFile(devPath)
 			if err != nil {
 				// uidshift failing is weird, but not a big problem. Log and proceed.
-				logger.Debugf("Failed to uidshift device %q: %s\n", srcPath, err)
+				logger.Debugf("Failed uidshifting device %q: %s\n", srcPath, err)
 			}
 		}
 	} else {
@@ -484,7 +484,7 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 		absDevPath := filepath.Join(devicesPath, ourDev)
 		dType, dMajor, dMinor, err := unixDeviceAttributes(absDevPath)
 		if err != nil {
-			return fmt.Errorf("Failed to get UNIX device attributes for %q: %w", absDevPath, err)
+			return fmt.Errorf("Failed getting UNIX device attributes for %q: %w", absDevPath, err)
 		}
 
 		// Append a deny cgroup fule for this device.

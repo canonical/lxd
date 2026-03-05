@@ -19,7 +19,7 @@ func NewProcess(name string, args []string, stdoutPath string, stderrPath string
 	if stdoutPath != "" {
 		stdout, err = os.Create(stdoutPath)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to open stdout file %q: %w", stdoutPath, err)
+			return nil, fmt.Errorf("Cannot open stdout file %q: %w", stdoutPath, err)
 		}
 	}
 	if stderrPath == stdoutPath {
@@ -27,7 +27,7 @@ func NewProcess(name string, args []string, stdoutPath string, stderrPath string
 	} else if stderrPath != "" {
 		stderr, err = os.Create(stderrPath)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to open stderr file %q: %w", stderrPath, err)
+			return nil, fmt.Errorf("Cannot open stderr file %q: %w", stderrPath, err)
 		}
 	}
 
@@ -54,13 +54,13 @@ func NewProcessWithFds(name string, args []string, stdin io.ReadCloser, stdout i
 func ImportProcess(path string) (*Process, error) {
 	dat, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read PID file %q: %w", path, err)
+		return nil, fmt.Errorf("Cannot read PID file %q: %w", path, err)
 	}
 
 	proc := Process{}
 	err = yaml.Unmarshal(dat, &proc)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to parse YAML in PID file %q: %w", path, err)
+		return nil, fmt.Errorf("Cannot parse YAML in PID file %q: %w", path, err)
 	}
 
 	return &proc, nil

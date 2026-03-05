@@ -1812,7 +1812,7 @@ DROP VIEW projects_config_ref;
 DROP VIEW projects_used_by_ref;
 `)
 	if err != nil {
-		return fmt.Errorf("Failed to drop database views: %w", err)
+		return fmt.Errorf("Failed dropping database views: %w", err)
 	}
 
 	return nil
@@ -1966,7 +1966,7 @@ ALTER TABLE nodes
 RENAME COLUMN pending TO state;
 `)
 	if err != nil {
-		return fmt.Errorf(`Failed to rename column "pending" to "state" in table "nodes": %w`, err)
+		return fmt.Errorf(`Failed renaming column "pending" to "state" in table "nodes": %w`, err)
 	}
 
 	return nil
@@ -1997,7 +1997,7 @@ CREATE TABLE warnings (
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 `)
 	if err != nil {
-		return fmt.Errorf("Failed to create warnings table and warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code index: %w", err)
+		return fmt.Errorf("Failed creating warnings table and warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code index: %w", err)
 	}
 
 	return err
@@ -2073,7 +2073,7 @@ CREATE VIEW projects_used_by_ref (name,
     FROM networks_acls JOIN projects ON project_id=projects.id;
 `)
 	if err != nil {
-		return fmt.Errorf("Failed to update projects_used_by_ref: %w", err)
+		return fmt.Errorf("Failed updating projects_used_by_ref: %w", err)
 	}
 
 	return nil
@@ -2192,7 +2192,7 @@ CREATE VIEW projects_used_by_ref (name,
     FROM networks_acls JOIN projects ON project_id=projects.id;
 `)
 	if err != nil {
-		return fmt.Errorf("Failed to add networks_acls and networks_acls_config tables, and update projects_used_by_ref view: %w", err)
+		return fmt.Errorf("Failed adding networks_acls and networks_acls_config tables, and update projects_used_by_ref view: %w", err)
 	}
 
 	return nil
@@ -2480,7 +2480,7 @@ ORDER BY storage_volumes.name
 	count, err := query.Count(ctx, tx, "storage_volumes JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id",
 		`storage_pools.driver IN ("ceph", "cephfs")`)
 	if err != nil {
-		return fmt.Errorf("Failed to get storage volumes count: %w", err)
+		return fmt.Errorf("Failed getting storage volumes count: %w", err)
 	}
 
 	type volume struct {
@@ -2507,7 +2507,7 @@ ORDER BY storage_volumes.name
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch storage volumes with remote storage: %w", err)
+		return fmt.Errorf("Failed fetching storage volumes with remote storage: %w", err)
 	}
 
 	// Remove multiple entries of the same volume when using remote storage
@@ -2515,7 +2515,7 @@ ORDER BY storage_volumes.name
 		if volumes[i-1].Name == volumes[i].Name {
 			_, err = tx.Exec(`DELETE FROM storage_volumes WHERE id=?`, volumes[i-1].ID)
 			if err != nil {
-				return fmt.Errorf("Failed to delete row from storage_volumes: %w", err)
+				return fmt.Errorf("Failed deleting row from storage_volumes: %w", err)
 			}
 		}
 	}
@@ -2545,7 +2545,7 @@ CREATE TABLE storage_volumes_new (
 	// Copy rows from storage_volumes to storage_volumes_new
 	count, err = query.Count(ctx, tx, "storage_volumes", "")
 	if err != nil {
-		return fmt.Errorf("Failed to get storage_volumes count: %w", err)
+		return fmt.Errorf("Failed getting storage_volumes count: %w", err)
 	}
 
 	storageVolumes := make([]volume, 0, count)
@@ -2566,7 +2566,7 @@ FROM storage_volumes`
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch storage volumes: %w", err)
+		return fmt.Errorf("Failed fetching storage volumes: %w", err)
 	}
 
 	for _, storageVolume := range storageVolumes {
@@ -2583,7 +2583,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 	// Store rows of storage_volumes_config as we need to re-add them at the end.
 	count, err = query.Count(ctx, tx, "storage_volumes_config", "")
 	if err != nil {
-		return fmt.Errorf("Failed to get storage_volumes_config count: %w", err)
+		return fmt.Errorf("Failed getting storage_volumes_config count: %w", err)
 	}
 
 	type volumeConfig struct {
@@ -2607,13 +2607,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch storage volume configs: %w", err)
+		return fmt.Errorf("Failed fetching storage volume configs: %w", err)
 	}
 
 	// Store rows of storage_volumes_snapshots as we need to re-add them at the end.
 	count, err = query.Count(ctx, tx, "storage_volumes_snapshots", "")
 	if err != nil {
-		return fmt.Errorf("Failed to get storage_volumes_snapshots count: %w", err)
+		return fmt.Errorf("Failed getting storage_volumes_snapshots count: %w", err)
 	}
 
 	type volumeSnapshot struct {
@@ -2638,13 +2638,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch storage volume snapshots: %w", err)
+		return fmt.Errorf("Failed fetching storage volume snapshots: %w", err)
 	}
 
 	// Store rows of storage_volumes_snapshots_config as we need to re-add them at the end.
 	count, err = query.Count(ctx, tx, "storage_volumes_snapshots_config", "")
 	if err != nil {
-		return fmt.Errorf("Failed to get storage_volumes_snapshots_config count: %w", err)
+		return fmt.Errorf("Failed getting storage_volumes_snapshots_config count: %w", err)
 	}
 
 	type volumeSnapshotConfig struct {
@@ -2669,7 +2669,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch storage volume snapshot configs: %w", err)
+		return fmt.Errorf("Failed fetching storage volume snapshot configs: %w", err)
 	}
 
 	_, err = tx.Exec(`
@@ -2730,7 +2730,7 @@ CREATE TRIGGER storage_volumes_check_id
 
 	count, err = query.Count(ctx, tx, "storage_volumes_all", "")
 	if err != nil {
-		return fmt.Errorf("Failed to get storage_volumes count: %w", err)
+		return fmt.Errorf("Failed getting storage_volumes count: %w", err)
 	}
 
 	if count > 0 {
@@ -2806,7 +2806,7 @@ ALTER TABLE networks_nodes_new RENAME TO networks_nodes;
 ALTER TABLE networks_config_new RENAME TO networks_config;
 	`)
 	if err != nil {
-		return fmt.Errorf("Failed to add project_id column to networks table: %w", err)
+		return fmt.Errorf("Failed adding project_id column to networks table: %w", err)
 	}
 
 	return nil
@@ -2816,7 +2816,7 @@ ALTER TABLE networks_config_new RENAME TO networks_config;
 func updateFromV32(_ context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE networks ADD COLUMN type INTEGER NOT NULL DEFAULT 0;")
 	if err != nil {
-		return fmt.Errorf("Failed to add type column to networks table: %w", err)
+		return fmt.Errorf("Failed adding type column to networks table: %w", err)
 	}
 
 	return nil
@@ -2883,7 +2883,7 @@ CREATE VIEW storage_volumes_all (
 `
 	_, err := tx.Exec(stmts)
 	if err != nil {
-		return fmt.Errorf("Failed to add storage volume content type: %w", err)
+		return fmt.Errorf("Failed adding storage volume content type: %w", err)
 	}
 
 	return nil
@@ -2951,7 +2951,7 @@ func updateFromV25(ctx context.Context, tx *sql.Tx) error {
 	// Get the total number of snapshot rows in the storage_volumes table.
 	count, err := query.Count(ctx, tx, "storage_volumes", "snapshot=1")
 	if err != nil {
-		return fmt.Errorf("Failed to volume snapshot count: %w", err)
+		return fmt.Errorf("Failed getting volume snapshot count: %w", err)
 	}
 
 	type snapshot struct {
@@ -2985,7 +2985,7 @@ SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), proj
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch instances: %w", err)
+		return fmt.Errorf("Failed fetching instances: %w", err)
 	}
 
 	for i, snapshot := range snapshots {
@@ -2993,7 +2993,7 @@ SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), proj
 			"storage_volumes_config", "storage_volume_id=?",
 			snapshot.ID)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch volume snapshot config: %w", err)
+			return fmt.Errorf("Failed fetching volume snapshot config: %w", err)
 		}
 
 		snapshots[i].Config = config
@@ -3088,7 +3088,7 @@ CREATE VIEW storage_volumes_all (
 `
 	_, err = tx.Exec(stmts)
 	if err != nil {
-		return fmt.Errorf("Failed to create storage snapshots tables: %w", err)
+		return fmt.Errorf("Failed creating storage snapshots tables: %w", err)
 	}
 
 	// Migrate snapshots to the new tables.
@@ -3137,14 +3137,14 @@ func updateFromV24(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing Ceph pools.
 	poolIDs, err := query.SelectIntegers(ctx, tx, `SELECT id FROM storage_pools WHERE driver='ceph'`)
 	if err != nil {
-		return fmt.Errorf("Failed to get IDs of current ceph pools: %w", err)
+		return fmt.Errorf("Failed getting IDs of current ceph pools: %w", err)
 	}
 
 	for _, poolID := range poolIDs {
 		// Fetch the config for this Ceph pool.
 		config, err := query.SelectConfig(ctx, tx, "storage_pools_config", "storage_pool_id=?", poolID)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch of ceph pool config: %w", err)
+			return fmt.Errorf("Failed fetching of ceph pool config: %w", err)
 		}
 
 		// Check if already set.
@@ -3156,7 +3156,7 @@ func updateFromV24(ctx context.Context, tx *sql.Tx) error {
 		// Add ceph.user.name config entry.
 		_, err = tx.Exec("INSERT INTO storage_pools_config (storage_pool_id, key, value) VALUES (?, 'ceph.user.name', 'admin')", poolID)
 		if err != nil {
-			return fmt.Errorf("Failed to create ceph.user.name config: %w", err)
+			return fmt.Errorf("Failed creating ceph.user.name config: %w", err)
 		}
 	}
 
@@ -3168,13 +3168,13 @@ func updateFromV23(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(ctx, tx, "SELECT id FROM nodes")
 	if err != nil {
-		return fmt.Errorf("Failed to get IDs of current nodes: %w", err)
+		return fmt.Errorf("Failed getting IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing lvm pools.
 	poolIDs, err := query.SelectIntegers(ctx, tx, `SELECT id FROM storage_pools WHERE driver='lvm'`)
 	if err != nil {
-		return fmt.Errorf("Failed to get IDs of current lvm pools: %w", err)
+		return fmt.Errorf("Failed getting IDs of current lvm pools: %w", err)
 	}
 
 	for _, poolID := range poolIDs {
@@ -3182,7 +3182,7 @@ func updateFromV23(ctx context.Context, tx *sql.Tx) error {
 			// Fetch the config for this lvm pool.
 			config, err := query.SelectConfig(ctx, tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, nodeID)
 			if err != nil {
-				return fmt.Errorf("Failed to fetch of lvm pool config: %w", err)
+				return fmt.Errorf("Failed fetching of lvm pool config: %w", err)
 			}
 
 			// Check if already set.
@@ -3197,7 +3197,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 SELECT ?, ?, 'lvm.vg_name', name FROM storage_pools WHERE id=?
 `, poolID, nodeID, poolID)
 			if err != nil {
-				return fmt.Errorf("Failed to create lvm.vg_name node config: %w", err)
+				return fmt.Errorf("Failed creating lvm.vg_name node config: %w", err)
 			}
 		}
 	}
@@ -3210,13 +3210,13 @@ func updateFromV22(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(ctx, tx, "SELECT id FROM nodes")
 	if err != nil {
-		return fmt.Errorf("Failed to get IDs of current nodes: %w", err)
+		return fmt.Errorf("Failed getting IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing zfs pools.
 	poolIDs, err := query.SelectIntegers(ctx, tx, `SELECT id FROM storage_pools WHERE driver='zfs'`)
 	if err != nil {
-		return fmt.Errorf("Failed to get IDs of current zfs pools: %w", err)
+		return fmt.Errorf("Failed getting IDs of current zfs pools: %w", err)
 	}
 
 	for _, poolID := range poolIDs {
@@ -3224,7 +3224,7 @@ func updateFromV22(ctx context.Context, tx *sql.Tx) error {
 			// Fetch the config for this zfs pool.
 			config, err := query.SelectConfig(ctx, tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, nodeID)
 			if err != nil {
-				return fmt.Errorf("Failed to fetch of zfs pool config: %w", err)
+				return fmt.Errorf("Failed fetching of zfs pool config: %w", err)
 			}
 
 			// Check if already set.
@@ -3239,7 +3239,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 SELECT ?, ?, 'zfs.pool_name', name FROM storage_pools WHERE id=?
 `, poolID, nodeID, poolID)
 			if err != nil {
-				return fmt.Errorf("Failed to create zfs.pool_name node config: %w", err)
+				return fmt.Errorf("Failed creating zfs.pool_name node config: %w", err)
 			}
 		}
 	}
@@ -3469,13 +3469,13 @@ CREATE VIEW instances_snapshots_devices_ref (
 `
 	_, err := tx.Exec(stmts)
 	if err != nil {
-		return fmt.Errorf("Failed to create snapshots tables: %w", err)
+		return fmt.Errorf("Failed creating snapshots tables: %w", err)
 	}
 
 	// Get the total number of rows in the instances table.
 	count, err := query.Count(ctx, tx, "instances", "")
 	if err != nil {
-		return fmt.Errorf("Failed to count rows in instances table: %w", err)
+		return fmt.Errorf("Failed counting rows in instances table: %w", err)
 	}
 
 	// Fetch all rows in the instances table.
@@ -3503,7 +3503,7 @@ CREATE VIEW instances_snapshots_devices_ref (
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch instances: %w", err)
+		return fmt.Errorf("Failed fetching instances: %w", err)
 	}
 
 	// Create an index mapping instance names to their IDs.
@@ -3524,7 +3524,7 @@ CREATE VIEW instances_snapshots_devices_ref (
 		"instances_config JOIN instances ON instances_config.instance_id = instances.id",
 		"instances.type = 1")
 	if err != nil {
-		return fmt.Errorf("Failed to count rows in instances_config table: %w", err)
+		return fmt.Errorf("Failed counting rows in instances_config table: %w", err)
 	}
 
 	type instanceConfig struct {
@@ -3553,7 +3553,7 @@ SELECT instances_config.id, instance_id, key, value
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch snapshots config: %w", err)
+		return fmt.Errorf("Failed fetching snapshots config: %w", err)
 	}
 
 	configBySnapshotID := make(map[int]map[string]string)
@@ -3575,7 +3575,7 @@ SELECT instances_config.id, instance_id, key, value
 		"instances_devices JOIN instances ON instances_devices.instance_id = instances.id",
 		"instances.type = 1")
 	if err != nil {
-		return fmt.Errorf("Failed to count rows in instances_devices table: %w", err)
+		return fmt.Errorf("Failed counting rows in instances_devices table: %w", err)
 	}
 
 	type device struct {
@@ -3604,7 +3604,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch snapshots devices: %w", err)
+		return fmt.Errorf("Failed fetching snapshots devices: %w", err)
 	}
 
 	devicesBySnapshotID := make(map[int]map[string]struct {
@@ -3623,7 +3623,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 		// Fetch the config for this device.
 		config, err := query.SelectConfig(ctx, tx, "instances_devices_config", "instance_device_id = ?", device.ID)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch snapshots devices config: %w", err)
+			return fmt.Errorf("Failed fetching snapshots devices config: %w", err)
 		}
 
 		d[device.Name] = struct {
@@ -3752,7 +3752,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 
 		deleted, err := query.DeleteObject(tx, "instances", int64(instance.ID))
 		if err != nil {
-			return fmt.Errorf("Failed to delete snapshot %s: %w", instance.Name, err)
+			return fmt.Errorf("Failed deleting snapshot %s: %w", instance.Name, err)
 		}
 
 		if !deleted {
@@ -3763,7 +3763,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 	// Make sure that no snapshot is left in the instances table.
 	count, err = query.Count(ctx, tx, "instances", "type = 1")
 	if err != nil {
-		return fmt.Errorf("Failed to count leftover snapshot rows: %w", err)
+		return fmt.Errorf("Failed counting leftover snapshot rows: %w", err)
 	}
 
 	if count != 0 {
@@ -3931,7 +3931,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 	// check that we don't accidentally delete or add anything.
 	counts1, err := query.CountAll(ctx, tx)
 	if err != nil {
-		return fmt.Errorf("Failed to count rows in current tables: %w", err)
+		return fmt.Errorf("Failed counting rows in current tables: %w", err)
 	}
 
 	// Temporarily increase the cache size and disable page spilling, to
@@ -4265,7 +4265,7 @@ CREATE INDEX profiles_project_id_idx ON profiles (project_id);
 `
 	_, err = tx.ExecContext(ctx, stmts)
 	if err != nil {
-		return fmt.Errorf("Failed to add project_id column: %w", err)
+		return fmt.Errorf("Failed adding project_id column: %w", err)
 	}
 
 	// Create a view to easily query all resources using a certain project
@@ -4280,7 +4280,7 @@ CREATE VIEW projects_used_by_ref (name, value) AS
 `
 	_, err = tx.Exec(stmt)
 	if err != nil {
-		return fmt.Errorf("Failed to create projects_used_by_ref view: %w", err)
+		return fmt.Errorf("Failed creating projects_used_by_ref view: %w", err)
 	}
 
 	// Create a view to easily query all profiles used by a certain container
@@ -4296,7 +4296,7 @@ CREATE VIEW containers_profiles_ref (project, node, name, value) AS
 `
 	_, err = tx.Exec(stmt)
 	if err != nil {
-		return fmt.Errorf("Failed to containers_profiles_ref view: %w", err)
+		return fmt.Errorf("Failed creating containers_profiles_ref view: %w", err)
 	}
 
 	// Create a view to easily query the config of a certain container.
@@ -4310,7 +4310,7 @@ CREATE VIEW containers_config_ref (project, node, name, key, value) AS
 `
 	_, err = tx.Exec(stmt)
 	if err != nil {
-		return fmt.Errorf("Failed to containers_config_ref view: %w", err)
+		return fmt.Errorf("Failed creating containers_config_ref view: %w", err)
 	}
 
 	// Create a view to easily query the devices of a certain container.
@@ -4327,7 +4327,7 @@ CREATE VIEW containers_devices_ref (project, node, name, device, type, key, valu
 `
 	_, err = tx.Exec(stmt)
 	if err != nil {
-		return fmt.Errorf("Failed to containers_devices_ref view: %w", err)
+		return fmt.Errorf("Failed creating containers_devices_ref view: %w", err)
 	}
 
 	// Create a view to easily query the config of a certain profile.
@@ -4340,7 +4340,7 @@ CREATE VIEW profiles_config_ref (project, name, key, value) AS
 `
 	_, err = tx.Exec(stmt)
 	if err != nil {
-		return fmt.Errorf("Failed to profiles_config_ref view: %w", err)
+		return fmt.Errorf("Failed creating profiles_config_ref view: %w", err)
 	}
 
 	// Create a view to easily query the devices of a certain profile.
@@ -4356,7 +4356,7 @@ CREATE VIEW profiles_devices_ref (project, name, device, type, key, value) AS
 `
 	_, err = tx.Exec(stmt)
 	if err != nil {
-		return fmt.Errorf("Failed to profiles_devices_ref view: %w", err)
+		return fmt.Errorf("Failed creating profiles_devices_ref view: %w", err)
 	}
 
 	// Create a view to easily query all resources using a certain profile
@@ -4372,14 +4372,14 @@ CREATE VIEW profiles_used_by_ref (project, name, value) AS
 `
 	_, err = tx.Exec(stmt)
 	if err != nil {
-		return fmt.Errorf("Failed to create profiles_used_by_ref view: %w", err)
+		return fmt.Errorf("Failed creating profiles_used_by_ref view: %w", err)
 	}
 
 	// Check that the count of all rows in the database is unchanged
 	// (i.e. we didn't accidentally delete or add anything).
 	counts2, err := query.CountAll(ctx, tx)
 	if err != nil {
-		return fmt.Errorf("Failed to count rows in updated tables: %w", err)
+		return fmt.Errorf("Failed counting rows in updated tables: %w", err)
 	}
 
 	delete(counts2, "projects")
@@ -4460,20 +4460,20 @@ func updateFromV6(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(ctx, tx, "SELECT id FROM nodes")
 	if err != nil {
-		return fmt.Errorf("failed to get IDs of current nodes: %w", err)
+		return fmt.Errorf("failed getting IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing zfs pools.
 	poolIDs, err := query.SelectIntegers(ctx, tx, `SELECT id FROM storage_pools WHERE driver='zfs'`)
 	if err != nil {
-		return fmt.Errorf("failed to get IDs of current zfs pools: %w", err)
+		return fmt.Errorf("failed getting IDs of current zfs pools: %w", err)
 	}
 
 	for _, poolID := range poolIDs {
 		// Fetch the config for this zfs pool and check if it has the zfs.pool_name key
 		config, err := query.SelectConfig(ctx, tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
 		if err != nil {
-			return fmt.Errorf("failed to fetch of zfs pool config: %w", err)
+			return fmt.Errorf("failed fetching of zfs pool config: %w", err)
 		}
 
 		poolName, ok := config["zfs.pool_name"]
@@ -4486,7 +4486,7 @@ func updateFromV6(ctx context.Context, tx *sql.Tx) error {
 DELETE FROM storage_pools_config WHERE key='zfs.pool_name' AND storage_pool_id=? AND node_id IS NULL
 `, poolID)
 		if err != nil {
-			return fmt.Errorf("failed to delete zfs.pool_name config: %w", err)
+			return fmt.Errorf("failed deleting zfs.pool_name config: %w", err)
 		}
 
 		// Add zfs.pool_name config entry for each node
@@ -4496,7 +4496,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
   VALUES(?, ?, 'zfs.pool_name', ?)
 `, poolID, nodeID, poolName)
 			if err != nil {
-				return fmt.Errorf("failed to create zfs.pool_name node config: %w", err)
+				return fmt.Errorf("failed creating zfs.pool_name node config: %w", err)
 			}
 		}
 	}
@@ -4510,7 +4510,7 @@ func updateFromV5(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(ctx, tx, "SELECT id FROM nodes")
 	if err != nil {
-		return fmt.Errorf("failed to get IDs of current nodes: %w", err)
+		return fmt.Errorf("failed getting IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing ceph volumes.
@@ -4520,7 +4520,7 @@ SELECT storage_volumes.id FROM storage_volumes
     WHERE storage_pools.driver='ceph'
 `)
 	if err != nil {
-		return fmt.Errorf("failed to get IDs of current ceph volumes: %w", err)
+		return fmt.Errorf("failed getting IDs of current ceph volumes: %w", err)
 	}
 
 	// Fetch all existing ceph volumes.
@@ -4559,7 +4559,7 @@ FROM storage_volumes
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to fetch current volumes: %w", err)
+		return fmt.Errorf("failed fetching current volumes: %w", err)
 	}
 
 	// Duplicate each volume row across all nodes, and keep track of the
@@ -4583,7 +4583,7 @@ FROM storage_volumes
 
 			id, err := query.UpsertObject(tx, "storage_volumes", columns, values)
 			if err != nil {
-				return fmt.Errorf("failed to insert new volume: %w", err)
+				return fmt.Errorf("failed inserting new volume: %w", err)
 			}
 
 			_, ok := created[volume.ID]
@@ -4599,7 +4599,7 @@ FROM storage_volumes
 	for id, newIDs := range created {
 		config, err := query.SelectConfig(ctx, tx, "storage_volumes_config", "storage_volume_id=?", id)
 		if err != nil {
-			return fmt.Errorf("failed to fetch volume config: %w", err)
+			return fmt.Errorf("failed fetching volume config: %w", err)
 		}
 
 		for _, newID := range newIDs {
@@ -4608,7 +4608,7 @@ FROM storage_volumes
 INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?)
 `, newID, key, value)
 				if err != nil {
-					return fmt.Errorf("failed to insert new volume config: %w", err)
+					return fmt.Errorf("failed inserting new volume config: %w", err)
 				}
 			}
 		}

@@ -1049,12 +1049,12 @@ retry:
 		}
 
 		logger.Debugf("Disconnected from seccomp socket after failed write for process %v: %s", siov.ucred.Pid, err)
-		return fmt.Errorf("Failed to send response to seccomp client %v", siov.ucred.Pid)
+		return fmt.Errorf("Failed sending response to seccomp client %v", siov.ucred.Pid)
 	}
 
 	if uint64(bytes) != uint64(C.SECCOMP_MSG_SIZE_MIN) {
 		logger.Debugf("Disconnected from seccomp socket after short write: pid=%v", siov.ucred.Pid)
-		return fmt.Errorf("Failed to send full response to seccomp client %v", siov.ucred.Pid)
+		return fmt.Errorf("Failed sending full response to seccomp client %v", siov.ucred.Pid)
 	}
 
 	logger.Debugf("Send seccomp notification for id(%d)", siov.resp.id)
@@ -1065,7 +1065,7 @@ retry:
 func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state *state.State) (Instance, error)) (*Server, error) {
 	ret := C.seccomp_notify_get_sizes(&C.expected_sizes)
 	if ret < 0 {
-		return nil, errors.New("Failed to query kernel for seccomp notifier sizes")
+		return nil, errors.New("Failed querying kernel for seccomp notifier sizes")
 	}
 
 	// Cleanup existing sockets
@@ -1103,7 +1103,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 			go func() {
 				ucred, err := ucred.GetCred(c.(*net.UnixConn))
 				if err != nil {
-					logger.Errorf("Unable to get ucred from seccomp socket client: %v", err)
+					logger.Errorf("Cannot get ucred from seccomp socket client: %v", err)
 					return
 				}
 
@@ -1111,7 +1111,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 
 				unixFile, err := c.(*net.UnixConn).File()
 				if err != nil {
-					logger.Debug("Failed to turn unix socket client into file")
+					logger.Debug("Failed turning unix socket client into file")
 					return
 				}
 
@@ -1251,12 +1251,12 @@ func isCapableInCtInitUserns(siov *Iovec, capability C.int) (bool, error) {
 
 	ctInitUserNS, err := os.Readlink("/proc/" + strconv.Itoa(containerInitPID) + "/ns/user")
 	if err != nil {
-		return false, fmt.Errorf("Can't get userns for container's init process: %w", err)
+		return false, fmt.Errorf("Cannot get userns for container's init process: %w", err)
 	}
 
 	reqUserNS, err := os.Readlink("/proc/" + strconv.Itoa(targetPID) + "/ns/user")
 	if err != nil {
-		return false, fmt.Errorf("Can't get userns for requestor process: %w", err)
+		return false, fmt.Errorf("Cannot get userns for requestor process: %w", err)
 	}
 
 	// Ensure that requestor process is in the initial container's userns
@@ -1410,7 +1410,7 @@ func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 	cPathBuf := [unix.PathMax]C.char{}
 	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&cPathBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[0]))
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("Failed to read memory for mknod syscall: %s", err)
+		ctx["err"] = fmt.Sprintf("Failed reading memory for mknod syscall: %s", err)
 		if s.s.OS.SeccompListenerContinue {
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1491,7 +1491,7 @@ func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 	cPathBuf := [unix.PathMax]C.char{}
 	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&cPathBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[1]))
 	if err != nil {
-		ctx["err"] = "Failed to read memory for mknodat syscall: %s"
+		ctx["err"] = "Failed reading memory for mknodat syscall: %s"
 		if s.s.OS.SeccompListenerContinue {
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1580,7 +1580,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	cBuf := [unix.PathMax]C.char{}
 	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&cBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[0]))
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("Failed to read memory for setxattr syscall: %s", err)
+		ctx["err"] = fmt.Sprintf("Failed reading memory for setxattr syscall: %s", err)
 		if s.s.OS.SeccompListenerContinue {
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1595,7 +1595,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	// const char *name
 	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&cBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[1]))
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("Failed to read memory for setxattr syscall: %s", err)
+		ctx["err"] = fmt.Sprintf("Failed reading memory for setxattr syscall: %s", err)
 		if s.s.OS.SeccompListenerContinue {
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1616,7 +1616,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	buf := make([]byte, args.size)
 	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&buf[0]), C.size_t(args.size), C.off_t(siov.req.data.args[2]))
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("Failed to read memory for setxattr syscall: %s", err)
+		ctx["err"] = fmt.Sprintf("Failed reading memory for setxattr syscall: %s", err)
 		if s.s.OS.SeccompListenerContinue {
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1921,7 +1921,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 	// Get instance memory usage.
 	memoryUsage, err := cg.GetMemoryUsage()
 	if err != nil {
-		l.Warn("Failed to get memory usage", logger.Ctx{"err": err})
+		l.Warn("Failed getting memory usage", logger.Ctx{"err": err})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 
 		return 0
@@ -2002,7 +2002,7 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 	cBuf := [4096]C.char{}
 	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&cBuf[0]), C.size_t(4096), C.off_t(siov.req.data.args[1]))
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("Failed to read memory for finit_module syscall: %s", err)
+		ctx["err"] = fmt.Sprintf("Failed reading memory for finit_module syscall: %s", err)
 		if s.s.OS.SeccompListenerContinue {
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -2064,13 +2064,13 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 
 	moduleFileFD, err := unix.Openat(siov.procFd, fmt.Sprintf("fd/%d", fd), unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("Can't open module file (unix.Openat): %v", err)
+		ctx["err"] = fmt.Sprintf("Cannot open module file (unix.Openat): %v", err)
 		return int(-C.EPERM)
 	}
 
 	moduleFile := os.NewFile(uintptr(moduleFileFD), "/proc/<pid>/fd/<fd>")
 	if moduleFile == nil {
-		ctx["err"] = fmt.Sprintf("Can't open module file (os.NewFile): %v", err)
+		ctx["err"] = fmt.Sprintf("Cannot open module file (os.NewFile): %v", err)
 		return int(-C.EPERM)
 	}
 
@@ -2102,7 +2102,7 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 
 	err = p.StartWithFiles(timeoutCtx, []*os.File{moduleFile})
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("Can't open module file: %v", err)
+		ctx["err"] = fmt.Sprintf("Cannot open module file: %v", err)
 		return int(-C.EPERM)
 	}
 
@@ -2140,7 +2140,7 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 
 	err = util.LoadModule(moduleName)
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("Failed to load module %q: %v", moduleName, err)
+		ctx["err"] = fmt.Sprintf("Failed loading module %q: %v", moduleName, err)
 		return int(-C.EPERM)
 	}
 
@@ -2324,7 +2324,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	if siov.req.data.args[0] != 0 {
 		_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&mntSource[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[0]))
 		if err != nil {
-			ctx["err"] = fmt.Sprintf("Failed to read source path for of mount syscall: %s", err)
+			ctx["err"] = fmt.Sprintf("Failed reading source path for of mount syscall: %s", err)
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 			return 0
@@ -2337,7 +2337,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	if siov.req.data.args[1] != 0 {
 		_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&mntTarget[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[1]))
 		if err != nil {
-			ctx["err"] = fmt.Sprintf("Failed to read target path for of mount syscall: %s", err)
+			ctx["err"] = fmt.Sprintf("Failed reading target path for of mount syscall: %s", err)
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 			return 0
@@ -2350,7 +2350,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	if siov.req.data.args[1] != 0 {
 		_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&mntFs[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[2]))
 		if err != nil {
-			ctx["err"] = fmt.Sprintf("Failed to read fstype for of mount syscall: %s", err)
+			ctx["err"] = fmt.Sprintf("Failed reading fstype for of mount syscall: %s", err)
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 			return 0
@@ -2374,7 +2374,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	if siov.req.data.args[4] != 0 {
 		_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&mntData[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[4]))
 		if err != nil {
-			ctx["err"] = fmt.Sprintf("Failed to read mount data for of mount syscall: %s", err)
+			ctx["err"] = fmt.Sprintf("Failed reading mount data for of mount syscall: %s", err)
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 			return 0
@@ -2385,7 +2385,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 
 	err := linux.PidfdSendSignal(int(pidFd.Fd()), 0, 0)
 	if err != nil {
-		ctx["err"] = fmt.Sprintf("Failed to send signal to target process for of mount syscall: %s", err)
+		ctx["err"] = fmt.Sprintf("Failed sending signal to target process for of mount syscall: %s", err)
 		ctx["syscall_continue"] = "true"
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 		return 0
@@ -2555,7 +2555,7 @@ func (s *Server) HandleBpfSyscall(c Instance, siov *Iovec) int {
 	ctx["bpf_attach_type"] = strconv.FormatInt(int64(bpfAttachType), 10)
 	if ret < 0 {
 		ctx["syscall_continue"] = "true"
-		ctx["syscall_handler_error"] = fmt.Sprintf("%s - Failed to handle bpf syscall", unix.Errno(-ret))
+		ctx["syscall_handler_error"] = fmt.Sprintf("%s - Failed handling bpf syscall", unix.Errno(-ret))
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 		return 0
 	}
@@ -2600,7 +2600,7 @@ func (s *Server) HandleValid(fd int, siov *Iovec, findPID func(pid int32, state 
 			_ = siov.SendSeccompIovec(fd, int(-C.EPERM), 0)
 		}
 
-		logger.Errorf("Failed to find container for monitor %d", siov.msg.monitor_pid)
+		logger.Errorf("Failed finding container for monitor %d", siov.msg.monitor_pid)
 		return err
 	}
 
@@ -2627,7 +2627,7 @@ func lxcSupportSeccompNotifyContinue(state *state.State) error {
 	}
 
 	if !state.OS.SeccompListenerContinue {
-		return errors.New("Seccomp notify doesn't support continuing syscalls")
+		return errors.New("Seccomp notify does not support continuing syscalls")
 	}
 
 	return nil
@@ -2640,11 +2640,11 @@ func lxcSupportSeccompNotifyAddfd(state *state.State) error {
 	}
 
 	if !state.OS.SeccompListenerContinue {
-		return errors.New("Seccomp notify doesn't support continuing syscalls")
+		return errors.New("Seccomp notify does not support continuing syscalls")
 	}
 
 	if !state.OS.SeccompListenerAddfd {
-		return errors.New("Seccomp notify doesn't support adding file descriptors")
+		return errors.New("Seccomp notify does not support adding file descriptors")
 	}
 
 	return nil
@@ -2662,7 +2662,7 @@ func lxcSupportSeccompNotify(state *state.State) error {
 
 	err = c.SetConfigItem("lxc.seccomp.notify.proxy", "unix:"+shared.VarPath("seccomp.socket"))
 	if err != nil {
-		return fmt.Errorf("LXC doesn't support notify proxy: %w", err)
+		return fmt.Errorf("LXC does not support notify proxy: %w", err)
 	}
 
 	_ = c.Release()

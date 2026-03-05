@@ -241,7 +241,7 @@ func (e *Endpoints) up(config *Config) error {
 				// In case of clustering we fail if we can't bind the network address.
 				if networkAddressErr != nil {
 					if attempts == 0 {
-						logger.Infof("Unable to bind https address %q, re-trying for a minute", config.NetworkAddress)
+						logger.Infof("Cannot bind https address %q, re-trying for a minute", config.NetworkAddress)
 					}
 
 					attempts++
@@ -262,7 +262,7 @@ func (e *Endpoints) up(config *Config) error {
 				time.Sleep(30 * time.Second)
 				err := e.NetworkUpdateAddress(config.NetworkAddress)
 				if err != nil {
-					logger.Error("Still unable to listen on https socket", logger.Ctx{"err": err})
+					logger.Error("Still cannot listen on https socket", logger.Ctx{"err": err})
 				}
 			}()
 		}
@@ -279,7 +279,7 @@ func (e *Endpoints) up(config *Config) error {
 		e.listeners[cluster], err = networkCreateListener(config.ClusterAddress, e.cert)
 		if err != nil {
 			if attempts == 0 {
-				logger.Infof("Unable to bind cluster address %q, re-trying for a minute", config.ClusterAddress)
+				logger.Infof("Cannot bind cluster address %q, re-trying for a minute", config.ClusterAddress)
 			}
 
 			attempts++

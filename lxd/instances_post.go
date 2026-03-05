@@ -238,7 +238,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 	requestor, err := request.GetRequestor(r.Context())
 	if err == nil {
 		if requestor.CallerProtocol() == "" {
-			return response.SmartError(errors.New("Failed to check request origin: Protocol not set in request context"))
+			return response.SmartError(errors.New("Failed checking request origin: Protocol not set in request context"))
 		}
 
 		// If the protocol is not [request.ProtocolCluster] (e.g. not an internal request) and the node has been
@@ -287,7 +287,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 
 			if clusterMoveSourceName != "" {
 				// Cluster move doesn't allow renaming as part of migration so fail here.
-				return response.SmartError(errors.New("Cluster move doesn't allow renaming"))
+				return response.SmartError(errors.New("Cluster move does not allow renaming"))
 			}
 
 			req.Source.Refresh = false
@@ -393,7 +393,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 		if req != nil && req.Start {
 			err := inst.Start(false)
 			if err != nil {
-				return fmt.Errorf("Failed to start instance %q: %w", inst.Name(), err)
+				return fmt.Errorf("Failed starting instance %q: %w", inst.Name(), err)
 			}
 		}
 
@@ -926,12 +926,12 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			return err
 		})
 		if err != nil {
-			return response.InternalError(fmt.Errorf("Failed to get default profile: %w", err))
+			return response.InternalError(fmt.Errorf("Failed getting default profile: %w", err))
 		}
 
 		_, v, err := api.GetRootDiskDevice(profile.Devices)
 		if err != nil {
-			return response.InternalError(fmt.Errorf("Failed to get root disk device: %w", err))
+			return response.InternalError(fmt.Errorf("Failed getting root disk device: %w", err))
 		}
 
 		// Use the default-profile's root pool.
@@ -1050,7 +1050,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 	}
 
 	if storagePool == "" {
-		return "", nil, response.BadRequest(errors.New("Can't find a storage pool for the instance to use"))
+		return "", nil, response.BadRequest(errors.New("Cannot find a storage pool for the instance to use"))
 	}
 
 	if localRootDiskDeviceKey == "" && storagePoolProfile == "" {
@@ -1405,7 +1405,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			for _, profileName := range req.Profiles {
 				profile, found := profilesByName[profileName]
 				if !found {
-					return fmt.Errorf("Requested profile %q doesn't exist", profileName)
+					return fmt.Errorf("Requested profile %q does not exist", profileName)
 				}
 
 				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
@@ -1433,7 +1433,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 
 				if i > 100 {
-					return errors.New("Couldn't generate a new unique name after 100 tries")
+					return errors.New("Could not generate a new unique name after 100 tries")
 				}
 			}
 
@@ -1718,7 +1718,7 @@ func clusterCopyContainerInternal(r *http.Request, s *state.State, source instan
 		// Load source node.
 		nodeAddress, err = tx.GetNodeAddressOfInstance(ctx, source.Project().Name, source.Name(), source.Type())
 		if err != nil {
-			return fmt.Errorf("Failed to get address of instance's member: %w", err)
+			return fmt.Errorf("Failed getting address of instance's member: %w", err)
 		}
 
 		return nil
@@ -1811,7 +1811,7 @@ func instanceCreateFinish(s *state.State, req *api.InstancesPost, args db.Instan
 			Action: "start",
 		}, "")
 		if err != nil {
-			return fmt.Errorf("Failed to start instance %q: %w", req.Name, err)
+			return fmt.Errorf("Failed starting instance %q: %w", req.Name, err)
 		}
 
 		return op.Wait()
@@ -1820,7 +1820,7 @@ func instanceCreateFinish(s *state.State, req *api.InstancesPost, args db.Instan
 	// Start the instance locally.
 	inst, err := instance.LoadByProjectAndName(s, args.Project, args.Name)
 	if err != nil {
-		return fmt.Errorf("Failed to load the instance: %w", err)
+		return fmt.Errorf("Failed loading the instance: %w", err)
 	}
 
 	return inst.Start(false)

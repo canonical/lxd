@@ -90,7 +90,7 @@ WHERE auth_groups_identity_provider_groups.identity_provider_group_id = ?`
 
 	err := query.Scan(ctx, tx, stmt, dest, idpGroupID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get group mappings for identity provider group with ID %d: %w", idpGroupID, err)
+		return nil, fmt.Errorf("Failed getting group mappings for identity provider group with ID %d: %w", idpGroupID, err)
 	}
 
 	return result, nil
@@ -102,7 +102,7 @@ WHERE auth_groups_identity_provider_groups.identity_provider_group_id = ?`
 func SetIdentityProviderGroupMapping(ctx context.Context, tx *sql.Tx, identityProviderGroupID int, groupNames []string) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM auth_groups_identity_provider_groups WHERE identity_provider_group_id = ?`, identityProviderGroupID)
 	if err != nil {
-		return fmt.Errorf("Failed to delete existing identity provider group mappings: %w", err)
+		return fmt.Errorf("Failed deleting existing identity provider group mappings: %w", err)
 	}
 
 	if len(groupNames) == 0 {
@@ -123,16 +123,16 @@ WHERE auth_groups.name IN %s
 
 	res, err := tx.ExecContext(ctx, q, args...)
 	if err != nil {
-		return fmt.Errorf("Failed to write identity provider group mappings: %w", err)
+		return fmt.Errorf("Failed writing identity provider group mappings: %w", err)
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to check validity of identity provider group mapping creation: %w", err)
+		return fmt.Errorf("Failed checking validity of identity provider group mapping creation: %w", err)
 	}
 
 	if int(rowsAffected) != len(groupNames) {
-		return fmt.Errorf("Failed to write expected number of rows to identity provider group association table (expected %d, got %d)", len(groupNames), rowsAffected)
+		return fmt.Errorf("Failed writing expected number of rows to identity provider group association table (expected %d, got %d)", len(groupNames), rowsAffected)
 	}
 
 	return nil
@@ -153,7 +153,7 @@ func GetDistinctAuthGroupNamesFromIDPGroupNames(ctx context.Context, tx *sql.Tx,
 	q := "\nSELECT DISTINCT auth_groups.name\nFROM auth_groups\nJOIN auth_groups_identity_provider_groups ON auth_groups.id = auth_groups_identity_provider_groups.auth_group_id\nJOIN identity_provider_groups ON auth_groups_identity_provider_groups.identity_provider_group_id = identity_provider_groups.id\nWHERE identity_provider_groups.name IN " + query.Params(len(idpGroupNames))
 	mappedGroups, err := query.SelectStrings(ctx, tx, q, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get groups from identity provider groups: %w", err)
+		return nil, fmt.Errorf("Failed getting groups from identity provider groups: %w", err)
 	}
 
 	return mappedGroups, nil

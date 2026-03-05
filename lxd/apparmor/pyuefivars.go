@@ -92,7 +92,7 @@ func PythonUEFIVars(sysOS *sys.OS, stdin io.Reader, stdout io.Writer, efiVarsPat
 
 	profileName, err := pythonUEFIVarsProfileLoad(sysOS, efiVarsPath)
 	if err != nil {
-		return fmt.Errorf("Failed to load pyuefivars profile: %w", err)
+		return fmt.Errorf("Failed loading pyuefivars profile: %w", err)
 	}
 
 	defer func() {

@@ -444,7 +444,7 @@ func (d *nicBridged) validateEnvironment() error {
 	}
 
 	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
-		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 	}
 
 	return nil
@@ -848,13 +848,13 @@ func (d *nicBridged) postStop() error {
 		// Detach host-side end of veth pair from bridge (required for openvswitch particularly).
 		err := network.DetachInterface(bridgeName, d.config["host_name"])
 		if err != nil {
-			return fmt.Errorf("Failed to detach interface %q from %q: %w", d.config["host_name"], bridgeName, err)
+			return fmt.Errorf("Failed detaching interface %q from %q: %w", d.config["host_name"], bridgeName, err)
 		}
 
 		// Removing host-side end of veth pair will delete the peer end too.
 		err = network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
-			return fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err)
+			return fmt.Errorf("Failed removing interface %q: %w", d.config["host_name"], err)
 		}
 	}
 
@@ -1014,18 +1014,18 @@ func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) (revert.Hoo
 // removeFilters removes any network level filters defined for the instance.
 func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	if m["hwaddr"] == "" {
-		d.logger.Error("Failed to remove network filters: hwaddr not defined")
+		d.logger.Error("Failed removing network filters: hwaddr not defined")
 		return
 	}
 
 	if m["host_name"] == "" {
-		d.logger.Error("Failed to remove network filters: host_name not defined")
+		d.logger.Error("Failed removing network filters: host_name not defined")
 		return
 	}
 
 	IPv4Nets, IPv6Nets, err := allowedIPNets(m)
 	if err != nil {
-		d.logger.Error("Failed to calculate static IP network filters", logger.Ctx{"err": err})
+		d.logger.Error("Failed calculating static IP network filters", logger.Ctx{"err": err})
 		return
 	}
 
@@ -1034,7 +1034,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	d.logger.Debug("Clearing instance firewall static filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
 	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Nets, IPv6Nets)
 	if err != nil {
-		d.logger.Error("Failed to remove static IP network filters", logger.Ctx{"err": err})
+		d.logger.Error("Failed removing static IP network filters", logger.Ctx{"err": err})
 	}
 
 	// If allowedIPNets returned nil for IPv4 or IPv6, it is possible that total protocol blocking was set up
@@ -1042,7 +1042,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	d.logger.Debug("Clearing instance total protocol filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
 	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], make([]*net.IPNet, 0), make([]*net.IPNet, 0))
 	if err != nil {
-		d.logger.Error("Failed to remove total protocol network filters", logger.Ctx{"err": err})
+		d.logger.Error("Failed removing total protocol network filters", logger.Ctx{"err": err})
 	}
 
 	// Read current static DHCP IP allocation configured from dnsmasq host config (if exists).
@@ -1054,7 +1054,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 			return
 		}
 
-		d.logger.Error("Failed to get static IP allocations for filter removal", logger.Ctx{"err": err})
+		d.logger.Error("Failed getting static IP allocations for filter removal", logger.Ctx{"err": err})
 		return
 	}
 
@@ -1063,7 +1063,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	if len(IPv4Alloc.IP) > 0 {
 		_, IPv4AllocNet, err := net.ParseCIDR(IPv4Alloc.IP.String() + "/32")
 		if err != nil {
-			d.logger.Error("Failed to generate subnet from dynamically generated IPv4 address", logger.Ctx{"err": err})
+			d.logger.Error("Failed generating subnet from dynamically generated IPv4 address", logger.Ctx{"err": err})
 		} else {
 			IPv4AllocNets = append(IPv4AllocNets, IPv4AllocNet)
 		}
@@ -1073,7 +1073,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	if len(IPv6Alloc.IP) > 0 {
 		_, IPv6AllocNet, err := net.ParseCIDR(IPv6Alloc.IP.String() + "/128")
 		if err != nil {
-			d.logger.Error("Failed to generate subnet from dynamically generated IPv6Address", logger.Ctx{"err": err})
+			d.logger.Error("Failed generating subnet from dynamically generated IPv6Address", logger.Ctx{"err": err})
 		} else {
 			IPv6AllocNets = append(IPv6AllocNets, IPv6AllocNet)
 		}
@@ -1082,7 +1082,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	d.logger.Debug("Clearing instance firewall dynamic filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4Alloc.IP, "ipv6": IPv6Alloc.IP})
 	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4AllocNets, IPv6AllocNets)
 	if err != nil {
-		logger.Errorf("Failed to remove DHCP network assigned filters  for %q: %v", d.name, err)
+		logger.Errorf("Failed removing DHCP network assigned filters  for %q: %v", d.name, err)
 	}
 }
 
@@ -1090,15 +1090,15 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 // These are controlled by the security.mac_filtering, security.ipv4_Filtering and security.ipv6_filtering config keys.
 func (d *nicBridged) setFilters() (err error) {
 	if d.config["hwaddr"] == "" {
-		return errors.New("Failed to set network filters: require hwaddr defined")
+		return errors.New("Failed setting network filters: require hwaddr defined")
 	}
 
 	if d.config["host_name"] == "" {
-		return errors.New("Failed to set network filters: require host_name defined")
+		return errors.New("Failed setting network filters: require host_name defined")
 	}
 
 	if d.config["parent"] == "" {
-		return errors.New("Failed to set network filters: require parent defined")
+		return errors.New("Failed setting network filters: require parent defined")
 	}
 
 	// Parse device config.
@@ -1314,13 +1314,13 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 				srcIP := net.ParseIP(fields[2])
 
 				if dstIPv4 == nil {
-					logger.Warnf("Failed to release DHCPv4 lease for instance %q, IP %q, MAC %q, %v", name, srcIP, srcMAC, "No server address found")
+					logger.Warnf("Failed releasing DHCPv4 lease for instance %q, IP %q, MAC %q, %v", name, srcIP, srcMAC, "No server address found")
 					continue // Cant send release packet if no dstIP found.
 				}
 
 				err = d.networkDHCPv4Release(srcMAC, srcIP, dstIPv4)
 				if err != nil {
-					errs = append(errs, fmt.Errorf("Failed to release DHCPv4 lease for instance %q, IP %q, MAC %q, %v", name, srcIP, srcMAC, err))
+					errs = append(errs, fmt.Errorf("Failed releasing DHCPv4 lease for instance %q, IP %q, MAC %q, %v", name, srcIP, srcMAC, err))
 				}
 			} else if (mode == clearLeaseAll || mode == clearLeaseIPv6Only) && name == fields[3] { // Handle IPv6 addresses by matching hostname to lease.
 				IAID := fields[1]
@@ -1333,18 +1333,18 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 				}
 
 				if dstIPv6 == nil {
-					logger.Warnf("Failed to release DHCPv6 lease for instance %q, IP %q, DUID %q, IAID %q: %q", name, srcIP, DUID, IAID, "No server address found")
+					logger.Warnf("Failed releasing DHCPv6 lease for instance %q, IP %q, DUID %q, IAID %q: %q", name, srcIP, DUID, IAID, "No server address found")
 					continue // Cant send release packet if no dstIP found.
 				}
 
 				if dstDUID == "" {
-					errs = append(errs, fmt.Errorf("Failed to release DHCPv6 lease for instance %q, IP %q, DUID %q, IAID %q: %s", name, srcIP, DUID, IAID, "No server DUID found"))
+					errs = append(errs, fmt.Errorf("Failed releasing DHCPv6 lease for instance %q, IP %q, DUID %q, IAID %q: %s", name, srcIP, DUID, IAID, "No server DUID found"))
 					continue // Cant send release packet if no dstDUID found.
 				}
 
 				err = d.networkDHCPv6Release(DUID, IAID, srcIP, dstIPv6, dstDUID)
 				if err != nil {
-					errs = append(errs, fmt.Errorf("Failed to release DHCPv6 lease for instance %q, IP %q, DUID %q, IAID %q: %w", name, srcIP, DUID, IAID, err))
+					errs = append(errs, fmt.Errorf("Failed releasing DHCPv6 lease for instance %q, IP %q, DUID %q, IAID %q: %w", name, srcIP, DUID, IAID, err))
 				}
 			}
 		} else if fieldsLen == 2 && fields[0] == "duid" {

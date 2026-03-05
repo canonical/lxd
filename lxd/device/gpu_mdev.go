@@ -133,7 +133,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, fmt.Errorf("The requested profile %q does not exist", d.config["mdev"])
 				}
 
-				return nil, fmt.Errorf("Failed to create virtual gpu %q: %w", mdevUUID, err)
+				return nil, fmt.Errorf("Failed creating virtual gpu %q: %w", mdevUUID, err)
 			}
 
 			revert.Add(func() {
@@ -141,21 +141,21 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 
 				err := os.WriteFile(path, []byte("1\n"), 0200)
 				if err != nil && !os.IsNotExist(err) {
-					d.logger.Error("Failed to remove vgpu", logger.Ctx{"device": mdevUUID, "err": err})
+					d.logger.Error("Failed removing vgpu", logger.Ctx{"device": mdevUUID, "err": err})
 				}
 			})
 		}
 	}
 
 	if pciAddress == "" {
-		return nil, errors.New("Failed to detect requested GPU device")
+		return nil, errors.New("Failed detecting requested GPU device")
 	}
 
 	// Get PCI information about the GPU device.
 	devicePath := filepath.Join("/sys/bus/pci/devices", pciAddress)
 	pciDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get PCI device info for GPU %q: %w", pciAddress, err)
+		return nil, fmt.Errorf("Failed getting PCI device info for GPU %q: %w", pciAddress, err)
 	}
 
 	// Prepare the new volatile keys.
@@ -198,7 +198,7 @@ func (d *gpuMdev) postStop() error {
 
 		err := os.WriteFile(path, []byte("1\n"), 0200)
 		if err != nil && !os.IsNotExist(err) {
-			d.logger.Error("Failed to remove vgpu", logger.Ctx{"device": v["vgpu.uuid"], "err": err})
+			d.logger.Error("Failed removing vgpu", logger.Ctx{"device": v["vgpu.uuid"], "err": err})
 		}
 	}
 

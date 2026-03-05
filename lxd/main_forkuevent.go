@@ -200,12 +200,12 @@ void forkuevent(void)
 	attach_userns_fd(ns_fd);
 
 	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNET)) {
-		fprintf(stderr, "Failed to setns to container network namespace: %s\n", strerror(errno));
+		fprintf(stderr, "Failed setnsing to container network namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
 
 	if (inject_uevent(uevent, len) < 0) {
-		fprintf(stderr, "Failed to inject uevent\n");
+		fprintf(stderr, "Failed injecting uevent\n");
 		_exit(1);
 	}
 

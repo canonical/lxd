@@ -134,7 +134,7 @@ func instanceRefreshTypes(ctx context.Context, s *state.State) error {
 		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("Failed to get %s", url)
+			return fmt.Errorf("Failed getting %s", url)
 		}
 
 		content, err := io.ReadAll(resp.Body)
@@ -208,7 +208,7 @@ func instanceParseType(value string) (map[string]string, error) {
 			fields := strings.SplitSeq(value, "-")
 			for field := range fields {
 				if len(field) < 2 || (field[0] != 'c' && field[0] != 'm') {
-					return nil, fmt.Errorf("Provided instance type doesn't exist: %s", value)
+					return nil, fmt.Errorf("Provided instance type does not exist: %s", value)
 				}
 
 				floatValue, err := strconv.ParseFloat(field[1:], 32)
@@ -228,7 +228,7 @@ func instanceParseType(value string) (map[string]string, error) {
 		}
 
 		if limits == nil {
-			return nil, fmt.Errorf("Provided instance type doesn't exist: %s", value)
+			return nil, fmt.Errorf("Provided instance type does not exist: %s", value)
 		}
 	}
 	out := map[string]string{}

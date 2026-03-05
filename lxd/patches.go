@@ -63,8 +63,8 @@ Patches are one-time actions that are sometimes needed to update
 	Those patches are applied at startup time after the database schema
 	has been fully updated. Patches can therefore assume a working database.
 
-	At the time the patches are applied, the containers aren't started
-	yet and the daemon isn't listening to requests.
+	At the time the patches are applied, the containers are not started
+	yet and the daemon is not listening to requests.
 
 	DO NOT use this mechanism for database update. Schema updates must be
 	done through the separate schema update mechanism.
@@ -457,8 +457,8 @@ func patchDBNodesAutoInc(name string, d *Daemon) error {
 
 	// Apply patch.
 	_, err := d.State().DB.Cluster.DB().Exec(`
-PRAGMA foreign_keys=OFF; -- So that integrity doesn't get in the way for now.
-PRAGMA legacy_alter_table = ON; -- So that views referencing this table don't block change.
+PRAGMA foreign_keys=OFF; -- So that integrity does not get in the way for now.
+PRAGMA legacy_alter_table = ON; -- So that views referencing this table do not block change.
 
 CREATE TABLE nodes_new (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -554,7 +554,7 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 	// Setup a transaction.
 	tx, err := d.db.Cluster.Begin()
 	if err != nil {
-		return fmt.Errorf("Failed to begin transaction: %w", err)
+		return fmt.Errorf("Failed beginning transaction: %w", err)
 	}
 
 	revert.Add(func() { _ = tx.Rollback() })
@@ -562,20 +562,20 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(context.TODO(), tx, "SELECT id FROM nodes")
 	if err != nil {
-		return fmt.Errorf("Failed to get IDs of current nodes: %w", err)
+		return fmt.Errorf("Failed getting IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing lvm pools.
 	poolIDs, err := query.SelectIntegers(context.TODO(), tx, "SELECT id FROM storage_pools WHERE driver='lvm'")
 	if err != nil {
-		return fmt.Errorf("Failed to get IDs of current lvm pools: %w", err)
+		return fmt.Errorf("Failed getting IDs of current lvm pools: %w", err)
 	}
 
 	for _, poolID := range poolIDs {
 		// Fetch the config for this lvm pool and check if it has the lvm.thinpool_name.
 		config, err := query.SelectConfig(context.TODO(), tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch of lvm pool config: %w", err)
+			return fmt.Errorf("Failed fetching of lvm pool config: %w", err)
 		}
 
 		value, ok := config["lvm.thinpool_name"]
@@ -588,7 +588,7 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 DELETE FROM storage_pools_config WHERE key='lvm.thinpool_name' AND storage_pool_id=? AND node_id IS NULL
 `, poolID)
 		if err != nil {
-			return fmt.Errorf("Failed to delete lvm.thinpool_name config: %w", err)
+			return fmt.Errorf("Failed deleting lvm.thinpool_name config: %w", err)
 		}
 
 		// Add the config entry for each node
@@ -598,14 +598,14 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
   VALUES(?, ?, 'lvm.thinpool_name', ?)
 `, poolID, nodeID, value)
 			if err != nil {
-				return fmt.Errorf("Failed to create lvm.thinpool_name node config: %w", err)
+				return fmt.Errorf("Failed creating lvm.thinpool_name node config: %w", err)
 			}
 		}
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("Failed to commit transaction: %w", err)
+		return fmt.Errorf("Failed committing transaction: %w", err)
 	}
 
 	revert.Success()
@@ -1112,7 +1112,7 @@ func patchRemoveCandidRBACConfigKeys(_ string, d *Daemon) error {
 		})
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to remove RBAC and Candid configuration keys: %w", err)
+		return fmt.Errorf("Failed removing RBAC and Candid configuration keys: %w", err)
 	}
 
 	return nil
@@ -1153,7 +1153,7 @@ FROM %[1]s
 			var r volumeConfigEntry
 			err = rows.Scan(&r.id, &r.value)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to scan row into struct: %w", err)
+				return nil, fmt.Errorf("Failed scanning row into struct: %w", err)
 			}
 
 			volumeUUIDs = append(volumeUUIDs, r)
@@ -1310,7 +1310,7 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 
 			hasVol, err := p.Driver().HasVolume(existingVol)
 			if err != nil {
-				return fmt.Errorf("Failed to check if volume %q exists in pool %q: %w", existingVol.Name(), p.Name(), err)
+				return fmt.Errorf("Failed checking if volume %q exists in pool %q: %w", existingVol.Name(), p.Name(), err)
 			}
 
 			// patchStorageRenameCustomISOBlockVolumes might have already set the *.iso suffix.
@@ -1324,7 +1324,7 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 
 			err = p.Driver().RenameVolume(oldVol, oldVol.Name()+".iso", nil)
 			if err != nil {
-				return fmt.Errorf("Failed to rename volume %q in pool %q: %w", oldVol.Name(), p.Name(), err)
+				return fmt.Errorf("Failed renaming volume %q in pool %q: %w", oldVol.Name(), p.Name(), err)
 			}
 		}
 	}
@@ -1360,7 +1360,7 @@ func patchRemoveCoreTrustPassword(_ string, d *Daemon) error {
 		})
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to remove core.trust_password config key: %w", err)
+		return fmt.Errorf("Failed removing core.trust_password config key: %w", err)
 	}
 
 	return nil
@@ -1375,7 +1375,7 @@ func patchEntityTypeInstanceSnapshotOnDeleteTriggerTypoFix(_ string, d *Daemon) 
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to remove trigger: %w", err)
+		return fmt.Errorf("Failed removing trigger: %w", err)
 	}
 
 	return nil
@@ -1456,7 +1456,7 @@ UPDATE OR REPLACE auth_groups_permissions
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to redefine certificate and identity entity types: %w", err)
+		return fmt.Errorf("Failed redefining certificate and identity entity types: %w", err)
 	}
 
 	return nil
@@ -1505,7 +1505,7 @@ func patchOIDCGroupsClaimScope(_ string, d *Daemon) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to configure oidc.groups.claim as an OIDC scope: %w", err)
+		return fmt.Errorf("Failed configuring oidc.groups.claim as an OIDC scope: %w", err)
 	}
 
 	return nil
@@ -1525,14 +1525,14 @@ func patchRemoveBackupsImagesSymlinks(_ string, d *Daemon) error {
 				continue // Nothing to do, symlink doesn't exist
 			}
 
-			return fmt.Errorf("Failed to call Lstat() on %q: %w", dir, err)
+			return fmt.Errorf("Failed calling Lstat() on %q: %w", dir, err)
 		}
 
 		if info.Mode()&os.ModeSymlink != 0 {
 			// Remove the symlink.
 			err = os.Remove(dir)
 			if err != nil {
-				return fmt.Errorf("Failed to delete storage symlink at %q: %w", dir, err)
+				return fmt.Errorf("Failed deleting storage symlink at %q: %w", dir, err)
 			}
 		}
 	}
@@ -1608,7 +1608,7 @@ func patchClusterConfigVolatileUUID(name string, d *Daemon) error {
 
 		clusterUUID, err := uuid.NewV7()
 		if err != nil {
-			return fmt.Errorf("Failed to generate a cluster UUID: %w", err)
+			return fmt.Errorf("Failed generating a cluster UUID: %w", err)
 		}
 
 		// Otherwise, insert the server UUID into the database.
@@ -1849,7 +1849,7 @@ func patchDefaultStoragePermissions(_ string, d *Daemon) error {
 
 				err := os.Chmod(path, volEntry.Mode)
 				if err != nil && !errors.Is(err, fs.ErrNotExist) {
-					return fmt.Errorf("Failed to set directory mode %q: %w", path, err)
+					return fmt.Errorf("Failed setting directory mode %q: %w", path, err)
 				}
 			}
 		}

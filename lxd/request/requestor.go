@@ -301,7 +301,7 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 	// Get the identity details.
 	res, err := hook(ctx, method, r.CallerUsername())
 	if err != nil {
-		return fmt.Errorf("Failed to get identity details: %w", err)
+		return fmt.Errorf("Failed getting identity details: %w", err)
 	}
 
 	r.identityID = res.IdentityID
@@ -322,7 +322,7 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 	// Cluster notification with wrong certificate.
 	if clientType != ClientTypeNormal && !slices.Contains([]string{ProtocolCluster, ProtocolUnix}, args.Protocol) {
 		// XXX: We allow ProtocolUnix because initDataNodeApply() in lxd/init.go uses a local client to join a cluster. initDataNodeApply() is used by 'lxd init' and PUT /1.0/cluster.
-		return errors.New("Cluster notification isn't using trusted server certificate")
+		return errors.New("Cluster notification is not using trusted server certificate")
 	}
 
 	r := &Requestor{

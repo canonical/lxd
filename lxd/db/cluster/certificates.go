@@ -171,7 +171,7 @@ func CreateCertificateWithProjects(ctx context.Context, tx *sql.Tx, cert Certifi
 func UpdateCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int64, projectNames []string) error {
 	_, err := tx.ExecContext(ctx, "DELETE FROM identities_projects WHERE identity_id = ?", certificateID)
 	if err != nil {
-		return fmt.Errorf("Failed to delete existing certificate project relationships: %w", err)
+		return fmt.Errorf("Failed deleting existing certificate project relationships: %w", err)
 	}
 
 	if len(projectNames) == 0 {
@@ -187,12 +187,12 @@ func UpdateCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID in
 
 	res, err := tx.ExecContext(ctx, "INSERT INTO identities_projects (identity_id, project_id) SELECT ?, projects.id FROM projects WHERE name IN "+query.Params(len(projectNames)), args...)
 	if err != nil {
-		return fmt.Errorf("Failed to create certificate project relationships: %w", err)
+		return fmt.Errorf("Failed creating certificate project relationships: %w", err)
 	}
 
 	nInserted, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to check certificate update was successful: %w", err)
+		return fmt.Errorf("Failed checking certificate update was successful: %w", err)
 	}
 
 	if int(nInserted) != len(projectNames) {

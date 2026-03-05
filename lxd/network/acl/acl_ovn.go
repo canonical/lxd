@@ -856,7 +856,7 @@ func OVNPortGroupDeleteIfUnused(ctx context.Context, s *state.State, l logger.Lo
 
 			netID, network, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, nicConfig["network"])
 			if err != nil {
-				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
+				return fmt.Errorf("Failed loading network %q: %w", nicConfig["network"], err)
 			}
 
 			if network.Type == "ovn" {
@@ -885,7 +885,7 @@ func OVNPortGroupDeleteIfUnused(ctx context.Context, s *state.State, l logger.Lo
 			if u.Type == "ovn" {
 				netID, _, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, u.Name)
 				if err != nil {
-					return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
+					return fmt.Errorf("Failed loading network %q: %w", nicConfig["network"], err)
 				}
 
 				for _, matchedACLName := range matchedACLNames {
@@ -912,7 +912,7 @@ func OVNPortGroupDeleteIfUnused(ctx context.Context, s *state.State, l logger.Lo
 
 			netID, network, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, nicConfig["network"])
 			if err != nil {
-				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
+				return fmt.Errorf("Failed loading network %q: %w", nicConfig["network"], err)
 			}
 
 			if network.Type == "ovn" {
@@ -978,7 +978,7 @@ func OVNPortGroupDeleteIfUnused(ctx context.Context, s *state.State, l logger.Lo
 	if len(removePortGroups) > 0 {
 		err = client.PortGroupDelete(removePortGroups...)
 		if err != nil {
-			return fmt.Errorf("Failed to delete unused OVN port groups: %w", err)
+			return fmt.Errorf("Failed deleting unused OVN port groups: %w", err)
 		}
 	}
 
@@ -1058,7 +1058,7 @@ func ovnParseLogEntry(logline string, syslogTimestamp string, prefix string) str
 	parseLogTimeFromTimestamp := func(syslogTimestamp string) (time.Time, error) {
 		tsInt, err := strconv.ParseInt(syslogTimestamp, 10, 64)
 		if err != nil {
-			return time.Time{}, fmt.Errorf("Failed to parse timestamp: %w", err)
+			return time.Time{}, fmt.Errorf("Failed parsing timestamp: %w", err)
 		}
 
 		// The provided timestamp is in microseconds and need to be converted to nanoseconds.
@@ -1178,7 +1178,7 @@ func ovnParseLogEntriesFromJournald(ctx context.Context, systemdUnitName string,
 	stdout := bytes.Buffer{}
 	err := shared.RunCommandWithFds(ctx, nil, &stdout, cmd[0], cmd[1:]...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to run journalctl to fetch OVN ACL logs: %w", err)
+		return nil, fmt.Errorf("Failed running journalctl to fetch OVN ACL logs: %w", err)
 	}
 
 	decoder := json.NewDecoder(&stdout)
@@ -1188,7 +1188,7 @@ func ovnParseLogEntriesFromJournald(ctx context.Context, systemdUnitName string,
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return nil, fmt.Errorf("Failed to parse log entry: %w", err)
+			return nil, fmt.Errorf("Failed parsing log entry: %w", err)
 		}
 
 		message, ok := sdLogEntry["MESSAGE"].(string)

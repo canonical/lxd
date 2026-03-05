@@ -132,7 +132,7 @@ func (d *alletra) ensureHost() (hostName string, cleanup revert.Hook, err error)
 
 		err = d.client().CreateHost(connector.Type(), hostname, []string{qn})
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed to create host %q: %w", hostname, err)
+			return "", nil, fmt.Errorf("Failed creating host %q: %w", hostname, err)
 		}
 
 		revert.Add(func() {
@@ -268,7 +268,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 
 	err = connector.RemoveDiskDevice(d.state.ShutdownCtx, volumePath)
 	if err != nil {
-		return fmt.Errorf("Failed to unmap HPE Alletra volume %q: %w", vol.name, err)
+		return fmt.Errorf("Failed unmapping HPE Alletra volume %q: %w", vol.name, err)
 	}
 
 	// Disconnect the volume from the host and ignore error if connection does not exist.
@@ -356,7 +356,7 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 	// identifies the device. This check should never succeed, but prevents
 	// out-of-bounds errors when slicing the string later.
 	if len(hpeVol.NGUID) != 32 {
-		return "", nil, fmt.Errorf("Failed to locate device for volume %q: Unexpected length of NGUID %q (%d)", vol.name, hpeVol.NGUID, len(hpeVol.NGUID))
+		return "", nil, fmt.Errorf("Failed locating device for volume %q: Unexpected length of NGUID %q (%d)", vol.name, hpeVol.NGUID, len(hpeVol.NGUID))
 	}
 
 	var diskSuffix string
@@ -387,7 +387,7 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 	}
 
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to locate device for volume %q: %w", vol.name, err)
+		return "", nil, fmt.Errorf("Failed locating device for volume %q: %w", vol.name, err)
 	}
 
 	cleanup := revert.Clone().Fail
@@ -677,7 +677,7 @@ func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowI
 			}
 
 			if srcSnapshot == nil {
-				return fmt.Errorf("Failed to copy snapshot %q: Source snapshot does not exist", snapshotShortName)
+				return fmt.Errorf("Failed copying snapshot %q: Source snapshot does not exist", snapshotShortName)
 			}
 
 			srcSnapshotName, err := d.getVolumeName(*srcSnapshot)
@@ -858,7 +858,7 @@ func (d *alletra) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 			}
 
 			if srcSnapshot == nil {
-				return nil, fmt.Errorf("Failed to refresh snapshot %q: Source snapshot does not exist", snapshotShortName)
+				return nil, fmt.Errorf("Failed refreshing snapshot %q: Source snapshot does not exist", snapshotShortName)
 			}
 
 			srcSnapshotName, err := d.getVolumeName(*srcSnapshot)
@@ -896,7 +896,7 @@ func (d *alletra) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 		// Ensure all snapshots were successfully refreshed.
 		missing := shared.RemoveElementsFromSlice(refreshSnapshots, refreshedSnapshots...)
 		if len(missing) > 0 {
-			return nil, fmt.Errorf("Failed to refresh snapshots %v", missing)
+			return nil, fmt.Errorf("Failed refreshing snapshots %v", missing)
 		}
 	}
 
@@ -1027,7 +1027,7 @@ func (d *alletra) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
 		}
 	}
 
@@ -1479,7 +1479,7 @@ func (d *alletra) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation)
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
 		}
 	}
 

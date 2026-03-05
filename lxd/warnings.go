@@ -163,7 +163,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	filterStr := r.FormValue("filter")
 	clauses, err := filter.Parse(filterStr, filter.QueryOperatorSet())
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to filter warnings: %w", err))
+		return response.SmartError(fmt.Errorf("Failed filtering warnings: %w", err))
 	}
 
 	// Parse the project field
@@ -175,7 +175,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 		if projectName != "" {
 			_, err := cluster.GetProjectID(ctx, tx.Tx(), projectName)
 			if err != nil {
-				return fmt.Errorf("Failed to get project: %w", err)
+				return fmt.Errorf("Failed getting project: %w", err)
 			}
 
 			filter := cluster.WarningFilter{Project: &projectName}
@@ -184,7 +184,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 
 		dbWarnings, err := cluster.GetWarnings(ctx, tx.Tx(), filters...)
 		if err != nil {
-			return fmt.Errorf("Failed to get warnings: %w", err)
+			return fmt.Errorf("Failed getting warnings: %w", err)
 		}
 
 		warnings = make([]api.Warning, len(dbWarnings))
@@ -492,7 +492,7 @@ func pruneResolvedWarnings(ctx context.Context, s *state.State) error {
 
 		warnings, err := cluster.GetWarnings(ctx, tx.Tx(), filter)
 		if err != nil {
-			return fmt.Errorf("Failed to get resolved warnings: %w", err)
+			return fmt.Errorf("Failed getting resolved warnings: %w", err)
 		}
 
 		for _, w := range warnings {
@@ -508,7 +508,7 @@ func pruneResolvedWarnings(ctx context.Context, s *state.State) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to delete warnings: %w", err)
+		return fmt.Errorf("Failed deleting warnings: %w", err)
 	}
 
 	return nil
@@ -522,7 +522,7 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 
 	u, err := cluster.GetEntityURL(ctx, tx, entity.Type(warning.EntityType), warning.EntityID)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get warning entity URL: %w", err)
+		return "", fmt.Errorf("Failed getting warning entity URL: %w", err)
 	}
 
 	return u.String(), nil

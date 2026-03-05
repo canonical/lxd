@@ -93,7 +93,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 
 		out, err := yaml.Marshal(object)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to render the config: %w", err)
+			return nil, fmt.Errorf("Failed rendering the config: %w", err)
 		}
 
 		fmt.Printf("%s\n", out)
@@ -140,7 +140,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 
 			listener, err := net.Listen("tcp", address)
 			if err != nil {
-				return fmt.Errorf("Can't bind address %q: %w", address, err)
+				return fmt.Errorf("Cannot bind address %q: %w", address, err)
 			}
 
 			_ = listener.Close()
@@ -212,7 +212,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 			}
 
 			if config.Cluster.ClusterCertificate == "" {
-				return errors.New("Unable to connect to any of the cluster members specified in join token")
+				return errors.New("Cannot connect to any of the cluster members specified in join token")
 			}
 
 			// Pass the raw join token.
@@ -236,7 +236,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 
 			err = cluster.SetupTrust(serverCert, config.Cluster.ClusterPut)
 			if err != nil {
-				return fmt.Errorf("Failed to setup trust relationship with cluster: %w", err)
+				return fmt.Errorf("Failed setting up trust relationship with cluster: %w", err)
 			}
 
 			// Now we have setup trust, don't send to server, othwerwise it will try and setup trust
@@ -259,7 +259,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 			// Get the list of required member config keys.
 			cluster, _, err := client.GetCluster()
 			if err != nil {
-				return fmt.Errorf("Failed to retrieve cluster information: %w", err)
+				return fmt.Errorf("Failed retrieving cluster information: %w", err)
 			}
 
 			for i, config := range cluster.MemberConfig {
@@ -372,7 +372,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				}
 
 				if network == nil {
-					fmt.Println("The requested interface doesn't exist. Please choose another one.")
+					fmt.Println("The requested interface does not exist. Please choose another one.")
 					continue
 				}
 
@@ -436,7 +436,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 					size, _ := subnet.Mask.Size()
 					if size != 16 && size != 24 {
 						if value == "auto" {
-							return fmt.Errorf("The auto-detected underlay (%s) isn't a /16 or /24, please specify manually", subnet.String())
+							return fmt.Errorf("The auto-detected underlay (%s) is not a /16 or /24, please specify manually", subnet.String())
 						}
 
 						return errors.New("The underlay subnet must be a /16 or a /24")
@@ -761,7 +761,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 					st := unix.Statfs_t{}
 					err := unix.Statfs(shared.VarPath(), &st)
 					if err != nil {
-						return fmt.Errorf("Couldn't statfs %s: %w", shared.VarPath(), err)
+						return fmt.Errorf("Could not statfs %s: %w", shared.VarPath(), err)
 					}
 
 					/* choose 5 GiB < x < 30GiB, where x is 20% of the disk size */
@@ -822,7 +822,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 			_, err := exec.LookPath("thin_check")
 			if err != nil {
 				fmt.Print(`
-The LVM thin provisioning tools couldn't be found.
+The LVM thin provisioning tools could not be found.
 LVM can still be used without thin provisioning but this will disable over-provisioning,
 increase the space requirements and creation time of images, instances and snapshots.
 
@@ -836,7 +836,7 @@ and make sure that your user can see and run the "thin_check" command before run
 				}
 
 				if !lvmContinueNoThin {
-					return errors.New("The LVM thin provisioning tools couldn't be found on the system")
+					return errors.New("The LVM thin provisioning tools could not be found on the system")
 				}
 
 				pool.Config["lvm.use_thinpool"] = "false"
@@ -917,7 +917,7 @@ they otherwise would.
 
 				listener, err := net.Listen("tcp", address)
 				if err != nil {
-					return fmt.Errorf("Can't bind address %q: %w", address, err)
+					return fmt.Errorf("Cannot bind address %q: %w", address, err)
 				}
 
 				_ = listener.Close()

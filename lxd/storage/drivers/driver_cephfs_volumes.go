@@ -151,7 +151,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIn
 		return err
 	}
 
-	revertSnaps = nil // Don't revert.
+	revertSnaps = nil // Do not revert.
 	return nil
 }
 
@@ -256,7 +256,7 @@ func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 	// Remove the volume from the storage device.
 	err = os.RemoveAll(volPath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to delete %q: %w", volPath, err)
+		return fmt.Errorf("Failed deleting %q: %w", volPath, err)
 	}
 
 	// Although the volume snapshot directory should already be removed, lets remove it here
@@ -265,7 +265,7 @@ func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	err = os.RemoveAll(snapshotDir)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to delete %q: %w", snapshotDir, err)
+		return fmt.Errorf("Failed deleting %q: %w", snapshotDir, err)
 	}
 
 	return nil
@@ -411,7 +411,7 @@ func (d *cephfs) RenameVolume(vol Volume, newVolName string, op *operations.Oper
 
 	err = os.Rename(srcSnapshotDir, targetSnapshotDir)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("Failed to rename %q to %q: %w", srcSnapshotDir, targetSnapshotDir, err)
+		return fmt.Errorf("Failed renaming %q to %q: %w", srcSnapshotDir, targetSnapshotDir, err)
 	}
 
 	if err == nil {
@@ -441,7 +441,7 @@ func (d *cephfs) RenameVolume(vol Volume, newVolName string, op *operations.Oper
 		// Update the symlink.
 		err = os.Symlink(newCephSnapPath, newPath)
 		if err != nil {
-			return fmt.Errorf("Failed to symlink %q to %q: %w", newCephSnapPath, newPath, err)
+			return fmt.Errorf("Failed symlinking %q to %q: %w", newCephSnapPath, newPath, err)
 		}
 
 		revertPaths = append(revertPaths, volRevert{
@@ -455,7 +455,7 @@ func (d *cephfs) RenameVolume(vol Volume, newVolName string, op *operations.Oper
 	newPath := GetVolumeMountPath(d.name, vol.volType, newVolName)
 	err = os.Rename(oldPath, newPath)
 	if err != nil {
-		return fmt.Errorf("Failed to rename %q to %q: %w", oldPath, newPath, err)
+		return fmt.Errorf("Failed renaming %q to %q: %w", oldPath, newPath, err)
 	}
 
 	revertPaths = append(revertPaths, volRevert{
@@ -487,7 +487,7 @@ func (d *cephfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 
 	err := os.Mkdir(cephSnapPath, 0711)
 	if err != nil {
-		return fmt.Errorf("Failed to create directory %q: %w", cephSnapPath, err)
+		return fmt.Errorf("Failed creating directory %q: %w", cephSnapPath, err)
 	}
 
 	// Create the parent directory.
@@ -500,7 +500,7 @@ func (d *cephfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 	targetPath := snapVol.MountPath()
 	err = os.Symlink(cephSnapPath, targetPath)
 	if err != nil {
-		return fmt.Errorf("Failed to symlink %q to %q: %w", cephSnapPath, targetPath, err)
+		return fmt.Errorf("Failed symlinking %q to %q: %w", cephSnapPath, targetPath, err)
 	}
 
 	return nil
@@ -516,14 +516,14 @@ func (d *cephfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 
 	err := os.Remove(cephSnapPath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove %q: %w", cephSnapPath, err)
+		return fmt.Errorf("Failed removing %q: %w", cephSnapPath, err)
 	}
 
 	// Remove the symlink.
 	snapPath := snapVol.MountPath()
 	err = os.Remove(snapPath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove %q: %w", snapPath, err)
+		return fmt.Errorf("Failed removing %q: %w", snapPath, err)
 	}
 
 	return nil
@@ -575,7 +575,7 @@ func (d *cephfs) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operat
 	bwlimit := d.config["rsync.bwlimit"]
 	output, err := rsync.LocalCopy(cephSnapPath, vol.MountPath(), bwlimit, false)
 	if err != nil {
-		return fmt.Errorf("Failed to rsync volume: %s: %w", string(output), err)
+		return fmt.Errorf("Failed rsyncing volume: %s: %w", string(output), err)
 	}
 
 	return nil
@@ -590,20 +590,20 @@ func (d *cephfs) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op
 
 	err := os.Rename(oldCephSnapPath, newCephSnapPath)
 	if err != nil {
-		return fmt.Errorf("Failed to rename %q to %q: %w", oldCephSnapPath, newCephSnapPath, err)
+		return fmt.Errorf("Failed renaming %q to %q: %w", oldCephSnapPath, newCephSnapPath, err)
 	}
 
 	// Re-generate the snapshot symlink.
 	oldPath := snapVol.MountPath()
 	err = os.Remove(oldPath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove %q: %w", oldPath, err)
+		return fmt.Errorf("Failed removing %q: %w", oldPath, err)
 	}
 
 	newPath := GetVolumeMountPath(d.name, snapVol.volType, GetSnapshotVolumeName(parentName, newSnapshotName))
 	err = os.Symlink(newCephSnapPath, newPath)
 	if err != nil {
-		return fmt.Errorf("Failed to symlink %q to %q: %w", newCephSnapPath, newPath, err)
+		return fmt.Errorf("Failed symlinking %q to %q: %w", newCephSnapPath, newPath, err)
 	}
 
 	return nil

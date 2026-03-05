@@ -138,7 +138,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	// Send offer to target.
 	err = s.send(offerHeader)
 	if err != nil {
-		logger.Error("Failed to send storage volume migration header")
+		logger.Error("Failed sending storage volume migration header")
 		s.sendControl(err)
 		return err
 	}
@@ -147,14 +147,14 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	respHeader := &migration.MigrationHeader{}
 	err = s.recv(respHeader)
 	if err != nil {
-		logger.Error("Failed to receive storage volume migration header")
+		logger.Error("Failed receiving storage volume migration header")
 		s.sendControl(err)
 		return err
 	}
 
 	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(storageDrivers.ContentType(customVol.ContentType)), poolMigrationTypes)
 	if err != nil {
-		logger.Errorf("Failed to negotiate migration type: %v", err)
+		logger.Errorf("Failed negotiating migration type: %v", err)
 		s.sendControl(err)
 		return err
 	}
@@ -199,12 +199,12 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	msg := migration.MigrationControl{}
 	err = s.recv(&msg)
 	if err != nil {
-		logger.Error("Failed to receive storage volume migration control message")
+		logger.Error("Failed receiving storage volume migration control message")
 		return err
 	}
 
 	if !msg.GetSuccess() {
-		logger.Error("Failed to send storage volume")
+		logger.Error("Failed sending storage volume")
 		return errors.New(msg.GetMessage())
 	}
 
@@ -277,7 +277,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	offerHeader := &migration.MigrationHeader{}
 	err := c.recv(offerHeader)
 	if err != nil {
-		logger.Error("Failed to receive storage volume migration header")
+		logger.Error("Failed receiving storage volume migration header")
 		c.sendControl(err)
 		return err
 	}
@@ -411,7 +411,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 
 	err = c.send(respHeader)
 	if err != nil {
-		logger.Error("Failed to send storage volume migration header")
+		logger.Error("Failed sending storage volume migration header")
 		c.sendControl(err)
 		return err
 	}

@@ -146,7 +146,7 @@ type Cluster struct {
 func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore, address, dir string, timeout time.Duration, dump *Dump, serverUUID string, options ...driver.Option) (*Cluster, error) {
 	db, err := cluster.Open(name, store, options...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open database: %w", err)
+		return nil, fmt.Errorf("Failed opening database: %w", err)
 	}
 
 	db.SetMaxOpenConns(1)
@@ -199,7 +199,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 	// FIXME: https://github.com/canonical/dqlite/issues/163
 	_, err = db.Exec("PRAGMA cache_size=-50000")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to set page cache size: %w", err)
+		return nil, fmt.Errorf("Failed setting page cache size: %w", err)
 	}
 
 	if dump != nil {
@@ -214,16 +214,16 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 			copyErr := shared.FileCopy(path+".bak", path)
 			if copyErr != nil {
 				// Ignore errors here, there's not much we can do
-				logger.Errorf("Failed to restore local database: %v", copyErr)
+				logger.Errorf("Failed restoring local database: %v", copyErr)
 			}
 
 			rmErr := os.RemoveAll(filepath.Join(dir, "global"))
 			if rmErr != nil {
 				// Ignore errors here, there's not much we can do
-				logger.Errorf("Failed to cleanup global database: %v", rmErr)
+				logger.Errorf("Failed cleaning up global database: %v", rmErr)
 			}
 
-			return nil, fmt.Errorf("Failed to migrate data to global database: %w", err)
+			return nil, fmt.Errorf("Failed migrating data to global database: %w", err)
 		}
 	}
 
@@ -238,12 +238,12 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 			return cluster, err
 		}
 
-		return nil, fmt.Errorf("Failed to ensure schema: %w", err)
+		return nil, fmt.Errorf("Failed ensuring schema: %w", err)
 	}
 
 	stmts, err := cluster.PrepareStmts(db, false)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to prepare statements: %w", err)
+		return nil, fmt.Errorf("Failed preparing statements: %w", err)
 	}
 
 	cluster.PreparedStmts = stmts
@@ -458,14 +458,14 @@ func DqliteLatestSegment() (string, error) {
 	dir := shared.VarPath("database", "global")
 	file, err := os.Open(dir)
 	if err != nil {
-		return "", fmt.Errorf("Unable to open directory %s with error %v", dir, err)
+		return "", fmt.Errorf("Cannot open directory %s with error %v", dir, err)
 	}
 
 	defer func() { _ = file.Close() }()
 
 	fileNames, err := file.Readdirnames(0)
 	if err != nil {
-		return "", fmt.Errorf("Unable to read file names in directory %s with error %v", dir, err)
+		return "", fmt.Errorf("Cannot read file names in directory %s with error %v", dir, err)
 	}
 
 	if len(fileNames) == 0 {

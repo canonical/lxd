@@ -169,7 +169,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 			return err
 		})
 		if err != nil {
-			return nil, fmt.Errorf("Failed to load all networks: %w", err)
+			return nil, fmt.Errorf("Failed loading all networks: %w", err)
 		}
 
 		for projectName, networks := range projectNetworks {
@@ -503,7 +503,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 		// Pass api.ProjectDefaultName here, as currently dnsmasq (bridged) networks do not support projects.
 		n, err := LoadByName(s, api.ProjectDefaultName, network)
 		if err != nil {
-			return fmt.Errorf("Failed to load network %q in project %q for dnsmasq update: %w", api.ProjectDefaultName, network, err)
+			return fmt.Errorf("Failed loading network %q in project %q for dnsmasq update: %w", api.ProjectDefaultName, network, err)
 		}
 
 		config := n.Config()
@@ -649,7 +649,7 @@ func randomSubnetV4() (string, error) {
 		}
 	}
 
-	return "", errors.New("Failed to automatically find an unused IPv4 subnet, manual configuration required")
+	return "", errors.New("Failed automatically finding an unused IPv4 subnet, manual configuration required")
 }
 
 func randomSubnetV6() (string, error) {
@@ -660,7 +660,7 @@ func randomSubnetV6() (string, error) {
 		}
 	}
 
-	return "", errors.New("Failed to automatically find an unused IPv6 subnet, manual configuration required")
+	return "", errors.New("Failed automatically finding an unused IPv6 subnet, manual configuration required")
 }
 
 // noAvailableAddressErr is used by randomAddressInSubnet to indicate that the subnet was exhausted while searching for
@@ -988,7 +988,7 @@ func GetNeighbourIPs(interfaceName string, hwaddr net.HardwareAddr) ([]ip.Neigh,
 	neigh := &ip.Neigh{DevName: interfaceName, MAC: hwaddr}
 	neighbours, err := neigh.Show()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get IP neighbours for interface %q: %w", interfaceName, err)
+		return nil, fmt.Errorf("Failed getting IP neighbours for interface %q: %w", interfaceName, err)
 	}
 
 	return neighbours, nil
@@ -1128,7 +1128,7 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string, gvrp b
 	link := &ip.Link{Name: parent}
 	err := link.SetUp()
 	if err != nil {
-		return false, fmt.Errorf("Failed to bring up parent %q: %w", parent, err)
+		return false, fmt.Errorf("Failed bringing up parent %q: %w", parent, err)
 	}
 
 	vlan := &ip.Vlan{
@@ -1142,12 +1142,12 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string, gvrp b
 
 	err = vlan.Add()
 	if err != nil {
-		return false, fmt.Errorf("Failed to create VLAN interface %q on %q: %w", vlanDevice, parent, err)
+		return false, fmt.Errorf("Failed creating VLAN interface %q on %q: %w", vlanDevice, parent, err)
 	}
 
 	err = vlan.SetUp()
 	if err != nil {
-		return false, fmt.Errorf("Failed to bring up interface %q: %w", vlanDevice, err)
+		return false, fmt.Errorf("Failed bringing up interface %q: %w", vlanDevice, err)
 	}
 
 	// Attempt to disable IPv6 router advertisement acceptance.
@@ -1562,12 +1562,12 @@ func complementRangesIP4(ranges []*shared.IPRange, netAddr *net.IPNet) ([]shared
 	for _, r := range ranges {
 		startAddr, ok := netip.AddrFromSlice(r.Start.To4())
 		if !ok {
-			return nil, fmt.Errorf("Unable to parse IP %q", r.Start)
+			return nil, fmt.Errorf("Cannot parse IP %q", r.Start)
 		}
 
 		endAddr, ok := netip.AddrFromSlice(r.End.To4())
 		if !ok {
-			return nil, fmt.Errorf("Unable to parse IP %q", r.End)
+			return nil, fmt.Errorf("Cannot parse IP %q", r.End)
 		}
 
 		previousEndNext := previousEnd.Next()
@@ -1603,7 +1603,7 @@ func complementRangesIP4(ranges []*shared.IPRange, netAddr *net.IPNet) ([]shared
 	// Set "endAddr" to the end of the network (broadcast address).
 	endAddr, ok := netip.AddrFromSlice(broadcastAddr.To4())
 	if !ok {
-		return nil, fmt.Errorf("Unable to parse IP %q", broadcastAddr)
+		return nil, fmt.Errorf("Cannot parse IP %q", broadcastAddr)
 	}
 
 	// Check for a final gap between the end of the last processed range

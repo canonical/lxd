@@ -525,7 +525,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		if (d.inst != nil && !d.inst.IsSnapshot()) || (d.inst == nil && instConf.Type() == instancetype.Any && !filters.IsRootDisk(d.config)) {
 			d.pool, err = storagePools.LoadByName(d.state, d.config["pool"])
 			if err != nil {
-				return fmt.Errorf("Failed to get storage pool %q: %w", d.config["pool"], err)
+				return fmt.Errorf("Failed getting storage pool %q: %w", d.config["pool"], err)
 			}
 
 			// Non-root volume validation.
@@ -1307,7 +1307,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil
 				}()
 				if err != nil {
-					return nil, fmt.Errorf("Failed to setup virtiofsd for device %q: %w", d.name, err)
+					return nil, fmt.Errorf("Failed setting up virtiofsd for device %q: %w", d.name, err)
 				}
 			} else if isPath {
 				f, err := d.localSourceOpen(pathSource.Path)
@@ -1476,7 +1476,7 @@ func (d *disk) applyDeferredQuota() error {
 	// that cannot be done when the volume is in use.
 	err := d.applyQuota(true)
 	if err != nil {
-		return fmt.Errorf("Failed to apply deferred quota from %q: %w", "volatile."+d.name+".apply_quota", err)
+		return fmt.Errorf("Failed applying deferred quota from %q: %w", "volatile."+d.name+".apply_quota", err)
 	}
 
 	// Remove volatile apply_quota key if successful.
@@ -1708,7 +1708,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 		srcPath, err = d.pool.Driver().GetVolumeDiskPath(volume)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("Failed to get disk path: %w", err)
+			return nil, "", nil, fmt.Errorf("Failed getting disk path: %w", err)
 		}
 	}
 
@@ -1938,7 +1938,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	if poolVolumePut.Config["volatile.idmap.last"] != "" {
 		lastIdmap, err = idmap.JSONUnmarshal(poolVolumePut.Config["volatile.idmap.last"])
 		if err != nil {
-			d.logger.Error("Failed to unmarshal last idmapping", logger.Ctx{"idmap": poolVolumePut.Config["volatile.idmap.last"], "err": err})
+			d.logger.Error("Failed unmarshaling last idmapping", logger.Ctx{"idmap": poolVolumePut.Config["volatile.idmap.last"], "err": err})
 			return err
 		}
 	}
@@ -1957,7 +1957,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	if shared.IsFalseOrEmpty(poolVolumePut.Config["security.shifted"]) {
 		c, ok := d.inst.(instance.Container)
 		if !ok {
-			return fmt.Errorf("Failed to cast instance %q to container", d.inst.Name())
+			return fmt.Errorf("Failed casting instance %q to container", d.inst.Name())
 		}
 
 		// Get the container's idmap.
@@ -2007,7 +2007,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 
 					ct, ok := inst.(instance.Container)
 					if !ok {
-						return fmt.Errorf("Failed to cast instance %q to container", inst.Name())
+						return fmt.Errorf("Failed casting instance %q to container", inst.Name())
 					}
 
 					var ctNextIdmap *idmap.IdmapSet
@@ -2019,7 +2019,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 					}
 
 					if err != nil {
-						return errors.New("Failed to retrieve idmap of container")
+						return errors.New("Failed retrieving idmap of container")
 					}
 
 					if !nextIdmap.Equals(ctNextIdmap) {
@@ -2047,7 +2047,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 			}
 
 			if err != nil {
-				d.logger.Error("Failed to unshift", logger.Ctx{"path": remapPath, "err": err})
+				d.logger.Error("Failed unshifting", logger.Ctx{"path": remapPath, "err": err})
 				return err
 			}
 
@@ -2065,7 +2065,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 			}
 
 			if err != nil {
-				d.logger.Error("Failed to shift", logger.Ctx{"path": remapPath, "err": err})
+				d.logger.Error("Failed shifting", logger.Ctx{"path": remapPath, "err": err})
 				return err
 			}
 
@@ -2080,7 +2080,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		var err error
 		jsonIdmap, err = idmap.JSONMarshal(nextIdmap)
 		if err != nil {
-			d.logger.Error("Failed to marshal idmap", logger.Ctx{"idmap": nextIdmap, "err": err})
+			d.logger.Error("Failed marshaling idmap", logger.Ctx{"idmap": nextIdmap, "err": err})
 			return err
 		}
 	}
@@ -2202,7 +2202,7 @@ func (d *disk) postStop() error {
 		v := d.volatileGet()
 		err := diskCephRbdUnmap(v["ceph_rbd"])
 		if err != nil {
-			d.logger.Error("Failed to unmap RBD volume", logger.Ctx{"rbd": v["ceph_rbd"], "err": err})
+			d.logger.Error("Failed unmapping RBD volume", logger.Ctx{"rbd": v["ceph_rbd"], "err": err})
 		}
 	}
 
@@ -2257,7 +2257,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 		if !shared.PathExists(source) {
 			// Require that device is mounted before resolving block device if required.
 			if d.isRequired(dev) {
-				return nil, fmt.Errorf("Block device path doesn't exist %q", source)
+				return nil, fmt.Errorf("Block device path does not exist %q", source)
 			}
 
 			continue // Do not resolve block device if device isn't mounted.
@@ -2291,7 +2291,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 			}
 
 			if blockStr == "" {
-				return nil, fmt.Errorf("Block device doesn't support quotas %q", block)
+				return nil, fmt.Errorf("Block device does not support quotas %q", block)
 			}
 
 			if blockLimits[blockStr] == nil {
@@ -2444,7 +2444,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 	}
 
 	if dev == nil {
-		return nil, errors.New("Couldn't find a match /proc/self/mountinfo entry")
+		return nil, errors.New("Could not find a match /proc/self/mountinfo entry")
 	}
 
 	// Handle the most simple case
@@ -2462,7 +2462,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 
 		output, err := shared.RunCommand(context.TODO(), "zpool", "status", "-P", "-L", poolName)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query zfs filesystem information for %q: %w", dev[1], err)
+			return nil, fmt.Errorf("Failed querying zfs filesystem information for %q: %w", dev[1], err)
 		}
 
 		header := true
@@ -2508,7 +2508,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 		}
 
 		if len(devices) == 0 {
-			return nil, fmt.Errorf("Unable to find backing block for zfs pool %q", poolName)
+			return nil, fmt.Errorf("Cannot find backing block for zfs pool %q", poolName)
 		}
 	} else if fs == "btrfs" && shared.PathExists(dev[1]) {
 		// Accessible btrfs filesystems
@@ -2517,7 +2517,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 			// Fallback to using device path to support BTRFS on block volumes (like LVM).
 			_, major, minor, errFallback := unixDeviceAttributes(dev[1])
 			if errFallback != nil {
-				return nil, fmt.Errorf("Failed to query btrfs filesystem information for %q: %w", dev[1], err)
+				return nil, fmt.Errorf("Failed querying btrfs filesystem information for %q: %w", dev[1], err)
 			}
 
 			devices = append(devices, fmt.Sprint(major, ":", minor))

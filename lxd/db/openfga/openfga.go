@@ -119,12 +119,12 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key storage.ReadFilte
 
 	u, err := url.Parse(entityURL)
 	if err != nil {
-		return nil, fmt.Errorf("Read: Failed to parse entity URL %q: %w", entityURL, err)
+		return nil, fmt.Errorf("Read: Failed parsing entity URL %q: %w", entityURL, err)
 	}
 
 	urlEntityType, projectName, location, pathArgs, err := entity.ParseURL(*u)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse entity URL %q: %w", entityURL, err)
+		return nil, fmt.Errorf("Failed parsing entity URL %q: %w", entityURL, err)
 	}
 
 	if urlEntityType != entityType {
@@ -343,7 +343,7 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 
 	u, err := url.Parse(entityURL)
 	if err != nil {
-		return nil, fmt.Errorf("ReadUsersetTuples: Failed to parse entity URL %q: %w", entityURL, err)
+		return nil, fmt.Errorf("ReadUsersetTuples: Failed parsing entity URL %q: %w", entityURL, err)
 	}
 
 	// Get cache from context. If it is not present, we'll fall back to calling the database directly.
@@ -351,7 +351,7 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 	if err != nil {
 		groups, err := o.getGroupsWithEntitlementOnEntityWithURL(ctx, auth.Entitlement(filter.Relation), entityType, u)
 		if err != nil {
-			return nil, fmt.Errorf("ReadUsersetTuples: Failed to get groups with entitlement on entity: %w", err)
+			return nil, fmt.Errorf("ReadUsersetTuples: Failed getting groups with entitlement on entity: %w", err)
 		}
 
 		return storage.NewStaticTupleIterator(usersetTuples(filter.Object, filter.Relation, groups)), nil
@@ -359,7 +359,7 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 
 	err = o.ensureCacheLoaded(ctx, cache)
 	if err != nil {
-		return nil, fmt.Errorf("ReadUsersetTuples: Failed to ensure that the request cache is loaded: %w", err)
+		return nil, fmt.Errorf("ReadUsersetTuples: Failed ensuring that the request cache is loaded: %w", err)
 	}
 
 	cache.permissionsByEntityTypeMu.RLock()
@@ -402,7 +402,7 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ReadUsersetTuples: Failed to get entity ID from URL: %w", err)
+		return nil, fmt.Errorf("ReadUsersetTuples: Failed getting entity ID from URL: %w", err)
 	}
 
 	return storage.NewStaticTupleIterator(usersetTuples(filter.Object, filter.Relation, entityTypeEntitlementPermissions[entityID])), nil
@@ -548,7 +548,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	// Parse the user URL.
 	u, err := url.Parse(userURL)
 	if err != nil {
-		return nil, fmt.Errorf("ReadStartingWithUser: Failed to parse user entity URL %q: %w", userURL, err)
+		return nil, fmt.Errorf("ReadStartingWithUser: Failed parsing user entity URL %q: %w", userURL, err)
 	}
 
 	_, projectName, _, userURLPathArguments, err := entity.ParseURL(*u)
@@ -577,7 +577,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 			return nil
 		})
 		if err != nil {
-			return nil, fmt.Errorf("ReadStartingWithUser: Failed to get entity URLs: %w", err)
+			return nil, fmt.Errorf("ReadStartingWithUser: Failed getting entity URLs: %w", err)
 		}
 
 		// Compose the expected tuples relating the server/project to the entities.
@@ -658,7 +658,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	if err != nil {
 		entityURLs, err := o.getEntitiesOfTypeWhereGroupHasEntitlement(ctx, entityType, groupName, entitlement)
 		if err != nil {
-			return nil, fmt.Errorf("ReadStartingWithUser: Failed to get entities of type %q where group %q has entitlement %q: %w", entityType, groupName, entitlement, err)
+			return nil, fmt.Errorf("ReadStartingWithUser: Failed getting entities of type %q where group %q has entitlement %q: %w", entityType, groupName, entitlement, err)
 		}
 
 		return storage.NewStaticTupleIterator(readStartingWithUserTuples(entityType, entityURLs, entitlement, groupName)), nil
@@ -666,7 +666,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 
 	err = o.ensureCacheLoaded(ctx, cache)
 	if err != nil {
-		return nil, fmt.Errorf("ReadStartingWithUser: Failed to ensure that the request cache is loaded: %w", err)
+		return nil, fmt.Errorf("ReadStartingWithUser: Failed ensuring that the request cache is loaded: %w", err)
 	}
 
 	cache.permissionsByGroupMu.RLock()
@@ -712,7 +712,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ReadStartingWithUser: Failed to get entity URLs for permissions: %w", err)
+		return nil, fmt.Errorf("ReadStartingWithUser: Failed getting entity URLs for permissions: %w", err)
 	}
 
 	entityURLsWithPermissions := make([]string, 0, len(validPermissions))

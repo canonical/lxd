@@ -274,7 +274,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			_, err = dbCluster.GetProjectID(ctx, tx.Tx(), projectName)
 			if err != nil {
-				return fmt.Errorf("Failed to get project: %w", err)
+				return fmt.Errorf("Failed getting project: %w", err)
 			}
 
 			filteredProjects = []string{projectName}
@@ -537,7 +537,7 @@ func doContainersGetFromNode(projects []string, node string, allProjects bool, n
 	f := func() ([]api.Instance, error) {
 		client, err := cluster.Connect(r.Context(), node, networkCert, serverCert, true)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to connect to member %s: %w", node, err)
+			return nil, fmt.Errorf("Failed connecting to member %s: %w", node, err)
 		}
 
 		var containers []api.Instance
@@ -547,7 +547,7 @@ func doContainersGetFromNode(projects []string, node string, allProjects bool, n
 				AllProjects:  true,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get instances from member %s: %w", node, err)
+				return nil, fmt.Errorf("Failed getting instances from member %s: %w", node, err)
 			}
 		} else {
 			for _, project := range projects {
@@ -557,7 +557,7 @@ func doContainersGetFromNode(projects []string, node string, allProjects bool, n
 					InstanceType: api.InstanceType(instanceType.String()),
 				})
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get instances from member %s: %w", node, err)
+					return nil, fmt.Errorf("Failed getting instances from member %s: %w", node, err)
 				}
 
 				containers = append(containers, tmpContainers...)
@@ -591,7 +591,7 @@ func doContainersFullGetFromNode(projects []string, node string, allProjects boo
 	f := func() ([]api.InstanceFull, error) {
 		client, err := cluster.Connect(r.Context(), node, networkCert, serverCert, true)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to connect to member %s: %w", node, err)
+			return nil, fmt.Errorf("Failed connecting to member %s: %w", node, err)
 		}
 
 		var instances []api.InstanceFull
@@ -601,7 +601,7 @@ func doContainersFullGetFromNode(projects []string, node string, allProjects boo
 				AllProjects:  true,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get instances from member %s: %w", node, err)
+				return nil, fmt.Errorf("Failed getting instances from member %s: %w", node, err)
 			}
 		} else {
 			for _, project := range projects {
@@ -611,7 +611,7 @@ func doContainersFullGetFromNode(projects []string, node string, allProjects boo
 					InstanceType: api.InstanceType(instanceType.String()),
 				})
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get instances from member %s: %w", node, err)
+					return nil, fmt.Errorf("Failed getting instances from member %s: %w", node, err)
 				}
 
 				instances = append(instances, tmpInstances...)

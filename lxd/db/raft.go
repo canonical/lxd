@@ -52,7 +52,7 @@ func (n *NodeTx) GetRaftNodes(ctx context.Context) ([]RaftNode, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch raft nodes: %w", err)
+		return nil, fmt.Errorf("Failed fetching raft nodes: %w", err)
 	}
 
 	return nodes, nil

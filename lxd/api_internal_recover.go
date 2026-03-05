@@ -181,7 +181,7 @@ func identifyCustomVolumePool(s *state.State, volConfig *backupConfig.Config, ex
 	// If the current volume's backup config contains a custom volume, try loading its pool.
 	volPool, err := volConfig.CustomVolumePool()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get pool of custom volume %q: %w", customVol.Name, err)
+		return nil, fmt.Errorf("Failed getting pool of custom volume %q: %w", customVol.Name, err)
 	}
 
 	// Check the already existing map of pools requested by the user.
@@ -368,7 +368,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 			for _, volConfig := range volConfigs {
 				err = appendUnknownVolumeConfig(p.Name, projectName, volConfig, poolsProjectVols)
 				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed to add unknown volume to the list: %w", err))
+					return response.SmartError(fmt.Errorf("Failed adding unknown volume to the list: %w", err))
 				}
 			}
 		}
@@ -397,7 +397,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 			for _, volConfig := range volConfigs {
 				dependencyErr, err := identifyCustomVolumePool(s, volConfig, pools)
 				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed to identify custom volume's pool: %w", err))
+					return response.SmartError(fmt.Errorf("Failed identifying custom volume's pool: %w", err))
 				}
 
 				if dependencyErr != nil {

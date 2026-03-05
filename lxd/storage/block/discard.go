@@ -149,7 +149,7 @@ func ClearBlock(blockPath string, blockOffset int64) error {
 	}
 
 	if found != 3 {
-		return errors.New("Some of our initial markers weren't written properly")
+		return errors.New("Some of our initial markers were not written properly")
 	}
 
 	// Start clearing the block.

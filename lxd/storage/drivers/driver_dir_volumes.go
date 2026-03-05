@@ -188,7 +188,7 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 	// Remove the volume from the storage device.
 	err = forceRemoveAll(volPath)
 	if err != nil {
-		return fmt.Errorf("Failed to remove %q: %w", volPath, err)
+		return fmt.Errorf("Failed removing %q: %w", volPath, err)
 	}
 
 	// Get the volume ID for the volume, which is used to remove project quota.
@@ -484,7 +484,7 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	// Remove the snapshot from the storage device.
 	err := forceRemoveAll(snapPath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove %q: %w", snapPath, err)
+		return fmt.Errorf("Failed removing %q: %w", snapPath, err)
 	}
 
 	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
@@ -584,7 +584,7 @@ func (d *dir) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 		bwlimit := d.config["rsync.bwlimit"]
 		_, err := rsync.LocalCopy(srcPath, volPath, bwlimit, true, rsyncArgs...)
 		if err != nil {
-			return fmt.Errorf("Failed to rsync volume: %w", err)
+			return fmt.Errorf("Failed rsyncing volume: %w", err)
 		}
 	}
 

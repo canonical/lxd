@@ -47,7 +47,7 @@ func HugepagesPath() (string, error) {
 	}
 
 	if len(matches) == 0 {
-		return "", errors.New("No hugetlbfs mount found, can't use hugepages")
+		return "", errors.New("No hugetlbfs mount found, cannot use hugepages")
 	}
 
 	if len(matches) > 1 {

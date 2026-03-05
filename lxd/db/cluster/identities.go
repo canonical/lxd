@@ -219,12 +219,12 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 	var metadata CertificateMetadata
 	err = json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
+		return nil, fmt.Errorf("Failed unmarshaling certificate identity metadata: %w", err)
 	}
 
 	identityType, err := identity.New(string(i.Type))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
+		return nil, fmt.Errorf("Failed checking restricted status of identity: %w", err)
 	}
 
 	isRestricted := !identityType.IsAdmin()
@@ -268,7 +268,7 @@ func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
 	var metadata CertificateMetadata
 	err = json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
+		return nil, fmt.Errorf("Failed unmarshaling certificate identity metadata: %w", err)
 	}
 
 	return &metadata, nil
@@ -310,7 +310,7 @@ func (i Identity) OIDCMetadata() (*OIDCMetadata, error) {
 	var metadata OIDCMetadata
 	err := json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal OIDC metadata: %w", err)
+		return nil, fmt.Errorf("Failed unmarshaling OIDC metadata: %w", err)
 	}
 
 	return &metadata, nil
@@ -336,7 +336,7 @@ func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 	var metadata PendingTLSMetadata
 	err = json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
-		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed to unmarshal pending TLS identity metadata: %w", err)
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed unmarshaling pending TLS identity metadata: %w", err)
 	}
 
 	return &metadata, nil
@@ -392,13 +392,13 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 
 	identity, err := GetIdentity(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
 	if err != nil {
-		return fmt.Errorf("Failed to get pending %q TLS identity: %w", identity.Type, err)
+		return fmt.Errorf("Failed getting pending %q TLS identity: %w", identity.Type, err)
 	}
 
 	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
 	b, err := json.Marshal(metadata)
 	if err != nil {
-		return fmt.Errorf("Failed to encode certificate metadata: %w", err)
+		return fmt.Errorf("Failed encoding certificate metadata: %w", err)
 	}
 
 	identityTypeActive, err := identity.Type.ActiveType()
@@ -409,12 +409,12 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
 	res, err := tx.ExecContext(ctx, stmt, identityTypeActive, fingerprint, string(b), identifier.String(), authMethodTLS)
 	if err != nil {
-		return fmt.Errorf("Failed to activate %q TLS identity: %w", identity.Type, err)
+		return fmt.Errorf("Failed activating %q TLS identity: %w", identity.Type, err)
 	}
 
 	n, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to check for activated %q TLS identity: %w", identity.Type, err)
+		return fmt.Errorf("Failed checking for activated %q TLS identity: %w", identity.Type, err)
 	}
 
 	if n == 0 {
@@ -481,7 +481,7 @@ WHERE identities_auth_groups.identity_id = ?`
 
 	err := query.Scan(ctx, tx, stmt, dest, identityID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get groups for identity with ID %d: %w", identityID, err)
+		return nil, fmt.Errorf("Failed getting groups for identity with ID %d: %w", identityID, err)
 	}
 
 	return result, nil
@@ -510,7 +510,7 @@ JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_grou
 
 	err := query.Scan(ctx, tx, stmt, dest)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get identities for all groups: %w", err)
+		return nil, fmt.Errorf("Failed getting identities for all groups: %w", err)
 	}
 
 	return result, nil
@@ -551,7 +551,7 @@ func GetIdentityByNameOrIdentifier(ctx context.Context, tx *sql.Tx, authenticati
 func SetIdentityAuthGroups(ctx context.Context, tx *sql.Tx, identityID int64, groupNames []string) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM identities_auth_groups WHERE identity_id = ?`, identityID)
 	if err != nil {
-		return fmt.Errorf("Failed to delete existing groups for identity with ID %d: %w", identityID, err)
+		return fmt.Errorf("Failed deleting existing groups for identity with ID %d: %w", identityID, err)
 	}
 
 	if len(groupNames) == 0 {
@@ -572,12 +572,12 @@ WHERE auth_groups.name IN %s
 
 	res, err := tx.ExecContext(ctx, q, args...)
 	if err != nil {
-		return fmt.Errorf("Failed to write identity auth group associations: %w", err)
+		return fmt.Errorf("Failed writing identity auth group associations: %w", err)
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to check validity of identity auth group associations: %w", err)
+		return fmt.Errorf("Failed checking validity of identity auth group associations: %w", err)
 	}
 
 	if int(rowsAffected) != len(groupNames) {
@@ -599,7 +599,7 @@ WHERE auth_groups.name IN %s
 			return api.NewStatusError(http.StatusNotFound, "One or more groups were not found: "+strings.Join(missingGroups, ", "))
 		}
 
-		return fmt.Errorf("Failed to write expected number of rows to identity auth group association table (expected %d, got %d)", len(groupNames), rowsAffected)
+		return fmt.Errorf("Failed writing expected number of rows to identity auth group association table (expected %d, got %d)", len(groupNames), rowsAffected)
 	}
 
 	return nil
@@ -610,7 +610,7 @@ func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*Identity, erro
 	identityFilter := IdentityFilter{ID: &id}
 	clusterIdentities, err := GetIdentitys(ctx, tx, identityFilter)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get identity with ID %d: %w", id, err)
+		return nil, fmt.Errorf("Failed getting identity with ID %d: %w", id, err)
 	}
 
 	switch len(clusterIdentities) {

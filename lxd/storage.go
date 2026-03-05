@@ -194,19 +194,19 @@ func storageStop(s *state.State) {
 		return err
 	})
 	if err != nil && !response.IsNotFoundError(err) {
-		logger.Error("Failed to get storage pools", logger.Ctx{"err": err})
+		logger.Error("Failed getting storage pools", logger.Ctx{"err": err})
 	}
 
 	for _, poolName := range pools {
 		pool, err := storagePools.LoadByName(s, poolName)
 		if err != nil {
-			logger.Error("Failed to get storage pool", logger.Ctx{"pool": poolName, "err": err})
+			logger.Error("Failed getting storage pool", logger.Ctx{"pool": poolName, "err": err})
 			continue
 		}
 
 		_, err = pool.Unmount()
 		if err != nil {
-			logger.Error("Unable to unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
+			logger.Error("Cannot unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
 			continue
 		}
 	}

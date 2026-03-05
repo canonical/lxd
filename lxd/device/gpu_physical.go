@@ -180,12 +180,12 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 
 		major, err := strconv.ParseUint(conf["major"], 10, 32)
 		if err != nil {
-			return fmt.Errorf("Failed to parse major number %q when starting CDI device: %w", conf["major"], err)
+			return fmt.Errorf("Failed parsing major number %q when starting CDI device: %w", conf["major"], err)
 		}
 
 		minor, err := strconv.ParseUint(conf["minor"], 10, 32)
 		if err != nil {
-			return fmt.Errorf("Failed to parse minor number %q when starting CDI device: %w", conf["minor"], err)
+			return fmt.Errorf("Failed parsing minor number %q when starting CDI device: %w", conf["minor"], err)
 		}
 
 		uid := conf["uid"]
@@ -508,7 +508,7 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 	}
 
 	if !found {
-		return nil, errors.New("Failed to detect requested GPU device")
+		return nil, errors.New("Failed detecting requested GPU device")
 	}
 
 	return &runConf, nil
@@ -561,7 +561,7 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 	}
 
 	if pciAddress == "" {
-		return nil, errors.New("Failed to detect requested GPU device")
+		return nil, errors.New("Failed detecting requested GPU device")
 	}
 
 	// Make sure that vfio-pci is loaded.
@@ -573,7 +573,7 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 	// Get PCI information about the GPU device.
 	pciDev, err := pcidev.ParseUeventFile(filepath.Join("/sys/bus/pci/devices", pciAddress, "uevent"))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get PCI device info for GPU %q: %w", pciAddress, err)
+		return nil, fmt.Errorf("Failed getting PCI device info for GPU %q: %w", pciAddress, err)
 	}
 
 	saveData["last_state.pci.slot.name"] = pciDev.SlotName
@@ -581,7 +581,7 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 
 	err = d.pciDeviceDriverOverrideIOMMU(pciDev, "vfio-pci", false)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to override IOMMU group driver: %w", err)
+		return nil, fmt.Errorf("Failed overriding IOMMU group driver: %w", err)
 	}
 
 	runConf.GPUDevice = append(runConf.GPUDevice,
@@ -759,23 +759,23 @@ func (d *gpuPhysical) postStop() error {
 		if cdiID != nil {
 			err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), cdi.CDIUnixPrefix, d.name, "")
 			if err != nil {
-				return fmt.Errorf("Failed to delete files for CDI device %q: %w", d.name, err)
+				return fmt.Errorf("Failed deleting files for CDI device %q: %w", d.name, err)
 			}
 
 			// Also remove the JSON files that were used to store the CDI related information.
 			err = os.Remove(d.generateCDIHooksFilePath())
 			if err != nil {
-				return fmt.Errorf("Failed to delete CDI hooks file for device %q: %w", d.name, err)
+				return fmt.Errorf("Failed deleting CDI hooks file for device %q: %w", d.name, err)
 			}
 
 			err = os.Remove(d.generateCDIConfigDevicesFilePath())
 			if err != nil {
-				return fmt.Errorf("Failed to delete CDI paths to conf file for device %q: %w", d.name, err)
+				return fmt.Errorf("Failed deleting CDI paths to conf file for device %q: %w", d.name, err)
 			}
 		} else {
 			err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 			if err != nil {
-				return fmt.Errorf("Failed to delete files for device %q: %w", d.name, err)
+				return fmt.Errorf("Failed deleting files for device %q: %w", d.name, err)
 			}
 		}
 

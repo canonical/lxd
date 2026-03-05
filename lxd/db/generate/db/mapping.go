@@ -474,7 +474,7 @@ func (f *Field) InsertColumn(pkg *packages.Package, dbPkg *packages.Package, map
 		varName := stmtCodeVar(lex.Singular(table), "ID")
 		joinStmt, err := ParseStmt(pkg, dbPkg, varName)
 		if err != nil {
-			return "", "", fmt.Errorf("Failed to find registered statement %q for field %q of struct %q: %w", varName, f.Name, mapping.Name, err)
+			return "", "", fmt.Errorf("Failed finding registered statement %q for field %q of struct %q: %w", varName, f.Name, mapping.Name, err)
 		}
 
 		value = "(" + strings.ReplaceAll(strings.ReplaceAll(joinStmt, "`", ""), "\n", "") + ")"

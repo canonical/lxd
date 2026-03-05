@@ -803,7 +803,7 @@ func (d *lvm) mountCommon(vol Volume, op *operations.Operation) error {
 		// Finally attempt to mount the volume that needs mounting.
 		err = TryMount(context.TODO(), volDevPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags, mountOptions)
 		if err != nil {
-			return fmt.Errorf("Failed to mount LVM snapshot volume: %w", err)
+			return fmt.Errorf("Failed mounting LVM snapshot volume: %w", err)
 		}
 
 		d.logger.Debug("Mounted logical volume", logger.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
@@ -882,20 +882,20 @@ func (d *lvm) unmountCommon(vol Volume, keepBlockDev bool, op *operations.Operat
 			tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, tmpVolName)
 			exists, err := d.logicalVolumeExists(tmpVolDevPath)
 			if err != nil {
-				return true, fmt.Errorf("Failed to check existence of temporary LVM snapshot volume %q: %w", tmpVolDevPath, err)
+				return true, fmt.Errorf("Failed checking existence of temporary LVM snapshot volume %q: %w", tmpVolDevPath, err)
 			}
 
 			if exists {
 				err = d.removeLogicalVolume(tmpVolDevPath)
 				if err != nil {
-					return true, fmt.Errorf("Failed to remove temporary LVM snapshot volume %q: %w", tmpVolDevPath, err)
+					return true, fmt.Errorf("Failed removing temporary LVM snapshot volume %q: %w", tmpVolDevPath, err)
 				}
 			}
 		}
 
 		err = TryUnmount(mountPath, 0)
 		if err != nil {
-			return false, fmt.Errorf("Failed to unmount LVM logical volume: %w", err)
+			return false, fmt.Errorf("Failed unmounting LVM logical volume: %w", err)
 		}
 
 		d.logger.Debug("Unmounted logical volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
@@ -1168,7 +1168,7 @@ func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, e
 
 	err = cmd.Wait()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get snapshot list for volume %q: %v: %w", vol.name, strings.TrimSpace(string(errMsg)), err)
+		return nil, fmt.Errorf("Failed getting snapshot list for volume %q: %v: %w", vol.name, strings.TrimSpace(string(errMsg)), err)
 	}
 
 	return snapshots, nil

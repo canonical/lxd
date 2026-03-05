@@ -105,7 +105,7 @@ func TestIsRecursionRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			reqURL, err := url.Parse("http://localhost/1.0/instances?" + tt.queryString)
 			if err != nil {
-				t.Fatalf("Failed to parse URL: %v", err)
+				t.Fatalf("Failed parsing URL: %v", err)
 			}
 
 			r := &http.Request{URL: reqURL}

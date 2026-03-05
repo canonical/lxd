@@ -92,7 +92,7 @@ type AuthError struct {
 
 // Error implements the error interface for AuthError.
 func (e AuthError) Error() string {
-	return "Failed to authenticate: " + e.Err.Error()
+	return "Failed authenticating: " + e.Err.Error()
 }
 
 // Unwrap implements the xerrors.Wrapper interface for AuthError.
@@ -141,7 +141,7 @@ func (o *Verifier) userInfo(ctx context.Context, token string) (*oidc.UserInfo, 
 	var userinfo oidc.UserInfo
 	err = httphelper.HttpRequest(o.relyingParty.HttpClient(), req, &userinfo)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get user info: %w", err)
+		return nil, fmt.Errorf("Failed getting user info: %w", err)
 	}
 
 	return &userinfo, nil
@@ -152,7 +152,7 @@ func (o *Verifier) userInfo(ctx context.Context, token string) (*oidc.UserInfo, 
 func (o *Verifier) authenticateBearerToken(r *http.Request, w http.ResponseWriter, accessToken string) (*AuthenticationResult, error) {
 	agent, err := request.ParseUserAgent(r.UserAgent())
 	if err != nil {
-		return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to parse user agent to determine persistent cookie feature: %w", err)
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Failed parsing user agent to determine persistent cookie feature: %w", err)
 	}
 
 	if !slices.Contains(agent.Features, api.ClientFeatureCookieJar) {
@@ -166,17 +166,17 @@ func (o *Verifier) authenticateBearerToken(r *http.Request, w http.ResponseWrite
 
 	userInfo, err := o.userInfo(r.Context(), accessToken)
 	if err != nil {
-		return nil, AuthError{Err: fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)}
+		return nil, AuthError{Err: fmt.Errorf("Failed calling user info endpoint with given access token: %w", err)}
 	}
 
 	res, err := o.getResultFromClaims(userInfo, userInfo.Claims)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse user info response: %w", err)
+		return nil, fmt.Errorf("Failed parsing user info response: %w", err)
 	}
 
 	err = o.startSession(r, w, *res, nil, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to start a new session: %w", err)
+		return nil, fmt.Errorf("Failed starting a new session: %w", err)
 	}
 
 	return res, nil
@@ -204,7 +204,7 @@ func (o *Verifier) verifySession(r *http.Request, w http.ResponseWriter, session
 	if err != nil {
 		// Unexpected error.
 		if !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return nil, fmt.Errorf("Failed to get session information: %w", err)
+			return nil, fmt.Errorf("Failed getting session information: %w", err)
 		}
 
 		// If not found, check if the caller already sent a bearer token to reverify.
@@ -221,13 +221,13 @@ func (o *Verifier) verifySession(r *http.Request, w http.ResponseWriter, session
 	if startNewSession {
 		err = o.startSession(r, w, *res, tokens, expiry)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to start a new session: %w", err)
+			return nil, fmt.Errorf("Failed starting a new session: %w", err)
 		}
 
 		// Delete the old session from the database.
 		err = o.sessionHandler.DeleteSession(r.Context(), *sessionID)
 		if err != nil {
-			logger.Warn("Failed to delete session with stale signing key from database", logger.Ctx{"session_uuid": sessionID.String(), "err": err})
+			logger.Warn("Failed deleting session with stale signing key from database", logger.Ctx{"session_uuid": sessionID.String(), "err": err})
 		}
 	}
 
@@ -243,14 +243,14 @@ func (o *Verifier) handleExpiredSession(r *http.Request, w http.ResponseWriter, 
 		// Always delete the old session from the database.
 		err := o.sessionHandler.DeleteSession(r.Context(), sessionID)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			logger.Warn("Failed to delete session with stale signing key from database", logger.Ctx{"session_uuid": sessionID.String(), "err": err})
+			logger.Warn("Failed deleting session with stale signing key from database", logger.Ctx{"session_uuid": sessionID.String(), "err": err})
 		}
 	}()
 
 	_, tokens, _, err := o.sessionHandler.GetIdentityBySessionID(r.Context(), sessionID)
 	if err != nil {
 		if !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return nil, fmt.Errorf("Failed to get session information: %w", err)
+			return nil, fmt.Errorf("Failed getting session information: %w", err)
 		}
 
 		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
@@ -273,7 +273,7 @@ func (o *Verifier) handleExpiredSession(r *http.Request, w http.ResponseWriter, 
 
 	err = o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to verify OIDC configuration: %w", err)
+		return nil, fmt.Errorf("Failed verifying OIDC configuration: %w", err)
 	}
 
 	// Reverify access token.
@@ -299,23 +299,23 @@ func (o *Verifier) handleExpiredSession(r *http.Request, w http.ResponseWriter, 
 
 	refreshedTokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](r.Context(), o.relyingParty, tokens.RefreshToken, "", "")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to refresh ID tokens: %w", err)
+		return nil, fmt.Errorf("Failed refreshing ID tokens: %w", err)
 	}
 
 	// Verify the refreshed access token.
 	userInfo, err = o.userInfo(r.Context(), refreshedTokens.AccessToken)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to verify refreshed access token: %w", err)
+		return nil, fmt.Errorf("Failed verifying refreshed access token: %w", err)
 	}
 
 	res, err := o.getResultFromClaims(userInfo, userInfo.Claims)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse user info response: %w", err)
+		return nil, fmt.Errorf("Failed parsing user info response: %w", err)
 	}
 
 	err = o.startSession(r, w, *res, refreshedTokens, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to start a new session: %w", err)
+		return nil, fmt.Errorf("Failed starting a new session: %w", err)
 	}
 
 	return res, err
@@ -334,7 +334,7 @@ func (o *Verifier) verifySessionToken(ctx context.Context, sessionToken string) 
 	// Find the secret that was used to obtain the signing key.
 	secret, staleSigningKey, err := o.getSecretFromUsedAtTime(ctx, issuedAt.Unix())
 	if err != nil {
-		return nil, false, fmt.Errorf("Failed to get session token signing key: %w", err)
+		return nil, false, fmt.Errorf("Failed getting session token signing key: %w", err)
 	}
 
 	// Verify the token.
@@ -442,7 +442,7 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 	// outdated secret was used for encryption key generation.
 	loginID, err := uuid.NewV7()
 	if err != nil {
-		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Login failed: Failed to create a login identifier: %w", err).Error()).Render(w, r)
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Login failed: Failed creating a login identifier: %w", err).Error()).Render(w, r)
 		return
 	}
 
@@ -497,7 +497,7 @@ func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 	// Delete the current session
 	err = o.sessionHandler.DeleteSession(r.Context(), *sessionID)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		logger.Warn("Unable to delete session after OIDC logout", logger.Ctx{"session_uuid": sessionID.String(), "err": err})
+		logger.Warn("Cannot delete session after OIDC logout", logger.Ctx{"session_uuid": sessionID.String(), "err": err})
 	}
 }
 
@@ -524,17 +524,17 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	callback := func(ctx context.Context, tokens *oidc.Tokens[*oidc.IDTokenClaims]) error {
 		userInfo, err := o.userInfo(r.Context(), tokens.AccessToken)
 		if err != nil {
-			return fmt.Errorf("Failed to get caller identity: %w", err)
+			return fmt.Errorf("Failed getting caller identity: %w", err)
 		}
 
 		res, err := o.getResultFromClaims(userInfo, userInfo.Claims)
 		if err != nil {
-			return fmt.Errorf("Failed to parse user info response: %w", err)
+			return fmt.Errorf("Failed parsing user info response: %w", err)
 		}
 
 		err = o.startSession(r, w, *res, tokens, nil)
 		if err != nil {
-			return fmt.Errorf("Failed to start a new session: %w", err)
+			return fmt.Errorf("Failed starting a new session: %w", err)
 		}
 
 		return nil
@@ -543,7 +543,7 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
 		err = callback(r.Context(), tokens)
 		if err != nil {
-			_ = response.SmartError(fmt.Errorf("Failed to run OIDC callback: %w", err)).Render(w, r)
+			_ = response.SmartError(fmt.Errorf("Failed running OIDC callback: %w", err)).Render(w, r)
 			return
 		}
 
@@ -566,7 +566,7 @@ func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 
 	scopesJSON, err := json.Marshal(o.scopes)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal OIDC scopes: %w", err)
+		return fmt.Errorf("Failed marshaling OIDC scopes: %w", err)
 	}
 
 	w.Header().Set("X-LXD-OIDC-scopes", string(scopesJSON))
@@ -621,12 +621,12 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 	cookieHandler := httphelper.NewRequestAwareCookieHandler(func(r *http.Request) (*securecookie.SecureCookie, error) {
 		loginID, err := r.Cookie(cookieNameLoginID)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get login ID cookie: %w", err)
+			return nil, fmt.Errorf("Failed getting login ID cookie: %w", err)
 		}
 
 		loginUUID, err := uuid.Parse(loginID.Value)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse login ID cookie: %w", err)
+			return nil, fmt.Errorf("Failed parsing login ID cookie: %w", err)
 		}
 
 		// For the auth code flow, ignore the boolean which tells us to start a new session. We only care that
@@ -641,7 +641,7 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 
 	httpClient, err := o.httpClientFunc()
 	if err != nil {
-		return fmt.Errorf("Failed to get a HTTP client: %w", err)
+		return fmt.Errorf("Failed getting a HTTP client: %w", err)
 	}
 
 	options := []rp.Option{
@@ -653,7 +653,7 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 
 	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, o.clientSecret, "https://"+host+"/oidc/callback", o.scopes, options...)
 	if err != nil {
-		return fmt.Errorf("Failed to get OIDC relying party: %w", err)
+		return fmt.Errorf("Failed getting OIDC relying party: %w", err)
 	}
 
 	o.relyingParty = relyingParty
@@ -747,7 +747,7 @@ func (o *Verifier) secureCookieFromV7UUID(ctx context.Context, sessionID uuid.UU
 	// Get the sessionID as a binary so that we can use it as a salt.
 	salt, err := sessionID.MarshalBinary()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal session ID as binary: %w", err)
+		return nil, fmt.Errorf("Failed marshaling session ID as binary: %w", err)
 	}
 
 	// Get the secret used when the session was created
@@ -792,7 +792,7 @@ func NewVerifier(ctx context.Context, issuer string, clientID string, clientSecr
 	// Ensure configuration is valid with daemon's network address.
 	err := verifier.ensureConfig(ctx, networkAddress)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to ensure new verifier's configuration: %w", err)
+		return nil, fmt.Errorf("Failed ensuring new verifier's configuration: %w", err)
 	}
 
 	return verifier, nil

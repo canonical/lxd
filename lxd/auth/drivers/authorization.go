@@ -51,12 +51,12 @@ func LoadAuthorizer(ctx context.Context, driver string, logger logger.Logger, op
 	d := driverFunc()
 	err := d.init(driver, logger)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize authorizer: %w", err)
+		return nil, fmt.Errorf("Failed initializing authorizer: %w", err)
 	}
 
 	err = d.load(ctx, *opts)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load authorizer: %w", err)
+		return nil, fmt.Errorf("Failed loading authorizer: %w", err)
 	}
 
 	return d, nil

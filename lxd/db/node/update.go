@@ -167,7 +167,7 @@ func updateFromV39(ctx context.Context, tx *sql.Tx) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch raft nodes: %w", err)
+		return fmt.Errorf("Failed fetching raft nodes: %w", err)
 	}
 
 	if len(nodes) != 1 {

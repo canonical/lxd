@@ -294,7 +294,7 @@ func GenerateFromCDI(isCore bool, inst instance.Instance, cdiID ID) (*ConfigDevi
 	// 1. Generate the CDI specification
 	spec, err := generateSpec(isCore, cdiID, inst)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to generate CDI spec: %w", err)
+		return nil, nil, fmt.Errorf("Failed generating CDI spec: %w", err)
 	}
 
 	// Initialize the hooks as empty
@@ -344,7 +344,7 @@ func ReloadConfigDevicesFromDisk(pathsToConfigDevicesFilePath string) (ConfigDev
 	// Load the config devices file from the disk
 	pathsToCDIConfigDevicesFile, err := os.Open(pathsToConfigDevicesFilePath)
 	if err != nil {
-		return ConfigDevices{}, fmt.Errorf("Failed to open the paths to CDI conf file at %q: %w", pathsToConfigDevicesFilePath, err)
+		return ConfigDevices{}, fmt.Errorf("Failed opening the paths to CDI conf file at %q: %w", pathsToConfigDevicesFilePath, err)
 	}
 
 	defer pathsToCDIConfigDevicesFile.Close()
@@ -352,7 +352,7 @@ func ReloadConfigDevicesFromDisk(pathsToConfigDevicesFilePath string) (ConfigDev
 	configDevices := &ConfigDevices{}
 	err = json.NewDecoder(pathsToCDIConfigDevicesFile).Decode(configDevices)
 	if err != nil {
-		return ConfigDevices{}, fmt.Errorf("Failed to decode the paths to CDI conf file at %q: %w", pathsToConfigDevicesFilePath, err)
+		return ConfigDevices{}, fmt.Errorf("Failed decoding the paths to CDI conf file at %q: %w", pathsToConfigDevicesFilePath, err)
 	}
 
 	return *configDevices, nil

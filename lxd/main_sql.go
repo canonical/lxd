@@ -84,7 +84,7 @@ func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 		// Read from stdin
 		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
-			return fmt.Errorf("Failed to read from stdin: %w", err)
+			return fmt.Errorf("Failed reading from stdin: %w", err)
 		}
 
 		query = string(bytes)
@@ -108,13 +108,13 @@ func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 
 		response, _, err := d.RawQuery(http.MethodGet, url, nil, "")
 		if err != nil {
-			return fmt.Errorf("failed to request dump: %w", err)
+			return fmt.Errorf("failed requesting dump: %w", err)
 		}
 
 		dump := internalSQLDump{}
 		err = json.Unmarshal(response.Metadata, &dump)
 		if err != nil {
-			return fmt.Errorf("failed to parse dump response: %w", err)
+			return fmt.Errorf("failed parsing dump response: %w", err)
 		}
 
 		fmt.Print(dump.Text)

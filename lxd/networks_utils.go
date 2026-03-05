@@ -61,7 +61,7 @@ func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIH
 	for _, name := range networks {
 		n, err := network.LoadByName(s, projectName, name)
 		if err != nil {
-			logger.Errorf("Failed to load network %q from project %q for heartbeat", name, projectName)
+			logger.Errorf("Failed loading network %q from project %q for heartbeat", name, projectName)
 			continue
 		}
 

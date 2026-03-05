@@ -142,7 +142,7 @@ func (d *powerflex) FillConfig() error {
 			d.config["powerflex.mode"] = connectors.TypeSDC
 		} else {
 			// Fail if no PowerFlex mode can be discovered.
-			return errors.New("Failed to discover PowerFlex mode")
+			return errors.New("Failed discovering PowerFlex mode")
 		}
 	}
 

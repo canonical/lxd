@@ -132,7 +132,7 @@ func (d *nicSRIOV) validateEnvironment() error {
 	}
 
 	if !network.InterfaceExists(d.config["parent"]) {
-		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 	}
 
 	return nil

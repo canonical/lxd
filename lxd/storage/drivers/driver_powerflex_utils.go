@@ -195,7 +195,7 @@ func (p *powerFlexClient) createBodyReader(contents map[string]any) (io.Reader, 
 	encoder := json.NewEncoder(body)
 	err := encoder.Encode(contents)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to write request body: %w", err)
+		return nil, fmt.Errorf("Failed writing request body: %w", err)
 	}
 
 	return body, nil
@@ -206,7 +206,7 @@ func (p *powerFlexClient) request(method string, path string, body io.Reader, re
 	url := p.driver.config["powerflex.gateway"] + path
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
-		return fmt.Errorf("Failed to create request: %w", err)
+		return fmt.Errorf("Failed creating request: %w", err)
 	}
 
 	req.Header.Add("Accept", "application/json")
@@ -228,7 +228,7 @@ func (p *powerFlexClient) request(method string, path string, body io.Reader, re
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to send request: %w", err)
+		return fmt.Errorf("Failed sending request: %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -250,7 +250,7 @@ func (p *powerFlexClient) request(method string, path string, body io.Reader, re
 		decoder := json.NewDecoder(resp.Body)
 		err = decoder.Decode(response)
 		if err != nil {
-			return fmt.Errorf("Failed to read response body: %s: %w", path, err)
+			return fmt.Errorf("Failed reading response body: %s: %w", path, err)
 		}
 	}
 
@@ -278,7 +278,7 @@ func (p *powerFlexClient) requestAuthenticated(method string, path string, body 
 		if body != nil {
 			bodyReader, err = p.createBodyReader(body)
 			if err != nil {
-				return fmt.Errorf("Failed to create reader from request's body: %w", err)
+				return fmt.Errorf("Failed creating reader from request's body: %w", err)
 			}
 		}
 
@@ -320,7 +320,7 @@ func (p *powerFlexClient) login() error {
 
 	err = p.request(http.MethodPost, "/rest/auth/login", body, &actualResponse)
 	if err != nil {
-		return fmt.Errorf("Failed to login: %w", err)
+		return fmt.Errorf("Failed logging in: %w", err)
 	}
 
 	p.token = actualResponse.AccessToken
@@ -332,7 +332,7 @@ func (p *powerFlexClient) getStoragePool(poolID string) (*powerFlexStoragePool, 
 	var actualResponse powerFlexStoragePool
 	err := p.requestAuthenticated(http.MethodGet, "/api/instances/StoragePool::"+poolID, nil, &actualResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get storage pool: %q: %w", poolID, err)
+		return nil, fmt.Errorf("Failed getting storage pool: %q: %w", poolID, err)
 	}
 
 	return &actualResponse, nil
@@ -343,7 +343,7 @@ func (p *powerFlexClient) getStoragePoolStatistics(poolID string) (*powerFlexSto
 	var actualResponse powerFlexStoragePoolStatistics
 	err := p.requestAuthenticated(http.MethodGet, "/api/instances/StoragePool::"+poolID+"/relationships/Statistics", nil, &actualResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get storage pool statistics: %q: %w", poolID, err)
+		return nil, fmt.Errorf("Failed getting storage pool statistics: %q: %w", poolID, err)
 	}
 
 	return &actualResponse, nil
@@ -354,7 +354,7 @@ func (p *powerFlexClient) getStoragePoolVolumes(poolID string) ([]powerFlexVolum
 	var actualResponse []powerFlexVolume
 	err := p.requestAuthenticated(http.MethodGet, "/api/instances/StoragePool::"+poolID+"/relationships/Volume", nil, &actualResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get storage pool volumes: %q: %w", poolID, err)
+		return nil, fmt.Errorf("Failed getting storage pool volumes: %q: %w", poolID, err)
 	}
 
 	return actualResponse, nil
@@ -378,7 +378,7 @@ func (p *powerFlexClient) getProtectionDomainID(domainName string) (string, erro
 			}
 		}
 
-		return "", fmt.Errorf("Failed to get protection domain ID for %q: %w", domainName, err)
+		return "", fmt.Errorf("Failed getting protection domain ID for %q: %w", domainName, err)
 	}
 
 	return actualResponse, nil
@@ -389,7 +389,7 @@ func (p *powerFlexClient) getProtectionDomain(domainID string) (*powerFlexProtec
 	var actualResponse powerFlexProtectionDomain
 	err := p.requestAuthenticated(http.MethodGet, "/api/instances/ProtectionDomain::"+domainID, nil, &actualResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get protection domain: %q: %w", domainID, err)
+		return nil, fmt.Errorf("Failed getting protection domain: %q: %w", domainID, err)
 	}
 
 	return &actualResponse, nil
@@ -400,7 +400,7 @@ func (p *powerFlexClient) getProtectionDomainStoragePools(domainID string) ([]po
 	var actualResponse []powerFlexProtectionDomainStoragePool
 	err := p.requestAuthenticated(http.MethodGet, "/api/instances/ProtectionDomain::"+domainID+"/relationships/StoragePool", nil, &actualResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get protection domain storage pools: %q: %w", domainID, err)
+		return nil, fmt.Errorf("Failed getting protection domain storage pools: %q: %w", domainID, err)
 	}
 
 	return actualResponse, nil
@@ -411,7 +411,7 @@ func (p *powerFlexClient) getProtectionDomainSDTRelations(domainID string) ([]po
 	var actualResponse []powerFlexProtectionDomainSDTRelation
 	err := p.requestAuthenticated(http.MethodGet, "/api/instances/ProtectionDomain::"+domainID+"/relationships/Sdt", nil, &actualResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get protection domain SDT relations: %q: %w", domainID, err)
+		return nil, fmt.Errorf("Failed getting protection domain SDT relations: %q: %w", domainID, err)
 	}
 
 	return actualResponse, nil
@@ -435,7 +435,7 @@ func (p *powerFlexClient) getVolumeID(name string) (string, error) {
 			}
 		}
 
-		return "", fmt.Errorf("Failed to get volume ID: %q: %w", name, err)
+		return "", fmt.Errorf("Failed getting volume ID: %q: %w", name, err)
 	}
 
 	return actualResponse, nil
@@ -446,7 +446,7 @@ func (p *powerFlexClient) getVolume(volumeID string) (*powerFlexVolume, error) {
 	var actualResponse powerFlexVolume
 	err := p.requestAuthenticated(http.MethodGet, "/api/instances/Volume::"+volumeID, nil, &actualResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get volume: %q: %w", volumeID, err)
+		return nil, fmt.Errorf("Failed getting volume: %q: %w", volumeID, err)
 	}
 
 	return &actualResponse, nil
@@ -480,7 +480,7 @@ func (p *powerFlexClient) createVolume(volumeName string, sizeGiB int64, volumeT
 			}
 		}
 
-		return "", fmt.Errorf("Failed to create volume: %q: %w", volumeName, err)
+		return "", fmt.Errorf("Failed creating volume: %q: %w", volumeName, err)
 	}
 
 	return actualResponse.ID, nil
@@ -497,7 +497,7 @@ func (p *powerFlexClient) setVolumeSize(volumeID string, sizeGiB int64) error {
 
 	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/setVolumeSize", body, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to set volume size: %q: %w", volumeID, err)
+		return fmt.Errorf("Failed setting volume size: %q: %w", volumeID, err)
 	}
 
 	return nil
@@ -511,7 +511,7 @@ func (p *powerFlexClient) overwriteVolume(volumeID string, snapshotID string) er
 
 	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/overwriteVolumeContent", body, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to overwrite volume: %q: %w", volumeID, err)
+		return fmt.Errorf("Failed overwriting volume: %q: %w", volumeID, err)
 	}
 
 	return nil
@@ -525,7 +525,7 @@ func (p *powerFlexClient) renameVolume(volumeID string, newName string) error {
 
 	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/setVolumeName", body, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to rename volume: %q: %w", volumeID, err)
+		return fmt.Errorf("Failed renaming volume: %q: %w", volumeID, err)
 	}
 
 	return nil
@@ -560,7 +560,7 @@ func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string,
 			}
 		}
 
-		return "", fmt.Errorf("Failed to create volume snapshot: %q: %w", snapshotName, err)
+		return "", fmt.Errorf("Failed creating volume snapshot: %q: %w", snapshotName, err)
 	}
 
 	if len(actualResponse.VolumeIDs) == 0 {
@@ -580,7 +580,7 @@ func (p *powerFlexClient) getVolumeSnapshots(volumeID string) ([]powerFlexVolume
 	var actualResponse []powerFlexVolume
 	err = p.requestAuthenticated(http.MethodGet, "/api/instances/VTree::"+volume.VTreeID+"/relationships/Volume", nil, &actualResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get volume snapshots: %q: %w", volumeID, err)
+		return nil, fmt.Errorf("Failed getting volume snapshots: %q: %w", volumeID, err)
 	}
 
 	var filteredVolumes []powerFlexVolume
@@ -604,7 +604,7 @@ func (p *powerFlexClient) deleteVolume(volumeID string, deleteMode string) error
 
 	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/removeVolume", body, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to delete volume: %q: %w", volumeID, err)
+		return fmt.Errorf("Failed deleting volume: %q: %w", volumeID, err)
 	}
 
 	return nil
@@ -615,7 +615,7 @@ func (p *powerFlexClient) getHosts() ([]powerFlexSDC, error) {
 	var actualResponse []powerFlexSDC
 	err := p.requestAuthenticated(http.MethodGet, "/api/types/Sdc/instances", nil, &actualResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get hosts: %w", err)
+		return nil, fmt.Errorf("Failed getting hosts: %w", err)
 	}
 
 	return actualResponse, nil
@@ -700,7 +700,7 @@ func (p *powerFlexClient) createHost(hostName string, nqn string) (string, error
 
 	err := p.requestAuthenticated(http.MethodPost, "/api/types/Host/instances", body, &actualResponse)
 	if err != nil {
-		return "", fmt.Errorf("Failed to create host: %w", err)
+		return "", fmt.Errorf("Failed creating host: %w", err)
 	}
 
 	return actualResponse.ID, nil
@@ -710,7 +710,7 @@ func (p *powerFlexClient) createHost(hostName string, nqn string) (string, error
 func (p *powerFlexClient) deleteHost(hostID string) error {
 	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Sdc::"+hostID+"/action/removeSdc", nil, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to delete host: %w", err)
+		return fmt.Errorf("Failed deleting host: %w", err)
 	}
 
 	return nil
@@ -726,7 +726,7 @@ func (p *powerFlexClient) createHostVolumeMapping(hostID string, volumeID string
 
 	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/addMappedHost", body, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to create host volume mapping between %q and %q: %w", hostID, volumeID, err)
+		return fmt.Errorf("Failed creating host volume mapping between %q and %q: %w", hostID, volumeID, err)
 	}
 
 	return nil
@@ -749,7 +749,7 @@ func (p *powerFlexClient) deleteHostVolumeMapping(hostID string, volumeID string
 				return api.StatusErrorf(http.StatusNotFound, "The mapping between %q and %q does not exist", hostID, volumeID)
 			}
 		}
-		return fmt.Errorf("Failed to delete host volume mapping between %q and %q: %w", hostID, volumeID, err)
+		return fmt.Errorf("Failed deleting host volume mapping between %q and %q: %w", hostID, volumeID, err)
 	}
 
 	return nil
@@ -760,7 +760,7 @@ func (p *powerFlexClient) getHostVolumeMappings(hostID string) ([]powerFlexVolum
 	var actualResponse []powerFlexVolume
 	err := p.requestAuthenticated(http.MethodGet, "/api/instances/Sdc::"+hostID+"/relationships/Volume", nil, &actualResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get host volume mappings: %w", err)
+		return nil, fmt.Errorf("Failed getting host volume mappings: %w", err)
 	}
 
 	return actualResponse, nil
@@ -792,12 +792,12 @@ func (d *powerflex) drvCfgQueryGUID() (string, error) {
 	var buf powerFlexSDCIOCTLGUID
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), opCode, uintptr(unsafe.Pointer(&buf)))
 	if errno != 0 {
-		return "", fmt.Errorf("Failed to query SDC GUID: %w", err)
+		return "", fmt.Errorf("Failed querying SDC GUID: %w", err)
 	}
 
 	rc, err := strconv.ParseInt(hex.EncodeToString(buf.rc[0:1]), 16, 64)
 	if err != nil {
-		return "", fmt.Errorf("Failed to parse SDC GUID response code: %w", err)
+		return "", fmt.Errorf("Failed parsing SDC GUID response code: %w", err)
 	}
 
 	if rc != 65 {
@@ -807,7 +807,7 @@ func (d *powerflex) drvCfgQueryGUID() (string, error) {
 	g := hex.EncodeToString(buf.uuid[:len(buf.uuid)])
 	u, err := uuid.Parse(g)
 	if err != nil {
-		return "", fmt.Errorf("Failed to parse SDC GUID: %w", err)
+		return "", fmt.Errorf("Failed parsing SDC GUID: %w", err)
 	}
 
 	discoveredGUID := strings.ToUpper(u.String())
@@ -821,7 +821,7 @@ func (d *powerflex) getHostGUID() (string, error) {
 	if d.sdcGUID == "" {
 		guid, err := d.drvCfgQueryGUID()
 		if err != nil {
-			return "", fmt.Errorf("Failed to query SDC GUID: %w", err)
+			return "", fmt.Errorf("Failed querying SDC GUID: %w", err)
 		}
 
 		d.sdcGUID = guid
@@ -843,7 +843,7 @@ func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
 		// The discovery log from the first reachable target address is returned.
 		discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
 		if err != nil {
-			return "", fmt.Errorf("Failed to discover SDT NQN: %w", err)
+			return "", fmt.Errorf("Failed discovering SDT NQN: %w", err)
 		}
 
 		for _, recordAny := range discoveryLogRecords {
@@ -891,7 +891,7 @@ func (d *powerflex) getNVMeTargetAddresses() ([]string, error) {
 		}
 
 		if len(targetAddresses) == 0 {
-			return nil, fmt.Errorf("Failed to retrieve at least one SDT for the given storage pool: %q", pool.ID)
+			return nil, fmt.Errorf("Failed retrieving at least one SDT for the given storage pool: %q", pool.ID)
 		}
 	}
 
@@ -1152,7 +1152,7 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 	}
 
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to locate device for volume %q: %w", vol.name, err)
+		return "", nil, fmt.Errorf("Failed locating device for volume %q: %w", vol.name, err)
 	}
 
 	cleanup := revert.Clone().Fail
@@ -1347,12 +1347,12 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 func (d *powerflex) getUUIDFromVolumeName(name string) (uuid.UUID, error) {
 	decodedName, err := base64.StdEncoding.DecodeString(name)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("Failed to decode volume name %q: %w", name, err)
+		return uuid.Nil, fmt.Errorf("Failed decoding volume name %q: %w", name, err)
 	}
 
 	uuidBytes, err := uuid.FromBytes(decodedName)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("Failed to parse UUID from decoded volume name: %w", err)
+		return uuid.Nil, fmt.Errorf("Failed parsing UUID from decoded volume name: %w", err)
 	}
 
 	return uuidBytes, nil

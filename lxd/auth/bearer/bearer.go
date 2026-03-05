@@ -128,19 +128,19 @@ func isLXDToken(token string, clusterUUID string, expectedAudience string) (stri
 	claims := jwt.MapClaims{}
 	t, _, err := jwt.NewParser().ParseUnverified(token, claims)
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to parse JWT: %w", err)
+		return "", nil, fmt.Errorf("Failed parsing JWT: %w", err)
 	}
 
 	// There must be an issuer
 	issuer, err := t.Claims.GetIssuer()
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to get token issuer: %w", err)
+		return "", nil, fmt.Errorf("Failed getting token issuer: %w", err)
 	}
 
 	// There must be a subject
 	sub, err := t.Claims.GetSubject()
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to get token subject: %w", err)
+		return "", nil, fmt.Errorf("Failed getting token subject: %w", err)
 	}
 
 	// Expect the issuer to be "lxd:{cluster_uuid}".
@@ -151,7 +151,7 @@ func isLXDToken(token string, clusterUUID string, expectedAudience string) (stri
 
 	audience, err := t.Claims.GetAudience()
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to get token audience: %w", err)
+		return "", nil, fmt.Errorf("Failed getting token audience: %w", err)
 	}
 
 	if len(audience) != 1 || audience[0] != expectedAudience {
@@ -160,7 +160,7 @@ func isLXDToken(token string, clusterUUID string, expectedAudience string) (stri
 
 	issuedAt, err := t.Claims.GetIssuedAt()
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to get token issued at: %w", err)
+		return "", nil, fmt.Errorf("Failed getting token issued at: %w", err)
 	}
 
 	return sub, &issuedAt.Time, nil
@@ -221,7 +221,7 @@ func Authenticate(subject string, token string, tokenLocation auth.TokenLocation
 		return secret, nil
 	})
 	if getSecretErr != nil {
-		return nil, fmt.Errorf("Failed to authenticate bearer token: %w", getSecretErr)
+		return nil, fmt.Errorf("Failed authenticating bearer token: %w", getSecretErr)
 	}
 
 	return &request.RequestorArgs{

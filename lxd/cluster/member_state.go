@@ -141,7 +141,7 @@ func ClusterState(s *state.State, networkCert *shared.CertInfo, members ...db.No
 	if includeLocalMember {
 		localState, err := MemberState(context.TODO(), s)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get local member state: %w", err)
+			return nil, fmt.Errorf("Failed getting local member state: %w", err)
 		}
 
 		memberStates[s.ServerName] = *localState

@@ -30,7 +30,7 @@ func GetStableRandomInt64FromList(seed int64, list []int64) (int64, error) {
 
 	r, err := GetStableRandomGenerator(strconv.FormatInt(seed, 10))
 	if err != nil {
-		return 0, fmt.Errorf("Failed to get stable random generator: %w", err)
+		return 0, fmt.Errorf("Failed getting stable random generator: %w", err)
 	}
 
 	return list[r.Int63n(int64(len(list)))], nil

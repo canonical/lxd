@@ -100,7 +100,7 @@ func addNetworkDetailsToRequestContext(s *state.State, r *http.Request) error {
 	requestProjectName := request.ProjectParam(r)
 	effectiveProjectName, requestProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
-		return fmt.Errorf("Failed to check project %q network feature: %w", requestProjectName, err)
+		return fmt.Errorf("Failed checking project %q network feature: %w", requestProjectName, err)
 	}
 
 	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
@@ -730,7 +730,7 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 
 		// Check the requested network type matches the type created when adding the local member config.
 		if req.Type != netInfo.Type {
-			return fmt.Errorf("Requested network type %q doesn't match type in existing database record %q", req.Type, netInfo.Type)
+			return fmt.Errorf("Requested network type %q does not match type in existing database record %q", req.Type, netInfo.Type)
 		}
 	}
 
@@ -1195,7 +1195,7 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 	if n.LocalStatus() != api.NetworkStatusPending {
 		err = n.Delete(clientType)
 		if err != nil {
-			return fmt.Errorf("Failed to delete network: %w", err)
+			return fmt.Errorf("Failed deleting network: %w", err)
 		}
 	}
 
@@ -1809,7 +1809,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 			for _, projectName := range projectNames {
 				networkNames, err := tx.GetCreatedNetworkNamesByProject(ctx, projectName)
 				if err != nil {
-					return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
+					return fmt.Errorf("Failed loading networks for project %q: %w", projectName, err)
 				}
 
 				for _, networkName := range networkNames {
@@ -1937,7 +1937,7 @@ func networkStop(s *state.State, evacuateOnly bool) {
 		return err
 	})
 	if err != nil {
-		logger.Error("Failed shutting down networks, couldn't load projects", logger.Ctx{"err": err})
+		logger.Error("Failed shutting down networks, could not load projects", logger.Ctx{"err": err})
 		return
 	}
 
@@ -1951,7 +1951,7 @@ func networkStop(s *state.State, evacuateOnly bool) {
 			return err
 		})
 		if err != nil {
-			logger.Error("Failed shutting down networks, couldn't load networks for project", logger.Ctx{"project": projectName, "err": err})
+			logger.Error("Failed shutting down networks, could not load networks for project", logger.Ctx{"project": projectName, "err": err})
 			continue
 		}
 
@@ -1959,7 +1959,7 @@ func networkStop(s *state.State, evacuateOnly bool) {
 		for _, name := range networks {
 			n, err := network.LoadByName(s, projectName, name)
 			if err != nil {
-				logger.Error("Failed shutting down network, couldn't load network", logger.Ctx{"network": name, "project": projectName, "err": err})
+				logger.Error("Failed shutting down network, could not load network", logger.Ctx{"network": name, "project": projectName, "err": err})
 				continue
 			}
 
@@ -1975,7 +1975,7 @@ func networkStop(s *state.State, evacuateOnly bool) {
 			}
 
 			if err != nil {
-				logger.Error("Failed to bring down network", logger.Ctx{"err": err, "project": projectName, "name": name, "evacuate": evacuateOnly})
+				logger.Error("Failed bringing down network", logger.Ctx{"err": err, "project": projectName, "name": name, "evacuate": evacuateOnly})
 			}
 		}
 	}
@@ -2006,14 +2006,14 @@ func networkRestartOVN(s *state.State) error {
 			return err
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
+			return fmt.Errorf("Failed loading networks for project %q: %w", projectName, err)
 		}
 
 		for _, networkName := range networkNames {
 			// Load the network struct.
 			n, err := network.LoadByName(s, projectName, networkName)
 			if err != nil {
-				return fmt.Errorf("Failed to load network %q in project %q: %w", networkName, projectName, err)
+				return fmt.Errorf("Failed loading network %q in project %q: %w", networkName, projectName, err)
 			}
 
 			// Skip non-OVN networks.
@@ -2024,7 +2024,7 @@ func networkRestartOVN(s *state.State) error {
 			// Restart the network.
 			err = n.Start()
 			if err != nil {
-				return fmt.Errorf("Failed to restart network %q in project %q: %w", networkName, projectName, err)
+				return fmt.Errorf("Failed restarting network %q in project %q: %w", networkName, projectName, err)
 			}
 		}
 	}

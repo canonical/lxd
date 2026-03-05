@@ -38,19 +38,19 @@ func (s *OS) initAppArmor() []cluster.Warning {
 			LastMessage: "Disabled because of lack of kernel support",
 		})
 	} else if err != nil {
-		logger.Warn("AppArmor support has been disabled because 'apparmor_parser' couldn't be found")
+		logger.Warn("AppArmor support has been disabled because 'apparmor_parser' could not be found")
 		dbWarnings = append(dbWarnings, cluster.Warning{
 			TypeCode:    warningtype.AppArmorNotAvailable,
-			LastMessage: "Disabled because 'apparmor_parser' couldn't be found",
+			LastMessage: "Disabled because 'apparmor_parser' could not be found",
 		})
 	} else {
 		/* Detect AppArmor version */
 		s.AppArmorVersion, err = appArmorGetVersion()
 		if err != nil {
-			logger.Warn("AppArmor support has been disabled because the version couldn't be determined", logger.Ctx{"err": err})
+			logger.Warn("AppArmor support has been disabled because the version could not be determined", logger.Ctx{"err": err})
 			dbWarnings = append(dbWarnings, cluster.Warning{
 				TypeCode:    warningtype.AppArmorNotAvailable,
-				LastMessage: "Disabled because the version couldn't be determined",
+				LastMessage: "Disabled because the version could not be determined",
 			})
 		} else {
 			logger.Info("AppArmor support is enabled", logger.Ctx{"version": s.AppArmorVersion})

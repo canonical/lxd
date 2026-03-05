@@ -206,7 +206,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 			}
 
 			if err != nil {
-				return fmt.Errorf("Unable to open the PTY device: %w", err)
+				return fmt.Errorf("Cannot open the PTY device: %w", err)
 			}
 
 			stdin = ttys[0]
@@ -303,7 +303,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	cmdKill := sync.OnceFunc(func() {
 		err := cmd.Signal(unix.SIGKILL)
 		if err != nil {
-			l.Debug("Failed to send SIGKILL signal", logger.Ctx{"err": err})
+			l.Debug("Failed sending SIGKILL signal", logger.Ctx{"err": err})
 		} else {
 			l.Debug("Sent SIGKILL signal")
 		}
@@ -373,7 +373,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 
 			err = json.Unmarshal(buf, &command)
 			if err != nil {
-				l.Debug("Failed to unmarshal control socket command", logger.Ctx{"err": err})
+				l.Debug("Failed unmarshaling control socket command", logger.Ctx{"err": err})
 				continue
 			}
 
@@ -381,19 +381,19 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 			if command.Command == "window-resize" && s.req.Interactive {
 				winchWidth, err := strconv.Atoi(command.Args["width"])
 				if err != nil {
-					l.Debug("Unable to extract window width", logger.Ctx{"err": err})
+					l.Debug("Cannot extract window width", logger.Ctx{"err": err})
 					continue
 				}
 
 				winchHeight, err := strconv.Atoi(command.Args["height"])
 				if err != nil {
-					l.Debug("Unable to extract window height", logger.Ctx{"err": err})
+					l.Debug("Cannot extract window height", logger.Ctx{"err": err})
 					continue
 				}
 
 				err = cmd.WindowResize(int(ptys[0].Fd()), winchWidth, winchHeight)
 				if err != nil {
-					l.Debug("Failed to set window size", logger.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
+					l.Debug("Failed setting window size", logger.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
 					continue
 				}
 			} else if command.Command == "signal" {

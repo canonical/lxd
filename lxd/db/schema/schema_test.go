@@ -209,7 +209,7 @@ func TestSchemaEnsure_FailingUpdate(t *testing.T) {
 	schema.Add(updateCreateTable)
 	schema.Add(updateBoom)
 	_, err := schema.Ensure(db)
-	assert.EqualError(t, err, "failed to apply update 1: boom")
+	assert.EqualError(t, err, "failed applying update 1: boom")
 
 	tx, err := db.Begin()
 	assert.NoError(t, err)
@@ -228,7 +228,7 @@ func TestSchemaEnsure_FailingHook(t *testing.T) {
 	schema.Add(updateCreateTable)
 	schema.Hook(func(context.Context, int, *sql.Tx) error { return errors.New("boom") })
 	_, err := schema.Ensure(db)
-	assert.EqualError(t, err, "failed to execute hook (version 0): boom")
+	assert.EqualError(t, err, "failed executing hook (version 0): boom")
 
 	tx, err := db.Begin()
 	assert.NoError(t, err)
@@ -382,7 +382,7 @@ func TestSchema_File_Garbage(t *testing.T) {
 
 	_, err = schema.Ensure(db)
 
-	message := fmt.Sprintf("failed to execute queries from %s: near \"FROM\": syntax error", path)
+	message := fmt.Sprintf("failed executing queries from %s: near \"FROM\": syntax error", path)
 	require.EqualError(t, err, message)
 }
 

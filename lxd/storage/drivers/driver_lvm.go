@@ -226,7 +226,7 @@ func (d *lvm) Create() error {
 
 		err = ensureSparseFile(d.config["source"], size)
 		if err != nil {
-			return fmt.Errorf("Failed to create sparse file %q: %w", d.config["source"], err)
+			return fmt.Errorf("Failed creating sparse file %q: %w", d.config["source"], err)
 		}
 
 		revert.Add(func() { _ = os.Remove(d.config["source"]) })
@@ -269,7 +269,7 @@ func (d *lvm) Create() error {
 		if shared.IsTrue(d.config["source.wipe"]) {
 			err := wipeBlockHeaders(srcPath)
 			if err != nil {
-				return fmt.Errorf("Failed to wipe headers from disk %q: %w", srcPath, err)
+				return fmt.Errorf("Failed wiping headers from disk %q: %w", srcPath, err)
 			}
 
 			d.config["source.wipe"] = ""
@@ -317,7 +317,7 @@ func (d *lvm) Create() error {
 		// The LV count returned includes both normal volumes and thin volumes.
 		lvCount, err := d.countLogicalVolumes(d.config["lvm.vg_name"])
 		if err != nil {
-			return fmt.Errorf("Failed to determine whether the volume group %q is empty: %w", d.config["lvm.vg_name"], err)
+			return fmt.Errorf("Failed determining whether the volume group %q is empty: %w", d.config["lvm.vg_name"], err)
 		}
 
 		empty := false
@@ -326,7 +326,7 @@ func (d *lvm) Create() error {
 				// Always check if the thin pool exists as we may need to create it later.
 				thinPoolExists, err = d.thinpoolExists(d.config["lvm.vg_name"], d.thinpoolName())
 				if err != nil {
-					return fmt.Errorf("Failed to determine whether thinpool %q exists in volume group %q: %w", d.config["lvm.vg_name"], d.thinpoolName(), err)
+					return fmt.Errorf("Failed determining whether thinpool %q exists in volume group %q: %w", d.config["lvm.vg_name"], d.thinpoolName(), err)
 				}
 
 				// If the single volume is the storage pool's thin pool LV then we still consider
@@ -479,7 +479,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 						// other volumes, then just remove the thin pool volume.
 						err = d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName()))
 						if err != nil {
-							return fmt.Errorf("Failed to delete thin pool %q from volume group %q: %w", d.thinpoolName(), d.config["lvm.vg_name"], err)
+							return fmt.Errorf("Failed deleting thin pool %q from volume group %q: %w", d.thinpoolName(), d.config["lvm.vg_name"], err)
 						}
 
 						d.logger.Debug("Thin pool removed", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool_name": d.thinpoolName()})
@@ -492,7 +492,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 		if removeVg {
 			_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "vgremove", "-f", d.config["lvm.vg_name"])
 			if err != nil {
-				return fmt.Errorf("Failed to delete the volume group for the lvm storage pool: %w", err)
+				return fmt.Errorf("Failed deleting the volume group for the lvm storage pool: %w", err)
 			}
 
 			d.logger.Debug("Volume group removed", logger.Ctx{"vg_name": d.config["lvm.vg_name"]})
@@ -501,7 +501,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 			if slices.Contains(vgTags, lvmVgPoolMarker) {
 				_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "vgchange", "--deltag", lvmVgPoolMarker, d.config["lvm.vg_name"])
 				if err != nil {
-					return fmt.Errorf("Failed to remove marker tag on volume group for the lvm storage pool: %w", err)
+					return fmt.Errorf("Failed removing marker tag on volume group for the lvm storage pool: %w", err)
 				}
 
 				d.logger.Debug("LXD marker tag removed from volume group", logger.Ctx{"vg_name": d.config["lvm.vg_name"]})
@@ -513,14 +513,14 @@ func (d *lvm) Delete(op *operations.Operation) error {
 	if removeVg && loopDevPath != "" {
 		_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "pvremove", "-f", loopDevPath)
 		if err != nil {
-			d.logger.Warn("Failed to destroy the physical volume for the lvm storage pool", logger.Ctx{"err": err})
+			d.logger.Warn("Failed destroying the physical volume for the lvm storage pool", logger.Ctx{"err": err})
 		}
 
 		d.logger.Debug("Physical volume removed", logger.Ctx{"pv_name": loopDevPath})
 
 		err = loopDeviceAutoDetach(loopDevPath)
 		if err != nil {
-			d.logger.Warn("Failed to set LO_FLAGS_AUTOCLEAR on loop device, manual cleanup needed", logger.Ctx{"dev": loopDevPath, "err": err})
+			d.logger.Warn("Failed setting LO_FLAGS_AUTOCLEAR on loop device, manual cleanup needed", logger.Ctx{"dev": loopDevPath, "err": err})
 		}
 
 		// This is a loop file so deconfigure the associated loop device.

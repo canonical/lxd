@@ -336,7 +336,7 @@ func (d *nicOVN) validateExternalRoutes() error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to get config for network %q: %w", uplinkName, err)
+		return fmt.Errorf("Failed getting config for network %q: %w", uplinkName, err)
 	}
 
 	if d.config["ipv4.routes.external"] != "" {
@@ -464,7 +464,7 @@ func (d *nicOVN) Add() error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
+		return fmt.Errorf("Failed loading uplink network %q: %w", uplinkNetworkName, err)
 	}
 
 	err = d.network.InstanceDevicePortAdd(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
@@ -511,7 +511,7 @@ func (d *nicOVN) validateEnvironment() error {
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
 	if !shared.PathExists("/sys/class/net/" + integrationBridge) {
-		return fmt.Errorf("OVS integration bridge device %q doesn't exist", integrationBridge)
+		return fmt.Errorf("OVS integration bridge device %q does not exist", integrationBridge)
 	}
 
 	return nil
@@ -541,7 +541,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
+		return nil, fmt.Errorf("Failed loading uplink network %q: %w", uplinkNetworkName, err)
 	}
 
 	// Setup the host network interface (if not nested).
@@ -634,7 +634,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	ovnClient, err := openvswitch.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get OVN client: %w", err)
+		return nil, fmt.Errorf("Failed getting OVN client: %w", err)
 	}
 
 	// Add post start hook for setting logical switch port chassis once instance has been started.
@@ -773,7 +773,7 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 		// Get all ports on the integration bridge.
 		ports, err := ovs.BridgePortList(d.state.GlobalConfig.NetworkOVNIntegrationBridge())
 		if err != nil {
-			return nil, "", "", nil, 0, nil, fmt.Errorf("Failed to get OVS integration bridge port list: %w", err)
+			return nil, "", "", nil, 0, nil, fmt.Errorf("Failed getting OVS integration bridge port list: %w", err)
 		}
 
 		for _, port := range ports {
@@ -892,7 +892,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 				return err
 			})
 			if err != nil {
-				return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
+				return fmt.Errorf("Failed loading uplink network %q: %w", uplinkNetworkName, err)
 			}
 
 			// Update OVN logical switch port for instance.
@@ -911,7 +911,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		if len(removedACLs) > 0 {
 			client, err := openvswitch.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 			if err != nil {
-				return fmt.Errorf("Failed to get OVN client: %w", err)
+				return fmt.Errorf("Failed getting OVN client: %w", err)
 			}
 
 			err = acl.OVNPortGroupDeleteIfUnused(context.TODO(), d.state, d.logger, client, d.network.Project(), d.inst, d.name, newACLs...)
@@ -1042,7 +1042,7 @@ func (d *nicOVN) postStop() error {
 		link := &ip.Link{Name: d.config["host_name"]}
 		err = link.SetDown()
 		if err != nil {
-			return fmt.Errorf("Failed to bring down the host interface %s: %w", d.config["host_name"], err)
+			return fmt.Errorf("Failed bringing down the host interface %s: %w", d.config["host_name"], err)
 		}
 	} else if d.config["acceleration"] == "vdpa" {
 		// Retrieve the last state vDPA device name.
@@ -1050,7 +1050,7 @@ func (d *nicOVN) postStop() error {
 		vDPADevName, ok := v["last_state.vdpa.name"]
 		if !ok {
 			network.SRIOVVirtualFunctionMutex.Unlock()
-			return errors.New("Failed to find PCI slot name for vDPA device")
+			return errors.New("Failed finding PCI slot name for vDPA device")
 		}
 
 		// Delete the vDPA management device.
@@ -1073,13 +1073,13 @@ func (d *nicOVN) postStop() error {
 		link := &ip.Link{Name: d.config["host_name"]}
 		err = link.SetDown()
 		if err != nil {
-			return fmt.Errorf("Failed to bring down the host interface %q: %w", d.config["host_name"], err)
+			return fmt.Errorf("Failed bringing down the host interface %q: %w", d.config["host_name"], err)
 		}
 	} else if d.config["host_name"] != "" && shared.PathExists("/sys/class/net/"+d.config["host_name"]) {
 		// Removing host-side end of veth pair will delete the peer end too.
 		err := network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
-			return fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err)
+			return fmt.Errorf("Failed removing interface %q: %w", d.config["host_name"], err)
 		}
 	}
 
@@ -1093,7 +1093,7 @@ func (d *nicOVN) Remove() error {
 	if len(securityACLs) > 0 {
 		client, err := openvswitch.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
-			return fmt.Errorf("Failed to get OVN client: %w", err)
+			return fmt.Errorf("Failed getting OVN client: %w", err)
 		}
 
 		err = acl.OVNPortGroupDeleteIfUnused(context.TODO(), d.state, d.logger, client, d.network.Project(), d.inst, d.name)
@@ -1274,7 +1274,7 @@ func (d *nicOVN) setupHostNIC(hostName string, ovnPortName openvswitch.OVNSwitch
 	link := &ip.Link{Name: hostName}
 	err = link.SetUp()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to bring up the host interface %s: %w", hostName, err)
+		return nil, fmt.Errorf("Failed bringing up the host interface %s: %w", hostName, err)
 	}
 
 	cleanup := revert.Clone().Fail

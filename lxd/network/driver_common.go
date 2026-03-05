@@ -173,7 +173,7 @@ func (n *common) validateZoneNames(config map[string]string) error {
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		zoneProjects, err = tx.GetNetworkZones(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to load all network zones: %w", err)
+			return fmt.Errorf("Failed loading all network zones: %w", err)
 		}
 
 		return nil
@@ -242,12 +242,12 @@ func (n *common) validateRoutes(config map[string]string) error {
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		forwards, err = tx.GetProjectNetworkForwardListenAddressesByUplink(ctx, n.name, false)
 		if err != nil {
-			return fmt.Errorf("Failed to get listen addresses of OVN network forwards: %w", err)
+			return fmt.Errorf("Failed getting listen addresses of OVN network forwards: %w", err)
 		}
 
 		loadBalancers, err = tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx, n.name, false)
 		if err != nil {
-			return fmt.Errorf("Failed to get listen addresses of OVN load balancers: %w", err)
+			return fmt.Errorf("Failed getting listen addresses of OVN load balancers: %w", err)
 		}
 
 		return nil
@@ -675,14 +675,14 @@ func (n *common) notifyDependentNetworks(changedKeys []string) {
 			return err
 		})
 		if err != nil {
-			n.logger.Error("Failed to load networks in project", logger.Ctx{"project": projectName, "err": err})
+			n.logger.Error("Failed loading networks in project", logger.Ctx{"project": projectName, "err": err})
 			continue // Continue to next project.
 		}
 
 		for _, depName := range depNets {
 			depNet, err := LoadByName(n.state, projectName, depName)
 			if err != nil {
-				n.logger.Error("Failed to load dependent network", logger.Ctx{"project": projectName, "dependentNetwork": depName, "err": err})
+				n.logger.Error("Failed loading dependent network", logger.Ctx{"project": projectName, "dependentNetwork": depName, "err": err})
 				continue // Continue to next network.
 			}
 

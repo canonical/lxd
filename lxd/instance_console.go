@@ -268,7 +268,7 @@ func (s *consoleWs) doConsole(ctx context.Context) error {
 
 			buf, err := io.ReadAll(r)
 			if err != nil {
-				logger.Debugf("Failed to read message: %v", err)
+				logger.Debugf("Failed reading message: %v", err)
 				break
 			}
 
@@ -276,26 +276,26 @@ func (s *consoleWs) doConsole(ctx context.Context) error {
 
 			err = json.Unmarshal(buf, &command)
 			if err != nil {
-				logger.Debugf("Failed to unmarshal control socket command: %s", err)
+				logger.Debugf("Failed unmarshaling control socket command: %s", err)
 				continue
 			}
 
 			if command.Command == "window-resize" {
 				winchWidth, err := strconv.Atoi(command.Args["width"])
 				if err != nil {
-					logger.Debugf("Unable to extract window width: %s", err)
+					logger.Debugf("Cannot extract window width: %s", err)
 					continue
 				}
 
 				winchHeight, err := strconv.Atoi(command.Args["height"])
 				if err != nil {
-					logger.Debugf("Unable to extract window height: %s", err)
+					logger.Debugf("Cannot extract window height: %s", err)
 					continue
 				}
 
 				err = shared.SetSize(int(console.Fd()), winchWidth, winchHeight)
 				if err != nil {
-					logger.Debugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
+					logger.Debugf("Failed setting window size to: %dx%d", winchWidth, winchHeight)
 					continue
 				}
 
