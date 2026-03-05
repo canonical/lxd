@@ -903,7 +903,7 @@ func (cg *CGroup) GetOOMKills() (uint64, error) {
 func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 	partitions, err := os.ReadFile("/proc/partitions")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read /proc/partitions: %w", err)
+		return nil, fmt.Errorf("Failed reading /proc/partitions: %w", err)
 	}
 
 	// partMap maps major:minor to device names, e.g. 259:0 -> nvme0n1

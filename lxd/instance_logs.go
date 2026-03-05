@@ -110,11 +110,11 @@ var instanceExecOutputsCmd = APIEndpoint{
 //	    $ref: "#/responses/InternalServerError"
 func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 	/* Let's explicitly *not* try to do a containerLoadByName here. In some
-	 * cases (e.g. when container creation failed), the container won't
+	 * cases (e.g. when container creation failed), the container will not
 	 * exist in the DB but it does have some log files on disk.
 	 *
 	 * However, we should check this name and ensure it's a valid container
-	 * name just so that people can't list arbitrary directories.
+	 * name just so that people cannot list arbitrary directories.
 	 */
 
 	instanceType, err := urlInstanceTypeDetect(r)
@@ -657,7 +657,7 @@ func validLogFileName(fname string) bool {
 		return false
 	}
 
-	/* Let's just require that the paths be relative, so that we don't have
+	/* Let's just require that the paths be relative, so that we do not have
 	 * to deal with any escaping or whatever.
 	 */
 	return fname == "lxc.log" ||

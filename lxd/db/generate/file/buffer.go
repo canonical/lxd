@@ -33,7 +33,7 @@ func (b *Buffer) N() {
 func (b *Buffer) code() ([]byte, error) {
 	code, err := format.Source(b.buf.Bytes())
 	if err != nil {
-		return nil, fmt.Errorf("Can't format generated source code: %w", err)
+		return nil, fmt.Errorf("Cannot format generated source code: %w", err)
 	}
 
 	return code, nil

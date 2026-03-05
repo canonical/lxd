@@ -181,7 +181,7 @@ func (p *Process) start(ctx context.Context, fds []*os.File) error {
 	// Start the process.
 	err := cmd.Start()
 	if err != nil {
-		return fmt.Errorf("Unable to start process: %w", err)
+		return fmt.Errorf("Cannot start process: %w", err)
 	}
 
 	p.PID = int64(cmd.Process.Pid)
@@ -222,12 +222,12 @@ func (p *Process) start(ctx context.Context, fds []*os.File) error {
 func (p *Process) Restart(ctx context.Context) error {
 	err := p.Stop()
 	if err != nil {
-		return fmt.Errorf("Unable to stop process: %w", err)
+		return fmt.Errorf("Cannot stop process: %w", err)
 	}
 
 	err = p.Start(ctx)
 	if err != nil {
-		return fmt.Errorf("Unable to start process: %w", err)
+		return fmt.Errorf("Cannot start process: %w", err)
 	}
 
 	return nil
@@ -264,12 +264,12 @@ func (p *Process) Reload() error {
 func (p *Process) Save(path string) error {
 	dat, err := yaml.Marshal(p)
 	if err != nil {
-		return fmt.Errorf("Unable to serialize process struct to YAML: %w", err)
+		return fmt.Errorf("Cannot serialize process struct to YAML: %w", err)
 	}
 
 	err = os.WriteFile(path, dat, 0644)
 	if err != nil {
-		return fmt.Errorf("Unable to write to file %q: %w", path, err)
+		return fmt.Errorf("Cannot write to file %q: %w", path, err)
 	}
 
 	return nil
@@ -305,7 +305,7 @@ func (p *Process) Signal(signal int64) error {
 // Wait will wait for the given process object exit code.
 func (p *Process) Wait(ctx context.Context) (int64, error) {
 	if !p.hasMonitor {
-		return -1, errors.New("Unable to wait on process we didn't spawn")
+		return -1, errors.New("Cannot wait on process we did not spawn")
 	}
 
 	select {

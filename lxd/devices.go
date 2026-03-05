@@ -205,7 +205,7 @@ func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUS
 
 				usb, err := device.USBNewEvent(
 					props["ACTION"],
-					/* udev doesn't zero pad these, while
+					/* udev does not zero pad these, while
 					 * everything else does, so let's zero pad them
 					 * for consistency
 					 */
@@ -279,7 +279,7 @@ func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUS
 
 				unix, err := device.UnixHotplugNewEvent(
 					action,
-					/* udev doesn't zero pad these, while
+					/* udev does not zero pad these, while
 					 * everything else does, so let's zero pad them
 					 * for consistency
 					 */
@@ -389,7 +389,7 @@ func getCPULists() (cpus []int64, isolCPUs []int64, err error) {
 	// Get effective cpus list - those are all guaranteed to be online
 	cg, err := cgroup.NewFileReadWriter(1)
 	if err != nil {
-		logger.Error("Unable to load cgroup writer", logger.Ctx{"err": err})
+		logger.Error("Cannot load cgroup writer", logger.Ctx{"err": err})
 		return nil, nil, err
 	}
 
@@ -434,7 +434,7 @@ func getNumaNodeToCPUMap() (numaNodeToCPU map[int64][]int64, err error) {
 	// Get CPU topology.
 	cpusTopology, err := resources.GetCPU()
 	if err != nil {
-		logger.Error("Unable to load system CPUs information", logger.Ctx{"err": err})
+		logger.Error("Cannot load system CPUs information", logger.Ctx{"err": err})
 		return nil, err
 	}
 
@@ -663,7 +663,7 @@ func deviceTaskBalance(s *state.State) {
 func deviceEventListener(stateFunc func() *state.State) {
 	chNetlinkCPU, chNetlinkNetwork, chUSB, chUnix, err := deviceNetlinkListener()
 	if err != nil {
-		logger.Error("Scheduler: Couldn't setup netlink listener", logger.Ctx{"err": err})
+		logger.Error("Scheduler: Could not setup netlink listener", logger.Ctx{"err": err})
 		return
 	}
 
@@ -699,7 +699,7 @@ func deviceEventListener(stateFunc func() *state.State) {
 			logger.Debug("Scheduler: network has been added: updating network priorities", logger.Ctx{"network": e[0]})
 			err = networkAutoAttach(s.DB.Cluster, e[0])
 			if err != nil {
-				logger.Warn("Failed to auto-attach network", logger.Ctx{"err": err, "dev": e[0]})
+				logger.Warn("Failed auto-attaching network", logger.Ctx{"err": err, "dev": e[0]})
 			}
 
 		case e := <-chUSB:
@@ -777,7 +777,7 @@ func ueventParseVendorProduct(props map[string]string, subsystem string, devname
 
 		vendor, product, err = getHidrawDevInfo(int(file.Fd()))
 		if err != nil {
-			logger.Debug("Failed to retrieve device info from hidraw device", logger.Ctx{"devname": devname})
+			logger.Debug("Failed retrieving device info from hidraw device", logger.Ctx{"devname": devname})
 			return "", "", false
 		}
 	}

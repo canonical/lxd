@@ -50,7 +50,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 	if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
 		link, err = os.Readlink(srcPath)
 		if err != nil {
-			return fmt.Errorf("Failed to resolve symlink for %q: %w", srcPath, err)
+			return fmt.Errorf("Failed resolving symlink for %q: %w", srcPath, err)
 		}
 	}
 
@@ -61,7 +61,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 	hdr, err := tar.FileInfoHeader(fi, link)
 	if err != nil {
-		return fmt.Errorf("Failed to create tar info header: %w", err)
+		return fmt.Errorf("Failed creating tar info header: %w", err)
 	}
 
 	hdr.Name = name
@@ -73,7 +73,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 	hdr.Uid, hdr.Gid, major, minor, ino, nlink, err = shared.GetFileStat(srcPath)
 	if err != nil {
-		return fmt.Errorf("Failed to get file stat %q: %w", srcPath, err)
+		return fmt.Errorf("Failed getting file stat %q: %w", srcPath, err)
 	}
 
 	// Unshift the id under rootfs/ for unpriv containers.
@@ -105,7 +105,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 	if link == "" {
 		xattrs, err := shared.GetAllXattr(srcPath)
 		if err != nil {
-			return fmt.Errorf("Failed to read xattr for %q: %w", srcPath, err)
+			return fmt.Errorf("Failed reading xattr for %q: %w", srcPath, err)
 		}
 
 		hdr.PAXRecords = make(map[string]string, len(xattrs))
@@ -113,7 +113,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 			if key == "system.posix_acl_access" && ctw.idmapSet != nil {
 				aclAccess, err := idmap.UnshiftACL(val, ctw.idmapSet)
 				if err != nil {
-					logger.Debugf("Failed to unshift ACL access permissions of %q: %v", srcPath, err)
+					logger.Debugf("Failed unshifting ACL access permissions of %q: %v", srcPath, err)
 					continue
 				}
 
@@ -121,7 +121,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 			} else if key == "system.posix_acl_default" && ctw.idmapSet != nil {
 				aclDefault, err := idmap.UnshiftACL(val, ctw.idmapSet)
 				if err != nil {
-					logger.Debugf("Failed to unshift ACL default permissions of %q: %v", srcPath, err)
+					logger.Debugf("Failed unshifting ACL default permissions of %q: %v", srcPath, err)
 					continue
 				}
 
@@ -129,7 +129,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 			} else if key == "security.capability" && ctw.idmapSet != nil {
 				vfsCaps, err := idmap.UnshiftCaps(val, ctw.idmapSet)
 				if err != nil {
-					logger.Debugf("Failed to unshift VFS capabilities of %q: %v", srcPath, err)
+					logger.Debugf("Failed unshifting VFS capabilities of %q: %v", srcPath, err)
 					continue
 				}
 
@@ -142,13 +142,13 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 	err = ctw.tarWriter.WriteHeader(hdr)
 	if err != nil {
-		return fmt.Errorf("Failed to write tar header: %w", err)
+		return fmt.Errorf("Failed writing tar header: %w", err)
 	}
 
 	if hdr.Typeflag == tar.TypeReg {
 		f, err := os.Open(srcPath)
 		if err != nil {
-			return fmt.Errorf("Failed to open file %q: %w", srcPath, err)
+			return fmt.Errorf("Failed opening file %q: %w", srcPath, err)
 		}
 
 		defer func() { _ = f.Close() }()
@@ -160,12 +160,12 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 		_, err = io.Copy(ctw.tarWriter, r)
 		if err != nil {
-			return fmt.Errorf("Failed to copy file content %q: %w", srcPath, err)
+			return fmt.Errorf("Failed copying file content %q: %w", srcPath, err)
 		}
 
 		err = f.Close()
 		if err != nil {
-			return fmt.Errorf("Failed to close file %q: %w", srcPath, err)
+			return fmt.Errorf("Failed closing file %q: %w", srcPath, err)
 		}
 	}
 
@@ -177,12 +177,12 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 func (ctw *InstanceTarWriter) WriteFileFromReader(src io.Reader, fi os.FileInfo) error {
 	hdr, err := tar.FileInfoHeader(fi, "")
 	if err != nil {
-		return fmt.Errorf("Failed to create tar info header: %w", err)
+		return fmt.Errorf("Failed creating tar info header: %w", err)
 	}
 
 	err = ctw.tarWriter.WriteHeader(hdr)
 	if err != nil {
-		return fmt.Errorf("Failed to write tar header: %w", err)
+		return fmt.Errorf("Failed writing tar header: %w", err)
 	}
 
 	_, err = io.Copy(ctw.tarWriter, src)
@@ -193,7 +193,7 @@ func (ctw *InstanceTarWriter) WriteFileFromReader(src io.Reader, fi os.FileInfo)
 func (ctw *InstanceTarWriter) Close() error {
 	err := ctw.tarWriter.Close()
 	if err != nil {
-		return fmt.Errorf("Failed to close tar writer: %w", err)
+		return fmt.Errorf("Failed closing tar writer: %w", err)
 	}
 
 	return nil

@@ -102,13 +102,13 @@ func getToken(secret []byte, salt []byte, subject string, clusterUUID string, au
 	if salt != nil {
 		signingKey, err = TokenSigningKey(secret, salt)
 		if err != nil {
-			return "", fmt.Errorf("Failed to issue token: %w", err)
+			return "", fmt.Errorf("Failed issuing token: %w", err)
 		}
 	}
 
 	signedToken, err := jwt.NewWithClaims(jwt.SigningMethodHS512, claims).SignedString(signingKey)
 	if err != nil {
-		return "", fmt.Errorf("Failed to sign JWT: %w", err)
+		return "", fmt.Errorf("Failed signing JWT: %w", err)
 	}
 
 	return signedToken, nil

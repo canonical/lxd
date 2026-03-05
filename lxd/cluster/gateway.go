@@ -269,7 +269,7 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, identityCache 
 
 			client, err := g.getClient()
 			if err != nil {
-				http.Error(w, "500 failed to get dqlite client", http.StatusInternalServerError)
+				http.Error(w, "500 failed getting dqlite client", http.StatusInternalServerError)
 				return
 			}
 
@@ -278,7 +278,7 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, identityCache 
 			defer cancel()
 			leader, err := client.Leader(ctx)
 			if err != nil {
-				http.Error(w, "500 failed to get leader address", http.StatusInternalServerError)
+				http.Error(w, "500 failed getting leader address", http.StatusInternalServerError)
 				return
 			}
 
@@ -309,14 +309,14 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, identityCache 
 
 		hijacker, ok := w.(http.Hijacker)
 		if !ok {
-			http.Error(w, "Webserver doesn't support hijacking", http.StatusInternalServerError)
+			http.Error(w, "Webserver does not support hijacking", http.StatusInternalServerError)
 
 			return
 		}
 
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
-			http.Error(w, fmt.Errorf("Failed to hijack connection: %w", err).Error(), http.StatusInternalServerError)
+			http.Error(w, fmt.Errorf("Failed hijacking connection: %w", err).Error(), http.StatusInternalServerError)
 
 			return
 		}
@@ -409,17 +409,17 @@ func (g *Gateway) raftDial() client.DialFunc {
 
 		listener, err := net.Listen("unix", "")
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create unix listener: %w", err)
+			return nil, fmt.Errorf("Failed creating unix listener: %w", err)
 		}
 
 		goUnix, err := net.Dial("unix", listener.Addr().String())
 		if err != nil {
-			return nil, fmt.Errorf("Failed to connect to unix listener: %w", err)
+			return nil, fmt.Errorf("Failed connecting to unix listener: %w", err)
 		}
 
 		cUnix, err := listener.Accept()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to connect to unix listener: %w", err)
+			return nil, fmt.Errorf("Failed connecting to unix listener: %w", err)
 		}
 
 		_ = listener.Close()
@@ -571,7 +571,7 @@ func (g *Gateway) Sync() {
 
 	client, err := g.getClient()
 	if err != nil {
-		logger.Warnf("Failed to get client: %v", err)
+		logger.Warnf("Failed getting client: %v", err)
 		return
 	}
 
@@ -589,7 +589,7 @@ func (g *Gateway) Sync() {
 		path := filepath.Join(dir, file.Name)
 		err := os.WriteFile(path, file.Data, 0600)
 		if err != nil {
-			logger.Warnf("Failed to dump database file %s: %v", file.Name, err)
+			logger.Warnf("Failed dumping database file %s: %v", file.Name, err)
 		}
 	}
 }
@@ -645,13 +645,13 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		for {
 			client, err := g.getClient()
 			if err != nil {
-				return "", fmt.Errorf("Failed to get dqlite client: %w", err)
+				return "", fmt.Errorf("Failed getting dqlite client: %w", err)
 			}
 
 			leader, err := client.Leader(ctx)
 			if err != nil {
 				_ = client.Close()
-				return "", fmt.Errorf("Failed to get leader address: %w", err)
+				return "", fmt.Errorf("Failed getting leader address: %w", err)
 			}
 
 			if leader != nil && leader.Address != "" {
@@ -695,7 +695,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to fetch raft nodes addresses: %w", err)
+		return "", fmt.Errorf("Failed fetching raft nodes addresses: %w", err)
 	}
 
 	if len(addresses) == 0 {
@@ -711,7 +711,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	for _, address := range addresses {
 		leader, err := attemptGetLeaderAddressFromNodeAddress(g.ctx, transport, address)
 		if err != nil {
-			return "", fmt.Errorf("Failed to find leader address: %w", err)
+			return "", fmt.Errorf("Failed finding leader address: %w", err)
 		} else if leader == "" {
 			continue
 		}
@@ -741,7 +741,7 @@ func (g *Gateway) init(bootstrap bool) error {
 
 	info, err := loadInfo(g.db)
 	if err != nil {
-		return fmt.Errorf("Failed to create raft factory: %w", err)
+		return fmt.Errorf("Failed creating raft factory: %w", err)
 	}
 
 	dir := g.db.DqliteDir()
@@ -757,7 +757,7 @@ func (g *Gateway) init(bootstrap bool) error {
 		// random unused address.
 		listener, err := net.Listen("unix", "")
 		if err != nil {
-			return fmt.Errorf("Failed to autobind unix socket: %w", err)
+			return fmt.Errorf("Failed autobinding unix socket: %w", err)
 		}
 
 		g.bindAddress = listener.Addr().String()
@@ -797,7 +797,7 @@ func (g *Gateway) init(bootstrap bool) error {
 
 			err = dqlite.ReconfigureMembershipExt(dir, cluster)
 			if err != nil {
-				return fmt.Errorf("Failed to recover database state: %w", err)
+				return fmt.Errorf("Failed recovering database state: %w", err)
 			}
 		}
 
@@ -808,12 +808,12 @@ func (g *Gateway) init(bootstrap bool) error {
 			options...,
 		)
 		if err != nil {
-			return fmt.Errorf("Failed to create dqlite server: %w", err)
+			return fmt.Errorf("Failed creating dqlite server: %w", err)
 		}
 
 		err = server.Start()
 		if err != nil {
-			return fmt.Errorf("Failed to start dqlite server: %w", err)
+			return fmt.Errorf("Failed starting dqlite server: %w", err)
 		}
 
 		g.lock.Lock()
@@ -868,7 +868,7 @@ func (g *Gateway) isLeader() (bool, error) {
 
 	client, err := g.getClient()
 	if err != nil {
-		return false, fmt.Errorf("Failed to get dqlite client: %w", err)
+		return false, fmt.Errorf("Failed getting dqlite client: %w", err)
 	}
 
 	defer func() { _ = client.Close() }()
@@ -876,7 +876,7 @@ func (g *Gateway) isLeader() (bool, error) {
 	defer cancel()
 	leader, err := client.Leader(ctx)
 	if err != nil {
-		return false, fmt.Errorf("Failed to get leader address: %w", err)
+		return false, fmt.Errorf("Failed getting leader address: %w", err)
 	}
 
 	return leader != nil && leader.ID == g.info.ID, nil
@@ -921,7 +921,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	for i, server := range servers {
 		address, err := g.nodeAddress(server.Address)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to fetch raft server address: %w", err)
+			return nil, fmt.Errorf("Failed fetching raft server address: %w", err)
 		}
 
 		servers[i].Address = address
@@ -975,7 +975,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 		address, err = tx.GetRaftNodeAddress(ctx, 1)
 		if err != nil {
 			if !response.IsNotFoundError(err) {
-				return fmt.Errorf("Failed to fetch raft server address: %w", err)
+				return fmt.Errorf("Failed fetching raft server address: %w", err)
 			}
 			// Use the initial address as fallback. This is an edge
 			// case that happens when listing members on a
@@ -1017,7 +1017,7 @@ func attemptGetLeaderAddressFromNodeAddress(ctx context.Context, transport http.
 	request = request.WithContext(ctx)
 	response, err := httpClient.Do(request)
 	if err != nil {
-		logger.Debugf("Failed to fetch leader address from %s", request.URL.Host)
+		logger.Debugf("Failed fetching leader address from %s", request.URL.Host)
 		return "", nil
 	}
 
@@ -1029,7 +1029,7 @@ func attemptGetLeaderAddressFromNodeAddress(ctx context.Context, transport http.
 	info := map[string]string{}
 	err = json.NewDecoder(response.Body).Decode(&info)
 	if err != nil {
-		logger.Debugf("Failed to parse leader address from %s", request.URL.Host)
+		logger.Debugf("Failed parsing leader address from %s", request.URL.Host)
 		return "", nil
 	}
 
@@ -1100,7 +1100,7 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 
 	response, err := http.ReadResponse(bufio.NewReader(conn), request)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read response: %w", err)
+		return nil, fmt.Errorf("Failed reading response: %w", err)
 	}
 
 	// If the remote server has detected that we are out of date, let's

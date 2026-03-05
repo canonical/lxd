@@ -13,7 +13,7 @@ import (
 func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 	currentServer, _, err := d.GetServer()
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
+		return fmt.Errorf("Failed retrieving current server configuration: %w", err)
 	}
 
 	var config api.InitLocalPreseed
@@ -23,7 +23,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 	// projects at this time.
 	networks, err := d.UseProject(api.ProjectDefaultName).GetNetworks()
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve current server network configuration for project %q: %w", api.ProjectDefaultName, err)
+		return fmt.Errorf("Failed retrieving current server network configuration for project %q: %w", api.ProjectDefaultName, err)
 	}
 
 	for _, network := range networks {
@@ -44,7 +44,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 
 	storagePools, err := d.GetStoragePools()
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
+		return fmt.Errorf("Failed retrieving current server configuration: %w", err)
 	}
 
 	for _, storagePool := range storagePools {
@@ -59,7 +59,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 
 	profiles, err := d.GetProfiles()
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
+		return fmt.Errorf("Failed retrieving current server configuration: %w", err)
 	}
 
 	for _, profile := range profiles {
@@ -74,7 +74,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 
 	projects, err := d.GetProjects()
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
+		return fmt.Errorf("Failed retrieving current server configuration: %w", err)
 	}
 
 	for _, project := range projects {
@@ -88,7 +88,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 
 	out, err := yaml.Marshal(config)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
+		return fmt.Errorf("Failed retrieving current server configuration: %w", err)
 	}
 
 	fmt.Printf("%s\n", out)

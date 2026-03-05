@@ -248,7 +248,7 @@ func (d *pure) Create() error {
 
 	poolSizeBytes, err := units.ParseByteSizeString(d.config["size"])
 	if err != nil {
-		return fmt.Errorf("Failed to parse storage size: %w", err)
+		return fmt.Errorf("Failed parsing storage size: %w", err)
 	}
 
 	// Create the storage pool.
@@ -268,12 +268,12 @@ func (d *pure) Create() error {
 func (d *pure) Update(changedConfig map[string]string) error {
 	newPoolSizeBytes, err := units.ParseByteSizeString(changedConfig["size"])
 	if err != nil {
-		return fmt.Errorf("Failed to parse storage size: %w", err)
+		return fmt.Errorf("Failed parsing storage size: %w", err)
 	}
 
 	oldPoolSizeBytes, err := units.ParseByteSizeString(d.config["size"])
 	if err != nil {
-		return fmt.Errorf("Failed to parse old storage size: %w", err)
+		return fmt.Errorf("Failed parsing old storage size: %w", err)
 	}
 
 	if newPoolSizeBytes != oldPoolSizeBytes {

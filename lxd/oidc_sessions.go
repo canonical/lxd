@@ -320,7 +320,7 @@ func pruneExpiredOIDCSessionsTask(stateFunc func() *state.State) (task.Func, tas
 
 		leaderInfo, err := s.LeaderInfo()
 		if err != nil {
-			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
+			logger.Error("Failed getting leader cluster member address", logger.Ctx{"err": err})
 			return
 		}
 
@@ -348,7 +348,7 @@ func pruneExpiredOIDCSessionsTask(stateFunc func() *state.State) (task.Func, tas
 
 					err = dbCluster.DeleteOIDCSessionByUUID(ctx, tx.Tx(), session.UUID)
 					if err != nil {
-						logger.Warn("Failed to delete expired OIDC session", logger.Ctx{"uuid": session.UUID, "err": err})
+						logger.Warn("Failed deleting expired OIDC session", logger.Ctx{"uuid": session.UUID, "err": err})
 					}
 				}
 

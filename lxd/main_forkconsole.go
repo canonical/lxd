@@ -57,13 +57,13 @@ func (c *cmdForkconsole) Run(cmd *cobra.Command, args []string) error {
 	ttyNum := strings.TrimPrefix(args[3], "tty=")
 	tty, err := strconv.Atoi(ttyNum)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve tty number: %q", err)
+		return fmt.Errorf("Failed retrieving tty number: %q", err)
 	}
 
 	escapeNum := strings.TrimPrefix(args[4], "escape=")
 	escape, err := strconv.ParseInt(escapeNum, 10, 32)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve escape character: %q", err)
+		return fmt.Errorf("Failed retrieving escape character: %q", err)
 	}
 
 	d, err := liblxc.NewContainer(name, lxcpath)

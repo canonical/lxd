@@ -46,7 +46,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 		// Get all managed networks across all projects.
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to load all networks: %w", err)
+			return fmt.Errorf("Failed loading all networks: %w", err)
 		}
 
 		return err
@@ -118,7 +118,7 @@ func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int
 
 	// Verify that this is indeed a SR-IOV enabled device.
 	if !shared.PathExists(sriovNumVFsFile) {
-		return "", -1, fmt.Errorf("Parent device %q doesn't support SR-IOV", parentDev)
+		return "", -1, fmt.Errorf("Parent device %q does not support SR-IOV", parentDev)
 	}
 
 	// Get parent dev_port and dev_id values.
@@ -376,7 +376,7 @@ func SRIOVGetSwitchAndPFID(parentDev string) (*PFSwitchDevPort, error) {
 
 	physSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, parentDev, "phys_switch_id"))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get phys_switch_id: %w", err)
+		return nil, fmt.Errorf("Cannot get phys_switch_id: %w", err)
 	}
 
 	pf := PFSwitchDevPort{
@@ -395,7 +395,7 @@ func SRIOVGetSwitchAndPFID(parentDev string) (*PFSwitchDevPort, error) {
 func SRIOVFindFreeVFAndRepresentor(state *state.State, pfPorts []PFSwitchDevPort) (vfParent string, representorPort string, vfName string, vfID int, err error) {
 	nics, err := os.ReadDir(sysClassNet)
 	if err != nil {
-		return "", "", "", -1, fmt.Errorf("Failed to read directory %q: %w", sysClassNet, err)
+		return "", "", "", -1, fmt.Errorf("Failed reading directory %q: %w", sysClassNet, err)
 	}
 
 	// Iterate through the list of ports and identify the PFs by trying to locate a VF (virtual function).

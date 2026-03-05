@@ -124,7 +124,7 @@ func (c *ClusterTx) UpdateStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
 	values := []any{poolID, nodeID, StoragePoolCreated}
 	_, err := query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
 	if err != nil {
-		return fmt.Errorf("failed to add storage pools cluster member entry: %w", err)
+		return fmt.Errorf("failed adding storage pools cluster member entry: %w", err)
 	}
 
 	return nil
@@ -138,7 +138,7 @@ func (c *ClusterTx) UpdateCephStoragePoolAfterNodeJoin(ctx context.Context, pool
 	stmt := "SELECT node_id FROM storage_pools_nodes WHERE storage_pool_id=?"
 	nodeIDs, err := query.SelectIntegers(ctx, c.tx, stmt, poolID)
 	if err != nil {
-		return fmt.Errorf("failed to fetch IDs of cluster members with ceph pool: %w", err)
+		return fmt.Errorf("failed fetching IDs of cluster members with ceph pool: %w", err)
 	}
 
 	if len(nodeIDs) == 0 {
@@ -154,7 +154,7 @@ INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, description, p
     FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 `, nodeID, poolID, otherNodeID)
 	if err != nil {
-		return fmt.Errorf("failed to create cluster member ceph volumes: %w", err)
+		return fmt.Errorf("failed creating cluster member ceph volumes: %w", err)
 	}
 
 	// Create entries of all the ceph volumes configs for the new node.
@@ -164,12 +164,12 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 `
 	volumeIDs, err := query.SelectIntegers(ctx, c.tx, stmt, poolID, nodeID)
 	if err != nil {
-		return fmt.Errorf("failed to get joining cluster member's ceph volume IDs: %w", err)
+		return fmt.Errorf("failed getting joining cluster member's ceph volume IDs: %w", err)
 	}
 
 	otherVolumeIDs, err := query.SelectIntegers(ctx, c.tx, stmt, poolID, otherNodeID)
 	if err != nil {
-		return fmt.Errorf("failed to get other cluster member's ceph volume IDs: %w", err)
+		return fmt.Errorf("failed getting other cluster member's ceph volume IDs: %w", err)
 	}
 
 	if len(volumeIDs) != len(otherVolumeIDs) { // Quick check.
@@ -180,7 +180,7 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 		volumeID := volumeIDs[i]
 		config, err := query.SelectConfig(ctx, c.tx, "storage_volumes_config", "storage_volume_id=?", otherVolumeID)
 		if err != nil {
-			return fmt.Errorf("failed to get storage volume config: %w", err)
+			return fmt.Errorf("failed getting storage volume config: %w", err)
 		}
 
 		for key, value := range config {
@@ -188,7 +188,7 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?)
 `, volumeID, key, value)
 			if err != nil {
-				return fmt.Errorf("failed to copy volume config: %w", err)
+				return fmt.Errorf("failed copying volume config: %w", err)
 			}
 		}
 

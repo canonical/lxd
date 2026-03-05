@@ -106,7 +106,7 @@ func SetupTrust(serverCert *shared.CertInfo, clusterPut api.ClusterPut) error {
 
 	target, err := lxd.ConnectLXD("https://"+clusterPut.ClusterAddress, args)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to target cluster node %q: %w", clusterPut.ClusterAddress, err)
+		return fmt.Errorf("Failed connecting to target cluster node %q: %w", clusterPut.ClusterAddress, err)
 	}
 
 	cert, err := shared.GenerateTrustCertificate(serverCert, clusterPut.ServerName)
@@ -125,7 +125,7 @@ func SetupTrust(serverCert *shared.CertInfo, clusterPut api.ClusterPut) error {
 
 	err = target.CreateCertificate(post)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {
-		return fmt.Errorf("Failed to add server cert to cluster: %w", err)
+		return fmt.Errorf("Failed adding server cert to cluster: %w", err)
 	}
 
 	return nil
@@ -147,7 +147,7 @@ func UpdateTrust(serverCert *shared.CertInfo, serverName string, targetAddress s
 
 	target, err := lxd.ConnectLXD("https://"+targetAddress, args)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to target cluster node %q: %w", targetAddress, err)
+		return fmt.Errorf("Failed connecting to target cluster node %q: %w", targetAddress, err)
 	}
 
 	cert, err := shared.GenerateTrustCertificate(serverCert, serverName)

@@ -315,7 +315,7 @@ func (c *ClusterTx) InstanceList(ctx context.Context, instanceFunc func(inst Ins
 	for _, instance := range instances {
 		project := projectsByName[instance.Project]
 		if project == nil {
-			return fmt.Errorf("Instance references %d project %q that isn't loaded", instance.ID, instance.Project)
+			return fmt.Errorf("Instance references %d project %q that is not loaded", instance.ID, instance.Project)
 		}
 
 		err = instanceFunc(instance, *project)
@@ -591,7 +591,7 @@ func (c *ClusterTx) instanceProfilesFillWithProfiles(ctx context.Context, snapsh
 		for _, applyProfileID := range instanceApplyProfileIDs[int64(inst.ID)] {
 			profile := profilesByID[applyProfileID]
 			if profile == nil {
-				return fmt.Errorf("Instance %d references profile %d that isn't loaded", inst.ID, applyProfileID)
+				return fmt.Errorf("Instance %d references profile %d that is not loaded", inst.ID, applyProfileID)
 			}
 
 			inst.Profiles = append(inst.Profiles, *profile)
@@ -671,18 +671,18 @@ func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project string, oldN
 	// Update the name of the instance and its snapshots, and the member ID they are associated with.
 	member, err := c.GetNodeByName(ctx, newMemberName)
 	if err != nil {
-		return fmt.Errorf("Failed to get new member %q info: %w", newMemberName, err)
+		return fmt.Errorf("Failed getting new member %q info: %w", newMemberName, err)
 	}
 
 	stmt := "UPDATE instances SET node_id=?, name=? WHERE id=?"
 	result, err := c.tx.Exec(stmt, member.ID, newName, instanceID)
 	if err != nil {
-		return fmt.Errorf("Failed to update instance's name and member ID: %w", err)
+		return fmt.Errorf("Failed updating instance's name and member ID: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to get rows affected by instance update: %w", err)
+		return fmt.Errorf("Failed getting rows affected by instance update: %w", err)
 	}
 
 	if n != 1 {
@@ -697,12 +697,12 @@ func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project string, oldN
 	stmt = "UPDATE storage_volumes SET name=? WHERE name=? AND storage_pool_id=? AND type=?"
 	result, err = c.tx.Exec(stmt, newName, oldName, poolID, volumeType)
 	if err != nil {
-		return fmt.Errorf("Failed to update instance's volume name: %w", err)
+		return fmt.Errorf("Failed updating instance's volume name: %w", err)
 	}
 
 	n, err = result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to get rows affected by instance volume update: %w", err)
+		return fmt.Errorf("Failed getting rows affected by instance volume update: %w", err)
 	}
 
 	if n != 1 {

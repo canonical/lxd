@@ -1054,7 +1054,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 		_, err = d.deleteVolume(vol)
 		if err != nil {
-			return fmt.Errorf("Failed to delete volume: %w", err)
+			return fmt.Errorf("Failed deleting volume: %w", err)
 		}
 	}
 
@@ -1077,7 +1077,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
 		}
 	}
 
@@ -1952,7 +1952,7 @@ func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 
 	_, err = d.deleteVolumeSnapshot(parentVol, snapshotName)
 	if err != nil {
-		return fmt.Errorf("Failed to delete volume snapshot: %w", err)
+		return fmt.Errorf("Failed deleting volume snapshot: %w", err)
 	}
 
 	mountPath := snapVol.MountPath()
@@ -1965,7 +1965,7 @@ func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
 		}
 	}
 

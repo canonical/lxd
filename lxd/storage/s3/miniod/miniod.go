@@ -134,7 +134,7 @@ func (p *Process) WaitReady(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			err := fmt.Errorf("Failed to wait for MinIO server process: %w", ctx.Err())
+			err := fmt.Errorf("Failed waiting for MinIO server process: %w", ctx.Err())
 			if lastErr != nil {
 				err = fmt.Errorf("%w: %w", lastErr, err)
 				p.cancel.Cancel()

@@ -226,14 +226,14 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 	// Create a temporary directory to unpack the backup into.
 	tmpUnpackDir, err := os.MkdirTemp(GetVolumeMountPath(d.name, vol.volType, ""), "backup.")
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create temporary directory %q: %w", tmpUnpackDir, err)
+		return nil, nil, fmt.Errorf("Failed creating temporary directory %q: %w", tmpUnpackDir, err)
 	}
 
 	defer func() { _ = os.RemoveAll(tmpUnpackDir) }()
 
 	err = os.Chmod(tmpUnpackDir, 0100)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to chmod temporary directory %q: %w", tmpUnpackDir, err)
+		return nil, nil, fmt.Errorf("Failed chmoding temporary directory %q: %w", tmpUnpackDir, err)
 	}
 
 	// unpackSubVolume unpacks a subvolume file from a backup tarball file.
@@ -728,14 +728,14 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 	// Create a temporary directory which will act as the parent directory of the received ro snapshot.
 	tmpVolumesMountPoint, err := os.MkdirTemp(instancesPath, "migration.")
 	if err != nil {
-		return fmt.Errorf("Failed to create temporary directory under %q: %w", instancesPath, err)
+		return fmt.Errorf("Failed creating temporary directory under %q: %w", instancesPath, err)
 	}
 
 	defer func() { _ = os.RemoveAll(tmpVolumesMountPoint) }()
 
 	err = os.Chmod(tmpVolumesMountPoint, 0100)
 	if err != nil {
-		return fmt.Errorf("Failed to chmod %q: %w", tmpVolumesMountPoint, err)
+		return fmt.Errorf("Failed chmoding %q: %w", tmpVolumesMountPoint, err)
 	}
 
 	// Handle btrfs send/receive migration.
@@ -988,7 +988,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 			var output string
 			output, err = shared.RunCommand(context.TODO(), "btrfs", "subvolume", "show", volPath)
 			if err != nil {
-				return fmt.Errorf("Failed to get subvol information: %w", err)
+				return fmt.Errorf("Failed getting subvol information: %w", err)
 			}
 
 			id := ""
@@ -1001,7 +1001,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 			}
 
 			if id == "" {
-				return fmt.Errorf("Failed to find subvolume id for %q", volPath)
+				return fmt.Errorf("Failed finding subvolume id for %q", volPath)
 			}
 
 			// Create a qgroup.
@@ -1388,14 +1388,14 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 	// Create a temporary directory which will act as the parent directory of the read-only snapshot.
 	tmpVolumesMountPoint, err := os.MkdirTemp(instancesPath, "migration.")
 	if err != nil {
-		return fmt.Errorf("Failed to create temporary directory under %q: %w", instancesPath, err)
+		return fmt.Errorf("Failed creating temporary directory under %q: %w", instancesPath, err)
 	}
 
 	defer func() { _ = os.RemoveAll(tmpVolumesMountPoint) }()
 
 	err = os.Chmod(tmpVolumesMountPoint, 0100)
 	if err != nil {
-		return fmt.Errorf("Failed to chmod %q: %w", tmpVolumesMountPoint, err)
+		return fmt.Errorf("Failed chmoding %q: %w", tmpVolumesMountPoint, err)
 	}
 
 	// Make recursive read-only snapshot of the subvolume as writable subvolumes cannot be sent.
@@ -1485,7 +1485,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *inst
 		// Create temporary file to store output of btrfs send.
 		tmpFile, err := os.CreateTemp(d.state.BackupsStoragePath(projectName), backup.WorkingDirPrefix+"_btrfs")
 		if err != nil {
-			return fmt.Errorf("Failed to open temporary file for BTRFS backup: %w", err)
+			return fmt.Errorf("Failed opening temporary file for BTRFS backup: %w", err)
 		}
 
 		defer func() { _ = tmpFile.Close() }()
@@ -1618,14 +1618,14 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *inst
 
 	tmpInstanceMntPoint, err := os.MkdirTemp(instancesPath, "backup.")
 	if err != nil {
-		return fmt.Errorf("Failed to create temporary directory under %q: %w", instancesPath, err)
+		return fmt.Errorf("Failed creating temporary directory under %q: %w", instancesPath, err)
 	}
 
 	defer func() { _ = os.RemoveAll(tmpInstanceMntPoint) }()
 
 	err = os.Chmod(tmpInstanceMntPoint, 0100)
 	if err != nil {
-		return fmt.Errorf("Failed to chmod %q: %w", tmpInstanceMntPoint, err)
+		return fmt.Errorf("Failed chmoding %q: %w", tmpInstanceMntPoint, err)
 	}
 
 	// Create the read-only snapshot.
@@ -1850,7 +1850,7 @@ func (d *btrfs) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operati
 	backupSubvolume := target + tmpVolSuffix
 	err = os.Rename(target, backupSubvolume)
 	if err != nil {
-		return fmt.Errorf("Failed to rename %q to %q: %w", target, backupSubvolume, err)
+		return fmt.Errorf("Failed renaming %q to %q: %w", target, backupSubvolume, err)
 	}
 
 	revert.Add(func() { _ = os.Rename(backupSubvolume, target) })

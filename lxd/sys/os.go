@@ -255,20 +255,20 @@ func (s *OS) initServerUUID() error {
 	if !shared.PathExists(uuidPath) {
 		newServerUUID, err := uuid.NewV7()
 		if err != nil {
-			return fmt.Errorf("Failed to generate a new server UUID: %w", err)
+			return fmt.Errorf("Failed generating a new server UUID: %w", err)
 		}
 
 		serverUUID = newServerUUID.String()
 		err = os.WriteFile(uuidPath, []byte(serverUUID), 0600)
 		if err != nil {
-			return fmt.Errorf("Failed to create server.uuid file: %w", err)
+			return fmt.Errorf("Failed creating server.uuid file: %w", err)
 		}
 	}
 
 	if serverUUID == "" {
 		uuidBytes, err := os.ReadFile(uuidPath)
 		if err != nil {
-			return fmt.Errorf("Failed to read server.uuid file: %w", err)
+			return fmt.Errorf("Failed reading server.uuid file: %w", err)
 		}
 
 		serverUUID = string(uuidBytes)

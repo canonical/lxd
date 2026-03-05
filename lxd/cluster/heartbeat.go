@@ -181,7 +181,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 
 			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(hbState.cluster, "", warningtype.OfflineClusterMember, entity.TypeClusterMember, int(nodeID))
 			if err != nil {
-				logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
+				logger.Warn("Failed resolving warning", logger.Ctx{"err": err})
 			}
 		} else {
 			logger.Warn("Failed heartbeat", logger.Ctx{"remote": address, "err": err})
@@ -191,7 +191,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 					return tx.UpsertWarningLocalNode(ctx, "", entity.TypeClusterMember, int(nodeID), warningtype.OfflineClusterMember, err.Error())
 				})
 				if err != nil {
-					logger.Warn("Failed to create warning", logger.Ctx{"err": err})
+					logger.Warn("Failed creating warning", logger.Ctx{"err": err})
 				}
 			}
 		}
@@ -337,7 +337,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 			return
 		}
 
-		logger.Error("Failed to get current raft members", logger.Ctx{"err": err})
+		logger.Error("Failed getting current raft members", logger.Ctx{"err": err})
 		return
 	}
 
@@ -359,7 +359,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err})
+		logger.Warn("Failed getting current cluster members", logger.Ctx{"err": err})
 		return
 	}
 
@@ -388,7 +388,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {
-		logger.Warn("Failed to replace local raft members", logger.Ctx{"err": err, "mode": modeStr, "local": localClusterAddress})
+		logger.Warn("Failed replacing local raft members", logger.Ctx{"err": err, "mode": modeStr, "local": localClusterAddress})
 		return
 	}
 
@@ -444,7 +444,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 			return nil
 		})
 		if err != nil {
-			logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err, "mode": modeStr, "local": localClusterAddress})
+			logger.Warn("Failed getting current cluster members", logger.Ctx{"err": err, "mode": modeStr, "local": localClusterAddress})
 			return
 		}
 
@@ -572,7 +572,7 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 
 	response, err := client.Do(request)
 	if err != nil {
-		return fmt.Errorf("Failed to send heartbeat request: %w", err)
+		return fmt.Errorf("Failed sending heartbeat request: %w", err)
 	}
 
 	defer func() { _ = response.Body.Close() }()

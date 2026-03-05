@@ -272,7 +272,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 			}
 
 			if num == 0 {
-				return errors.New("Memory limit can't be 0%")
+				return errors.New("Memory limit cannot be 0%")
 			}
 
 			return nil

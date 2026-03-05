@@ -44,7 +44,7 @@ func QueryParam(request *http.Request, key string) string {
 	if request.URL != nil {
 		values, err = url.ParseQuery(request.URL.RawQuery)
 		if err != nil {
-			logger.Warnf("Failed to parse query string %q: %v", request.URL.RawQuery, err)
+			logger.Warnf("Failed parsing query string %q: %v", request.URL.RawQuery, err)
 			return ""
 		}
 	}

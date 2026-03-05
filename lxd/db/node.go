@@ -325,7 +325,7 @@ func (c *ClusterTx) GetLocalNodeAddress(ctx context.Context) (string, error) {
 func (c *ClusterTx) NodeIsOutdated(ctx context.Context) (bool, error) {
 	nodes, err := c.nodes(ctx, false /* not pending */, "")
 	if err != nil {
-		return false, fmt.Errorf("Failed to fetch nodes: %w", err)
+		return false, fmt.Errorf("Failed fetching nodes: %w", err)
 	}
 
 	// Figure our own version.
@@ -374,7 +374,7 @@ func (c *ClusterTx) GetNodes(ctx context.Context) ([]NodeInfo, error) {
 func (c *ClusterTx) GetNodesCount(ctx context.Context) (int, error) {
 	count, err := query.Count(ctx, c.tx, "nodes", "")
 	if err != nil {
-		return 0, fmt.Errorf("failed to count existing nodes: %w", err)
+		return 0, fmt.Errorf("failed counting existing nodes: %w", err)
 	}
 
 	return count, nil
@@ -386,7 +386,7 @@ func (c *ClusterTx) GetNodesCount(ctx context.Context) (int, error) {
 func (c *ClusterTx) RenameNode(ctx context.Context, oldName string, newName string) error {
 	count, err := query.Count(ctx, c.tx, "nodes", "name=?", newName)
 	if err != nil {
-		return fmt.Errorf("failed to check existing nodes: %w", err)
+		return fmt.Errorf("failed checking existing nodes: %w", err)
 	}
 
 	if count != 0 {
@@ -396,12 +396,12 @@ func (c *ClusterTx) RenameNode(ctx context.Context, oldName string, newName stri
 	stmt := `UPDATE nodes SET name=? WHERE name=?`
 	result, err := c.tx.Exec(stmt, newName, oldName)
 	if err != nil {
-		return fmt.Errorf("failed to update node name: %w", err)
+		return fmt.Errorf("failed updating node name: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to get rows count: %w", err)
+		return fmt.Errorf("failed getting rows count: %w", err)
 	}
 
 	if n != 1 {
@@ -416,12 +416,12 @@ func (c *ClusterTx) SetDescription(id int64, description string) error {
 	stmt := `UPDATE nodes SET description=? WHERE id=?`
 	result, err := c.tx.Exec(stmt, description, id)
 	if err != nil {
-		return fmt.Errorf("Failed to update node name: %w", err)
+		return fmt.Errorf("Failed updating node name: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to get rows count: %w", err)
+		return fmt.Errorf("Failed getting rows count: %w", err)
 	}
 
 	if n != 1 {
@@ -520,7 +520,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 		return nil
 	}, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch nodes: %w", err)
+		return nil, fmt.Errorf("Failed fetching nodes: %w", err)
 	}
 
 	// Add the roles
@@ -541,7 +541,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 
 	config, err := cluster.GetConfig(ctx, c.Tx(), "node")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch nodes config: %w", err)
+		return nil, fmt.Errorf("Failed fetching nodes config: %w", err)
 	}
 
 	for i := range nodes {
@@ -624,7 +624,7 @@ func (c *ClusterTx) BootstrapNode(name string, address string) error {
 func (c *ClusterTx) UpdateNodeConfig(ctx context.Context, id int64, config map[string]string) error {
 	err := cluster.UpdateConfig(ctx, c.Tx(), "node", int(id), config)
 	if err != nil {
-		return fmt.Errorf("Unable to update node config: %w", err)
+		return fmt.Errorf("Cannot update node config: %w", err)
 	}
 
 	return nil
@@ -688,7 +688,7 @@ func (c *ClusterTx) UpdateNodeClusterGroups(ctx context.Context, id int64, group
 		// Add node to new group.
 		err = c.AddNodeToClusterGroup(ctx, newGroup, nodeInfo.Name)
 		if err != nil {
-			return fmt.Errorf("Failed to add member to cluster group: %w", err)
+			return fmt.Errorf("Failed adding member to cluster group: %w", err)
 		}
 	}
 
@@ -700,7 +700,7 @@ func (c *ClusterTx) UpdateNodeClusterGroups(ctx context.Context, id int64, group
 		// Remove node from group.
 		err = c.RemoveNodeFromClusterGroup(ctx, oldGroup, nodeInfo.Name)
 		if err != nil {
-			return fmt.Errorf("Failed to remove member from cluster group: %w", err)
+			return fmt.Errorf("Failed removing member from cluster group: %w", err)
 		}
 	}
 
@@ -712,7 +712,7 @@ func (c *ClusterTx) UpdateNodeFailureDomain(ctx context.Context, id int64, domai
 	var domainID any
 
 	if domain == "" {
-		return errors.New("Failure domain name can't be empty")
+		return errors.New("Failure domain name cannot be empty")
 	}
 
 	if domain == "default" {
@@ -909,7 +909,7 @@ func (c *ClusterTx) NodeIsEmpty(ctx context.Context, id int64) (string, error) {
 	// Check if the node has any instances.
 	instances, err := query.SelectStrings(ctx, c.tx, "SELECT name FROM instances WHERE node_id=?", id)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get instances for node %d: %w", id, err)
+		return "", fmt.Errorf("Failed getting instances for node %d: %w", id, err)
 	}
 
 	if len(instances) > 0 {
@@ -937,7 +937,7 @@ func (c *ClusterTx) NodeIsEmpty(ctx context.Context, id int64) (string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to get image list for node %d: %w", id, err)
+		return "", fmt.Errorf("Failed getting image list for node %d: %w", id, err)
 	}
 
 	index := map[string][]int64{} // Map fingerprints to IDs of nodes
@@ -970,7 +970,7 @@ SELECT storage_volumes.name
 `
 	volumes, err := query.SelectStrings(ctx, c.tx, sql, id, cluster.StoragePoolVolumeTypeCustom)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get custom volumes for node %d: %w", id, err)
+		return "", fmt.Errorf("Failed getting custom volumes for node %d: %w", id, err)
 	}
 
 	if len(volumes) > 0 {
@@ -1123,13 +1123,13 @@ func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, members []Nod
 		// Fetch the number of instances already created on this member.
 		created, err := query.Count(ctx, c.tx, "instances", "node_id=?", members[i].ID)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get instances count: %w", err)
+			return nil, fmt.Errorf("Failed getting instances count: %w", err)
 		}
 
 		// Fetch the number of instances currently being created on this member.
 		pending, err := query.Count(ctx, c.tx, "operations", "node_id=? AND type=?", members[i].ID, operationtype.InstanceCreate)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get pending instances count: %w", err)
+			return nil, fmt.Errorf("Failed getting pending instances count: %w", err)
 		}
 
 		memberInstanceCount := created + pending
@@ -1153,12 +1153,12 @@ func (c *ClusterTx) SetNodeVersion(id int64, version [2]int) error {
 
 	result, err := c.tx.Exec(stmt, version[0], version[1], id)
 	if err != nil {
-		return fmt.Errorf("Failed to update nodes table: %w", err)
+		return fmt.Errorf("Failed updating nodes table: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to get affected rows: %w", err)
+		return fmt.Errorf("Failed getting affected rows: %w", err)
 	}
 
 	if n != 1 {

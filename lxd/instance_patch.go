@@ -128,7 +128,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Restore != "" {
-		return response.BadRequest(errors.New("Can't call PATCH in restore mode"))
+		return response.BadRequest(errors.New("Cannot call PATCH in restore mode"))
 	}
 
 	// Check if architecture was passed

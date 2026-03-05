@@ -7,4 +7,4 @@ import (
 )
 
 // ErrNotRunning is returned when performing an action against a stopped process.
-var ErrNotRunning = errors.New("The process isn't running")
+var ErrNotRunning = errors.New("The process is not running")

@@ -51,7 +51,7 @@ func parseInterfaces(interfaces []ContainerInterface) (map[string]ContainerInter
 	for _, iface := range interfaces {
 		_, ok := macInterfaces[iface.MACAddress]
 		if ok {
-			return nil, errors.New("MAAS doesn't allow duplicate MAC addresses")
+			return nil, errors.New("MAAS does not allow duplicate MAC addresses")
 		}
 
 		if iface.MACAddress == "" {
@@ -83,7 +83,7 @@ func NewController(url string, key string, machine string) (*Controller, error) 
 			return nil, err
 		}
 
-		return nil, fmt.Errorf("Unable to connect MAAS at %q: %v", baseURL,
+		return nil, fmt.Errorf("Cannot connect MAAS at %q: %v", baseURL,
 			strings.Split(strings.Split(err.Error(), "unsupported version: ")[1], " (")[0])
 	}
 
@@ -99,7 +99,7 @@ func NewController(url string, key string, machine string) (*Controller, error) 
 	}
 
 	if len(machines) != 1 {
-		return nil, fmt.Errorf("Couldn't find the specified machine: %s", machine)
+		return nil, fmt.Errorf("Could not find the specified machine: %s", machine)
 	}
 
 	// Setup the struct
@@ -133,7 +133,7 @@ func (c *Controller) getDevice(name string, domain string) (gomaasapi.Device, er
 	}
 
 	if len(devs) != 1 {
-		return nil, fmt.Errorf("Couldn't find the specified instance: %s", name)
+		return nil, fmt.Errorf("Could not find the specified instance: %s", name)
 	}
 
 	return devs[0], nil
@@ -184,7 +184,7 @@ func (c *Controller) CreateContainer(inst Instance, interfaces []ContainerInterf
 		for _, subnet := range iface.Subnets {
 			_, ok := subnets[subnet.Name]
 			if !ok {
-				return fmt.Errorf("Subnet %q doesn't exist in MAAS", subnet.Name)
+				return fmt.Errorf("Subnet %q does not exist in MAAS", subnet.Name)
 			}
 		}
 	}
@@ -303,7 +303,7 @@ func (c *Controller) UpdateContainer(inst Instance, interfaces []ContainerInterf
 		for _, subnet := range iface.Subnets {
 			_, ok := subnets[subnet.Name]
 			if !ok {
-				return fmt.Errorf("Subnet %q doesn't exist in MAAS", subnet.Name)
+				return fmt.Errorf("Subnet %q does not exist in MAAS", subnet.Name)
 			}
 		}
 	}

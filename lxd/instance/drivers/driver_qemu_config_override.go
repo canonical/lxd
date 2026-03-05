@@ -65,7 +65,7 @@ func parseConfOverride(confOverride string) configMap {
 			if loc[4] > 0 {
 				i, err := strconv.Atoi(s[loc[4]:loc[5]])
 				if err != nil || i < 0 {
-					panic("failed to parse index")
+					panic("failed parsing index")
 				}
 
 				currentIndex = uint(i)

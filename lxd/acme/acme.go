@@ -63,12 +63,12 @@ func UpdateCertificate(s *state.State, provider HTTP01Provider, clustered bool, 
 
 		keyPair, err := tls.X509KeyPair(clusterCert, key)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get keypair: %w", err)
+			return nil, fmt.Errorf("Failed getting keypair: %w", err)
 		}
 
 		cert, err := x509.ParseCertificate(keyPair.Certificate[0])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse certificate: %w", err)
+			return nil, fmt.Errorf("Failed parsing certificate: %w", err)
 		}
 
 		if !certificateNeedsUpdate(domain, cert) {
@@ -86,12 +86,12 @@ func UpdateCertificate(s *state.State, provider HTTP01Provider, clustered bool, 
 	// Load the certificate.
 	certInfo, err := util.LoadCert(s.OS.VarDir)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load certificate and key file: %w", err)
+		return nil, fmt.Errorf("Failed loading certificate and key file: %w", err)
 	}
 
 	cert, err := x509.ParseCertificate(certInfo.KeyPair().Certificate[0])
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse certificate: %w", err)
+		return nil, fmt.Errorf("Failed parsing certificate: %w", err)
 	}
 
 	if !force && !certificateNeedsUpdate(domain, cert) {
@@ -123,7 +123,7 @@ func UpdateCertificate(s *state.State, provider HTTP01Provider, clustered bool, 
 
 	client, err := lego.NewClient(config)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create new client: %w", err)
+		return nil, fmt.Errorf("Failed creating new client: %w", err)
 	}
 
 	err = client.Challenge.SetHTTP01Provider(provider)
@@ -146,12 +146,12 @@ func UpdateCertificate(s *state.State, provider HTTP01Provider, clustered bool, 
 			break
 		}
 
-		l.Warn("Failed to register user, retrying in 10 seconds", logger.Ctx{"err": err})
+		l.Warn("Failed registering user, retrying in 10 seconds", logger.Ctx{"err": err})
 		time.Sleep(10 * time.Second)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to register user: %w", err)
+		return nil, fmt.Errorf("Failed registering user: %w", err)
 	}
 
 	user.Registration = reg
@@ -180,12 +180,12 @@ func UpdateCertificate(s *state.State, provider HTTP01Provider, clustered bool, 
 			break
 		}
 
-		l.Warn("Failed to obtain certificate, retrying in 10 seconds", logger.Ctx{"err": err})
+		l.Warn("Failed obtaining certificate, retrying in 10 seconds", logger.Ctx{"err": err})
 		time.Sleep(10 * time.Second)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to obtain certificate: %w", err)
+		return nil, fmt.Errorf("Failed obtaining certificate: %w", err)
 	}
 
 	l.Info("Finished issuing certificate")

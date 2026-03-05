@@ -227,7 +227,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			return nil
 		})
 		if err != nil {
-			logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err})
+			logger.Warn("Failed getting current cluster members", logger.Ctx{"err": err})
 			return
 		}
 

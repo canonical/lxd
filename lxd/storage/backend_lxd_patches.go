@@ -37,7 +37,7 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		localNode, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to get local member name: %w", err)
+			return fmt.Errorf("Failed getting local member name: %w", err)
 		}
 
 		return err
@@ -161,7 +161,7 @@ DELETE FROM storage_volumes WHERE id IN (
 );
 `, nodeID, cluster.StoragePoolVolumeTypeContainer)
 		if err != nil {
-			return fmt.Errorf("Failed to delete remaining instance snapshot records in the `storage_volumes` table: %w", err)
+			return fmt.Errorf("Failed deleting remaining instance snapshot records in the `storage_volumes` table: %w", err)
 		}
 
 		return nil

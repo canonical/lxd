@@ -110,7 +110,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 	// List all the caches
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list %q: %w", path, err)
+		return nil, fmt.Errorf("Failed listing %q: %w", path, err)
 	}
 
 	// Iterate and add to our list
@@ -130,7 +130,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		// Get the cache level
 		cacheLevel, err := readUint(levelPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read %q: %w", levelPath, err)
+			return nil, fmt.Errorf("Failed reading %q: %w", levelPath, err)
 		}
 
 		cache.Level = cacheLevel
@@ -140,7 +140,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		content, err := os.ReadFile(sizePath)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				return nil, fmt.Errorf("Failed to read %q: %w", sizePath, err)
+				return nil, fmt.Errorf("Failed reading %q: %w", sizePath, err)
 			}
 		} else {
 			cacheSizeStr := strings.TrimSpace(string(content))
@@ -154,7 +154,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 
 			cacheSize, err := strconv.ParseUint((cacheSizeStr), 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse cache size: %w", err)
+				return nil, fmt.Errorf("Failed parsing cache size: %w", err)
 			}
 
 			cache.Size = cacheSize * cacheSizeMultiplier
@@ -165,7 +165,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		cacheType, err := os.ReadFile(typePath)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				return nil, fmt.Errorf("Failed to read %q: %w", typePath, err)
+				return nil, fmt.Errorf("Failed reading %q: %w", typePath, err)
 			}
 		} else {
 			cache.Type = strings.TrimSpace(string(cacheType))
@@ -232,7 +232,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	// Open cpuinfo
 	f, err := os.Open("/proc/cpuinfo")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open /proc/cpuinfo: %w", err)
+		return nil, fmt.Errorf("Failed opening /proc/cpuinfo: %w", err)
 	}
 
 	defer func() { _ = f.Close() }()
@@ -249,18 +249,18 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		// Extract cpu index
 		_, value, found := strings.Cut(line, ":")
 		if !found {
-			return nil, errors.New("Failed to parse /proc/cpuinfo: Missing separator")
+			return nil, errors.New("Failed parsing /proc/cpuinfo: Missing separator")
 		}
 
 		value = strings.TrimSpace(value)
 		cpuSocket, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse cpu index %q in /proc/cpuinfo: %w", value, err)
+			return nil, fmt.Errorf("Failed parsing cpu index %q in /proc/cpuinfo: %w", value, err)
 		}
 
 		_, ok := cpuInfoMap[cpuSocket]
 		if ok {
-			return nil, errors.New("Failed to parse /proc/cpuinfo: duplicate CPU block in cpuinfo?")
+			return nil, errors.New("Failed parsing /proc/cpuinfo: duplicate CPU block in cpuinfo?")
 		}
 
 		cpuInfo := &cpuInfo{}
@@ -282,7 +282,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			// Get key/value
 			key, value, found := strings.Cut(line, ":")
 			if !found {
-				return nil, errors.New("Failed to parse /proc/cpuinfo: Missing separator")
+				return nil, errors.New("Failed parsing /proc/cpuinfo: Missing separator")
 			}
 
 			key = strings.TrimSpace(key)
@@ -310,7 +310,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	// List all the CPUs
 	entries, err := os.ReadDir(sysDevicesCPU)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list %q: %w", sysDevicesCPU, err)
+		return nil, fmt.Errorf("Failed listing %q: %w", sysDevicesCPU, err)
 	}
 
 	// Process all entries
@@ -329,19 +329,19 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		physicalPackageIDPath := filepath.Join(topologyPath, "physical_package_id")
 		cpuSocket, err := readInt(physicalPackageIDPath)
 		if err != nil && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("Failed to read %q: %w", physicalPackageIDPath, err)
+			return nil, fmt.Errorf("Failed reading %q: %w", physicalPackageIDPath, err)
 		}
 
 		coreIDPath := filepath.Join(topologyPath, "core_id")
 		cpuCore, err := readInt(coreIDPath)
 		if err != nil && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("Failed to read %q: %w", coreIDPath, err)
+			return nil, fmt.Errorf("Failed reading %q: %w", coreIDPath, err)
 		}
 
 		dieIDPath := filepath.Join(topologyPath, "die_id")
 		cpuDie, err := readInt(dieIDPath)
 		if err != nil && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("Failed to read %q: %w", dieIDPath, err)
+			return nil, fmt.Errorf("Failed reading %q: %w", dieIDPath, err)
 		}
 
 		// Handle missing architecture support.
@@ -386,7 +386,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if pathExists(cachePath) {
 				socketCache, err := getCPUCache(cachePath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get CPU cache information: %w", err)
+					return nil, fmt.Errorf("Failed getting CPU cache information: %w", err)
 				}
 
 				resSocket.Cache = socketCache
@@ -398,14 +398,14 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if pathExists(cpuinfoMinFreqPath) {
 				freqMinimum, err := readUint(cpuinfoMinFreqPath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to read %q: %w", cpuinfoMinFreqPath, err)
+					return nil, fmt.Errorf("Failed reading %q: %w", cpuinfoMinFreqPath, err)
 				}
 
 				resSocket.FrequencyMinimum = freqMinimum / 1000
 			} else if pathExists(scalingMinFreqPath) {
 				freqMinimum, err := readUint(scalingMinFreqPath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to read %q: %w", scalingMinFreqPath, err)
+					return nil, fmt.Errorf("Failed reading %q: %w", scalingMinFreqPath, err)
 				}
 
 				resSocket.FrequencyMinimum = freqMinimum / 1000
@@ -416,14 +416,14 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if pathExists(cpuinfoMaxFreqPath) {
 				freqTurbo, err := readUint(cpuinfoMaxFreqPath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to read %q: %w", cpuinfoMaxFreqPath, err)
+					return nil, fmt.Errorf("Failed reading %q: %w", cpuinfoMaxFreqPath, err)
 				}
 
 				resSocket.FrequencyTurbo = freqTurbo / 1000
 			} else if pathExists(scalingMaxFreqPath) {
 				freqTurbo, err := readUint(scalingMaxFreqPath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to read %q: %w", scalingMaxFreqPath, err)
+					return nil, fmt.Errorf("Failed reading %q: %w", scalingMaxFreqPath, err)
 				}
 
 				resSocket.FrequencyTurbo = freqTurbo / 1000
@@ -451,7 +451,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if pathExists(scalingCurFreqPath) {
 				freqCurrent, err := readUint(scalingCurFreqPath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to read %q: %w", scalingCurFreqPath, err)
+					return nil, fmt.Errorf("Failed reading %q: %w", scalingCurFreqPath, err)
 				}
 
 				resCore.Frequency = freqCurrent / 1000
@@ -467,7 +467,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		// Grab thread data
 		threadNumber, err := strconv.ParseInt(strings.TrimPrefix(entryName, "cpu"), 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse thread number: %w", err)
+			return nil, fmt.Errorf("Failed parsing thread number: %w", err)
 		}
 
 		thread := api.ResourcesCPUThread{}
@@ -476,7 +476,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		if pathExists(onlinePath) {
 			online, err := readUint(onlinePath)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to read %q: %w", onlinePath, err)
+				return nil, fmt.Errorf("Failed reading %q: %w", onlinePath, err)
 			}
 
 			if online == 0 {
@@ -490,7 +490,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		// NUMA node
 		numaNode, err := sysfsNumaNode(entryPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to find NUMA node: %w", err)
+			return nil, fmt.Errorf("Failed finding NUMA node: %w", err)
 		}
 
 		thread.NUMANode = numaNode
@@ -533,7 +533,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	uname := unix.Utsname{}
 	err = unix.Uname(&uname)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get uname: %w", err)
+		return nil, fmt.Errorf("Failed getting uname: %w", err)
 	}
 
 	cpu.Architecture = strings.TrimRight(string(uname.Machine[:]), "\x00")

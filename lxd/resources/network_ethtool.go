@@ -149,7 +149,7 @@ func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
 	// Open FD
 	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
 	if err != nil {
-		return fmt.Errorf("Failed to open IPPROTO_IP socket: %w", err)
+		return fmt.Errorf("Failed opening IPPROTO_IP socket: %w", err)
 	}
 
 	defer func() { _ = unix.Close(ethtoolFd) }()
@@ -371,7 +371,7 @@ func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 	// Open FD
 	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
 	if err != nil {
-		return fmt.Errorf("Failed to open IPPROTO_IP socket: %w", err)
+		return fmt.Errorf("Failed opening IPPROTO_IP socket: %w", err)
 	}
 
 	defer func() { _ = unix.Close(ethtoolFd) }()

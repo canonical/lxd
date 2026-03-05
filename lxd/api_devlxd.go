@@ -143,7 +143,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 		 * developing websocket libraries, who want to upgrade the
 		 * connection to a websocket one, and not use net/http any
 		 * more. Whatever the case, we want to forget about it since we
-		 * won't see it either.
+		 * will not see it either.
 		 */
 		m.mLock.Lock()
 		delete(m.m, unixConn)
@@ -177,7 +177,7 @@ func getLXCMonitorContainer(s *state.State, candidateMonitorPID int32) (c instan
 	{
 		statusBytes, err := os.ReadFile("/proc/" + candidateMonitorPIDStr + "/status")
 		if err != nil {
-			return nil, -1, fmt.Errorf("Failed to read status for PID %d: %w", candidateMonitorPID, err)
+			return nil, -1, fmt.Errorf("Failed reading status for PID %d: %w", candidateMonitorPID, err)
 		}
 
 		// Parse status file to find the parent PID and check if the NSpid matches the PID.
@@ -188,7 +188,7 @@ func getLXCMonitorContainer(s *state.State, candidateMonitorPID int32) (c instan
 				// ParseUint to avoid scanning for `-` sign.
 				ppid, err := strconv.ParseUint(strings.TrimSpace(ppidStr), 10, 32)
 				if err != nil {
-					return nil, -1, fmt.Errorf("Failed to parse parent PID from status for PID %d: %w", candidateMonitorPID, err)
+					return nil, -1, fmt.Errorf("Failed parsing parent PID from status for PID %d: %w", candidateMonitorPID, err)
 				}
 
 				if ppid > math.MaxInt32 {
@@ -214,7 +214,7 @@ func getLXCMonitorContainer(s *state.State, candidateMonitorPID int32) (c instan
 	{
 		cmdLineBytes, err := os.ReadFile("/proc/" + candidateMonitorPIDStr + "/cmdline")
 		if err != nil {
-			return nil, -1, fmt.Errorf("Failed to read command line for PID %d: %w", candidateMonitorPID, err)
+			return nil, -1, fmt.Errorf("Failed reading command line for PID %d: %w", candidateMonitorPID, err)
 		}
 
 		cmdLine := strings.TrimSuffix(string(cmdLineBytes), "\x00")
@@ -236,7 +236,7 @@ func getLXCMonitorContainer(s *state.State, candidateMonitorPID int32) (c instan
 		// Load the container instance by project and name.
 		inst, err := instance.LoadByProjectAndName(s, projectName, name)
 		if err != nil {
-			return nil, -1, fmt.Errorf("Failed to load instance %q in project %q: %w", name, projectName, err)
+			return nil, -1, fmt.Errorf("Failed loading instance %q in project %q: %w", name, projectName, err)
 		}
 
 		if inst.Type() != instancetype.Container {
@@ -270,10 +270,10 @@ func devlxdFindContainerForPID(s *state.State, originPID int32) (instance.Contai
 	 *    This approach is used when a process is started within the container.
 	 *
 	 * 2. If this fails, it may be that someone did an `lxc exec foo -- bash`,
-	 *    so the process isn't actually a descendant of the container's
+	 *    so the process is not actually a descendant of the container's
 	 *    init. In this case we just look through all the containers until
 	 *    we find an init with a matching pid namespace. This is probably
-	 *    uncommon, so hopefully the slowness won't hurt us.
+	 *    uncommon, so hopefully the slowness will not hurt us.
 	 */
 	pid := originPID
 	for pid > 1 {
@@ -295,7 +295,7 @@ func devlxdFindContainerForPID(s *state.State, originPID int32) (instance.Contai
 	// This is used to check if the origin is in the same PID namespace as the container we are trying to find.
 	originPIDNamespace, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/pid", originPID))
 	if err != nil {
-		logger.Warn("Failed to read devlxd origin PID namespace", logger.Ctx{"pid": originPID, "err": err})
+		logger.Warn("Failed reading devlxd origin PID namespace", logger.Ctx{"pid": originPID, "err": err})
 
 		// Don't return error to avoid leaking details about the process.
 		return nil, errPIDNotInContainer
@@ -322,7 +322,7 @@ func devlxdFindContainerForPID(s *state.State, originPID int32) (instance.Contai
 
 		pidNs, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/pid", initPID))
 		if err != nil {
-			logger.Warn("Failed to read process init PID namespace", logger.Ctx{"project": c.Project().Name, "instance": c.Name(), "pid": initPID, "err": err})
+			logger.Warn("Failed reading process init PID namespace", logger.Ctx{"project": c.Project().Name, "instance": c.Name(), "pid": initPID, "err": err})
 
 			return false
 		}

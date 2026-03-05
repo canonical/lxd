@@ -1760,7 +1760,7 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 		// cluster members.
 		dest, err := lxdCluster.Connect(ctx, newMember.Address, networkCert, s.ServerCert(), true)
 		if err != nil {
-			return fmt.Errorf("Failed to connect to destination server %q: %w", newMember.Address, err)
+			return fmt.Errorf("Failed connecting to destination server %q: %w", newMember.Address, err)
 		}
 
 		dest = dest.UseTarget(newMember.Name).UseProject(srcProjectName)
@@ -2855,12 +2855,12 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 			return err
 		})
 		if err != nil {
-			return response.InternalError(fmt.Errorf("Failed to get default profile: %w", err))
+			return response.InternalError(fmt.Errorf("Failed getting default profile: %w", err))
 		}
 
 		_, v, err := api.GetRootDiskDevice(profile.Devices)
 		if err != nil {
-			return response.InternalError(fmt.Errorf("Failed to get root disk device: %w", err))
+			return response.InternalError(fmt.Errorf("Failed getting root disk device: %w", err))
 		}
 
 		// Use the default-profile's root pool.
@@ -2984,7 +2984,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := cluster.StoragePoolVolumeTypeFromName(volumeTypeName)
 	if err != nil {
-		return api.StatusErrorf(http.StatusBadRequest, "Failed to get storage volume type: %w", err)
+		return api.StatusErrorf(http.StatusBadRequest, "Failed getting storage volume type: %w", err)
 	}
 
 	details.volumeType = volumeType
@@ -3008,7 +3008,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	// Get the effective project.
 	effectiveProject, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), volumeType)
 	if err != nil {
-		return fmt.Errorf("Failed to get effective project name: %w", err)
+		return fmt.Errorf("Failed getting effective project name: %w", err)
 	}
 
 	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProject)

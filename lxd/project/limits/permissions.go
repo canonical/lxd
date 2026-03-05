@@ -1291,7 +1291,7 @@ func fetchProject(ctx context.Context, tx *db.ClusterTx, projectName string, ski
 
 	projectArgs, err := tx.GetProjectInstancesAndProfiles(ctx, project)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch instances from database: %w", err)
+		return nil, fmt.Errorf("Failed fetching instances from database: %w", err)
 	}
 
 	args := projectArgs[projectName]
@@ -1509,7 +1509,7 @@ func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool, sto
 var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 	"limits.memory": func(value string) (int64, error) {
 		if strings.HasSuffix(value, "%") {
-			return -1, errors.New("Value can't be a percentage")
+			return -1, errors.New("Value cannot be a percentage")
 		}
 
 		return units.ParseByteSizeString(value)
@@ -1524,7 +1524,7 @@ var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 	},
 	"limits.cpu": func(value string) (int64, error) {
 		if strings.Contains(value, ",") || strings.Contains(value, "-") {
-			return -1, errors.New("CPUs can't be pinned if project limits are used")
+			return -1, errors.New("CPUs cannot be pinned if project limits are used")
 		}
 
 		limit, err := strconv.Atoi(value)
@@ -1563,7 +1563,7 @@ func CheckClusterTargetRestriction(ctx context.Context, authorizer auth.Authoriz
 		// Allow server administrators to move instances around even when restricted (node evacuation, ...)
 		err := authorizer.CheckPermission(ctx, entity.ServerURL(), auth.EntitlementCanOverrideClusterTargetRestriction)
 		if err != nil && auth.IsDeniedError(err) {
-			return api.StatusErrorf(http.StatusForbidden, "This project doesn't allow cluster member targeting")
+			return api.StatusErrorf(http.StatusForbidden, "This project does not allow cluster member targeting")
 		} else if err != nil {
 			return err
 		}
@@ -1587,7 +1587,7 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 	}
 
 	if projectHasRestriction(project, "restricted.backups", "block") {
-		return fmt.Errorf("Project %q doesn't allow for backup creation", projectName)
+		return fmt.Errorf("Project %q does not allow for backup creation", projectName)
 	}
 
 	return nil
@@ -1597,7 +1597,7 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 // when creating a new snapshot in a project.
 func AllowSnapshotCreation(p *api.Project) error {
 	if projectHasRestriction(p, "restricted.snapshots", "block") {
-		return fmt.Errorf("Project %q doesn't allow for snapshot creation", p.Name)
+		return fmt.Errorf("Project %q does not allow for snapshot creation", p.Name)
 	}
 
 	return nil
@@ -1619,7 +1619,7 @@ func AllowClusterMember(p *api.Project, member *db.NodeInfo) error {
 			}
 		}
 
-		return fmt.Errorf("Project isn't allowed to use this cluster member: %q", member.Name)
+		return fmt.Errorf("Project is not allowed to use this cluster member: %q", member.Name)
 	}
 
 	return nil
@@ -1635,7 +1635,7 @@ func AllowClusterGroup(p *api.Project, groupName string) error {
 	}
 
 	if len(clusterGroupsAllowed) > 0 && !slices.Contains(clusterGroupsAllowed, groupName) {
-		return fmt.Errorf("Project isn't allowed to use this cluster group: %q", groupName)
+		return fmt.Errorf("Project is not allowed to use this cluster group: %q", groupName)
 	}
 
 	return nil
@@ -1676,7 +1676,7 @@ func CheckTargetGroup(ctx context.Context, tx *db.ClusterTx, p *api.Project, gro
 	}
 
 	if !targetGroupExists {
-		return api.StatusErrorf(http.StatusBadRequest, "Cluster group %q doesn't exist", groupName)
+		return api.StatusErrorf(http.StatusBadRequest, "Cluster group %q does not exist", groupName)
 	}
 
 	return nil

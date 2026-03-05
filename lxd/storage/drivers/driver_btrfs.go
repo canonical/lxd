@@ -63,7 +63,7 @@ func (d *btrfs) load() error {
 
 		count, err := fmt.Sscanf(strings.SplitN(out, " ", 2)[1], "v%s\n", &btrfsVersion)
 		if err != nil || count != 1 {
-			return errors.New("The 'btrfs' tool isn't working properly")
+			return errors.New("The 'btrfs' tool is not working properly")
 		}
 	}
 
@@ -181,7 +181,7 @@ func (d *btrfs) Create() error {
 
 		err = ensureSparseFile(d.config["source"], size)
 		if err != nil {
-			return fmt.Errorf("Failed to create the sparse file: %w", err)
+			return fmt.Errorf("Failed creating the sparse file: %w", err)
 		}
 
 		revert.Add(func() { _ = os.Remove(d.config["source"]) })
@@ -189,7 +189,7 @@ func (d *btrfs) Create() error {
 		// Format the file.
 		_, err = makeFSType(d.config["source"], "btrfs", &mkfsOptions{Label: d.name})
 		if err != nil {
-			return fmt.Errorf("Failed to format sparse file: %w", err)
+			return fmt.Errorf("Failed formatting sparse file: %w", err)
 		}
 	} else if shared.IsBlockdevPath(d.config["volatile.initial_source"]) {
 		// Make sure to use the block volumes `volatile.initial_source` here
@@ -200,7 +200,7 @@ func (d *btrfs) Create() error {
 		if shared.IsTrue(d.config["source.wipe"]) {
 			err := wipeBlockHeaders(d.config["volatile.initial_source"])
 			if err != nil {
-				return fmt.Errorf("Failed to wipe headers from disk %q: %w", d.config["volatile.initial_source"], err)
+				return fmt.Errorf("Failed wiping headers from disk %q: %w", d.config["volatile.initial_source"], err)
 			}
 
 			d.config["source.wipe"] = ""
@@ -209,7 +209,7 @@ func (d *btrfs) Create() error {
 		// Format the block device.
 		_, err := makeFSType(d.config["volatile.initial_source"], "btrfs", &mkfsOptions{Label: d.name})
 		if err != nil {
-			return fmt.Errorf("Failed to format block device: %w", err)
+			return fmt.Errorf("Failed formatting block device: %w", err)
 		}
 
 		// Record the UUID as the source.
@@ -257,7 +257,7 @@ func (d *btrfs) Create() error {
 				// Delete the current directory to replace by subvolume.
 				err := os.Remove(cleanSource)
 				if err != nil && !os.IsNotExist(err) {
-					return fmt.Errorf("Failed to remove %q: %w", cleanSource, err)
+					return fmt.Errorf("Failed removing %q: %w", cleanSource, err)
 				}
 			}
 
@@ -451,7 +451,7 @@ func (d *btrfs) Mount() (bool, error) {
 
 			mntSrcFS, _ := filesystem.Detect(mntSrc)
 			if mntSrcFS != "btrfs" {
-				return false, fmt.Errorf("Source path %q isn't btrfs (detected %s)", mntSrc, mntSrcFS)
+				return false, fmt.Errorf("Source path %q is not btrfs (detected %s)", mntSrc, mntSrcFS)
 			}
 		}
 	} else {
@@ -459,7 +459,7 @@ func (d *btrfs) Mount() (bool, error) {
 		// We don't use the volatile.initial_source as it might change between system reboots.
 		mntSrcPath, err := d.getDiskPathFromFSUUID(d.config["source"])
 		if err != nil {
-			return false, fmt.Errorf("Failed to get disk path for filesystem UUID %q: %w", d.config["source"], err)
+			return false, fmt.Errorf("Failed getting disk path for filesystem UUID %q: %w", d.config["source"], err)
 		}
 
 		mntSrc = mntSrcPath

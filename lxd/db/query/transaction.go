@@ -23,7 +23,7 @@ func Transaction(ctx context.Context, db *sql.DB, f func(context.Context, *sql.T
 			_, _ = db.Exec("ROLLBACK")
 		}
 
-		return fmt.Errorf("Failed to begin transaction: %w", err)
+		return fmt.Errorf("Failed beginning transaction: %w", err)
 	}
 
 	err = f(ctx, tx)
@@ -45,7 +45,7 @@ func Transaction(ctx context.Context, db *sql.DB, f func(context.Context, *sql.T
 func rollback(tx *sql.Tx, reason error) error {
 	err := Retry(context.TODO(), func(_ context.Context) error { return tx.Rollback() })
 	if err != nil {
-		logger.Warnf("Failed to rollback transaction after error (%v): %v", reason, err)
+		logger.Warnf("Failed rolling back transaction after error (%v): %v", reason, err)
 	}
 
 	return reason

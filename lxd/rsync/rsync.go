@@ -235,14 +235,14 @@ func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress
 			output, _ := io.ReadAll(stderr)
 			_ = cmd.Process.Kill()
 			_ = cmd.Wait()
-			return fmt.Errorf("Failed to ncConnect to rsync socket (%s)", string(output))
+			return fmt.Errorf("Failed connecting to rsync socket (%s)", string(output))
 		}
 
 	case <-time.After(10 * time.Second):
 		output, _ := io.ReadAll(stderr)
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		return fmt.Errorf("rsync failed to spawn after 10s (%s)", string(output))
+		return fmt.Errorf("rsync failed spawning after 10s (%s)", string(output))
 	}
 
 	// Setup progress tracker.

@@ -200,7 +200,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 	require.NoError(t, err)
 
 	err = limits.CheckClusterTargetRestriction(req.Context(), authorizer, p, "n1")
-	assert.EqualError(t, err, "This project doesn't allow cluster member targeting")
+	assert.EqualError(t, err, "This project does not allow cluster member targeting")
 }
 
 // If a direct targeting is blocked but the user can override it, the check passes.

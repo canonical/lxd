@@ -91,7 +91,7 @@ func ConvertFormat(backupConf *config.Config, version uint32) (*config.Config, e
 	copyBackupConf := config.NewConfig(backupConf.LastModified())
 	err := shared.DeepCopy(backupConf, copyBackupConf)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to deep copy backup config: %w", err)
+		return nil, fmt.Errorf("Failed deep copying backup config: %w", err)
 	}
 
 	if version <= api.BackupMetadataVersion1 {
@@ -164,7 +164,7 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 
 	backupConfInfo, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to stat %q: %w", path, err)
+		return nil, fmt.Errorf("Failed statting %q: %w", path, err)
 	}
 
 	backupConf := config.NewConfig(backupConfInfo.ModTime())
@@ -176,7 +176,7 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 	// Rewrite from the old to the new format in case the metadata file hasn't been updated yet.
 	backupConf, err = ConvertFormat(backupConf, api.BackupMetadataVersion2)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to convert backup config to version %d: %w", api.BackupMetadataVersion2, err)
+		return nil, fmt.Errorf("Failed converting backup config to version %d: %w", api.BackupMetadataVersion2, err)
 	}
 
 	// Default to container if type not specified in backup config.
@@ -255,7 +255,7 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 	// Change the pool in the backup.yaml.
 	err = backup.UpdateRootVolumePool(pool)
 	if err != nil {
-		return fmt.Errorf("Failed to update the root volume's pool: %w", err)
+		return fmt.Errorf("Failed updating the root volume's pool: %w", err)
 	}
 
 	if updateRootDevicePool(backup.Instance.Devices, pool.Name) {

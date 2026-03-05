@@ -11,49 +11,49 @@ func GetResources() (*api.Resources, error) {
 	// Get CPU information
 	cpu, err := GetCPU()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve CPU information: %w", err)
+		return nil, fmt.Errorf("Failed retrieving CPU information: %w", err)
 	}
 
 	// Get memory information
 	memory, err := GetMemory()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve memory information: %w", err)
+		return nil, fmt.Errorf("Failed retrieving memory information: %w", err)
 	}
 
 	// Get GPU information
 	gpu, err := GetGPU()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve GPU information: %w", err)
+		return nil, fmt.Errorf("Failed retrieving GPU information: %w", err)
 	}
 
 	// Get network card information
 	network, err := GetNetwork()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve network information: %w", err)
+		return nil, fmt.Errorf("Failed retrieving network information: %w", err)
 	}
 
 	// Get storage information
 	storage, err := GetStorage()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve storage information: %w", err)
+		return nil, fmt.Errorf("Failed retrieving storage information: %w", err)
 	}
 
 	// Get USB information
 	usb, err := GetUSB()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve USB information: %w", err)
+		return nil, fmt.Errorf("Failed retrieving USB information: %w", err)
 	}
 
 	// Get PCI information
 	pci, err := GetPCI()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve PCI information: %w", err)
+		return nil, fmt.Errorf("Failed retrieving PCI information: %w", err)
 	}
 
 	// Get system information
 	system, err := GetSystem()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve system information: %w", err)
+		return nil, fmt.Errorf("Failed retrieving system information: %w", err)
 	}
 
 	// Build the final struct

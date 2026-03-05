@@ -149,7 +149,7 @@ func (d *nicRouted) validateEnvironment() error {
 		// Check parent interface exists (don't use d.effectiveParentName here as we want to check the
 		// parent of any VLAN interface exists too). The VLAN interface will be created later if needed.
 		if !network.InterfaceExists(d.config["parent"]) {
-			return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
+			return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 		}
 
 		// Detect the effective parent interface that we will be using (taking into account VLAN setting).
@@ -642,7 +642,7 @@ func (d *nicRouted) postStop() error {
 		// Removing host-side end of veth pair will delete the peer end too.
 		err := network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
-			errs = append(errs, fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err))
+			errs = append(errs, fmt.Errorf("Failed removing interface %q: %w", d.config["host_name"], err))
 		}
 	}
 

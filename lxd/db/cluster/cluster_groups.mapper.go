@@ -73,7 +73,7 @@ func getClusterGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Clust
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"clusters_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"clusters_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -97,7 +97,7 @@ func getClusterGroupsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...an
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"clusters_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"clusters_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -119,7 +119,7 @@ func GetClusterGroups(ctx context.Context, tx *sql.Tx, filters ...ClusterGroupFi
 	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, clusterGroupObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"clusterGroupObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed getting \"clusterGroupObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -129,7 +129,7 @@ func GetClusterGroups(ctx context.Context, tx *sql.Tx, filters ...ClusterGroupFi
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, clusterGroupObjectsByName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"clusterGroupObjectsByName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"clusterGroupObjectsByName\" prepared statement: %w", err)
 				}
 
 				break
@@ -137,7 +137,7 @@ func GetClusterGroups(ctx context.Context, tx *sql.Tx, filters ...ClusterGroupFi
 
 			query, err := StmtString(clusterGroupObjectsByName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"clusterGroupObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"clusterGroupObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -164,7 +164,7 @@ func GetClusterGroups(ctx context.Context, tx *sql.Tx, filters ...ClusterGroupFi
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"clusters_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"clusters_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -178,7 +178,7 @@ func GetClusterGroup(ctx context.Context, tx *sql.Tx, name string) (*ClusterGrou
 
 	objects, err := GetClusterGroups(ctx, tx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"clusters_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"clusters_groups\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -196,7 +196,7 @@ func GetClusterGroup(ctx context.Context, tx *sql.Tx, name string) (*ClusterGrou
 func GetClusterGroupID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 	stmt, err := Stmt(tx, clusterGroupID)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"clusterGroupID\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"clusterGroupID\" prepared statement: %w", err)
 	}
 
 	row := stmt.QueryRowContext(ctx, name)
@@ -207,7 +207,7 @@ func GetClusterGroupID(ctx context.Context, tx *sql.Tx, name string) (int64, err
 			return -1, api.StatusErrorf(http.StatusNotFound, "ClusterGroup not found")
 		}
 
-		return -1, fmt.Errorf("Failed to get \"clusters_groups\" ID: %w", err)
+		return -1, fmt.Errorf("Failed getting \"clusters_groups\" ID: %w", err)
 	}
 
 	return id, nil
@@ -233,7 +233,7 @@ func ClusterGroupExists(ctx context.Context, tx *sql.Tx, name string) (bool, err
 func RenameClusterGroup(ctx context.Context, tx *sql.Tx, name string, to string) error {
 	stmt, err := Stmt(tx, clusterGroupRename)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"clusterGroupRename\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"clusterGroupRename\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, to, name)
@@ -269,7 +269,7 @@ func CreateClusterGroup(ctx context.Context, tx *sql.Tx, object ClusterGroup) (i
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, clusterGroupCreate)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"clusterGroupCreate\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"clusterGroupCreate\" prepared statement: %w", err)
 	}
 
 	// Execute the statement.
@@ -279,12 +279,12 @@ func CreateClusterGroup(ctx context.Context, tx *sql.Tx, object ClusterGroup) (i
 			return -1, api.NewStatusError(http.StatusConflict, "This \"clusters_groups\" entry already exists")
 		}
 
-		return -1, fmt.Errorf("Failed to create \"clusters_groups\" entry: %w", err)
+		return -1, fmt.Errorf("Failed creating \"clusters_groups\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"clusters_groups\" entry ID: %w", err)
+		return -1, fmt.Errorf("Failed fetching \"clusters_groups\" entry ID: %w", err)
 	}
 
 	return id, nil
@@ -300,7 +300,7 @@ func UpdateClusterGroup(ctx context.Context, tx *sql.Tx, name string, object Clu
 
 	stmt, err := Stmt(tx, clusterGroupUpdate)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"clusterGroupUpdate\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"clusterGroupUpdate\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, object.Name, object.Description, id)
@@ -329,7 +329,7 @@ func UpdateClusterGroup(ctx context.Context, tx *sql.Tx, name string, object Clu
 func DeleteClusterGroup(ctx context.Context, tx *sql.Tx, name string) error {
 	stmt, err := Stmt(tx, clusterGroupDeleteByName)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"clusterGroupDeleteByName\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"clusterGroupDeleteByName\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, name)

@@ -245,7 +245,7 @@ func (d *unixCommon) Register() error {
 			runConf.PostHooks = []func() error{func() error {
 				err := unixDeviceDeleteFiles(state, devicesPath, "unix", deviceName, relativeDestPath)
 				if err != nil {
-					return fmt.Errorf("Failed to delete files for device %q: %w", deviceName, err)
+					return fmt.Errorf("Failed deleting files for device %q: %w", deviceName, err)
 				}
 
 				return nil
@@ -293,7 +293,7 @@ func (d *unixCommon) Start() (*deviceConfig.RunConfig, error) {
 			}
 		} else if d.isRequired() {
 			// If the file is missing and the device is required then we cannot proceed.
-			return nil, errors.New("The required device path doesn't exist and the major and minor settings are not specified")
+			return nil, errors.New("The required device path does not exist and the major and minor settings are not specified")
 		}
 	}
 
@@ -325,7 +325,7 @@ func (d *unixCommon) postStop() error {
 	// Remove host files for this device.
 	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 	if err != nil {
-		return fmt.Errorf("Failed to delete files for device %q: %w", d.name, err)
+		return fmt.Errorf("Failed deleting files for device %q: %w", d.name, err)
 	}
 
 	return nil

@@ -268,10 +268,10 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 						return tx.UpsertWarningLocalNode(ctx, inst.Project().Name, entity.TypeInstance, inst.ID(), warningtype.InstanceAutostartFailure, err.Error())
 					})
 					if warnErr != nil {
-						instLogger.Warn("Failed to create instance autostart failure warning", logger.Ctx{"err": warnErr})
+						instLogger.Warn("Failed creating instance autostart failure warning", logger.Ctx{"err": warnErr})
 					}
 
-					instLogger.Error("Failed to auto start instance", logger.Ctx{"err": err})
+					instLogger.Error("Failed auto-starting instance", logger.Ctx{"err": err})
 
 					break
 				}
@@ -284,7 +284,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 			// Resolve any previous warning.
 			warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, inst.Project().Name, warningtype.InstanceAutostartFailure, entity.TypeInstance, inst.ID())
 			if warnErr != nil {
-				instLogger.Warn("Failed to resolve instance autostart failure warning", logger.Ctx{"err": warnErr})
+				instLogger.Warn("Failed resolving instance autostart failure warning", logger.Ctx{"err": warnErr})
 			}
 
 			// Wait the auto-start delay if set.

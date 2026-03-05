@@ -530,7 +530,7 @@ func (d *common) postMigrateSendCommon(inst instance.Instance, clusterMoveSource
 	for devName, devConfig := range d.ExpandedDevices() {
 		dev, err := d.deviceLoad(inst, devName, devConfig)
 		if err != nil {
-			logger.Error("Failed to load device during post-migration steps on source", logger.Ctx{"devName": devName, "err": err})
+			logger.Error("Failed loading device during post-migration steps on source", logger.Ctx{"devName": devName, "err": err})
 		}
 
 		if dev != nil {
@@ -1455,7 +1455,7 @@ func (d *common) maasUpdate(inst instance.Instance, oldDevices map[string]map[st
 
 	// See if we're connected to MAAS
 	if d.state.MAAS == nil {
-		return errors.New("Can't perform the operation because MAAS is currently unavailable")
+		return errors.New("Cannot perform the operation because MAAS is currently unavailable")
 	}
 
 	exists, err := d.state.MAAS.DefinedContainer(d)
@@ -1541,7 +1541,7 @@ func (d *common) maasRename(inst instance.Instance, newName string) error {
 	}
 
 	if d.state.MAAS == nil {
-		return errors.New("Can't perform the operation because MAAS is currently unavailable")
+		return errors.New("Cannot perform the operation because MAAS is currently unavailable")
 	}
 
 	exists, err := d.state.MAAS.DefinedContainer(d)
@@ -1573,7 +1573,7 @@ func (d *common) maasDelete(inst instance.Instance) error {
 	}
 
 	if d.state.MAAS == nil {
-		return errors.New("Can't perform the operation because MAAS is currently unavailable")
+		return errors.New("Cannot perform the operation because MAAS is currently unavailable")
 	}
 
 	exists, err := d.state.MAAS.DefinedContainer(d)
@@ -1810,7 +1810,7 @@ func (d *common) getRootDiskDevice() (string, map[string]string, error) {
 func (d *common) resetInstanceID() error {
 	err := d.VolatileSet(map[string]string{"volatile.cloud-init.instance-id": uuid.New().String()})
 	if err != nil {
-		return fmt.Errorf("Failed to set volatile.cloud-init.instance-id: %w", err)
+		return fmt.Errorf("Failed setting volatile.cloud-init.instance-id: %w", err)
 	}
 
 	return nil
@@ -2011,7 +2011,7 @@ func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (rever
 
 		err = d.deviceAdd(dev, instanceRunning)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
+			return nil, fmt.Errorf("Failed adding device %q: %w", dev.Name(), err)
 		}
 
 		revert.Add(func() { _ = d.deviceRemove(dev, instanceRunning) })
@@ -2046,7 +2046,7 @@ func (d *common) devicesRegister(inst instance.Instance) {
 		// Check whether device wants to register for any events.
 		err = dev.Register()
 		if err != nil {
-			d.logger.Error("Failed to register device", logger.Ctx{"err": err, "device": entry.Name})
+			d.logger.Error("Failed registering device", logger.Ctx{"err": err, "device": entry.Name})
 			continue
 		}
 	}
@@ -2080,7 +2080,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 			if instanceRunning {
 				err = dm.deviceStop(dev, instanceRunning, "")
 				if err != nil {
-					return nil, fmt.Errorf("Failed to stop device %q: %w", dev.Name(), err)
+					return nil, fmt.Errorf("Failed stopping device %q: %w", dev.Name(), err)
 				}
 
 				devlxdEvents = append(devlxdEvents, map[string]any{
@@ -2092,7 +2092,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 			err = d.deviceRemove(dev, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return nil, fmt.Errorf("Failed to remove device %q: %w", dev.Name(), err)
+				return nil, fmt.Errorf("Failed removing device %q: %w", dev.Name(), err)
 			}
 		}
 
@@ -2101,7 +2101,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 		// this device (as its an actual removal or a device type change).
 		err = d.deviceVolatileReset(entry.Name, entry.Config, addDevices[entry.Name])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to reset volatile data for device %q: %w", entry.Name, err)
+			return nil, fmt.Errorf("Failed resetting volatile data for device %q: %w", entry.Name, err)
 		}
 	}
 
@@ -2128,12 +2128,12 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 		err = d.deviceAdd(dev, instanceRunning)
 		if err != nil {
 			if userRequested {
-				return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
+				return nil, fmt.Errorf("Failed adding device %q: %w", dev.Name(), err)
 			}
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
 			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			l.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"err": err})
+			l.Error("Failed adding device, skipping as non-user requested", logger.Ctx{"err": err})
 		}
 
 		revert.Add(func() { _ = d.deviceRemove(dev, instanceRunning) })
@@ -2146,7 +2146,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 			runConf, err := dm.deviceStart(dev, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return nil, fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+				return nil, fmt.Errorf("Failed starting device %q: %w", dev.Name(), err)
 			}
 
 			revert.Add(func() { _ = dm.deviceStop(dev, instanceRunning, "") })
@@ -2212,7 +2212,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 				if instanceRunning {
 					err = dm.deviceStop(dev, instanceRunning, "")
 					if err != nil {
-						l.Error("Failed to stop device after update validation failed", logger.Ctx{"err": err})
+						l.Error("Failed stopping device after update validation failed", logger.Ctx{"err": err})
 					}
 
 					devlxdEvents = append(devlxdEvents, map[string]any{
@@ -2224,7 +2224,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 				err = d.deviceRemove(dev, instanceRunning)
 				if err != nil && err != device.ErrUnsupportedDevType {
-					l.Error("Failed to remove device after update validation failed", logger.Ctx{"err": err})
+					l.Error("Failed removing device after update validation failed", logger.Ctx{"err": err})
 				}
 			}
 
@@ -2233,7 +2233,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 		err = dev.Update(oldExpandedDevices, instanceRunning)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to update device %q: %w", dev.Name(), err)
+			return nil, fmt.Errorf("Failed updating device %q: %w", dev.Name(), err)
 		}
 	}
 
@@ -2261,7 +2261,7 @@ func (d *common) devicesRemove(inst instance.Instance) {
 		if dev != nil {
 			err = d.deviceRemove(dev, false)
 			if err != nil {
-				d.logger.Error("Failed to remove device", logger.Ctx{"device": dev.Name(), "err": err})
+				d.logger.Error("Failed removing device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
 		}
 	}
@@ -2400,7 +2400,7 @@ func (d *common) removeDiskDevices() error {
 		diskPath := filepath.Join(d.DevicesPath(), f.Name())
 		err := os.Remove(diskPath)
 		if err != nil {
-			d.logger.Error("Failed to remove disk device path", logger.Ctx{"err": err, "path": diskPath})
+			d.logger.Error("Failed removing disk device path", logger.Ctx{"err": err, "path": diskPath})
 		}
 	}
 

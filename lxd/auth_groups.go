@@ -166,17 +166,17 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 
 	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+		return response.SmartError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
 	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+		return response.SmartError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
 	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+		return response.SmartError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeAuthGroup, true)
@@ -432,12 +432,12 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+		return response.SmartError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
 	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+		return response.SmartError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -517,12 +517,12 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+		return response.SmartError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
 	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+		return response.SmartError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -612,12 +612,12 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+		return response.SmartError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
 	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+		return response.SmartError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
 	newPermissions := make([]api.Permission, 0, len(groupPut.Permissions))
@@ -800,26 +800,26 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 		entityType := entity.Type(permission.EntityType)
 		err := entityType.Validate()
 		if err != nil {
-			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to validate entity type for permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed validating entity type for permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
 		u, err := url.Parse(permission.EntityReference)
 		if err != nil {
-			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed parsing permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
 		referenceEntityType, projectName, _, _, err := entity.ParseURL(*u)
 		if err != nil {
-			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed parsing permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
 		if entityType != referenceEntityType {
-			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: Entity type does not correspond to entity reference", permission.EntityReference, permission.Entitlement)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed parsing permission with entity reference %q and entitlement %q: Entity type does not correspond to entity reference", permission.EntityReference, permission.Entitlement)
 		}
 
 		err = auth.ValidateEntitlement(entityType, auth.Entitlement(permission.Entitlement))
 		if err != nil {
-			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to validate group permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed validating group permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
 		requiresProject, _ := entityType.RequiresProject()
@@ -835,7 +835,7 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 	if len(projectsWithViewPermissionRequired) > 0 {
 		viewableProjects, err := s.Authorizer.GetViewableProjects(ctx, permissions)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to verify that projects are viewable: %w", err)
+			return nil, fmt.Errorf("Failed verifying that projects are viewable: %w", err)
 		}
 
 		for project, perms := range projectsWithViewPermissionRequired {

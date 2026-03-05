@@ -242,7 +242,7 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, joinToken *api
 		// Token is single-use, so cancel it now.
 		err = operationCancel(r.Context(), s, "", foundOp)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
+			return nil, fmt.Errorf("Failed canceling operation %q: %w", foundOp.ID, err)
 		}
 
 		expiresAt, ok := foundOp.Metadata["expiresAt"]
@@ -329,7 +329,7 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 	// Token is single-use, so cancel it now.
 	err = operationCancel(r.Context(), s, api.ProjectDefaultName, foundOp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
+		return nil, fmt.Errorf("Failed canceling operation %q: %w", foundOp.ID, err)
 	}
 
 	expiresAt, ok := foundOp.Metadata["expiresAt"]
@@ -487,7 +487,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Validate request for creating certificate add token.
 	if req.Token {
 		if req.Certificate != "" {
-			return response.BadRequest(errors.New("Can't use certificate if token is requested"))
+			return response.BadRequest(errors.New("Cannot use certificate if token is requested"))
 		}
 
 		if req.Type != "client" {
@@ -499,7 +499,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if localHTTPSAddress == "" {
-			return response.BadRequest(errors.New("Can't issue token when server isn't listening on network"))
+			return response.BadRequest(errors.New("Cannot issue token when server is not listening on network"))
 		}
 	}
 
@@ -514,7 +514,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
-		return response.SmartError(errors.New("Failed to get authentication status: Missing request context info"))
+		return response.SmartError(errors.New("Failed getting authentication status: Missing request context info"))
 	}
 
 	// If caller is already trusted and the trust token is provided, we validate the token and cancel
@@ -615,7 +615,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	} else if req.Token {
 		token, err := createCertificateAddToken(s, req.Name, "")
 		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed to create certificate add token: %w", err))
+			return response.SmartError(fmt.Errorf("Failed creating certificate add token: %w", err))
 		}
 
 		if req.Projects == nil {
@@ -665,7 +665,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
 	} else {
-		return response.BadRequest(errors.New("Can't use TLS data on non-TLS link"))
+		return response.BadRequest(errors.New("Cannot use TLS data on non-TLS link"))
 	}
 
 	// Check validity.
@@ -1221,7 +1221,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 
 func certificateValidate(networkCert *shared.CertInfo, cert *x509.Certificate) error {
 	if time.Now().Before(cert.NotBefore) {
-		return api.NewStatusError(http.StatusBadRequest, "The provided certificate isn't valid yet")
+		return api.NewStatusError(http.StatusBadRequest, "The provided certificate is not valid yet")
 	}
 
 	if time.Now().After(cert.NotAfter) {
@@ -1239,7 +1239,7 @@ func certificateValidate(networkCert *shared.CertInfo, cert *x509.Certificate) e
 	if cert.PublicKeyAlgorithm == x509.RSA {
 		pubKey, ok := cert.PublicKey.(*rsa.PublicKey)
 		if !ok {
-			return errors.New("Unable to validate the RSA certificate")
+			return errors.New("Cannot validate the RSA certificate")
 		}
 
 		// Check that we're dealing with at least 2048bit (Size returns a value in bytes).

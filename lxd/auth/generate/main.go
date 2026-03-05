@@ -78,7 +78,7 @@ func main() {
 		err := func() error {
 			f, err := os.Open("drivers/openfga_model.openfga")
 			if err != nil {
-				return fmt.Errorf("Failed to open OpenFGA model file: %w", err)
+				return fmt.Errorf("Failed opening OpenFGA model file: %w", err)
 			}
 
 			defer f.Close()
@@ -90,7 +90,7 @@ func main() {
 
 			err = f.Close()
 			if err != nil {
-				return fmt.Errorf("Failed to close OpenFGA model file: %w", err)
+				return fmt.Errorf("Failed closing OpenFGA model file: %w", err)
 			}
 
 			metadata := make(map[string]api.MetadataConfigurationEntity)
@@ -113,13 +113,13 @@ func main() {
 
 			err = json.NewEncoder(os.Stdout).Encode(metadata)
 			if err != nil {
-				return fmt.Errorf("Failed to write entitlement json to stdout: %w", err)
+				return fmt.Errorf("Failed writing entitlement json to stdout: %w", err)
 			}
 
 			return nil
 		}()
 		if err != nil {
-			fmt.Printf("Failed to generate entitlements from OpenFGA model (dry run): %v\n", err)
+			fmt.Printf("Failed generating entitlements from OpenFGA model (dry run): %v\n", err)
 			os.Exit(1)
 		}
 	}
@@ -127,7 +127,7 @@ func main() {
 	err := func() error {
 		f, err := os.Open("drivers/openfga_model.openfga")
 		if err != nil {
-			return fmt.Errorf("Failed to open OpenFGA model file: %w", err)
+			return fmt.Errorf("Failed opening OpenFGA model file: %w", err)
 		}
 
 		defer f.Close()
@@ -139,12 +139,12 @@ func main() {
 
 		err = f.Close()
 		if err != nil {
-			return fmt.Errorf("Failed to close OpenFGA model file: %w", err)
+			return fmt.Errorf("Failed closing OpenFGA model file: %w", err)
 		}
 
 		outfile, err := os.Create("entitlements_generated.go")
 		if err != nil {
-			return fmt.Errorf("Failed to open output file: %w", err)
+			return fmt.Errorf("Failed opening output file: %w", err)
 		}
 
 		defer outfile.Close()
@@ -156,13 +156,13 @@ func main() {
 
 		err = outfile.Close()
 		if err != nil {
-			return fmt.Errorf("Failed to close output file: %w", err)
+			return fmt.Errorf("Failed closing output file: %w", err)
 		}
 
 		return nil
 	}()
 	if err != nil {
-		fmt.Printf("Failed to generate entitlements from OpenFGA model: %v\n", err)
+		fmt.Printf("Failed generating entitlements from OpenFGA model: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -247,7 +247,7 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 
 	_, err := w.Write([]byte(s))
 	if err != nil {
-		return fmt.Errorf("Failed to write output: %w", err)
+		return fmt.Errorf("Failed writing output: %w", err)
 	}
 
 	return nil

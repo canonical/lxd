@@ -91,7 +91,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 	}
 
 	if expanded && (shared.IsFalseOrEmpty(config["security.privileged"])) && sysOS.IdmapSet == nil {
-		return errors.New("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported")
+		return errors.New("LXD does not have a uid/gid allocation. In this mode, only privileged containers are supported")
 	}
 
 	unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
@@ -130,7 +130,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 func validConfigKey(os *sys.OS, key string, value string, instanceType instancetype.Type) error {
 	// Disallow keys with container-specific prefixes such as "linux.sysctl." and "limits.kernel." for VMs.
 	if instanceType == instancetype.VM && shared.StringHasPrefix(key, instancetype.ConfigKeyPrefixesContainer...) {
-		return fmt.Errorf("%q isn't supported for %q", key, instanceType)
+		return fmt.Errorf("%q is not supported for %q", key, instanceType)
 	}
 
 	// Check if the key is a valid prefix and whether or not it requires a subkey.
@@ -158,7 +158,7 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 
 		_, existsAny := instancetype.InstanceConfigKeysAny[key]
 		if !exists && !existsAny {
-			return fmt.Errorf("%q isn't supported for %q", key, instanceType)
+			return fmt.Errorf("%q is not supported for %q", key, instanceType)
 		}
 	}
 
@@ -183,7 +183,7 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 				return nil
 			}
 		}
-		return fmt.Errorf("%s isn't supported on this architecture", key)
+		return fmt.Errorf("%s is not supported on this architecture", key)
 	}
 
 	return nil
@@ -228,7 +228,7 @@ func lxcValidConfig(rawLxc string) error {
 		unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
 		if shared.IsTrue(unprivOnly) {
 			if key == "lxc.idmap" || key == "lxc.id_map" || key == "lxc.include" {
-				return fmt.Errorf("%s can't be set in raw.lxc as LXD was configured to only allow unprivileged containers", key)
+				return fmt.Errorf("%s cannot be set in raw.lxc as LXD was configured to only allow unprivileged containers", key)
 			}
 		}
 
@@ -306,12 +306,12 @@ func LoadInstanceDatabaseObject(ctx context.Context, tx *db.ClusterTx, project, 
 
 		instance, err := cluster.GetInstance(ctx, tx.Tx(), project, instanceName)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to fetch instance %q in project %q: %w", name, project, err)
+			return nil, fmt.Errorf("Failed fetching instance %q in project %q: %w", name, project, err)
 		}
 
 		snapshot, err := cluster.GetInstanceSnapshot(ctx, tx.Tx(), project, instanceName, snapshotName)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to fetch snapshot %q of instance %q in project %q: %w", snapshotName, instanceName, project, err)
+			return nil, fmt.Errorf("Failed fetching snapshot %q of instance %q in project %q: %w", snapshotName, instanceName, project, err)
 		}
 
 		c := snapshot.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture)
@@ -319,7 +319,7 @@ func LoadInstanceDatabaseObject(ctx context.Context, tx *db.ClusterTx, project, 
 	} else {
 		container, err = cluster.GetInstance(ctx, tx.Tx(), project, name)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to fetch instance %q in project %q: %w", name, project, err)
+			return nil, fmt.Errorf("Failed fetching instance %q in project %q: %w", name, project, err)
 		}
 	}
 
@@ -690,7 +690,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 			return err
 		})
 		if err != nil {
-			return nil, nil, nil, errors.New("Failed to get default profile for new instance")
+			return nil, nil, nil, errors.New("Failed getting default profile for new instance")
 		}
 	}
 
@@ -751,7 +751,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	}
 
 	if !slices.Contains(s.OS.Architectures, args.Architecture) {
-		return nil, nil, nil, errors.New("Requested architecture isn't supported by this host")
+		return nil, nil, nil, errors.New("Requested architecture is not supported by this host")
 	}
 
 	var profiles []string
@@ -769,7 +769,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	checkedProfiles := map[string]bool{}
 	for _, profile := range args.Profiles {
 		if !slices.Contains(profiles, profile.Name) {
-			return nil, nil, nil, fmt.Errorf("Requested profile %q doesn't exist", profile.Name)
+			return nil, nil, nil, fmt.Errorf("Requested profile %q does not exist", profile.Name)
 		}
 
 		if checkedProfiles[profile.Name] {

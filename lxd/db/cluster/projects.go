@@ -139,7 +139,7 @@ SELECT projects_config.value
 func GetProjectConfig(ctx context.Context, tx *sql.Tx, projectName string) (map[string]string, error) {
 	projectID, err := GetProjectID(ctx, tx, projectName)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load project: %w", err)
+		return nil, fmt.Errorf("Failed loading project: %w", err)
 	}
 
 	stmt := `SELECT projects_config.key, projects_config.value FROM projects_config WHERE projects_config.project_id = ?
@@ -248,7 +248,7 @@ func UpdateProject(ctx context.Context, tx *sql.Tx, name string, object api.Proj
 
 	stmt, err := Stmt(tx, projectUpdate)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"projectUpdate\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"projectUpdate\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.Exec(object.Description, id)

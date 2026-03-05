@@ -60,7 +60,7 @@ func UpdateInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int, pro
 	applyOrder := 1
 	stmt, err := Stmt(tx, instanceProfileCreate)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"instanceProfileCreate\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"instanceProfileCreate\" prepared statement: %w", err)
 	}
 
 	for _, name := range profiles {

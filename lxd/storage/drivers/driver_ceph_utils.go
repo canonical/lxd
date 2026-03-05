@@ -194,7 +194,7 @@ func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
 
 	idx := strings.Index(devPath, "/dev/rbd")
 	if idx < 0 {
-		return "", errors.New("Failed to detect mapped device path")
+		return "", errors.New("Failed detecting mapped device path")
 	}
 
 	devPath = strings.TrimSpace(devPath[idx:])

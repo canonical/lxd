@@ -41,7 +41,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		// Log warning but don't return here so that any local token operations are pruned.
-		logger.Warn("Failed to get database leader details", logger.Ctx{"err": err})
+		logger.Warn("Failed getting database leader details", logger.Ctx{"err": err})
 	}
 
 	var expiredPendingTLSIdentities []cluster.Identity
@@ -49,7 +49,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 		expiredPendingTLSIdentities, err = getExpiredPendingIdentities(ctx, s)
 		if err != nil {
 			// Log warning but don't return here so that any local token operations are pruned.
-			logger.Warn("Failed to retrieve expired pending TLS identities during removal of expired tokens task", logger.Ctx{"err": err})
+			logger.Warn("Failed retrieving expired pending TLS identities during removal of expired tokens task", logger.Ctx{"err": err})
 		}
 	}
 
@@ -132,7 +132,7 @@ func getExpiredPendingIdentities(ctx context.Context, s *state.State) ([]cluster
 			// This is because a) we know that it is a pending identity because our query filtered for only that identity type,
 			// and b) if unmarshalling the metadata failed then the pending identity is invalid (it cannot be activated because
 			// we cannot check it's expiry). Therefore we log the error and continue to append it to our list.
-			logger.Warn("Failed to unmarshal pending TLS identity metadata", logger.Ctx{"err": err})
+			logger.Warn("Failed unmarshaling pending TLS identity metadata", logger.Ctx{"err": err})
 		}
 
 		// If it's expired it should be removed.

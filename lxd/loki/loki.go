@@ -171,7 +171,7 @@ func (c *Client) checkLoki(ctx context.Context) error {
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return errors.New("failed to connect to Loki")
+		return errors.New("failed connecting to Loki")
 	}
 
 	defer resp.Body.Close()

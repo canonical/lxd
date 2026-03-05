@@ -34,12 +34,12 @@ static int dosetns_file(char *file, char *nstype)
 
 	ns_fd = open(file, O_RDONLY);
 	if (ns_fd < 0) {
-		fprintf(stderr, "%m - Failed to open \"%s\"", file);
+		fprintf(stderr, "%m - Failed opening \"%s\"", file);
 		return -1;
 	}
 
 	if (setns(ns_fd, 0) < 0) {
-		fprintf(stderr, "%m - Failed to attach to namespace \"%s\"", file);
+		fprintf(stderr, "%m - Failed attaching to namespace \"%s\"", file);
 		return -1;
 	}
 
@@ -54,12 +54,12 @@ static void forkdonetdetach(char *file) {
 	}
 
 	if (unshare(CLONE_NEWNS) < 0) {
-		fprintf(stderr, "Failed to create new mount namespace: %s\n", strerror(errno));
+		fprintf(stderr, "Failed creating new mount namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
 
 	if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) < 0) {
-		fprintf(stderr, "Failed to mark / private: %s\n", strerror(errno));
+		fprintf(stderr, "Failed marking / private: %s\n", strerror(errno));
 		_exit(1);
 	}
 
@@ -211,7 +211,7 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 
 	// Check if the interface exists.
 	if !shared.PathExists("/sys/class/net/" + ifName) {
-		return fmt.Errorf("Couldn't restore host interface %q as container interface %q couldn't be found", hostName, ifName)
+		return fmt.Errorf("Could not restore host interface %q as container interface %q could not be found", hostName, ifName)
 	}
 
 	// Remove all IP addresses from interface before moving to parent netns.

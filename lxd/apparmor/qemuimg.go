@@ -106,7 +106,7 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string, tracke
 	for _, c := range allowedCmds {
 		cmdPath, err := exec.LookPath(c)
 		if err != nil {
-			return "", fmt.Errorf("Failed to find executable %q: %w", c, err)
+			return "", fmt.Errorf("Failed finding executable %q: %w", c, err)
 		}
 
 		allowedCmdPaths = append(allowedCmdPaths, cmdPath)
@@ -127,7 +127,7 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string, tracke
 
 	profileName, err := qemuImgProfileLoad(sysOS, imgPath, dstPath, allowedCmdPaths)
 	if err != nil {
-		return "", fmt.Errorf("Failed to load qemu-img profile: %w", err)
+		return "", fmt.Errorf("Failed loading qemu-img profile: %w", err)
 	}
 
 	defer func() {

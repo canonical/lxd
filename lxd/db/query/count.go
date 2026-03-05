@@ -29,7 +29,7 @@ func Count(ctx context.Context, tx *sql.Tx, table string, where string, args ...
 	var count int
 	err = rows.Scan(&count)
 	if err != nil {
-		return -1, errors.New("failed to scan count column")
+		return -1, errors.New("failed scanning count column")
 	}
 
 	if rows.Next() {
@@ -49,14 +49,14 @@ func Count(ctx context.Context, tx *sql.Tx, table string, where string, args ...
 func CountAll(ctx context.Context, tx *sql.Tx) (map[string]int, error) {
 	tables, err := SelectStrings(ctx, tx, "SELECT name FROM sqlite_master WHERE type = 'table'")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch table names: %w", err)
+		return nil, fmt.Errorf("Failed fetching table names: %w", err)
 	}
 
 	counts := map[string]int{}
 	for _, table := range tables {
 		count, err := Count(ctx, tx, table, "")
 		if err != nil {
-			return nil, fmt.Errorf("Failed to count rows of %s: %w", table, err)
+			return nil, fmt.Errorf("Failed counting rows of %s: %w", table, err)
 		}
 
 		counts[table] = count

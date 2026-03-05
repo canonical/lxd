@@ -249,7 +249,7 @@ func (v Volume) EnsureMountPath() error {
 
 		err := os.Mkdir(volPath, 0711)
 		if err != nil {
-			return fmt.Errorf("Failed to create mount directory %q: %w", volPath, err)
+			return fmt.Errorf("Failed creating mount directory %q: %w", volPath, err)
 		}
 
 		revert.Add(func() { _ = os.Remove(volPath) })
@@ -277,7 +277,7 @@ func (v Volume) EnsureMountPath() error {
 		// If the volume is a snapshot, we must ignore the error as snapshots are readonly and cannot be
 		// modified after they are taken, such that any permission error is not fixable at mount time.
 		if err != nil && !v.IsSnapshot() {
-			return fmt.Errorf("Failed to chmod mount directory %q (%04o): %w", volPath, mode, err)
+			return fmt.Errorf("Failed chmoding mount directory %q (%04o): %w", volPath, mode, err)
 		}
 	}
 

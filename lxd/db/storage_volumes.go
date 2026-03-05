@@ -944,18 +944,18 @@ func (c *ClusterTx) UpdateStorageVolumeNode(ctx context.Context, projectName str
 
 	member, err := c.GetNodeByName(ctx, newMemberName)
 	if err != nil {
-		return fmt.Errorf("Failed to get new member %q info: %w", newMemberName, err)
+		return fmt.Errorf("Failed getting new member %q info: %w", newMemberName, err)
 	}
 
 	stmt := "UPDATE storage_volumes SET node_id=?, name=? WHERE id=?"
 	result, err := c.tx.Exec(stmt, member.ID, newName, volume.ID)
 	if err != nil {
-		return fmt.Errorf("Failed to update volumes's name and member ID: %w", err)
+		return fmt.Errorf("Failed updating volumes's name and member ID: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to get rows affected by volume update: %w", err)
+		return fmt.Errorf("Failed getting rows affected by volume update: %w", err)
 	}
 
 	if n != 1 {

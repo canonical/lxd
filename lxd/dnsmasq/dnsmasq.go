@@ -95,7 +95,7 @@ func Kill(name string, reload bool) error {
 
 	err = p.Stop()
 	if err != nil && err != subprocess.ErrNotRunning {
-		return fmt.Errorf("Unable to kill dnsmasq: %s", err)
+		return fmt.Errorf("Cannot kill dnsmasq: %s", err)
 	}
 
 	time.Sleep(100 * time.Millisecond) // Give OS time to release sockets.

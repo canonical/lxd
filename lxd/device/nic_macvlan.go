@@ -129,7 +129,7 @@ func (d *nicMACVLAN) validateEnvironment() error {
 	}
 
 	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
-		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 	}
 
 	return nil
@@ -234,7 +234,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 		// Disable IPv6 on host interface to avoid getting IPv6 link-local addresses unnecessarily.
 		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", link.Name), "1")
 		if err != nil && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("Failed to disable IPv6 on host interface %q: %w", link.Name, err)
+			return nil, fmt.Errorf("Failed disabling IPv6 on host interface %q: %w", link.Name, err)
 		}
 	}
 

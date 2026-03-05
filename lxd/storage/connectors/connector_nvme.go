@@ -47,7 +47,7 @@ func (c *connectorNVMe) Version() (string, error) {
 	// Detect and record the version of the NVMe CLI.
 	out, err := shared.RunCommand(context.Background(), "nvme", "version")
 	if err != nil {
-		return "", fmt.Errorf("Failed to get nvme-cli version: %w", err)
+		return "", fmt.Errorf("Failed getting nvme-cli version: %w", err)
 	}
 
 	fields := strings.Split(strings.TrimSpace(out), " ")
@@ -55,7 +55,7 @@ func (c *connectorNVMe) Version() (string, error) {
 		return fields[2] + " (nvme-cli)", nil
 	}
 
-	return "", fmt.Errorf("Failed to get nvme-cli version: Unexpected output %q", out)
+	return "", fmt.Errorf("Failed getting nvme-cli version: Unexpected output %q", out)
 }
 
 // LoadModules loads the NVMe/TCP kernel modules.
@@ -92,7 +92,7 @@ func (c *connectorNVMe) Connect(ctx context.Context, targetQN string, targetAddr
 
 		_, err = shared.RunCommand(ctx, "nvme", "connect", "--transport", "tcp", "--traddr", targetAddr, "--nqn", targetQN, "--hostnqn", hostNQN, "--hostid", c.serverUUID)
 		if err != nil {
-			return fmt.Errorf("Failed to connect to target %q on %q via NVMe: %w", targetQN, targetAddr, err)
+			return fmt.Errorf("Failed connecting to target %q on %q via NVMe: %w", targetQN, targetAddr, err)
 		}
 
 		return nil
@@ -263,7 +263,7 @@ func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string)
 
 		// In case no discovery log entries can be fetched the nvme command doesn't return JSON formatted text.
 		if strings.Trim(stdout, "\n") == "No discovery log entries to fetch." {
-			logger.Warn("Failed to find discovery log entries", logger.Ctx{"target_address": targetAddr, "err": err})
+			logger.Warn("Failed finding discovery log entries", logger.Ctx{"target_address": targetAddr, "err": err})
 			continue
 		}
 
@@ -272,7 +272,7 @@ func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string)
 		if err != nil {
 			// Don't just log this error.
 			// Something is clearly wrong with the returned output.
-			return nil, fmt.Errorf("Failed to unmarshal the returned discovery log entries from %q: %w", targetAddr, err)
+			return nil, fmt.Errorf("Failed unmarshaling the returned discovery log entries from %q: %w", targetAddr, err)
 		}
 
 		// Unmarshalling the response from the discovery succeeded, break the loop.
@@ -281,7 +281,7 @@ func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string)
 
 	// In case none of the target addresses returned any log records also return an error.
 	if len(discoveryLog.Records) == 0 {
-		return nil, errors.New("Failed to fetch a discovery log record from any of the target addresses")
+		return nil, errors.New("Failed fetching a discovery log record from any of the target addresses")
 	}
 
 	result := make([]any, 0, len(discoveryLog.Records))

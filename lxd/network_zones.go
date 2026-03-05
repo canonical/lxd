@@ -63,7 +63,7 @@ func addNetworkZoneDetailsToRequestContext(s *state.State, r *http.Request) erro
 	requestProjectName := request.ProjectParam(r)
 	effectiveProjectName, requestProject, err := project.NetworkZoneProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
-		return fmt.Errorf("Failed to check project %q network feature: %w", requestProjectName, err)
+		return fmt.Errorf("Failed checking project %q network feature: %w", requestProjectName, err)
 	}
 
 	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)

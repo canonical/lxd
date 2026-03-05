@@ -211,7 +211,7 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 
 	images, err := c.getImagesByFingerprintPrefix(ctx, fingerprintPrefix, filter)
 	if err != nil {
-		return -1, nil, fmt.Errorf("Failed to fetch images: %w", err)
+		return -1, nil, fmt.Errorf("Failed fetching images: %w", err)
 	}
 
 	var object cluster.Image
@@ -237,7 +237,7 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 func (c *ClusterTx) GetImageFromAnyProject(ctx context.Context, fingerprint string) (int, *api.Image, error) {
 	images, err := c.getImagesByFingerprintPrefix(ctx, fingerprint, cluster.ImageFilter{})
 	if err != nil {
-		return -1, nil, fmt.Errorf("Get image %q: Failed to fetch images: %w", fingerprint, err)
+		return -1, nil, fmt.Errorf("Get image %q: Failed fetching images: %w", fingerprint, err)
 	}
 
 	if len(images) == 0 {
@@ -308,7 +308,7 @@ WHERE images.fingerprint LIKE ?
 		return nil
 	}, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch images: %w", err)
+		return nil, fmt.Errorf("Failed fetching images: %w", err)
 	}
 
 	return images, nil
@@ -729,7 +729,7 @@ func (c *ClusterTx) CreateImage(ctx context.Context, project string, fp string, 
 		}
 
 		if len(dbProfiles) != 1 {
-			return fmt.Errorf("Failed to find default profile in project %q", project)
+			return fmt.Errorf("Failed finding default profile in project %q", project)
 		}
 
 		_, err = c.tx.ExecContext(ctx, "INSERT INTO images_profiles(image_id, profile_id) VALUES(?, ?)", id, dbProfiles[0].ID)
