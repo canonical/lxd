@@ -325,7 +325,7 @@ func VolumeDBSnapshotsGet(pool Pool, projectName string, volume string, volumeTy
 // BucketDBCreate creates a bucket in the database.
 // The supplied bucket's config may be modified with defaults for the storage pool being used.
 // Returns bucket DB record ID.
-func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSpecific bool, bucket *api.StorageBucketsPost) (int64, error) {
+func BucketDBCreate(ctx context.Context, pool Pool, projectName string, bucket *api.StorageBucketsPost) (int64, error) {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return -1, errors.New("Pool is not a lxdBackend")
@@ -361,7 +361,7 @@ func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSp
 
 	err = p.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Create the database entry for the storage bucket.
-		bucketID, err = tx.CreateStoragePoolBucket(ctx, p.ID(), projectName, memberSpecific, *bucket)
+		bucketID, err = tx.CreateStoragePoolBucket(ctx, p.ID(), projectName, *bucket)
 
 		return err
 	})
