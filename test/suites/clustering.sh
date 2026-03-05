@@ -5161,7 +5161,7 @@ test_clustering_project_limits() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c n)" = "c1" ]
 
   # Lowering the limit below current usage must be denied.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" CLIENT_DEBUG="" SHELL_TRACING="" lxc project set default limits.instances 0 2>&1)" = 'Error: Cannot change "limits.instances" in project "default": "limits.instances" is too low: there currently are 1 total instances in project "default"' ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" CLIENT_DEBUG="" SHELL_TRACING="" lxc project set default limits.instances 0 2>&1)" = 'Error: Cannot change "limits.instances" in project "default": "limits.instances" is too low: current instance count (1) would exceed the new limit (0)' ]
 
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1
 
