@@ -22,11 +22,11 @@ func Test_UseProject(t *testing.T) {
 	}
 
 	if newProject.project != "new" {
-		t.Errorf("UseProject() didn't use project: got %q, want %q", newProject.project, "new")
+		t.Errorf("UseProject() did not use project: got %q, want %q", newProject.project, "new")
 	}
 
 	if newProject.clusterTarget != "target" {
-		t.Errorf("UseProject() didn't copy clusterTarget: got %q, want %q", newProject.clusterTarget, "target")
+		t.Errorf("UseProject() did not copy clusterTarget: got %q, want %q", newProject.clusterTarget, "target")
 	}
 }
 
@@ -48,10 +48,10 @@ func Test_UseTarget(t *testing.T) {
 	}
 
 	if newTarget.clusterTarget != "new" {
-		t.Errorf("UseTarget() didn't use clusterTarget: got %q, want %q", newTarget.clusterTarget, "new")
+		t.Errorf("UseTarget() did not use clusterTarget: got %q, want %q", newTarget.clusterTarget, "new")
 	}
 
 	if newTarget.project != "project" {
-		t.Errorf("UseTarget() didn't copy project: got %q, want %q", newTarget.project, "project")
+		t.Errorf("UseTarget() did not copy project: got %q, want %q", newTarget.project, "project")
 	}
 }

@@ -55,7 +55,7 @@ func (r *ProtocolDevLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 // GetHTTPClient returns the http client used for the connection. This can be used to set custom http options.
 func (r *ProtocolDevLXD) GetHTTPClient() (*http.Client, error) {
 	if r.http == nil {
-		return nil, errors.New("HTTP client isn't set, bad connection")
+		return nil, errors.New("HTTP client is not set, bad connection")
 	}
 
 	return r.http, nil
@@ -294,7 +294,7 @@ func devLXDParseResponse(resp *http.Response) (*api.DevLXDResponse, string, erro
 	// Read response body.
 	content, err = io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, "", fmt.Errorf("Failed to read response body from %q: %v", resp.Request.URL.String(), err)
+		return nil, "", fmt.Errorf("Failed reading response body from %q: %v", resp.Request.URL.String(), err)
 	}
 
 	// Handel error response.

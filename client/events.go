@@ -74,7 +74,7 @@ func (e *EventListener) RemoveHandler(target *EventTarget) error {
 		}
 	}
 
-	return errors.New("Couldn't find this function and event types combination")
+	return errors.New("Could not find this function and event types combination")
 }
 
 // Disconnect must be used once done listening for events.

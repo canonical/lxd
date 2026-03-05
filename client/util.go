@@ -47,7 +47,7 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 			// Parse the server certificate.
 			serverCert, err := x509.ParseCertificate(rawCerts[0])
 			if err != nil {
-				return fmt.Errorf("Failed to parse server certificate: %w", err)
+				return fmt.Errorf("Failed parsing server certificate: %w", err)
 			}
 
 			// Verify cert is valid.
