@@ -443,13 +443,18 @@ func (c *cmdStorageBucketGet) run(cmd *cobra.Command, args []string) error {
 }
 
 // List.
+// storageBucketColumn represents a column in the storage bucket list output.
 type cmdStorageBucketList struct {
 	global        *cmdGlobal
 	storageBucket *cmdStorageBucket
 
 	flagFormat      string
+	flagColumns     string
 	flagAllProjects bool
 }
+
+const defaultStorageBucketColumns = "nd"
+const defaultStorageBucketColumnsAllProjects = "end"
 
 func (c *cmdStorageBucketList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -459,6 +464,7 @@ func (c *cmdStorageBucketList) command() *cobra.Command {
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultStorageBucketColumns, cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display storage pool buckets from all projects")
 
 	cmd.RunE = c.run
@@ -502,40 +508,59 @@ func (c *cmdStorageBucketList) run(cmd *cobra.Command, args []string) error {
 
 	clustered := resource.server.IsClustered()
 
-	data := make([][]string, 0, len(buckets))
-	for _, bucket := range buckets {
-		details := []string{
-			bucket.Name,
-			bucket.Description,
-		}
-
-		if clustered {
-			details = append(details, bucket.Location)
-		}
-
-		if c.flagAllProjects {
-			details = append([]string{bucket.Project}, details...)
-		}
-
-		data = append(data, details)
+	// Parse column flags.
+	columns, err := c.parseColumns(clustered)
+	if err != nil {
+		return err
 	}
 
+	data := cli.ColumnData(columns, buckets)
 	sort.Sort(cli.SortColumnsNaturally(data))
+	header := cli.ColumnHeaders(columns)
 
-	header := []string{
-		"NAME",
-		"DESCRIPTION",
+	return cli.RenderTable(c.flagFormat, header, data, buckets)
+}
+
+func (c *cmdStorageBucketList) parseColumns(clustered bool) ([]cli.TypedColumn[api.StorageBucket], error) {
+	columnsShorthandMap := map[rune]cli.TypedColumn[api.StorageBucket]{
+		'e': {Name: "PROJECT", Data: c.projectColumnData},
+		'n': {Name: "NAME", Data: c.nameColumnData},
+		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
 	}
 
 	if clustered {
-		header = append(header, "LOCATION")
+		columnsShorthandMap['l'] = cli.TypedColumn[api.StorageBucket]{Name: "LOCATION", Data: c.locationColumnData}
+	} else {
+		if c.flagColumns != defaultStorageBucketColumns && c.flagColumns != defaultStorageBucketColumnsAllProjects {
+			if strings.ContainsAny(c.flagColumns, "l") {
+				return nil, errors.New("Can't use column shorthand char 'l' (LOCATION) when not clustered")
+			}
+		}
+
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "l", "")
 	}
 
-	if c.flagAllProjects {
-		header = append([]string{"PROJECT"}, header...)
+	if c.flagAllProjects && c.flagColumns == defaultStorageBucketColumns {
+		c.flagColumns = defaultStorageBucketColumnsAllProjects
 	}
 
-	return cli.RenderTable(c.flagFormat, header, data, buckets)
+	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
+}
+
+func (c *cmdStorageBucketList) projectColumnData(bucket api.StorageBucket) string {
+	return bucket.Project
+}
+
+func (c *cmdStorageBucketList) nameColumnData(bucket api.StorageBucket) string {
+	return bucket.Name
+}
+
+func (c *cmdStorageBucketList) descriptionColumnData(bucket api.StorageBucket) string {
+	return bucket.Description
+}
+
+func (c *cmdStorageBucketList) locationColumnData(bucket api.StorageBucket) string {
+	return bucket.Location
 }
 
 // Set.
@@ -773,11 +798,15 @@ func (c *cmdStorageBucketKey) command() *cobra.Command {
 }
 
 // List Keys.
+// storageBucketKeyColumn represents a column in the storage bucket key list output.
 type cmdStorageBucketKeyList struct {
 	global           *cmdGlobal
 	storageBucketKey *cmdStorageBucketKey
 	flagFormat       string
+	flagColumns      string
 }
+
+const defaultStorageBucketKeyColumns = "ndr"
 
 func (c *cmdStorageBucketKeyList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -787,6 +816,7 @@ func (c *cmdStorageBucketKeyList) command() *cobra.Command {
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultStorageBucketKeyColumns, cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().StringVar(&c.storageBucketKey.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
 
 	cmd.RunE = c.run
@@ -829,26 +859,39 @@ func (c *cmdStorageBucketKeyList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	data := make([][]string, 0, len(bucketKeys))
-	for _, bucketKey := range bucketKeys {
-		details := []string{
-			bucketKey.Name,
-			bucketKey.Description,
-			bucketKey.Role,
-		}
-
-		data = append(data, details)
+	// Parse column flags.
+	columns, err := c.parseColumns()
+	if err != nil {
+		return err
 	}
 
+	data := cli.ColumnData(columns, bucketKeys)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"DESCRIPTION",
-		"ROLE",
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, bucketKeys)
+}
+
+func (c *cmdStorageBucketKeyList) parseColumns() ([]cli.TypedColumn[api.StorageBucketKey], error) {
+	columnsShorthandMap := map[rune]cli.TypedColumn[api.StorageBucketKey]{
+		'n': {Name: "NAME", Data: c.nameColumnData},
+		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		'r': {Name: "ROLE", Data: c.roleColumnData},
+	}
+
+	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
+}
+
+func (c *cmdStorageBucketKeyList) nameColumnData(key api.StorageBucketKey) string {
+	return key.Name
+}
+
+func (c *cmdStorageBucketKeyList) descriptionColumnData(key api.StorageBucketKey) string {
+	return key.Description
+}
+
+func (c *cmdStorageBucketKeyList) roleColumnData(key api.StorageBucketKey) string {
+	return key.Role
 }
 
 // Create Key.

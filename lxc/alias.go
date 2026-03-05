@@ -103,12 +103,22 @@ func (c *cmdAliasAdd) run(cmd *cobra.Command, args []string) error {
 }
 
 // List.
+// aliasColumn represents a column in the alias list output.
+// aliasListEntry combines an alias name with its target for column rendering.
+type aliasListEntry struct {
+	name   string
+	target string
+}
+
 type cmdAliasList struct {
 	global *cmdGlobal
 	alias  *cmdAlias
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
 }
+
+const defaultAliasColumns = "at"
 
 // Command is a method of the cmdAliasList structure that returns a new cobra Command for listing command aliases.
 // It specifies the command usage, description, aliases, and output formatting options, and links it to the RunE method for execution logic.
@@ -119,6 +129,7 @@ func (c *cmdAliasList) command() *cobra.Command {
 	cmd.Short = "List aliases"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultAliasColumns, cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -136,20 +147,40 @@ func (c *cmdAliasList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// List the aliases
-	data := [][]string{}
+	// Parse column flags.
+	columns, err := c.parseColumns()
+	if err != nil {
+		return err
+	}
+
+	// List the aliases.
+	entries := make([]aliasListEntry, 0, len(conf.Aliases))
 	for k, v := range conf.Aliases {
-		data = append(data, []string{k, v})
+		entries = append(entries, aliasListEntry{name: k, target: v})
 	}
 
+	data := cli.ColumnData(columns, entries)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"ALIAS",
-		"TARGET",
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, conf.Aliases)
+}
+
+func (c *cmdAliasList) parseColumns() ([]cli.TypedColumn[aliasListEntry], error) {
+	columnsShorthandMap := map[rune]cli.TypedColumn[aliasListEntry]{
+		'a': {Name: "ALIAS", Data: c.aliasColumnData},
+		't': {Name: "TARGET", Data: c.targetColumnData},
+	}
+
+	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
+}
+
+func (c *cmdAliasList) aliasColumnData(entry aliasListEntry) string {
+	return entry.name
+}
+
+func (c *cmdAliasList) targetColumnData(entry aliasListEntry) string {
+	return entry.target
 }
 
 // Rename.

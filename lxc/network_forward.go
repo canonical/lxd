@@ -81,8 +81,11 @@ type cmdNetworkForwardList struct {
 	global         *cmdGlobal
 	networkForward *cmdNetworkForward
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
 }
+
+const defaultNetworkForwardColumns = "ldtp"
 
 func (c *cmdNetworkForwardList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -93,6 +96,7 @@ func (c *cmdNetworkForwardList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultNetworkForwardColumns, cli.FormatStringFlagLabel("Columns"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -136,36 +140,60 @@ func (c *cmdNetworkForwardList) run(cmd *cobra.Command, args []string) error {
 
 	clustered := resource.server.IsClustered()
 
-	data := make([][]string, 0, len(forwards))
-	for _, forward := range forwards {
-		details := []string{
-			forward.ListenAddress,
-			forward.Description,
-			forward.Config["target_address"],
-			strconv.Itoa(len(forward.Ports)),
-		}
-
-		if clustered {
-			details = append(details, forward.Location)
-		}
-
-		data = append(data, details)
+	// Parse column flags.
+	columns, err := c.parseColumns(clustered)
+	if err != nil {
+		return err
 	}
 
+	data := cli.ColumnData(columns, forwards)
 	sort.Sort(cli.SortColumnsNaturally(data))
+	header := cli.ColumnHeaders(columns)
 
-	header := []string{
-		"LISTEN ADDRESS",
-		"DESCRIPTION",
-		"DEFAULT TARGET ADDRESS",
-		"PORTS",
+	return cli.RenderTable(c.flagFormat, header, data, forwards)
+}
+
+func (c *cmdNetworkForwardList) parseColumns(clustered bool) ([]cli.TypedColumn[api.NetworkForward], error) {
+	columnsShorthandMap := map[rune]cli.TypedColumn[api.NetworkForward]{
+		'l': {Name: "LISTEN ADDRESS", Data: c.listenAddressColumnData},
+		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		't': {Name: "DEFAULT TARGET ADDRESS", Data: c.defaultTargetAddressColumnData},
+		'p': {Name: "PORTS", Data: c.portsColumnData},
 	}
 
 	if clustered {
-		header = append(header, "LOCATION")
+		columnsShorthandMap['L'] = cli.TypedColumn[api.NetworkForward]{Name: "LOCATION", Data: c.locationColumnData}
+	} else {
+		if c.flagColumns != defaultNetworkForwardColumns {
+			if strings.ContainsAny(c.flagColumns, "L") {
+				return nil, errors.New("Can't use column shorthand char 'L' (LOCATION) when not clustered")
+			}
+		}
+
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
 	}
 
-	return cli.RenderTable(c.flagFormat, header, data, forwards)
+	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
+}
+
+func (c *cmdNetworkForwardList) listenAddressColumnData(forward api.NetworkForward) string {
+	return forward.ListenAddress
+}
+
+func (c *cmdNetworkForwardList) descriptionColumnData(forward api.NetworkForward) string {
+	return forward.Description
+}
+
+func (c *cmdNetworkForwardList) defaultTargetAddressColumnData(forward api.NetworkForward) string {
+	return forward.Config["target_address"]
+}
+
+func (c *cmdNetworkForwardList) portsColumnData(forward api.NetworkForward) string {
+	return strconv.Itoa(len(forward.Ports))
+}
+
+func (c *cmdNetworkForwardList) locationColumnData(forward api.NetworkForward) string {
+	return forward.Location
 }
 
 // Show.
