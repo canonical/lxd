@@ -280,23 +280,16 @@ func (c *ClusterTx) GetStoragePoolLocalBucketByAccessKey(ctx context.Context, ac
 }
 
 // CreateStoragePoolBucket creates a new Storage Bucket.
-// If memberSpecific is true, then the storage bucket is associated to the current member, rather than being
-// associated to all members.
-func (c *ClusterTx) CreateStoragePoolBucket(ctx context.Context, poolID int64, projectName string, memberSpecific bool, info api.StorageBucketsPost) (int64, error) {
+func (c *ClusterTx) CreateStoragePoolBucket(ctx context.Context, poolID int64, projectName string, info api.StorageBucketsPost) (int64, error) {
 	var err error
 	var bucketID int64
-	var nodeID any
-
-	if memberSpecific {
-		nodeID = c.nodeID
-	}
 
 	// Insert a new Storage Bucket record.
 	result, err := c.tx.ExecContext(ctx, `
 		INSERT INTO storage_buckets
 		(storage_pool_id, node_id, name, description, project_id)
 		VALUES (?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?))
-		`, poolID, nodeID, info.Name, info.Description, projectName)
+		`, poolID, nil, info.Name, info.Description, projectName)
 	if err != nil {
 		if query.IsConflictErr(err) {
 			return -1, api.StatusErrorf(http.StatusConflict, "A bucket for that name already exists")
