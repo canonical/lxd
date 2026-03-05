@@ -57,12 +57,13 @@ For control over the update schedule, use either of the following approaches:
 
 For clustered LXD installations, also follow the instructions below to {ref}`synchronize updates for cluster members <howto-snap-updates-sync>`.
 
-For more information about snap updates in general, see the Snap documentation: [Managing updates](https://snapcraft.io/docs/managing-updates).
+For more information about snap updates in general, see the Snap documentation: {ref}`snap:how-to-guides-work-with-snaps-manage-updates`.
 
 (howto-snap-updates-schedule)=
 ### Schedule updates with the refresh timer
 
-Set the [snaps refresh timer](https://snapcraft.io/docs/managing-updates#p-32248-refreshtimer) to regularly update snaps at specific times. This enables you to schedule automatic updates during times that don't disturb normal operation. The refresh timer is set system-wide; you cannot set it for the LXD snap only. It does not apply to snaps that are held indefinitely.
+Snaps can use a refresh timer to regularly update snaps at specific times. 
+This enables you to schedule automatic updates during times that don't disturb normal operation. The `refresh.timer` option is set system-wide; you cannot set it for the LXD snap only. It does not apply to snaps that are held indefinitely.
 
 For example, to configure your system to update snaps only between 8:00 am and 9:00 am on Mondays, set the following option:
 
@@ -70,7 +71,9 @@ For example, to configure your system to update snaps only between 8:00 am and 9
   sudo snap set system refresh.timer=mon,8:00-9:00
 ```
 
-You can also use the [refresh.hold](https://snapcraft.io/docs/managing-updates#p-32248-refreshhold) setting to hold all snap updates for up to 90 days, after which they automatically update. See [Control updates with system options](https://snapcraft.io/docs/managing-updates#heading--refresh-hold) in the snap documentation for details.
+You can also use the `refresh.hold` option to hold all snap updates for up to 90 days, after which they automatically update. 
+
+For details on how to use the `refresh.timer` and `refresh.hold` options, see the Snap documentation: {ref}`snap:how-to-guides-work-with-snaps-manage-updates`.
 
 (howto-snap-updates-hold)=
 ### Hold updates
@@ -85,7 +88,7 @@ sudo snap refresh --hold lxd
 
 Then you can perform {ref}`manual updates <howto-snap-updates-manual>` on a schedule that you control.
 
-For detailed information about holds, including how to hold snaps for a specific duration rather than indefinitely, see: [Pause or stop automatic updates](https://snapcraft.io/docs/managing-updates#p-32248-pause-or-stop-automatic-updates) in the Snap documentation.
+The {ref}`snap:how-to-guides-work-with-snaps-manage-updates` page in the Snap documentation provides details about how to pause or stop automatic updates.
 
 (howto-snap-updates-manual)=
 ### Manual updates
@@ -230,12 +233,12 @@ To see all configuration options that are explicitly set on the snap, run:
 sudo snap get lxd
 ```
 
-For more information about snap configuration options, visit [Configure snaps](https://snapcraft.io/docs/configuration-in-snaps) in the Snap documentation.
+For more information about snap configuration options, visit {ref}`snap:how-to-guides-work-with-snaps-configure-snaps` in the Snap documentation.
 
 (howto-snap-daemon)=
 ## Manage the LXD daemon
 
-Installing LXD as a snap creates the LXD daemon as a [snap service](https://snapcraft.io/docs/service-management). Use the following `snap` commands to manage this daemon.
+Installing LXD as a snap creates the LXD daemon as a **snap service**. Use the following `snap` commands to manage this daemon.
 
 To view the status of the daemon, run:
 
@@ -271,7 +274,7 @@ This also stops and starts all running LXD instances. To keep the instances runn
 sudo snap restart --reload lxd
 ```
 
-For more information about managing snap services, visit [Service management](https://snapcraft.io/docs/service-management) in the Snap documentation.
+For more information about managing snap services, visit {ref}`snap:how-to-guides-manage-snaps-control-services` in the Snap documentation.
 
 ## Related topics
 

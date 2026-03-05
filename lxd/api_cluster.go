@@ -675,17 +675,8 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 				logger.Debugf("Adding certificate %q (%s) to local trust store", trustedCert.Name, trustedCert.Fingerprint)
 
 				err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-					id, err := dbCluster.CreateCertificate(ctx, tx.Tx(), dbCert)
-					if err != nil {
-						return err
-					}
-
-					err = dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), int(id), trustedCert.Projects)
-					if err != nil {
-						return err
-					}
-
-					return nil
+					_, err := dbCluster.CreateCertificateWithProjects(ctx, tx.Tx(), dbCert, trustedCert.Projects)
+					return err
 				})
 				if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {
 					return fmt.Errorf("Failed adding local trusted certificate %q (%s): %w", trustedCert.Name, trustedCert.Fingerprint, err)
@@ -1615,12 +1606,6 @@ func autoHealClusterTask(stateFunc func() *state.State, gateway *cluster.Gateway
 	f := func(ctx context.Context) {
 		op, err := autoHealCluster(ctx, stateFunc(), gateway)
 		if err != nil {
-			return
-		}
-
-		err = op.Start()
-		if err != nil {
-			logger.Error("Failed starting cluster instances heal operation", logger.Ctx{"err": err})
 			return
 		}
 

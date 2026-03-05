@@ -134,6 +134,22 @@ test_clustering_move() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster unset node3 scheduler.instance
   LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c1 --target node1
 
+  sub_test "Profile override tests"
+  # Create a test profile for cluster move profile-override testing.
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile create prof1
+
+  # Moving c1 from node1 to node2 with --profile prof1 applies the new profile.
+  lxc move cluster:c1 --target node2 --profile prof1
+  [ "$(lxc list -f csv -c nP cluster:c1)" = "c1,prof1" ]
+  [ "$(lxc list -f csv -c L cluster:c1)" = "node2" ]
+
+  # Moving c1 from node2 to node1 with --no-profiles clears all profiles.
+  lxc move cluster:c1 --target node1 --no-profiles
+  [ "$(lxc list -f csv -c nP cluster:c1)" = "c1," ]
+  [ "$(lxc list -f csv -c L cluster:c1)" = "node1" ]
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile delete prof1
+
   echo "==> Project restriction tests"
   # At this stage we have:
   # - node1 in group foobar1,default

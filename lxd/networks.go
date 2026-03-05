@@ -1148,7 +1148,12 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = doNetworkDelete(r.Context(), s, details.networkName, effectiveProjectName, details.requestProject.Config)
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = doNetworkDelete(r.Context(), s, details.networkName, effectiveProjectName, details.requestProject.Config, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1157,7 +1162,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 // doNetworkDelete deletes the named network in the given project.
-func doNetworkDelete(ctx context.Context, s *state.State, name string, effectiveProjectName string, requestProjectConfig map[string]string) error {
+func doNetworkDelete(ctx context.Context, s *state.State, name string, effectiveProjectName string, requestProjectConfig map[string]string, clientType request.ClientType) error {
 	// Get the existing network.
 	n, err := network.LoadByName(s, effectiveProjectName, name)
 	if err != nil {
@@ -1169,12 +1174,12 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 		return api.NewStatusError(http.StatusNotFound, "Network not found")
 	}
 
-	requestor, err := request.GetRequestor(ctx)
+	requestor, err := request.GetRequestorAuditor(ctx)
 	if err != nil {
 		return err
 	}
 
-	clusterNotification := requestor.IsClusterNotification()
+	clusterNotification := clientType.IsClusterNotification()
 	if !clusterNotification {
 		// Quick checks.
 		inUse, err := n.IsUsed()
@@ -1188,7 +1193,7 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 	}
 
 	if n.LocalStatus() != api.NetworkStatusPending {
-		err = n.Delete(requestor.ClientType())
+		err = n.Delete(clientType)
 		if err != nil {
 			return fmt.Errorf("Failed to delete network: %w", err)
 		}

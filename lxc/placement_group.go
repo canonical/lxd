@@ -81,10 +81,16 @@ type cmdPlacementGroupList struct {
 	flagAllProjects bool
 }
 
-const (
-	defaultPlacementGroupColumns            = "ndpru"
-	defaultPlacementGroupColumnsAllProjects = "endpru"
-)
+// columns returns the ordered column definitions for placement group list.
+func (c *cmdPlacementGroupList) columns() []cli.ShorthandColumn[api.PlacementGroup] {
+	return []cli.ShorthandColumn[api.PlacementGroup]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'p', Name: "POLICY", Data: c.policyColumnData},
+		{Shorthand: 'r', Name: "RIGOR", Data: c.rigorColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+	}
+}
 
 func (c *cmdPlacementGroupList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -95,7 +101,7 @@ func (c *cmdPlacementGroupList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultPlacementGroupColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display placement groups from all projects")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -148,7 +154,17 @@ func (c *cmdPlacementGroupList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse column flags.
-	columns, err := c.parseColumns()
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
+	if c.flagAllProjects {
+		projectCol := cli.ShorthandColumn[api.PlacementGroup]{Shorthand: 'e', Name: "PROJECT", Data: c.projectColumnData}
+		cols = append([]cli.ShorthandColumn[api.PlacementGroup]{projectCol}, cols...)
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = cli.DefaultColumnString(cols)
+		}
+	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
 	if err != nil {
 		return err
 	}
@@ -158,25 +174,6 @@ func (c *cmdPlacementGroupList) run(cmd *cobra.Command, args []string) error {
 	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, placementGroups)
-}
-
-func (c *cmdPlacementGroupList) parseColumns() ([]cli.TypedColumn[api.PlacementGroup], error) {
-	columnsShorthandMap := map[rune]cli.TypedColumn[api.PlacementGroup]{
-		'e': {Name: "PROJECT", Data: c.projectColumnData},
-		'n': {Name: "NAME", Data: c.nameColumnData},
-		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
-		'p': {Name: "POLICY", Data: c.policyColumnData},
-		'r': {Name: "RIGOR", Data: c.rigorColumnData},
-		'u': {Name: "USED BY", Data: c.usedByColumnData},
-	}
-
-	if c.flagAllProjects {
-		if c.flagColumns == defaultPlacementGroupColumns {
-			c.flagColumns = defaultPlacementGroupColumnsAllProjects
-		}
-	}
-
-	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
 }
 
 func (c *cmdPlacementGroupList) projectColumnData(placementGroup api.PlacementGroup) string {

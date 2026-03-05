@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -170,8 +171,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		return err
 	}
 
+	needsRefreshClientFallback := c.flagRefresh && !dest.HasExtension("instance_refresh_config")
+
 	var op lxd.RemoteOperation
 	var writable api.InstancePut
+	var refreshTarget *api.Instance
+	var refreshTargetETag string
 	var start bool
 
 	sourceParentName, sourceSnapName, sourceIsSnap := api.GetParentAndSnapshotName(sourceName)
@@ -229,7 +234,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Copy of an instance into a new instance
-		entry, _, err := source.GetInstance(sourceName)
+		sourceInstance, _, err := source.GetInstance(sourceName)
 		if err != nil {
 			return err
 		}
@@ -241,13 +246,27 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		// or when server side move is simply not supported.
 		// The server will switch to migration so we cannot simply populate the Start field of the InstanceCopyArgs as this
 		// information will get lost during migration and is essentially not received by the target.
-		if entry.StatusCode == api.Running && move && !stateful {
+		if sourceInstance.StatusCode == api.Running && move && !stateful {
 			start = true
 		}
 
-		err = c.applyConfigOverrides(dest, pool, keepVolatile, &entry.Profiles, &entry.Config, &entry.Devices, configOverrides, deviceOverrides)
+		err = c.applyConfigOverrides(dest, pool, keepVolatile, &sourceInstance.Profiles, &sourceInstance.Config, &sourceInstance.Devices, configOverrides, deviceOverrides)
 		if err != nil {
 			return err
+		}
+
+		if c.flagRefresh && !needsRefreshClientFallback {
+			refreshTarget, _, err = dest.GetInstance(destName)
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return fmt.Errorf("Failed loading refresh target instance %q: %w", destName, err)
+			}
+
+			if err == nil {
+				writableEntry := sourceInstance.Writable()
+				writableEntry.ApplyRefreshConfig(*refreshTarget)
+				sourceInstance.Config = writableEntry.Config
+				sourceInstance.Devices = writableEntry.Devices
+			}
 		}
 
 		// Traditionally, if instance with snapshots is transferred across projects,
@@ -262,17 +281,19 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		// Allow overriding the ephemeral status
 		switch ephemeral {
 		case 1:
-			entry.Ephemeral = true
+			sourceInstance.Ephemeral = true
 		case 0:
-			entry.Ephemeral = false
+			sourceInstance.Ephemeral = false
 		}
 
-		op, err = dest.CopyInstance(source, *entry, &args)
+		op, err = dest.CopyInstance(source, *sourceInstance, &args)
 		if err != nil {
 			return err
 		}
 
-		writable = entry.Writable()
+		if needsRefreshClientFallback {
+			writable = sourceInstance.Writable()
+		}
 	}
 
 	// Watch the background operation
@@ -296,27 +317,18 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 	progress.Done("")
 
-	if c.flagRefresh {
-		inst, etag, err := dest.GetInstance(destName)
+	// Compatibility fallback for older servers that don't apply refresh config server-side.
+	if needsRefreshClientFallback {
+		refreshTarget, refreshTargetETag, err = dest.GetInstance(destName)
 		if err != nil {
-			return fmt.Errorf("Failed to refresh target instance %q: %v", destName, err)
+			return fmt.Errorf("Failed loading refresh target instance %q: %w", destName, err)
 		}
 
-		// Ensure we don't change the target's volatile.idmap.next value.
-		if inst.Config["volatile.idmap.next"] != writable.Config["volatile.idmap.next"] {
-			writable.Config["volatile.idmap.next"] = inst.Config["volatile.idmap.next"]
-		}
+		writable.ApplyRefreshConfig(*refreshTarget)
 
-		// Ensure we don't change the target's root disk pool.
-		srcRootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(writable.Devices)
-		destRootDiskDeviceKey, destRootDiskDevice, _ := instancetype.GetRootDiskDevice(inst.Devices)
-		if srcRootDiskDeviceKey != "" && srcRootDiskDeviceKey == destRootDiskDeviceKey {
-			writable.Devices[destRootDiskDeviceKey]["pool"] = destRootDiskDevice["pool"]
-		}
-
-		op, err := dest.UpdateInstance(destName, writable, etag)
+		op, err := dest.UpdateInstance(destName, writable, refreshTargetETag)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed applying refresh target instance config for instance %q: %w", destName, err)
 		}
 
 		// Watch the background operation
@@ -378,20 +390,18 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 	}
 
 	if config != nil {
-		// Strip the volatile keys from source if requested.
+		// Remove the volatile keys from source if requested.
 		if !keepVolatile {
-			for k := range *config {
-				if !instancetype.InstanceIncludeWhenCopying(k, true) {
-					delete(*config, k)
-				}
-			}
+			api.InstanceRemoteCopyConfigKeyPolicy.Apply(*config, nil)
 		}
 
 		// Apply config overrides.
 		maps.Copy(*config, configOverrides)
 
-		// Strip the last_state.power key in all cases.
-		delete(*config, "volatile.last_state.power")
+		// Remove create-only keys client-side only when server-side refresh config handling is supported.
+		if dest.HasExtension("instance_refresh_config") {
+			api.InstanceCreateConfigKeyPolicy.Apply(*config, nil)
+		}
 	}
 
 	if devices != nil {
@@ -425,7 +435,7 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 
 		// Apply storage pool override if specified.
 		if poolName != "" {
-			rootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(*devices)
+			rootDiskDeviceKey, _, _ := api.GetRootDiskDevice(*devices)
 			if rootDiskDeviceKey != "" {
 				// If a root disk device is already defined, just override the pool.
 				(*devices)[rootDiskDeviceKey]["pool"] = poolName

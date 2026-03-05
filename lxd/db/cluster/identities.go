@@ -80,7 +80,7 @@ var authMethodCodeToText = map[int64]string{
 func (a *AuthMethod) ScanInteger(authMethodCode int64) error {
 	text, ok := authMethodCodeToText[authMethodCode]
 	if !ok {
-		return fmt.Errorf("Unknown authentication method `%d`", authMethodCode)
+		return fmt.Errorf("Unknown authentication method %d", authMethodCode)
 	}
 
 	*a = AuthMethod(text)
@@ -170,7 +170,7 @@ func (i IdentityType) toCertificateType() (certificate.Type, error) {
 
 // Identity is a database representation of any authenticated party.
 type Identity struct {
-	ID         int
+	ID         int64
 	AuthMethod AuthMethod `db:"primary=yes"`
 	Type       IdentityType
 	Identifier string `db:"primary=yes"`
@@ -458,7 +458,7 @@ func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret 
 }
 
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
-func GetAuthGroupsByIdentityID(ctx context.Context, tx *sql.Tx, identityID int) ([]AuthGroup, error) {
+func GetAuthGroupsByIdentityID(ctx context.Context, tx *sql.Tx, identityID int64) ([]AuthGroup, error) {
 	stmt := `
 SELECT auth_groups.id, auth_groups.name, auth_groups.description
 FROM auth_groups
@@ -480,22 +480,22 @@ WHERE identities_auth_groups.identity_id = ?`
 
 	err := query.Scan(ctx, tx, stmt, dest, identityID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get groups for identity with ID `%d`: %w", identityID, err)
+		return nil, fmt.Errorf("Failed to get groups for identity with ID %d: %w", identityID, err)
 	}
 
 	return result, nil
 }
 
 // GetAllAuthGroupsByIdentityIDs returns a map of identity ID to slice of groups the identity with that ID is a member of.
-func GetAllAuthGroupsByIdentityIDs(ctx context.Context, tx *sql.Tx) (map[int][]AuthGroup, error) {
+func GetAllAuthGroupsByIdentityIDs(ctx context.Context, tx *sql.Tx) (map[int64][]AuthGroup, error) {
 	stmt := `
 SELECT identities_auth_groups.identity_id, auth_groups.id, auth_groups.name, auth_groups.description
 FROM auth_groups
 JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id`
 
-	result := make(map[int][]AuthGroup)
+	result := make(map[int64][]AuthGroup)
 	dest := func(scan func(dest ...any) error) error {
-		var identityID int
+		var identityID int64
 		g := AuthGroup{}
 		err := scan(&identityID, &g.ID, &g.Name, &g.Description)
 		if err != nil {
@@ -547,10 +547,10 @@ func GetIdentityByNameOrIdentifier(ctx context.Context, tx *sql.Tx, authenticati
 // SetIdentityAuthGroups deletes all auth_group -> identity mappings from the `identities_auth_groups` table
 // where the identity ID is equal to the given value. Then it inserts new associations into the table where the
 // group IDs correspond to the given group names.
-func SetIdentityAuthGroups(ctx context.Context, tx *sql.Tx, identityID int, groupNames []string) error {
+func SetIdentityAuthGroups(ctx context.Context, tx *sql.Tx, identityID int64, groupNames []string) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM identities_auth_groups WHERE identity_id = ?`, identityID)
 	if err != nil {
-		return fmt.Errorf("Failed to delete existing groups for identity with ID `%d`: %w", identityID, err)
+		return fmt.Errorf("Failed to delete existing groups for identity with ID %d: %w", identityID, err)
 	}
 
 	if len(groupNames) == 0 {
@@ -602,4 +602,22 @@ WHERE auth_groups.name IN %s
 	}
 
 	return nil
+}
+
+// GetIdentityByID gets a single identity with the given ID.
+func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*Identity, error) {
+	identityFilter := IdentityFilter{ID: &id}
+	clusterIdentities, err := GetIdentitys(ctx, tx, identityFilter)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get identity with ID %d: %w", id, err)
+	}
+
+	switch len(clusterIdentities) {
+	case 0:
+		return nil, api.NewStatusError(http.StatusNotFound, "No identity found with given ID")
+	case 1:
+		return &clusterIdentities[0], nil
+	default:
+		return nil, fmt.Errorf("Multiple identities found with ID %d", id)
+	}
 }

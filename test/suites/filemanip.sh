@@ -119,6 +119,17 @@ test_filemanip() {
   [ "$(stat -c "%g" "${TEST_DIR}"/dest/source)" = "$(id -g)" ]
   [ "$(stat -c "%a" "${TEST_DIR}"/dest/source)" = "755" ]
 
+  # Verify recursive pull is idempotent when target directories already exist
+  # and that permissions are restored to match the source.
+  # Change the existing symlink so the second pull must overwrite it.
+  ln --symbolic --force --no-dereference foo "${TEST_DIR}"/dest/source/baz
+  [ "$(readlink "${TEST_DIR}"/dest/source/baz)" = "foo" ]
+  chmod 700 "${TEST_DIR}"/dest/source
+  lxc file pull --create-dirs --recursive filemanip/tmp/ptest/source "${TEST_DIR}"/dest
+  [ "$(stat -c "%a" "${TEST_DIR}"/dest/source)" = "755" ]
+  [ -L "${TEST_DIR}"/dest/source/baz ]
+  [ "$(basename "$(readlink "${TEST_DIR}"/dest/source/baz)")" = "bar" ]
+
   lxc file push -p "${TEST_DIR}"/source/foo local:filemanip/tmp/this/is/a/nonexistent/directory/
   lxc file pull local:filemanip/tmp/this/is/a/nonexistent/directory/foo "${TEST_DIR}"
   [ "$(< "${TEST_DIR}"/foo)" = "foo" ]

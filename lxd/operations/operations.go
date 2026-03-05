@@ -107,7 +107,7 @@ type Operation struct {
 	readonly        bool
 	description     string
 	dbOpType        operationtype.Type
-	requestor       *request.Requestor
+	requestor       *opRequestor
 	metricsCallback func(metrics.RequestResult)
 	logger          logger.Logger
 
@@ -146,7 +146,7 @@ type OperationArgs struct {
 	Metadata        map[string]any
 	RunHook         func(ctx context.Context, op *Operation) error
 	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
-	requestor       *request.Requestor
+	requestor       *opRequestor
 	metricsCallback func(result metrics.RequestResult)
 	Inputs          map[string]any
 	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
@@ -173,7 +173,11 @@ func ScheduleUserOperationFromRequest(s *state.State, r *http.Request, args Oper
 		return nil, fmt.Errorf("Cannot create user operation: %w", err)
 	}
 
-	args.requestor = requestor
+	args.requestor = &opRequestor{
+		identityID: requestor.CallerIdentityID(),
+		r:          requestor.OperationRequestor(),
+	}
+
 	args.metricsCallback = metricsCallback
 	return scheduleOperation(s, args)
 }
@@ -280,13 +284,14 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	}
 
 	op.logger.Debug("New operation")
-	_, md, _ := op.Render()
+	_, md := op.Render()
 
 	operationsLock.Lock()
 	operations[op.id] = &op
 	op.sendEvent(md)
 	operationsLock.Unlock()
 
+	op.start()
 	return &op, nil
 }
 
@@ -315,7 +320,7 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 }
 
 // Requestor returns the initial requestor for this operation.
-func (op *Operation) Requestor() *request.Requestor {
+func (op *Operation) Requestor() *opRequestor {
 	return op.requestor
 }
 
@@ -404,8 +409,8 @@ func updateStatus(op *Operation, newStatus api.StatusCode) {
 	}
 }
 
-// Start a pending operation. It returns an error if the operation cannot be started.
-func (op *Operation) Start() error {
+// start a pending operation.
+func (op *Operation) start() {
 	op.lock.Lock()
 	if op.onRun != nil {
 		// The operation context is the "running" context plus the requestor.
@@ -438,7 +443,7 @@ func (op *Operation) Start() error {
 				op.done()
 
 				op.logger.Warn("Failure for operation", logger.Ctx{"err": err})
-				_, md, _ := op.Render()
+				_, md := op.Render()
 
 				op.lock.Lock()
 				op.sendEvent(md)
@@ -454,7 +459,7 @@ func (op *Operation) Start() error {
 			op.done()
 
 			op.logger.Debug("Success for operation")
-			_, md, _ := op.Render()
+			_, md := op.Render()
 
 			op.lock.Lock()
 			op.sendEvent(md)
@@ -465,13 +470,11 @@ func (op *Operation) Start() error {
 	op.lock.Unlock()
 
 	op.logger.Debug("Started operation")
-	_, md, _ := op.Render()
+	_, md := op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)
 	op.lock.Unlock()
-
-	return nil
 }
 
 // IsRunning returns true if the operation run hook is still in progress.
@@ -507,7 +510,7 @@ func (op *Operation) Cancel() {
 	op.lock.Unlock()
 
 	op.logger.Debug("Cancelling operation")
-	_, md, _ := op.Render()
+	_, md := op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)
@@ -531,6 +534,10 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 
 	if op.running.Err() != nil {
 		op.lock.Unlock()
+		if op.err != nil {
+			return nil, fmt.Errorf("Failed to connect to operation: %w", op.err)
+		}
+
 		return nil, api.NewStatusError(http.StatusBadRequest, "Only running operations can be connected")
 	}
 
@@ -558,7 +565,7 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 
 // Render renders the operation structure.
 // Returns URL of operation and operation info.
-func (op *Operation) Render() (string, *api.Operation, error) {
+func (op *Operation) Render() (string, *api.Operation) {
 	// Setup the resource URLs
 	renderedResources := make(map[string][]string)
 	resources := op.resources
@@ -611,7 +618,22 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 
 	op.lock.Unlock()
 
-	return op.url, retOp, nil
+	return op.url, retOp
+}
+
+// RenderWithoutProgress renders the operation structure without progress metadata.
+// This is used when operation constructed from the database is returned via API, as database likely contains stale progress metadata.
+// Progress should be consumed from the websocket events, so it doesn't need to be returned in the API response.
+func (op *Operation) RenderWithoutProgress() (string, *api.Operation) {
+	url, retOp := op.Render()
+
+	for key := range retOp.Metadata {
+		if strings.HasSuffix(key, "progress") {
+			delete(retOp.Metadata, key)
+		}
+	}
+
+	return url, retOp
 }
 
 // Wait for the operation to be done.
@@ -661,7 +683,7 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	op.lock.Unlock()
 
 	op.logger.Debug("Updated metadata for operation")
-	_, md, _ := op.Render()
+	_, md := op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)
@@ -719,7 +741,7 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 	op.lock.Unlock()
 
 	op.logger.Debug("Updated metadata for operation")
-	_, md, _ := op.Render()
+	_, md := op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)

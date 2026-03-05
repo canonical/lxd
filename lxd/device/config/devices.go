@@ -27,10 +27,7 @@ func (device Device) Clone() Device {
 
 // Validate accepts a map of field/validation functions to run against the device's config.
 func (device Device) Validate(rules map[string]func(value string) error) error {
-	checkedFields := map[string]struct{}{}
-
 	for k, validator := range rules {
-		checkedFields[k] = struct{}{} // Mark field as checked.
 		err := validator(device[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for device option %q: %w", k, err)
@@ -39,7 +36,7 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 
 	// Look for any unchecked fields, as these are unknown fields and validation should fail.
 	for k := range device {
-		_, checked := checkedFields[k]
+		_, checked := rules[k]
 		if checked {
 			continue
 		}
@@ -136,7 +133,7 @@ func (list Devices) Contains(k string, d Device) bool {
 
 	old := list[k]
 
-	return deviceEquals(old, d)
+	return maps.Equal(old, d)
 }
 
 // Update returns the difference between two device sets (removed, added, updated devices) and a list of all
@@ -194,7 +191,7 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 		// If after removing the live-updatable keys the devices are equal, then we know the device has
 		// been updated rather than added or removed, so add it to the update list, and remove it from
 		// the added and removed lists.
-		if deviceEquals(oldDevice, newDevice) {
+		if maps.Equal(oldDevice, newDevice) {
 			delete(rmlist, key)
 			delete(addlist, key)
 			updatelist[key] = d

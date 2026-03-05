@@ -78,6 +78,10 @@ func coalesceErrors(local bool, errs map[string]error) error {
 //	    $ref: "#/responses/InternalServerError"
 func instancesPut(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Don't mess with instances while in setup mode.
 	<-d.waitReady.Done()
@@ -153,6 +157,8 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		names = append(names, inst.Name())
 	}
 
+	isClusterNotification := requestor.IsClusterNotification()
+
 	// Batch the changes.
 	do := func(ctx context.Context, op *operations.Operation) error {
 		localAction := func(local bool) error {
@@ -180,7 +186,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Only return the local data if asked by cluster member.
-		if op.Requestor().IsClusterNotification() {
+		if isClusterNotification {
 			return localAction(false)
 		}
 

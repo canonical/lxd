@@ -137,15 +137,13 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 		}
 
 		// Create or update the identity and get the identity ID for creating the session.
-		var identityID int
+		var identityID int64
 		if firstTimeLogin {
 			action = lifecycle.IdentityCreated
-			identityID64, err := cluster.CreateIdentity(ctx, tx.Tx(), newOrUpdatedIdentity)
+			identityID, err = cluster.CreateIdentity(ctx, tx.Tx(), newOrUpdatedIdentity)
 			if err != nil {
 				return fmt.Errorf("Failed to create new identity with session information: %w", err)
 			}
-
-			identityID = int(identityID64)
 		} else {
 			identityID = identity.ID
 

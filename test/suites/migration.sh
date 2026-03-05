@@ -280,7 +280,21 @@ migration() {
   lxc_remote copy l1:c1 l2:c2
   lxc_remote copy l1:c1 l2:c2 --refresh
 
+  sub_test "Refresh applies config override for migration copy"
   lxc_remote start l1:c1
+  lxc_remote config set l1:c1 user.refresh-copy-config source
+  c2_idmap_next_before="$(lxc_remote config get l2:c2 volatile.idmap.next)"
+  c2_last_state_power_before="$(lxc_remote config get l2:c2 volatile.last_state.power)"
+  lxc_remote copy l1:c1 l2:c2 --refresh -c user.refresh-copy-config=override -c user.refresh-copy-new-key=added
+  # Verify refresh config override is applied on target.
+  [ "$(lxc_remote config get l2:c2 user.refresh-copy-config)" = "override" ]
+  # Verify refresh can add a new config key on target.
+  [ "$(lxc_remote config get l2:c2 user.refresh-copy-new-key)" = "added" ]
+  # Verify root disk pool stays on the destination remote pool.
+  lxc_remote query l2:/1.0/instances/c2 | jq --exit-status --arg remote_pool "${remote_pool}" '.expanded_devices | to_entries | any(.value.type == "disk" and .value.path == "/" and .value.pool == $remote_pool)'
+  # Verify refresh with config overrides does not clobber volatile keys.
+  [ "$(lxc_remote config get l2:c2 volatile.idmap.next)" = "${c2_idmap_next_before}" ]
+  [ "$(lxc_remote config get l2:c2 volatile.last_state.power)" = "${c2_last_state_power_before}" ]
 
   # Create test file in c1 (source)
   echo test | lxc_remote file push - l1:c1/root/testfile1

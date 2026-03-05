@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // Code generation directives.
@@ -105,7 +107,7 @@ var requestorProtocolCodeToText = map[int64]string{
 func (r *RequestorProtocol) ScanInteger(requestorProtocolCode int64) error {
 	text, ok := requestorProtocolCodeToText[requestorProtocolCode]
 	if !ok {
-		return fmt.Errorf("Unknown requestor protocol `%d`", requestorProtocolCode)
+		return fmt.Errorf("Unknown requestor protocol %d", requestorProtocolCode)
 	}
 
 	*r = RequestorProtocol(text)
@@ -212,7 +214,14 @@ func GetOperationResources(ctx context.Context, tx *sql.Tx, opID int64) (map[ent
 	for _, r := range resources {
 		entityURL, err := GetEntityURL(ctx, tx, entity.Type(r.EntityType), r.EntityID)
 		if err != nil {
-			return nil, fmt.Errorf("Failed getting resource URL for entity type %q and ID %d: %w", r.EntityType, r.EntityID, err)
+			// If a delete operation has already deleted its resources, it's possible that some of the resources will not be found.
+			// In that case, we just skip those resources and return the ones that are still there.
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				logger.Debug("Failed loading resource URL for operation resource, skipping resource", logger.Ctx{"entity_type": r.EntityType, "entity_id": r.EntityID, "err": err})
+				continue
+			}
+
+			return nil, fmt.Errorf("Failed loading resource URL for operation resource: %w", err)
 		}
 
 		if result == nil {
@@ -262,6 +271,16 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 	_, err := tx.ExecContext(ctx, insertStmt)
 	if err != nil {
 		return fmt.Errorf("Failed inserting operation resources: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteOperationsFromNodes deletes operations from nodes with the given list of IDs.
+func DeleteOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	_, err := tx.ExecContext(ctx, "DELETE FROM operations WHERE node_id IN "+query.IntParams(nodeIDs...))
+	if err != nil {
+		return fmt.Errorf("Failed deleting operations from nodes: %w", err)
 	}
 
 	return nil

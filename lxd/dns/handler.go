@@ -18,45 +18,37 @@ type dnsHandler struct {
 	mu     sync.Mutex
 }
 
+// writeRcode sends a DNS response with the given response code.
+func writeRcode(w dns.ResponseWriter, r *dns.Msg, rcode int) {
+	m := new(dns.Msg)
+	m.SetRcode(r, rcode)
+	err := w.WriteMsg(m)
+	if err != nil {
+		logger.Error("Unable to write message", logger.Ctx{"err": err})
+	}
+}
+
 // ServeDNS handles each DNS request.
 func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	// Don't allow concurent queries.
+	// Don't allow concurrent queries.
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	// Check if we're ready to serve queries.
 	if d.server.zoneRetriever == nil {
-		m := new(dns.Msg)
-		m.SetRcode(r, dns.RcodeServerFailure)
-		err := w.WriteMsg(m)
-		if err != nil {
-			logger.Error("Unable to write message", logger.Ctx{"err": err})
-		}
-
+		writeRcode(w, r, dns.RcodeServerFailure)
 		return
 	}
 
 	// Only allow a single request.
 	if len(r.Question) != 1 {
-		m := new(dns.Msg)
-		m.SetRcode(r, dns.RcodeServerFailure)
-		err := w.WriteMsg(m)
-		if err != nil {
-			logger.Error("Unable to write message", logger.Ctx{"err": err})
-		}
-
+		writeRcode(w, r, dns.RcodeServerFailure)
 		return
 	}
 
 	// Check that it's a supported request type.
 	if r.Question[0].Qtype != dns.TypeAXFR && r.Question[0].Qtype != dns.TypeIXFR && r.Question[0].Qtype != dns.TypeSOA {
-		m := new(dns.Msg)
-		m.SetRcode(r, dns.RcodeNotImplemented)
-		err := w.WriteMsg(m)
-		if err != nil {
-			logger.Error("Unable to write message", logger.Ctx{"err": err})
-		}
-
+		writeRcode(w, r, dns.RcodeNotImplemented)
 		return
 	}
 
@@ -64,13 +56,7 @@ func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	name := strings.TrimSuffix(r.Question[0].Name, ".")
 	ip, _, err := net.SplitHostPort(w.RemoteAddr().String())
 	if err != nil {
-		m := new(dns.Msg)
-		m.SetRcode(r, dns.RcodeServerFailure)
-		err := w.WriteMsg(m)
-		if err != nil {
-			logger.Error("Unable to write message", logger.Ctx{"err": err})
-		}
-
+		writeRcode(w, r, dns.RcodeServerFailure)
 		return
 	}
 
@@ -83,26 +69,17 @@ func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	zone, err := d.server.zoneRetriever(name, r.Question[0].Qtype != dns.TypeSOA)
 	if err != nil {
 		// On failure, return NXDOMAIN.
-		m := new(dns.Msg)
-		m.SetRcode(r, dns.RcodeNameError)
-		err := w.WriteMsg(m)
-		if err != nil {
-			logger.Error("Unable to write message", logger.Ctx{"err": err})
-		}
-
+		writeRcode(w, r, dns.RcodeNameError)
 		return
 	}
 
-	// Check access.
-	if !d.isAllowed(zone.Info, ip, r.IsTsig(), w.TsigStatus() == nil) {
-		// On auth failure, return NXDOMAIN to avoid information leaks.
-		m := new(dns.Msg)
-		m.SetRcode(r, dns.RcodeNameError)
-		err := w.WriteMsg(m)
-		if err != nil {
-			logger.Error("Unable to write message", logger.Ctx{"err": err})
-		}
+	tsig := r.IsTsig()
+	tsigOK := w.TsigStatus() == nil
 
+	// Check access.
+	if !d.isAllowed(zone.Info, ip, tsig, tsigOK) {
+		// On auth failure, return NXDOMAIN to avoid information leaks.
+		writeRcode(w, r, dns.RcodeNameError)
 		return
 	}
 
@@ -113,14 +90,7 @@ func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			err := zoneRR.Err()
 			if err != nil {
 				logger.Errorf("Bad DNS record in zone %q: %v", name, err)
-
-				m := new(dns.Msg)
-				m.SetRcode(r, dns.RcodeFormatError)
-				err := w.WriteMsg(m)
-				if err != nil {
-					logger.Error("Unable to write message", logger.Ctx{"err": err})
-				}
-
+				writeRcode(w, r, dns.RcodeFormatError)
 				return
 			}
 
@@ -130,8 +100,7 @@ func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		m.Answer = append(m.Answer, rr)
 	}
 
-	tsig := r.IsTsig()
-	if tsig != nil && w.TsigStatus() == nil {
+	if tsig != nil && tsigOK {
 		m.SetTsig(tsig.Hdr.Name, tsig.Algorithm, 300, time.Now().Unix())
 	}
 
@@ -150,24 +119,23 @@ func (d *dnsHandler) isAllowed(zone api.NetworkZone, ip string, tsig *dns.TSIG, 
 	// Build a list of peers.
 	peers := map[string]*peer{}
 	for k, v := range zone.Config {
-		if !strings.HasPrefix(k, "peers.") {
+		suffix, found := strings.CutPrefix(k, "peers.")
+		if !found {
 			continue
 		}
 
 		// Extract the fields.
-		fields := strings.SplitN(k, ".", 3)
-		if len(fields) != 3 {
+		peerName, field, found := strings.Cut(suffix, ".")
+		if !found {
 			continue
 		}
-
-		peerName := fields[1]
 
 		if peers[peerName] == nil {
 			peers[peerName] = &peer{}
 		}
 
-		// Add the correct validation rule for the dynamic field based on last part of key.
-		switch fields[2] {
+		// Populate peer configuration fields (address, key) based on the last part of the key.
+		switch field {
 		case "address":
 			peers[peerName].address = v
 		case "key":

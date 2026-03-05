@@ -187,8 +187,12 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 		Protocol: api.AuthenticationMethodTLS,
 	}
 
-	err = request.SetRequestor(req, func(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (identityID int, idType identity.Type, authGroups []string, effectiveAuthGroups []string, projects []string, err error) {
-		return 1, identity.CertificateClientRestricted{}, nil, nil, []string{dbProject.Name}, nil
+	err = request.SetRequestor(req, func(ctx context.Context, authenticationMethod string, identifier string) (*request.RequestorHookResult, error) {
+		return &request.RequestorHookResult{
+			IdentityID:   1,
+			IdentityType: identity.CertificateClientRestricted{},
+			Projects:     []string{dbProject.Name},
+		}, nil
 	}, details)
 	require.NoError(t, err)
 
@@ -229,8 +233,11 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 
 	require.NoError(t, err)
 
-	err = request.SetRequestor(req, func(ctx context.Context, authenticationMethod string, identifier string, idpGroups []string) (identityID int, idType identity.Type, authGroups []string, effectiveAuthGroups []string, projects []string, err error) {
-		return 1, identity.CertificateClientUnrestricted{}, nil, nil, nil, nil
+	err = request.SetRequestor(req, func(ctx context.Context, authenticationMethod string, identifier string) (*request.RequestorHookResult, error) {
+		return &request.RequestorHookResult{
+			IdentityID:   1,
+			IdentityType: identity.CertificateClientUnrestricted{},
+		}, nil
 	}, details)
 	require.NoError(t, err)
 

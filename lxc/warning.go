@@ -14,11 +14,6 @@ import (
 	cli "github.com/canonical/lxd/shared/cmd"
 )
 
-type warningColumn struct {
-	Name string
-	Data func(api.Warning) string
-}
-
 type cmdWarning struct {
 	global *cmdGlobal
 }
@@ -61,7 +56,30 @@ type cmdWarningList struct {
 	flagAll     bool
 }
 
-const defaultWarningColumns = "utSscpLl"
+func (c *cmdWarningList) columns() []cli.ShorthandColumn[api.Warning] {
+	return []cli.ShorthandColumn[api.Warning]{
+		{Shorthand: 'u', Name: "UUID", Data: c.uuidColumnData},
+		{Shorthand: 't', Name: "TYPE", Data: c.typeColumnData},
+		{Shorthand: 'S', Name: "STATUS", Data: c.statusColumnData},
+		{Shorthand: 's', Name: "SEVERITY", Data: c.severityColumnData},
+		{Shorthand: 'c', Name: "COUNT", Data: c.countColumnData},
+		{Shorthand: 'p', Name: "PROJECT", Data: c.projectColumnData},
+		{Shorthand: 'L', Name: "LOCATION", Data: c.locationColumnData},
+		{Shorthand: 'l', Name: "LAST SEEN", Data: c.lastSeenColumnData},
+	}
+}
+
+func (c *cmdWarningList) columnsNonClustered() []cli.ShorthandColumn[api.Warning] {
+	return []cli.ShorthandColumn[api.Warning]{
+		{Shorthand: 'u', Name: "UUID", Data: c.uuidColumnData},
+		{Shorthand: 't', Name: "TYPE", Data: c.typeColumnData},
+		{Shorthand: 'S', Name: "STATUS", Data: c.statusColumnData},
+		{Shorthand: 's', Name: "SEVERITY", Data: c.severityColumnData},
+		{Shorthand: 'c', Name: "COUNT", Data: c.countColumnData},
+		{Shorthand: 'p', Name: "PROJECT", Data: c.projectColumnData},
+		{Shorthand: 'l', Name: "LAST SEEN", Data: c.lastSeenColumnData},
+	}
+}
 
 func (c *cmdWarningList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -88,7 +106,7 @@ Column shorthand chars:
     u - UUID
     t - Type`)
 
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultWarningColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 	cmd.Flags().BoolVarP(&c.flagAll, "all", "a", false, "List all warnings")
 
@@ -136,22 +154,33 @@ func (c *cmdWarningList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Process the columns
-	columns, err := c.parseColumns(remoteServer.IsClustered())
+	defaultColumns := cli.DefaultColumnString(c.columns())
+	var cols []cli.ShorthandColumn[api.Warning]
+	if remoteServer.IsClustered() {
+		cols = c.columns()
+	} else {
+		if c.flagColumns != defaultColumns {
+			if strings.ContainsAny(c.flagColumns, "L") {
+				return errors.New("Can't specify column L when not clustered")
+			}
+		}
+
+		cols = c.columnsNonClustered()
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
+	}
+
+	// Add non-default column that is available for user selection.
+	cols = append(cols,
+		cli.ShorthandColumn[api.Warning]{Shorthand: 'f', Name: "FIRST SEEN", Data: c.firstSeenColumnData},
+	)
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
 	if err != nil {
 		return err
 	}
 
 	// Render the table
-	data := [][]string{}
-	for _, warning := range warnings {
-		row := []string{}
-		for _, column := range columns {
-			row = append(row, column.Data(warning))
-		}
-
-		data = append(data, row)
-	}
-
+	data := cli.ColumnData(columns, warnings)
 	sort.Sort(cli.StringList(data))
 
 	rawData := make([]*api.Warning, len(warnings))
@@ -159,10 +188,7 @@ func (c *cmdWarningList) run(cmd *cobra.Command, args []string) error {
 		rawData[i] = &warnings[i]
 	}
 
-	headers := []string{}
-	for _, column := range columns {
-		headers = append(headers, column.Name)
-	}
+	headers := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, headers, data, rawData)
 }
@@ -201,50 +227,6 @@ func (c *cmdWarningList) typeColumnData(warning api.Warning) string {
 
 func (c *cmdWarningList) uuidColumnData(warning api.Warning) string {
 	return warning.UUID
-}
-
-func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
-	columnsShorthandMap := map[rune]warningColumn{
-		'c': {"COUNT", c.countColumnData},
-		'f': {"FIRST SEEN", c.firstSeenColumnData},
-		'l': {"LAST SEEN", c.lastSeenColumnData},
-		'p': {"PROJECT", c.projectColumnData},
-		's': {"SEVERITY", c.severityColumnData},
-		'S': {"STATUS", c.statusColumnData},
-		't': {"TYPE", c.typeColumnData},
-		'u': {"UUID", c.uuidColumnData},
-	}
-
-	if clustered {
-		columnsShorthandMap['L'] = warningColumn{"LOCATION", c.locationColumnData}
-	} else {
-		if c.flagColumns != defaultWarningColumns {
-			if strings.ContainsAny(c.flagColumns, "L") {
-				return nil, errors.New("Can't specify column L when not clustered")
-			}
-		}
-		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
-	}
-
-	columnList := strings.Split(c.flagColumns, ",")
-
-	columns := []warningColumn{}
-	for _, columnEntry := range columnList {
-		if columnEntry == "" {
-			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in %q", c.flagColumns)
-		}
-
-		for _, columnRune := range columnEntry {
-			column, ok := columnsShorthandMap[columnRune]
-			if !ok {
-				return nil, fmt.Errorf("Unknown column shorthand char '%c' in %q", columnRune, columnEntry)
-			}
-
-			columns = append(columns, column)
-		}
-	}
-
-	return columns, nil
 }
 
 // Acknowledge.

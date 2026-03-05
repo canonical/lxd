@@ -491,10 +491,11 @@ func (d *qemu) unmount() error {
 
 // generateAgentCert creates the necessary server key and certificate if needed.
 func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCert string, clientKey string, err error) {
-	agentCertFile := filepath.Join(d.Path(), "agent.crt")
-	agentKeyFile := filepath.Join(d.Path(), "agent.key")
-	clientCertFile := filepath.Join(d.Path(), "agent-client.crt")
-	clientKeyFile := filepath.Join(d.Path(), "agent-client.key")
+	instancePath := d.Path()
+	agentCertFile := filepath.Join(instancePath, "agent.crt")
+	agentKeyFile := filepath.Join(instancePath, "agent.key")
+	clientCertFile := filepath.Join(instancePath, "agent-client.crt")
+	clientKeyFile := filepath.Join(instancePath, "agent-client.key")
 
 	// Create server certificate.
 	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, false, shared.CertOptions{})
@@ -562,8 +563,9 @@ func (d *qemu) configDriveMountPathClear() error {
 
 // configVirtiofsdPaths returns the path for the socket and PID file to use with config drive virtiofsd process.
 func (d *qemu) configVirtiofsdPaths() (sockPath string, pidPath string) {
-	sockPath = filepath.Join(d.LogPath(), "virtio-fs.config.sock")
-	pidPath = filepath.Join(d.LogPath(), "virtiofsd.pid")
+	logPath := d.LogPath()
+	sockPath = filepath.Join(logPath, "virtio-fs.config.sock")
+	pidPath = filepath.Join(logPath, "virtiofsd.pid")
 
 	return sockPath, pidPath
 }
@@ -1161,7 +1163,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Rotate the log file.
 	logfile := d.LogFilePath()
 	if shared.PathExists(logfile) {
-		_ = os.Remove(logfile + ".old")
 		err := os.Rename(logfile, logfile+".old")
 		if err != nil && !os.IsNotExist(err) {
 			op.Done(err)
@@ -1170,12 +1171,11 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Remove old pid file if needed.
-	if shared.PathExists(d.pidFilePath()) {
-		err = os.Remove(d.pidFilePath())
-		if err != nil {
-			op.Done(err)
-			return fmt.Errorf("Failed removing old PID file %q: %w", d.pidFilePath(), err)
-		}
+	pidFilePath := d.pidFilePath()
+	err = os.Remove(pidFilePath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		op.Done(err)
+		return fmt.Errorf("Failed removing old PID file %q: %w", pidFilePath, err)
 	}
 
 	// Mount the instance's config volume.
@@ -1260,25 +1260,27 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	if d.architectureSupportsUEFI(d.architecture) {
 		// ovmfNeedsUpdate checks if nvram file needs to be regenerated using new template.
 		ovmfNeedsUpdate := func(nvramTarget string) bool {
-			if shared.InSnap() {
-				if filepath.Base(nvramTarget) == "qemu.nvram" {
-					// Older versions of LXD didn't setup a symlink from qemu.nvram to a named
-					// firmware variant specific file, but rather copied the template directly.
-					// So if the resolved target is infact still just the qemu.nvram file we
-					// know its an older version of the firmware and it needs regenerating.
-					return true
-				} else if strings.Contains(nvramTarget, "OVMF") {
-					// The 2MB firmware was deprecated in the LXD snap.
-					// Detect this by the absence of "4MB" in the nvram file target.
-					if !strings.Contains(nvramTarget, "4MB") {
-						return true
-					}
+			if !shared.InSnap() {
+				return false
+			}
 
-					// The EDK2-based CSM firmwares were replaced with Seabios in the LXD snap.
-					// Detect this by the presence of "CSM" in the nvram file target.
-					if strings.Contains(nvramTarget, "CSM") {
-						return true
-					}
+			if filepath.Base(nvramTarget) == "qemu.nvram" {
+				// Older versions of LXD didn't setup a symlink from qemu.nvram to a named
+				// firmware variant specific file, but rather copied the template directly.
+				// So if the resolved target is infact still just the qemu.nvram file we
+				// know its an older version of the firmware and it needs regenerating.
+				return true
+			} else if strings.Contains(nvramTarget, "OVMF") {
+				// The 2MB firmware was deprecated in the LXD snap.
+				// Detect this by the absence of "4MB" in the nvram file target.
+				if !strings.Contains(nvramTarget, "4MB") {
+					return true
+				}
+
+				// The EDK2-based CSM firmwares were replaced with Seabios in the LXD snap.
+				// Detect this by the presence of "CSM" in the nvram file target.
+				if strings.Contains(nvramTarget, "CSM") {
+					return true
 				}
 			}
 
@@ -1615,7 +1617,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		// to the VM. In order to ensure that non-root users in the VM cannot access these
 		// files be sure to mount the 9P share in the VM with the "access=0" option to allow
 		// only root user in VM to access the mounted share.
-		err := filepath.Walk(filepath.Join(d.Path(), "config"),
+		err := filepath.Walk(configSrcPath,
 			func(path string, _ os.FileInfo, err error) error {
 				if err != nil {
 					return err
@@ -1671,7 +1673,8 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Setup background process.
-	p, err := subprocess.NewProcess(d.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...), d.EarlyLogFilePath(), d.EarlyLogFilePath())
+	earlyLogFilePath := d.EarlyLogFilePath()
+	p, err := subprocess.NewProcess(d.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...), earlyLogFilePath, earlyLogFilePath)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1704,7 +1707,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	_, err = p.Wait(context.Background())
 	if err != nil {
-		stderr, _ := os.ReadFile(d.EarlyLogFilePath())
+		stderr, _ := os.ReadFile(earlyLogFilePath)
 		err = fmt.Errorf("Failed to run: %s: %s: %w", strings.Join(p.Args, " "), string(stderr), err)
 		op.Done(err)
 		return err
@@ -2012,10 +2015,6 @@ func (d *qemu) advertiseVsockAddress() error {
 // AgentCertificate returns the server certificate of the lxd-agent.
 func (d *qemu) AgentCertificate() *x509.Certificate {
 	agentCert := filepath.Join(d.Path(), "config", "agent.crt")
-	if !shared.PathExists(agentCert) {
-		return nil
-	}
-
 	cert, err := shared.ReadCert(agentCert)
 	if err != nil {
 		return nil
@@ -2043,8 +2042,9 @@ func (d *qemu) setupNvram() error {
 	d.logger.Debug("Generating NVRAM")
 
 	// Cleanup existing variables file.
+	instancePath := d.Path()
 	for _, varsName := range edk2.GetAchitectureFirmwareVarsCandidates(d.architecture) {
-		err := os.Remove(filepath.Join(d.Path(), varsName))
+		err := os.Remove(filepath.Join(instancePath, varsName))
 		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("Failed removing firmware vars file %q: %w", varsName, err)
 		}
@@ -2083,7 +2083,7 @@ func (d *qemu) setupNvram() error {
 	}
 
 	// Copy the template.
-	err = shared.FileCopy(vmFirmwarePath, filepath.Join(d.Path(), vmFirmwareName))
+	err = shared.FileCopy(vmFirmwarePath, filepath.Join(instancePath, vmFirmwareName))
 	if err != nil {
 		return err
 	}
@@ -2091,8 +2091,9 @@ func (d *qemu) setupNvram() error {
 	// Generate a symlink.
 	// This is so qemu.nvram can always be assumed to be the EDK2 vars file.
 	// The real file name is then used to determine what firmware must be selected.
-	_ = os.Remove(d.nvramPath())
-	err = os.Symlink(vmFirmwareName, d.nvramPath())
+	nvramPath := d.nvramPath()
+	_ = os.Remove(nvramPath)
+	err = os.Symlink(vmFirmwareName, nvramPath)
 	if err != nil {
 		return err
 	}
@@ -2102,8 +2103,11 @@ func (d *qemu) setupNvram() error {
 
 func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
 	basePath := ""
-	if shared.InSnap() && os.Getenv("SNAP_QEMU_PREFIX") != "" {
-		basePath = filepath.Join(os.Getenv("SNAP"), os.Getenv("SNAP_QEMU_PREFIX")) + "/bin/"
+	if shared.InSnap() {
+		snapQEMUPrefix := os.Getenv("SNAP_QEMU_PREFIX")
+		if snapQEMUPrefix != "" {
+			basePath = filepath.Join(os.Getenv("SNAP"), snapQEMUPrefix) + "/bin/"
+		}
 	}
 
 	switch arch {
@@ -2146,9 +2150,7 @@ func (d *qemu) RegisterDevices() {
 }
 
 func (d *qemu) saveConnectionInfo(connInfo *agentAPI.API10Put) error {
-	configDrivePath := filepath.Join(d.Path(), "config")
-
-	f, err := os.Create(filepath.Join(configDrivePath, "agent.conf"))
+	f, err := os.Create(filepath.Join(d.Path(), "config", "agent.conf"))
 	if err != nil {
 		return err
 	}
@@ -2195,57 +2197,55 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 		}
 	})
 
-	// If runConf supplied, perform any instance specific setup of device.
-	if runConf != nil {
-		// If instance is running and then live attach device.
-		if instanceRunning {
-			// Attach NIC to running instance.
-			if len(runConf.NetworkInterface) > 0 {
-				err = d.deviceAttachNIC(runConf.NetworkInterface)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			// Attach disk to running instance.
-			for i, mount := range runConf.Mounts {
-				if mount.FSType == "virtiofs" {
-					mountTag, err := d.deviceAttachPath(dev.Name())
-					if err != nil {
-						return nil, err
-					}
-
-					runConf.Mounts[i].Opts = append(runConf.Mounts[i].Opts, "mountTag="+mountTag)
-				} else {
-					err = d.deviceAttachBlockDevice(mount)
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
-
-			// Attach USB to running instance.
-			for _, usbDev := range runConf.USBDevice {
-				err = d.deviceAttachUSB(usbDev)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			// Attach PCI to running instance.
-			if len(runConf.PCIDevice) > 0 {
-				err = d.deviceAttachPCI(runConf.PCIDevice)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			// If running, run post start hooks now (if not, they will be run
-			// once the instance is started).
-			err = d.runHooks(runConf.PostHooks)
+	// If runConf supplied and the instance is running, perform any instance
+	// specific setup of device and then live attach it to the instance.
+	if runConf != nil && instanceRunning {
+		// Attach NIC to running instance.
+		if len(runConf.NetworkInterface) > 0 {
+			err = d.deviceAttachNIC(runConf.NetworkInterface)
 			if err != nil {
 				return nil, err
 			}
+		}
+
+		// Attach disk to running instance.
+		for i, mount := range runConf.Mounts {
+			if mount.FSType == "virtiofs" {
+				mountTag, err := d.deviceAttachPath(dev.Name())
+				if err != nil {
+					return nil, err
+				}
+
+				runConf.Mounts[i].Opts = append(runConf.Mounts[i].Opts, "mountTag="+mountTag)
+			} else {
+				err = d.deviceAttachBlockDevice(mount)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		// Attach USB to running instance.
+		for _, usbDev := range runConf.USBDevice {
+			err = d.deviceAttachUSB(usbDev)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Attach PCI to running instance.
+		if len(runConf.PCIDevice) > 0 {
+			err = d.deviceAttachPCI(runConf.PCIDevice)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// If running, run post start hooks now (if not, they will be run
+		// once the instance is started).
+		err = d.runHooks(runConf.PostHooks)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -2278,9 +2278,6 @@ func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
 
 // getMaxPCISlotCount returns the maximum allowed number of PCI/PCIe slots for the instance.
 func (d *qemu) getMaxPCISlotCount() (pciSlotCountMax uint8, err error) {
-	// Initialize to the default value for "limits.max_bus_ports".
-	pciSlotCountMax = QEMUDefaultMaxBusPorts
-
 	pciSlotCountMaxStr, ok := d.expandedConfig["limits.max_bus_ports"]
 	if ok && pciSlotCountMaxStr != "" {
 		val, err := strconv.ParseUint(pciSlotCountMaxStr, 10, 8)
@@ -2288,10 +2285,11 @@ func (d *qemu) getMaxPCISlotCount() (pciSlotCountMax uint8, err error) {
 			return 0, fmt.Errorf("Failed parsing %q: %w", "limits.max_bus_ports", err)
 		}
 
-		pciSlotCountMax = uint8(val)
+		return uint8(val), nil
 	}
 
-	return pciSlotCountMax, nil
+	// Return the default value for "limits.max_bus_ports".
+	return QEMUDefaultMaxBusPorts, nil
 }
 
 // busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
@@ -2531,14 +2529,13 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 }
 
 func (d *qemu) deviceDetachPath(deviceName string) error {
-	deviceID := qemuDeviceNameOrID(qemuDeviceIDPrefix, deviceName, "-virtio-fs", qemuDeviceIDMaxLength)
-
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
 		return err
 	}
 
+	deviceID := qemuDeviceNameOrID(qemuDeviceIDPrefix, deviceName, "-virtio-fs", qemuDeviceIDMaxLength)
 	err = monitor.RemoveDevice(deviceID)
 	if err != nil {
 		return err
@@ -2575,7 +2572,6 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		return err
 	}
 
-	deviceID := qemuDeviceIDPrefix + filesystem.PathNameEncode(deviceName)
 	blockDevName := qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
 
 	err = monitor.RemoveFDFromFDSet(blockDevName)
@@ -2583,6 +2579,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		return err
 	}
 
+	deviceID := qemuDeviceIDPrefix + filesystem.PathNameEncode(deviceName)
 	err = monitor.RemoveDevice(deviceID)
 	if err != nil {
 		return err
@@ -3026,7 +3023,8 @@ func (d *qemu) generateConfigShare() error {
 	}
 
 	// Systemd units.
-	err = os.MkdirAll(filepath.Join(configDrivePath, "systemd"), 0500)
+	systemdPath := filepath.Join(configDrivePath, "systemd")
+	err = os.MkdirAll(systemdPath, 0500)
 	if err != nil {
 		return err
 	}
@@ -3063,7 +3061,7 @@ StartLimitBurst=10
 	// is ineffective as there are other means to access their content. This is
 	// not an issue as the lxd-agent.service unit doesn't contain any sensitive
 	// information.
-	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0644)
+	err = os.WriteFile(filepath.Join(systemdPath, "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0644)
 	if err != nil {
 		return err
 	}
@@ -3112,13 +3110,7 @@ rmdir "${PREFIX}/.mnt"
 restorecon -R "${PREFIX}" >/dev/null 2>&1 || true
 `
 
-	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
-	if err != nil {
-		return err
-	}
-
-	udevPath := filepath.Join(configDrivePath, "udev")
-	err = os.MkdirAll(udevPath, 0500)
+	err = os.WriteFile(filepath.Join(systemdPath, "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
 	if err != nil {
 		return err
 	}
@@ -3129,25 +3121,31 @@ restorecon -R "${PREFIX}" >/dev/null 2>&1 || true
 	// transaction if it is running inside a LXD VM. However, some architectures
 	// (like s390x) do not support DMI, so udev rules are used to trigger
 	// the `lxd-agent.service` when either of the virtio ports is detected.
+	if !resources.HasDMI() {
+		udevPath := filepath.Join(configDrivePath, "udev")
+		err = os.MkdirAll(udevPath, 0500)
+		if err != nil {
+			return err
+		}
 
-	// udev conditions are evaluated sequentially so the order matters.
-	// The SUBSYSTEM is part of the event so it is the cheapest check to perform.
-	// The ATTR{name} requires a file read under `/sys`, so it should come last.
+		// udev conditions are evaluated sequentially so the order matters.
+		// The SUBSYSTEM is part of the event so it is the cheapest check to perform.
+		// The ATTR{name} requires a file read under `/sys`, so it should come last.
 
-	// Udev rules to start the lxd-agent.service when QEMU serial devices
-	// (virtio-ports) appear and DMI information isn't available.
-	lxdAgentRules := `# This rule acts as the primary trigger for architectures without DMI
-# (where the systemd generator is skipped). On architectures with DMI, this
-# rule will also fire, but systemd will safely deduplicate the start request.
+		// Udev rules to start the lxd-agent.service when QEMU serial devices
+		// (virtio-ports) appear and DMI information isn't available.
+		lxdAgentRules := `# This rule acts as the primary trigger for architectures without DMI
+# (where the systemd generator is skipped).
 SUBSYSTEM=="virtio-ports", \
 ATTR{name}=="com.canonical.lxd|org.linuxcontainers.lxd", \
 TAG+="systemd", \
 ENV{SYSTEMD_WANTS}+="lxd-agent.service"
 `
 
-	err = os.WriteFile(filepath.Join(udevPath, "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
-	if err != nil {
-		return err
+		err = os.WriteFile(filepath.Join(udevPath, "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
+		if err != nil {
+			return err
+		}
 	}
 
 	// system generator to start the lxd-agent.service when LXD VMs are detected via DMI `board_name`.
@@ -3174,7 +3172,7 @@ fi
 `
 
 	// System generators need to be executable as they are executed directly by systemd to determine which units to enable.
-	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-generator"), []byte(lxdAgentGenerator), 0500)
+	err = os.WriteFile(filepath.Join(systemdPath, "lxd-agent-generator"), []byte(lxdAgentGenerator), 0500)
 	if err != nil {
 		return err
 	}
@@ -3224,7 +3222,9 @@ rm -f "${LIB_SYSTEMD}/system/lxd-agent-9p.service" \
     /etc/systemd/system/multi-user.target.wants/lxd-agent.service
 
 # Install the units.
-cp udev/99-lxd-agent.rules "${LIB_UDEV}/rules.d/"
+if [ -e udev/99-lxd-agent.rules ]; then
+  cp udev/99-lxd-agent.rules "${LIB_UDEV}/rules.d/"
+fi
 cp systemd/lxd-agent-setup "${LIB_SYSTEMD}/"
 cp systemd/lxd-agent.service "${LIB_SYSTEMD}/system/"
 mkdir -p "${LIB_SYSTEMD}/system-generators"
@@ -5038,6 +5038,8 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 		}
 	}
 
+	pciDevPath := filepath.Join("/sys/bus/pci/devices", pciSlotName)
+
 	vgaMode := func() bool {
 		// No VGA mode on mdev.
 		if vgpu != "" {
@@ -5050,12 +5052,12 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 		}
 
 		// Only enable if present on the card.
-		if !shared.PathExists(filepath.Join("/sys/bus/pci/devices", pciSlotName, "boot_vga")) {
+		if !shared.PathExists(filepath.Join(pciDevPath, "boot_vga")) {
 			return false
 		}
 
 		// Skip SRIOV VFs as those are shared with the host card.
-		if shared.PathExists(filepath.Join("/sys/bus/pci/devices", pciSlotName, "physfn")) {
+		if shared.PathExists(filepath.Join(pciDevPath, "physfn")) {
 			return false
 		}
 
@@ -5089,7 +5091,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 		iommuGroupPath = filepath.Join("/sys/bus/mdev/devices", vgpu, "iommu_group", "devices")
 	} else {
 		// Add any other related IOMMU VFs as generic PCI devices.
-		iommuGroupPath = filepath.Join("/sys/bus/pci/devices", pciSlotName, "iommu_group", "devices")
+		iommuGroupPath = filepath.Join(pciDevPath, "iommu_group", "devices")
 	}
 
 	if shared.PathExists(iommuGroupPath) {
@@ -7702,7 +7704,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					// comes from a profile on the new instance as well we don't need to do
 					// anything.
 					if snapArgs.Devices != nil {
-						snapLocalRootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+						snapLocalRootDiskDeviceKey, _, _ := api.GetRootDiskDevice(snapArgs.Devices.CloneNative())
 						if snapLocalRootDiskDeviceKey != "" {
 							snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 						}

@@ -39,10 +39,6 @@ const (
 
 	// headerForwardedProtocol is the forwarded protocol field in request header.
 	headerForwardedProtocol = "X-LXD-forwarded-protocol"
-
-	// headerForwardedIdentityProviderGroups is the forwarded identity provider groups field in request header.
-	// This will be a JSON marshalled []string.
-	headerForwardedIdentityProviderGroups = "X-LXD-forwarded-identity-provider-groups"
 )
 
 const (

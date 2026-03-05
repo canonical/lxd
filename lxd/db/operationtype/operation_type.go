@@ -356,6 +356,8 @@ func (t Type) ConflictAction() ConflictAction {
 	switch t {
 	case Wait:
 		return ConflictActionFail
+	case ClusterMemberEvacuate:
+		return ConflictActionFail // Enforces cluster-wide evacuation exclusivity when used with a shared ConflictReference; this prevents evacuation race conditions.
 	}
 
 	return ConflictActionNone

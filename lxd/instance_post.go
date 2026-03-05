@@ -636,12 +636,12 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 	// profiles in the target project. If the new root disk device differs from the existing
 	// one, add the existing one as a local device to the instance (we don't want to move root
 	// disk device if not necessary, as this is an expensive operation).
-	rootDevKey, rootDev, err := instancetype.GetRootDiskDevice(localDevices.CloneNative())
-	if err != nil && !errors.Is(err, instancetype.ErrNoRootDisk) {
+	rootDevKey, rootDev, err := api.GetRootDiskDevice(localDevices.CloneNative())
+	if err != nil && !errors.Is(err, api.ErrNoRootDisk) {
 		return err
-	} else if errors.Is(err, instancetype.ErrNoRootDisk) {
+	} else if errors.Is(err, api.ErrNoRootDisk) {
 		// Find currently applied root disk device from expanded devices.
-		rootDevKey, rootDev, err = instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		rootDevKey, rootDev, err = api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 		if err != nil {
 			return err
 		}
@@ -651,7 +651,7 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 		// precedence.
 		var profileRootDev map[string]string
 		for i := len(apiProfiles) - 1; i >= 0; i-- {
-			_, profileRootDev, err = instancetype.GetRootDiskDevice(apiProfiles[i].Devices)
+			_, profileRootDev, err = api.GetRootDiskDevice(apiProfiles[i].Devices)
 			if err == nil {
 				break
 			}
@@ -807,7 +807,7 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 	}
 
 	var targetProfileNames []string
-	if targetArgs != nil && len(targetArgs.Profiles) > 0 {
+	if targetArgs != nil && targetArgs.Profiles != nil {
 		targetProfileNames = make([]string, 0, len(targetArgs.Profiles))
 		for _, profile := range targetArgs.Profiles {
 			targetProfileNames = append(targetProfileNames, profile.Name)
@@ -928,11 +928,6 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 			return err
 		}
 
-		err = srcOp.Start()
-		if err != nil {
-			return fmt.Errorf("Failed starting migration source operation: %w", err)
-		}
-
 		sourceSecrets := make(map[string]string, len(srcMigration.conns))
 		for connName, conn := range srcMigration.conns {
 			sourceSecrets[connName] = conn.Secret()
@@ -981,6 +976,15 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 			err = tx.UpdateInstanceNode(ctx, targetProject, srcInstName, newInstName, srcInst.ID(), newMember.Name, srcPool.ID(), volDBType)
 			if err != nil {
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMember.Name, newInstName, err)
+			}
+
+			// Update instance profiles only if profile changes were explicitly requested.
+			// This preserves existing profiles during internal operations like evacuation.
+			if targetProfileNames != nil {
+				err = dbCluster.UpdateInstanceProfiles(ctx, tx.Tx(), int(srcInst.ID()), targetProject, targetProfileNames)
+				if err != nil {
+					return fmt.Errorf("Failed updating profiles for instance %q in project %q: %w", newInstName, targetProject, err)
+				}
 			}
 
 			// Set the cluster group record if needed.

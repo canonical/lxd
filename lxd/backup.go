@@ -325,16 +325,10 @@ func pruneExpiredBackupsTask(stateFunc func() *state.State) (task.Func, task.Sch
 			RunHook: opRun,
 		}
 
+		logger.Info("Pruning expired backups")
 		op, err := operations.ScheduleServerOperation(s, args)
 		if err != nil {
 			logger.Error("Failed creating expired backups operation", logger.Ctx{"err": err})
-			return
-		}
-
-		logger.Info("Pruning expired backups")
-		err = op.Start()
-		if err != nil {
-			logger.Error("Failed starting expired backups operation", logger.Ctx{"err": err})
 			return
 		}
 
