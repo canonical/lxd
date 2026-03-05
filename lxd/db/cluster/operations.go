@@ -26,18 +26,19 @@ import (
 //
 //go:generate mapper stmt -e operation objects
 //go:generate mapper stmt -e operation objects-by-NodeID
+//go:generate mapper stmt -e operation objects-by-NodeID-and-Class
+//go:generate mapper stmt -e operation objects-by-Class
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-UUID
+//go:generate mapper stmt -e operation objects-by-Parent
 //go:generate mapper stmt -e operation create
 //go:generate mapper stmt -e operation create-or-replace
 //go:generate mapper stmt -e operation delete-by-UUID
-//go:generate mapper stmt -e operation delete-by-NodeID
 //
 //go:generate mapper method -i -e operation GetMany
 //go:generate mapper method -i -e operation Create
 //go:generate mapper method -i -e operation CreateOrReplace
 //go:generate mapper method -i -e operation DeleteOne-by-UUID
-//go:generate mapper method -i -e operation DeleteMany-by-NodeID
 //go:generate goimports -w operations.mapper.go
 //go:generate goimports -w operations.interface.mapper.go
 
@@ -70,6 +71,8 @@ type OperationFilter struct {
 	ID     *int64
 	NodeID *int64
 	UUID   *string
+	Parent *int64
+	Class  *int64
 }
 
 // RequestorProtocol is the database representation of the Requestor Protocol.
@@ -276,11 +279,32 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 	return nil
 }
 
-// DeleteOperationsFromNodes deletes operations from nodes with the given list of IDs.
-func DeleteOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
-	_, err := tx.ExecContext(ctx, "DELETE FROM operations WHERE node_id IN "+query.IntParams(nodeIDs...))
+// DeleteNonDurableOperationsFromNodes deletes operations from nodes with the given list of IDs.
+func DeleteNonDurableOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	_, err := tx.ExecContext(ctx, "DELETE FROM operations WHERE class != 4 AND node_id IN "+query.IntParams(nodeIDs...))
 	if err != nil {
 		return fmt.Errorf("Failed deleting operations from nodes: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateOperationNodeID updates the node_id field of an existing operation in the cluster db.
+func UpdateOperationNodeID(ctx context.Context, tx *sql.Tx, opUUID string, newNodeID int64, updatedAt time.Time) error {
+	stmt := `UPDATE operations SET node_id = ?, updated_at = ? WHERE uuid = ?`
+
+	result, err := tx.ExecContext(ctx, stmt, newNodeID, updatedAt, opUUID)
+	if err != nil {
+		return fmt.Errorf("Failed updating operation node ID: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
 
 	return nil

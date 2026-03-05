@@ -9,7 +9,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-func registerDBOperation(op *Operation) error {
+func registerDBBulkOperation(op *Operation) error {
 	if op.state != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
 	}
@@ -39,4 +39,8 @@ func (op *Operation) sendEvent(eventMessage any) {
 	}
 
 	op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
+}
+
+func loadDurableOperationFromDB(op *Operation) (*Operation, error) {
+	return nil, nil
 }
