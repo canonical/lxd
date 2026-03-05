@@ -93,8 +93,11 @@ type cmdOperationList struct {
 	operation *cmdOperation
 
 	flagFormat      string
+	flagColumns     string
 	flagAllProjects bool
 }
+
+const defaultOperationColumns = "itdscC"
 
 func (c *cmdOperationList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -103,6 +106,7 @@ func (c *cmdOperationList) command() *cobra.Command {
 	cmd.Short = "List background operations"
 	cmd.Long = cli.FormatSection("Description", "List background operations")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultOperationColumns, cli.FormatStringFlagLabel("Columns"))
 
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "List operations from all projects")
 
@@ -146,36 +150,77 @@ func (c *cmdOperationList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	clustered := resource.server.IsClustered()
+
+	// Parse column flags.
+	columns, err := c.parseColumns(clustered)
+	if err != nil {
+		return err
+	}
+
 	// Render the table
-	data := [][]string{}
-	for _, op := range operations {
-		cancelable := "NO"
-		if op.MayCancel {
-			cancelable = "YES"
-		}
-
-		entry := []string{op.ID, strings.ToUpper(op.Class), op.Description, strings.ToUpper(op.Status), cancelable, op.CreatedAt.UTC().Format("2006/01/02 15:04 UTC")}
-		if resource.server.IsClustered() {
-			entry = append(entry, op.Location)
-		}
-
-		data = append(data, entry)
-	}
-
+	data := cli.ColumnData(columns, operations)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"ID",
-		"TYPE",
-		"DESCRIPTION",
-		"STATUS",
-		"CANCELABLE",
-		"CREATED"}
-	if resource.server.IsClustered() {
-		header = append(header, "LOCATION")
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, operations)
+}
+
+func (c *cmdOperationList) parseColumns(clustered bool) ([]cli.TypedColumn[api.Operation], error) {
+	columnsShorthandMap := map[rune]cli.TypedColumn[api.Operation]{
+		'i': {Name: "ID", Data: c.idColumnData},
+		't': {Name: "TYPE", Data: c.typeColumnData},
+		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		's': {Name: "STATUS", Data: c.statusColumnData},
+		'c': {Name: "CANCELABLE", Data: c.cancelableColumnData},
+		'C': {Name: "CREATED", Data: c.createdColumnData},
+	}
+
+	if clustered {
+		columnsShorthandMap['L'] = cli.TypedColumn[api.Operation]{Name: "LOCATION", Data: c.locationColumnData}
+	} else {
+		if c.flagColumns != defaultOperationColumns {
+			if strings.ContainsAny(c.flagColumns, "L") {
+				return nil, errors.New("Can't use column shorthand char 'L' (LOCATION) when not clustered")
+			}
+		}
+
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
+	}
+
+	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
+}
+
+func (c *cmdOperationList) idColumnData(op api.Operation) string {
+	return op.ID
+}
+
+func (c *cmdOperationList) typeColumnData(op api.Operation) string {
+	return strings.ToUpper(op.Class)
+}
+
+func (c *cmdOperationList) descriptionColumnData(op api.Operation) string {
+	return op.Description
+}
+
+func (c *cmdOperationList) statusColumnData(op api.Operation) string {
+	return strings.ToUpper(op.Status)
+}
+
+func (c *cmdOperationList) cancelableColumnData(op api.Operation) string {
+	if op.MayCancel {
+		return "YES"
+	}
+
+	return "NO"
+}
+
+func (c *cmdOperationList) createdColumnData(op api.Operation) string {
+	return op.CreatedAt.UTC().Format("2006/01/02 15:04 UTC")
+}
+
+func (c *cmdOperationList) locationColumnData(op api.Operation) string {
+	return op.Location
 }
 
 // Show.

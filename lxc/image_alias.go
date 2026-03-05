@@ -156,14 +156,18 @@ func (c *cmdImageAliasDelete) run(cmd *cobra.Command, args []string) error {
 	return resource.server.DeleteImageAlias(resource.name)
 }
 
+// imageAliasColumn represents a column in the image alias list output.
 // List.
 type cmdImageAliasList struct {
 	global     *cmdGlobal
 	image      *cmdImage
 	imageAlias *cmdImageAlias
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
 }
+
+const defaultImageAliasColumns = "aftd"
 
 func (c *cmdImageAliasList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -175,6 +179,7 @@ func (c *cmdImageAliasList) command() *cobra.Command {
 Filters may be part of the image hash or part of the image alias name.
 `)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultImageAliasColumns, cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -242,8 +247,14 @@ func (c *cmdImageAliasList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Render the table
-	data := [][]string{}
+	// Parse column flags.
+	columns, err := c.parseColumns()
+	if err != nil {
+		return err
+	}
+
+	// Render the table.
+	filteredAliases := make([]api.ImageAliasesEntry, 0, len(aliases))
 	for _, alias := range aliases {
 		if !c.aliasShouldShow(filters, &alias) {
 			continue
@@ -253,19 +264,41 @@ func (c *cmdImageAliasList) run(cmd *cobra.Command, args []string) error {
 			alias.Type = "container"
 		}
 
-		data = append(data, []string{alias.Name, alias.Target[0:12], strings.ToUpper(alias.Type), alias.Description})
+		filteredAliases = append(filteredAliases, alias)
 	}
 
+	data := cli.ColumnData(columns, filteredAliases)
 	sort.Sort(cli.StringList(data))
-
-	header := []string{
-		"ALIAS",
-		"FINGERPRINT",
-		"TYPE",
-		"DESCRIPTION",
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, aliases)
+}
+
+func (c *cmdImageAliasList) parseColumns() ([]cli.TypedColumn[api.ImageAliasesEntry], error) {
+	columnsShorthandMap := map[rune]cli.TypedColumn[api.ImageAliasesEntry]{
+		'a': {Name: "ALIAS", Data: c.aliasColumnData},
+		'f': {Name: "FINGERPRINT", Data: c.fingerprintColumnData},
+		't': {Name: "TYPE", Data: c.typeColumnData},
+		'd': {Name: "DESCRIPTION", Data: c.descriptionColumnData},
+	}
+
+	return cli.ParseColumns(c.flagColumns, columnsShorthandMap)
+}
+
+func (c *cmdImageAliasList) aliasColumnData(alias api.ImageAliasesEntry) string {
+	return alias.Name
+}
+
+func (c *cmdImageAliasList) fingerprintColumnData(alias api.ImageAliasesEntry) string {
+	return alias.Target[0:12]
+}
+
+func (c *cmdImageAliasList) typeColumnData(alias api.ImageAliasesEntry) string {
+	return strings.ToUpper(alias.Type)
+}
+
+func (c *cmdImageAliasList) descriptionColumnData(alias api.ImageAliasesEntry) string {
+	return alias.Description
 }
 
 // Rename.
