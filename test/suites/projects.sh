@@ -551,9 +551,11 @@ test_projects_storage() {
 
   lxc storage volume list "${pool}" --project default
   ! lxc storage volume list "${pool}" --project nonexistent || false
-  if [ "${lxd_backend}" != "ceph" ]; then
-    lxc storage bucket list "${pool}" --project default
-    ! lxc storage bucket list "${pool}" --project nonexistent || false
+  if [ "${lxd_backend}" = "ceph" ] && [ -n "${LXD_CEPH_CEPHOBJECT_RADOSGW:-}" ]; then
+    create_object_storage_pool s3
+    lxc storage bucket list s3 --project default
+    ! lxc storage bucket list s3 --project nonexistent || false
+    delete_object_storage_pool s3
   fi
 
   lxc storage volume create "${pool}" vol
