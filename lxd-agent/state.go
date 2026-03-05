@@ -131,7 +131,7 @@ func networkState() map[string]api.InstanceStateNetwork {
 
 	ifs, err := net.Interfaces()
 	if err != nil {
-		logger.Errorf("Failed to retrieve network interfaces: %v", err)
+		logger.Errorf("Failed retrieving network interfaces: %v", err)
 		return result
 	}
 

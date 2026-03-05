@@ -21,7 +21,7 @@ func templatesApply(path string) ([]string, error) {
 	// Parse the metadata.
 	content, err := os.ReadFile(metaName)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read metadata: %w", err)
+		return nil, fmt.Errorf("Failed reading metadata: %w", err)
 	}
 
 	metadata := new(api.ImageMetadata)
@@ -49,7 +49,7 @@ func templatesApply(path string) ([]string, error) {
 				// Open the existing file.
 				w, err = os.Create(tplPath)
 				if err != nil {
-					return fmt.Errorf("Failed to create template file: %w", err)
+					return fmt.Errorf("Failed creating template file: %w", err)
 				}
 			} else {
 				// Create the directories leading to the file.

@@ -122,7 +122,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 		err = util.LoadModule("vsock")
 		if err != nil {
-			return fmt.Errorf("Unable to load the vsock kernel module: %w", err)
+			return fmt.Errorf("Cannot load the vsock kernel module: %w", err)
 		}
 
 		// Wait for vsock device to appear.
@@ -140,7 +140,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 	err = d.init()
 	if err != nil {
-		return fmt.Errorf("Failed to initialise daemon: %w", err)
+		return fmt.Errorf("Failed initialising daemon: %w", err)
 	}
 
 	// Create a cancellation context.
@@ -158,7 +158,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 			cancelStatusNotifier() // Ensure STOPPED status is written to QEMU status ringbuffer.
 			cancelFunc()
 
-			return fmt.Errorf("Failed to notify systemd of readiness: %w", err)
+			return fmt.Errorf("Failed notifying systemd of readiness: %w", err)
 		}
 	}
 
@@ -247,13 +247,13 @@ func (c *cmdAgent) mountHostShares() {
 
 	b, err := os.ReadFile(agentMountsFile)
 	if err != nil {
-		logger.Errorf("Failed to load agent mounts file %q: %v", agentMountsFile, err)
+		logger.Errorf("Failed loading agent mounts file %q: %v", agentMountsFile, err)
 	}
 
 	var agentMounts []instancetype.VMAgentMount
 	err = json.Unmarshal(b, &agentMounts)
 	if err != nil {
-		logger.Errorf("Failed to parse agent mounts file %q: %v", agentMountsFile, err)
+		logger.Errorf("Failed parsing agent mounts file %q: %v", agentMountsFile, err)
 		return
 	}
 
@@ -274,7 +274,7 @@ func (c *cmdAgent) mountHostShares() {
 		if !shared.PathExists(mount.Target) {
 			err := os.MkdirAll(mount.Target, 0755)
 			if err != nil {
-				l.Error("Failed to create mount target", logger.Ctx{"err": err})
+				l.Error("Failed creating mount target", logger.Ctx{"err": err})
 				continue // Don't try to mount if mount point can't be created.
 			}
 		} else if filesystem.IsMountPoint(mount.Target) {
@@ -290,7 +290,7 @@ func (c *cmdAgent) mountHostShares() {
 
 		_, err = shared.RunCommand(context.TODO(), "mount", args...)
 		if err != nil {
-			l.Error("Failed to mount", logger.Ctx{"err": err, "args": args})
+			l.Error("Failed mounting", logger.Ctx{"err": err, "args": args})
 			continue
 		}
 

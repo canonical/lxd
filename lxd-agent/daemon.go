@@ -48,13 +48,13 @@ func (d *Daemon) init() error {
 	// Set the event server.
 	d.events, err = events.NewServer(d.debug, d.verbose, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to set up event server: %w", err)
+		return fmt.Errorf("Failed setting up event server: %w", err)
 	}
 
 	// Start the server.
 	err = startHTTPServer(d)
 	if err != nil {
-		return fmt.Errorf("Failed to start HTTP server: %w", err)
+		return fmt.Errorf("Failed starting HTTP server: %w", err)
 	}
 
 	// Check whether we should start the devlxd server in the early setup. This way, /dev/lxd/sock

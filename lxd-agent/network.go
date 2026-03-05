@@ -182,13 +182,13 @@ func reconfigureNetworkInterfaces() {
 
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		logger.Error("Unable to read network interfaces", logger.Ctx{"err": err})
+		logger.Error("Cannot read network interfaces", logger.Ctx{"err": err})
 	}
 
 	for _, iface := range ifaces {
 		err = configureNIC(iface)
 		if err != nil {
-			logger.Error("Unable to reconfigure network interface", logger.Ctx{"interface": iface.Name, "err": err})
+			logger.Error("Cannot reconfigure network interface", logger.Ctx{"interface": iface.Name, "err": err})
 		}
 	}
 }
