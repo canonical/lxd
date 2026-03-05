@@ -441,6 +441,11 @@ func (d *common) ListVolumes() ([]Volume, error) {
 	return nil, ErrNotSupported
 }
 
+// ActivateTask runs task with the volume's block device activated but not mounted.
+func (d *common) ActivateTask(vol Volume, task func(devPath string) error) error {
+	return ErrNotSupported
+}
+
 // MountVolume sets up the volume for use.
 func (d *common) MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
