@@ -71,7 +71,7 @@ func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !slices.Contains([]string{"GET", "PUT", "POST", "PATCH", "DELETE"}, c.flagAction) {
-		return fmt.Errorf("Action %q isn't supported by this tool", c.flagAction)
+		return fmt.Errorf("Action %q is not supported by this tool", c.flagAction)
 	}
 
 	// Parse the remote

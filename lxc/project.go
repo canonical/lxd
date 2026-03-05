@@ -883,7 +883,7 @@ func (c *cmdProjectSwitch) run(cmd *cobra.Command, args []string) error {
 	// Make sure the remote exists
 	rc, ok := conf.Remotes[remote]
 	if !ok {
-		return fmt.Errorf("Remote %s doesn't exist", remote)
+		return fmt.Errorf("Remote %s does not exist", remote)
 	}
 
 	// Make sure the project exists

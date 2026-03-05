@@ -167,7 +167,7 @@ func (c *cmdClusterList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return errors.New("LXD server isn't part of a cluster")
+		return errors.New("LXD server is not part of a cluster")
 	}
 
 	// Get the cluster members
@@ -589,7 +589,7 @@ func (c *cmdClusterRemove) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Force removing a member, even if degraded")
-	cmd.Flags().BoolVar(&c.flagNonInteractive, "yes", false, "Don't require user confirmation for using --force")
+	cmd.Flags().BoolVar(&c.flagNonInteractive, "yes", false, "Do not require user confirmation for using --force")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -1013,7 +1013,7 @@ func (c *cmdClusterListTokens) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return errors.New("LXD server isn't part of a cluster")
+		return errors.New("LXD server is not part of a cluster")
 	}
 
 	// Get the cluster member join tokens. Use default project as join tokens are created in default project.
@@ -1115,7 +1115,7 @@ func (c *cmdClusterRevokeToken) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return errors.New("LXD server isn't part of a cluster")
+		return errors.New("LXD server is not part of a cluster")
 	}
 
 	// Get the cluster member join tokens. Use default project as join tokens are created in default project.
@@ -1223,7 +1223,7 @@ func (c *cmdClusterUpdateCertificate) run(cmd *cobra.Command, args []string) err
 	}
 
 	if !cluster.Enabled {
-		return errors.New("LXD server isn't part of a cluster")
+		return errors.New("LXD server is not part of a cluster")
 	}
 
 	cert, err := os.ReadFile(certFile)

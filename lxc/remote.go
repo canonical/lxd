@@ -197,7 +197,7 @@ func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawTok
 	}
 
 	if len(line) == 0 {
-		return errors.New("Failed to add remote")
+		return errors.New("Failed adding remote")
 	}
 
 	err = c.addRemoteFromToken(string(line), server, token, *rawToken)
@@ -238,17 +238,17 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 
 		certOut, err := os.Create(certf)
 		if err != nil {
-			return fmt.Errorf("Failed to create %q: %w", certf, err)
+			return fmt.Errorf("Failed creating %q: %w", certf, err)
 		}
 
 		err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
 		if err != nil {
-			return fmt.Errorf("Failed to write server cert file %q: %w", certf, err)
+			return fmt.Errorf("Failed writing server cert file %q: %w", certf, err)
 		}
 
 		err = certOut.Close()
 		if err != nil {
-			return fmt.Errorf("Failed to close server cert file %q: %w", certf, err)
+			return fmt.Errorf("Failed closing server cert file %q: %w", certf, err)
 		}
 	}
 
@@ -293,14 +293,14 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 	}
 
 	if srv.Auth != api.AuthTrusted {
-		return errors.New("Server doesn't trust us after authentication")
+		return errors.New("Server does not trust us after authentication")
 	}
 
 	// Handle project.
 	remote := conf.Remotes[server]
 	project, err := c.findProject(d, c.flagProject)
 	if err != nil {
-		return fmt.Errorf("Failed to find project: %w", err)
+		return fmt.Errorf("Failed finding project: %w", err)
 	}
 
 	remote.Project = project
@@ -491,7 +491,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	if c.flagToken != "" {
 		rawToken, err := shared.CertificateTokenDecode(c.flagToken)
 		if err != nil {
-			return fmt.Errorf("Failed to decode trust token: %w", err)
+			return fmt.Errorf("Failed decoding trust token: %w", err)
 		}
 
 		return c.runToken(addr, server, c.flagToken, rawToken)
@@ -709,7 +709,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		}
 
 		if srv.Auth != api.AuthTrusted {
-			return errors.New("Server doesn't trust us after authentication")
+			return errors.New("Server does not trust us after authentication")
 		}
 
 		if c.flagAuthType == api.AuthenticationMethodTLS {
@@ -891,7 +891,7 @@ func (c *cmdRemoteRename) run(cmd *cobra.Command, args []string) error {
 	// Rename the remote
 	rc, ok := conf.Remotes[args[0]]
 	if !ok {
-		return fmt.Errorf("Remote %s doesn't exist", args[0])
+		return fmt.Errorf("Remote %s does not exist", args[0])
 	}
 
 	if rc.Static {
@@ -971,7 +971,7 @@ func (c *cmdRemoteRemove) run(cmd *cobra.Command, args []string) error {
 	// Remove the remote
 	rc, ok := conf.Remotes[args[0]]
 	if !ok {
-		return fmt.Errorf("Remote %s doesn't exist", args[0])
+		return fmt.Errorf("Remote %s does not exist", args[0])
 	}
 
 	if rc.Static {
@@ -983,7 +983,7 @@ func (c *cmdRemoteRemove) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if conf.DefaultRemote == args[0] {
-		return errors.New("Can't remove the default remote")
+		return errors.New("Cannot remove the default remote")
 	}
 
 	delete(conf.Remotes, args[0])
@@ -1036,7 +1036,7 @@ func (c *cmdRemoteSwitch) run(cmd *cobra.Command, args []string) error {
 	// Set the default remote
 	_, ok := conf.Remotes[args[0]]
 	if !ok {
-		return fmt.Errorf("Remote %s doesn't exist", args[0])
+		return fmt.Errorf("Remote %s does not exist", args[0])
 	}
 
 	conf.DefaultRemote = args[0]
@@ -1083,7 +1083,7 @@ func (c *cmdRemoteSetURL) run(cmd *cobra.Command, args []string) error {
 	// Set the URL
 	rc, ok := conf.Remotes[args[0]]
 	if !ok {
-		return fmt.Errorf("Remote %s doesn't exist", args[0])
+		return fmt.Errorf("Remote %s does not exist", args[0])
 	}
 
 	if rc.Static {

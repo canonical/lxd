@@ -306,7 +306,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 
 		addr, ok := listener.Addr().(*net.TCPAddr)
 		if !ok {
-			return errors.New("Failed to get TCP listen address")
+			return errors.New("Failed getting TCP listen address")
 		}
 
 		socket = "spice://127.0.0.1:" + strconv.Itoa(addr.Port)
