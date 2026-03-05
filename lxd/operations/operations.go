@@ -727,6 +727,28 @@ func (op *Operation) Render() (string, *api.Operation) {
 	return op.url, retOp
 }
 
+// RenderFull renders the operation structure, including child operations.
+func (op *Operation) RenderFull() (string, *api.OperationFull) {
+	url, baseOp := op.Render()
+
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	retOp := &api.OperationFull{
+		Operation: *baseOp,
+	}
+
+	if len(op.children) > 0 {
+		retOp.Children = make([]api.Operation, 0, len(op.children))
+		for _, childOp := range op.children {
+			_, child := childOp.Render()
+			retOp.Children = append(retOp.Children, *child)
+		}
+	}
+
+	return url, retOp
+}
+
 // RenderWithoutProgress renders the operation structure without progress metadata.
 // This is used when operation constructed from the database is returned via API, as database likely contains stale progress metadata.
 // Progress should be consumed from the websocket events, so it doesn't need to be returned in the API response.
@@ -736,6 +758,28 @@ func (op *Operation) RenderWithoutProgress() (string, *api.Operation) {
 	for key := range retOp.Metadata {
 		if strings.HasSuffix(key, "progress") {
 			delete(retOp.Metadata, key)
+		}
+	}
+
+	return url, retOp
+}
+
+// RenderFullWithoutProgress renders the operation structure, including child operations, without progress metadata.
+func (op *Operation) RenderFullWithoutProgress() (string, *api.OperationFull) {
+	url, baseOp := op.RenderWithoutProgress()
+
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	retOp := &api.OperationFull{
+		Operation: *baseOp,
+	}
+
+	if len(op.children) > 0 {
+		retOp.Children = make([]api.Operation, 0, len(op.children))
+		for _, childOp := range op.children {
+			_, child := childOp.RenderWithoutProgress()
+			retOp.Children = append(retOp.Children, *child)
 		}
 	}
 
