@@ -2983,7 +2983,7 @@ Possible values are `standard` and `fan`.
 ```
 
 ```{config:option} bridge.mtu network-bridge-network-conf
-:defaultdesc: "`1500` if `bridge.mode=standard`, `1480` if `bridge.mode=fan` and `fan.type=ipip`, or `1450` if `bridge.mode=fan` and `fan.type=vxlan`"
+:defaultdesc: "`1400` when tunnels are configured, otherwise `1500` if `bridge.mode=standard` or `1450` if `bridge.mode=fan`"
 :scope: "global"
 :shortdesc: "Bridge MTU"
 :type: "integer"
@@ -3042,15 +3042,6 @@ Specify a comma-separated list of DNS zone names.
 :shortdesc: "Subnet to use as the overlay for the FAN"
 :type: "string"
 Use CIDR notation.
-```
-
-```{config:option} fan.type network-bridge-network-conf
-:condition: "fan mode"
-:defaultdesc: "`vxlan`"
-:scope: "global"
-:shortdesc: "Tunneling type for the FAN"
-:type: "string"
-Possible values are `vxlan` and `ipip`.
 ```
 
 ```{config:option} fan.underlay_subnet network-bridge-network-conf

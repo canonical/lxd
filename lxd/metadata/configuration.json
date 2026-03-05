@@ -3330,7 +3330,7 @@
 					},
 					{
 						"bridge.mtu": {
-							"defaultdesc": "`1500` if `bridge.mode=standard`, `1480` if `bridge.mode=fan` and `fan.type=ipip`, or `1450` if `bridge.mode=fan` and `fan.type=vxlan`",
+							"defaultdesc": "`1400` when tunnels are configured, otherwise `1500` if `bridge.mode=standard` or `1450` if `bridge.mode=fan`",
 							"longdesc": "The default value varies depending on whether the bridge uses a tunnel or a fan setup.",
 							"scope": "global",
 							"shortdesc": "Bridge MTU",
@@ -3395,16 +3395,6 @@
 							"longdesc": "Use CIDR notation.",
 							"scope": "global",
 							"shortdesc": "Subnet to use as the overlay for the FAN",
-							"type": "string"
-						}
-					},
-					{
-						"fan.type": {
-							"condition": "fan mode",
-							"defaultdesc": "`vxlan`",
-							"longdesc": "Possible values are `vxlan` and `ipip`.",
-							"scope": "global",
-							"shortdesc": "Tunneling type for the FAN",
 							"type": "string"
 						}
 					},
