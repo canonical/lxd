@@ -12,7 +12,7 @@ import (
 func TestMain_ServeHTTP(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "loki-test-log")
 	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
+		t.Fatalf("Failed creating temp file: %v", err)
 	}
 
 	defer os.Remove(tmpFile.Name())
@@ -56,12 +56,12 @@ func TestMain_ServeHTTP(t *testing.T) {
 			// Clear the file for each test case
 			err := tmpFile.Truncate(0)
 			if err != nil {
-				t.Fatalf("Failed to truncate file: %v", err)
+				t.Fatalf("Failed truncating file: %v", err)
 			}
 
 			_, err = tmpFile.Seek(0, 0)
 			if err != nil {
-				t.Fatalf("Failed to seek file: %v", err)
+				t.Fatalf("Failed seeking file: %v", err)
 			}
 
 			var req *http.Request
@@ -83,12 +83,12 @@ func TestMain_ServeHTTP(t *testing.T) {
 			if tt.expectedLog != "" {
 				_, err := tmpFile.Seek(0, 0)
 				if err != nil {
-					t.Fatalf("Failed to seek file: %v", err)
+					t.Fatalf("Failed seeking file: %v", err)
 				}
 
 				content, err := io.ReadAll(tmpFile)
 				if err != nil {
-					t.Fatalf("Failed to read file: %v", err)
+					t.Fatalf("Failed reading file: %v", err)
 				}
 
 				if string(content) != tt.expectedLog {
@@ -98,7 +98,7 @@ func TestMain_ServeHTTP(t *testing.T) {
 				// Verify file is empty (optional, but good practice if we expect no logs)
 				stat, err := tmpFile.Stat()
 				if err != nil {
-					t.Fatalf("Failed to stat file: %v", err)
+					t.Fatalf("Failed getting file info: %v", err)
 				}
 
 				if stat.Size() != 0 {
