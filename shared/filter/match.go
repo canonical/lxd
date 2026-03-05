@@ -143,7 +143,7 @@ func (s ClauseSet) match(c Clause, objValue any) (bool, error) {
 	}
 
 	if err != nil {
-		return false, fmt.Errorf("Failed to parse value: %w", err)
+		return false, fmt.Errorf("Failed parsing value: %w", err)
 	}
 
 	switch c.Operator {

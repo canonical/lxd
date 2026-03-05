@@ -47,7 +47,7 @@ func (c *HTTPRequestCanceller) Cancelable() bool {
 // Cancel will attempt to cancel all ongoing operations.
 func (c *HTTPRequestCanceller) Cancel() error {
 	if !c.Cancelable() {
-		return errors.New("This operation can't be canceled at this time")
+		return errors.New("This operation cannot be canceled at this time")
 	}
 
 	c.lock.Lock()

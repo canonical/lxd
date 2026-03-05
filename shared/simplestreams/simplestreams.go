@@ -129,7 +129,7 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 			return cachedBody, nil
 		}
 
-		return nil, fmt.Errorf("Unable to fetch %s: %s", uri, r.Status)
+		return nil, fmt.Errorf("Cannot fetch %s: %s", uri, r.Status)
 	}
 
 	body, err := io.ReadAll(r.Body)
@@ -376,7 +376,7 @@ func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFil
 		}
 	}
 
-	return nil, fmt.Errorf("Couldn't find the requested image for fingerprint %q", fingerprint)
+	return nil, fmt.Errorf("Could not find the requested image for fingerprint %q", fingerprint)
 }
 
 // ListAliases returns a list of image aliases for the provided image fingerprint.
@@ -446,7 +446,7 @@ func (s *SimpleStreams) GetAlias(imageType string, name string) (*api.ImageAlias
 	}
 
 	if match == nil {
-		return nil, fmt.Errorf("Alias %q doesn't exist", name)
+		return nil, fmt.Errorf("Alias %q does not exist", name)
 	}
 
 	return match, nil
@@ -478,7 +478,7 @@ func (s *SimpleStreams) GetAliasArchitectures(imageType string, name string) (ma
 	}
 
 	if len(aliases) == 0 {
-		return nil, fmt.Errorf("Alias %q doesn't exist", name)
+		return nil, fmt.Errorf("Alias %q does not exist", name)
 	}
 
 	return aliases, nil
@@ -500,7 +500,7 @@ func (s *SimpleStreams) GetImage(fingerprint string) (*api.Image, error) {
 	}
 
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("The requested image couldn't be found for fingerprint %q", fingerprint)
+		return nil, fmt.Errorf("The requested image could not be found for fingerprint %q", fingerprint)
 	} else if len(matches) > 1 {
 		return nil, fmt.Errorf("More than one match for the provided partial fingerprint %q", fingerprint)
 	}

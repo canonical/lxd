@@ -15,7 +15,7 @@ import (
 func TestKeyPairAndCA(t *testing.T) {
 	dir, err := os.MkdirTemp("", "lxd-shared-test-")
 	if err != nil {
-		t.Errorf("failed to create temporary dir: %v", err)
+		t.Errorf("failed creating temporary dir: %v", err)
 	}
 
 	defer func() { _ = os.RemoveAll(dir) }()
@@ -43,7 +43,7 @@ func TestKeyPairAndCA(t *testing.T) {
 
 	cert, err := x509.ParseCertificate(info.KeyPair().Certificate[0])
 	if err != nil {
-		t.Errorf("failed to parse generated public x509 key cert: %v", err)
+		t.Errorf("failed parsing generated public x509 key cert: %v", err)
 	}
 
 	if cert.ExtKeyUsage[0] != x509.ExtKeyUsageServerAuth {
@@ -58,7 +58,7 @@ func TestKeyPairAndCA(t *testing.T) {
 
 	_, err = x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		t.Errorf("failed to parse encoded public x509 key cert: %v", err)
+		t.Errorf("failed parsing encoded public x509 key cert: %v", err)
 	}
 }
 
