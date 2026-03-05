@@ -4777,33 +4777,10 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 	bucketVolName := project.StorageVolume(projectName, bucket.Name)
 	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
-	if memberSpecific {
-		// Handle common MinIO implementation for local storage drivers.
-
-		// Stop MinIO process if running.
-		minioProc, err := miniod.Get(bucketVolName)
-		if err != nil {
-			return err
-		}
-
-		if minioProc != nil {
-			err = minioProc.Stop(context.Background())
-			if err != nil {
-				return fmt.Errorf("Failed stopping bucket: %w", err)
-			}
-		}
-
-		vol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, nil)
-		err = b.driver.DeleteVolume(vol, op)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Handle per-driver implementation for remote storage drivers.
-		err = b.driver.DeleteBucket(bucketVol, op)
-		if err != nil {
-			return err
-		}
+	// Handle per-driver implementation for remote storage drivers.
+	err = b.driver.DeleteBucket(bucketVol, op)
+	if err != nil {
+		return err
 	}
 
 	_ = BucketDBDelete(context.TODO(), b, bucket.ID)
