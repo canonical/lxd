@@ -4889,10 +4889,6 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 		return nil, errors.New("Storage pool does not support buckets")
 	}
 
-	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
-	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Second*30)
-	defer ctxCancel()
-
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -4921,51 +4917,13 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 		return nil, err
 	}
 
-	var newCreds *drivers.S3Credentials
-
-	if memberSpecific {
-		// Handle common MinIO implementation for local storage drivers.
-
-		// Start minio process.
-		minioProc, err := b.ActivateBucket(projectName, bucket.Name, op)
-		if err != nil {
-			return nil, err
-		}
-
-		bucketPolicy, err := s3.BucketPolicy(bucket.Name, key.Role)
-		if err != nil {
-			return nil, err
-		}
-
-		adminClient, err := minioProc.AdminClient()
-		if err != nil {
-			return nil, err
-		}
-
-		adminCreds, err := adminClient.AddServiceAccount(ctx, miniod.ServiceAccountArgs{
-			Policy:    bucketPolicy,
-			AccessKey: key.AccessKey,
-			SecretKey: key.SecretKey,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		revert.Add(func() { _ = adminClient.DeleteServiceAccount(ctx, adminCreds.AccessKey) })
-
-		newCreds = &drivers.S3Credentials{
-			AccessKey: adminCreds.AccessKey,
-			SecretKey: adminCreds.SecretKey,
-		}
-	} else {
-		// Handle per-driver implementation for remote storage drivers.
-		newCreds, err = b.driver.CreateBucketKey(bucketVol, key.Name, creds, key.Role, op)
-		if err != nil {
-			return nil, err
-		}
-
-		revert.Add(func() { _ = b.driver.DeleteBucketKey(bucketVol, key.Name, op) })
+	// Handle per-driver implementation for remote storage drivers.
+	newCreds, err := b.driver.CreateBucketKey(bucketVol, key.Name, creds, key.Role, op)
+	if err != nil {
+		return nil, err
 	}
+
+	revert.Add(func() { _ = b.driver.DeleteBucketKey(bucketVol, key.Name, op) })
 
 	key.AccessKey = newCreds.AccessKey
 	key.SecretKey = newCreds.SecretKey
