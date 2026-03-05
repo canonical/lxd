@@ -1136,7 +1136,7 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 	for _, key := range changed {
 		switch key {
 		case "limits.instances":
-			err := validateTotalInstanceCountLimit(info.Instances, config[key], projectName)
+			err := validateTotalInstanceCountLimit(info.Instances, config[key])
 			if err != nil {
 				return fmt.Errorf("Cannot change %q in project %q: %w", key, projectName, err)
 			}
@@ -1163,7 +1163,7 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 
 // Check that limits.instances, i.e. the total limit of containers/virtual machines allocated
 // to the user is equal to or above the current count.
-func validateTotalInstanceCountLimit(instances []api.Instance, value, project string) error {
+func validateTotalInstanceCountLimit(instances []api.Instance, value string) error {
 	if value == "" {
 		return nil
 	}
@@ -1176,7 +1176,7 @@ func validateTotalInstanceCountLimit(instances []api.Instance, value, project st
 	count := len(instances)
 
 	if limit < count {
-		return fmt.Errorf(`"limits.instances" is too low: there currently are %d total instances in project %q`, count, project)
+		return fmt.Errorf(`"limits.instances" is too low: current instance count (%d) would exceed the new limit (%d)`, count, limit)
 	}
 
 	return nil
