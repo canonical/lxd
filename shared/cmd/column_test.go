@@ -57,7 +57,7 @@ func TestParseColumns(t *testing.T) {
 	// Empty string.
 	_, err = ParseColumns("", shorthandMap)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Empty column entry")
+	assert.Contains(t, err.Error(), "Column list must not be empty")
 }
 
 func TestDefaultColumnString(t *testing.T) {

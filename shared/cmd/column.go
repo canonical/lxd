@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -48,7 +49,7 @@ func ParseShorthandColumns[T any](flagColumns string, columns []ShorthandColumn[
 // maps to one column via the shorthand map.
 func ParseColumns[T any](flagColumns string, shorthandMap map[rune]TypedColumn[T]) ([]TypedColumn[T], error) {
 	if flagColumns == "" {
-		return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing comma) in %q", flagColumns)
+		return nil, errors.New("Column list must not be empty")
 	}
 
 	columnList := strings.Split(flagColumns, ",")
