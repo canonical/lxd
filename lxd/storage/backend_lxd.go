@@ -4680,12 +4680,10 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 		return errors.New("Storage pool does not support buckets")
 	}
 
-	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
-
 	// Get current config to compare what has changed.
 	var curBucket *db.StorageBucket
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		curBucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
+		curBucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, false, bucketName)
 		return err
 	})
 	if err != nil {
@@ -4764,11 +4762,9 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 		return errors.New("Storage pool does not support buckets")
 	}
 
-	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
-
 	var bucket *db.StorageBucket
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, false, bucketName)
 		return err
 	})
 	if err != nil {
@@ -4805,11 +4801,9 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 	revert := revert.New()
 	defer revert.Fail()
 
-	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
-
 	var bucket *db.StorageBucket
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, false, bucketName)
 		return err
 	})
 	if err != nil {
@@ -4877,13 +4871,11 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 		return errors.New("Storage pool does not support buckets")
 	}
 
-	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
-
 	// Get current config to compare what has changed.
 	var bucket *db.StorageBucket
 	var curBucketKey *db.StorageBucketKey
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, false, bucketName)
 		if err != nil {
 			return err
 		}
@@ -4969,12 +4961,10 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 		return errors.New("Storage pool does not support buckets")
 	}
 
-	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
-
 	var bucket *db.StorageBucket
 	var bucketKey *db.StorageBucketKey
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, false, bucketName)
 		if err != nil {
 			return err
 		}
