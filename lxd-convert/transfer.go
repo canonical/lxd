@@ -38,14 +38,14 @@ func rsyncSend(ctx context.Context, conn *websocket.Conn, path string, rsyncArgs
 	if err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		return fmt.Errorf("Failed to rsync: %v\n%s", err, output)
+		return fmt.Errorf("Failed rsyncing: %v\n%s", err, output)
 	}
 
 	err = cmd.Wait()
 	<-readDone
 
 	if err != nil {
-		return fmt.Errorf("Failed to rsync: %v\n%s", err, output)
+		return fmt.Errorf("Failed rsyncing: %v\n%s", err, output)
 	}
 
 	return nil
