@@ -148,6 +148,8 @@ func (i IdentityType) ActiveType() (IdentityType, error) {
 	switch i {
 	case api.IdentityTypeCertificateClientPending:
 		return api.IdentityTypeCertificateClient, nil
+	case api.IdentityTypeCertificateClusterLinkPending:
+		return api.IdentityTypeCertificateClusterLink, nil
 	default:
 		return "", fmt.Errorf("Identities of type %q cannot be activated", i)
 	}
@@ -434,8 +436,7 @@ var pendingIdentityTypes = func() (result []int64) {
 	return result
 }
 
-// GetPendingTLSIdentityByTokenSecret gets a single identity of type [api.IdentityTypeCertificateClientPending] with the given secret in its metadata.
-// If no pending identity is found, an [api.StatusError] is returned with [http.StatusNotFound].
+// GetPendingTLSIdentityByTokenSecret gets a single identity of type [identityTypeCertificateClientPending] or [identityTypeCertificateClusterLinkPending] with the given secret in its metadata. If no pending identity is found, an [api.StatusError] is returned with [http.StatusNotFound].
 func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
 	stmt := fmt.Sprintf(`
 	SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
