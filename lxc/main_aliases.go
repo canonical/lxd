@@ -29,8 +29,9 @@ func findAlias(aliases map[string]string, origArgs []string) (aliasKey []string,
 	aliasValue = []string{}
 
 	for k, v := range aliases {
+		parts := strings.Split(k, " ")
 		foundAlias = true
-		for i, key := range strings.Split(k, " ") {
+		for i, key := range parts {
 			if len(origArgs) <= i+1 || origArgs[i+1] != key {
 				foundAlias = false
 				break
@@ -38,7 +39,7 @@ func findAlias(aliases map[string]string, origArgs []string) (aliasKey []string,
 		}
 
 		if foundAlias {
-			aliasKey = strings.Split(k, " ")
+			aliasKey = parts
 			aliasValue = strings.Split(v, " ")
 			break
 		}
