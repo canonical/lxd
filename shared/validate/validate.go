@@ -951,7 +951,7 @@ func IsClusterGroupName(name string) error {
 		return errors.New("Cluster group names may not contain underscores")
 	}
 
-	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
+	if strings.ContainsAny(name, `'"`) {
 		return errors.New("Cluster group names may not contain quotes")
 	}
 
