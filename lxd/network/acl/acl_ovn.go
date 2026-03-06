@@ -551,19 +551,19 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 	// For each criterion check if value looks like an IP range or IP CIDR, and if not use it as an ACL name.
 	for _, subjectCriterion := range subjectCriteria {
 		if validate.IsNetworkRange(subjectCriterion) == nil {
-			criterionParts := strings.SplitN(subjectCriterion, "-", 2)
-			if len(criterionParts) <= 1 {
+			firstIP, lastIP, found := strings.Cut(subjectCriterion, "-")
+			if !found {
 				return "", false, nil, fmt.Errorf("Invalid IP range %q", subjectCriterion)
 			}
 
-			ip := net.ParseIP(criterionParts[0])
+			ip := net.ParseIP(firstIP)
 			if ip != nil {
 				protocol := "ip4"
 				if ip.To4() == nil {
 					protocol = "ip6"
 				}
 
-				fieldParts = append(fieldParts, fmt.Sprintf("(%s.%s >= %s && %s.%s <= %s)", protocol, direction, criterionParts[0], protocol, direction, criterionParts[1]))
+				fieldParts = append(fieldParts, fmt.Sprintf("(%s.%s >= %s && %s.%s <= %s)", protocol, direction, firstIP, protocol, direction, lastIP))
 			}
 		} else {
 			// Try parsing subject as single IP or CIDR.
@@ -596,14 +596,14 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 					networkSpecific = true
 				} else if strings.HasPrefix(subjectCriterion, "@") {
 					// Subject is a network peer name. Convert to address set criteria.
-					peerParts := strings.SplitN(strings.TrimPrefix(subjectCriterion, "@"), "/", 2)
-					if len(peerParts) != 2 {
+					networkName, peerName, found := strings.Cut(strings.TrimPrefix(subjectCriterion, "@"), "/")
+					if !found {
 						return "", false, nil, fmt.Errorf("Cannot parse subject as peer %q", subjectCriterion)
 					}
 
 					peer := db.NetworkPeer{
-						NetworkName: peerParts[0],
-						PeerName:    peerParts[1],
+						NetworkName: networkName,
+						PeerName:    peerName,
 					}
 
 					networkID, found := peerTargetNetIDs[peer]
