@@ -23,10 +23,13 @@ const DevDiskByID = "/dev/disk/by-id"
 // if the path matches the required criteria.
 type devicePathFilterFunc func(devPath string) bool
 
-// findDiskDevivePath iterates over device names in /dev/disk/by-id directory and
+// findDiskDevicePath iterates over device names in /dev/disk/by-id directory and
 // returns the path to the disk device that matches the given prefix and suffix.
 // Disk partitions are skipped, and an error is returned if the device is not found.
-func findDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFunc) (string, error) {
+// When symlinks evaluation is set to true function attempts to evaluate
+// symlinks, returning (on success) a path to the disk device with all symlinks
+// fully resolved. Otherwise it may return a symlink to the disk device.
+func findDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFunc, evalSymlinks bool) (string, error) {
 	var diskPaths []string
 
 	// If there are no other disks on the system by id, the directory might not
@@ -52,6 +55,11 @@ func findDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFu
 		devPath, err := filepath.EvalSymlinks(diskPath)
 		if err != nil {
 			return "", err
+		}
+
+		// If the user requested no symlink evaluation return disk path.
+		if !evalSymlinks {
+			return diskPath, nil
 		}
 
 		return devPath, nil
@@ -228,7 +236,7 @@ func WaitDiskDevicePath(ctx context.Context, diskNamePrefix string, diskPathFilt
 
 	for {
 		// Check if the device is already present.
-		diskPath, err = findDiskDevicePath(diskNamePrefix, diskPathFilter)
+		diskPath, err = findDiskDevicePath(diskNamePrefix, diskPathFilter, false)
 		if err != nil && !errors.Is(err, unix.ENOENT) {
 			return "", err
 		}
@@ -253,8 +261,11 @@ func WaitDiskDevicePath(ctx context.Context, diskNamePrefix string, diskPathFilt
 // GetDiskDevicePath checks whether the disk device with a given prefix and suffix
 // exists in /dev/disk/by-id directory. A device path is returned if the device is
 // found, otherwise an error is returned.
+// When symlinks evaluation is set to true function attempts to evaluate
+// symlinks, returning (on success) a path to the disk device with all symlinks
+// fully resolved. Otherwise it may return a symlink to the disk device.
 func GetDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFunc) (string, error) {
-	devPath, err := findDiskDevicePath(diskNamePrefix, diskPathFilter)
+	devPath, err := findDiskDevicePath(diskNamePrefix, diskPathFilter, true)
 	if err != nil {
 		return "", err
 	}
