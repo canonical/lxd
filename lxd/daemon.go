@@ -2728,7 +2728,7 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 		logger.Debug("Upgrading members without raft role in heartbeat", logger.Ctx{"local": localClusterAddress})
 		err := upgradeNodesWithoutRaftRole(s, d.gateway)
 		if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
-			logger.Warn("Failed upgrading raft roles:", logger.Ctx{"err": err, "local": localClusterAddress})
+			logger.Warn("Failed upgrading raft roles", logger.Ctx{"err": err, "local": localClusterAddress})
 		}
 	}
 
