@@ -19,7 +19,7 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/daemon"
@@ -1063,6 +1063,10 @@ func (n *bridge) getDnsmasqArgs(bridge *ip.Bridge) ([]string, error) {
 		"--dhcp-ignore-clid", // Added after 2.81
 	}
 
+	netPath := shared.VarPath("networks", n.name)
+	leasefile := netPath + "/dnsmasq.leases"
+	hostsDir := netPath + "/dnsmasq.hosts"
+
 	if !daemon.Debug {
 		// Added after 2.67
 		dnsmasqCmd = append(dnsmasqCmd, "--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra")
@@ -1082,7 +1086,7 @@ func (n *bridge) getDnsmasqArgs(bridge *ip.Bridge) ([]string, error) {
 		dnsmasqCmd = append(dnsmasqCmd, "--listen-address="+ipv4Address.String())
 		if n.DHCPv4Subnet() != nil {
 			if !slices.Contains(dnsmasqCmd, "--dhcp-no-override") {
-				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile="+shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile="+shared.VarPath("networks", n.name, "dnsmasq.hosts"))
+				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile="+leasefile, "--dhcp-hostsdir="+hostsDir)
 			}
 
 			if n.config["ipv4.dhcp.gateway"] != "" {
@@ -1129,7 +1133,7 @@ func (n *bridge) getDnsmasqArgs(bridge *ip.Bridge) ([]string, error) {
 		if n.DHCPv6Subnet() != nil {
 			// Build DHCP configuration.
 			if !slices.Contains(dnsmasqCmd, "--dhcp-no-override") {
-				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile="+shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile="+shared.VarPath("networks", n.name, "dnsmasq.hosts"))
+				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile="+leasefile, "--dhcp-hostsdir="+hostsDir)
 			}
 
 			expiry := "1h"
@@ -1174,7 +1178,7 @@ func (n *bridge) addDnsmasqFanArgs(args []string, address string, fanMTU uint32)
 		"--dhcp-no-override", "--dhcp-authoritative",
 		fmt.Sprintf("--dhcp-option-force=26,%d", fanMTU),
 		"--dhcp-leasefile="+shared.VarPath("networks", n.name, "dnsmasq.leases"),
-		"--dhcp-hostsfile="+shared.VarPath("networks", n.name, "dnsmasq.hosts"),
+		"--dhcp-hostsdir="+shared.VarPath("networks", n.name, "dnsmasq.hosts"),
 		"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry))
 
 	return args, nil
