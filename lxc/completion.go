@@ -1413,7 +1413,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 		return results, compdir | cobra.ShellCompDirectiveNoSpace
 	}
 
-	pool := strings.Split(toComplete, "/")[0]
+	pool, _, _ := strings.Cut(toComplete, "/")
 	volumes, compdir := g.cmpStoragePoolVolumes(pool)
 	if compdir == cobra.ShellCompDirectiveError {
 		return nil, compdir
