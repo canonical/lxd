@@ -1374,17 +1374,18 @@ func (g *cmdGlobal) cmpStoragePoolConfigs(poolName string) ([]string, cobra.Shel
 	resource := resources[0]
 	client := resource.server
 
-	if strings.Contains(poolName, ":") {
-		poolName = strings.Split(poolName, ":")[1]
+	_, pool, found := strings.Cut(poolName, ":")
+	if !found {
+		pool = poolName
 	}
 
-	pool, _, err := client.GetStoragePool(poolName)
+	storagePool, _, err := client.GetStoragePool(pool)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	results := make([]string, 0, len(pool.Config))
-	for k := range pool.Config {
+	results := make([]string, 0, len(storagePool.Config))
+	for k := range storagePool.Config {
 		results = append(results, k)
 	}
 
