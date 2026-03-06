@@ -834,10 +834,10 @@ func (n *bridge) Validate(config map[string]string) error {
 				return errors.New("The minimum MTU for an IPv4 network is 68")
 			}
 
-			if config["bridge.mode"] == "fan" {
-				if mtu > 1450 {
-					return errors.New("Maximum MTU for a FAN bridge is 1450")
-				}
+			if config["bridge.mode"] == "fan" && mtu > 1450 {
+				return errors.New("Maximum MTU for a FAN bridge is 1450")
+			} else if n.hasTunnels(config) && mtu > 1400 {
+				return errors.New("Maximum MTU for a bridge with tunnels is 1400")
 			}
 		}
 	}
@@ -2561,6 +2561,17 @@ func (n *bridge) getTunnels() []string {
 	}
 
 	return tunnels
+}
+
+// hasTunnels returns true if the given config contains any tunnel entries.
+func (n *bridge) hasTunnels(config map[string]string) bool {
+	for k := range config {
+		if strings.HasPrefix(k, "tunnel.") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // bootRoutesV4 returns a list of IPv4 boot routes on the network's device.
