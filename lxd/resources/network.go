@@ -668,13 +668,13 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		// Bond mode.
 		strValue, err := os.ReadFile(filepath.Join(bondPath, "mode"))
 		if err == nil {
-			bonding.Mode = strings.Split(strings.TrimSpace(string(strValue)), " ")[0]
+			bonding.Mode, _, _ = strings.Cut(strings.TrimSpace(string(strValue)), " ")
 		}
 
 		// Bond transmit policy.
 		strValue, err = os.ReadFile(filepath.Join(bondPath, "xmit_hash_policy"))
 		if err == nil {
-			bonding.TransmitPolicy = strings.Split(strings.TrimSpace(string(strValue)), " ")[0]
+			bonding.TransmitPolicy, _, _ = strings.Cut(strings.TrimSpace(string(strValue)), " ")
 		}
 
 		// Up delay.
