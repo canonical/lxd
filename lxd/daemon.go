@@ -291,7 +291,7 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 			for _, muxVar := range muxVars {
 				muxValue := vars[muxVar]
 				if muxValue == "" {
-					return response.InternalError(fmt.Errorf("Failed to perform permission check: Path argument label %q not found in request URL %q", muxVar, r.URL))
+					return response.InternalError(fmt.Errorf("Failed performing permission check: Path argument label %q not found in request URL %q", muxVar, r.URL))
 				}
 
 				muxValues = append(muxValues, muxValue)
@@ -299,7 +299,7 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 
 			entityURL, err = entityType.URL(request.QueryParam(r, "project"), request.QueryParam(r, "target"), muxValues...)
 			if err != nil {
-				return response.InternalError(fmt.Errorf("Failed to perform permission check: %w", err))
+				return response.InternalError(fmt.Errorf("Failed performing permission check: %w", err))
 			}
 		}
 
@@ -425,7 +425,7 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, entityT
 						continue
 					}
 
-					return fmt.Errorf("Failed to check entitlement %q for entity URL %q: %w", entitlement, u, err)
+					return fmt.Errorf("Failed checking entitlement %q for entity URL %q: %w", entitlement, u, err)
 				}
 
 				entitlements = append(entitlements, string(entitlement))
@@ -441,7 +441,7 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, entityT
 	for _, entitlement := range requestedEntitlements {
 		checker, err := authorizer.GetPermissionChecker(ctx, entitlement, entityType)
 		if err != nil {
-			return fmt.Errorf("Failed to get a permission checker for entitlement %q and for entity type %q: %w", entitlement, entityType, err)
+			return fmt.Errorf("Failed getting a permission checker for entitlement %q and for entity type %q: %w", entitlement, entityType, err)
 		}
 
 		checkersByEntitlement[entitlement] = checker
@@ -636,7 +636,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 		bearerRequestor, err := bearer.Authenticate(subject, token, tokenLocation, d.identityCache)
 		if err != nil {
 			// Deny access if the provided token is not verifiable.
-			return nil, fmt.Errorf("Failed to verify bearer token: %w", err)
+			return nil, fmt.Errorf("Failed verifying bearer token: %w", err)
 		}
 
 		// We successfully authenticated the user via bearer token.
@@ -777,7 +777,7 @@ func (d *Daemon) State() *state.State {
 		localClusterAddress := s.LocalConfig.ClusterAddress()
 		leaderAddress, err := d.gateway.LeaderAddress()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get the address of the cluster leader: %w", err)
+			return nil, fmt.Errorf("Failed getting the address of the cluster leader: %w", err)
 		}
 
 		return &state.LeaderInfo{
@@ -1345,7 +1345,7 @@ func (d *Daemon) init() error {
 	if err == nil {
 		fd, err := os.Open(testDev)
 		if err != nil && os.IsPermission(err) {
-			logger.Warn("Unable to access device nodes, LXD likely running on a nodev mount")
+			logger.Warn("Cannot access device nodes, LXD likely running on a nodev mount")
 			d.os.Nodev = true
 		}
 
@@ -1405,7 +1405,7 @@ func (d *Daemon) init() error {
 		if shared.PathExists(tarballPath) {
 			err = cluster.DatabaseReplaceFromTarball(tarballPath, d.db.Node)
 			if err != nil {
-				return fmt.Errorf("Failed to load recovery tarball: %w", err)
+				return fmt.Errorf("Failed loading recovery tarball: %w", err)
 			}
 		}
 	}
@@ -1461,7 +1461,7 @@ func (d *Daemon) init() error {
 		if !filesystem.IsMountPoint(devLXD) {
 			err = unix.Mount("tmpfs", devLXD, "tmpfs", 0, "size=100k,mode=0755")
 			if err != nil {
-				logger.Warn("Failed to mount devLXD", logger.Ctx{"err": err})
+				logger.Warn("Failed mounting devLXD", logger.Ctx{"err": err})
 			}
 		}
 	}
@@ -1570,7 +1570,7 @@ func (d *Daemon) init() error {
 			continue
 		}
 
-		return fmt.Errorf("Failed to initialize global database: %w", err)
+		return fmt.Errorf("Failed initializing global database: %w", err)
 	}
 
 	// Load the embedded OpenFGA authorizer. This cannot be loaded until after the cluster database is initialised,
@@ -1618,7 +1618,7 @@ func (d *Daemon) init() error {
 		// Add the per-project config options to the daemon config schema.
 		projects, err := dbCluster.GetProjectNames(ctx, tx.Tx())
 		if err != nil {
-			return fmt.Errorf("Failed to get project names: %w", err)
+			return fmt.Errorf("Failed getting project names: %w", err)
 		}
 
 		node.ConfigSchema.Lock()
@@ -1653,7 +1653,7 @@ func (d *Daemon) init() error {
 	if len(userAgentFeatures) > 0 {
 		err = version.UserAgentFeatures(userAgentFeatures)
 		if err != nil {
-			logger.Warn("Failed to configure LXD user agent", logger.Ctx{"err": err, "features": userAgentFeatures})
+			logger.Warn("Failed configuring LXD user agent", logger.Ctx{"err": err, "features": userAgentFeatures})
 		}
 	}
 
@@ -1744,7 +1744,7 @@ func (d *Daemon) init() error {
 	if lokiURL != "" {
 		err = d.setupLoki(lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes)
 		if err != nil {
-			logger.Warn("Failed to setup Loki", logger.Ctx{"err": err})
+			logger.Warn("Failed setting up Loki", logger.Ctx{"err": err})
 		}
 	}
 
@@ -1764,7 +1764,7 @@ func (d *Daemon) init() error {
 		sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, d.globalConfig.OIDCSessionExpiry)
 		d.oidcVerifier, err = oidc.NewVerifier(d.shutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, d.globalConfig.ClusterUUID(), d.endpoints.NetworkAddress(), d.getCoreAuthSecrets, httpClientFunc, sessionHandler)
 		if err != nil {
-			logger.Warn("Failed to setup OIDC verifier", logger.Ctx{"err": err})
+			logger.Warn("Failed setting up OIDC verifier", logger.Ctx{"err": err})
 		}
 	}
 
@@ -1789,7 +1789,7 @@ func (d *Daemon) init() error {
 			// Full content was requested.
 			zoneBuilder, err := zone.Content(d.shutdownCtx)
 			if err != nil {
-				logger.Errorf("Failed to render DNS zone %q: %v", name, err)
+				logger.Errorf("Failed rendering DNS zone %q: %v", name, err)
 				return nil, err
 			}
 
@@ -1798,7 +1798,7 @@ func (d *Daemon) init() error {
 			// SOA only.
 			zoneBuilder, err := zone.SOA()
 			if err != nil {
-				logger.Errorf("Failed to render DNS zone %q: %v", name, err)
+				logger.Errorf("Failed rendering DNS zone %q: %v", name, err)
 				return nil, err
 			}
 
@@ -1927,13 +1927,13 @@ func (d *Daemon) init() error {
 						break
 					}
 
-					logger.Warn("Unable to connect to MAAS, trying again in a minute", logger.Ctx{"url": maasAPIURL, "err": err})
+					logger.Warn("Cannot connect to MAAS, trying again in a minute", logger.Ctx{"url": maasAPIURL, "err": err})
 
 					if !warningAdded {
 						_ = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 							err := tx.UpsertWarningLocalNode(ctx, "", "", -1, warningtype.UnableToConnectToMAAS, err.Error())
 							if err != nil {
-								logger.Warn("Failed to create warning", logger.Ctx{"err": err})
+								logger.Warn("Failed creating warning", logger.Ctx{"err": err})
 							}
 
 							return nil
@@ -1968,7 +1968,7 @@ func (d *Daemon) init() error {
 		for _, w := range dbWarnings {
 			err := tx.UpsertWarningLocalNode(ctx, "", "", -1, warningtype.Type(w.TypeCode), w.LastMessage)
 			if err != nil {
-				logger.Warn("Failed to create warning", logger.Ctx{"err": err})
+				logger.Warn("Failed creating warning", logger.Ctx{"err": err})
 			}
 		}
 
@@ -1978,7 +1978,7 @@ func (d *Daemon) init() error {
 	// Resolve warnings older than the daemon start time
 	err = warnings.ResolveWarningsByLocalNodeOlderThan(d.db.Cluster, d.startTime)
 	if err != nil {
-		logger.Warn("Failed to resolve warnings", logger.Ctx{"err": err})
+		logger.Warn("Failed resolving warnings", logger.Ctx{"err": err})
 	}
 
 	// Start cluster tasks if needed.
@@ -2055,12 +2055,12 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 	err := d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(authenticationMethod), identifier)
 		if err != nil {
-			return fmt.Errorf("Failed to get identity: %w", err)
+			return fmt.Errorf("Failed getting identity: %w", err)
 		}
 
 		idType, err := identity.New(string(id.Type))
 		if err != nil {
-			return fmt.Errorf("Failed to determine type of identity: %w", err)
+			return fmt.Errorf("Failed determining type of identity: %w", err)
 		}
 
 		res.IdentityID = id.ID
@@ -2075,7 +2075,7 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 		if !idType.IsFineGrained() {
 			dbProjects, err := dbCluster.GetCertificateProjects(ctx, tx.Tx(), id.ID)
 			if err != nil {
-				return fmt.Errorf("Failed to get projects for identity: %w", err)
+				return fmt.Errorf("Failed getting projects for identity: %w", err)
 			}
 
 			res.Projects = make([]string, 0, len(dbProjects))
@@ -2089,7 +2089,7 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 		// Otherwise get the authorization groups.
 		dbGroups, err := dbCluster.GetAuthGroupsByIdentityID(ctx, tx.Tx(), id.ID)
 		if err != nil {
-			return fmt.Errorf("Failed to get groups for identity: %w", err)
+			return fmt.Errorf("Failed getting groups for identity: %w", err)
 		}
 
 		res.AuthGroups = make([]string, 0, len(dbGroups))
@@ -2100,7 +2100,7 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 		if idType.Name() == api.IdentityTypeOIDCClient {
 			metadata, err := id.OIDCMetadata()
 			if err != nil {
-				return fmt.Errorf("Failed to read OIDC identity metadata: %w", err)
+				return fmt.Errorf("Failed reading OIDC identity metadata: %w", err)
 			}
 
 			if len(metadata.IdentityProviderGroups) > 0 {
@@ -2108,7 +2108,7 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 				res.IdentityProviderGroups = metadata.IdentityProviderGroups
 				res.EffectiveAuthGroups, err = dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), metadata.IdentityProviderGroups)
 				if err != nil {
-					return fmt.Errorf("Failed to map identity provider groups to authorization groups: %w", err)
+					return fmt.Errorf("Failed mapping identity provider groups to authorization groups: %w", err)
 				}
 			}
 		}
@@ -2255,7 +2255,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 				err = cancelCancelableOps(ctx)
 				if err != nil {
-					logger.Error("Failed to cancel cancelable operations", logger.Ctx{"err": err})
+					logger.Error("Failed canceling cancelable operations", logger.Ctx{"err": err})
 				}
 			}
 
@@ -2269,7 +2269,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			defer cancel()
 			err := daemonStorageVolumesUnmount(s, volUnmountCtx)
 			if err != nil {
-				logger.Error("Failed to unmount image and backup volumes", logger.Ctx{"err": err})
+				logger.Error("Failed unmounting image and backup volumes", logger.Ctx{"err": err})
 			}
 
 			logger.Debug("Daemon storage volumes unmounted")
@@ -2361,7 +2361,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	}
 
 	if err != nil {
-		logger.Error("Failed to cleanly shutdown daemon", logger.Ctx{"err": err})
+		logger.Error("Failed cleanly shutting down daemon", logger.Ctx{"err": err})
 	}
 
 	return err
@@ -2490,7 +2490,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 					return tx.UpsertWarningLocalNode(ctx, "", "", -1, warningtype.ClusterTimeSkew, fmt.Sprintf("leaderTime: %s, localTime: %s", hbData.Time, now))
 				})
 				if err != nil {
-					logger.Warn("Failed to create cluster time skew warning", logger.Ctx{"err": err})
+					logger.Warn("Failed creating cluster time skew warning", logger.Ctx{"err": err})
 				}
 			}
 		}
@@ -2503,7 +2503,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 			if d.db.Cluster != nil {
 				err := warnings.ResolveWarningsByLocalNodeAndType(d.db.Cluster, warningtype.ClusterTimeSkew)
 				if err != nil {
-					logger.Warn("Failed to resolve cluster time skew warning", logger.Ctx{"err": err})
+					logger.Warn("Failed resolving cluster time skew warning", logger.Ctx{"err": err})
 				}
 			}
 
@@ -2540,7 +2540,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 	})
 	if err != nil {
 		logger.Error("Error updating raft members", logger.Ctx{"err": err})
-		http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
+		http.Error(w, "500 failed updating raft nodes", http.StatusInternalServerError)
 		return
 	}
 

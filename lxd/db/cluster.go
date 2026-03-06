@@ -59,12 +59,12 @@ WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
 func (c *ClusterTx) AddNodeToClusterGroup(ctx context.Context, groupName string, nodeName string) error {
 	groupID, err := cluster.GetClusterGroupID(ctx, c.tx, groupName)
 	if err != nil {
-		return fmt.Errorf("Failed to get cluster group ID: %w", err)
+		return fmt.Errorf("Failed getting cluster group ID: %w", err)
 	}
 
 	nodeInfo, err := c.GetNodeByName(ctx, nodeName)
 	if err != nil {
-		return fmt.Errorf("Failed to get node info: %w", err)
+		return fmt.Errorf("Failed getting node info: %w", err)
 	}
 
 	_, err = c.tx.Exec(`INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES(?, ?)`, nodeInfo.ID, groupID)
@@ -79,12 +79,12 @@ func (c *ClusterTx) AddNodeToClusterGroup(ctx context.Context, groupName string,
 func (c *ClusterTx) RemoveNodeFromClusterGroup(ctx context.Context, groupName string, nodeName string) error {
 	groupID, err := cluster.GetClusterGroupID(ctx, c.tx, groupName)
 	if err != nil {
-		return fmt.Errorf("Failed to get cluster group ID: %w", err)
+		return fmt.Errorf("Failed getting cluster group ID: %w", err)
 	}
 
 	nodeInfo, err := c.GetNodeByName(ctx, nodeName)
 	if err != nil {
-		return fmt.Errorf("Failed to get node info: %w", err)
+		return fmt.Errorf("Failed getting node info: %w", err)
 	}
 
 	_, err = c.tx.Exec(`DELETE FROM nodes_cluster_groups WHERE node_id = ? AND group_id = ?`, nodeInfo.ID, groupID)

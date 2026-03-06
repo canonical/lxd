@@ -267,13 +267,13 @@ func (d *common) Config() map[string]string {
 // ApplyPatch looks for a suitable patch and runs it.
 func (d *common) ApplyPatch(name string) error {
 	if d.patches == nil {
-		return fmt.Errorf("The patch mechanism isn't implemented on pool %q", d.name)
+		return fmt.Errorf("The patch mechanism is not implemented on pool %q", d.name)
 	}
 
 	// Locate the patch.
 	patch, ok := d.patches[name]
 	if !ok {
-		return fmt.Errorf("Patch %q isn't implemented on pool %q", name, d.name)
+		return fmt.Errorf("Patch %q is not implemented on pool %q", name, d.name)
 	}
 
 	// Handle cases where a patch isn't needed.

@@ -1586,7 +1586,7 @@ func membershipCheckClusterStateForAccept(ctx context.Context, tx *db.ClusterTx,
 	}
 
 	if len(members) == 1 && members[0].Address == "0.0.0.0" {
-		return errors.New("Clustering isn't enabled")
+		return errors.New("Clustering is not enabled")
 	}
 
 	for _, member := range members {
@@ -1599,11 +1599,11 @@ func membershipCheckClusterStateForAccept(ctx context.Context, tx *db.ClusterTx,
 		}
 
 		if member.Schema != schema {
-			return fmt.Errorf("The joining server version doesn't match (expected %s with DB schema %v)", version.Version, schema)
+			return fmt.Errorf("The joining server version does not match (expected %s with DB schema %v)", version.Version, schema)
 		}
 
 		if member.APIExtensions != api {
-			return fmt.Errorf("The joining server version doesn't match (expected %s with API count %v)", version.Version, api)
+			return fmt.Errorf("The joining server version does not match (expected %s with API count %v)", version.Version, api)
 		}
 	}
 

@@ -699,7 +699,7 @@ func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[
 
 		// Disallow setting external storage for images on projects without images.
 		if strings.HasSuffix(key, ".images_volume") && shared.IsFalseOrEmpty(project.Config["features.images"]) {
-			return fmt.Errorf("Project %q doesn't have `features.images` set, so it cannot have images storage configured", project)
+			return fmt.Errorf("Project %q does not have `features.images` set, so it cannot have images storage configured", project)
 		}
 
 		// Don't allow setting the project storage the same as as the daemon-level storage volume.
@@ -767,12 +767,12 @@ func validateOIDCSessionExpiry(config *clusterConfig.Config, requestConfig map[s
 	now := time.Now().UTC()
 	coreAuthSecretExpiryTime, err := shared.GetExpiry(now, coreAuthSecretExpiry)
 	if err != nil {
-		return api.StatusErrorf(http.StatusBadRequest, "Failed to validate core auth secret expiry: %w", err)
+		return api.StatusErrorf(http.StatusBadRequest, "Failed validating core auth secret expiry: %w", err)
 	}
 
 	oidcSessionExpiryTime, err := shared.GetExpiry(now, oidcSessionExpiry)
 	if err != nil {
-		return api.StatusErrorf(http.StatusBadRequest, "Failed to validate oidc session expiry: %w", err)
+		return api.StatusErrorf(http.StatusBadRequest, "Failed validating oidc session expiry: %w", err)
 	}
 
 	// Check if an OIDC session created now, would expire after a core auth secret created now.
@@ -850,7 +850,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to load node config: %w", err)
+			return fmt.Errorf("Failed loading node config: %w", err)
 		}
 
 		// Keep old config around in case something goes wrong. In that case the config will be reverted.
@@ -915,7 +915,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 			newNodeConfig, err := node.ConfigLoad(ctx, tx)
 			if err != nil {
-				return fmt.Errorf("Failed to load node config: %w", err)
+				return fmt.Errorf("Failed loading node config: %w", err)
 			}
 
 			_, err = newNodeConfig.Replace(nodeValues)
@@ -940,7 +940,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		var err error
 		newClusterConfig, err = clusterConfig.Load(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to load cluster config: %w", err)
+			return fmt.Errorf("Failed loading cluster config: %w", err)
 		}
 
 		// Keep old config around in case something goes wrong. In that case the config will be reverted.
@@ -976,7 +976,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			newClusterConfig, err = clusterConfig.Load(ctx, tx)
 			if err != nil {
-				return fmt.Errorf("Failed to load cluster config: %w", err)
+				return fmt.Errorf("Failed loading cluster config: %w", err)
 			}
 
 			_, err = newClusterConfig.Replace(tx, stringReqConfig)
@@ -1014,7 +1014,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		return client.UpdateServer(serverPut, etag)
 	})
 	if err != nil {
-		logger.Error("Failed to notify other members about config change", logger.Ctx{"err": err})
+		logger.Error("Failed notifying other members about config change", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 

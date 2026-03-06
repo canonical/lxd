@@ -227,7 +227,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	}
 
 	if action == "stop" && c.flagForce && c.flagConsole != "" {
-		return errors.New("--console can't be used while forcing instance shutdown")
+		return errors.New("--console cannot be used while forcing instance shutdown")
 	}
 
 	remote, name, err := conf.ParseRemote(nameArg)
@@ -376,7 +376,7 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 
 	if c.flagConsole != "" {
 		if c.flagAll {
-			return errors.New("--console can't be used with --all")
+			return errors.New("--console cannot be used with --all")
 		}
 
 		if len(names) != 1 {

@@ -206,7 +206,7 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 		return tx.UpsertWarning(ctx, req.Location, req.Project, req.EntityType, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
 	})
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to create warning: %w", err))
+		return response.SmartError(fmt.Errorf("Failed creating warning: %w", err))
 	}
 
 	return response.EmptySyncResponse
@@ -415,7 +415,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 
 	inst, err := internalContainerHookLoadFromReference(s, r)
 	if err != nil {
-		logger.Error("The start hook failed to load", logger.Ctx{"err": err})
+		logger.Error("The start hook failed loading", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -435,7 +435,7 @@ func internalContainerOnStartHost(d *Daemon, r *http.Request) response.Response 
 
 	inst, err := internalContainerHookLoadFromReference(s, r)
 	if err != nil {
-		logger.Error("The start-host hook failed to load", logger.Ctx{"err": err})
+		logger.Error("The start-host hook failed loading", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -466,7 +466,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 
 	inst, err := internalContainerHookLoadFromReference(s, r)
 	if err != nil {
-		logger.Error("The stopns hook failed to load", logger.Ctx{"err": err})
+		logger.Error("The stopns hook failed loading", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -498,7 +498,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 
 	inst, err := internalContainerHookLoadFromReference(s, r)
 	if err != nil {
-		logger.Error("The stop hook failed to load", logger.Ctx{"err": err})
+		logger.Error("The stop hook failed loading", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -567,7 +567,7 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 
 	tx, err := db.BeginTx(r.Context(), nil)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to start transaction: %w", err))
+		return response.SmartError(fmt.Errorf("Failed starting transaction: %w", err))
 	}
 
 	defer func() { _ = tx.Rollback() }()
@@ -653,14 +653,14 @@ func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) erro
 
 	rows, err := tx.Query(query)
 	if err != nil {
-		return fmt.Errorf("Failed to execute query: %w", err)
+		return fmt.Errorf("Failed executing query: %w", err)
 	}
 
 	defer func() { _ = rows.Close() }()
 
 	result.Columns, err = rows.Columns()
 	if err != nil {
-		return fmt.Errorf("Failed to fetch colume names: %w", err)
+		return fmt.Errorf("Failed fetching colume names: %w", err)
 	}
 
 	for rows.Next() {
@@ -672,7 +672,7 @@ func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) erro
 
 		err := rows.Scan(rowPointers...)
 		if err != nil {
-			return fmt.Errorf("Failed to scan row: %w", err)
+			return fmt.Errorf("Failed scanning row: %w", err)
 		}
 
 		for i, column := range row {
@@ -699,12 +699,12 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 	result.Type = "exec"
 	r, err := tx.Exec(query)
 	if err != nil {
-		return fmt.Errorf("Failed to exec query: %w", err)
+		return fmt.Errorf("Failed execing query: %w", err)
 	}
 
 	result.RowsAffected, err = r.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to fetch affected rows: %w", err)
+		return fmt.Errorf("Failed fetching affected rows: %w", err)
 	}
 
 	return nil
@@ -795,7 +795,7 @@ func internalImportFromBackup(ctx context.Context, s *state.State, projectName s
 	}
 
 	if instName != backupConf.Instance.Name {
-		return fmt.Errorf("Requested instance name %q doesn't match instance name %q in backup config", instName, backupConf.Instance.Name)
+		return fmt.Errorf("Requested instance name %q does not match instance name %q in backup config", instName, backupConf.Instance.Name)
 	}
 
 	if len(backupConf.Pools) == 0 {

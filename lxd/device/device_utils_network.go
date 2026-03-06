@@ -180,19 +180,19 @@ func networkRestorePhysicalNIC(hostName string, volatile map[string]string) erro
 	link := &ip.Link{Name: hostName}
 	err := link.SetDown()
 	if err != nil {
-		return fmt.Errorf("Failed to bring down \"%s\": %w", hostName, err)
+		return fmt.Errorf("Failed bringing down \"%s\": %w", hostName, err)
 	}
 
 	// If MTU value is specified then there is an original MTU that needs restoring.
 	if volatile["last_state.mtu"] != "" {
 		mtuInt, err := strconv.ParseUint(volatile["last_state.mtu"], 10, 32)
 		if err != nil {
-			return fmt.Errorf("Failed to convert mtu for \"%s\" mtu \"%s\": %w", hostName, volatile["last_state.mtu"], err)
+			return fmt.Errorf("Failed converting mtu for \"%s\" mtu \"%s\": %w", hostName, volatile["last_state.mtu"], err)
 		}
 
 		err = NetworkSetDevMTU(hostName, uint32(mtuInt))
 		if err != nil {
-			return fmt.Errorf("Failed to restore physical dev \"%s\" mtu to \"%d\": %w", hostName, mtuInt, err)
+			return fmt.Errorf("Failed restoring physical dev \"%s\" mtu to \"%d\": %w", hostName, mtuInt, err)
 		}
 	}
 
@@ -200,7 +200,7 @@ func networkRestorePhysicalNIC(hostName string, volatile map[string]string) erro
 	if volatile["last_state.hwaddr"] != "" {
 		err := NetworkSetDevMAC(hostName, volatile["last_state.hwaddr"])
 		if err != nil {
-			return fmt.Errorf("Failed to restore physical dev \"%s\" mac to \"%s\": %w", hostName, volatile["last_state.hwaddr"], err)
+			return fmt.Errorf("Failed restoring physical dev \"%s\" mac to \"%s\": %w", hostName, volatile["last_state.hwaddr"], err)
 		}
 	}
 
@@ -233,7 +233,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 	if m["parent"] != "" {
 		mtu, err := network.GetDevMTU(m["parent"])
 		if err != nil {
-			return "", 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
+			return "", 0, fmt.Errorf("Failed getting the parent MTU: %w", err)
 		}
 
 		parentMTU = uint32(mtu)
@@ -285,7 +285,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 	} else if m["parent"] != "" {
 		veth.TXQueueLength, err = network.GetTXQueueLength(m["parent"])
 		if err != nil {
-			return "", 0, fmt.Errorf("Failed to get the parent txqueuelen: %w", err)
+			return "", 0, fmt.Errorf("Failed getting the parent txqueuelen: %w", err)
 		}
 	}
 
@@ -295,7 +295,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 	// systemd-udevd from applying the default MACAddressPolicy=persistent policy.
 	err = veth.Add()
 	if err != nil {
-		return "", 0, fmt.Errorf("Failed to create the veth interfaces %q and %q: %w", hostName, veth.Peer.Name, err)
+		return "", 0, fmt.Errorf("Failed creating the veth interfaces %q and %q: %w", hostName, veth.Peer.Name, err)
 	}
 
 	return veth.Peer.Name, veth.Peer.MTU, nil
@@ -312,7 +312,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 
 	err := tuntap.Add()
 	if err != nil {
-		return 0, fmt.Errorf("Failed to create the tap interfaces %q: %w", hostName, err)
+		return 0, fmt.Errorf("Failed creating the tap interfaces %q: %w", hostName, err)
 	}
 
 	revert := revert.New()
@@ -321,7 +321,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	link := &ip.Link{Name: hostName}
 	err = link.SetUp()
 	if err != nil {
-		return 0, fmt.Errorf("Failed to bring up the tap interface %q: %w", hostName, err)
+		return 0, fmt.Errorf("Failed bringing up the tap interface %q: %w", hostName, err)
 	}
 
 	revert.Add(func() { _ = network.InterfaceRemove(hostName) })
@@ -342,12 +342,12 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	if m["parent"] != "" {
 		parentMTU, err := network.GetDevMTU(m["parent"])
 		if err != nil {
-			return 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
+			return 0, fmt.Errorf("Failed getting the parent MTU: %w", err)
 		}
 
 		err = NetworkSetDevMTU(hostName, parentMTU)
 		if err != nil {
-			return 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
+			return 0, fmt.Errorf("Failed setting the MTU %d: %w", mtu, err)
 		}
 
 		if mtu == 0 {
@@ -367,14 +367,14 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	} else if m["parent"] != "" {
 		txqueuelen, err = network.GetTXQueueLength(m["parent"])
 		if err != nil {
-			return 0, fmt.Errorf("Failed to get the parent txqueuelen: %w", err)
+			return 0, fmt.Errorf("Failed getting the parent txqueuelen: %w", err)
 		}
 	}
 
 	if txqueuelen > 0 {
 		err = link.SetTXQueueLength(txqueuelen)
 		if err != nil {
-			return 0, fmt.Errorf("Failed to set the TX queue length %d: %w", txqueuelen, err)
+			return 0, fmt.Errorf("Failed setting the TX queue length %d: %w", txqueuelen, err)
 		}
 	}
 
@@ -461,7 +461,7 @@ func networkNICRouteDelete(routeDev string, routes ...string) {
 		route := r // Local var for revert.
 		ipAddress, _, err := net.ParseCIDR(route)
 		if err != nil {
-			logger.Errorf("Failed to remove static route %q to %q: %v", route, routeDev, err)
+			logger.Errorf("Failed removing static route %q to %q: %v", route, routeDev, err)
 			continue
 		}
 
@@ -480,7 +480,7 @@ func networkNICRouteDelete(routeDev string, routes ...string) {
 
 		err = r.Flush()
 		if err != nil {
-			logger.Errorf("Failed to remove static route %q to %q: %v", route, routeDev, err)
+			logger.Errorf("Failed removing static route %q to %q: %v", route, routeDev, err)
 			continue
 		}
 	}
@@ -530,19 +530,19 @@ func networkSetupHostVethLimits(d *deviceCommon, oldConfig deviceConfig.Device, 
 		qdiscHTB := &ip.QdiscHTB{Qdisc: ip.Qdisc{Dev: veth, Handle: "1:0", Root: true}, Default: "10"}
 		err := qdiscHTB.Add()
 		if err != nil {
-			return fmt.Errorf("Failed to create root tc qdisc: %s", err)
+			return fmt.Errorf("Failed creating root tc qdisc: %s", err)
 		}
 
 		classHTB := &ip.ClassHTB{Class: ip.Class{Dev: veth, Parent: "1:0", Classid: "1:10"}, Rate: fmt.Sprint(ingressInt, "bit")}
 		err = classHTB.Add()
 		if err != nil {
-			return fmt.Errorf("Failed to create limit tc class: %s", err)
+			return fmt.Errorf("Failed creating limit tc class: %s", err)
 		}
 
 		filter := &ip.U32Filter{Filter: ip.Filter{Dev: veth, Parent: "1:0", Protocol: "all", Flowid: "1:1"}, Value: "0", Mask: "0"}
 		err = filter.Add()
 		if err != nil {
-			return fmt.Errorf("Failed to create tc filter: %s", err)
+			return fmt.Errorf("Failed creating tc filter: %s", err)
 		}
 	}
 
@@ -550,14 +550,14 @@ func networkSetupHostVethLimits(d *deviceCommon, oldConfig deviceConfig.Device, 
 		qdisc = &ip.Qdisc{Dev: veth, Handle: "ffff:0", Ingress: true}
 		err := qdisc.Add()
 		if err != nil {
-			return fmt.Errorf("Failed to create ingress tc qdisc: %s", err)
+			return fmt.Errorf("Failed creating ingress tc qdisc: %s", err)
 		}
 
 		police := &ip.ActionPolice{Rate: fmt.Sprint(egressInt, "bit"), Burst: "1024k", Mtu: "64kb", Drop: true}
 		filter := &ip.U32Filter{Filter: ip.Filter{Dev: veth, Parent: "ffff:0", Protocol: "all"}, Value: "0", Mask: "0", Actions: []ip.Action{police}}
 		err = filter.Add()
 		if err != nil {
-			return fmt.Errorf("Failed to create ingress tc filter: %s", err)
+			return fmt.Errorf("Failed creating ingress tc filter: %s", err)
 		}
 	}
 
@@ -565,7 +565,7 @@ func networkSetupHostVethLimits(d *deviceCommon, oldConfig deviceConfig.Device, 
 	if d.config["limits.priority"] != "" {
 		networkPriority, err = strconv.ParseUint(d.config["limits.priority"], 10, 32)
 		if err != nil {
-			return fmt.Errorf("Failed to parse limits.priority %q: %w", d.config["limits.priority"], err)
+			return fmt.Errorf("Failed parsing limits.priority %q: %w", d.config["limits.priority"], err)
 		}
 	}
 
@@ -579,12 +579,12 @@ func networkSetupHostVethLimits(d *deviceCommon, oldConfig deviceConfig.Device, 
 	if oldConfig == nil || oldConfig["limits.priority"] != d.config["limits.priority"] {
 		if networkPriority != 0 {
 			if bridged && d.state.Firewall.String() == "xtables" {
-				return errors.New("Failed to setup instance device network priority. The xtables firewall driver does not support required functionality.")
+				return errors.New("Failed setting up instance device network priority. The xtables firewall driver does not support required functionality.")
 			}
 
 			err = d.state.Firewall.InstanceSetupNetPrio(d.inst.Project().Name, d.inst.Name(), veth, uint32(networkPriority))
 			if err != nil {
-				return fmt.Errorf("Failed to setup instance device network priority: %w", err)
+				return fmt.Errorf("Failed setting up instance device network priority: %w", err)
 			}
 		}
 	}
@@ -1008,7 +1008,7 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 	err := link.SetUp()
 	if err != nil {
 		if config["hwaddr"] != "" {
-			return fmt.Errorf("Failed to bring up VF interface %q: %w", hostName, err)
+			return fmt.Errorf("Failed bringing up VF interface %q: %w", hostName, err)
 		}
 
 		upErr := err
@@ -1023,7 +1023,7 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 
 		// If the VF interface has a MAC already, something else prevented bringing interface up.
 		if vfIF.HardwareAddr.String() != "00:00:00:00:00:00" {
-			return fmt.Errorf("Failed to bring up VF interface %q: %w", hostName, upErr)
+			return fmt.Errorf("Failed bringing up VF interface %q: %w", hostName, upErr)
 		}
 
 		// Try using a random MAC address and bringing interface up.
@@ -1040,12 +1040,12 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 		link := &ip.Link{Name: hostName}
 		err = link.SetAddress(hwaddr)
 		if err != nil {
-			return fmt.Errorf("Failed to set random MAC address %q on %q: %w", randMAC, hostName, err)
+			return fmt.Errorf("Failed setting random MAC address %q on %q: %w", randMAC, hostName, err)
 		}
 
 		err = link.SetUp()
 		if err != nil {
-			return fmt.Errorf("Failed to bring up VF interface %q: %w", hostName, err)
+			return fmt.Errorf("Failed bringing up VF interface %q: %w", hostName, err)
 		}
 	}
 
@@ -1095,7 +1095,7 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 
 	netipAddr, ok := netip.AddrFromSlice(address)
 	if !ok {
-		return false, errors.New("Couldn't convert address to netip")
+		return false, errors.New("Could not convert address to netip")
 	}
 
 	solicitedNodeMulticast, err := ndp.SolicitedNodeMulticast(netipAddr)

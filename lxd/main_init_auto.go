@@ -18,11 +18,11 @@ import (
 func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Quick checks.
 	if c.flagStorageBackend != "" && !slices.Contains(storageDrivers.AllDriverNames(), c.flagStorageBackend) {
-		return nil, fmt.Errorf("The requested backend %q isn't supported by lxd init", c.flagStorageBackend)
+		return nil, fmt.Errorf("The requested backend %q is not supported by lxd init", c.flagStorageBackend)
 	}
 
 	if c.flagStorageBackend != "" && !slices.Contains(util.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, util.PoolTypeAny), c.flagStorageBackend) {
-		return nil, fmt.Errorf("The requested backend %q isn't available on your system (missing tools or incompatible kernel module)", c.flagStorageBackend)
+		return nil, fmt.Errorf("The requested backend %q is not available on your system (missing tools or incompatible kernel module)", c.flagStorageBackend)
 	}
 
 	if c.flagStorageBackend == "dir" || c.flagStorageBackend == "" {
@@ -37,13 +37,13 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 
 	if c.flagNetworkAddress == "" {
 		if c.flagNetworkPort != -1 {
-			return nil, errors.New("--network-port can't be used without --network-address")
+			return nil, errors.New("--network-port cannot be used without --network-address")
 		}
 	}
 
 	storagePools, err := d.GetStoragePoolNames()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve list of storage pools: %w", err)
+		return nil, fmt.Errorf("Failed retrieving list of storage pools: %w", err)
 	}
 
 	if len(storagePools) > 0 && (c.flagStorageBackend != "" || c.flagStorageDevice != "" || c.flagStorageLoopSize != -1 || c.flagStoragePool != "") {
@@ -111,7 +111,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 	// Network configuration
 	networks, err := d.GetNetworks()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve list of networks: %w", err)
+		return nil, fmt.Errorf("Failed retrieving list of networks: %w", err)
 	}
 
 	// Extract managed networks

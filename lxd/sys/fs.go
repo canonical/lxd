@@ -61,12 +61,12 @@ func (s *OS) initDirs() error {
 		err := os.Mkdir(dir.path, dir.mode)
 		if err != nil {
 			if !errors.Is(err, fs.ErrExist) {
-				return fmt.Errorf("Failed to init dir %q: %w", dir.path, err)
+				return fmt.Errorf("Failed initing dir %q: %w", dir.path, err)
 			}
 
 			err = os.Chmod(dir.path, dir.mode)
 			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("Failed to chmod dir %q: %w", dir.path, err)
+				return fmt.Errorf("Failed chmoding dir %q: %w", dir.path, err)
 			}
 		}
 	}
@@ -84,12 +84,12 @@ func (s *OS) initStorageDirs(config *node.Config) error {
 			err := os.Mkdir(dir.path, dir.mode)
 			if err != nil {
 				if !errors.Is(err, fs.ErrExist) {
-					return fmt.Errorf("Failed to init storage dir %q: %w", dir.path, err)
+					return fmt.Errorf("Failed initing storage dir %q: %w", dir.path, err)
 				}
 
 				err = os.Chmod(dir.path, dir.mode)
 				if err != nil && !errors.Is(err, fs.ErrNotExist) {
-					return fmt.Errorf("Failed to chmod storage dir %q: %w", dir.path, err)
+					return fmt.Errorf("Failed chmoding storage dir %q: %w", dir.path, err)
 				}
 			}
 		}

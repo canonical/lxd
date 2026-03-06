@@ -95,7 +95,7 @@ func (c *Config) rootVolPoolName() (string, error) {
 
 	_, deviceConfig, err := api.GetRootDiskDevice(c.Instance.ExpandedDevices)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get root disk device: %w", err)
+		return "", fmt.Errorf("Failed getting root disk device: %w", err)
 	}
 
 	poolName, ok := deviceConfig["pool"]
@@ -195,7 +195,7 @@ func (c *Config) RootVolume() (*Volume, error) {
 	// Therefore reuse the same tooling as when retrieving a custom volume.
 	volume, err := c.primaryVolume()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get the snapshot instance's volume: %w", err)
+		return nil, fmt.Errorf("Failed getting the snapshot instance's volume: %w", err)
 	}
 
 	return volume, nil
@@ -210,7 +210,7 @@ func (c *Config) CustomVolume() (*Volume, error) {
 
 	volume, err := c.primaryVolume()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get primary volume: %w", err)
+		return nil, fmt.Errorf("Failed getting primary volume: %w", err)
 	}
 
 	return volume, nil

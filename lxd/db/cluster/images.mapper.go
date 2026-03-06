@@ -107,7 +107,7 @@ func getImages(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Image, error
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"images\" table: %w", err)
 	}
 
 	return objects, nil
@@ -131,7 +131,7 @@ func getImagesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]I
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"images\" table: %w", err)
 	}
 
 	return objects, nil
@@ -153,7 +153,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, imageObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed getting \"imageObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -163,7 +163,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, imageObjectsByProjectAndPublic)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"imageObjectsByProjectAndPublic\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"imageObjectsByProjectAndPublic\" prepared statement: %w", err)
 				}
 
 				break
@@ -171,7 +171,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 
 			query, err := StmtString(imageObjectsByProjectAndPublic)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"imageObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -187,7 +187,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, imageObjectsByProjectAndFingerprint)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"imageObjectsByProjectAndFingerprint\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"imageObjectsByProjectAndFingerprint\" prepared statement: %w", err)
 				}
 
 				break
@@ -195,7 +195,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 
 			query, err := StmtString(imageObjectsByProjectAndFingerprint)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"imageObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -211,7 +211,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, imageObjectsByProjectAndCached)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"imageObjectsByProjectAndCached\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"imageObjectsByProjectAndCached\" prepared statement: %w", err)
 				}
 
 				break
@@ -219,7 +219,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 
 			query, err := StmtString(imageObjectsByProjectAndCached)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"imageObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -235,7 +235,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, imageObjectsByProject)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"imageObjectsByProject\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"imageObjectsByProject\" prepared statement: %w", err)
 				}
 
 				break
@@ -243,7 +243,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 
 			query, err := StmtString(imageObjectsByProject)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"imageObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -259,7 +259,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, imageObjectsByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"imageObjectsByID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"imageObjectsByID\" prepared statement: %w", err)
 				}
 
 				break
@@ -267,7 +267,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 
 			query, err := StmtString(imageObjectsByID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"imageObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -283,7 +283,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, imageObjectsByFingerprint)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"imageObjectsByFingerprint\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"imageObjectsByFingerprint\" prepared statement: %w", err)
 				}
 
 				break
@@ -291,7 +291,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 
 			query, err := StmtString(imageObjectsByFingerprint)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"imageObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -307,7 +307,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, imageObjectsByCached)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"imageObjectsByCached\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"imageObjectsByCached\" prepared statement: %w", err)
 				}
 
 				break
@@ -315,7 +315,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 
 			query, err := StmtString(imageObjectsByCached)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"imageObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -331,7 +331,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, imageObjectsByAutoUpdate)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"imageObjectsByAutoUpdate\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"imageObjectsByAutoUpdate\" prepared statement: %w", err)
 				}
 
 				break
@@ -339,7 +339,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 
 			query, err := StmtString(imageObjectsByAutoUpdate)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"imageObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -366,7 +366,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"images\" table: %w", err)
 	}
 
 	return objects, nil
@@ -381,7 +381,7 @@ func GetImage(ctx context.Context, tx *sql.Tx, project string, fingerprint strin
 
 	objects, err := GetImages(ctx, tx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"images\" table: %w", err)
 	}
 
 	switch len(objects) {

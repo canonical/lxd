@@ -43,7 +43,7 @@ func (c *Config) ParseRemote(raw string) (remoteName string, resourceName string
 			return c.DefaultRemote, raw, nil
 		}
 
-		return "", "", fmt.Errorf("The remote \"%s\" doesn't exist", remote)
+		return "", "", fmt.Errorf("The remote \"%s\" does not exist", remote)
 	}
 
 	return remote, object, nil
@@ -153,7 +153,7 @@ func (c *Config) getPrivateRemoteByName(name string) (*Remote, error) {
 
 	// Check the remote is private.
 	if remote.Public || remote.Protocol == "simplestreams" {
-		return nil, errors.New("The remote isn't a private LXD server")
+		return nil, errors.New("The remote is not a private LXD server")
 	}
 
 	return remote, nil
@@ -169,7 +169,7 @@ func (c *Config) getPublicRemoteByName(name string) (*Remote, error) {
 	// Get the remote
 	remote, ok := c.Remotes[name]
 	if !ok {
-		return nil, fmt.Errorf("The remote \"%s\" doesn't exist", name)
+		return nil, fmt.Errorf("The remote \"%s\" does not exist", name)
 	}
 
 	return &remote, nil

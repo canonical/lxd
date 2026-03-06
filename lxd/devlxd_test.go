@@ -134,10 +134,10 @@ func TestCredsSendRecv(t *testing.T) {
 }
 
 /*
- * Here we're not really testing the API functionality (we can't, since it
+ * Here we're not really testing the API functionality (we cannot, since it
  * expects us to be inside a container to work), but it is useful to test that
  * all the grotty connection extracting stuff works (that is, it gets to the
- * point where it realizes the pid isn't in a container without crashing).
+ * point where it realizes the pid is not in a container without crashing).
  */
 func TestHttpRequest(t *testing.T) {
 	_ = setupDir()

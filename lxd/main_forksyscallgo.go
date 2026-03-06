@@ -61,12 +61,12 @@ func (c *cmdFinitModuleParse) Command() *cobra.Command {
 func (c *cmdFinitModuleParse) Run(cmd *cobra.Command, args []string) error {
 	moduleFD, err := strconv.Atoi(args[2])
 	if err != nil {
-		return fmt.Errorf("Unable to extract module_fd: %w", err)
+		return fmt.Errorf("Cannot extract module_fd: %w", err)
 	}
 
 	f := os.NewFile(uintptr(moduleFD), "/proc/self/fd/<module_fd>")
 	if f == nil {
-		return fmt.Errorf("Can't open module file: %w", err)
+		return fmt.Errorf("Cannot open module file: %w", err)
 	}
 
 	defer func() { _ = f.Close() }()
@@ -83,12 +83,12 @@ func (c *cmdFinitModuleParse) Run(cmd *cobra.Command, args []string) error {
 
 	secData, err := sec.Data()
 	if err != nil {
-		return fmt.Errorf("Can't read .modinfo section: %w", err)
+		return fmt.Errorf("Cannot read .modinfo section: %w", err)
 	}
 
 	secNameDataIdx := bytes.Index(secData, []byte("name="))
 	if secNameDataIdx == -1 {
-		return errors.New(`.modinfo section data looks wrong: can't find "name="`)
+		return errors.New(`.modinfo section data looks wrong: cannot find "name="`)
 	}
 
 	secNameStart := secData[secNameDataIdx+5:]
@@ -98,7 +98,7 @@ func (c *cmdFinitModuleParse) Run(cmd *cobra.Command, args []string) error {
 
 	secNameIdxEnd := bytes.Index(secNameStart, []byte("\x00"))
 	if secNameIdxEnd == -1 {
-		return errors.New(".modinfo section data looks wrong: can't find terminating NULL-byte")
+		return errors.New(".modinfo section data looks wrong: cannot find terminating NULL-byte")
 	}
 
 	secName := secNameStart[:secNameIdxEnd]

@@ -53,7 +53,7 @@ func (c *connectorISCSI) Version() (string, error) {
 	// It will fail if the "iscsiadm" is not installed on the host.
 	out, err := shared.RunCommand(context.Background(), "iscsiadm", "--version")
 	if err != nil {
-		return "", fmt.Errorf("Failed to get iscsiadm version: %w", err)
+		return "", fmt.Errorf("Failed getting iscsiadm version: %w", err)
 	}
 
 	fields := strings.Split(strings.TrimSpace(out), " ")
@@ -62,7 +62,7 @@ func (c *connectorISCSI) Version() (string, error) {
 		return version, nil
 	}
 
-	return "", fmt.Errorf("Failed to get iscsiadm version: Unexpected output %q", out)
+	return "", fmt.Errorf("Failed getting iscsiadm version: Unexpected output %q", out)
 }
 
 // LoadModules loads the iSCSI kernel modules.
@@ -82,7 +82,7 @@ func (c *connectorISCSI) QualifiedName() (string, error) {
 	// from the /etc/iscsi/initiatorname.iscsi file on the host.
 	filename := shared.HostPath("/etc/iscsi/initiatorname.iscsi")
 	if !shared.PathExists(filename) {
-		return "", fmt.Errorf("Failed to extract host IQN: File %q does not exist", filename)
+		return "", fmt.Errorf("Failed extracting host IQN: File %q does not exist", filename)
 	}
 
 	content, err := os.ReadFile(filename)
@@ -100,7 +100,7 @@ func (c *connectorISCSI) QualifiedName() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf(`Failed to extract host IQN: File %q does not contain "InitiatorName"`, filename)
+	return "", fmt.Errorf(`Failed extracting host IQN: File %q does not contain "InitiatorName"`, filename)
 }
 
 // Connect establishes a connection with the target on the given address.
@@ -120,7 +120,7 @@ func (c *connectorISCSI) Connect(ctx context.Context, targetQN string, targetAdd
 		// Insert new iSCSI target entry into local iSCSI database.
 		_, err := shared.RunCommand(ctx, "iscsiadm", "--mode", "node", "--targetname", targetQN, "--portal", targetAddr, "--op", "new")
 		if err != nil {
-			return fmt.Errorf("Failed to insert local iSCSI entries for target %q: %w", targetQN, err)
+			return fmt.Errorf("Failed inserting local iSCSI entries for target %q: %w", targetQN, err)
 		}
 
 		// Attempt to login into iSCSI target.
@@ -133,7 +133,7 @@ func (c *connectorISCSI) Connect(ctx context.Context, targetQN string, targetAdd
 				return nil
 			}
 
-			return fmt.Errorf("Failed to connect to target %q on %q via iSCSI: %w", targetQN, targetAddr, err)
+			return fmt.Errorf("Failed connecting to target %q on %q via iSCSI: %w", targetQN, targetAddr, err)
 		}
 
 		return nil
@@ -171,7 +171,7 @@ func (c *connectorISCSI) Disconnect(targetQN string) error {
 		// Remove target entries from local iSCSI database.
 		_, err = shared.RunCommand(context.Background(), "iscsiadm", "--mode", "node", "--targetname", targetQN, "--op", "delete")
 		if err != nil {
-			return fmt.Errorf("Failed to remove local iSCSI entries for target %q: %w", targetQN, err)
+			return fmt.Errorf("Failed removing local iSCSI entries for target %q: %w", targetQN, err)
 		}
 	}
 
@@ -309,7 +309,7 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 
 	// In case none of the target addresses returned any log records also return an error.
 	if len(result) == 0 {
-		return nil, errors.New("Failed to fetch a discovery log record from any of the target addresses")
+		return nil, errors.New("Failed fetching a discovery log record from any of the target addresses")
 	}
 
 	return result, nil

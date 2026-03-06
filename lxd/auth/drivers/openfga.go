@@ -161,7 +161,7 @@ func (e *embeddedOpenFGA) GetViewableProjects(ctx context.Context, permissions [
 	// Perform the check.
 	resp, err := e.server.ListObjects(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list OpenFGA tuples: %w", err)
+		return nil, fmt.Errorf("Failed listing OpenFGA tuples: %w", err)
 	}
 
 	// This will be a list where each element is the form "project:/1.0/projects/{name}"
@@ -226,14 +226,14 @@ func (e *embeddedOpenFGA) GetPermissionCheckerWithoutEffectiveProject(ctx contex
 func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement, checkEffectiveProject bool) error {
 	entityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
-		return fmt.Errorf("Failed to parse entity URL: %w", err)
+		return fmt.Errorf("Failed parsing entity URL: %w", err)
 	}
 
 	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement}
 
 	requestor, err := request.GetRequestor(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to check permission: %w", err)
+		return fmt.Errorf("Failed checking permission: %w", err)
 	}
 
 	// Untrusted requests are denied.
@@ -275,7 +275,7 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 	// Construct the URL in a standardised form (adding the project parameter if it was not present).
 	entityURL, err = entityType.URL(projectName, location, pathArguments...)
 	if err != nil {
-		return fmt.Errorf("Failed to standardize entity URL: %w", err)
+		return fmt.Errorf("Failed standardizing entity URL: %w", err)
 	}
 
 	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(requestor.CallerProtocol(), requestor.CallerUsername()).String())
@@ -342,8 +342,8 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 			errLogCtx["callsite"] = file + ":" + strconv.Itoa(line)
 		}
 
-		l.Error("Failed to check OpenFGA relation", errLogCtx)
-		return fmt.Errorf("Failed to check OpenFGA relation: %w", err)
+		l.Error("Failed checking OpenFGA relation", errLogCtx)
+		return fmt.Errorf("Failed checking OpenFGA relation: %w", err)
 	}
 
 	// If not allowed, decide if the user can view the resource.
@@ -375,7 +375,7 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 					err = openFGAInternalError.Unwrap()
 				}
 
-				return fmt.Errorf("Failed to check OpenFGA relation: %w", err)
+				return fmt.Errorf("Failed checking OpenFGA relation: %w", err)
 			}
 
 			// If we can't view the resource, return a generic not found error.
@@ -424,12 +424,12 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 			return allowFunc(false), nil
 		}
 
-		return nil, fmt.Errorf("Failed to get a permission checker: %w", err)
+		return nil, fmt.Errorf("Failed getting a permission checker: %w", err)
 	}
 
 	requestor, err := request.GetRequestor(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get a permission checker: %w", err)
+		return nil, fmt.Errorf("Failed getting a permission checker: %w", err)
 	}
 
 	// Untrusted requests are denied.
@@ -512,8 +512,8 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 			errLogCtx["callsite"] = file + ":" + strconv.Itoa(line)
 		}
 
-		l.Error("Failed to list OpenFGA Objects", errLogCtx)
-		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, requestor.CallerUsername(), err)
+		l.Error("Failed listing OpenFGA Objects", errLogCtx)
+		return nil, fmt.Errorf("Failed listing OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, requestor.CallerUsername(), err)
 	}
 
 	objects := resp.GetObjects()
@@ -523,7 +523,7 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 	return func(entityURL *api.URL) bool {
 		parsedEntityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
 		if err != nil {
-			l.Error("Failed to parse permission checker entity URL", logger.Ctx{"url": entityURL.String(), "err": err})
+			l.Error("Failed parsing permission checker entity URL", logger.Ctx{"url": entityURL.String(), "err": err})
 			return false
 		}
 
@@ -544,7 +544,7 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 
 		standardisedEntityURL, err := entityType.URL(projectName, location, pathArguments...)
 		if err != nil {
-			l.Error("Failed to standardise permission checker entity URL", logger.Ctx{"url": entityURL.String(), "err": err})
+			l.Error("Failed standardising permission checker entity URL", logger.Ctx{"url": entityURL.String(), "err": err})
 			return false
 		}
 

@@ -192,12 +192,12 @@ func (c *cmdConvert) connectTarget(url string, certPath string, keyPath string, 
 
 			clientCrt, err = os.ReadFile(certPath)
 			if err != nil {
-				return nil, "", fmt.Errorf("Failed to read client certificate: %w", err)
+				return nil, "", fmt.Errorf("Failed reading client certificate: %w", err)
 			}
 
 			clientKey, err = os.ReadFile(keyPath)
 			if err != nil {
-				return nil, "", fmt.Errorf("Failed to read client key: %w", err)
+				return nil, "", fmt.Errorf("Failed reading client key: %w", err)
 			}
 		}
 
@@ -254,7 +254,7 @@ func (c *cmdConvert) connectTarget(url string, certPath string, keyPath string, 
 
 			err = instanceServer.CreateCertificate(req)
 			if err != nil {
-				return nil, "", fmt.Errorf("Failed to create certificate: %w", err)
+				return nil, "", fmt.Errorf("Failed creating certificate: %w", err)
 			}
 		} else if c.flagNonInteractive {
 			// In non-interactive mode stop at this point, as we know that the server
@@ -263,7 +263,7 @@ func (c *cmdConvert) connectTarget(url string, certPath string, keyPath string, 
 				return nil, "", errors.New("Provided certificate is not trusted by the server")
 			}
 
-			return nil, "", errors.New("Failed to authenticate with the server: Please, either provide a trust token or an already trusted certificate")
+			return nil, "", errors.New("Failed authenticating with the server: Please, either provide a trust token or an already trusted certificate")
 		} else if instanceServer.HasExtension("explicit_trust_token") {
 			fmt.Println("A temporary client certificate was generated, use `lxc config trust add` on the target server.")
 			fmt.Println("")
@@ -326,7 +326,7 @@ func (c *cmdConvert) connectTarget(url string, certPath string, keyPath string, 
 	}
 
 	if srv.Auth == api.AuthUntrusted {
-		return nil, "", errors.New("Server doesn't trust us after authentication")
+		return nil, "", errors.New("Server does not trust us after authentication")
 	}
 
 	fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
@@ -347,13 +347,13 @@ func setupSource(path string, mounts []string) error {
 		// Mount the path
 		err := unix.Mount(mount, target, "none", unix.MS_BIND, "")
 		if err != nil {
-			return fmt.Errorf("Failed to mount %s: %w", mount, err)
+			return fmt.Errorf("Failed mounting %s: %w", mount, err)
 		}
 
 		// Make it read-only
 		err = unix.Mount("", target, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
 		if err != nil {
-			return fmt.Errorf("Failed to make %s read-only: %w", mount, err)
+			return fmt.Errorf("Failed making %s read-only: %w", mount, err)
 		}
 	}
 
@@ -388,7 +388,7 @@ func isImageTypeRaw(path string) (bool, error) {
 	cmd := exec.Command("file", "--brief", path)
 	out, err := cmd.Output()
 	if err != nil {
-		return false, fmt.Errorf("Failed to extract image file type: %v", err)
+		return false, fmt.Errorf("Failed extracting image file type: %v", err)
 	}
 
 	isRaw := strings.HasPrefix(string(out), "DOS/MBR boot sector") || strings.HasPrefix(string(out), "block special")

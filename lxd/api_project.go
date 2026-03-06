@@ -243,7 +243,7 @@ func projectUsedByMap(ctx context.Context, tx *sql.Tx, projectName string) (map[
 
 	entityURLs, err := dbCluster.GetEntityURLs(ctx, tx, projectName, reportedEntityTypes...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get project used-by URLs: %w", err)
+		return nil, fmt.Errorf("Failed getting project used-by URLs: %w", err)
 	}
 
 	return entityURLs, nil
@@ -368,7 +368,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return client.CreateProject(project)
 	})
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
+		return response.SmartError(fmt.Errorf("Failed notifying other cluster members: %w", err))
 	}
 
 	var id int64
@@ -380,7 +380,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 
 		err = dbCluster.CreateProjectConfig(ctx, tx.Tx(), id, project.Config)
 		if err != nil {
-			return fmt.Errorf("Unable to create project config for project %q: %w", project.Name, err)
+			return fmt.Errorf("Cannot create project config for project %q: %w", project.Name, err)
 		}
 
 		if shared.IsTrue(project.Config["features.profiles"]) {
@@ -791,7 +791,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	// Quick checks.
 	if len(featuresChanged) > 0 {
 		if project.Name == api.ProjectDefaultName {
-			return response.BadRequest(errors.New("You can't change the features of the default project"))
+			return response.BadRequest(errors.New("You cannot change the features of the default project"))
 		}
 
 		// Consider the project empty if it is only used by the default profile.
@@ -890,7 +890,7 @@ func projectNodeConfigRename(d *Daemon, ctx context.Context, oldName string, new
 
 		localConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to load local node config: %w", err)
+			return fmt.Errorf("Failed loading local node config: %w", err)
 		}
 
 		_, err = localConfig.Patch(map[string]string{
@@ -902,7 +902,7 @@ func projectNodeConfigRename(d *Daemon, ctx context.Context, oldName string, new
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to update project-specific config keys in the local node config: %w", err)
+		return fmt.Errorf("Failed updating project-specific config keys in the local node config: %w", err)
 	}
 
 	// Update local config cache.
@@ -1077,7 +1077,7 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 
 		config, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to load local node config: %w", err)
+			return fmt.Errorf("Failed loading local node config: %w", err)
 		}
 
 		// Unmount the project-specific storage volumes.
@@ -1101,7 +1101,7 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to clear project-specific config keys from the local node config: %w", err)
+		return fmt.Errorf("Failed clearing project-specific config keys from the local node config: %w", err)
 	}
 
 	// Update local config cache.
@@ -1242,13 +1242,13 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			if force {
 				err = doProjectForceDelete(ctx, requestor.ClientType(), op, s, name, nil)
 				if err != nil {
-					return fmt.Errorf("Failed to delete member specific project resources: %w", err)
+					return fmt.Errorf("Failed deleting member specific project resources: %w", err)
 				}
 			}
 
 			err = projectNodeConfigDelete(d, s, name)
 			if err != nil {
-				return fmt.Errorf("Failed to remove member specific project configuration: %w", err)
+				return fmt.Errorf("Failed removing member specific project configuration: %w", err)
 			}
 
 			return nil
@@ -1279,12 +1279,12 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 		projectEntities, err = projectUsedByMap(ctx, tx.Tx(), project.Name)
 		if err != nil {
-			return fmt.Errorf("Failed to determine project usage: %w", err)
+			return fmt.Errorf("Failed determining project usage: %w", err)
 		}
 
 		effectiveProjectName, err = projecthelpers.ImageProject(ctx, tx.Tx(), project.Name)
 		if err != nil {
-			return fmt.Errorf("Failed to determine effective project name for images: %w", err)
+			return fmt.Errorf("Failed determining effective project name for images: %w", err)
 		}
 
 		if !force {
@@ -1351,7 +1351,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			// Force delete all project entities from the local node.
 			err = doProjectForceDelete(ctx, requestor.ClientType(), op, s, project.Name, projectEntities)
 			if err != nil {
-				return fmt.Errorf("Failed to force delete project: %w", err)
+				return fmt.Errorf("Failed forcing delete project: %w", err)
 			}
 		} else {
 			var opScheduler operations.OperationScheduler = func(s *state.State, args operations.OperationArgs) (*operations.Operation, error) {
@@ -1375,14 +1375,14 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		// Clear the project-specific config keys from the local node config.
 		err = projectNodeConfigDelete(d, s, name)
 		if err != nil {
-			return fmt.Errorf("Failed to delete project specific information from local node configuration: %w", err)
+			return fmt.Errorf("Failed deleting project specific information from local node configuration: %w", err)
 		}
 
 		// Send notification to all cluster members to update the node schema and handle forced project deletion (if requested).
 		// Require all cluster members to process cluster notification to avoid leaving cluster members in an inconsistent state.
 		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 		if err != nil {
-			return fmt.Errorf("Failed to get a cluster notifier: %w", err)
+			return fmt.Errorf("Failed getting a cluster notifier: %w", err)
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
@@ -1394,14 +1394,14 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return op.Wait()
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to notify other cluster members: %w", err)
+			return fmt.Errorf("Failed notifying other cluster members: %w", err)
 		}
 
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return dbCluster.DeleteProject(ctx, tx.Tx(), name)
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to delete project: %w", err)
+			return fmt.Errorf("Failed deleting project: %w", err)
 		}
 
 		s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor.EventLifecycleRequestor(), nil))
@@ -1675,7 +1675,7 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 			return s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 				groups, err := dbCluster.GetClusterGroups(ctx, tx.Tx())
 				if err != nil {
-					return fmt.Errorf("Failed to validate restricted cluster group configuration: %w", err)
+					return fmt.Errorf("Failed validating restricted cluster group configuration: %w", err)
 				}
 
 			outer:
@@ -2052,7 +2052,7 @@ func projectValidateRestrictedSubnets(s *state.State, value string) error {
 		}
 
 		if !foundMatch {
-			return fmt.Errorf("Uplink network %q doesn't contain %q in its routes", uplinkName, restrictedSubnet.String())
+			return fmt.Errorf("Uplink network %q does not contain %q in its routes", uplinkName, restrictedSubnet.String())
 		}
 	}
 

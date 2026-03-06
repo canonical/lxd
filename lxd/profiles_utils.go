@@ -40,7 +40,7 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 
 	insts, projects, err := getProfileInstancesInfo(ctx, s.DB.Cluster, p.Name, profileName)
 	if err != nil {
-		return fmt.Errorf("Failed to query instances associated with profile %q: %w", profileName, err)
+		return fmt.Errorf("Failed querying instances associated with profile %q: %w", profileName, err)
 	}
 
 	// Check if the root disk device's pool would be changed or removed and prevent that if there are instances
@@ -123,7 +123,7 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 		}
 
 		if len(newProfiles) != 1 {
-			return fmt.Errorf("Failed to find profile %q in project %q", profileName, p.Name)
+			return fmt.Errorf("Failed finding profile %q in project %q", profileName, p.Name)
 		}
 
 		return nil
@@ -149,7 +149,7 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 
 	if len(failures) != 0 {
 		var msg strings.Builder
-		msg.WriteString("The following instances failed to update (profile change still saved):\n")
+		msg.WriteString("The following instances failed updating (profile change still saved):\n")
 		for inst, err := range failures {
 			fmt.Fprintf(&msg, " - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
@@ -165,7 +165,7 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 func doProfileUpdateCluster(ctx context.Context, s *state.State, projectName string, profileName string, old api.ProfilePut) error {
 	insts, projects, err := getProfileInstancesInfo(ctx, s.DB.Cluster, projectName, profileName)
 	if err != nil {
-		return fmt.Errorf("Failed to query instances associated with profile %q: %w", profileName, err)
+		return fmt.Errorf("Failed querying instances associated with profile %q: %w", profileName, err)
 	}
 
 	failures := map[*db.InstanceArgs]error{}
@@ -195,7 +195,7 @@ func doProfileUpdateCluster(ctx context.Context, s *state.State, projectName str
 
 	if len(failures) != 0 {
 		var msg strings.Builder
-		msg.WriteString("The following instances failed to update (profile change still saved):\n")
+		msg.WriteString("The following instances failed updating (profile change still saved):\n")
 		for inst, err := range failures {
 			fmt.Fprintf(&msg, " - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
@@ -260,7 +260,7 @@ func getProfileInstancesInfo(ctx context.Context, dbCluster *db.Cluster, project
 		return err
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to query instances with profile %q: %w", profileName, err)
+		return nil, nil, fmt.Errorf("Failed querying instances with profile %q: %w", profileName, err)
 	}
 
 	var instances map[int]db.InstanceArgs
@@ -302,7 +302,7 @@ func getProfileInstancesInfo(ctx context.Context, dbCluster *db.Cluster, project
 		return nil
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to fetch instances: %w", err)
+		return nil, nil, fmt.Errorf("Failed fetching instances: %w", err)
 	}
 
 	return instances, projects, nil

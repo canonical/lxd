@@ -43,7 +43,7 @@ DELETE FROM storage_volumes WHERE storage_pool_id NOT IN (SELECT id FROM storage
 DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FROM storage_volumes);
 `)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sanitize broken foreign key references: %w", err)
+		return nil, fmt.Errorf("failed sanitizing broken foreign key references: %w", err)
 	}
 
 	// Dump all tables.
@@ -59,13 +59,13 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 
 		rows, err := tx.QueryContext(ctx, stmt)
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch rows from %s: %w", table, err)
+			return nil, fmt.Errorf("failed fetching rows from %s: %w", table, err)
 		}
 
 		columns, err := rows.Columns()
 		if err != nil {
 			_ = rows.Close()
-			return nil, fmt.Errorf("failed to get columns of %s: %w", table, err)
+			return nil, fmt.Errorf("failed getting columns of %s: %w", table, err)
 		}
 
 		dump.Schema[table] = columns
@@ -80,7 +80,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 			err := rows.Scan(row...)
 			if err != nil {
 				_ = rows.Close()
-				return nil, fmt.Errorf("failed to scan row from %s: %w", table, err)
+				return nil, fmt.Errorf("failed scanning row from %s: %w", table, err)
 			}
 
 			data = append(data, values)
@@ -198,7 +198,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 
 				key, ok := row[index].(string)
 				if !ok {
-					return fmt.Errorf("Failed to convert key to string for row %d in networks_config", i)
+					return fmt.Errorf("Failed converting key to string for row %d in networks_config", i)
 				}
 
 				if !slices.Contains(NodeSpecificNetworkConfig, key) {
@@ -222,7 +222,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 
 				key, ok := row[index].(string)
 				if !ok {
-					return fmt.Errorf("Failed to convert key to string for row %d in storage_pools_config", i)
+					return fmt.Errorf("Failed converting key to string for row %d in storage_pools_config", i)
 				}
 
 				if !slices.Contains(NodeSpecificStorageConfig, key) {
@@ -250,7 +250,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 			stmt += " VALUES " + query.Params(len(columns))
 			result, err := tx.Exec(stmt, row...)
 			if err != nil {
-				return fmt.Errorf("failed to insert row %d into %s: %w", i, table, err)
+				return fmt.Errorf("failed inserting row %d into %s: %w", i, table, err)
 			}
 
 			n, err := result.RowsAffected()
@@ -267,7 +267,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 				entity := table[:len(table)-1]
 				err := importNodeAssociation(entity, columns, row, tx)
 				if err != nil {
-					return errors.New("Failed to import node associations")
+					return errors.New("Failed importing node associations")
 				}
 			}
 		}
@@ -287,7 +287,7 @@ func importNodeAssociation(entity string, columns []string, row []any, tx *sql.T
 		if column == "id" {
 			id, ok = row[i].(int64)
 			if !ok {
-				return fmt.Errorf("Failed to convert %q ID to int64", entity)
+				return fmt.Errorf("Failed converting %q ID to int64", entity)
 			}
 
 			break
@@ -299,7 +299,7 @@ func importNodeAssociation(entity string, columns []string, row []any, tx *sql.T
 
 	_, err := tx.Exec(stmt, id)
 	if err != nil {
-		return fmt.Errorf("failed to associate %q to node: %w", entity, err)
+		return fmt.Errorf("failed associating %q to node: %w", entity, err)
 	}
 
 	return nil

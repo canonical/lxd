@@ -77,7 +77,7 @@ func addProfileDetailsToRequestContext(s *state.State, r *http.Request) error {
 	requestProjectName := request.ProjectParam(r)
 	effectiveProject, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
-		return fmt.Errorf("Failed to check project %q profile feature: %w", requestProjectName, err)
+		return fmt.Errorf("Failed checking project %q profile feature: %w", requestProjectName, err)
 	}
 
 	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProject.Name)
@@ -646,7 +646,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		current, err := dbCluster.GetProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
 		if err != nil {
-			return fmt.Errorf("Failed to retrieve profile %q: %w", details.profileName, err)
+			return fmt.Errorf("Failed retrieving profile %q: %w", details.profileName, err)
 		}
 
 		profile, err = current.ToAPI(ctx, tx.Tx(), nil, nil)
@@ -774,7 +774,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		current, err := dbCluster.GetProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
 		if err != nil {
-			return fmt.Errorf("Failed to retrieve profile=%q: %w", details.profileName, err)
+			return fmt.Errorf("Failed retrieving profile=%q: %w", details.profileName, err)
 		}
 
 		profile, err = current.ToAPI(ctx, tx.Tx(), nil, nil)

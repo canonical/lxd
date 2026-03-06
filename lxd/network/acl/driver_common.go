@@ -625,7 +625,7 @@ func (d *common) Update(ctx context.Context, config *api.NetworkACLPut, clientTy
 	if len(aclOVNNets) > 0 && clientType == request.ClientTypeNormal {
 		client, err := openvswitch.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
-			return fmt.Errorf("Failed to get OVN client: %w", err)
+			return fmt.Errorf("Failed getting OVN client: %w", err)
 		}
 
 		var aclNameIDs map[string]int64
@@ -741,7 +741,7 @@ func (d *common) GetLog(ctx context.Context, clientType request.ClientType) (str
 		prefix := fmt.Sprintf("lxd_acl%d-", d.id)
 		logEntries, err = ovnParseLogEntriesFromJournald(ctx, "snap.microovn.chassis.service", prefix)
 		if err != nil {
-			return "", fmt.Errorf("Failed to get OVN log entries from syslog: %w", err)
+			return "", fmt.Errorf("Failed getting OVN log entries from syslog: %w", err)
 		}
 	} else {
 		// Else, if the current LXD deployment does not use MicroOVN,
@@ -756,7 +756,7 @@ func (d *common) GetLog(ctx context.Context, clientType request.ClientType) (str
 		// Open the log file.
 		logFile, err := os.Open(logPath)
 		if err != nil {
-			return "", fmt.Errorf("Failed to open OVN log file: %w", err)
+			return "", fmt.Errorf("Failed opening OVN log file: %w", err)
 		}
 
 		defer func() { _ = logFile.Close() }()
@@ -773,7 +773,7 @@ func (d *common) GetLog(ctx context.Context, clientType request.ClientType) (str
 
 		err = scanner.Err()
 		if err != nil {
-			return "", fmt.Errorf("Failed to read OVN log file: %w", err)
+			return "", fmt.Errorf("Failed reading OVN log file: %w", err)
 		}
 	}
 
@@ -812,7 +812,7 @@ func (d *common) GetLog(ctx context.Context, clientType request.ClientType) (str
 
 			err = scanner.Err()
 			if err != nil {
-				return fmt.Errorf("Failed to read OVN log file: %w", err)
+				return fmt.Errorf("Failed reading OVN log file: %w", err)
 			}
 
 			return nil

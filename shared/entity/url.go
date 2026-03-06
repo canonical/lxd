@@ -141,7 +141,7 @@ entityTypeLoop:
 			if entityPathPart == pathPlaceholder {
 				pathArgument, err := url.PathUnescape(pathParts[i])
 				if err != nil {
-					return "", "", "", nil, fmt.Errorf("Failed to unescape path element %q from url %q: %w", pathParts[i], u.String(), err)
+					return "", "", "", nil, fmt.Errorf("Failed unescaping path element %q from url %q: %w", pathParts[i], u.String(), err)
 				}
 
 				pathArgs = append(pathArgs, pathArgument)
@@ -160,7 +160,7 @@ entityTypeLoop:
 	}
 
 	if entityType == "" {
-		return "", "", "", nil, fmt.Errorf("Failed to match entity URL %q", u.String())
+		return "", "", "", nil, fmt.Errorf("Failed matching entity URL %q", u.String())
 	}
 
 	// Handle the project query parameter. If the entity type requires a project we set it to
@@ -223,7 +223,7 @@ func (t Type) urlMust(projectName string, location string, pathArguments ...stri
 			logCtx["caller"] = fmt.Sprintf("%s#%d", file, line)
 		}
 
-		logger.Error("Failed to create entity URL", logCtx)
+		logger.Error("Failed creating entity URL", logCtx)
 		return api.NewURL()
 	}
 

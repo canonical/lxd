@@ -113,7 +113,7 @@ func (d *nicPhysical) validateEnvironment() error {
 	}
 
 	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
-		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 	}
 
 	return nil
@@ -185,7 +185,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 			link := &ip.Link{Name: saveData["host_name"]}
 			err = link.SetAddress(hwaddr)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
+				return nil, fmt.Errorf("Failed setting the MAC address: %s", err)
 			}
 		}
 
@@ -218,7 +218,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 				return d.startVMUSB(saveData["host_name"])
 			}
 
-			return nil, fmt.Errorf("Failed to get PCI device info for %q: %w", saveData["host_name"], err)
+			return nil, fmt.Errorf("Failed getting PCI device info for %q: %w", saveData["host_name"], err)
 		}
 
 		saveData["last_state.pci.slot.name"] = pciDev.SlotName
@@ -285,7 +285,7 @@ func (d *nicPhysical) startVMUSB(name string) (*deviceConfig.RunConfig, error) {
 	}
 
 	if addr == "" {
-		return nil, fmt.Errorf("Failed to get USB device info for %q", name)
+		return nil, fmt.Errorf("Failed getting USB device info for %q", name)
 	}
 
 	// Parse the USB address.

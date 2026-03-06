@@ -52,19 +52,19 @@ const lxdTestSuiteDefaultStoragePool string = "lxdTestrunPool"
 func (suite *lxdTestSuite) SetupTest() {
 	tmpdir, err := os.MkdirTemp("", "lxd_testrun_")
 	if err != nil {
-		suite.T().Errorf("failed to create temp dir: %v", err)
+		suite.T().Errorf("failed creating temp dir: %v", err)
 	}
 
 	suite.tmpdir = tmpdir
 
 	err = os.Setenv("LXD_DIR", suite.tmpdir)
 	if err != nil {
-		suite.T().Errorf("failed to set LXD_DIR: %v", err)
+		suite.T().Errorf("failed setting LXD_DIR: %v", err)
 	}
 
 	suite.d, err = mockStartDaemon()
 	if err != nil {
-		suite.T().Errorf("failed to start daemon: %v", err)
+		suite.T().Errorf("failed starting daemon: %v", err)
 	}
 
 	// Create default storage pool. Make sure that we don't pass a nil to
@@ -75,7 +75,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	poolDescription := lxdTestSuiteDefaultStoragePool + " storage pool"
 	_, err = dbStoragePoolCreateAndUpdateCache(context.Background(), suite.d.State(), lxdTestSuiteDefaultStoragePool, poolDescription, "mock", poolConfig)
 	if err != nil {
-		suite.T().Errorf("failed to create default storage pool: %v", err)
+		suite.T().Errorf("failed creating default storage pool: %v", err)
 	}
 
 	rootDev := map[string]string{}
@@ -96,7 +96,7 @@ func (suite *lxdTestSuite) SetupTest() {
 		return cluster.UpdateProfileDevices(ctx, tx.Tx(), int64(profile.ID), map[string]cluster.Device{"root": device})
 	})
 	if err != nil {
-		suite.T().Errorf("failed to update default profile: %v", err)
+		suite.T().Errorf("failed updating default profile: %v", err)
 	}
 
 	suite.Req = require.New(suite.T())
@@ -105,11 +105,11 @@ func (suite *lxdTestSuite) SetupTest() {
 func (suite *lxdTestSuite) TearDownTest() {
 	err := suite.d.Stop(context.Background(), unix.SIGQUIT)
 	if err != nil {
-		suite.T().Errorf("failed to stop daemon: %v", err)
+		suite.T().Errorf("failed stopping daemon: %v", err)
 	}
 
 	err = os.RemoveAll(suite.tmpdir)
 	if err != nil {
-		suite.T().Errorf("failed to remove temp dir: %v", err)
+		suite.T().Errorf("failed removing temp dir: %v", err)
 	}
 }

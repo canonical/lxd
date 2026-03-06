@@ -394,7 +394,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		// Must be done after volume create so that zeroing and signature wiping can take place.
 		_, err := shared.RunCommand(context.TODO(), "lvchange", "--setactivationskip", "y", volDevPath)
 		if err != nil {
-			return fmt.Errorf("Failed to set activation skip on LVM logical volume %q: %w", volDevPath, err)
+			return fmt.Errorf("Failed setting activation skip on LVM logical volume %q: %w", volDevPath, err)
 		}
 	}
 
@@ -815,7 +815,7 @@ func (d *lvm) activateVolume(vol Volume) (bool, error) {
 	if !shared.PathExists(volDevPath) {
 		_, err := shared.RunCommand(context.TODO(), "lvchange", "--activate", "y", "--ignoreactivationskip", volDevPath)
 		if err != nil {
-			return false, fmt.Errorf("Failed to activate LVM logical volume %q: %w", volDevPath, err)
+			return false, fmt.Errorf("Failed activating LVM logical volume %q: %w", volDevPath, err)
 		}
 
 		d.logger.Debug("Activated logical volume", logger.Ctx{"volName": vol.Name(), "dev": volDevPath})
@@ -859,12 +859,12 @@ func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
 				break
 			}
 
-			logger.Debug("Failed to deactivate LVM logical volume", logger.Ctx{"path": volDevPath, "attempt": i, "err": err})
+			logger.Debug("Failed deactivating LVM logical volume", logger.Ctx{"path": volDevPath, "attempt": i, "err": err})
 			time.Sleep(500 * time.Millisecond)
 		}
 
 		if err != nil {
-			return false, fmt.Errorf("Failed to deactivate LVM logical volume %q: %w", volDevPath, err)
+			return false, fmt.Errorf("Failed deactivating LVM logical volume %q: %w", volDevPath, err)
 		}
 
 		d.logger.Debug("Deactivated logical volume", logger.Ctx{"volName": vol.Name(), "dev": volDevPath})

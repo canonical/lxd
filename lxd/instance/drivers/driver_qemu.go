@@ -123,7 +123,7 @@ const qemuSparseUSBPorts = 8
 // qemuBusModePersistent is the volatile.bus.mode for persistent bus allocation mode.
 const qemuBusModePersistent = "persistent"
 
-var errQemuAgentOffline = errors.New("LXD VM agent isn't currently running")
+var errQemuAgentOffline = errors.New("LXD VM agent is not currently running")
 
 type monitorHook func(m *qmp.Monitor) error
 
@@ -255,7 +255,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 	// Load the config.
 	err = d.init()
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to expand config: %w", err)
+		return nil, nil, fmt.Errorf("Failed expanding config: %w", err)
 	}
 
 	// When not a snapshot, perform full validation.
@@ -414,7 +414,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 
 		d, ok := inst.(*qemu)
 		if !ok || d == nil {
-			logger.Error("Failed to cast instance to *qemu")
+			logger.Error("Failed casting instance to *qemu")
 			return
 		}
 
@@ -423,7 +423,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			d.logger.Debug("Instance agent started")
 			err := d.advertiseVsockAddress()
 			if err != nil {
-				d.logger.Warn("Failed to advertise vsock address to instance agent", logger.Ctx{"err": err})
+				d.logger.Warn("Failed advertising vsock address to instance agent", logger.Ctx{"err": err})
 				return
 			}
 
@@ -442,7 +442,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 
 			err = d.onStop(target)
 			if err != nil {
-				d.logger.Error("Failed to cleanly stop instance", logger.Ctx{"err": err})
+				d.logger.Error("Failed cleanly stopping instance", logger.Ctx{"err": err})
 				return
 			}
 		}
@@ -613,7 +613,7 @@ func (d *qemu) onStop(target string) error {
 		d.logger.Debug("VM process finished")
 	} else {
 		// Log a warning, but continue clean up as best we can.
-		d.logger.Error("VM process failed to stop", logger.Ctx{"timeout": waitTimeout})
+		d.logger.Error("VM process failed stopping", logger.Ctx{"timeout": waitTimeout})
 	}
 
 	// Record power state.
@@ -833,7 +833,7 @@ func (d *qemu) killQemuProcess(pid int) error {
 			return nil
 		}
 
-		d.logger.Warn("Failed to collect VM process exit status", logger.Ctx{"pid": pid, "err": err})
+		d.logger.Warn("Failed collecting VM process exit status", logger.Ctx{"pid": pid, "err": err})
 	}
 
 	return nil
@@ -1144,7 +1144,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 				return nil
 			}
 
-			return fmt.Errorf("Failed to create instance start operation: %w", err)
+			return fmt.Errorf("Failed creating instance start operation: %w", err)
 		}
 	}
 
@@ -1359,7 +1359,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		// Start the device.
 		runConf, err := d.deviceStart(dev, false)
 		if err != nil {
-			err = fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+			err = fmt.Errorf("Failed starting device %q: %w", dev.Name(), err)
 			op.Done(err)
 			return err
 		}
@@ -1379,7 +1379,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		revert.Add(func() {
 			err := d.deviceStop(dev, false, "")
 			if err != nil {
-				d.logger.Error("Failed to cleanup device", logger.Ctx{"device": dev.Name(), "err": err})
+				d.logger.Error("Failed cleaning up device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
 		})
 
@@ -1438,12 +1438,12 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		if !errors.As(err, &errUnsupported) {
 			// Resolve previous warning.
 			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
-			err = fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
+			err = fmt.Errorf("Failed setting up virtiofsd for config drive: %w", err)
 			op.Done(err)
 			return err
 		}
 
-		d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
+		d.logger.Warn("Cannot use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
 
 		if errUnsupported == device.ErrMissingVirtiofsd {
 			_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1708,14 +1708,14 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	_, err = p.Wait(context.Background())
 	if err != nil {
 		stderr, _ := os.ReadFile(earlyLogFilePath)
-		err = fmt.Errorf("Failed to run: %s: %s: %w", strings.Join(p.Args, " "), string(stderr), err)
+		err = fmt.Errorf("Failed running: %s: %s: %w", strings.Join(p.Args, " "), string(stderr), err)
 		op.Done(err)
 		return err
 	}
 
 	pid, err := d.pid()
 	if err != nil || pid <= 0 {
-		d.logger.Error("Failed to get VM process ID", logger.Ctx{"err": err, "pid": pid})
+		d.logger.Error("Failed getting VM process ID", logger.Ctx{"err": err, "pid": pid})
 		op.Done(err)
 		return err
 	}
@@ -1743,7 +1743,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		// Setup CPUs and core scheduling for hotpluggable CPU systems.
 		err := d.setCPUs(cpuInfo.cores)
 		if err != nil {
-			err = fmt.Errorf("Failed to add CPUs: %w", err)
+			err = fmt.Errorf("Failed adding CPUs: %w", err)
 			op.Done(err)
 			return err
 		}
@@ -1759,7 +1759,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 		err = d.setCoreSched(pids)
 		if err != nil {
-			err = fmt.Errorf("Failed to allocate new core scheduling domain for vCPU threads: %w", err)
+			err = fmt.Errorf("Failed allocating new core scheduling domain for vCPU threads: %w", err)
 			op.Done(err)
 			return err
 		}
@@ -1887,7 +1887,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 	// Get the SEV guest `cbitpos` and `reducedPhysBits`.
 	sevCapabilities, ok := sev.(qmp.AMDSEVCapabilities)
 	if !ok {
-		return nil, errors.New(`Failed to get the guest "sev" capabilities`)
+		return nil, errors.New(`Failed getting the guest "sev" capabilities`)
 	}
 
 	cbitpos := sevCapabilities.CBitPos
@@ -2079,7 +2079,7 @@ func (d *qemu) setupNvram() error {
 	}
 
 	if vmFirmwarePath == "" {
-		return fmt.Errorf("Couldn't find one of the required VM firmware files: %+v", firmwares)
+		return fmt.Errorf("Could not find one of the required VM firmware files: %+v", firmwares)
 	}
 
 	// Copy the template.
@@ -2141,7 +2141,7 @@ func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
 		return path, "ccw", nil
 	}
 
-	return "", "", errors.New("Architecture isn't supported for virtual machines")
+	return "", "", errors.New("Architecture is not supported for virtual machines")
 }
 
 // RegisterDevices calls the Register() function on all of the instance's devices.
@@ -2264,7 +2264,7 @@ func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
 	// Get the current PCI devices.
 	devices, err := monitor.QueryPCI()
 	if err != nil {
-		return 0, fmt.Errorf("Failed to query PCI devices: %w", err)
+		return 0, fmt.Errorf("Failed querying PCI devices: %w", err)
 	}
 
 	for _, dev := range devices {
@@ -2304,7 +2304,7 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (cleanup revert
 	// Get current PCI slot count from QEMU.
 	pciSlotCount, err := d.getPCISlotCount()
 	if err != nil {
-		return nil, "", "", false, fmt.Errorf("Failed to get PCI slot count: %w", err)
+		return nil, "", "", false, fmt.Errorf("Failed getting PCI slot count: %w", err)
 	}
 
 	if pciSlotCount == 0 {
@@ -2408,19 +2408,19 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	// Detect virtiofsd path.
 	virtiofsdSockPath := filepath.Join(d.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(deviceName)+".sock")
 	if !shared.PathExists(virtiofsdSockPath) {
-		return "", errors.New("Virtiofsd isn't running")
+		return "", errors.New("Virtiofsd is not running")
 	}
 
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
-		return "", fmt.Errorf("Failed to connect to QMP monitor: %w", err)
+		return "", fmt.Errorf("Failed connecting to QMP monitor: %w", err)
 	}
 
 	// Open a file descriptor to the socket file through O_PATH to avoid acessing the file descriptor to the sockfs inode.
 	socketFile, err := os.OpenFile(virtiofsdSockPath, unix.O_PATH|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return "", fmt.Errorf("Failed to open device socket file %q: %w", virtiofsdSockPath, err)
+		return "", fmt.Errorf("Failed opening device socket file %q: %w", virtiofsdSockPath, err)
 	}
 
 	defer func() {
@@ -2454,7 +2454,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 
 	err = monitor.SendFile(virtiofsdSockPath, virtiofsFile)
 	if err != nil {
-		return "", fmt.Errorf("Failed to send virtiofs file descriptor: %w", err)
+		return "", fmt.Errorf("Failed sending virtiofs file descriptor: %w", err)
 	}
 
 	reverter.Add(func() { _ = monitor.CloseFile(virtiofsdSockPath) })
@@ -2475,7 +2475,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 		},
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to add the character device: %w", err)
+		return "", fmt.Errorf("Failed adding the character device: %w", err)
 	}
 
 	reverter.Add(func() { _ = monitor.RemoveCharDevice(deviceID) })
@@ -2501,7 +2501,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 
 	err = monitor.AddDevice(qemuDev)
 	if err != nil {
-		return "", fmt.Errorf("Failed to add the virtiofs device to port %q: %w", busName, err)
+		return "", fmt.Errorf("Failed adding the virtiofs device to port %q: %w", busName, err)
 	}
 
 	reverter.Success()
@@ -2512,12 +2512,12 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
-		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
+		return fmt.Errorf("Failed connecting to QMP monitor: %w", err)
 	}
 
 	monHook, err := d.addDriveConfig(d.busAllocatePCIeHotplug, nil, mount)
 	if err != nil {
-		return fmt.Errorf("Failed to add drive config: %w", err)
+		return fmt.Errorf("Failed adding drive config: %w", err)
 	}
 
 	err = monHook(monitor)
@@ -2555,7 +2555,7 @@ func (d *qemu) deviceDetachPath(deviceName string) error {
 		}
 
 		if time.Now().After(waitUntil) {
-			return fmt.Errorf("Failed to detach path device after %v", waitDuration)
+			return fmt.Errorf("Failed detaching path device after %v", waitDuration)
 		}
 	}
 
@@ -2594,7 +2594,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		}
 
 		if time.Now().After(waitUntil) {
-			return fmt.Errorf("Failed to detach block device after %v: %w", waitDuration, err)
+			return fmt.Errorf("Failed detaching block device after %v: %w", waitDuration, err)
 		}
 
 		if api.StatusErrorCheck(err, http.StatusLocked) {
@@ -2617,7 +2617,7 @@ func (d *qemu) deviceAttachNIC(netIF []deviceConfig.RunConfigItem) error {
 	}
 
 	if devName == "" {
-		return errors.New("Device didn't provide a link property to use")
+		return errors.New("Device did not provide a link property to use")
 	}
 
 	_, qemuBus, err := d.qemuArchConfig(d.architecture)
@@ -2789,7 +2789,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 			}
 
 			if time.Now().After(waitUntil) {
-				return fmt.Errorf("Failed to detach NIC after %v", waitDuration)
+				return fmt.Errorf("Failed detaching NIC after %v", waitDuration)
 			}
 
 			d.logger.Debug("Waiting for NIC device to be detached", logger.Ctx{"device": deviceName})
@@ -2837,7 +2837,7 @@ func (d *qemu) deviceDetachPCI(deviceName string) error {
 			}
 
 			if time.Now().After(waitUntil) {
-				return fmt.Errorf("Failed to detach PCI device after %v", waitDuration)
+				return fmt.Errorf("Failed detaching PCI device after %v", waitDuration)
 			}
 
 			d.logger.Debug("Waiting for PCI device to be detached", logger.Ctx{"device": deviceName})
@@ -3097,7 +3097,7 @@ mount -t tmpfs tmpfs "${PREFIX}" -o mode=0700,nodev,nosuid,noatime,size=50M
 mkdir -p "${PREFIX}/.mnt"
 
 # Try virtiofs first.
-mount_virtiofs || mount_9p || fail "Couldn't mount virtiofs or 9p, failing."
+mount_virtiofs || mount_9p || fail "Could not mount virtiofs or 9p, failing."
 
 # Copy the data.
 cp -Ra --no-preserve=ownership "${PREFIX}/.mnt/"* "${PREFIX}"
@@ -3329,7 +3329,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 	// Parse the metadata.
 	content, err := os.ReadFile(fname)
 	if err != nil {
-		return fmt.Errorf("Failed to read metadata: %w", err)
+		return fmt.Errorf("Failed reading metadata: %w", err)
 	}
 
 	metadata := new(api.ImageMetadata)
@@ -3343,7 +3343,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 	if err != nil {
 		arch, err = osarch.ArchitectureName(d.state.OS.Architectures[0])
 		if err != nil {
-			return fmt.Errorf("Failed to detect system architecture: %w", err)
+			return fmt.Errorf("Failed detecting system architecture: %w", err)
 		}
 	}
 
@@ -3388,14 +3388,14 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			// Read the template.
 			tplString, err := os.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
 			if err != nil {
-				return fmt.Errorf("Failed to read template file: %w", err)
+				return fmt.Errorf("Failed reading template file: %w", err)
 			}
 
 			// Restrict filesystem access to within the instance's rootfs.
 			tplSet := pongo2.NewSet(d.name+"-"+tpl.Template, pongoTemplate.ChrootLoader{Path: d.TemplatesPath()})
 			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 			if err != nil {
-				return fmt.Errorf("Failed to render template: %w", err)
+				return fmt.Errorf("Failed rendering template: %w", err)
 			}
 
 			configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
@@ -3524,7 +3524,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 
 		if efiCode == "" {
-			return "", nil, fmt.Errorf("Unable to locate matching VM firmware: %+v", firmwares)
+			return "", nil, fmt.Errorf("Cannot locate matching VM firmware: %+v", firmwares)
 		}
 
 		// Use debug version of firmware. (Only works for "preferred" (OVMF 4MB, no CSM) firmware flavor)
@@ -4673,7 +4673,7 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 				devFDName := fmt.Sprintf("%s.%d", devFile.Name(), i)
 				err = m.SendFile(devFDName, devFile)
 				if err != nil {
-					return fmt.Errorf("Failed to send %q file descriptor for queue %d: %w", devFDName, i, err)
+					return fmt.Errorf("Failed sending %q file descriptor for queue %d: %w", devFDName, i, err)
 				}
 
 				reverter.Add(func() { _ = m.CloseFile(devFDName) })
@@ -4695,7 +4695,7 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 					vhostFDName := fmt.Sprintf("%s.%d", vhostFile.Name(), i)
 					err = m.SendFile(vhostFDName, vhostFile)
 					if err != nil {
-						return fmt.Errorf("Failed to send %q file descriptor for queue %d: %w", vhostFDName, i, err)
+						return fmt.Errorf("Failed sending %q file descriptor for queue %d: %w", vhostFDName, i, err)
 					}
 
 					err = vhostFile.Close()
@@ -4825,14 +4825,14 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 			vDPADevFDName := vdpaDevFile.Name() + ".0"
 			err = m.SendFile(vDPADevFDName, vdpaDevFile)
 			if err != nil {
-				return fmt.Errorf("Failed to send %q file descriptor: %w", vDPADevFDName, err)
+				return fmt.Errorf("Failed sending %q file descriptor: %w", vDPADevFDName, err)
 			}
 
 			reverter.Add(func() { _ = m.CloseFile(vDPADevFDName) })
 
 			queues, err := strconv.Atoi(maxVQP)
 			if err != nil {
-				return fmt.Errorf("Failed to convert maxVQP (%q) to int: %w", maxVQP, err)
+				return fmt.Errorf("Failed converting maxVQP (%q) to int: %w", maxVQP, err)
 			}
 
 			qemuNetDev := map[string]any{
@@ -4892,7 +4892,7 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 				vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
 				err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
 				if err != nil {
-					return fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
+					return fmt.Errorf("Failed chowning vfio group device %q: %w", vfioGroupFile, err)
 				}
 
 				reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
@@ -5006,7 +5006,7 @@ func (d *qemu) addPCIDevConfig(busName string, busAllocate busAllocator, pciConf
 			vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
 			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
 			if err != nil {
-				return fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
+				return fmt.Errorf("Failed chowning vfio group device %q: %w", vfioGroupFile, err)
 			}
 
 			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
@@ -5155,7 +5155,7 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 
 		f, err := os.OpenFile(usbDev.HostDevicePath, unix.O_RDWR, 0)
 		if err != nil {
-			return fmt.Errorf("Failed to open host device: %w", err)
+			return fmt.Errorf("Failed opening host device: %w", err)
 		}
 
 		defer func() { _ = f.Close() }()
@@ -5167,7 +5167,7 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 
 		info, err := m.SendFileWithFDSet(qemuDevID, f, false)
 		if err != nil {
-			return fmt.Errorf("Failed to send file descriptor: %w", err)
+			return fmt.Errorf("Failed sending file descriptor: %w", err)
 		}
 
 		revert.Add(func() {
@@ -5178,7 +5178,7 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 
 		err = m.AddDevice(qemuDev)
 		if err != nil {
-			return fmt.Errorf("Failed to add device: %w", err)
+			return fmt.Errorf("Failed adding device: %w", err)
 		}
 
 		revert.Success()
@@ -5253,7 +5253,7 @@ func (d *qemu) pid() (int, error) {
 	qemuSearchString := []byte("qemu-system")
 	instUUID := []byte(d.localConfig["volatile.uuid"])
 	if !bytes.Contains(cmdLine, qemuSearchString) || !bytes.Contains(cmdLine, instUUID) {
-		return -1, errors.New("PID doesn't match the running process")
+		return -1, errors.New("PID does not match the running process")
 	}
 
 	return pid, nil
@@ -5265,7 +5265,7 @@ func (d *qemu) forceStop() error {
 	if pid > 0 {
 		err := d.killQemuProcess(pid)
 		if err != nil {
-			return fmt.Errorf("Failed to stop VM process %d: %w", pid, err)
+			return fmt.Errorf("Failed stopping VM process %d: %w", pid, err)
 		}
 	}
 
@@ -5460,7 +5460,7 @@ func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool, diskVolum
 
 		// Quick checks.
 		if !d.IsRunning() {
-			return errors.New("Unable to create a stateful snapshot. The instance isn't running")
+			return errors.New("Cannot create a stateful snapshot. The instance is not running")
 		}
 
 		// Connect to the monitor.
@@ -5615,8 +5615,8 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 			// Rename all the instance snapshot database entries.
 			results, err = tx.GetInstanceSnapshotsNames(ctx, d.project.Name, oldName)
 			if err != nil {
-				d.logger.Error("Failed to get instance snapshots", ctxMap)
-				return fmt.Errorf("Failed to get instance snapshots: Failed getting instance snapshot names: %w", err)
+				d.logger.Error("Failed getting instance snapshots", ctxMap)
+				return fmt.Errorf("Failed getting instance snapshots: Failed getting instance snapshot names: %w", err)
 			}
 
 			for _, sname := range results {
@@ -5782,7 +5782,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
-		return fmt.Errorf("Failed to create instance update operation: %w", err)
+		return fmt.Errorf("Failed creating instance update operation: %w", err)
 	}
 
 	defer op.Done(nil)
@@ -5835,13 +5835,13 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to get profiles: %w", err)
+		return fmt.Errorf("Failed getting profiles: %w", err)
 	}
 
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
 		if !slices.Contains(profiles, profile.Name) {
-			return fmt.Errorf("Requested profile %q doesn't exist", profile.Name)
+			return fmt.Errorf("Requested profile %q does not exist", profile.Name)
 		}
 
 		if slices.Contains(checkedProfiles, profile.Name) {
@@ -6201,12 +6201,12 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return dbCluster.UpdateInstanceProfiles(ctx, tx.Tx(), object.ID, object.Project, profileNames)
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to update database: %w", err)
+		return fmt.Errorf("Failed updating database: %w", err)
 	}
 
 	err = d.UpdateBackupFile()
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to write backup file: %w", err)
+		return fmt.Errorf("Failed writing backup file: %w", err)
 	}
 
 	// Changes have been applied and recorded, do not revert if an error occurs from here.
@@ -6381,7 +6381,7 @@ func (d *qemu) cleanupDevices() {
 		if dev != nil {
 			err = d.deviceStop(dev, false, "")
 			if err != nil {
-				d.logger.Error("Failed to stop device", logger.Ctx{"device": dev.Name(), "err": err})
+				d.logger.Error("Failed stopping device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
 		}
 	}
@@ -6909,7 +6909,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// Negotiated migration types.
 	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 	if err != nil {
-		err := fmt.Errorf("Failed to negotiate migration type: %w", err)
+		err := fmt.Errorf("Failed negotiating migration type: %w", err)
 		op.Done(err)
 		return err
 	}
@@ -7250,7 +7250,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 		// Call MigrateVolume on the source.
 		err = diskPool.Driver().MigrateVolume(volCopy, nil, extraSourceArgs, nil)
 		if err != nil {
-			return fmt.Errorf("Failed to prepare device %q for migration: %w", dev.Name, err)
+			return fmt.Errorf("Failed preparing device %q for migration: %w", dev.Name, err)
 		}
 	}
 
@@ -7771,7 +7771,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			// This is needed to ensure that mount path exists and the volume is mounted.
 			err = diskPool.Driver().CreateVolumeFromMigration(volCopy, nil, extraTargetArgs, nil, nil)
 			if err != nil {
-				return fmt.Errorf("Failed to prepare device %q for migration: %w", dev.Name, err)
+				return fmt.Errorf("Failed preparing device %q for migration: %w", dev.Name, err)
 			}
 		}
 
@@ -7936,7 +7936,7 @@ func (d *qemu) SetAffinity(set []string) error {
 	// Get the list of PIDs from the VM.
 	pids, err := monitor.GetCPUs()
 	if err != nil {
-		return fmt.Errorf("Failed to get VM instance's QEMU process list: %w", err)
+		return fmt.Errorf("Failed getting VM instance's QEMU process list: %w", err)
 	}
 
 	// Confirm nothing weird is going on.
@@ -7952,7 +7952,7 @@ func (d *qemu) SetAffinity(set []string) error {
 		// Apply the pin.
 		err := unix.SchedSetaffinity(pid, &affinitySet)
 		if err != nil {
-			return fmt.Errorf("Failed to set QEMU process affinity: %w", err)
+			return fmt.Errorf("Failed setting QEMU process affinity: %w", err)
 		}
 	}
 
@@ -8098,8 +8098,8 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"err": err})
-		return nil, errors.New("Failed to connect to lxd-agent")
+		d.logger.Error("Failed connecting to lxd-agent", logger.Ctx{"err": err})
+		return nil, errors.New("Failed connecting to lxd-agent")
 	}
 
 	revert.Add(agent.Disconnect)
@@ -8240,7 +8240,7 @@ func (d *qemu) Render(options ...func(response any) error) (state any, etag any,
 // RenderFull returns all info about the instance.
 func (d *qemu) RenderFull(_ []net.Interface, opts ...instance.StateRenderOptions) (*api.InstanceFull, any, error) {
 	if d.IsSnapshot() {
-		return nil, nil, errors.New("RenderFull doesn't work with snapshots")
+		return nil, nil, errors.New("RenderFull does not work with snapshots")
 	}
 
 	// Get the Instance struct.
@@ -8389,7 +8389,7 @@ func (d *qemu) renderState(statusCode api.StatusCode, opts ...instance.StateRend
 	if options.IncludeDisk {
 		status.Disk, err = d.diskState()
 		if err != nil && !errors.Is(err, storageDrivers.ErrNotSupported) {
-			d.logger.Info("Unable to get disk usage", logger.Ctx{"err": err})
+			d.logger.Info("Cannot get disk usage", logger.Ctx{"err": err})
 		}
 	} else {
 		status.Disk = nil
@@ -8567,11 +8567,11 @@ func (d *qemu) getVsockID() (uint32, error) {
 
 	vsockID, err := strconv.ParseUint(existingVsockID, 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to parse volatile.vsock_id: %q: %w", existingVsockID, err)
+		return 0, fmt.Errorf("Failed parsing volatile.vsock_id: %q: %w", existingVsockID, err)
 	}
 
 	if d.reservedVsockID(uint32(vsockID)) {
-		return 0, fmt.Errorf("Failed to use reserved vsock Context ID: %q", vsockID)
+		return 0, fmt.Errorf("Failed using reserved vsock Context ID: %q", vsockID)
 	}
 
 	return uint32(vsockID), nil
@@ -8585,7 +8585,7 @@ func (d *qemu) acquireVsockID(vsockID uint32) (*os.File, error) {
 
 	vsockF, err := os.OpenFile("/dev/vhost-vsock", os.O_RDWR, 0)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open vhost socket: %w", err)
+		return nil, fmt.Errorf("Failed opening vhost socket: %w", err)
 	}
 
 	revert.Add(func() { _ = vsockF.Close() })
@@ -8640,7 +8640,7 @@ func (d *qemu) nextVsockID() (uint32, *os.File, error) {
 	// Ignore the error from before and start to acquire a new Context ID.
 	instanceUUID, err := uuid.Parse(d.localConfig["volatile.uuid"])
 	if err != nil {
-		return 0, nil, fmt.Errorf("Failed to parse instance UUID from volatile.uuid: %w", err)
+		return 0, nil, fmt.Errorf("Failed parsing instance UUID from volatile.uuid: %w", err)
 	}
 
 	r, err := util.GetStableRandomGenerator(instanceUUID.String())
@@ -8975,7 +8975,7 @@ func (d *qemu) cpuTopology(limit string) (*cpuTopology, error) {
 		nrCores = countCores
 		nrThreads = countThreads
 	} else {
-		d.logger.Warn("Instance uses a CPU pinning profile which doesn't match hardware layout")
+		d.logger.Warn("Instance uses a CPU pinning profile which does not match hardware layout")
 
 		// Fallback on pretending everything are cores.
 		nrSockets = 1
@@ -9011,8 +9011,8 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"err": err})
-		return errors.New("Failed to connect to lxd-agent")
+		d.logger.Error("Failed connecting to lxd-agent", logger.Ctx{"err": err})
+		return errors.New("Failed connecting to lxd-agent")
 	}
 
 	defer agent.Disconnect()
@@ -9086,8 +9086,8 @@ func (d *qemu) Info() instance.Info {
 
 	data.Features, err = d.checkFeatures(hostArch, qemuPath)
 	if err != nil {
-		logger.Errorf("Unable to run feature checks during QEMU initialization: %v", err)
-		data.Error = errors.New("QEMU failed to run feature checks")
+		logger.Errorf("Cannot run feature checks during QEMU initialization: %v", err)
+		data.Error = errors.New("QEMU failed running feature checks")
 		return data
 	}
 
@@ -9135,7 +9135,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 		}
 
 		if efiPath == "" {
-			return nil, errors.New("Unable to locate a VM UEFI firmware")
+			return nil, errors.New("Cannot locate a VM UEFI firmware")
 		}
 
 		qemuArgs = append(qemuArgs, "-drive", "if=pflash,format=raw,readonly=on,file="+efiPath)
@@ -9326,8 +9326,8 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"project": d.Project().Name, "instance": d.Name(), "err": err})
-		return nil, errors.New("Failed to connect to lxd-agent")
+		d.logger.Error("Failed connecting to lxd-agent", logger.Ctx{"project": d.Project().Name, "instance": d.Name(), "err": err})
+		return nil, errors.New("Failed connecting to lxd-agent")
 	}
 
 	defer agent.Disconnect()
@@ -9448,7 +9448,7 @@ func (d *qemu) setCPUs(count int) error {
 
 	cpus, err := monitor.QueryHotpluggableCPUs()
 	if err != nil {
-		return fmt.Errorf("Failed to query hotpluggable CPUs: %w", err)
+		return fmt.Errorf("Failed querying hotpluggable CPUs: %w", err)
 	}
 
 	var availableCPUs []qmp.HotpluggableCPU
@@ -9484,7 +9484,7 @@ func (d *qemu) setCPUs(count int) error {
 
 		// This shouldn't trigger, but if it does, don't panic.
 		if count-totalReservedCPUs > len(availableCPUs) {
-			return errors.New("Unable to allocate more CPUs, not enough hotpluggable CPUs available")
+			return errors.New("Cannot allocate more CPUs, not enough hotpluggable CPUs available")
 		}
 
 		// Only allocate the difference in CPUs.
@@ -9507,18 +9507,18 @@ func (d *qemu) setCPUs(count int) error {
 
 			err := monitor.AddDevice(qemuDev)
 			if err != nil {
-				return fmt.Errorf("Failed to add device: %w", err)
+				return fmt.Errorf("Failed adding device: %w", err)
 			}
 
 			revert.Add(func() {
 				err := monitor.RemoveDevice(devID)
-				d.logger.Warn("Failed to remove CPU device", logger.Ctx{"err": err})
+				d.logger.Warn("Failed removing CPU device", logger.Ctx{"err": err})
 			})
 		}
 	} else {
 		if totalReservedCPUs-count > len(hotpluggedCPUs) {
 			// This shouldn't trigger, but if it does, don't panic.
-			return errors.New("Unable to remove CPUs, not enough hotpluggable CPUs available")
+			return errors.New("Cannot remove CPUs, not enough hotpluggable CPUs available")
 		}
 
 		// Less CPUs requested.
@@ -9530,7 +9530,7 @@ func (d *qemu) setCPUs(count int) error {
 
 			err := monitor.RemoveDevice(devID)
 			if err != nil {
-				return fmt.Errorf("Failed to remove CPU: %w", err)
+				return fmt.Errorf("Failed removing CPU: %w", err)
 			}
 
 			revert.Add(func() {
@@ -9541,7 +9541,7 @@ func (d *qemu) setCPUs(count int) error {
 					"core-id":   cpu.Props.CoreID,
 					"thread-id": cpu.Props.ThreadID,
 				})
-				d.logger.Warn("Failed to add CPU device", logger.Ctx{"err": err})
+				d.logger.Warn("Failed adding CPU device", logger.Ctx{"err": err})
 			})
 		}
 	}
@@ -9552,7 +9552,7 @@ func (d *qemu) setCPUs(count int) error {
 		// Get the list of PIDs from the VM.
 		pids, err = monitor.GetCPUs()
 		if err != nil {
-			return fmt.Errorf("Failed to get VM instance's QEMU process list: %w", err)
+			return fmt.Errorf("Failed getting VM instance's QEMU process list: %w", err)
 		}
 
 		if count == len(pids) {
@@ -9564,13 +9564,13 @@ func (d *qemu) setCPUs(count int) error {
 	}
 
 	if !cpusWereSeen {
-		return fmt.Errorf("Failed to wait until all vCPUs (%d) come online", count)
+		return fmt.Errorf("Failed waiting until all vCPUs (%d) come online", count)
 	}
 
 	// actualize core scheduling data
 	err = d.setCoreSched(pids)
 	if err != nil {
-		return fmt.Errorf("Failed to allocate new core scheduling domain for vCPU threads: %w", err)
+		return fmt.Errorf("Failed allocating new core scheduling domain for vCPU threads: %w", err)
 	}
 
 	revert.Success()
@@ -9600,7 +9600,7 @@ func (d *qemu) shortenedFilePath(originalSockPath string, fdFiles *[]*os.File) (
 	// Open a file descriptor to the socket file through O_PATH to avoid acessing the file descriptor to the sockfs inode.
 	socketFile, err := os.OpenFile(originalSockPath, unix.O_PATH|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return "", fmt.Errorf("Failed to open device socket file %q: %w", originalSockPath, err)
+		return "", fmt.Errorf("Failed opening device socket file %q: %w", originalSockPath, err)
 	}
 
 	return fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, socketFile)), nil

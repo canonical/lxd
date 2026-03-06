@@ -40,7 +40,7 @@ func (c *cmdExec) command() *cobra.Command {
 	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 The command is executed directly using exec, so there is no shell and
-shell patterns (variables, file redirects, ...) won't be understood.
+shell patterns (variables, file redirects, ...) will not be understood.
 If you need a shell environment you need to execute the shell
 executable, passing the shell commands as arguments, for example:
 
@@ -107,11 +107,11 @@ func (c *cmdExec) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagForceInteractive && c.flagForceNonInteractive {
-		return errors.New("You can't pass -t and -T at the same time")
+		return errors.New("You cannot pass -t and -T at the same time")
 	}
 
 	if c.flagMode != "auto" && (c.flagForceInteractive || c.flagForceNonInteractive) {
-		return errors.New("You can't pass -t or -T at the same time as --mode")
+		return errors.New("You cannot pass -t or -T at the same time as --mode")
 	}
 
 	// Connect to the daemon

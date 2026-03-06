@@ -142,7 +142,7 @@ lxc.log.file = "/dev/null"`,
 func Test_DeviceNextInterfaceHWAddr(t *testing.T) {
 	mac1, err := DeviceNextInterfaceHWAddr()
 	if err != nil {
-		t.Fatalf("Failed to get next interface HW address: %v", err)
+		t.Fatalf("Failed getting next interface HW address: %v", err)
 	}
 
 	assert.Len(t, mac1, 17, "Expected MAC address to be 17 characters long")
@@ -152,7 +152,7 @@ func Test_DeviceNextInterfaceHWAddr(t *testing.T) {
 
 	mac2, err := DeviceNextInterfaceHWAddr()
 	if err != nil {
-		t.Fatalf("Failed to get next interface HW address: %v", err)
+		t.Fatalf("Failed getting next interface HW address: %v", err)
 	}
 
 	assert.Len(t, mac2, 17, "Expected MAC address to be 17 characters long")
@@ -167,7 +167,7 @@ func Benchmark_DeviceNextInterfaceHWAddr(b *testing.B) {
 	for b.Loop() {
 		_, err := DeviceNextInterfaceHWAddr()
 		if err != nil {
-			b.Fatalf("Failed to get next interface HW address: %v", err)
+			b.Fatalf("Failed getting next interface HW address: %v", err)
 		}
 	}
 }

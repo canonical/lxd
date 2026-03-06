@@ -134,20 +134,20 @@ func (d *gpuMIG) Start() (*deviceConfig.RunConfig, error) {
 
 		// Validate the GPU.
 		if gpu.Nvidia == nil {
-			return nil, errors.New("Card isn't a NVIDIA GPU or driver isn't properly setup")
+			return nil, errors.New("Card is not a NVIDIA GPU or driver is not properly setup")
 		}
 
 		// Validate the MIG.
 		fields := strings.SplitN(gpu.Nvidia.CardDevice, ":", 2)
 		if len(fields) != 2 {
-			return nil, errors.New("Bad NVIDIA GPU (couldn't find ID)")
+			return nil, errors.New("Bad NVIDIA GPU (could not find ID)")
 		}
 
 		gpuID := fields[1]
 
 		if d.config["mig.uuid"] == "" {
 			if !shared.PathExists(fmt.Sprintf("/proc/driver/nvidia/capabilities/gpu%s/mig/gi%s/ci%s/access", gpuID, d.config["mig.gi"], d.config["mig.ci"])) {
-				return nil, fmt.Errorf("MIG device gi=%s ci=%s doesn't exist on GPU %s", d.config["mig.gi"], d.config["mig.ci"], gpuID)
+				return nil, fmt.Errorf("MIG device gi=%s ci=%s does not exist on GPU %s", d.config["mig.gi"], d.config["mig.ci"], gpuID)
 			}
 		}
 
@@ -157,7 +157,7 @@ func (d *gpuMIG) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	if pciAddress == "" {
-		return nil, errors.New("Failed to detect requested GPU device")
+		return nil, errors.New("Failed detecting requested GPU device")
 	}
 
 	return &runConf, nil

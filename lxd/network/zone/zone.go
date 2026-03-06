@@ -108,7 +108,7 @@ func (d *zone) usedBy(ctx context.Context, firstOnly bool) ([]string, error) {
 		for _, networkName := range networkNames {
 			_, network, _, err := tx.GetNetworkInAnyState(ctx, d.projectName, networkName)
 			if err != nil {
-				return fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
+				return fmt.Errorf("Failed getting network config for %q: %w", networkName, err)
 			}
 
 			// Check if the network is using this zone.
@@ -364,12 +364,12 @@ func (d *zone) Content(ctx context.Context) (*strings.Builder, error) {
 	err = d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to load all networks: %w", err)
+			return fmt.Errorf("Failed loading all networks: %w", err)
 		}
 
 		zoneProjects, err = tx.GetNetworkZones(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to load all network zones: %w", err)
+			return fmt.Errorf("Failed loading all network zones: %w", err)
 		}
 
 		return nil

@@ -133,7 +133,7 @@ func VolumeTypeToAPIInstanceType(volType drivers.VolumeType) (api.InstanceType, 
 		return api.InstanceTypeVM, nil
 	}
 
-	return api.InstanceTypeAny, errors.New("Volume type doesn't have equivalent instance type")
+	return api.InstanceTypeAny, errors.New("Volume type does not have equivalent instance type")
 }
 
 // VolumeContentTypeToDBContentType converts volume type to internal code.
@@ -753,7 +753,7 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 
 	if fileInfo != nil && fileInfo.IsDir() {
 		// If the dest block file exists, and it is a directory, fail.
-		return -1, fmt.Errorf("Root block path isn't a file: %s", destBlockFile)
+		return -1, fmt.Errorf("Root block path is not a file: %s", destBlockFile)
 	}
 
 	// convertBlockImage converts the qcow2 block image file into a raw block device. If needed it will attempt
@@ -880,7 +880,7 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 		// Delete the qcow2.
 		err = os.Remove(imgPath)
 		if err != nil {
-			return -1, fmt.Errorf("Failed to remove %q: %w", imgPath, err)
+			return -1, fmt.Errorf("Failed removing %q: %w", imgPath, err)
 		}
 
 		// Transfer the content excluding the destBlockFile name so that we don't delete the block file

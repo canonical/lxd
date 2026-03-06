@@ -201,7 +201,7 @@ func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {
 
 	err = inst.VolatileSet(map[string]string{"volatile.last_state.ready": strconv.FormatBool(state == api.Ready)})
 	if err != nil {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "Failed to set instance state: %w", err))
+		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "Failed setting instance state: %w", err))
 	}
 
 	if state == api.Ready {
@@ -518,7 +518,7 @@ func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) response.Respon
 	// Return http.StatusForbidden if the host does not have guest attachment enabled.
 	tokenJSON, err := d.State().UbuntuPro.GetGuestToken(r.Context(), inst.ExpandedConfig()["ubuntu_pro.guest_attach"])
 	if err != nil {
-		return response.DevLXDErrorResponse(fmt.Errorf("Failed to get an Ubuntu Pro guest token: %w", err))
+		return response.DevLXDErrorResponse(fmt.Errorf("Failed getting an Ubuntu Pro guest token: %w", err))
 	}
 
 	// Pass it back to the guest.
@@ -563,7 +563,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 			bearerRequestor, err := bearer.Authenticate(subject, token, auth.TokenLocationAuthorizationBearer, d.identityCache)
 			if err != nil {
 				// Deny access to DevLXD altogether if the provided token is not verifiable.
-				_ = response.DevLXDErrorResponse(fmt.Errorf("Failed to verify bearer token: %w", err)).Render(w, r)
+				_ = response.DevLXDErrorResponse(fmt.Errorf("Failed verifying bearer token: %w", err)).Render(w, r)
 				return
 			}
 
@@ -736,7 +736,7 @@ func allowDevLXDPermission(entityType entity.Type, entitlement auth.Entitlement,
 			for _, muxVar := range muxVars {
 				muxValue := vars[muxVar]
 				if muxValue == "" {
-					return response.DevLXDErrorResponse(fmt.Errorf("Failed to perform permission check: Path argument label %q not found in request URL %q", muxVar, r.URL))
+					return response.DevLXDErrorResponse(fmt.Errorf("Failed performing permission check: Path argument label %q not found in request URL %q", muxVar, r.URL))
 				}
 
 				muxValues = append(muxValues, muxValue)
@@ -746,7 +746,7 @@ func allowDevLXDPermission(entityType entity.Type, entitlement auth.Entitlement,
 
 			entityURL, err = entityType.URL(instProject, targetParam, muxValues...)
 			if err != nil {
-				return response.DevLXDErrorResponse(fmt.Errorf("Failed to perform permission check: %w", err))
+				return response.DevLXDErrorResponse(fmt.Errorf("Failed performing permission check: %w", err))
 			}
 		}
 

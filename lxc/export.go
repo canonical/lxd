@@ -148,7 +148,7 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("Failed to get instance backup name from operation: %w", err)
+		return fmt.Errorf("Failed getting instance backup name from operation: %w", err)
 	}
 
 	defer func() {
@@ -193,13 +193,13 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 
 		err = os.Rename(shared.HostPathFollow(targetName), shared.HostPathFollow(name+ext))
 		if err != nil {
-			return fmt.Errorf("Failed to rename export file: %w", err)
+			return fmt.Errorf("Failed renaming export file: %w", err)
 		}
 	}
 
 	err = target.Close()
 	if err != nil {
-		return fmt.Errorf("Failed to close export file: %w", err)
+		return fmt.Errorf("Failed closing export file: %w", err)
 	}
 
 	exportProgress.Done("Backup exported successfully!")

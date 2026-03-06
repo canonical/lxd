@@ -894,7 +894,7 @@ func (c *cmdStorageVolumeDetach) run(cmd *cobra.Command, args []string) error {
 
 	_, ok := inst.Devices[devName]
 	if !ok {
-		return errors.New("The specified device doesn't exist")
+		return errors.New("The specified device does not exist")
 	}
 
 	// Remove the device
@@ -997,7 +997,7 @@ func (c *cmdStorageVolumeDetachProfile) run(cmd *cobra.Command, args []string) e
 
 	_, ok := profile.Devices[devName]
 	if !ok {
-		return errors.New("The specified device doesn't exist")
+		return errors.New("The specified device does not exist")
 	}
 
 	// Remove the device
@@ -1769,7 +1769,7 @@ func (c *cmdStorageVolumeList) parseColumns(clustered bool, allVolumes bool) ([]
 	} else {
 		if c.flagColumns != c.defaultColumns {
 			if strings.ContainsAny(c.flagColumns, "L") {
-				return nil, errors.New("Can't specify column L when not clustered")
+				return nil, errors.New("Cannot specify column L when not clustered")
 			}
 		}
 		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
@@ -2209,7 +2209,7 @@ func (c *cmdStorageVolumeSet) run(cmd *cobra.Command, args []string) error {
 			return op.Wait()
 		}
 
-		return errors.New("Snapshots are read-only and can't have their configuration changed")
+		return errors.New("Snapshots are read-only and cannot have their configuration changed")
 	}
 
 	// Get the storage volume entry.
@@ -2713,7 +2713,7 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 
 	volName, volType := parseVolume("custom", args[1])
 	if volType != "custom" {
-		return fmt.Errorf("Failed to create storage volume backup for volume %q: %w", volName, errors.New(`Only "custom" volumes can be exported`))
+		return fmt.Errorf("Failed creating storage volume backup for volume %q: %w", volName, errors.New(`Only "custom" volumes can be exported`))
 	}
 
 	req := api.StoragePoolVolumeBackupsPost{
@@ -2731,7 +2731,7 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 
 	op, err := d.CreateStoragePoolVolumeBackup(name, volName, req)
 	if err != nil {
-		return fmt.Errorf("Failed to create storage volume backup for volume %q: %w", volName, err)
+		return fmt.Errorf("Failed creating storage volume backup for volume %q: %w", volName, err)
 	}
 
 	// Watch the background operation
@@ -2771,7 +2771,7 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("Failed to get custom volume backup name from operation: %w", err)
+		return fmt.Errorf("Failed getting custom volume backup name from operation: %w", err)
 	}
 
 	defer func() {
@@ -2813,7 +2813,7 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		_ = os.Remove(targetName)
 		exportProgress.Done("")
-		return fmt.Errorf("Failed to fetch storage volume backup file: %w", err)
+		return fmt.Errorf("Failed fetching storage volume backup file: %w", err)
 	}
 
 	exportProgress.Done("Backup exported successfully!")

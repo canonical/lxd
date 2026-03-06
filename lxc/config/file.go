@@ -17,14 +17,14 @@ func LoadConfig(path string) (*Config, error) {
 	// Open the config file
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read the configuration file (%q): %w", path, err)
+		return nil, fmt.Errorf("Cannot read the configuration file (%q): %w", path, err)
 	}
 
 	// Decode the YAML document
 	c := NewConfig(filepath.Dir(path), false)
 	err = yaml.Unmarshal(content, &c)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to decode the configuration file (%q): %w", path, err)
+		return nil, fmt.Errorf("Cannot decode the configuration file (%q): %w", path, err)
 	}
 
 	for k, r := range c.Remotes {
@@ -41,7 +41,7 @@ func LoadConfig(path string) (*Config, error) {
 	if err == nil {
 		err = yaml.Unmarshal(content, &globalConf)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to decode the configuration file (%q): %w", globalConfPath, err)
+			return nil, fmt.Errorf("Cannot decode the configuration file (%q): %w", globalConfPath, err)
 		}
 
 		for k, r := range globalConf.Remotes {
@@ -85,7 +85,7 @@ func (c *Config) SaveConfig(path string) error {
 	conf := Config{}
 	err := shared.DeepCopy(c, &conf)
 	if err != nil {
-		return fmt.Errorf("Unable to copy the configuration: %w", err)
+		return fmt.Errorf("Cannot copy the configuration: %w", err)
 	}
 
 	// Remove the global remotes
@@ -109,7 +109,7 @@ func (c *Config) SaveConfig(path string) error {
 	// Create the config file (or truncate an existing one)
 	f, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("Unable to create the configuration file: %w", err)
+		return fmt.Errorf("Cannot create the configuration file: %w", err)
 	}
 
 	defer func() { _ = f.Close() }()
@@ -117,17 +117,17 @@ func (c *Config) SaveConfig(path string) error {
 	// Write the new config
 	data, err := yaml.Marshal(conf)
 	if err != nil {
-		return fmt.Errorf("Unable to marshal the configuration: %w", err)
+		return fmt.Errorf("Cannot marshal the configuration: %w", err)
 	}
 
 	_, err = f.Write(data)
 	if err != nil {
-		return fmt.Errorf("Unable to write the configuration: %w", err)
+		return fmt.Errorf("Cannot write the configuration: %w", err)
 	}
 
 	err = f.Close()
 	if err != nil {
-		return fmt.Errorf("Unable to close the configuration file: %w", err)
+		return fmt.Errorf("Cannot close the configuration file: %w", err)
 	}
 
 	return nil

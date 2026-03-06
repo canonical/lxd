@@ -54,7 +54,7 @@ func (c *cmdRename) run(cmd *cobra.Command, args []string) error {
 	if sourceRemote != destRemote {
 		// We just do renames
 		if strings.Contains(args[1], ":") {
-			return errors.New("Can't specify a different remote for rename")
+			return errors.New("Cannot specify a different remote for rename")
 		}
 
 		// Don't require the remote to be passed as both source and target

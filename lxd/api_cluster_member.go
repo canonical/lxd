@@ -1041,7 +1041,7 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 		return err
 	})
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Unable to get raft nodes: %w", err))
+		return response.SmartError(fmt.Errorf("Cannot get raft nodes: %w", err))
 	}
 
 	if !leaderInfo.Leader {
@@ -1113,7 +1113,7 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 				nodes[i].Role = db.RaftVoter
 				err := changeMemberRole(r.Context(), s, nodes[i].Address, nodes)
 				if err != nil {
-					return response.SmartError(fmt.Errorf("Unable to promote remaining cluster member to leader: %w", err))
+					return response.SmartError(fmt.Errorf("Cannot promote remaining cluster member to leader: %w", err))
 				}
 
 				break

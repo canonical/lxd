@@ -137,7 +137,7 @@ WHERE identities_auth_groups.auth_group_id = ?`
 
 	err := query.Scan(ctx, tx, stmt, dest, groupID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get identities for the group with ID %d: %w", groupID, err)
+		return nil, fmt.Errorf("Failed getting identities for the group with ID %d: %w", groupID, err)
 	}
 
 	return result, nil
@@ -166,7 +166,7 @@ JOIN identities_auth_groups ON identities.id = identities_auth_groups.identity_i
 
 	err := query.Scan(ctx, tx, stmt, dest)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get identities for all groups: %w", err)
+		return nil, fmt.Errorf("Failed getting identities for all groups: %w", err)
 	}
 
 	return result, nil
@@ -195,7 +195,7 @@ WHERE auth_groups_identity_provider_groups.auth_group_id = ?`
 
 	err := query.Scan(ctx, tx, stmt, dest, groupID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get identity provider groups for the group with ID %d: %w", groupID, err)
+		return nil, fmt.Errorf("Failed getting identity provider groups for the group with ID %d: %w", groupID, err)
 	}
 
 	return result, nil
@@ -224,7 +224,7 @@ JOIN auth_groups_identity_provider_groups ON identity_provider_groups.id = auth_
 
 	err := query.Scan(ctx, tx, stmt, dest)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get identity provider groups for all groups: %w", err)
+		return nil, fmt.Errorf("Failed getting identity provider groups for all groups: %w", err)
 	}
 
 	return result, nil
@@ -246,7 +246,7 @@ func GetPermissionsByAuthGroupID(ctx context.Context, tx *sql.Tx, groupID int) (
 
 	err := query.Scan(ctx, tx, `SELECT id, auth_group_id, entitlement, entity_type, entity_id FROM auth_groups_permissions WHERE auth_group_id = ?`, dest, groupID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get permissions for the group with ID %d: %w", groupID, err)
+		return nil, fmt.Errorf("Failed getting permissions for the group with ID %d: %w", groupID, err)
 	}
 
 	return result, nil
@@ -270,7 +270,7 @@ func GetPermissions(ctx context.Context, tx *sql.Tx) ([]Permission, error) {
 
 	err := query.Scan(ctx, tx, stmt, dest)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get permissions for all groups: %w", err)
+		return nil, fmt.Errorf("Failed getting permissions for all groups: %w", err)
 	}
 
 	return result, nil
@@ -281,7 +281,7 @@ func GetPermissions(ctx context.Context, tx *sql.Tx) ([]Permission, error) {
 func SetAuthGroupPermissions(ctx context.Context, tx *sql.Tx, groupID int, authGroupPermissions []Permission) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM auth_groups_permissions WHERE auth_group_id = ?`, groupID)
 	if err != nil {
-		return fmt.Errorf("Failed to delete existing permissions for group with ID %d: %w", groupID, err)
+		return fmt.Errorf("Failed deleting existing permissions for group with ID %d: %w", groupID, err)
 	}
 
 	if len(authGroupPermissions) == 0 {
@@ -291,7 +291,7 @@ func SetAuthGroupPermissions(ctx context.Context, tx *sql.Tx, groupID int, authG
 	for _, permission := range authGroupPermissions {
 		_, err := tx.ExecContext(ctx, `INSERT INTO auth_groups_permissions (auth_group_id, entity_type, entity_id, entitlement) VALUES (?, ?, ?, ?);`, groupID, permission.EntityType, permission.EntityID, permission.Entitlement)
 		if err != nil {
-			return fmt.Errorf("Failed to write group permissions: %w", err)
+			return fmt.Errorf("Failed writing group permissions: %w", err)
 		}
 	}
 

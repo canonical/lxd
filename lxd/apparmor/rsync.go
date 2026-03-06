@@ -105,7 +105,7 @@ func RsyncWrapper(sysOS *sys.OS, cmd *exec.Cmd, sourcePath string, dstPath strin
 	// Load the profile.
 	profileName, err := rsyncProfileLoad(sysOS, sourcePath, dstPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load rsync profile: %w", err)
+		return nil, fmt.Errorf("Failed loading rsync profile: %w", err)
 	}
 
 	revert.Add(func() { _ = deleteProfile(sysOS, profileName, profileName) })

@@ -65,7 +65,7 @@ func Lock(ctx context.Context, lockName string) (UnlockFunc, error) {
 		case <-waitCh:
 			continue
 		case <-ctx.Done():
-			return nil, fmt.Errorf("Failed to obtain lock %q: %w", lockName, ctx.Err())
+			return nil, fmt.Errorf("Failed obtaining lock %q: %w", lockName, ctx.Err())
 		}
 	}
 }

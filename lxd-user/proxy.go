@@ -19,7 +19,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 	// Load the client certificate.
 	content, err := os.ReadFile(filepath.Join("users", strconv.FormatUint(uint64(uid), 10), "client.crt"))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to open client certificate: %w", err)
+		return nil, fmt.Errorf("Cannot open client certificate: %w", err)
 	}
 
 	tlsClientCert := string(content)
@@ -27,7 +27,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 	// Load the client key.
 	content, err = os.ReadFile(filepath.Join("users", strconv.FormatUint(uint64(uid), 10), "client.key"))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to open client key: %w", err)
+		return nil, fmt.Errorf("Cannot open client key: %w", err)
 	}
 
 	tlsClientKey := string(content)
@@ -40,7 +40,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 
 	content, err = os.ReadFile(certPath)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to open server certificate: %w", err)
+		return nil, fmt.Errorf("Cannot open server certificate: %w", err)
 	}
 
 	tlsServerCert := string(content)
@@ -66,7 +66,7 @@ func proxyConnection(conn *net.UnixConn) {
 	// Get credentials.
 	creds, err := ucred.GetCred(conn)
 	if err != nil {
-		log.Errorf("Unable to get user credentials: %s", err)
+		log.Errorf("Cannot get user credentials: %s", err)
 		return
 	}
 
@@ -85,7 +85,7 @@ func proxyConnection(conn *net.UnixConn) {
 		log.Infof("Setting up LXD for uid %d", creds.Uid)
 		err := lxdSetupUser(creds.Uid)
 		if err != nil {
-			log.Errorf("Failed to setup new user: %v", err)
+			log.Errorf("Failed setting up new user: %v", err)
 			return
 		}
 	}
@@ -93,13 +93,13 @@ func proxyConnection(conn *net.UnixConn) {
 	// Connect to LXD.
 	unixAddr, err := net.ResolveUnixAddr("unix", shared.VarPath("unix.socket"))
 	if err != nil {
-		log.Errorf("Unable to resolve the target server: %v", err)
+		log.Errorf("Cannot resolve the target server: %v", err)
 		return
 	}
 
 	client, err := net.DialUnix("unix", nil, unixAddr)
 	if err != nil {
-		log.Errorf("Unable to connect to target server: %v", err)
+		log.Errorf("Cannot connect to target server: %v", err)
 		return
 	}
 
@@ -108,14 +108,14 @@ func proxyConnection(conn *net.UnixConn) {
 	// Get the TLS configuration
 	tlsConfig, err := tlsConfig(creds.Uid)
 	if err != nil {
-		log.Errorf("Failed to load TLS connection settings: %v", err)
+		log.Errorf("Failed loading TLS connection settings: %v", err)
 		return
 	}
 
 	// Setup TLS.
 	_, err = client.Write([]byte("STARTTLS\n"))
 	if err != nil {
-		log.Errorf("Failed to setup TLS connection to target server: %v", err)
+		log.Errorf("Failed setting up TLS connection to target server: %v", err)
 		return
 	}
 

@@ -58,7 +58,7 @@ var validateErrorCases = []struct {
 	{Key{Type: Int64}, "1.2", "Invalid integer"},
 	{Key{Type: Bool}, "yyy", "Invalid boolean"},
 	{Key{Validator: func(string) error { return errors.New("Some error") }}, "", "Some error"},
-	{Key{Deprecated: "Don't use this"}, "foo", `Deprecated: "Don't use this"`},
+	{Key{Deprecated: "Do not use this"}, "foo", `Deprecated: "Do not use this"`},
 }
 
 // If a value has an expected kind code, a panic is thrown.

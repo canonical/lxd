@@ -1246,7 +1246,7 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	dnsmasqLogPath := shared.LogPath(fmt.Sprintf("dnsmasq.%s.log", n.name))
 	p, err := subprocess.NewProcess(command, dnsmasqCmd, "", dnsmasqLogPath)
 	if err != nil {
-		return fmt.Errorf("Failed to create subprocess: %s", err)
+		return fmt.Errorf("Failed creating subprocess: %s", err)
 	}
 
 	// Apply AppArmor confinement.
@@ -1255,7 +1255,7 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 
 		err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, warningtype.AppArmorDisabledDueToRawDnsmasq, entity.TypeNetwork, int(n.id))
 		if err != nil {
-			n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
+			n.logger.Warn("Failed resolving warning", logger.Ctx{"err": err})
 		}
 	} else {
 		n.logger.Warn("Skipping AppArmor for dnsmasq due to raw.dnsmasq being set", logger.Ctx{"name": n.name})
@@ -1264,14 +1264,14 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 			return tx.UpsertWarningLocalNode(ctx, n.project, entity.TypeNetwork, int(n.id), warningtype.AppArmorDisabledDueToRawDnsmasq, "")
 		})
 		if err != nil {
-			n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
+			n.logger.Warn("Failed creating warning", logger.Ctx{"err": err})
 		}
 	}
 
 	// Start dnsmasq.
 	err = p.Start(context.Background())
 	if err != nil {
-		return fmt.Errorf("Failed to run: %s %s: %w", command, strings.Join(dnsmasqCmd, " "), err)
+		return fmt.Errorf("Failed running: %s %s: %w", command, strings.Join(dnsmasqCmd, " "), err)
 	}
 
 	// Check dnsmasq started OK.
@@ -1293,7 +1293,7 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 			return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
 		}
 
-		return fmt.Errorf("Failed to save subprocess details: %s", err)
+		return fmt.Errorf("Failed saving subprocess details: %s", err)
 	}
 
 	return nil
@@ -1398,7 +1398,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if n.config["bridge.driver"] == "openvswitch" {
 			ovs := openvswitch.NewOVS()
 			if !ovs.Installed() {
-				return errors.New("Open vSwitch isn't installed on this system")
+				return errors.New("Open vSwitch is not installed on this system")
 			}
 
 			// Add and configure the interface in one operation to reduce the number of executions and
@@ -1763,12 +1763,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return tx.UpsertWarningLocalNode(ctx, n.project, entity.TypeNetwork, int(n.id), warningtype.LargerIPv6PrefixThanSupported, "")
 			})
 			if err != nil {
-				n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
+				n.logger.Warn("Failed creating warning", logger.Ctx{"err": err})
 			}
 		} else {
 			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, warningtype.LargerIPv6PrefixThanSupported, entity.TypeNetwork, int(n.id))
 			if err != nil {
-				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
+				n.logger.Warn("Failed resolving warning", logger.Ctx{"err": err})
 			}
 		}
 
@@ -2179,7 +2179,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if shared.PathExists(leasesPath) {
 			err := os.Remove(leasesPath)
 			if err != nil {
-				return fmt.Errorf("Failed to remove old dnsmasq leases file %q: %w", leasesPath, err)
+				return fmt.Errorf("Failed removing old dnsmasq leases file %q: %w", leasesPath, err)
 			}
 		}
 
@@ -2188,7 +2188,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if shared.PathExists(pidPath) {
 			err := os.Remove(pidPath)
 			if err != nil {
-				return fmt.Errorf("Failed to remove old dnsmasq pid file %q: %w", pidPath, err)
+				return fmt.Errorf("Failed removing old dnsmasq pid file %q: %w", pidPath, err)
 			}
 		}
 	}
@@ -2197,7 +2197,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	n.logger.Debug("Setting up firewall")
 	err = n.state.Firewall.NetworkSetup(n.name, ipv4Address, ipv6Address, fwOpts)
 	if err != nil {
-		return fmt.Errorf("Failed to setup firewall: %w", err)
+		return fmt.Errorf("Failed setting up firewall: %w", err)
 	}
 
 	if fwOpts.ACL {
@@ -2450,7 +2450,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 
 	p, err := subprocess.NewProcess(command, forkdnsargs, logPath, logPath)
 	if err != nil {
-		return fmt.Errorf("Failed to create subprocess: %s", err)
+		return fmt.Errorf("Failed creating subprocess: %s", err)
 	}
 
 	// Drop privileges.
@@ -2461,7 +2461,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 
 	err = p.Start(context.Background())
 	if err != nil {
-		return fmt.Errorf("Failed to run: %s %s: %w", command, strings.Join(forkdnsargs, " "), err)
+		return fmt.Errorf("Failed running: %s %s: %w", command, strings.Join(forkdnsargs, " "), err)
 	}
 
 	err = p.Save(shared.VarPath("networks", n.name, "forkdns.pid"))
@@ -2472,7 +2472,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 			return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
 		}
 
-		return fmt.Errorf("Failed to save subprocess details: %s", err)
+		return fmt.Errorf("Failed saving subprocess details: %s", err)
 	}
 
 	return nil
@@ -2528,7 +2528,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	curList, err := ForkdnsServersList(n.name)
 	if err != nil {
 		// Only warn here, but continue on to regenerate the servers list from cluster info.
-		n.logger.Warn("Failed to load existing forkdns server list", logger.Ctx{"err": err})
+		n.logger.Warn("Failed loading existing forkdns server list", logger.Ctx{"err": err})
 	}
 
 	// If current list is same as cluster list, nothing to do.
@@ -2618,7 +2618,7 @@ func (n *bridge) applyBootRoutesV4(routes []string) {
 		err := r.Replace(strings.Fields(route))
 		if err != nil {
 			// If it fails, then we can't stop as the route has already gone, so just log and continue.
-			n.logger.Error("Failed to restore route", logger.Ctx{"err": err})
+			n.logger.Error("Failed restoring route", logger.Ctx{"err": err})
 		}
 	}
 }
@@ -2635,7 +2635,7 @@ func (n *bridge) applyBootRoutesV6(routes []string) {
 		err := r.Replace(strings.Fields(route))
 		if err != nil {
 			// If it fails, then we can't stop as the route has already gone, so just log and continue.
-			n.logger.Error("Failed to restore route", logger.Ctx{"err": err})
+			n.logger.Error("Failed restoring route", logger.Ctx{"err": err})
 		}
 	}
 }
@@ -2737,7 +2737,7 @@ func (n *bridge) killForkDNS() error {
 
 	err = p.Stop()
 	if err != nil && err != subprocess.ErrNotRunning {
-		return fmt.Errorf("Unable to kill dnsmasq: %s", err)
+		return fmt.Errorf("Cannot kill dnsmasq: %s", err)
 	}
 
 	return nil
@@ -3061,7 +3061,7 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 		// Get all managed networks across all projects.
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to load all networks: %w", err)
+			return fmt.Errorf("Failed loading all networks: %w", err)
 		}
 
 		// Get all network forward listen addresses for forwards assigned to this specific cluster member.
@@ -3531,7 +3531,7 @@ func (n *bridge) forwardSetupFirewall() error {
 					return tx.UpsertWarningLocalNode(ctx, n.project, entity.TypeNetwork, int(n.id), warningtype.ProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 				})
 				if err != nil {
-					n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
+					n.logger.Warn("Failed creating warning", logger.Ctx{"err": err})
 				}
 			}
 		}
@@ -3539,7 +3539,7 @@ func (n *bridge) forwardSetupFirewall() error {
 		if !brNetfilterWarning {
 			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, warningtype.ProxyBridgeNetfilterNotEnabled, entity.TypeNetwork, int(n.id))
 			if err != nil {
-				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
+				n.logger.Warn("Failed resolving warning", logger.Ctx{"err": err})
 			}
 		}
 	}

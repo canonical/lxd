@@ -159,7 +159,7 @@ func (d *cephfs) Create() error {
 	// If the filesystem already exists, disallow keys associated to creating the filesystem.
 	fsExists, err := d.fsExists(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], fsName)
 	if err != nil {
-		return fmt.Errorf("Failed to check if %q CephFS exists: %w", fsName, err)
+		return fmt.Errorf("Failed checking if %q CephFS exists: %w", fsName, err)
 	}
 
 	if fsExists {
@@ -172,7 +172,7 @@ func (d *cephfs) Create() error {
 	} else {
 		createMissing := shared.IsTrue(d.config["cephfs.create_missing"])
 		if !createMissing {
-			return fmt.Errorf("The requested %q CephFS doesn't exist", fsName)
+			return fmt.Errorf("The requested %q CephFS does not exist", fsName)
 		}
 
 		// Set the pg_num to 32 because we need to specify something, but ceph will automatically change it if necessary.
@@ -191,7 +191,7 @@ func (d *cephfs) Create() error {
 
 			osdPoolExists, err := d.osdPoolExists(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], pool)
 			if err != nil {
-				return fmt.Errorf("Failed to check if %q OSD Pool exists: %w", pool, err)
+				return fmt.Errorf("Failed checking if %q OSD Pool exists: %w", pool, err)
 			}
 
 			if !osdPoolExists {
@@ -206,7 +206,7 @@ func (d *cephfs) Create() error {
 					d.config["cephfs.osd_pg_num"],
 				)
 				if err != nil {
-					return fmt.Errorf("Failed to create ceph OSD pool %q: %w", pool, err)
+					return fmt.Errorf("Failed creating ceph OSD pool %q: %w", pool, err)
 				}
 
 				revert.Add(func() {
@@ -257,7 +257,7 @@ func (d *cephfs) Create() error {
 			d.config["cephfs.data_pool"],
 		)
 		if err != nil {
-			return fmt.Errorf("Failed to create CephFS %q: %w", fsName, err)
+			return fmt.Errorf("Failed creating CephFS %q: %w", fsName, err)
 		}
 
 		revert.Add(func() {
@@ -285,21 +285,21 @@ func (d *cephfs) Create() error {
 	// Create a temporary mountpoint.
 	mountPath, err := os.MkdirTemp("", "lxd_cephfs_")
 	if err != nil {
-		return fmt.Errorf("Failed to create temporary directory under: %w", err)
+		return fmt.Errorf("Failed creating temporary directory under: %w", err)
 	}
 
 	defer func() { _ = os.RemoveAll(mountPath) }()
 
 	err = os.Chmod(mountPath, 0700)
 	if err != nil {
-		return fmt.Errorf("Failed to chmod %q: %w", mountPath, err)
+		return fmt.Errorf("Failed chmoding %q: %w", mountPath, err)
 	}
 
 	mountPoint := filepath.Join(mountPath, "mount")
 
 	err = os.Mkdir(mountPoint, 0700)
 	if err != nil {
-		return fmt.Errorf("Failed to create directory %q: %w", mountPoint, err)
+		return fmt.Errorf("Failed creating directory %q: %w", mountPoint, err)
 	}
 
 	// Get the credentials and host.
@@ -320,7 +320,7 @@ func (d *cephfs) Create() error {
 	// Create the path if missing.
 	err = os.MkdirAll(filepath.Join(mountPoint, fsPath), 0755)
 	if err != nil {
-		return fmt.Errorf("Failed to create directory %q: %w", filepath.Join(mountPoint, fsPath), err)
+		return fmt.Errorf("Failed creating directory %q: %w", filepath.Join(mountPoint, fsPath), err)
 	}
 
 	// Check that the existing path is empty.
@@ -347,20 +347,20 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	// Create a temporary mountpoint.
 	mountPath, err := os.MkdirTemp("", "lxd_cephfs_")
 	if err != nil {
-		return fmt.Errorf("Failed to create temporary directory under: %w", err)
+		return fmt.Errorf("Failed creating temporary directory under: %w", err)
 	}
 
 	defer func() { _ = os.RemoveAll(mountPath) }()
 
 	err = os.Chmod(mountPath, 0700)
 	if err != nil {
-		return fmt.Errorf("Failed to chmod %q: %w", mountPath, err)
+		return fmt.Errorf("Failed chmoding %q: %w", mountPath, err)
 	}
 
 	mountPoint := filepath.Join(mountPath, "mount")
 	err = os.Mkdir(mountPoint, 0700)
 	if err != nil {
-		return fmt.Errorf("Failed to create directory %q: %w", mountPoint, err)
+		return fmt.Errorf("Failed creating directory %q: %w", mountPoint, err)
 	}
 
 	// Get the credentials and host.
@@ -390,7 +390,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 		if fsPath != "" && fsPath != "/" {
 			err = os.Remove(filepath.Join(mountPoint, fsPath))
 			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("Failed to remove directory %q: %w", filepath.Join(mountPoint, fsPath), err)
+				return fmt.Errorf("Failed removing directory %q: %w", filepath.Join(mountPoint, fsPath), err)
 			}
 		}
 	}
@@ -486,7 +486,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 	volumeRules := map[string]func(value string) error{
 		"security.shared": func(value string) error {
 			if value != "" {
-				return errors.New(`Setting "security.shared" is not allowed for cephfs as it doesn't support block volumes`)
+				return errors.New(`Setting "security.shared" is not allowed for cephfs as it does not support block volumes`)
 			}
 
 			return nil

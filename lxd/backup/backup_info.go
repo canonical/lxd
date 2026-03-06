@@ -118,7 +118,7 @@ func GetInfo(s *state.State, r io.ReadSeeker, outputPath string) (*Info, error) 
 	// Upgrade the config file in any case to the new format.
 	result.Config, err = ConvertFormat(result.Config, api.BackupMetadataVersion2)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to convert backup config to version %d: %w", api.BackupMetadataVersion2, err)
+		return nil, fmt.Errorf("Failed converting backup config to version %d: %w", api.BackupMetadataVersion2, err)
 	}
 
 	return &result, nil

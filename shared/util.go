@@ -586,7 +586,7 @@ func DirCopy(source string, dest string) error {
 	// Get info about source.
 	info, err := os.Stat(source)
 	if err != nil {
-		return fmt.Errorf("failed to get source directory info: %w", err)
+		return fmt.Errorf("failed getting source directory info: %w", err)
 	}
 
 	if !info.IsDir() {
@@ -597,20 +597,20 @@ func DirCopy(source string, dest string) error {
 	if PathExists(dest) {
 		err := os.RemoveAll(dest)
 		if err != nil {
-			return fmt.Errorf("failed to remove destination directory %s: %w", dest, err)
+			return fmt.Errorf("failed removing destination directory %s: %w", dest, err)
 		}
 	}
 
 	// Create dest.
 	err = os.MkdirAll(dest, info.Mode())
 	if err != nil {
-		return fmt.Errorf("failed to create destination directory %s: %w", dest, err)
+		return fmt.Errorf("failed creating destination directory %s: %w", dest, err)
 	}
 
 	// Copy all files.
 	entries, err := os.ReadDir(source)
 	if err != nil {
-		return fmt.Errorf("failed to read source directory %s: %w", source, err)
+		return fmt.Errorf("failed reading source directory %s: %w", source, err)
 	}
 
 	for _, entry := range entries {
@@ -620,12 +620,12 @@ func DirCopy(source string, dest string) error {
 		if entry.IsDir() {
 			err := DirCopy(sourcePath, destPath)
 			if err != nil {
-				return fmt.Errorf("failed to copy sub-directory from %s to %s: %w", sourcePath, destPath, err)
+				return fmt.Errorf("failed copying sub-directory from %s to %s: %w", sourcePath, destPath, err)
 			}
 		} else {
 			err := FileCopy(sourcePath, destPath)
 			if err != nil {
-				return fmt.Errorf("failed to copy file from %s to %s: %w", sourcePath, destPath, err)
+				return fmt.Errorf("failed copying file from %s to %s: %w", sourcePath, destPath, err)
 			}
 		}
 	}
@@ -666,7 +666,7 @@ func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
 			return nil
 		}
 
-		return errors.New("path exists but isn't a directory")
+		return errors.New("path exists but is not a directory")
 	}
 
 	// Slow path: make sure parent exists and then call Mkdir for path.
@@ -970,10 +970,10 @@ type RunError struct {
 
 func (e RunError) Error() string {
 	if e.stderr.Len() == 0 {
-		return fmt.Sprintf("Failed to run: %s %s: %v", e.cmd, strings.Join(e.args, " "), e.err)
+		return fmt.Sprintf("Failed running: %s %s: %v", e.cmd, strings.Join(e.args, " "), e.err)
 	}
 
-	return fmt.Sprintf("Failed to run: %s %s: %v (%s)", e.cmd, strings.Join(e.args, " "), e.err, strings.TrimSpace(e.stderr.String()))
+	return fmt.Sprintf("Failed running: %s %s: %v (%s)", e.cmd, strings.Join(e.args, " "), e.err, strings.TrimSpace(e.stderr.String()))
 }
 
 func (e RunError) Unwrap() error {
@@ -1201,7 +1201,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 	defer close(doneCh)
 
 	if r.StatusCode != http.StatusOK {
-		return -1, fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
+		return -1, fmt.Errorf("Cannot fetch %s: %s", url, r.Status)
 	}
 
 	// Handle the data
@@ -1308,7 +1308,7 @@ func RenderTemplate(template string, ctx pongo2.Context) (output string, err err
 	for _, tag := range []string{"extends", "import", "include", "ssi"} {
 		err := set.BanTag(tag)
 		if err != nil {
-			return "", fmt.Errorf("Failed to ban tag %q: %w", tag, err)
+			return "", fmt.Errorf("Failed banning tag %q: %w", tag, err)
 		}
 	}
 

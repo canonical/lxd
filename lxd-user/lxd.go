@@ -22,7 +22,7 @@ func lxdIsConfigured(client lxd.InstanceServer) (bool, error) {
 	// Look for networks.
 	networks, err := client.GetNetworkNames()
 	if err != nil {
-		return false, fmt.Errorf("Failed to list networks: %w", err)
+		return false, fmt.Errorf("Failed listing networks: %w", err)
 	}
 
 	if !slices.Contains(networks, "lxdbr0") {
@@ -33,7 +33,7 @@ func lxdIsConfigured(client lxd.InstanceServer) (bool, error) {
 	// Look for storage pools.
 	pools, err := client.GetStoragePoolNames()
 	if err != nil {
-		return false, fmt.Errorf("Failed to list storage pools: %w", err)
+		return false, fmt.Errorf("Failed listing storage pools: %w", err)
 	}
 
 	if !slices.Contains(pools, "default") {
@@ -48,7 +48,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 	// Load current server config.
 	info, _, err := client.GetServer()
 	if err != nil {
-		return fmt.Errorf("Failed to get server info: %w", err)
+		return fmt.Errorf("Failed getting server info: %w", err)
 	}
 
 	availableBackends := util.AvailableStorageDrivers(info.Environment.StorageSupportedDrivers, util.PoolTypeLocal)
@@ -56,13 +56,13 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 	// Load the default profile.
 	profile, profileEtag, err := client.GetProfile("default")
 	if err != nil {
-		return fmt.Errorf("Failed to load default profile: %w", err)
+		return fmt.Errorf("Failed loading default profile: %w", err)
 	}
 
 	// Look for storage pools.
 	pools, err := client.GetStoragePools()
 	if err != nil {
-		return fmt.Errorf("Failed to list storage pools: %w", err)
+		return fmt.Errorf("Failed listing storage pools: %w", err)
 	}
 
 	if len(pools) == 0 {
@@ -87,7 +87,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 		// Create the storage pool.
 		err := client.CreateStoragePool(pool)
 		if err != nil {
-			return fmt.Errorf("Failed to create storage pool: %w", err)
+			return fmt.Errorf("Failed creating storage pool: %w", err)
 		}
 
 		// Add to default profile in default project.
@@ -101,7 +101,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 	// Look for networks.
 	networks, err := client.GetNetworks()
 	if err != nil {
-		return fmt.Errorf("Failed to list networks: %w", err)
+		return fmt.Errorf("Failed listing networks: %w", err)
 	}
 
 	found := false
@@ -121,7 +121,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 
 		err := client.CreateNetwork(network)
 		if err != nil {
-			return fmt.Errorf("Failed to create network: %w", err)
+			return fmt.Errorf("Failed creating network: %w", err)
 		}
 
 		// Add to default profile in default project.
@@ -139,7 +139,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("Failed to update default profile: %w", err)
+		return fmt.Errorf("Failed updating default profile: %w", err)
 	}
 
 	return nil
@@ -153,7 +153,7 @@ func lxdSetupUser(uid uint32) error {
 	// User account.
 	out, err := shared.RunCommand(context.TODO(), "getent", "passwd", strconv.FormatUint(uint64(uid), 10))
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve user information: %w", err)
+		return fmt.Errorf("Failed retrieving user information: %w", err)
 	}
 
 	pw := strings.Split(out, ":")
@@ -168,7 +168,7 @@ func lxdSetupUser(uid uint32) error {
 	// Create certificate directory.
 	err = os.MkdirAll(userPath, 0700)
 	if err != nil {
-		return fmt.Errorf("Failed to create user directory: %w", err)
+		return fmt.Errorf("Failed creating user directory: %w", err)
 	}
 
 	revert.Add(func() { _ = os.RemoveAll(userPath) })
@@ -176,13 +176,13 @@ func lxdSetupUser(uid uint32) error {
 	// Generate certificate.
 	err = shared.FindOrGenCert(filepath.Join(userPath, "client.crt"), filepath.Join(userPath, "client.key"), true, shared.CertOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to generate user certificate: %w", err)
+		return fmt.Errorf("Failed generating user certificate: %w", err)
 	}
 
 	// Connect to LXD.
 	client, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
-		return fmt.Errorf("Unable to connect to LXD: %w", err)
+		return fmt.Errorf("Cannot connect to LXD: %w", err)
 	}
 
 	_, _, _ = client.GetServer()
@@ -190,7 +190,7 @@ func lxdSetupUser(uid uint32) error {
 	// Setup the project (with restrictions).
 	projects, err := client.GetProjectNames()
 	if err != nil {
-		return fmt.Errorf("Unable to retrieve project list: %w", err)
+		return fmt.Errorf("Cannot retrieve project list: %w", err)
 	}
 
 	if !slices.Contains(projects, projectName) {
@@ -218,7 +218,7 @@ func lxdSetupUser(uid uint32) error {
 			},
 		})
 		if err != nil {
-			return fmt.Errorf("Unable to create project: %w", err)
+			return fmt.Errorf("Cannot create project: %w", err)
 		}
 
 		revert.Add(func() {
@@ -232,7 +232,7 @@ func lxdSetupUser(uid uint32) error {
 	// Parse the certificate.
 	x509Cert, err := shared.ReadCert(filepath.Join(userPath, "client.crt"))
 	if err != nil {
-		return fmt.Errorf("Unable to read user certificate: %w", err)
+		return fmt.Errorf("Cannot read user certificate: %w", err)
 	}
 
 	// Add the certificate to the trust store.
@@ -244,7 +244,7 @@ func lxdSetupUser(uid uint32) error {
 		Certificate: base64.StdEncoding.EncodeToString(x509Cert.Raw),
 	})
 	if err != nil {
-		return fmt.Errorf("Unable to add user certificate: %w", err)
+		return fmt.Errorf("Cannot add user certificate: %w", err)
 	}
 
 	revert.Add(func() { _ = client.DeleteCertificate(shared.CertFingerprint(x509Cert)) })
@@ -258,7 +258,7 @@ func lxdSetupUser(uid uint32) error {
 
 	err = client.CreateNetwork(network)
 	if err != nil {
-		return fmt.Errorf("Failed to create network: %w", err)
+		return fmt.Errorf("Failed creating network: %w", err)
 	}
 
 	// Setup default profile.
@@ -285,7 +285,7 @@ func lxdSetupUser(uid uint32) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("Unable to update the default profile: %w", err)
+		return fmt.Errorf("Cannot update the default profile: %w", err)
 	}
 
 	revert.Success()

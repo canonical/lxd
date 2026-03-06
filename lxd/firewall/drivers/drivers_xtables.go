@@ -866,7 +866,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 	out, err := shared.RunCommand(context.TODO(), "ebtables", "-L", "--Lmac2", "--Lx")
 	if err != nil {
 		ebtablesMu.Unlock()
-		return fmt.Errorf("Failed to get a list of network filters to for %q: %w", deviceName, err)
+		return fmt.Errorf("Failed getting a list of network filters to for %q: %w", deviceName, err)
 	}
 
 	errs := []error{}
@@ -905,7 +905,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("Failed to remove network filters rule for %q: %v", deviceName, errs)
+		return fmt.Errorf("Failed removing network filters rule for %q: %v", deviceName, errs)
 	}
 
 	return nil
@@ -1003,7 +1003,7 @@ func (d Xtables) InstanceClearProxyNAT(projectName string, instanceName string, 
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("Failed to remove proxy NAT rules for %q: %v", deviceName, errs)
+		return fmt.Errorf("Failed removing proxy NAT rules for %q: %v", deviceName, errs)
 	}
 
 	return nil
@@ -1233,7 +1233,7 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 
 	_, err := exec.LookPath(cmd)
 	if err != nil {
-		return fmt.Errorf("Asked to setup IPv%d firewalling but %s can't be found", ipVersion, cmd)
+		return fmt.Errorf("Asked to setup IPv%d firewalling but %s cannot be found", ipVersion, cmd)
 	}
 
 	args := make([]string, 0, 5+len(rule)+4)
@@ -1315,7 +1315,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 		args := append(baseArgs, "--list-rules")
 		output, err := shared.RunCommandRetry(context.TODO(), nil, cmd, args...)
 		if err != nil {
-			return fmt.Errorf("Failed to list IPv%d rules (table %s)", ipVersion, fromTable)
+			return fmt.Errorf("Failed listing IPv%d rules (table %s)", ipVersion, fromTable)
 		}
 
 		for line := range strings.SplitSeq(output, "\n") {
@@ -1380,7 +1380,7 @@ func (d Xtables) InstanceClearRPFilter(projectName string, instanceName string, 
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("Failed to remove reverse path filter rules for %q: %v", deviceName, errs)
+		return fmt.Errorf("Failed removing reverse path filter rules for %q: %v", deviceName, errs)
 	}
 
 	return nil
@@ -1430,7 +1430,7 @@ func (d Xtables) InstanceClearNetPrio(projectName string, instanceName string, d
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("Failed to remove netprio rules for %q: %v", deviceName, errs)
+		return fmt.Errorf("Failed removing netprio rules for %q: %v", deviceName, errs)
 	}
 
 	return nil
@@ -1567,7 +1567,7 @@ func (d Xtables) NetworkApplyForwards(networkName string, rules []AddressForward
 	reverter.Add(func() {
 		err := clearNetworkForwards()
 		if err != nil {
-			logger.Error("Failed to clear firewall rules after failing to apply network forwards", logger.Ctx{"network_name": networkName, "err": err})
+			logger.Error("Failed clearing firewall rules after failing to apply network forwards", logger.Ctx{"network_name": networkName, "err": err})
 		}
 	})
 

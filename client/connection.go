@@ -297,7 +297,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	// Setup the cache
 	if args.CachePath != "" {
 		if !shared.PathExists(args.CachePath) {
-			return nil, fmt.Errorf("Cache directory %q doesn't exist", args.CachePath)
+			return nil, fmt.Errorf("Cache directory %q does not exist", args.CachePath)
 		}
 
 		hashedURL := fmt.Sprintf("%x", sha256.Sum256([]byte(url)))
@@ -464,7 +464,7 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 		var claims ClientBearerTokenClaims
 		_, _, err := jwt.NewParser().ParseUnverified(args.BearerToken, &claims)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse bearer token: %w", err)
+			return nil, fmt.Errorf("Failed parsing bearer token: %w", err)
 		}
 
 		serverFingerprint = claims.ServerFingerprint

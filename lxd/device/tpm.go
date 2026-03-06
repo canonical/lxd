@@ -62,7 +62,7 @@ func (d *tpm) validateConfig(instConf instance.ConfigReader) error {
 
 	err := d.config.Validate(rules)
 	if err != nil {
-		return fmt.Errorf("Failed to validate config: %w", err)
+		return fmt.Errorf("Failed validating config: %w", err)
 	}
 
 	return nil
@@ -83,7 +83,7 @@ func (d *tpm) validateEnvironment() error {
 
 		err := util.LoadModule(module)
 		if err != nil {
-			return fmt.Errorf("Failed to load kernel module %q: %w", module, err)
+			return fmt.Errorf("Failed loading kernel module %q: %w", module, err)
 		}
 	}
 
@@ -94,7 +94,7 @@ func (d *tpm) validateEnvironment() error {
 func (d *tpm) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to validate environment: %w", err)
+		return nil, fmt.Errorf("Failed validating environment: %w", err)
 	}
 
 	tpmDevPath := filepath.Join(d.inst.Path(), "tpm."+filesystem.PathNameEncode(d.name))
@@ -102,7 +102,7 @@ func (d *tpm) Start() (*deviceConfig.RunConfig, error) {
 	if !shared.PathExists(tpmDevPath) {
 		err := os.Mkdir(tpmDevPath, 0700)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create device path %q: %w", tpmDevPath, err)
+			return nil, fmt.Errorf("Failed creating device path %q: %w", tpmDevPath, err)
 		}
 	}
 
@@ -121,12 +121,12 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 
 	proc, err := subprocess.NewProcess("swtpm", []string{"chardev", "--tpm2", "--tpmstate", "dir=" + tpmDevPath, "--vtpm-proxy"}, logPath, "")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create new process: %w", err)
+		return nil, fmt.Errorf("Failed creating new process: %w", err)
 	}
 
 	err = proc.Start(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to start process %q: %w", "swtpm", err)
+		return nil, fmt.Errorf("Failed starting process %q: %w", "swtpm", err)
 	}
 
 	revert := revert.New()
@@ -139,7 +139,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 
 	err = proc.Save(pidPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to save swtpm state for device %q: %w", d.name, err)
+		return nil, fmt.Errorf("Failed saving swtpm state for device %q: %w", d.name, err)
 	}
 
 	const TPM_MINOR = 244
@@ -152,7 +152,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 	for range 20 {
 		fi, err := os.Stat(logPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to stat %q: %w", logPath, err)
+			return nil, fmt.Errorf("Failed statting %q: %w", logPath, err)
 		}
 
 		if fi.Size() > 0 {
@@ -164,7 +164,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 
 	line, err := os.ReadFile(logPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read %q: %w", logPath, err)
+		return nil, fmt.Errorf("Failed reading %q: %w", logPath, err)
 	}
 
 	// The output will be something like:
@@ -173,17 +173,17 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 	fields := strings.Split(string(line), " ")
 
 	if len(fields) < 7 {
-		return nil, errors.New("Failed to get TPM device information")
+		return nil, errors.New("Failed getting TPM device information")
 	}
 
 	_, err = fmt.Sscanf(fields[6], "%d/%d)", &major, &minor)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve major/minor number: %w", err)
+		return nil, fmt.Errorf("Failed retrieving major/minor number: %w", err)
 	}
 
 	// Return error as we were unable to retrieve information regarding the TPM device.
 	if major == 0 && minor == 0 {
-		return nil, errors.New("Failed to get TPM device information")
+		return nil, errors.New("Failed getting TPM device information")
 	}
 
 	if minor == TPM_MINOR {
@@ -196,12 +196,12 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 
 	err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, uint32(major), uint32(minor), d.config["path"], false, &runConf)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to setup unix device: %w", err)
+		return nil, fmt.Errorf("Failed setting up unix device: %w", err)
 	}
 
 	err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, uint32(major), uint32(minorRM), d.config["pathrm"], false, &runConf)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to setup unix device: %w", err)
+		return nil, fmt.Errorf("Failed setting up unix device: %w", err)
 	}
 
 	revert.Success()
@@ -242,7 +242,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 
 	listener, err := net.Listen("unix", socketFile)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create unix listener for swtpm: %w", err)
+		return nil, fmt.Errorf("Failed creating unix listener for swtpm: %w", err)
 	}
 
 	revert.Add(func() {
@@ -264,7 +264,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 
 	unixFile, err := unixListener.File()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to getting unix listener file for swtpm: %w", err)
+		return nil, fmt.Errorf("Failed getting unix listener file for swtpm: %w", err)
 	}
 
 	defer func() { _ = unixFile.Close() }()
@@ -281,7 +281,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 
 	err = proc.StartWithFiles(context.Background(), fdFiles)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to start swtpm for device %q: %w", d.name, err)
+		return nil, fmt.Errorf("Failed starting swtpm for device %q: %w", d.name, err)
 	}
 
 	revert.Add(func() { _ = proc.Stop() })
@@ -290,7 +290,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 
 	err = proc.Save(pidPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to save swtpm state for device %q: %w", d.name, err)
+		return nil, fmt.Errorf("Failed saving swtpm state for device %q: %w", d.name, err)
 	}
 
 	runConf.Revert = revert.Clone().Fail
@@ -309,7 +309,7 @@ func (d *tpm) Stop() (*deviceConfig.RunConfig, error) {
 	if shared.PathExists(pidPath) {
 		proc, err := subprocess.ImportProcess(pidPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to import process %q: %w", pidPath, err)
+			return nil, fmt.Errorf("Failed importing process %q: %w", pidPath, err)
 		}
 
 		// The TPM emulator will usually exit automatically when the tpm device is no longer in use,
@@ -317,14 +317,14 @@ func (d *tpm) Stop() (*deviceConfig.RunConfig, error) {
 		// be stopped.
 		err = proc.Stop()
 		if err != nil && err != subprocess.ErrNotRunning {
-			return nil, fmt.Errorf("Failed to stop imported process %q: %w", pidPath, err)
+			return nil, fmt.Errorf("Failed stopping imported process %q: %w", pidPath, err)
 		}
 	}
 
 	if d.inst.Type() == instancetype.Container {
 		err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to remove unix device: %w", err)
+			return nil, fmt.Errorf("Failed removing unix device: %w", err)
 		}
 	}
 

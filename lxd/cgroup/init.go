@@ -161,14 +161,14 @@ func (info *Info) Warnings() []cluster.Warning {
 	if !info.Supports(Devices, nil) {
 		warnings = append(warnings, cluster.Warning{
 			TypeCode:    warningtype.MissingCGroupDevicesController,
-			LastMessage: "device access control won't work",
+			LastMessage: "device access control will not work",
 		})
 	}
 
 	if !info.Supports(Freezer, nil) {
 		warnings = append(warnings, cluster.Warning{
 			TypeCode:    warningtype.MissingCGroupFreezerController,
-			LastMessage: "pausing/resuming containers won't work",
+			LastMessage: "pausing/resuming containers will not work",
 		})
 	}
 
@@ -224,9 +224,9 @@ func Init() {
 	selfCg, err := os.Open("/proc/self/cgroup")
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Warn("System doesn't appear to support CGroups")
+			logger.Warn("System does not appear to support CGroups")
 		} else {
-			logger.Errorf("Unable to load list of cgroups: %v", err)
+			logger.Errorf("Cannot load list of cgroups: %v", err)
 		}
 
 		cgLayout = CgroupsDisabled
@@ -264,14 +264,14 @@ func Init() {
 		controllers, err := os.Open(hybridPath)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				logger.Error("Unable to load cgroup.controllers")
+				logger.Error("Cannot load cgroup.controllers")
 				return
 			}
 
 			dedicatedPath = filepath.Join(cgPath, path, "cgroup.controllers")
 			controllers, err = os.Open(dedicatedPath)
 			if err != nil && !os.IsNotExist(err) {
-				logger.Error("Unable to load cgroup.controllers")
+				logger.Error("Cannot load cgroup.controllers")
 				return
 			}
 		}

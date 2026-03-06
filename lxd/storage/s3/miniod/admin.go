@@ -69,7 +69,7 @@ func NewAdminClient(url string, username string, password string) (*minioAdmin, 
 	args = append(args, "alias", "set", m.alias, api.NewURL().Scheme("http").Host(url).String(), username, password)
 	_, err := shared.RunCommand(context.TODO(), "mc", args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to set MinIO client alias: %w", err)
+		return nil, fmt.Errorf("Failed setting MinIO client alias: %w", err)
 	}
 
 	return m, nil
@@ -81,7 +81,7 @@ func (m *minioAdmin) ServiceStop(ctx context.Context) error {
 	args = append(args, "admin", "service", "stop", m.alias)
 	_, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
-		return fmt.Errorf("Failed to stop MinIO service: %w", err)
+		return fmt.Errorf("Failed stopping MinIO service: %w", err)
 	}
 
 	return nil
@@ -93,13 +93,13 @@ func (m *minioAdmin) GetConfig(ctx context.Context) ([]byte, error) {
 	args = append(args, "admin", "config", "export", m.alias, "--json")
 	out, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get MinIO config: %w", err)
+		return nil, fmt.Errorf("Failed getting MinIO config: %w", err)
 	}
 
 	cfg := configJSON{}
 	err = json.Unmarshal([]byte(out), &cfg)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse MinIO config: %w", err)
+		return nil, fmt.Errorf("Failed parsing MinIO config: %w", err)
 	}
 
 	return cfg.Value, nil
@@ -135,12 +135,12 @@ func (m *minioAdmin) ExportIAM(ctx context.Context) (*zip.Reader, error) {
 
 	f, err := os.Open(filepath.Join(tmpDir, m.alias+"-iam-info.zip"))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open exported IAM information: %w", err)
+		return nil, fmt.Errorf("Failed opening exported IAM information: %w", err)
 	}
 
 	iamBytes, err := io.ReadAll(f)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read exported IAM information: %w", err)
+		return nil, fmt.Errorf("Failed reading exported IAM information: %w", err)
 	}
 
 	iamZipReader, err := zip.NewReader(bytes.NewReader(iamBytes), int64(len(iamBytes)))
@@ -163,7 +163,7 @@ func (m *minioAdmin) InfoServiceAccount(ctx context.Context, accessKey string) (
 	info := AccountInfo{}
 	err = json.Unmarshal([]byte(out), &info)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse service account information: %w", err)
+		return nil, fmt.Errorf("Failed parsing service account information: %w", err)
 	}
 
 	return &info, nil
@@ -202,7 +202,7 @@ func (m *minioAdmin) UpdateServiceAccount(ctx context.Context, opts ServiceAccou
 
 	_, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
-		return fmt.Errorf("Failed to edit MinIO service account: %w", err)
+		return fmt.Errorf("Failed editing MinIO service account: %w", err)
 	}
 
 	return nil
@@ -230,13 +230,13 @@ func (m *minioAdmin) AddServiceAccount(ctx context.Context, opts ServiceAccountA
 	args = append(args, "admin", "user", "svcacct", "add", m.alias, minioAdminUser, "--access-key", opts.AccessKey, "--secret-key", opts.SecretKey, "--policy", policyPath, "--json")
 	out, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to add MinIO service account: %w", err)
+		return nil, fmt.Errorf("Failed adding MinIO service account: %w", err)
 	}
 
 	creds := Credentials{}
 	err = json.Unmarshal([]byte(out), &creds)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse service account credentials: %w", err)
+		return nil, fmt.Errorf("Failed parsing service account credentials: %w", err)
 	}
 
 	return &creds, nil
@@ -248,7 +248,7 @@ func (m *minioAdmin) DeleteServiceAccount(ctx context.Context, serviceAccount st
 	args = append(args, "admin", "user", "svcacct", "remove", m.alias, serviceAccount)
 	_, err := shared.RunCommand(ctx, "mc", args...)
 	if err != nil {
-		return fmt.Errorf("Failed to delete MinIO service account: %w", err)
+		return fmt.Errorf("Failed deleting MinIO service account: %w", err)
 	}
 
 	return nil

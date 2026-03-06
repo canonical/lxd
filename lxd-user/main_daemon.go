@@ -41,20 +41,20 @@ func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 	log.Debug("Connecting to LXD")
 	client, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
-		return fmt.Errorf("Unable to connect to LXD: %w", err)
+		return fmt.Errorf("Cannot connect to LXD: %w", err)
 	}
 
 	// Validate LXD configuration.
 	ok, err := lxdIsConfigured(client)
 	if err != nil {
-		return fmt.Errorf("Failed to check LXD configuration: %w", err)
+		return fmt.Errorf("Failed checking LXD configuration: %w", err)
 	}
 
 	if !ok {
 		log.Info("Performing initial LXD configuration")
 		err = lxdInitialConfiguration(client)
 		if err != nil {
-			return fmt.Errorf("Failed to apply initial LXD configuration: %w", err)
+			return fmt.Errorf("Failed applying initial LXD configuration: %w", err)
 		}
 	}
 
@@ -72,7 +72,7 @@ func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 		// Handle socket activation.
 		unixListener, ok := listeners[0].(*net.UnixListener)
 		if !ok {
-			return errors.New("Socket-activation FD isn't a unix socket")
+			return errors.New("Socket-activation FD is not a unix socket")
 		}
 
 		listener = unixListener
@@ -111,17 +111,17 @@ func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 		unixPath := "unix.socket"
 		err := os.Remove(unixPath)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("Failed to delete pre-existing unix socket: %w", err)
+			return fmt.Errorf("Failed deleting pre-existing unix socket: %w", err)
 		}
 
 		unixAddr, err := net.ResolveUnixAddr("unix", unixPath)
 		if err != nil {
-			return fmt.Errorf("Unable to resolve unix socket: %w", err)
+			return fmt.Errorf("Cannot resolve unix socket: %w", err)
 		}
 
 		server, err := net.ListenUnix("unix", unixAddr)
 		if err != nil {
-			return fmt.Errorf("Unable to setup unix socket: %w", err)
+			return fmt.Errorf("Cannot setup unix socket: %w", err)
 		}
 
 		server.SetUnlinkOnClose(true)
@@ -136,7 +136,7 @@ func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 		// Accept new connection.
 		conn, err := listener.AcceptUnix()
 		if err != nil {
-			log.Error("Failed to accept new connection: %w", err)
+			log.Error("Failed accepting new connection: %w", err)
 			continue
 		}
 

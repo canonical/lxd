@@ -122,7 +122,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		// Otherwise, validate the provided types.
 		for _, entry := range types {
 			if !slices.Contains(eventTypes, entry) {
-				return api.StatusErrorf(http.StatusBadRequest, "%q isn't a supported event type", entry)
+				return api.StatusErrorf(http.StatusBadRequest, "%q is not a supported event type", entry)
 			}
 
 			if !canViewServerEvents && slices.Contains(privilegedEventTypes, entry) {
@@ -224,7 +224,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		var m requestorMetadata
 		err := json.Unmarshal(event.Metadata, &m)
 		if err != nil {
-			l.Error("Failed to unmarshal event metadata during requestor filtering")
+			l.Error("Failed unmarshaling event metadata during requestor filtering")
 			return false
 		}
 
@@ -254,7 +254,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	listenerConnection := events.NewWebsocketListenerConnection(conn)
 	listener, err := s.Events.AddListener(projectName, allProjects, filter, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
 	if err != nil {
-		l.Warn("Failed to add event listener", logger.Ctx{"err": err})
+		l.Warn("Failed adding event listener", logger.Ctx{"err": err})
 		return nil
 	}
 

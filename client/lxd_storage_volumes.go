@@ -422,7 +422,7 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 
 	// Quick check.
 	if !volume.Migration {
-		return nil, errors.New("Can't ask for a rename through MigrateStoragePoolVolume")
+		return nil, errors.New("Cannot ask for a rename through MigrateStoragePoolVolume")
 	}
 
 	var req any
@@ -459,7 +459,7 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 
 func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool string, req api.StorageVolumePost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, errors.New("The source server isn't listening on the network")
+		return nil, errors.New("The source server is not listening on the network")
 	}
 
 	operation := req.Target.Operation
@@ -513,7 +513,7 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 // It will try to do this on every server in the provided list of urls, and waits for the creation to be complete.
 func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVolumesPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, errors.New("The source server isn't listening on the network")
+		return nil, errors.New("The source server is not listening on the network")
 	}
 
 	operation := req.Source.Operation
@@ -597,12 +597,12 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 
 	sourceInfo, err := source.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get source connection info: %w", err)
+		return nil, fmt.Errorf("Failed getting source connection info: %w", err)
 	}
 
 	destInfo, err := r.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get destination connection info: %w", err)
+		return nil, fmt.Errorf("Failed getting destination connection info: %w", err)
 	}
 
 	clusterInternalVolumeCopy := r.CheckExtension("cluster_internal_custom_volume_copy") == nil

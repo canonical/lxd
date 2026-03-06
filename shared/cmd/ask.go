@@ -31,7 +31,7 @@ func (a *Asker) AskBool(question string, defaultAnswer string) (bool, error) {
 		answer, err := a.askQuestion(question, defaultAnswer)
 		if err != nil {
 			if a.logger != nil {
-				a.logger.Error("Failed to read answer for question", logger.Ctx{"answer": answer, "question": question, "err": err})
+				a.logger.Error("Failed reading answer for question", logger.Ctx{"answer": answer, "question": question, "err": err})
 			}
 
 			return false, err
@@ -53,7 +53,7 @@ func (a *Asker) AskChoice(question string, choices []string, defaultAnswer strin
 		answer, err := a.askQuestion(question, defaultAnswer)
 		if err != nil {
 			if a.logger != nil {
-				a.logger.Error("Failed to read answer for question", logger.Ctx{"answer": answer, "question": question, "err": err})
+				a.logger.Error("Failed reading answer for question", logger.Ctx{"answer": answer, "question": question, "err": err})
 			}
 
 			return "", err
@@ -75,7 +75,7 @@ func (a *Asker) AskInt(question string, minimum int64, maximum int64, defaultAns
 		answer, err := a.askQuestion(question, defaultAnswer)
 		if err != nil {
 			if a.logger != nil {
-				a.logger.Error("Failed to read answer for question", logger.Ctx{"answer": answer, "question": question, "err": err})
+				a.logger.Error("Failed reading answer for question", logger.Ctx{"answer": answer, "question": question, "err": err})
 			}
 
 			return -1, err
@@ -123,7 +123,7 @@ func (a *Asker) AskString(question string, defaultAnswer string, validate func(s
 		answer, err := a.askQuestion(question, defaultAnswer)
 		if err != nil {
 			if a.logger != nil {
-				a.logger.Error("Failed to read answer for question", logger.Ctx{"answer": answer, "question": question, "err": err})
+				a.logger.Error("Failed reading answer for question", logger.Ctx{"answer": answer, "question": question, "err": err})
 			}
 
 			return "", err

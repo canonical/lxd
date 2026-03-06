@@ -44,7 +44,7 @@ func getConfig(ctx context.Context, stmt *sql.Stmt, parent string, args ...any) 
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"%s_config\" table: %w", parent, err)
+		return nil, fmt.Errorf("Failed fetching from \"%s_config\" table: %w", parent, err)
 	}
 
 	return objects, nil
@@ -68,7 +68,7 @@ func getConfigRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, ar
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"%s_config\" table: %w", parent, err)
+		return nil, fmt.Errorf("Failed fetching from \"%s_config\" table: %w", parent, err)
 	}
 
 	return objects, nil
@@ -123,7 +123,7 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filters ...Config
 	// Select.
 	objects, err = getConfigRaw(ctx, tx, queryStr, parent, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"%s_config\" table: %w", parent, err)
+		return nil, fmt.Errorf("Failed fetching from \"%s_config\" table: %w", parent, err)
 	}
 
 	resultMap := map[int]map[string]string{}

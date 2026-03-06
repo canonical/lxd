@@ -191,7 +191,7 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 func (h *dnsHandler) getLeaseHostByReverseIPName(reverseName string) (string, error) {
 	ip := dnsutil.ExtractAddressFromReverse(reverseName)
 	if ip == "" {
-		return "", errors.New("Failed to convert reverse name to IP")
+		return "", errors.New("Failed converting reverse name to IP")
 	}
 
 	file, err := os.Open(h.leaseFile)
@@ -331,7 +331,7 @@ func (c *cmdForkDNS) command() *cobra.Command {
   It uses the "recursion desired" flag in incoming DNS requests to modify its behaviour.
   When "recursion desired" is set to yes, the query is immediately relayed to the other cluster nodes
   (with the "recursion desired" flag set to no) as it indicates that the local dnsmasq process was
-  unable to answer it from the local lease file.
+  cannot answer it from the local lease file.
   When "recursion desired" flag is set to no, this indicates the request has been sent from another
   forkdns process, and the local dnsmasq lease file only is parsed to try and answer the query.
 `
@@ -361,7 +361,7 @@ func (c *cmdForkDNS) run(cmd *cobra.Command, args []string) error {
 	// Setup watcher on servers file.
 	watcher, err := inotify.NewWatcher()
 	if err != nil {
-		return fmt.Errorf("Unable to setup inotify: %s", err)
+		return fmt.Errorf("Cannot setup inotify: %s", err)
 	}
 
 	networkName := args[2]
@@ -371,7 +371,7 @@ func (c *cmdForkDNS) run(cmd *cobra.Command, args []string) error {
 	// temporary file first and then renamed to the file actually used by forkdns.
 	err = watcher.AddWatch(path, inotify.InMovedTo)
 	if err != nil {
-		return fmt.Errorf("Unable to setup inotify watch on %s: %w", path, err)
+		return fmt.Errorf("Cannot setup inotify watch on %s: %w", path, err)
 	}
 
 	// Run the server list monitor concurrently waiting for file changes.
@@ -391,7 +391,7 @@ func (c *cmdForkDNS) run(cmd *cobra.Command, args []string) error {
 
 	err = srv.ListenAndServe()
 	if err != nil {
-		return fmt.Errorf("Failed to set udp listener: %w", err)
+		return fmt.Errorf("Failed setting udp listener: %w", err)
 	}
 
 	return nil

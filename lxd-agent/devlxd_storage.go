@@ -78,7 +78,7 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) *devLXDResp
 	var vol api.DevLXDStorageVolumesPost
 	err = json.NewDecoder(r.Body).Decode(&vol)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed to parse request: %w", err))
+		return smartResponse(fmt.Errorf("Failed parsing request: %w", err))
 	}
 
 	if vol.Type == "" {
@@ -141,7 +141,7 @@ func devLXDStoragePoolVolumePatchHandler(d *Daemon, r *http.Request) *devLXDResp
 	var vol api.DevLXDStorageVolumePut
 	err = json.NewDecoder(r.Body).Decode(&vol)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed to parse request: %w", err))
+		return smartResponse(fmt.Errorf("Failed parsing request: %w", err))
 	}
 
 	client, err := getDevLXDVsockClient(d, r)
@@ -219,7 +219,7 @@ func devLXDStoragePoolVolumeSnapshotsPostHandler(d *Daemon, r *http.Request) *de
 	var snapshot api.DevLXDStorageVolumeSnapshotsPost
 	err = json.NewDecoder(r.Body).Decode(&snapshot)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed to parse request: %w", err))
+		return smartResponse(fmt.Errorf("Failed parsing request: %w", err))
 	}
 
 	client, err := getDevLXDVsockClient(d, r)

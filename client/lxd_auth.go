@@ -148,7 +148,7 @@ func (r *ProtocolLXD) GetIdentityAuthenticationMethodsIdentifiers() (map[string]
 
 		identifier, err := url.PathUnescape(escapedIdentifier)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to unescape identity identifier: %w", err)
+			return nil, fmt.Errorf("Failed unescaping identity identifier: %w", err)
 		}
 
 		_, ok = authMethodIdentifiers[authMethod]

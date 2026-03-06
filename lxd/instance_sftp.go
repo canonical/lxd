@@ -114,12 +114,12 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		return api.StatusErrorf(http.StatusInternalServerError, "Webserver doesn't support hijacking")
+		return api.StatusErrorf(http.StatusInternalServerError, "Webserver does not support hijacking")
 	}
 
 	remoteConn, _, err := hijacker.Hijack()
 	if err != nil {
-		return api.StatusErrorf(http.StatusInternalServerError, "Failed to hijack connection: %w", err)
+		return api.StatusErrorf(http.StatusInternalServerError, "Failed hijacking connection: %w", err)
 	}
 
 	defer func() { _ = remoteConn.Close() }()
@@ -135,7 +135,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 
 	err = response.Upgrade(remoteConn, "sftp")
 	if err != nil {
-		return api.StatusErrorf(http.StatusInternalServerError, "Failed to upgrade SFTP connection: %w", err)
+		return api.StatusErrorf(http.StatusInternalServerError, "Failed upgrading SFTP connection: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(req.Context())

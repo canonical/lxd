@@ -36,7 +36,7 @@ func Load(ctx context.Context, tx *db.ClusterTx) (*Config, error) {
 
 	m, err := config.SafeLoad(&ConfigSchema, values)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load node config: %w", err)
+		return nil, fmt.Errorf("failed loading node config: %w", err)
 	}
 
 	return &Config{m: m}, nil

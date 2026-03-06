@@ -27,28 +27,28 @@ func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 
 	cpuStats, err := d.getQemuCPUMetrics(monitor)
 	if err != nil {
-		d.logger.Warn("Failed to get CPU metrics", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting CPU metrics", logger.Ctx{"err": err})
 	} else {
 		out.CPU = cpuStats
 	}
 
 	memoryStats, err := d.getQemuMemoryMetrics()
 	if err != nil {
-		d.logger.Warn("Failed to get memory metrics", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting memory metrics", logger.Ctx{"err": err})
 	} else {
 		out.Memory = memoryStats
 	}
 
 	diskStats, err := d.getQemuDiskMetrics(monitor)
 	if err != nil {
-		d.logger.Warn("Failed to get disk metrics", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting disk metrics", logger.Ctx{"err": err})
 	} else {
 		out.Disk = diskStats
 	}
 
 	networkState, err := d.getNetworkState()
 	if err != nil {
-		d.logger.Warn("Failed to get network metrics", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting network metrics", logger.Ctx{"err": err})
 	} else {
 		out.Network = make(map[string]metrics.NetworkMetrics)
 
@@ -139,7 +139,7 @@ func (d *qemu) getQemuMemoryMetrics() (metrics.MemoryMetrics, error) {
 	}
 
 	if memRSS == -1 {
-		return out, errors.New("Couldn't find VM memory usage")
+		return out, errors.New("Could not find VM memory usage")
 	}
 
 	// Get max memory usage.
@@ -205,12 +205,12 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 
 		stats.SecondsUser, err = strconv.ParseFloat(fields[13], 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse %q: %w", fields[13], err)
+			return nil, fmt.Errorf("Failed parsing %q: %w", fields[13], err)
 		}
 
 		guestTime, err := strconv.ParseFloat(fields[42], 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse %q: %w", fields[42], err)
+			return nil, fmt.Errorf("Failed parsing %q: %w", fields[42], err)
 		}
 
 		// According to proc(5), utime includes guest_time which therefore needs to be subtracted to get the correct time.
@@ -219,7 +219,7 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 
 		stats.SecondsSystem, err = strconv.ParseFloat(fields[14], 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse %q: %w", fields[14], err)
+			return nil, fmt.Errorf("Failed parsing %q: %w", fields[14], err)
 		}
 
 		stats.SecondsSystem /= 100

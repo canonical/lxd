@@ -52,17 +52,17 @@ func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.S
 
 	indexDeviceNamer, err := nvcdi.NewDeviceNamer(nvcdi.DeviceNameStrategyIndex)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create device namer with index strategy: %w", err)
+		return nil, fmt.Errorf("Failed creating device namer with index strategy: %w", err)
 	}
 
 	uuidDeviceNamer, err := nvcdi.NewDeviceNamer(nvcdi.DeviceNameStrategyUUID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create device namer with uuid strategy: %w", err)
+		return nil, fmt.Errorf("Failed creating device namer with uuid strategy: %w", err)
 	}
 
 	nvidiaCTKPath, err := exec.LookPath("nvidia-ctk")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to find the nvidia-ctk binary: %w", err)
+		return nil, fmt.Errorf("Failed finding the nvidia-ctk binary: %w", err)
 	}
 
 	rootPath := ""
@@ -76,7 +76,7 @@ func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.S
 
 		// Let's ensure that user has mesa-2404 snap connected.
 		if !shared.PathExists(gpuInterfaceProviderWrapper) {
-			return nil, errors.New("Failed to find gpu-2404-provider-wrapper. Please ensure that mesa-2404 snap is connected to lxd.")
+			return nil, errors.New("Failed finding gpu-2404-provider-wrapper. Please ensure that mesa-2404 snap is connected to lxd.")
 		}
 
 		//
@@ -98,7 +98,7 @@ func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.S
 
 		rootPath, err = shared.RunCommand(context.TODO(), cmd[0], cmd[1:]...)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to determine NVIDIA driver root path: %w", err)
+			return nil, fmt.Errorf("Failed determining NVIDIA driver root path: %w", err)
 		}
 
 		rootPath = strings.TrimSuffix(rootPath, "\n")
@@ -107,7 +107,7 @@ func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.S
 		// Let's ensure that user did:
 		// snap connect mesa-2404:kernel-gpu-2404 pc-kernel
 		if !shared.PathExists(rootPath + "/usr/bin/nvidia-smi") {
-			return nil, fmt.Errorf("Failed to find nvidia-smi tool in %q. Please ensure that pc-kernel snap is connected to mesa-2404.", rootPath)
+			return nil, fmt.Errorf("Failed finding nvidia-smi tool in %q. Please ensure that pc-kernel snap is connected to mesa-2404.", rootPath)
 		}
 	} else if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"
@@ -126,12 +126,12 @@ func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.S
 		nvcdi.WithMergedDeviceOptions(transform.WithName("all")),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create CDI library: %w", err)
+		return nil, fmt.Errorf("Failed creating CDI library: %w", err)
 	}
 
 	specIface, err := cdilib.GetSpec()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get CDI spec interface: %w", err)
+		return nil, fmt.Errorf("Failed getting CDI spec interface: %w", err)
 	}
 
 	spec := specIface.Raw()
@@ -143,7 +143,7 @@ func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.S
 	specPath := filepath.Join(inst.LogPath(), fmt.Sprintf("nvidia_cdi_spec.%s.log", strings.ReplaceAll(cdiID.String(), "/", "_")))
 	specFile, err := os.Create(specPath)
 	if err != nil {
-		l.Warn("Failed to create a log file to hold a CDI spec", logger.Ctx{"specPath": specPath, "error": err})
+		l.Warn("Failed creating a log file to hold a CDI spec", logger.Ctx{"specPath": specPath, "error": err})
 		return spec, nil
 	}
 
@@ -151,7 +151,7 @@ func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.S
 
 	_, err = specFile.WriteString(logger.Pretty(spec))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to write spec to %q: %v", specPath, err)
+		return nil, fmt.Errorf("Failed writing spec to %q: %v", specPath, err)
 	}
 
 	l.Debug("CDI spec has been successfully generated", logger.Ctx{"specPath": specPath})
@@ -164,7 +164,7 @@ func generateAMDSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec
 	amdCTKBinary := "amd-ctk"
 	amdCTKPath, err := exec.LookPath(amdCTKBinary)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to find the %q binary: %w", amdCTKBinary, err)
+		return nil, fmt.Errorf("Failed finding the %q binary: %w", amdCTKBinary, err)
 	}
 
 	// No stdout support, no custom file name support from amd-ctk. The spec
@@ -181,20 +181,20 @@ func generateAMDSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec
 
 	_, err = shared.RunCommand(context.TODO(), cmd[0], cmd[1:]...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate AMD CDI spec: %w", err)
+		return nil, fmt.Errorf("Failed generating AMD CDI spec: %w", err)
 	}
 
 	l.Debug("CDI spec has been successfully generated", logger.Ctx{"specPath": specFile})
 
 	specRaw, err := os.ReadFile(specFile)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read AMD CDI spec: %w", err)
+		return nil, fmt.Errorf("Failed reading AMD CDI spec: %w", err)
 	}
 
 	var spec specs.Spec
 	err = yaml.Unmarshal([]byte(specRaw), &spec)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal AMD CDI spec: %w", err)
+		return nil, fmt.Errorf("Failed unmarshaling AMD CDI spec: %w", err)
 	}
 
 	return &spec, nil

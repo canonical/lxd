@@ -328,7 +328,7 @@ func (c *ClusterTx) GetNetworkACLURIs(ctx context.Context, projectID int, projec
 
 	names, err := query.SelectStrings(ctx, c.tx, sql, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get URIs for network acl: %w", err)
+		return nil, fmt.Errorf("Cannot get URIs for network acl: %w", err)
 	}
 
 	uris := make([]string, len(names))

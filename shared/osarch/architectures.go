@@ -107,7 +107,7 @@ func ArchitectureName(arch int) (string, error) {
 		return name, nil
 	}
 
-	return "unknown", fmt.Errorf("Architecture isn't supported: %d", arch)
+	return "unknown", fmt.Errorf("Architecture is not supported: %d", arch)
 }
 
 // ArchitectureId returns the architecture ID for a given architecture name or alias.
@@ -130,7 +130,7 @@ func ArchitectureId(arch string) (int, error) { //nolint:revive
 		}
 	}
 
-	return ARCH_UNKNOWN, fmt.Errorf("Architecture isn't supported: %s", arch)
+	return ARCH_UNKNOWN, fmt.Errorf("Architecture is not supported: %s", arch)
 }
 
 // ArchitecturePersonality returns the personality for a given architecture ID.
@@ -140,7 +140,7 @@ func ArchitecturePersonality(arch int) (string, error) {
 		return personality, nil
 	}
 
-	return "", fmt.Errorf("Architecture isn't supported: %d", arch)
+	return "", fmt.Errorf("Architecture is not supported: %d", arch)
 }
 
 // ArchitecturePersonalities returns the list of supported personalities for a given architecture ID.
@@ -150,7 +150,7 @@ func ArchitecturePersonalities(arch int) ([]int, error) {
 		return personalities, nil
 	}
 
-	return []int{}, fmt.Errorf("Architecture isn't supported: %d", arch)
+	return []int{}, fmt.Errorf("Architecture is not supported: %d", arch)
 }
 
 // ArchitectureGetLocalID returns the local hardware architecture ID.

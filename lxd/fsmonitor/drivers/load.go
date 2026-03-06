@@ -36,7 +36,7 @@ func Load(ctx context.Context, path string, events ...fsmonitor.Event) (fsmonito
 
 		err := d.load(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to load fsmonitor driver %q: %w", driverName, err)
+			return nil, fmt.Errorf("Failed loading fsmonitor driver %q: %w", driverName, err)
 		}
 
 		return d, nil
@@ -53,7 +53,7 @@ func Load(ctx context.Context, path string, events ...fsmonitor.Event) (fsmonito
 		// If the file system is a mount point, try to use fanotify but fall back to inotify.
 		driver, err = startMonitor(fsmonitor.DriverNameFANotify)
 		if err != nil {
-			logger.Warn("Failed to initialize fanotify, falling back on inotify", logger.Ctx{"err": err, "path": path})
+			logger.Warn("Failed initializing fanotify, falling back on inotify", logger.Ctx{"err": err, "path": path})
 		}
 	}
 

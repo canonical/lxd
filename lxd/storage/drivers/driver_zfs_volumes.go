@@ -665,7 +665,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 	if fullCopy {
 		_, snapName, found := strings.Cut(srcSnapshot, "@")
 		if !found {
-			return fmt.Errorf("Failed to parse snapshot name from %q", srcSnapshot)
+			return fmt.Errorf("Failed parsing snapshot name from %q", srcSnapshot)
 		}
 
 		// Send/receive the snapshot.
@@ -1235,12 +1235,12 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 		// Get target snapshots
 		targetSnapshots, err = vol.Volume.Snapshots(op)
 		if err != nil {
-			return fmt.Errorf("Failed to get target snapshots: %w", err)
+			return fmt.Errorf("Failed getting target snapshots: %w", err)
 		}
 
 		srcSnapshotsAll, err = srcVol.Volume.Snapshots(op)
 		if err != nil {
-			return fmt.Errorf("Failed to get source snapshots: %w", err)
+			return fmt.Errorf("Failed getting source snapshots: %w", err)
 		}
 	}
 
@@ -1347,7 +1347,7 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 	// Rollback target volume to the latest identical snapshot
 	err = d.RestoreVolume(vol.Volume, lastIdenticalSnapshot, op)
 	if err != nil {
-		return fmt.Errorf("Failed to restore volume: %w", err)
+		return fmt.Errorf("Failed restoring volume: %w", err)
 	}
 
 	// Create all missing snapshots on the target using an incremental stream
@@ -1357,12 +1357,12 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 		if i == 0 {
 			originSnap, err = srcVol.NewSnapshot(lastIdenticalSnapshotOnlyName)
 			if err != nil {
-				return fmt.Errorf("Failed to create new snapshot volume: %w", err)
+				return fmt.Errorf("Failed creating new snapshot volume: %w", err)
 			}
 		} else {
 			originSnap, err = srcVol.NewSnapshot(refreshSnapshots[i-1])
 			if err != nil {
-				return fmt.Errorf("Failed to create new snapshot volume: %w", err)
+				return fmt.Errorf("Failed creating new snapshot volume: %w", err)
 			}
 		}
 
@@ -1376,12 +1376,12 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 			// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
 			// refresh instead.
 			if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
-				d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
+				d.logger.Debug("Cannot perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
 				_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
 				return err
 			}
 
-			return fmt.Errorf("Failed to transfer snapshot %q: %w", snap.name, err)
+			return fmt.Errorf("Failed transferring snapshot %q: %w", snap.name, err)
 		}
 
 		if snap.IsVMBlock() {
@@ -1394,12 +1394,12 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 				// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
 				// refresh instead.
 				if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
-					d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
+					d.logger.Debug("Cannot perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
 					_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
 					return err
 				}
 
-				return fmt.Errorf("Failed to transfer snapshot %q: %w", snap.name, err)
+				return fmt.Errorf("Failed transferring snapshot %q: %w", snap.name, err)
 			}
 		}
 	}
@@ -1424,12 +1424,12 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 		// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
 		// refresh instead.
 		if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
-			d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
+			d.logger.Debug("Cannot perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
 			_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
 			return err
 		}
 
-		return fmt.Errorf("Failed to transfer main volume: %w", err)
+		return fmt.Errorf("Failed transferring main volume: %w", err)
 	}
 
 	if srcSnap.IsVMBlock() {
@@ -1442,12 +1442,12 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 			// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
 			// refresh instead.
 			if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
-				d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
+				d.logger.Debug("Cannot perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
 				_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
 				return err
 			}
 
-			return fmt.Errorf("Failed to transfer main volume: %w", err)
+			return fmt.Errorf("Failed transferring main volume: %w", err)
 		}
 	}
 
@@ -1533,13 +1533,13 @@ func (d *zfs) deleteVolume(vol Volume, op *operations.Operation) error {
 		// Delete the mountpoint if present.
 		err := os.Remove(vol.MountPath())
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %q: %w", vol.MountPath(), err)
+			return fmt.Errorf("Failed removing %q: %w", vol.MountPath(), err)
 		}
 
 		// Delete the snapshot storage.
 		err = os.RemoveAll(GetVolumeSnapshotDir(d.name, vol.volType, vol.name))
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %q: %w", GetVolumeSnapshotDir(d.name, vol.volType, vol.name), err)
+			return fmt.Errorf("Failed removing %q: %w", GetVolumeSnapshotDir(d.name, vol.volType, vol.name), err)
 		}
 	}
 
@@ -1918,7 +1918,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 func (d *zfs) tryGetVolumeDiskPathFromDataset(ctx context.Context, dataset string) (string, error) {
 	for {
 		if ctx.Err() != nil {
-			return "", fmt.Errorf("Failed to locate zvol for %q: %w", dataset, ctx.Err())
+			return "", fmt.Errorf("Failed locating zvol for %q: %w", dataset, ctx.Err())
 		}
 
 		diskPath, err := d.getVolumeDiskPathFromDataset(dataset)
@@ -2179,7 +2179,7 @@ func (d *zfs) activateVolume(vol Volume) (bool, string, error) {
 
 	volumeDiskPath, err := d.GetVolumeDiskPath(vol)
 	if err != nil {
-		return false, "", fmt.Errorf("Failed to get volume disk path: %v", err)
+		return false, "", fmt.Errorf("Failed getting volume disk path: %v", err)
 	}
 
 	return activated, volumeDiskPath, nil
@@ -2226,7 +2226,7 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 		}
 
 		if time.Now().After(waitUntil) {
-			return false, fmt.Errorf("Failed to deactivate zvol after %v", waitDuration)
+			return false, fmt.Errorf("Failed deactivating zvol after %v", waitDuration)
 		}
 
 		// Wait for ZFS to remove the device path.
@@ -2499,7 +2499,7 @@ func (d *zfs) DelegateVolume(vol Volume, pid int) error {
 
 	// Check that the current ZFS version supports it.
 	if !zfsDelegate {
-		return errors.New("Local ZFS version doesn't support delegation")
+		return errors.New("Local ZFS version does not support delegation")
 	}
 
 	// Set the property.
@@ -2857,7 +2857,7 @@ func (d *zfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instan
 		// Create temporary file to store output of ZFS send.
 		tmpFile, err := os.CreateTemp(d.state.BackupsStoragePath(projectName), backup.WorkingDirPrefix+"_zfs")
 		if err != nil {
-			return fmt.Errorf("Failed to open temporary file for ZFS backup: %w", err)
+			return fmt.Errorf("Failed opening temporary file for ZFS backup: %w", err)
 		}
 
 		defer func() { _ = tmpFile.Close() }()
@@ -3034,7 +3034,7 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 	// Delete the mountpoint.
 	err = os.Remove(vol.MountPath())
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove %q: %w", vol.MountPath(), err)
+		return fmt.Errorf("Failed removing %q: %w", vol.MountPath(), err)
 	}
 
 	// Remove the parent snapshot directory if this is the last snapshot being removed.
@@ -3283,7 +3283,7 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 
 			exists, err := d.datasetExists(dataset)
 			if err != nil {
-				return true, fmt.Errorf("Failed to check existence of temporary ZFS snapshot volume %q: %w", dataset, err)
+				return true, fmt.Errorf("Failed checking existence of temporary ZFS snapshot volume %q: %w", dataset, err)
 			}
 
 			if exists {

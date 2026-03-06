@@ -111,7 +111,7 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("%s after %ds timeout", err.Error(), c.flagTimeout)
 			}
 
-			log(i, "Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
+			log(i, "Failed checking if LXD daemon is ready (attempt %d): %v", i, err)
 			continue
 		}
 

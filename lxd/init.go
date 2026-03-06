@@ -27,7 +27,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 		// Get current config.
 		currentServer, etag, err := d.GetServer()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to retrieve current server configuration: %w", err)
+			return nil, fmt.Errorf("Failed retrieving current server configuration: %w", err)
 		}
 
 		// Setup reverter.
@@ -37,7 +37,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 		newServer := api.ServerPut{}
 		err = shared.DeepCopy(currentServer.Writable(), &newServer)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to copy server configuration: %w", err)
+			return nil, fmt.Errorf("Failed copying server configuration: %w", err)
 		}
 
 		for k, v := range config.Config {
@@ -47,7 +47,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 		// Apply it.
 		err = d.UpdateServer(newServer, etag)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to update server configuration: %w", err)
+			return nil, fmt.Errorf("Failed updating server configuration: %w", err)
 		}
 	}
 
@@ -56,7 +56,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 		// Get the list of storagePools.
 		storagePoolNames, err := d.GetStoragePoolNames()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to retrieve list of storage pools: %w", err)
+			return nil, fmt.Errorf("Failed retrieving list of storage pools: %w", err)
 		}
 
 		// StoragePool creator
@@ -64,7 +64,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			// Create the storagePool if doesn't exist.
 			err := d.CreateStoragePool(storagePool)
 			if err != nil {
-				return fmt.Errorf("Failed to create storage pool %q: %w", storagePool.Name, err)
+				return fmt.Errorf("Failed creating storage pool %q: %w", storagePool.Name, err)
 			}
 
 			// Setup reverter.
@@ -77,7 +77,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			// Get the current storagePool.
 			currentStoragePool, etag, err := d.GetStoragePool(storagePool.Name)
 			if err != nil {
-				return fmt.Errorf("Failed to retrieve current storage pool %q: %w", storagePool.Name, err)
+				return fmt.Errorf("Failed retrieving current storage pool %q: %w", storagePool.Name, err)
 			}
 
 			// Quick check.
@@ -92,7 +92,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			newStoragePool := api.StoragePoolPut{}
 			err = shared.DeepCopy(currentStoragePool.Writable(), &newStoragePool)
 			if err != nil {
-				return fmt.Errorf("Failed to copy configuration of storage pool %q: %w", storagePool.Name, err)
+				return fmt.Errorf("Failed copying configuration of storage pool %q: %w", storagePool.Name, err)
 			}
 
 			// Description override.
@@ -106,7 +106,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			// Apply it.
 			err = d.UpdateStoragePool(currentStoragePool.Name, newStoragePool, etag)
 			if err != nil {
-				return fmt.Errorf("Failed to update storage pool %q: %w", storagePool.Name, err)
+				return fmt.Errorf("Failed updating storage pool %q: %w", storagePool.Name, err)
 			}
 
 			return nil
@@ -138,7 +138,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			// Create the network if doesn't exist.
 			err := d.UseProject(network.Project).CreateNetwork(network.NetworksPost)
 			if err != nil {
-				return fmt.Errorf("Failed to create local member network %q in project %q: %w", network.Name, network.Project, err)
+				return fmt.Errorf("Failed creating local member network %q in project %q: %w", network.Name, network.Project, err)
 			}
 
 			// Setup reverter.
@@ -148,7 +148,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			newNetwork := api.NetworkPut{}
 			err = shared.DeepCopy(currentNetwork.Writable(), &newNetwork)
 			if err != nil {
-				return fmt.Errorf("Failed to copy configuration of network %q in project %q: %w", network.Name, network.Project, err)
+				return fmt.Errorf("Failed copying configuration of network %q in project %q: %w", network.Name, network.Project, err)
 			}
 
 			// Description override.
@@ -162,7 +162,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			// Apply it.
 			err = d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, newNetwork, etag)
 			if err != nil {
-				return fmt.Errorf("Failed to update local member network %q in project %q: %w", network.Name, network.Project, err)
+				return fmt.Errorf("Failed updating local member network %q in project %q: %w", network.Name, network.Project, err)
 			}
 
 			// Setup reverter.
@@ -198,7 +198,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 		// Get the list of projects.
 		projectNames, err := d.GetProjectNames()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to retrieve list of projects: %w", err)
+			return nil, fmt.Errorf("Failed retrieving list of projects: %w", err)
 		}
 
 		// Project creator.
@@ -206,7 +206,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			// Create the project if doesn't exist.
 			err := d.CreateProject(project)
 			if err != nil {
-				return fmt.Errorf("Failed to create local member project %q: %w", project.Name, err)
+				return fmt.Errorf("Failed creating local member project %q: %w", project.Name, err)
 			}
 
 			// Setup reverter.
@@ -224,7 +224,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			// Get the current project.
 			currentProject, etag, err := d.GetProject(project.Name)
 			if err != nil {
-				return fmt.Errorf("Failed to retrieve current project %q: %w", project.Name, err)
+				return fmt.Errorf("Failed retrieving current project %q: %w", project.Name, err)
 			}
 
 			// Setup reverter.
@@ -234,7 +234,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			newProject := api.ProjectPut{}
 			err = shared.DeepCopy(currentProject.Writable(), &newProject)
 			if err != nil {
-				return fmt.Errorf("Failed to copy configuration of project %q: %w", project.Name, err)
+				return fmt.Errorf("Failed copying configuration of project %q: %w", project.Name, err)
 			}
 
 			// Description override.
@@ -248,7 +248,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			// Apply it.
 			err = d.UpdateProject(currentProject.Name, newProject, etag)
 			if err != nil {
-				return fmt.Errorf("Failed to update local member project %q: %w", project.Name, err)
+				return fmt.Errorf("Failed updating local member project %q: %w", project.Name, err)
 			}
 
 			return nil
@@ -298,7 +298,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			if err != nil {
-				return fmt.Errorf("Failed to create storage volume %q in project %q on pool %q: %w", storageVolume.Name, storageVolume.Project, storageVolume.Pool, err)
+				return fmt.Errorf("Failed creating storage volume %q in project %q on pool %q: %w", storageVolume.Name, storageVolume.Project, storageVolume.Pool, err)
 			}
 
 			// Setup reverter.
@@ -309,7 +309,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 				}
 
 				if err != nil {
-					logger.Warn("Failed to revert creation of storage volume", logger.Ctx{"project": storageVolume.Project, "pool": storageVolume.Pool, "volume": storageVolume.Name, "err": err})
+					logger.Warn("Failed reverting creation of storage volume", logger.Ctx{"project": storageVolume.Project, "pool": storageVolume.Pool, "volume": storageVolume.Name, "err": err})
 				}
 			})
 		} else {
@@ -330,7 +330,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			newStorageVolume := api.StorageVolumePut{}
 			err = shared.DeepCopy(currentStorageVolume.Writable(), &newStorageVolume)
 			if err != nil {
-				return fmt.Errorf("Failed to copy configuration of storage volume %q in project %q: %w", storageVolume.Name, storageVolume.Project, err)
+				return fmt.Errorf("Failed copying configuration of storage volume %q in project %q: %w", storageVolume.Name, storageVolume.Project, err)
 			}
 
 			// Description override.
@@ -348,7 +348,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			if err != nil {
-				return fmt.Errorf("Failed to update storage volume %q in project %q: %w", storageVolume.Name, storageVolume.Project, err)
+				return fmt.Errorf("Failed updating storage volume %q in project %q: %w", storageVolume.Name, storageVolume.Project, err)
 			}
 		}
 
@@ -377,7 +377,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 		// Get the list of profiles.
 		profileNames, err := d.GetProfileNames()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to retrieve list of profiles: %w", err)
+			return nil, fmt.Errorf("Failed retrieving list of profiles: %w", err)
 		}
 
 		// Profile creator.
@@ -385,7 +385,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			// Create the profile if doesn't exist.
 			err := d.CreateProfile(profile)
 			if err != nil {
-				return fmt.Errorf("Failed to create profile %q: %w", profile.Name, err)
+				return fmt.Errorf("Failed creating profile %q: %w", profile.Name, err)
 			}
 
 			// Setup reverter.
@@ -398,7 +398,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			// Get the current profile.
 			currentProfile, etag, err := d.GetProfile(profile.Name)
 			if err != nil {
-				return fmt.Errorf("Failed to retrieve current profile %q: %w", profile.Name, err)
+				return fmt.Errorf("Failed retrieving current profile %q: %w", profile.Name, err)
 			}
 
 			// Setup reverter.
@@ -413,7 +413,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			newProfile := api.ProfilePut{}
 			err = shared.DeepCopy(currentProfile.Writable(), &newProfile)
 			if err != nil {
-				return fmt.Errorf("Failed to copy configuration of profile %q: %w", profile.Name, err)
+				return fmt.Errorf("Failed copying configuration of profile %q: %w", profile.Name, err)
 			}
 
 			// Description override.
@@ -444,7 +444,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			if err != nil {
-				return fmt.Errorf("Failed to update profile %q: %w", profile.Name, err)
+				return fmt.Errorf("Failed updating profile %q: %w", profile.Name, err)
 			}
 
 			return nil
@@ -485,7 +485,7 @@ func initDataClusterApply(d lxd.InstanceServer, config *api.InitClusterPreseed) 
 	// Get the current cluster configuration
 	currentCluster, etag, err := d.GetCluster()
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve current cluster config: %w", err)
+		return fmt.Errorf("Failed retrieving current cluster config: %w", err)
 	}
 
 	// Check if already enabled
@@ -493,12 +493,12 @@ func initDataClusterApply(d lxd.InstanceServer, config *api.InitClusterPreseed) 
 		// Configure the cluster
 		op, err := d.UpdateCluster(config.ClusterPut, etag)
 		if err != nil {
-			return fmt.Errorf("Failed to configure cluster: %w", err)
+			return fmt.Errorf("Failed configuring cluster: %w", err)
 		}
 
 		err = op.Wait()
 		if err != nil {
-			return fmt.Errorf("Failed to configure cluster: %w", err)
+			return fmt.Errorf("Failed configuring cluster: %w", err)
 		}
 	}
 

@@ -215,7 +215,7 @@ func (c *cmdConvert) askServer() (lxd.InstanceServer, string, error) {
 
 	certificate, err := shared.GetRemoteCertificate(context.Background(), serverURL, args.UserAgent)
 	if err != nil {
-		return nil, "", fmt.Errorf("Failed to get remote certificate: %w", err)
+		return nil, "", fmt.Errorf("Failed getting remote certificate: %w", err)
 	}
 
 	digest := shared.CertFingerprint(certificate)
@@ -238,12 +238,12 @@ func (c *cmdConvert) askServer() (lxd.InstanceServer, string, error) {
 
 	server, err := lxd.ConnectLXD(serverURL, &args)
 	if err != nil {
-		return nil, "", fmt.Errorf("Failed to connect to server: %w", err)
+		return nil, "", fmt.Errorf("Failed connecting to server: %w", err)
 	}
 
 	apiServer, _, err := server.GetServer()
 	if err != nil {
-		return nil, "", fmt.Errorf("Failed to get server: %w", err)
+		return nil, "", fmt.Errorf("Failed getting server: %w", err)
 	}
 
 	type AuthMethod int
@@ -268,7 +268,7 @@ func (c *cmdConvert) askServer() (lxd.InstanceServer, string, error) {
 
 		_, err = shared.CertificateTokenDecode(token)
 		if err != nil {
-			return nil, "", fmt.Errorf("Failed to decode certificate token: %w", err)
+			return nil, "", fmt.Errorf("Failed decoding certificate token: %w", err)
 		}
 	} else if c.flagKeyPath != "" || c.flagCertPath != "" {
 		if c.flagKeyPath == "" {
@@ -843,13 +843,13 @@ func (c *cmdConvert) run(cmd *cobra.Command, args []string) error {
 	// Unshare a new mntns so our mounts don't leak
 	err = unix.Unshare(unix.CLONE_NEWNS)
 	if err != nil {
-		return fmt.Errorf("Failed to unshare mount namespace: %w", err)
+		return fmt.Errorf("Failed unsharing mount namespace: %w", err)
 	}
 
 	// Prevent mount propagation back to initial namespace
 	err = unix.Mount("", "/", "", unix.MS_REC|unix.MS_PRIVATE, "")
 	if err != nil {
-		return fmt.Errorf("Failed to disable mount propagation: %w", err)
+		return fmt.Errorf("Failed disabling mount propagation: %w", err)
 	}
 
 	// Create the temporary directory to be used for the mounts
@@ -878,7 +878,7 @@ func (c *cmdConvert) run(cmd *cobra.Command, args []string) error {
 		// Setup the source (mounts)
 		err = setupSource(fullPath, config.Mounts)
 		if err != nil {
-			return fmt.Errorf("Failed to setup the source: %w", err)
+			return fmt.Errorf("Failed setting up the source: %w", err)
 		}
 	} else {
 		isImageTypeRaw, err := isImageTypeRaw(config.SourcePath)
@@ -897,19 +897,19 @@ func (c *cmdConvert) run(cmd *cobra.Command, args []string) error {
 
 		err = os.WriteFile(target, nil, 0644)
 		if err != nil {
-			return fmt.Errorf("Failed to create %q: %w", target, err)
+			return fmt.Errorf("Failed creating %q: %w", target, err)
 		}
 
 		// Mount the path
 		err = unix.Mount(config.SourcePath, target, "none", unix.MS_BIND, "")
 		if err != nil {
-			return fmt.Errorf("Failed to mount %s: %w", config.SourcePath, err)
+			return fmt.Errorf("Failed mounting %s: %w", config.SourcePath, err)
 		}
 
 		// Make it read-only
 		err = unix.Mount("", target, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
 		if err != nil {
-			return fmt.Errorf("Failed to make %s read-only: %w", config.SourcePath, err)
+			return fmt.Errorf("Failed making %s read-only: %w", config.SourcePath, err)
 		}
 
 		// In conversion mode, server expects the volume size hint in the request.

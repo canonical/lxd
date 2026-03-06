@@ -197,18 +197,18 @@ func (e *EntityRef) scan(scan func(dest ...any) error) error {
 
 	err := scan(&entityType, &entityID, &projectName, &location, &pathArgsJSON)
 	if err != nil {
-		return fmt.Errorf("Failed to scan entity URL: %w", err)
+		return fmt.Errorf("Failed scanning entity URL: %w", err)
 	}
 
 	var pathArgs []string
 	err = json.Unmarshal([]byte(pathArgsJSON), &pathArgs)
 	if err != nil {
-		return fmt.Errorf("Failed to unmarshal entity URL path arguments: %w", err)
+		return fmt.Errorf("Failed unmarshaling entity URL path arguments: %w", err)
 	}
 
 	ref, err := entity.NewReference(projectName, entity.Type(entityType), location, pathArgs...)
 	if err != nil {
-		return fmt.Errorf("Failed to construct entity reference: %w", err)
+		return fmt.Errorf("Failed constructing entity reference: %w", err)
 	}
 
 	e.EntityType = entityType
@@ -238,7 +238,7 @@ func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 	entityRef := &EntityRef{}
 	err := entityRef.scan(row.Scan)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("Failed to scan entity URL: %w", err)
+		return nil, fmt.Errorf("Failed scanning entity URL: %w", err)
 	} else if err != nil {
 		return nil, api.StatusErrorf(http.StatusNotFound, "No entity found with id %d and type %q", entityID, entityType)
 	}
@@ -339,14 +339,14 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, filterin
 	stmt := strings.Join(stmts, " UNION ")
 	rows, err := tx.QueryContext(ctx, stmt, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to perform entity URL query: %w", err)
+		return nil, fmt.Errorf("Failed performing entity URL query: %w", err)
 	}
 
 	for rows.Next() {
 		entityRef := &EntityRef{}
 		err := entityRef.scan(rows.Scan)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to scan entity URL: %w", err)
+			return nil, fmt.Errorf("Failed scanning entity URL: %w", err)
 		}
 
 		result[entity.Type(entityRef.EntityType)][entityRef.EntityID] = entityRef.URL()
@@ -374,13 +374,13 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 		// Parse the URL to get the majority of the fields of the EntityRef for that URL.
 		entityType, projectName, location, pathArgs, err := entity.ParseURL(entityURL.URL)
 		if err != nil {
-			return fmt.Errorf("Failed to get entity IDs from URLs: %w", err)
+			return fmt.Errorf("Failed getting entity IDs from URLs: %w", err)
 		}
 
 		// Populate the result map.
 		ref, err := entity.NewReference(projectName, entityType, location, pathArgs...)
 		if err != nil {
-			return fmt.Errorf("Failed to construct entity reference: %w", err)
+			return fmt.Errorf("Failed constructing entity reference: %w", err)
 		}
 
 		entityURLMap[entityURL] = &EntityRef{
@@ -423,24 +423,24 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 	stmt := strings.Join(stmts, " UNION ")
 	rows, err := tx.QueryContext(ctx, stmt, args...)
 	if err != nil {
-		return fmt.Errorf("Failed to get entityIDs from URLS: %w", err)
+		return fmt.Errorf("Failed getting entityIDs from URLS: %w", err)
 	}
 
 	for rows.Next() {
 		var rowID, entityID int
 		err = rows.Scan(&rowID, &entityID)
 		if err != nil {
-			return fmt.Errorf("Failed to get entityIDs from URLS: %w", err)
+			return fmt.Errorf("Failed getting entityIDs from URLS: %w", err)
 		}
 
 		if rowID >= len(entityURLs) {
-			return errors.New("Failed to get entityIDs from URLS: Internal error, returned row ID greater than number of URLs")
+			return errors.New("Failed getting entityIDs from URLS: Internal error, returned row ID greater than number of URLs")
 		}
 
 		// Using the row ID, get the *api.URL from the argument slice, then use it as a key in our result map to get the *EntityRef.
 		entityRef, ok := entityURLMap[entityURLs[rowID]]
 		if !ok {
-			return errors.New("Failed to get entityIDs from URLS: Internal error, entity URL missing from result object")
+			return errors.New("Failed getting entityIDs from URLS: Internal error, entity URL missing from result object")
 		}
 
 		// Set the value of the EntityID in the *EntityRef.
@@ -449,13 +449,13 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 
 	err = rows.Err()
 	if err != nil {
-		return fmt.Errorf("Failed to get entity IDs from URLs: %w", err)
+		return fmt.Errorf("Failed getting entity IDs from URLs: %w", err)
 	}
 
 	// Check that all given URLs have been resolved to an ID.
 	for u, ref := range entityURLMap {
 		if ref.EntityID == 0 && ref.EntityType != EntityType(entity.TypeServer) {
-			return fmt.Errorf("Failed to find entity ID for URL %q", u.String())
+			return fmt.Errorf("Failed finding entity ID for URL %q", u.String())
 		}
 	}
 
@@ -468,7 +468,7 @@ func GetEntityReferenceFromURL(ctx context.Context, tx *sql.Tx, entityURL *api.U
 	// Parse the URL to get the majority of the fields of the EntityRef for that URL.
 	ref, err := entity.ReferenceFromURL(entityURL.URL)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get entity ID from URL: %w", err)
+		return nil, fmt.Errorf("Failed getting entity ID from URL: %w", err)
 	}
 
 	entityRef := &EntityRef{
@@ -510,7 +510,7 @@ func GetEntityReferenceFromURL(ctx context.Context, tx *sql.Tx, entityURL *api.U
 			return nil, api.StatusErrorf(http.StatusNotFound, "No such entity %q", entityURL.String())
 		}
 
-		return nil, fmt.Errorf("Failed to get entityID from URL: %w", err)
+		return nil, fmt.Errorf("Failed getting entityID from URL: %w", err)
 	}
 
 	entityRef.EntityID = entityID

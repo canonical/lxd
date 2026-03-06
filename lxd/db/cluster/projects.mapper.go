@@ -80,7 +80,7 @@ func getProjects(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Project, e
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"projects\" table: %w", err)
 	}
 
 	return objects, nil
@@ -104,7 +104,7 @@ func getProjectsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"projects\" table: %w", err)
 	}
 
 	return objects, nil
@@ -126,7 +126,7 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, projectObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"projectObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed getting \"projectObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -136,7 +136,7 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, projectObjectsByName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"projectObjectsByName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"projectObjectsByName\" prepared statement: %w", err)
 				}
 
 				break
@@ -144,7 +144,7 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 
 			query, err := StmtString(projectObjectsByName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"projectObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"projectObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -160,7 +160,7 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, projectObjectsByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"projectObjectsByID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"projectObjectsByID\" prepared statement: %w", err)
 				}
 
 				break
@@ -168,7 +168,7 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 
 			query, err := StmtString(projectObjectsByID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"projectObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"projectObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -195,7 +195,7 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"projects\" table: %w", err)
 	}
 
 	return objects, nil
@@ -209,7 +209,7 @@ func GetProject(ctx context.Context, tx *sql.Tx, name string) (*Project, error) 
 
 	objects, err := GetProjects(ctx, tx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"projects\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -234,7 +234,7 @@ func CreateProject(ctx context.Context, tx *sql.Tx, object Project) (int64, erro
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, projectCreate)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"projectCreate\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"projectCreate\" prepared statement: %w", err)
 	}
 
 	// Execute the statement.
@@ -244,12 +244,12 @@ func CreateProject(ctx context.Context, tx *sql.Tx, object Project) (int64, erro
 			return -1, api.NewStatusError(http.StatusConflict, "This \"projects\" entry already exists")
 		}
 
-		return -1, fmt.Errorf("Failed to create \"projects\" entry: %w", err)
+		return -1, fmt.Errorf("Failed creating \"projects\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"projects\" entry ID: %w", err)
+		return -1, fmt.Errorf("Failed fetching \"projects\" entry ID: %w", err)
 	}
 
 	return id, nil
@@ -281,7 +281,7 @@ func CreateProjectConfig(ctx context.Context, tx *sql.Tx, projectID int64, confi
 func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 	stmt, err := Stmt(tx, projectID)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"projectID\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"projectID\" prepared statement: %w", err)
 	}
 
 	row := stmt.QueryRowContext(ctx, name)
@@ -292,7 +292,7 @@ func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 			return -1, api.StatusErrorf(http.StatusNotFound, "Project not found")
 		}
 
-		return -1, fmt.Errorf("Failed to get \"projects\" ID: %w", err)
+		return -1, fmt.Errorf("Failed getting \"projects\" ID: %w", err)
 	}
 
 	return id, nil
@@ -303,7 +303,7 @@ func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 func RenameProject(ctx context.Context, tx *sql.Tx, name string, to string) error {
 	stmt, err := Stmt(tx, projectRename)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"projectRename\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"projectRename\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, to, name)
@@ -332,7 +332,7 @@ func RenameProject(ctx context.Context, tx *sql.Tx, name string, to string) erro
 func DeleteProject(ctx context.Context, tx *sql.Tx, name string) error {
 	stmt, err := Stmt(tx, projectDeleteByName)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"projectDeleteByName\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"projectDeleteByName\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, name)

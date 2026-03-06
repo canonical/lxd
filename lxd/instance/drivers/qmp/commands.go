@@ -71,7 +71,7 @@ func (m *Monitor) QueryCPUs() ([]CPU, error) {
 
 	err := m.run("query-cpus-fast", nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to query CPUs: %w", err)
+		return nil, fmt.Errorf("Failed querying CPUs: %w", err)
 	}
 
 	return resp.Return, nil
@@ -86,7 +86,7 @@ func (m *Monitor) QueryHotpluggableCPUs() ([]HotpluggableCPU, error) {
 
 	err := m.run("query-hotpluggable-cpus", nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to query hotpluggable CPUs: %w", err)
+		return nil, fmt.Errorf("Failed querying hotpluggable CPUs: %w", err)
 	}
 
 	return resp.Return, nil
@@ -219,7 +219,7 @@ func (m *Monitor) RemoveFDFromFDSet(name string) error {
 
 	err := m.run("query-fdsets", nil, &resp)
 	if err != nil {
-		return fmt.Errorf("Failed to query fd sets: %w", err)
+		return fmt.Errorf("Failed querying fd sets: %w", err)
 	}
 
 	for _, fdSet := range resp.Return {
@@ -240,7 +240,7 @@ func (m *Monitor) RemoveFDFromFDSet(name string) error {
 
 				err = m.run("remove-fd", args, nil)
 				if err != nil {
-					return fmt.Errorf("Failed to remove fd from fd set: %w", err)
+					return fmt.Errorf("Failed removing fd from fd set: %w", err)
 				}
 			}
 		}
@@ -505,7 +505,7 @@ func (m *Monitor) RemoveBlockDevice(blockDevName string) error {
 				return api.StatusErrorf(http.StatusLocked, "%w", err)
 			}
 
-			if strings.Contains(err.Error(), "Failed to find") {
+			if strings.Contains(err.Error(), "Failed finding") {
 				return nil
 			}
 

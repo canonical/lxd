@@ -424,7 +424,7 @@ func ShiftOwner(basepath string, path string, uid int, gid int) error {
 
 	r := C.shiftowner(cbasepath, cpath, C.int(uid), C.int(gid))
 	if r != 0 {
-		return fmt.Errorf("Failed to change ownership of: %s", path)
+		return fmt.Errorf("Failed changing ownership of: %s", path)
 	}
 
 	return nil
@@ -455,7 +455,7 @@ func SetCaps(path string, caps []byte, uid int64) error {
 
 	r := C.set_vfs_ns_caps(cpath, ccaps, C.ssize_t(len(caps)), C.uint32_t(uid))
 	if r != 0 {
-		return fmt.Errorf("Failed to apply capabilities to: %s", path)
+		return fmt.Errorf("Failed applying capabilities to: %s", path)
 	}
 
 	return nil
@@ -500,13 +500,13 @@ func shiftACLType(path string, aclType int, shiftIDs func(uid int64, gid int64) 
 		if ret == 0 {
 			break
 		} else if ret < 0 {
-			return fmt.Errorf("Failed to get the ACL entry for %s", path)
+			return fmt.Errorf("Failed getting the ACL entry for %s", path)
 		}
 
 		// Get the ACL type
 		ret = C.acl_get_tag_type(ent, &tag)
 		if ret == -1 {
-			return fmt.Errorf("Failed to get the ACL type for %s", path)
+			return fmt.Errorf("Failed getting the ACL type for %s", path)
 		}
 
 		// We only care about user and group ACLs, copy anything else
@@ -517,7 +517,7 @@ func shiftACLType(path string, aclType int, shiftIDs func(uid int64, gid int64) 
 		// Get the value
 		idp := (*C.id_t)(C.acl_get_qualifier(ent))
 		if idp == nil {
-			return fmt.Errorf("Failed to get current ACL value for %s", path)
+			return fmt.Errorf("Failed getting current ACL value for %s", path)
 		}
 
 		// Shift the value
@@ -531,7 +531,7 @@ func shiftACLType(path string, aclType int, shiftIDs func(uid int64, gid int64) 
 		// Update the new entry with the shifted value
 		ret = C.acl_set_qualifier(ent, unsafe.Pointer(&newID))
 		if ret == -1 {
-			return fmt.Errorf("Failed to set ACL qualifier on %s", path)
+			return fmt.Errorf("Failed setting ACL qualifier on %s", path)
 		}
 
 		update = true
@@ -541,7 +541,7 @@ func shiftACLType(path string, aclType int, shiftIDs func(uid int64, gid int64) 
 	if update {
 		ret, err := C.acl_set_file(cpath, C.uint(aclType), acl)
 		if ret < 0 {
-			return fmt.Errorf("%s - Failed to change ACLs on %s", err, path)
+			return fmt.Errorf("%s - Failed changing ACLs on %s", err, path)
 		}
 	}
 

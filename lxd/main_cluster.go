@@ -179,7 +179,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 
 		clusterAddress := config.ClusterAddress()
 		if clusterAddress == "" {
-			return errors.New(`Can't edit cluster configuration as server isn't clustered (missing "cluster.https_address" config)`)
+			return errors.New(`Cannot edit cluster configuration as server is not clustered (missing "cluster.https_address" config)`)
 		}
 
 		nodes, err = tx.GetRaftNodes(ctx)
@@ -409,12 +409,12 @@ func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 
 	db, err := db.OpenNode(filepath.Join(os.VarDir, "database"), nil)
 	if err != nil {
-		return fmt.Errorf("Failed to open local database: %w", err)
+		return fmt.Errorf("Failed opening local database: %w", err)
 	}
 
 	addresses, err := cluster.ListDatabaseNodes(db)
 	if err != nil {
-		return fmt.Errorf("Failed to get database nodes: %w", err)
+		return fmt.Errorf("Failed getting database nodes: %w", err)
 	}
 
 	columns := []string{"Address"}
@@ -430,9 +430,9 @@ func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 
 const recoverFromQuorumLossPrompt = `You should run this command only if you are *absolutely* certain that this is
 the only database member left in your cluster AND that other database members will
-never come back (i.e. their LXD daemon won't ever be started again).
+never come back (i.e. their LXD daemon will not ever be started again).
 
-This will make this LXD server the only member of the cluster, and it won't
+This will make this LXD server the only member of the cluster, and it will not
 be possible to perform operations on former cluster members anymore.
 
 However all information about former cluster members will be preserved in the
@@ -457,7 +457,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 
-	cmd.Flags().BoolVarP(&c.flagNonInteractive, "quiet", "q", false, "Don't require user confirmation")
+	cmd.Flags().BoolVarP(&c.flagNonInteractive, "quiet", "q", false, "Do not require user confirmation")
 
 	return cmd
 }
@@ -482,7 +482,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 
 	db, err := db.OpenNode(filepath.Join(os.VarDir, "database"), nil)
 	if err != nil {
-		return fmt.Errorf("Failed to open local database: %w", err)
+		return fmt.Errorf("Failed opening local database: %w", err)
 	}
 
 	return cluster.Recover(db)
@@ -490,7 +490,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 
 const removeRaftNodePrompt = `You should run this command only if you ended up in an
 inconsistent state where a cluster member has been uncleanly removed (i.e. it
-doesn't show up in "lxc cluster list" but it's still in the raft configuration).`
+does not show up in "lxc cluster list" but it's still in the raft configuration).`
 
 type cmdClusterRemoveRaftNode struct {
 	global             *cmdGlobal
@@ -505,7 +505,7 @@ func (c *cmdClusterRemoveRaftNode) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 
-	cmd.Flags().BoolVarP(&c.flagNonInteractive, "quiet", "q", false, "Don't require user confirmation")
+	cmd.Flags().BoolVarP(&c.flagNonInteractive, "quiet", "q", false, "Do not require user confirmation")
 
 	return cmd
 }
@@ -529,7 +529,7 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 
 	client, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to LXD daemon: %w", err)
+		return fmt.Errorf("Failed connecting to LXD daemon: %w", err)
 	}
 
 	endpoint := "/internal/cluster/raft-node/" + address

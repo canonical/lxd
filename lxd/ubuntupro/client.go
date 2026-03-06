@@ -201,11 +201,11 @@ func (s *Client) init(ctx context.Context, ubuntuAdvantageDir string, proShim pr
 	// Determine if the host is attached to Ubuntu Pro and update the user agent accordingly.
 	isAttached, err := s.pro.isHostAttached(ctx)
 	if err != nil {
-		logger.Debug("Failed to check if host is Ubuntu Pro attached", logger.Ctx{"err": err})
+		logger.Debug("Failed checking if host is Ubuntu Pro attached", logger.Ctx{"err": err})
 	} else if isAttached {
 		err = version.UserAgentFeatures([]string{"pro"})
 		if err != nil {
-			logger.Warn("Failed to configure LXD user agent for Ubuntu Pro", logger.Ctx{"err": err})
+			logger.Warn("Failed configuring LXD user agent for Ubuntu Pro", logger.Ctx{"err": err})
 		}
 	}
 
@@ -218,7 +218,7 @@ func (s *Client) init(ctx context.Context, ubuntuAdvantageDir string, proShim pr
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Debug("Ubuntu Pro guest attachment disabled - host is Ubuntu but no Pro configuration directory exists")
 		} else {
-			logger.Error("Ubuntu Pro guest attachment disabled - failed to check existence of Ubuntu Pro configuration directory", logger.Ctx{"err": err})
+			logger.Error("Ubuntu Pro guest attachment disabled - failed checking existence of Ubuntu Pro configuration directory", logger.Ctx{"err": err})
 		}
 
 		return
@@ -227,7 +227,7 @@ func (s *Client) init(ctx context.Context, ubuntuAdvantageDir string, proShim pr
 	// Set up a watcher on the ubuntu advantage directory.
 	err = s.watch(ctx, ubuntuAdvantageDir)
 	if err != nil {
-		logger.Warn("Failed to configure Ubuntu Pro configuration watcher", logger.Ctx{"err": err})
+		logger.Warn("Failed configuring Ubuntu Pro configuration watcher", logger.Ctx{"err": err})
 	}
 }
 
@@ -236,13 +236,13 @@ func (s *Client) watch(ctx context.Context, ubuntuAdvantageDir string) error {
 	configFilePath := path.Join(ubuntuAdvantageDir, "interfaces", "lxd-config.json")
 	err := s.parseConfigFile(configFilePath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		logger.Warn("Failed to read Ubunto Pro LXD configuration file", logger.Ctx{"err": err})
+		logger.Warn("Failed reading Ubunto Pro LXD configuration file", logger.Ctx{"err": err})
 	}
 
 	// Watch /var/lib/ubuntu-advantage for write, remove, and rename events.
 	monitor, err := drivers.Load(ctx, ubuntuAdvantageDir, fsmonitor.EventWrite, fsmonitor.EventRemove, fsmonitor.EventRename)
 	if err != nil {
-		return fmt.Errorf("Failed to create a file monitor: %w", err)
+		return fmt.Errorf("Failed creating a file monitor: %w", err)
 	}
 
 	go func() {
@@ -253,7 +253,7 @@ func (s *Client) watch(ctx context.Context, ubuntuAdvantageDir string) error {
 		s.guestAttachSetting = guestAttachSettingOff
 		err := monitor.Unwatch(path.Join(ubuntuAdvantageDir, "interfaces", "lxd-config.json"), "")
 		if err != nil {
-			logger.Warn("Failed to remove Ubuntu Pro configuration file watcher", logger.Ctx{"err": err})
+			logger.Warn("Failed removing Ubuntu Pro configuration file watcher", logger.Ctx{"err": err})
 		}
 	}()
 
@@ -268,13 +268,13 @@ func (s *Client) watch(ctx context.Context, ubuntuAdvantageDir string) error {
 		// Otherwise, parse the config file and update the client accordingly.
 		err := s.parseConfigFile(path)
 		if err != nil {
-			logger.Warn("Failed to read Ubunto Pro LXD configuration file", logger.Ctx{"err": err})
+			logger.Warn("Failed reading Ubunto Pro LXD configuration file", logger.Ctx{"err": err})
 		}
 
 		return true
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to configure file monitor: %w", err)
+		return fmt.Errorf("Failed configuring file monitor: %w", err)
 	}
 
 	s.monitor = monitor
@@ -288,7 +288,7 @@ func (s *Client) parseConfigFile(lxdConfigFile string) error {
 
 	f, err := os.Open(lxdConfigFile)
 	if err != nil {
-		return fmt.Errorf("Failed to open Ubuntu Pro configuration file: %w", err)
+		return fmt.Errorf("Failed opening Ubuntu Pro configuration file: %w", err)
 	}
 
 	defer f.Close()
@@ -296,12 +296,12 @@ func (s *Client) parseConfigFile(lxdConfigFile string) error {
 	var settings api.DevLXDUbuntuProSettings
 	err = json.NewDecoder(f).Decode(&settings)
 	if err != nil {
-		return fmt.Errorf("Failed to read Ubuntu Pro configuration file: %w", err)
+		return fmt.Errorf("Failed reading Ubuntu Pro configuration file: %w", err)
 	}
 
 	err = validateGuestAttachSetting(settings.GuestAttach)
 	if err != nil {
-		return fmt.Errorf("Failed to read Ubuntu Pro configuration file: %w", err)
+		return fmt.Errorf("Failed reading Ubuntu Pro configuration file: %w", err)
 	}
 
 	s.guestAttachSetting = settings.GuestAttach

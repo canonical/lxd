@@ -79,7 +79,7 @@ func NetnsGetifaddrs(initPID int32, hostInterfaces []net.Interface) (map[string]
 
 		netnsID = C.netns_get_nsid(C.__s32(f.Fd()))
 		if netnsID < 0 {
-			return nil, errors.New("Failed to retrieve network namespace id")
+			return nil, errors.New("Failed retrieving network namespace id")
 		}
 	} else {
 		netnsID = -1
@@ -87,7 +87,7 @@ func NetnsGetifaddrs(initPID int32, hostInterfaces []net.Interface) (map[string]
 
 	ret := C.netns_getifaddrs(&ifaddrs, netnsID, &netnsidAware)
 	if ret < 0 {
-		return nil, errors.New("Failed to retrieve network interfaces and addresses")
+		return nil, errors.New("Failed retrieving network interfaces and addresses")
 	}
 
 	defer C.netns_freeifaddrs(ifaddrs)
@@ -152,12 +152,12 @@ func NetnsGetifaddrs(initPID int32, hostInterfaces []net.Interface) (map[string]
 
 			addrPtr := C.get_addr_ptr(addr.ifa_addr)
 			if addrPtr == nil {
-				return nil, errors.New("Failed to retrieve valid address pointer")
+				return nil, errors.New("Failed retrieving valid address pointer")
 			}
 
 			addressStr := C.inet_ntop(C.int(addr.ifa_addr.sa_family), addrPtr, &address[0], C.INET6_ADDRSTRLEN)
 			if addressStr == nil {
-				return nil, errors.New("Failed to retrieve address string")
+				return nil, errors.New("Failed retrieving address string")
 			}
 
 			if addNetwork.Addresses == nil {
@@ -178,7 +178,7 @@ func NetnsGetifaddrs(initPID int32, hostInterfaces []net.Interface) (map[string]
 
 				hwaddr := C.get_packet_address(addr.ifa_addr, &buf[0], 1024)
 				if hwaddr == nil {
-					return nil, errors.New("Failed to retrieve hardware address")
+					return nil, errors.New("Failed retrieving hardware address")
 				}
 
 				addNetwork.Hwaddr = C.GoString(hwaddr)
@@ -210,7 +210,7 @@ func AbstractUnixSendFd(sockFD int, sendFD int) error {
 	skFd := C.int(sockFD)
 	ret := C.lxc_abstract_unix_send_fds(skFd, &fd, C.int(1), nil, C.size_t(0))
 	if ret < 0 {
-		return errors.New("Failed to send file descriptor via abstract unix socket")
+		return errors.New("Failed sending file descriptor via abstract unix socket")
 	}
 
 	return nil
@@ -224,11 +224,11 @@ func AbstractUnixReceiveFd(sockFD int, flags uint) (*os.File, error) {
 	fds.flags = C.__u32(flags)
 	ret := C.lxc_abstract_unix_recv_fds(skFd, &fds, nil, C.size_t(0))
 	if ret < 0 {
-		return nil, errors.New("Failed to receive file descriptor via abstract unix socket")
+		return nil, errors.New("Failed receiving file descriptor via abstract unix socket")
 	}
 
 	if fds.fd_count_max != fds.fd_count_ret {
-		return nil, errors.New("Failed to receive file descriptor via abstract unix socket")
+		return nil, errors.New("Failed receiving file descriptor via abstract unix socket")
 	}
 
 	file := os.NewFile(uintptr(fds.fd[0]), "")
@@ -249,7 +249,7 @@ func AbstractUnixReceiveFdData(sockFD int, numFds int, flags uint, iov unsafe.Po
 	skFd := C.int(sockFD)
 	ret, errno := C.lxc_abstract_unix_recv_fds_iov(skFd, &fds, (*C.struct_iovec)(iov), C.size_t(iovLen))
 	if ret < 0 {
-		return 0, []C.int{-C.EBADF}, fmt.Errorf("Failed to receive file descriptor via abstract unix socket: errno=%d", errno)
+		return 0, []C.int{-C.EBADF}, fmt.Errorf("Failed receiving file descriptor via abstract unix socket: errno=%d", errno)
 	}
 
 	if ret == 0 {

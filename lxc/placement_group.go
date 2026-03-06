@@ -124,7 +124,7 @@ func (c *cmdPlacementGroupList) run(cmd *cobra.Command, args []string) error {
 
 	// List the placement groups.
 	if resource.name != "" {
-		return errors.New("Filtering isn't supported yet")
+		return errors.New("Filtering is not supported yet")
 	}
 
 	var placementGroups []api.PlacementGroup

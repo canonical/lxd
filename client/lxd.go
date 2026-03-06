@@ -129,7 +129,7 @@ func (r *ProtocolLXD) isSameServer(server Server) bool {
 // GetHTTPClient returns the http client used for the connection. This can be used to set custom http options.
 func (r *ProtocolLXD) GetHTTPClient() (*http.Client, error) {
 	if r.http == nil {
-		return nil, errors.New("HTTP client isn't set, bad connection")
+		return nil, errors.New("HTTP client is not set, bad connection")
 	}
 
 	return r.http, nil
@@ -213,7 +213,7 @@ func lxdParseResponse(resp *http.Response) (*api.Response, string, error) {
 	if err != nil {
 		// Check the return value for a cleaner error
 		if resp.StatusCode != http.StatusOK {
-			return nil, "", fmt.Errorf("Failed to fetch %s: %s", resp.Request.URL.String(), resp.Status)
+			return nil, "", fmt.Errorf("Failed fetching %s: %s", resp.Request.URL.String(), resp.Status)
 		}
 
 		return nil, "", err
@@ -252,7 +252,7 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data any, ETag string)
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			logger.Debug("Failed to close response body", logger.Ctx{"err": err})
+			logger.Debug("Failed closing response body", logger.Ctx{"err": err})
 		}
 	}()
 
@@ -337,7 +337,7 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag 
 		listener, err = r.GetEvents()
 
 		if err != nil {
-			logger.Debug("Failed to get events", logger.Ctx{"err": err})
+			logger.Debug("Failed getting events", logger.Ctx{"err": err})
 		}
 	}
 

@@ -85,7 +85,7 @@ func OperationGetInternal(id string) (*Operation, error) {
 	operationsLock.Unlock()
 
 	if !ok {
-		return nil, fmt.Errorf("Operation %q doesn't exist", id)
+		return nil, fmt.Errorf("Operation %q does not exist", id)
 	}
 
 	return op, nil
@@ -227,7 +227,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	// Use a v7 UUID for the operation ID.
 	uuid, err := uuid.NewV7()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate operation UUID: %w", err)
+		return nil, fmt.Errorf("Failed generating operation UUID: %w", err)
 	}
 
 	// Main attributes
@@ -258,7 +258,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 
 	op.metadata, err = validateMetadata(args.Metadata)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to validate operation metadata: %w", err)
+		return nil, fmt.Errorf("Failed validating operation metadata: %w", err)
 	}
 
 	// Callback functions
@@ -309,7 +309,7 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
-		return fmt.Errorf("Failed to verify operation requestor: %w", err)
+		return fmt.Errorf("Failed verifying operation requestor: %w", err)
 	}
 
 	if !opRequestor.CallerIsEqual(requestor) {
@@ -390,7 +390,7 @@ func (op *Operation) done() {
 			// Operations can be deleted from the database before the operation clean up go routine has
 			// run in cases where the project that the operation(s) are associated to is deleted first.
 			// So don't log warning if operation not found.
-			op.logger.Warn("Failed to delete operation", logger.Ctx{"status": op.status, "err": err})
+			op.logger.Warn("Failed deleting operation", logger.Ctx{"status": op.status, "err": err})
 		}
 	}()
 }
@@ -535,7 +535,7 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 	if op.running.Err() != nil {
 		op.lock.Unlock()
 		if op.err != nil {
-			return nil, fmt.Errorf("Failed to connect to operation: %w", op.err)
+			return nil, fmt.Errorf("Failed connecting to operation: %w", op.err)
 		}
 
 		return nil, api.NewStatusError(http.StatusBadRequest, "Only running operations can be connected")
@@ -548,7 +548,7 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 		if err != nil {
 			chanConnect <- err
 
-			op.logger.Debug("Failed to connect to operation", logger.Ctx{"err": err})
+			op.logger.Debug("Failed connecting to operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -664,7 +664,7 @@ func (op *Operation) updateStatus(ctx context.Context, newStatus api.StatusCode)
 func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	opMetadata, err := validateMetadata(opMetadata)
 	if err != nil {
-		return fmt.Errorf("Failed to update operation metadata: %w", err)
+		return fmt.Errorf("Failed updating operation metadata: %w", err)
 	}
 
 	op.lock.Lock()
@@ -675,7 +675,7 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 
 	if op.readonly {
 		op.lock.Unlock()
-		return errors.New("Read-only operations can't be updated")
+		return errors.New("Read-only operations cannot be updated")
 	}
 
 	op.updatedAt = time.Now()
@@ -715,7 +715,7 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 
 	if op.readonly {
 		op.lock.Unlock()
-		return errors.New("Read-only operations can't be updated")
+		return errors.New("Read-only operations cannot be updated")
 	}
 
 	// Get current metadata.
@@ -731,7 +731,7 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 
 	newMetadata, err := validateMetadata(newMetadata)
 	if err != nil {
-		return fmt.Errorf("Failed to extend operation metadata: %w", err)
+		return fmt.Errorf("Failed extending operation metadata: %w", err)
 	}
 
 	// Update the operation.

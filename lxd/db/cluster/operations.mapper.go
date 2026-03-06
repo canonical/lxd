@@ -85,7 +85,7 @@ func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operatio
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"operations\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"operations\" table: %w", err)
 	}
 
 	return objects, nil
@@ -109,7 +109,7 @@ func getOperationsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) 
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"operations\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"operations\" table: %w", err)
 	}
 
 	return objects, nil
@@ -131,7 +131,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, operationObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed getting \"operationObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -141,7 +141,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByUUID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"operationObjectsByUUID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"operationObjectsByUUID\" prepared statement: %w", err)
 				}
 
 				break
@@ -149,7 +149,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			query, err := StmtString(operationObjectsByUUID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"operationObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -165,7 +165,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByNodeID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"operationObjectsByNodeID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"operationObjectsByNodeID\" prepared statement: %w", err)
 				}
 
 				break
@@ -173,7 +173,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			query, err := StmtString(operationObjectsByNodeID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"operationObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -189,7 +189,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"operationObjectsByID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"operationObjectsByID\" prepared statement: %w", err)
 				}
 
 				break
@@ -197,7 +197,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			query, err := StmtString(operationObjectsByID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"operationObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -224,7 +224,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"operations\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"operations\" table: %w", err)
 	}
 
 	return objects, nil
@@ -257,7 +257,7 @@ func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreate)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"operationCreate\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"operationCreate\" prepared statement: %w", err)
 	}
 
 	// Execute the statement.
@@ -267,12 +267,12 @@ func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, 
 			return -1, api.NewStatusError(http.StatusConflict, "This \"operations\" entry already exists")
 		}
 
-		return -1, fmt.Errorf("Failed to create \"operations\" entry: %w", err)
+		return -1, fmt.Errorf("Failed creating \"operations\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"operations\" entry ID: %w", err)
+		return -1, fmt.Errorf("Failed fetching \"operations\" entry ID: %w", err)
 	}
 
 	return id, nil
@@ -305,7 +305,7 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreateOrReplace)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"operationCreateOrReplace\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"operationCreateOrReplace\" prepared statement: %w", err)
 	}
 
 	// Execute the statement.
@@ -315,12 +315,12 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 			return -1, api.NewStatusError(http.StatusConflict, "This \"operations\" entry already exists")
 		}
 
-		return -1, fmt.Errorf("Failed to create \"operations\" entry: %w", err)
+		return -1, fmt.Errorf("Failed creating \"operations\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"operations\" entry ID: %w", err)
+		return -1, fmt.Errorf("Failed fetching \"operations\" entry ID: %w", err)
 	}
 
 	return id, nil
@@ -331,7 +331,7 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 func DeleteOperation(ctx context.Context, tx *sql.Tx, uuid string) error {
 	stmt, err := Stmt(tx, operationDeleteByUUID)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"operationDeleteByUUID\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"operationDeleteByUUID\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, uuid)
@@ -358,7 +358,7 @@ func DeleteOperation(ctx context.Context, tx *sql.Tx, uuid string) error {
 func DeleteOperations(ctx context.Context, tx *sql.Tx, nodeID int64) error {
 	stmt, err := Stmt(tx, operationDeleteByNodeID)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"operationDeleteByNodeID\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"operationDeleteByNodeID\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, nodeID)

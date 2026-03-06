@@ -189,7 +189,7 @@ func (e *IdmapEntry) Usable() error {
 		}
 
 		if !valid {
-			return fmt.Errorf("The %q map can't work in the current user namespace", e.ToLxcString())
+			return fmt.Errorf("The %q map cannot work in the current user namespace", e.ToLxcString())
 		}
 	}
 
@@ -208,7 +208,7 @@ func (e *IdmapEntry) Usable() error {
 		}
 
 		if !valid {
-			return fmt.Errorf("The %q map can't work in the current user namespace", e.ToLxcString())
+			return fmt.Errorf("The %q map cannot work in the current user namespace", e.ToLxcString())
 		}
 	}
 
@@ -269,7 +269,7 @@ func (e *IdmapEntry) parse(s string) error {
 func (e *IdmapEntry) shiftIntoNs(id int64) (int64, error) {
 	if id < e.Nsid || id >= e.Nsid+e.Maprange {
 		// this mapping doesn't apply
-		return 0, errors.New("ID mapping doesn't apply")
+		return 0, errors.New("ID mapping does not apply")
 	}
 
 	return id - e.Nsid + e.Hostid, nil
@@ -280,7 +280,7 @@ func (e *IdmapEntry) shiftIntoNs(id int64) (int64, error) {
 func (e *IdmapEntry) shiftFromNs(id int64) (int64, error) {
 	if id < e.Hostid || id >= e.Hostid+e.Maprange {
 		// this mapping doesn't apply
-		return 0, errors.New("ID mapping doesn't apply")
+		return 0, errors.New("ID mapping does not apply")
 	}
 
 	return id - e.Hostid + e.Nsid, nil
@@ -731,7 +731,7 @@ func (set *IdmapSet) doUidShiftIntoContainer(dir string, testmode bool, how stri
 					if how != "in" || atomic.LoadInt32(&VFS3Fscaps) == VFS3FscapsSupported {
 						err = SetCaps(path, caps, rootUID)
 						if err != nil {
-							logger.Warnf("Unable to set file capabilities on %q: %v", path, err)
+							logger.Warnf("Cannot set file capabilities on %q: %v", path, err)
 						}
 					}
 				}
@@ -863,7 +863,7 @@ func getFromProc(fname string) ([][]int64, error) {
 	}
 
 	if len(entries) == 0 {
-		return nil, errors.New("Namespace doesn't have any map set")
+		return nil, errors.New("Namespace does not have any map set")
 	}
 
 	return entries, nil
@@ -1141,7 +1141,7 @@ func GetIdmapSet() *IdmapSet {
 
 			err = idmapSet.Usable()
 			if err != nil {
-				logger.Warn("One or more uid/gid map entry isn't usable (typically due to nesting)")
+				logger.Warn("One or more uid/gid map entry is not usable (typically due to nesting)")
 				logger.Warn("Only privileged containers will be able to run")
 				idmapSet = nil
 			}

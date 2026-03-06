@@ -43,12 +43,12 @@ func ParseUserAgent(userAgent string) (*UserAgent, error) {
 
 	product, err := getProductInfo(groups[0])
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get product information: %w", err)
+		return nil, fmt.Errorf("Failed getting product information: %w", err)
 	}
 
 	host, err := getHostInfo(groups[1])
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get host information: %w", err)
+		return nil, fmt.Errorf("Failed getting host information: %w", err)
 	}
 
 	ua := &UserAgent{
@@ -62,7 +62,7 @@ func ParseUserAgent(userAgent string) (*UserAgent, error) {
 
 	storage, isFeatureGroup, err := tryGetStorageInfo(groups[2])
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get storage information: %w", err)
+		return nil, fmt.Errorf("Failed getting storage information: %w", err)
 	}
 
 	if storage != nil {
@@ -70,7 +70,7 @@ func ParseUserAgent(userAgent string) (*UserAgent, error) {
 	} else if isFeatureGroup {
 		features, err := getFeatureInfo(groups[2])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get feature information: %w", err)
+			return nil, fmt.Errorf("Failed getting feature information: %w", err)
 		}
 
 		ua.Features = features
@@ -86,7 +86,7 @@ func ParseUserAgent(userAgent string) (*UserAgent, error) {
 
 	features, err := getFeatureInfo(groups[3])
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get feature information: %w", err)
+		return nil, fmt.Errorf("Failed getting feature information: %w", err)
 	}
 
 	ua.Features = features

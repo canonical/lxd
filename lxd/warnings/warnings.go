@@ -55,7 +55,7 @@ func ResolveWarningsByLocalNodeOlderThan(dbCluster *db.Cluster, date time.Time) 
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to resolve warnings: %w", err)
+		return fmt.Errorf("Failed resolving warnings: %w", err)
 	}
 
 	return nil
@@ -109,7 +109,7 @@ func ResolveWarningsByNodeAndType(dbCluster *db.Cluster, nodeName string, typeCo
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to resolve warnings: %w", err)
+		return fmt.Errorf("Failed resolving warnings: %w", err)
 	}
 
 	return nil
@@ -139,7 +139,7 @@ func ResolveWarningsByNodeAndProjectAndType(dbCluster *db.Cluster, nodeName stri
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to resolve warnings: %w", err)
+		return fmt.Errorf("Failed resolving warnings: %w", err)
 	}
 
 	return nil
@@ -196,7 +196,7 @@ func ResolveWarningsByNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, node
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to resolve warnings: %w", err)
+		return fmt.Errorf("Failed resolving warnings: %w", err)
 	}
 
 	return nil
@@ -253,7 +253,7 @@ func DeleteWarningsByNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, nodeN
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to delete warnings: %w", err)
+		return fmt.Errorf("Failed deleting warnings: %w", err)
 	}
 
 	return nil

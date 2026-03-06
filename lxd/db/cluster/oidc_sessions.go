@@ -132,7 +132,7 @@ WHERE oidc_sessions.uuid = ?
 func GetIdentityAndSessionDetailsFromSessionID(ctx context.Context, tx *sql.Tx, sessionID uuid.UUID) (*Identity, *OIDCSession, error) {
 	stmt, err := Stmt(tx, getIdentityAndSessionDetailsFromSessionID)
 	if err != nil {
-		return nil, nil, fmt.Errorf(`Failed to get "getIdentityAndSessionDetailsFromSessionID" prepared statement: %w`, err)
+		return nil, nil, fmt.Errorf(`Failed getting "getIdentityAndSessionDetailsFromSessionID" prepared statement: %w`, err)
 	}
 
 	var identity Identity
@@ -144,7 +144,7 @@ func GetIdentityAndSessionDetailsFromSessionID(ctx context.Context, tx *sql.Tx, 
 			return nil, nil, api.StatusErrorf(http.StatusNotFound, "Session not found")
 		}
 
-		return nil, nil, fmt.Errorf("Failed to get session details: %w", err)
+		return nil, nil, fmt.Errorf("Failed getting session details: %w", err)
 	}
 
 	session.IdentityID = identity.ID
@@ -159,16 +159,16 @@ func CreateOIDCSession(ctx context.Context, tx *sql.Tx, session OIDCSession) err
 	q := `INSERT INTO oidc_sessions (identity_id, uuid, id_token, access_token, refresh_token, ip, user_agent, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 	res, err := tx.ExecContext(ctx, q, session.IdentityID, session.UUID, session.IDToken, session.AccessToken, session.RefreshToken, session.IP, session.UserAgent, session.ExpiryDate)
 	if err != nil {
-		return fmt.Errorf("Failed to write session data: %w", err)
+		return fmt.Errorf("Failed writing session data: %w", err)
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to verify session data write: %w", err)
+		return fmt.Errorf("Failed verifying session data write: %w", err)
 	}
 
 	if rowsAffected != 1 {
-		return fmt.Errorf("Failed to write session data: Expected to write 1 row, but wrote %d rows", rowsAffected)
+		return fmt.Errorf("Failed writing session data: Expected to write 1 row, but wrote %d rows", rowsAffected)
 	}
 
 	return nil

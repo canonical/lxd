@@ -11,7 +11,7 @@ func GetContextValue[T any](ctx context.Context, key CtxKey) (T, error) {
 	var empty T
 	valueAny := ctx.Value(key)
 	if valueAny == nil {
-		return empty, fmt.Errorf("Failed to get expected value %q from context", key)
+		return empty, fmt.Errorf("Failed getting expected value %q from context", key)
 	}
 
 	value, ok := valueAny.(T)

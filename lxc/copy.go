@@ -183,7 +183,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 
 	if sourceIsSnap {
 		if instanceOnly {
-			return errors.New("--instance-only can't be passed when the source is a snapshot")
+			return errors.New("--instance-only cannot be passed when the source is a snapshot")
 		}
 
 		// Prepare the instance creation request

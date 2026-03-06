@@ -206,7 +206,7 @@ func addIdentityDetailsToContext(s *state.State, r *http.Request, authentication
 	muxVars := mux.Vars(r)
 	nameOrID, err := url.PathUnescape(muxVars["nameOrIdentifier"])
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unescape path argument: %w", err)
+		return nil, fmt.Errorf("Failed unescaping path argument: %w", err)
 	}
 
 	var id *dbCluster.Identity
@@ -549,7 +549,7 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 		// When creating LXD bearer tokens, include the server certificate fingerprint.
 		serverCertFingerprint, err = shared.CertFingerprintStr(string(s.Endpoints.NetworkPublicKey()))
 		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed to parse server certificate fingerprint: %w", err))
+			return response.SmartError(fmt.Errorf("Failed parsing server certificate fingerprint: %w", err))
 		}
 
 		token, err = encryption.GetClientBearerToken(secret, id.Identifier, s.GlobalConfig.ClusterUUID(), expiresAt, serverCertFingerprint)
@@ -603,7 +603,7 @@ func identityBearerTokenDelete(d *Daemon, r *http.Request) response.Response {
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := dbCluster.DeleteBearerIdentitySigningKey(ctx, tx.Tx(), id.ID)
 		if err != nil {
-			return fmt.Errorf("Failed to revoke token: %w", err)
+			return fmt.Errorf("Failed revoking token: %w", err)
 		}
 
 		return nil
@@ -697,7 +697,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertifica
 
 	// Can't request a token if a certificate is provided.
 	if req.Token && req.Certificate != "" {
-		return response.BadRequest(errors.New("Can't use certificate if token is requested"))
+		return response.BadRequest(errors.New("Cannot use certificate if token is requested"))
 	}
 
 	// If a token is requested, create a pending TLS identity and return an api.CertificateAddToken.
@@ -769,7 +769,7 @@ func createCertificateAddToken(s *state.State, clientName string, identityType s
 
 	// Tokens are useless if the server isn't listening (how will the untrusted client contact the server?)
 	if localHTTPSAddress == "" {
-		return nil, api.NewStatusError(http.StatusBadRequest, "Can't issue token when server isn't listening on network")
+		return nil, api.NewStatusError(http.StatusBadRequest, "Cannot issue token when server is not listening on network")
 	}
 
 	// Get all addresses the server is listening on. This is encoded in the certificate token,
@@ -824,7 +824,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 	// Create CertificateAddToken token.
 	token, err := createCertificateAddToken(s, req.Name, api.IdentityTypeCertificateClient)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to create certificate add token: %w", err))
+		return response.SmartError(fmt.Errorf("Failed creating certificate add token: %w", err))
 	}
 
 	// Generate an identifier for the identity and calculate its metadata.
@@ -836,7 +836,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 
 	metadataJSON, err := json.Marshal(metadata)
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to encode pending TLS identity metadata: %w", err))
+		return response.InternalError(fmt.Errorf("Failed encoding pending TLS identity metadata: %w", err))
 	}
 
 	// Create the identity.
@@ -864,7 +864,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 			return response.Conflict(fmt.Errorf("An identity with name %q already exists", req.Name))
 		}
 
-		return response.SmartError(fmt.Errorf("Failed to create pending TLS identity: %w", err))
+		return response.SmartError(fmt.Errorf("Failed creating pending TLS identity: %w", err))
 	}
 
 	// Notify other members, update the cache, and send a lifecycle event.
@@ -884,7 +884,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 		return err
 	})
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("Failed to find a matching pending identity: %w", err)
+		return uuid.UUID{}, fmt.Errorf("Failed finding a matching pending identity: %w", err)
 	}
 
 	reverter := revert.New()
@@ -895,7 +895,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 			return dbCluster.DeleteIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier)
 		})
 		if err != nil {
-			logger.Warn("Failed to delete invalid or expired pending TLS identity", logger.Ctx{"err": err, "identity_id": id.Identifier})
+			logger.Warn("Failed deleting invalid or expired pending TLS identity", logger.Ctx{"err": err, "identity_id": id.Identifier})
 		}
 	})
 
@@ -1588,12 +1588,12 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 
 	username := requestor.CallerUsername()
 	if username == "" {
-		return response.SmartError(errors.New("Failed to get identity identifier from request info"))
+		return response.SmartError(errors.New("Failed getting identity identifier from request info"))
 	}
 
 	protocol := requestor.CallerProtocol()
 	if protocol == "" {
-		return response.SmartError(errors.New("Failed to get authentication method from request info"))
+		return response.SmartError(errors.New("Failed getting authentication method from request info"))
 	}
 
 	// Must be a remote API request.
@@ -1609,25 +1609,25 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(requestor.CallerProtocol()), requestor.CallerUsername())
 		if err != nil {
-			return fmt.Errorf("Failed to get current identity from database: %w", err)
+			return fmt.Errorf("Failed getting current identity from database: %w", err)
 		}
 
 		// Using a permission checker here is redundant, we know who the user is, and we know that they are allowed
 		// to view the groups that they are a member of.
 		apiIdentity, err = id.ToAPI(ctx, tx.Tx(), func(entityURL *api.URL) bool { return true })
 		if err != nil {
-			return fmt.Errorf("Failed to populate LXD groups: %w", err)
+			return fmt.Errorf("Failed populating LXD groups: %w", err)
 		}
 
 		effectiveGroups = requestor.CallerEffectiveAuthorizationGroupNames()
 		permissions, err := dbCluster.GetDistinctPermissionsByGroupNames(ctx, tx.Tx(), effectiveGroups)
 		if err != nil {
-			return fmt.Errorf("Failed to get effective permissions: %w", err)
+			return fmt.Errorf("Failed getting effective permissions: %w", err)
 		}
 
 		permissions, entityURLs, err := dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
 		if err != nil {
-			return fmt.Errorf("Failed to get entity URLs for effective permissions: %w", err)
+			return fmt.Errorf("Failed getting entity URLs for effective permissions: %w", err)
 		}
 
 		effectivePermissions = make([]api.Permission, 0, len(permissions))
@@ -1771,7 +1771,7 @@ func identityPut(authenticationMethod string) func(d *Daemon, r *http.Request) r
 		var identityPut api.IdentityPut
 		err = json.NewDecoder(r.Body).Decode(&identityPut)
 		if err != nil {
-			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
+			return response.BadRequest(fmt.Errorf("Failed unmarshaling request body: %w", err))
 		}
 
 		if identityPut.TLSCertificate != "" && (identityType.AuthenticationMethod() != api.AuthenticationMethodTLS || identityType.IsPending()) {
@@ -2035,7 +2035,7 @@ func identityPatch(authenticationMethod string) func(d *Daemon, r *http.Request)
 		var identityPut api.IdentityPut
 		err = json.NewDecoder(r.Body).Decode(&identityPut)
 		if err != nil {
-			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
+			return response.BadRequest(fmt.Errorf("Failed unmarshaling request body: %w", err))
 		}
 
 		if identityPut.TLSCertificate != "" && (identityType.AuthenticationMethod() != api.AuthenticationMethodTLS || identityType.IsPending()) {
@@ -2336,7 +2336,7 @@ func validateIdentityCert(networkCert *shared.CertInfo, cert string) (fingerprin
 
 	x509Cert, err := shared.ParseCert([]byte(cert))
 	if err != nil {
-		return "", "", api.StatusErrorf(http.StatusBadRequest, "Failed to parse certificate: %w", err)
+		return "", "", api.StatusErrorf(http.StatusBadRequest, "Failed parsing certificate: %w", err)
 	}
 
 	err = certificateValidate(networkCert, x509Cert)
@@ -2346,7 +2346,7 @@ func validateIdentityCert(networkCert *shared.CertInfo, cert string) (fingerprin
 
 	b, err := json.Marshal(dbCluster.CertificateMetadata{Certificate: cert})
 	if err != nil {
-		return "", "", fmt.Errorf("Failed to encode certificate metadata: %w", err)
+		return "", "", fmt.Errorf("Failed encoding certificate metadata: %w", err)
 	}
 
 	return shared.CertFingerprint(x509Cert), string(b), nil
@@ -2391,7 +2391,7 @@ func updateIdentityCache(d *Daemon) {
 	for _, id := range identities {
 		identityType, err := identity.New(string(id.Type))
 		if err != nil {
-			logger.Warn("Failed to create identity type", logger.Ctx{"type": string(id.Type), "err": err})
+			logger.Warn("Failed creating identity type", logger.Ctx{"type": string(id.Type), "err": err})
 			continue
 		}
 
@@ -2402,7 +2402,7 @@ func updateIdentityCache(d *Daemon) {
 		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS {
 			cert, err := id.X509()
 			if err != nil {
-				logger.Warn("Failed to extract x509 certificate from TLS identity metadata", logger.Ctx{"err": err})
+				logger.Warn("Failed extracting x509 certificate from TLS identity metadata", logger.Ctx{"err": err})
 				continue
 			}
 
@@ -2413,7 +2413,7 @@ func updateIdentityCache(d *Daemon) {
 			case certificate.TypeServer:
 				dbCert, err := id.ToCertificate()
 				if err != nil {
-					logger.Warn("Failed to convert TLS identity to server certificate", logger.Ctx{"err": err})
+					logger.Warn("Failed converting TLS identity to server certificate", logger.Ctx{"err": err})
 					continue
 				}
 

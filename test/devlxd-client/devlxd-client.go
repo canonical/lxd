@@ -66,7 +66,7 @@ func run(args []string) error {
 
 			err := printPrettyJSON(event)
 			if err != nil {
-				fmt.Printf("Failed to print event: %v\n", err)
+				fmt.Printf("Failed printing event: %v\n", err)
 				return
 			}
 		})

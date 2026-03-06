@@ -242,14 +242,14 @@ func (n *physical) checkParentUse(ourConfig map[string]string) error {
 		// If in clustered mode, returned network configs are for the current node.
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to load all networks: %w", err)
+			return fmt.Errorf("Failed loading all networks: %w", err)
 		}
 
 		// Get parent interfaces for all networks on all nodes.
 		if n.state.ServerClustered && len(n.nodes) > 1 {
 			nodesNetworksParent, err = tx.GetNetworksNodeParent(ctx)
 			if err != nil {
-				return fmt.Errorf("Failed to load node-specific configs: %w", err)
+				return fmt.Errorf("Failed loading node-specific configs: %w", err)
 			}
 		}
 

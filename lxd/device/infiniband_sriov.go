@@ -58,7 +58,7 @@ func (d *infinibandSRIOV) validateEnvironment() error {
 	}
 
 	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
-		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 	}
 
 	return nil
@@ -113,7 +113,7 @@ func (d *infinibandSRIOV) startContainer() (*deviceConfig.RunConfig, error) {
 	if d.config["hwaddr"] != "" {
 		err := infinibandSetDevMAC(saveData["host_name"], d.config["hwaddr"])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
+			return nil, fmt.Errorf("Failed setting the MAC address: %s", err)
 		}
 	}
 
@@ -193,12 +193,12 @@ func (d *infinibandSRIOV) startVM() (*deviceConfig.RunConfig, error) {
 
 	pciParentDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get PCI device info for %q: %w", parentPCIAddress, err)
+		return nil, fmt.Errorf("Failed getting PCI device info for %q: %w", parentPCIAddress, err)
 	}
 
 	vfID, err := d.findFreeVirtualFunction(pciParentDev)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to find free virtual function: %w", err)
+		return nil, fmt.Errorf("Failed finding free virtual function: %w", err)
 	}
 
 	if vfID == -1 {
@@ -286,7 +286,7 @@ func (d *infinibandSRIOV) postStop() error {
 		// Remove infiniband host files for this device.
 		err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), IBDevPrefix, d.name, "")
 		if err != nil {
-			return fmt.Errorf("Failed to delete files for device %q: %w", d.name, err)
+			return fmt.Errorf("Failed deleting files for device %q: %w", d.name, err)
 		}
 	}
 

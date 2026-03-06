@@ -97,7 +97,7 @@ func forceUnmount(path string) (bool, error) {
 			// Fallback to lazy unmounting.
 			err = unix.Unmount(path, unix.MNT_DETACH)
 			if err != nil {
-				return false, fmt.Errorf("Failed to unmount %q: %w", path, err)
+				return false, fmt.Errorf("Failed unmounting %q: %w", path, err)
 			}
 		}
 
@@ -198,7 +198,7 @@ mountLoop:
 				lastErr = ctx.Err()
 			}
 
-			return fmt.Errorf("Failed to mount %q on %q using %q: %w", src, dst, fs, lastErr)
+			return fmt.Errorf("Failed mounting %q on %q using %q: %w", src, dst, fs, lastErr)
 		default:
 			lastErr = unix.Mount(src, dst, fs, flags, options)
 			if lastErr == nil {
@@ -222,12 +222,12 @@ func TryUnmount(path string, flags int) error {
 			break
 		}
 
-		logger.Debug("Failed to unmount", logger.Ctx{"path": path, "attempt": i, "err": err})
+		logger.Debug("Failed unmounting", logger.Ctx{"path": path, "attempt": i, "err": err})
 		time.Sleep(500 * time.Millisecond)
 	}
 
 	if err != nil {
-		return fmt.Errorf("Failed to unmount %q: %w", path, err)
+		return fmt.Errorf("Failed unmounting %q: %w", path, err)
 	}
 
 	return nil
@@ -285,7 +285,7 @@ func createParentSnapshotDirIfMissing(poolName string, volType VolumeType, volNa
 	if !shared.PathExists(snapshotsPath) {
 		err := os.Mkdir(snapshotsPath, 0700)
 		if err != nil {
-			return fmt.Errorf("Failed to create parent snapshot directory %q: %w", snapshotsPath, err)
+			return fmt.Errorf("Failed creating parent snapshot directory %q: %w", snapshotsPath, err)
 		}
 
 		return nil
@@ -309,7 +309,7 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 		if isEmpty {
 			err := os.Remove(snapshotsPath)
 			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("Failed to remove %q: %w", snapshotsPath, err)
+				return fmt.Errorf("Failed removing %q: %w", snapshotsPath, err)
 			}
 		}
 	}
@@ -322,14 +322,14 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 func ensureSparseFile(filePath string, sizeBytes int64) error {
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return fmt.Errorf("Failed to open %s: %w", filePath, err)
+		return fmt.Errorf("Failed opening %s: %w", filePath, err)
 	}
 
 	defer func() { _ = f.Close() }()
 
 	err = f.Truncate(sizeBytes)
 	if err != nil {
-		return fmt.Errorf("Failed to create sparse file %s: %w", filePath, err)
+		return fmt.Errorf("Failed creating sparse file %s: %w", filePath, err)
 	}
 
 	return f.Close()
@@ -929,7 +929,7 @@ func ResolveServerName(serverName string) (string, error) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		return "", fmt.Errorf("Failed to get hostname: %w", err)
+		return "", fmt.Errorf("Failed getting hostname: %w", err)
 	}
 
 	return hostname, nil

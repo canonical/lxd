@@ -330,7 +330,7 @@ func (d *alletra) getNVMeTargetQN(targetAddresses ...string) (targetQN string, e
 	// The discovery log from the first reachable target address is returned.
 	discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
 	if err != nil {
-		return "", fmt.Errorf("Failed to discover array NVMe subsystem NQN: %w", err)
+		return "", fmt.Errorf("Failed discovering array NVMe subsystem NQN: %w", err)
 	}
 
 	for _, recordAny := range discoveryLogRecords {
@@ -361,7 +361,7 @@ func (d *alletra) getISCSITargetQN(targetAddresses ...string) (targetQN string, 
 	// The discovery log from the first reachable target address is returned.
 	discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
 	if err != nil {
-		return "", fmt.Errorf("Failed to discover array ISCSI subsystem IQN: %w", err)
+		return "", fmt.Errorf("Failed discovering array ISCSI subsystem IQN: %w", err)
 	}
 
 	record, ok := discoveryLogRecords[0].(connectors.ISCSIDiscoveryLogRecord)
@@ -410,7 +410,7 @@ func (d *alletra) getTargetQN(targetAddresses ...string) (string, error) {
 	}
 
 	if targetQN == "" {
-		return "", errors.New("Couldn't discover target QN")
+		return "", errors.New("Could not discover target QN")
 	}
 
 	d.targetQN = targetQN

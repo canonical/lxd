@@ -157,7 +157,7 @@ func (s AuthSecret) Validate(expiry string) error {
 
 	expiresAt, err := shared.GetExpiry(s.CreationDate, expiry)
 	if err != nil {
-		return fmt.Errorf("Failed to check auth secret expiry: %w", err)
+		return fmt.Errorf("Failed checking auth secret expiry: %w", err)
 	}
 
 	if time.Now().UTC().After(expiresAt) {
@@ -203,7 +203,7 @@ func (s AuthSecrets) Rotate(ctx context.Context, tx *sql.Tx) (AuthSecrets, error
 	// Add the new value to the database
 	id, err := createCoreAuthSecret(ctx, tx, newSecret)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to rotate secrets: %w", err)
+		return nil, fmt.Errorf("Failed rotating secrets: %w", err)
 	}
 
 	// Set the ID of the new value.
@@ -212,7 +212,7 @@ func (s AuthSecrets) Rotate(ctx context.Context, tx *sql.Tx) (AuthSecrets, error
 	// If the secrets were truncated, delete any secrets that are not in our new slice.
 	err = deleteSecretsByID(ctx, tx, oldSecretIDs...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to delete expired core secrets: %w", err)
+		return nil, fmt.Errorf("Failed deleting expired core secrets: %w", err)
 	}
 
 	return rotatedSecrets, nil
@@ -236,7 +236,7 @@ func GetCoreAuthSecrets(ctx context.Context, tx *sql.Tx) (AuthSecrets, error) {
 
 	err := query.Scan(ctx, tx, q, scanFunc, EntityType(entity.TypeServer), 0, SecretTypeCoreAuth)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get auth secrets: %w", err)
+		return nil, fmt.Errorf("Failed getting auth secrets: %w", err)
 	}
 
 	return secrets, nil
@@ -262,12 +262,12 @@ func createSecret(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 	}
 
 	if rowsAffected != 1 {
-		return -1, fmt.Errorf("Failed to write new %q secret", secretType)
+		return -1, fmt.Errorf("Failed writing new %q secret", secretType)
 	}
 
 	lastInsertID, err := res.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get last insert ID: %w", err)
+		return -1, fmt.Errorf("Failed getting last insert ID: %w", err)
 	}
 
 	return int(lastInsertID), nil
@@ -289,16 +289,16 @@ func deleteSecretsByID(ctx context.Context, tx *sql.Tx, ids ...int) error {
 
 	res, err := tx.ExecContext(ctx, q, args...)
 	if err != nil {
-		return fmt.Errorf("Failed to delete secrets: %w", err)
+		return fmt.Errorf("Failed deleting secrets: %w", err)
 	}
 
 	nDeleted, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to verify secret deletion: %w", err)
+		return fmt.Errorf("Failed verifying secret deletion: %w", err)
 	}
 
 	if int(nDeleted) != len(ids) {
-		return fmt.Errorf("Failed to delete expected number of secrets: %w", err)
+		return fmt.Errorf("Failed deleting expected number of secrets: %w", err)
 	}
 
 	return nil
@@ -324,7 +324,7 @@ func GetAllBearerIdentitySigningKeys(ctx context.Context, tx *sql.Tx) (map[int64
 
 	err := query.Scan(ctx, tx, q, scanFunc, entityTypeCodeIdentity, SecretTypeBearerSigningKey)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get bearer identity signing keys: %w", err)
+		return nil, fmt.Errorf("Failed getting bearer identity signing keys: %w", err)
 	}
 
 	return identityIDToSigningKey, nil
@@ -336,12 +336,12 @@ func DeleteBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID 
 	q := "DELETE FROM secrets WHERE entity_type = ? AND entity_id = ? AND type = ?"
 	res, err := tx.ExecContext(ctx, q, EntityType(entity.TypeIdentity), identityID, SecretTypeBearerSigningKey)
 	if err != nil {
-		return fmt.Errorf("Failed to delete bearer identity signing key: %w", err)
+		return fmt.Errorf("Failed deleting bearer identity signing key: %w", err)
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to verify deletion of bearer identity signing key: %w", err)
+		return fmt.Errorf("Failed verifying deletion of bearer identity signing key: %w", err)
 	}
 
 	switch rowsAffected {
@@ -373,7 +373,7 @@ func RotateBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID 
 	// Create the signing key.
 	_, err = createSecret(ctx, tx, entity.TypeIdentity, identityID, SecretTypeBearerSigningKey, signingKey, time.Now().UTC())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create bearer identity initial key material: %w", err)
+		return nil, fmt.Errorf("Failed creating bearer identity initial key material: %w", err)
 	}
 
 	return signingKey, nil

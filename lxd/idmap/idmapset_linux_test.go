@@ -175,17 +175,17 @@ func TestIdmapSetIntersects(t *testing.T) {
 	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 165536, Nsid: 0, Maprange: 65536}}}
 
 	if !orig.Intersects(IdmapEntry{Isuid: true, Hostid: 231071, Nsid: 0, Maprange: 65536}) {
-		t.Error("ranges don't intersect")
+		t.Error("ranges do not intersect")
 		return
 	}
 
 	if !orig.Intersects(IdmapEntry{Isuid: true, Hostid: 231072, Nsid: 0, Maprange: 65536}) {
-		t.Error("ranges don't intersect")
+		t.Error("ranges do not intersect")
 		return
 	}
 
 	if !orig.Intersects(IdmapEntry{Isuid: true, Hostid: 231072, Nsid: 65535, Maprange: 65536}) {
-		t.Error("ranges don't intersect")
+		t.Error("ranges do not intersect")
 		return
 	}
 

@@ -414,7 +414,7 @@ func internalMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx) *met
 	warnings, err := clusterMemberWarnings(ctx, s, tx)
 
 	if err != nil {
-		logger.Warn("Failed to get warnings", logger.Ctx{"err": err})
+		logger.Warn("Failed getting warnings", logger.Ctx{"err": err})
 	} else {
 		// Total number of warnings
 		out.AddSamples(metrics.WarningsTotal, metrics.Sample{Value: float64(len(warnings))})
@@ -424,7 +424,7 @@ func internalMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx) *met
 	nodeID := tx.GetNodeID()
 	operations, err := dbCluster.GetOperations(ctx, tx.Tx(), dbCluster.OperationFilter{NodeID: &nodeID})
 	if err != nil {
-		logger.Warn("Failed to get operations", logger.Ctx{"err": err})
+		logger.Warn("Failed getting operations", logger.Ctx{"err": err})
 	} else {
 		// Total number of operations
 		out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})

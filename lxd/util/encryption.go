@@ -20,7 +20,7 @@ func LoadCert(dir string) (*shared.CertInfo, error) {
 
 	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, shared.CertOptions{AddHosts: true})
 	if err != nil {
-		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+		return nil, fmt.Errorf("failed loading TLS certificate: %w", err)
 	}
 
 	return cert, nil
@@ -34,7 +34,7 @@ func LoadClusterCert(dir string) (*shared.CertInfo, error) {
 
 	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, shared.CertOptions{AddHosts: true})
 	if err != nil {
-		return nil, fmt.Errorf("failed to load cluster TLS certificate: %w", err)
+		return nil, fmt.Errorf("failed loading cluster TLS certificate: %w", err)
 	}
 
 	return cert, nil
@@ -45,7 +45,7 @@ func LoadServerCert(dir string) (*shared.CertInfo, error) {
 	prefix := "server"
 	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, shared.CertOptions{AddHosts: true})
 	if err != nil {
-		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+		return nil, fmt.Errorf("failed loading TLS certificate: %w", err)
 	}
 
 	return cert, nil

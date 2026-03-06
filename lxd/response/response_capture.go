@@ -56,7 +56,7 @@ func (rc *responseCapture) ToAPIResponse() (*api.Response, string, error) {
 	if err != nil {
 		// Check the return value for a cleaner error.
 		if rc.statusCode != http.StatusOK {
-			return nil, "", fmt.Errorf("Failed to fetch %s: %d", rc.request.URL.String(), rc.statusCode)
+			return nil, "", fmt.Errorf("Failed fetching %s: %d", rc.request.URL.String(), rc.statusCode)
 		}
 
 		return nil, "", err

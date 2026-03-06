@@ -24,7 +24,7 @@ func writeRcode(w dns.ResponseWriter, r *dns.Msg, rcode int) {
 	m.SetRcode(r, rcode)
 	err := w.WriteMsg(m)
 	if err != nil {
-		logger.Error("Unable to write message", logger.Ctx{"err": err})
+		logger.Error("Cannot write message", logger.Ctx{"err": err})
 	}
 }
 
@@ -106,7 +106,7 @@ func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	err = w.WriteMsg(m)
 	if err != nil {
-		logger.Error("Unable to write message", logger.Ctx{"err": err})
+		logger.Error("Cannot write message", logger.Ctx{"err": err})
 	}
 }
 
