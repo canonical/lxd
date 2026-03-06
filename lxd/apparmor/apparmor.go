@@ -83,12 +83,12 @@ func deleteNamespace(sysOS *sys.OS, name string) error {
 // hasProfile checks if the profile is already loaded.
 func hasProfile(name string) (bool, error) {
 	profilesPath := "/sys/kernel/security/apparmor/policy/profiles"
-	if !shared.PathExists(profilesPath) {
-		return false, nil
-	}
-
 	entries, err := os.ReadDir(profilesPath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+
 		return false, err
 	}
 
