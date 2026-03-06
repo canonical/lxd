@@ -170,13 +170,12 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 	// The output will be something like:
 	//   New TPM device: /dev/tpm1 (major/minor = 253/1)
 	// We just need the major/minor numbers.
-	fields := strings.Split(string(line), " ")
-
-	if len(fields) < 7 {
+	_, majorMinor, found := strings.Cut(string(line), "= ")
+	if !found {
 		return nil, errors.New("Failed to get TPM device information")
 	}
 
-	_, err = fmt.Sscanf(fields[6], "%d/%d)", &major, &minor)
+	_, err = fmt.Sscanf(majorMinor, "%d/%d)", &major, &minor)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve major/minor number: %w", err)
 	}
