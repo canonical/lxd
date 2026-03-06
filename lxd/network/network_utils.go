@@ -1322,19 +1322,20 @@ func InterfaceStatus(nicName string) ([]net.IP, bool, error) {
 
 // ParsePortRange validates a port range in the form start-end.
 func ParsePortRange(r string) (base int64, size int64, err error) {
-	entries := strings.Split(r, "-")
-	if len(entries) > 2 {
-		return -1, -1, fmt.Errorf("Invalid port range %q", r)
-	}
+	baseStr, endStr, found := strings.Cut(r, "-")
 
-	base, err = strconv.ParseInt(entries[0], 10, 64)
+	base, err = strconv.ParseInt(baseStr, 10, 64)
 	if err != nil {
 		return -1, -1, err
 	}
 
 	size = int64(1)
-	if len(entries) > 1 {
-		size, err = strconv.ParseInt(entries[1], 10, 64)
+	if found {
+		if strings.Contains(endStr, "-") {
+			return -1, -1, fmt.Errorf("Invalid port range %q", r)
+		}
+
+		size, err = strconv.ParseInt(endStr, 10, 64)
 		if err != nil {
 			return -1, -1, err
 		}
