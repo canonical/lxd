@@ -389,12 +389,6 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 		}
 
 		l.Debug("Updated static DHCP entry", logger.Ctx{"mac": opts.HostMAC.String(), "IPv4": IPv4Str, "IPv6": IPv6Str})
-
-		// Reload dnsmasq.
-		err = dnsmasq.Kill(opts.Network.Name(), true)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
