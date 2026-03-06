@@ -1,14 +1,14 @@
 ---
 myst:
   html_meta:
-    description: Configure LXD to authenticate using Pocket ID via OpenID Connect (OIDC) in your tenant.
+    description: Configure LXD to authenticate using Pocket ID via OpenID Connect (OIDC).
 ---
 
 (oidc-pocket-id)=
 
 # How to configure Pocket ID as login method for LXD
 
-Pocket ID is a simple, passwordless, self-hosted OIDC provider that allows you to sign into LXD with a passkey and no need for a password.
+Pocket ID is a simple, self-hosted OIDC provider that allows you to sign into LXD with a passkey instead of a password.
 
 ## Using Pocket ID to access LXD
 
@@ -26,7 +26,7 @@ Pocket ID is a simple, passwordless, self-hosted OIDC provider that allows you t
     - Optionally, to require users to authenticate again on each authorization, turn on the {guilabel}`Requires Re-Authentication` option.
     - Click {guilabel}`Save`.
 1.  Click {guilabel}`Show more details` to see your client configuration.
-    - Copy the {guilabel}`Client ID` and set it in LXD server configuration using
+    - Copy the {guilabel}`Client ID` and set it in your LXD server configuration using
 
       lxc config set oidc.client.id=<Client ID>
 
