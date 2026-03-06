@@ -692,27 +692,27 @@ func (g *cmdGlobal) cmpInstanceAllDeviceOptions(remote string, deviceType string
 
 	appendOption, result := configOptionAppender(toComplete, "=", -1)
 	for key, device := range metadataConfiguration.Configs {
-		if !strings.HasPrefix(key, "device-") {
+		rest, found := strings.CutPrefix(key, "device-")
+		if !found {
 			continue
 		}
 
-		parts := strings.Split(key, "-")
-		metadataDeviceType := parts[1]
-		if metadataDeviceType == "unix" && len(parts) > 2 {
-			if parts[2] == "usb" {
+		metadataDeviceType, subType, hasSubType := strings.Cut(rest, "-")
+		if metadataDeviceType == "unix" && hasSubType {
+			if subType == "usb" {
 				metadataDeviceType = "usb"
 			} else {
-				metadataDeviceType += "-" + parts[2]
+				metadataDeviceType += "-" + subType
 			}
 		}
 
 		if metadataDeviceType == deviceType {
 			if subtype != "" {
-				if len(parts) < 3 {
+				if !hasSubType {
 					continue
 				}
 
-				if parts[2] != subtype {
+				if subType != subtype {
 					continue
 				}
 			}
