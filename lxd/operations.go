@@ -358,7 +358,7 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 		return err
 	}
 
-	client, err := cluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	client, err := cluster.Connect(context.Background(), memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to %q: %w", memberAddress, err)
 	}
