@@ -2,22 +2,13 @@ package drivers
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
-	"time"
-
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -28,100 +19,37 @@ func (d *cephobject) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	return d.validateVolume(vol, nil, removeUnknownKeys)
 }
 
-// s3Client returns a configured minio S3 client.
-func (d *cephobject) s3Client(creds S3Credentials) (*minio.Client, error) {
-	u, err := url.ParseRequestURI(d.config["cephobject.radosgw.endpoint"])
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing cephobject.radosgw.endpoint: %w", err)
-	}
-
-	var transport http.RoundTripper
-
-	certFilePath := d.config["cephobject.radosgw.endpoint_cert_file"]
-
-	if u.Scheme == "https" && certFilePath != "" {
-		certFilePath = shared.HostPath(certFilePath)
-
-		// Read in the cert file.
-		certs, err := os.ReadFile(certFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed reading %q: %w", certFilePath, err)
-		}
-
-		rootCAs := x509.NewCertPool()
-
-		ok := rootCAs.AppendCertsFromPEM(certs)
-		if !ok {
-			return nil, errors.New("Failed adding S3 client certificates")
-		}
-
-		// Trust the cert pool in our client.
-		config := &tls.Config{
-			RootCAs: rootCAs,
-		}
-
-		transport = &http.Transport{TLSClientConfig: config}
-	}
-
-	minioClient, err := minio.New(path.Join(u.Host, u.Path), &minio.Options{
-		Creds:     credentials.NewStaticV4(creds.AccessKey, creds.SecretKey, ""),
-		Secure:    u.Scheme == "https",
-		Transport: transport,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return minioClient, nil
-}
-
 // CreateBucket creates a new bucket.
 func (d *cephobject) CreateBucket(bucket Volume, op *operations.Operation) error {
-	// Check if there is an existing cephobjectRadosgwAdminUser user.
-	adminUserInfo, _, err := d.radosgwadminGetUser(context.TODO(), cephobjectRadosgwAdminUser)
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return fmt.Errorf("Failed getting admin user %q: %w", cephobjectRadosgwAdminUser, err)
-	}
-
-	// Create missing cephobjectRadosgwAdminUser user.
-	if adminUserInfo == nil {
-		adminUserInfo, err = d.radosgwadminUserAdd(context.TODO(), cephobjectRadosgwAdminUser, 0)
-		if err != nil {
-			return fmt.Errorf("Failed added admin user %q: %w", cephobjectRadosgwAdminUser, err)
-		}
-	}
-
 	_, bucketName := project.StorageVolumeParts(bucket.name)
 	storageBucketName := d.radosgwBucketName(bucketName)
 
-	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
-	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Second*30)
-	defer ctxCancel()
+	// Check if bucket already exists.
+	exists, err := d.radosgwadminBucketExists(context.TODO(), storageBucketName)
+	if err != nil {
+		return fmt.Errorf("Failed checking bucket existence: %w", err)
+	}
+
+	if exists {
+		return api.StatusErrorf(http.StatusConflict, "A bucket for that name already exists")
+	}
+
+	// Get admin user credentials for S3 bucket creation.
+	adminCreds, _, err := d.radosgwadminGetUser(context.TODO(), cephobjectRadosgwAdminUser)
+	if err != nil {
+		return fmt.Errorf("Failed getting admin user credentials: %w", err)
+	}
 
 	revert := revert.New()
 	defer revert.Fail()
 
-	minioClient, err := d.s3Client(*adminUserInfo)
-	if err != nil {
-		return err
-	}
-
-	bucketExists, err := minioClient.BucketExists(ctx, storageBucketName)
-	if err != nil {
-		return err
-	}
-
-	if bucketExists {
-		return api.StatusErrorf(http.StatusConflict, "A bucket for that name already exists")
-	}
-
-	// Create new bucket.
-	err = minioClient.MakeBucket(ctx, storageBucketName, minio.MakeBucketOptions{})
+	// Create new bucket via S3 API.
+	err = d.s3CreateBucket(context.TODO(), *adminCreds, storageBucketName)
 	if err != nil {
 		return fmt.Errorf("Failed creating bucket: %w", err)
 	}
 
-	revert.Add(func() { _ = minioClient.RemoveBucket(ctx, storageBucketName) })
+	revert.Add(func() { _ = d.radosgwadminBucketDelete(context.TODO(), storageBucketName) })
 
 	// Create bucket user.
 	_, err = d.radosgwadminUserAdd(context.TODO(), storageBucketName, -1)
