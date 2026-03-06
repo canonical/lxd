@@ -120,13 +120,13 @@ func (d *qemu) getQemuMemoryMetrics() (metrics.MemoryMetrics, error) {
 		line := scan.Text()
 
 		// We only care about VmRSS.
-		if !strings.HasPrefix(line, "VmRSS:") {
+		value, found := strings.CutPrefix(line, "VmRSS:")
+		if !found {
 			continue
 		}
 
-		// Extract the before last (value) and last (unit) fields
-		fields := strings.Split(line, "\t")
-		value := strings.ReplaceAll(fields[len(fields)-1], " ", "")
+		// Clean up whitespace to get a parseable value (e.g. "1234kB")
+		value = strings.ReplaceAll(strings.TrimSpace(value), " ", "")
 
 		// Feed the result to units.ParseByteSizeString to get an int value
 		valueBytes, err := units.ParseByteSizeString(value)
