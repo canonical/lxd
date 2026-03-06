@@ -768,7 +768,7 @@ func IsDeviceName(name string) error {
 		return errors.New("Name must be 1-63 characters long")
 	}
 
-	if string(name[0]) == "." {
+	if name[0] == '.' {
 		return errors.New(`Name must not start with "." character`)
 	}
 
