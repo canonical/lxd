@@ -288,7 +288,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		// The default value varies depending on whether the bridge uses a tunnel or a fan setup.
 		// ---
 		//  type: integer
-		//  defaultdesc: `1500` if `bridge.mode=standard` or `1450` if `bridge.mode=fan`
+		//  defaultdesc: `1400` when tunnels are configured, otherwise `1500` if `bridge.mode=standard` or `1450` if `bridge.mode=fan`
 		//  shortdesc: Bridge MTU
 		//  scope: global
 		"bridge.mtu": validate.Optional(validate.IsNetworkMTU),
