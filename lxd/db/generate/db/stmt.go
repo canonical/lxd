@@ -273,7 +273,7 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 	}
 
 	sql := fmt.Sprintf(tmpl, table, strings.Join(columns, ", "), strings.Join(values, ", "))
-	kind := strings.Replace(s.kind, "-", "_", -2)
+	kind := strings.ReplaceAll(s.kind, "-", "_")
 	stmtName := stmtCodeVar(s.entity, kind)
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		buf.L("const %s = `%s`", stmtName, sql)
