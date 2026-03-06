@@ -878,9 +878,10 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	// script which redirects the stop hook requests to lxd-user (which is statically compiled) so that stop
 	// hook notifications to LXD work when the snap base version is changed.
 	lxdStopHookPath := d.state.OS.ExecPath
-	if shared.InSnap() && strings.HasSuffix(lxdStopHookPath, "sbin/lxd") {
+	prefix, found := strings.CutSuffix(lxdStopHookPath, "sbin/lxd")
+	if found && shared.InSnap() {
 		// Convert /snap/lxd/current/sbin/lxd into /snap/lxd/current/bin/lxd.
-		lxdStopHookPath = strings.TrimSuffix(lxdStopHookPath, "sbin/lxd") + "bin/lxd"
+		lxdStopHookPath = prefix + "bin/lxd"
 	}
 
 	// Call the onstopns hook on stop but before namespaces are unmounted.
