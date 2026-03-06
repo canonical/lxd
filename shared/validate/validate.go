@@ -699,21 +699,21 @@ func ParseNetworkVLANRange(vlan string) (vlanRangeStart int, rangeSize int, err 
 		return vlanRangeStart, 1, nil
 	}
 
-	vlanRange := strings.Split(vlan, "-")
-	if len(vlanRange) != 2 {
+	startStr, endStr, found := strings.Cut(vlan, "-")
+	if !found {
 		return -1, -1, fmt.Errorf("Invalid VLAN range input: %s", vlan)
 	}
 
-	if IsNetworkVLAN(vlanRange[0]) != nil || IsNetworkVLAN(vlanRange[1]) != nil {
-		return -1, -1, fmt.Errorf("Invalid VLAN range boundary. start:%s, end:%s", vlanRange[0], vlanRange[1])
+	if IsNetworkVLAN(startStr) != nil || IsNetworkVLAN(endStr) != nil {
+		return -1, -1, fmt.Errorf("Invalid VLAN range boundary. start:%s, end:%s", startStr, endStr)
 	}
 
-	vlanRangeStart, err = strconv.Atoi(vlanRange[0])
+	vlanRangeStart, err = strconv.Atoi(startStr)
 	if err != nil {
 		return -1, -1, err
 	}
 
-	vlanRangeEnd, err := strconv.Atoi(vlanRange[1])
+	vlanRangeEnd, err := strconv.Atoi(endStr)
 	if err != nil {
 		return -1, -1, err
 	}
