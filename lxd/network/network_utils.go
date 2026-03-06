@@ -1431,30 +1431,30 @@ func BridgeNetfilterEnabled(ipVersion uint) error {
 // ProxyParseAddr validates a proxy address and parses it into its constituent parts.
 func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	// Split into <protocol> and <address>.
-	fields := strings.SplitN(data, ":", 2)
+	connType, addr, found := strings.Cut(data, ":")
 
-	if !slices.Contains([]string{"tcp", "udp", "unix"}, fields[0]) {
-		return nil, fmt.Errorf("Unknown protocol type %q", fields[0])
+	if !slices.Contains([]string{"tcp", "udp", "unix"}, connType) {
+		return nil, fmt.Errorf("Unknown protocol type %q", connType)
 	}
 
-	if len(fields) < 2 || fields[1] == "" {
+	if !found || addr == "" {
 		return nil, errors.New("Missing address")
 	}
 
 	newProxyAddr := &deviceConfig.ProxyAddress{
-		ConnType: fields[0],
-		Abstract: strings.HasPrefix(fields[1], "@"),
+		ConnType: connType,
+		Abstract: strings.HasPrefix(addr, "@"),
 	}
 
 	// unix addresses cannot have ports.
 	if newProxyAddr.ConnType == "unix" {
-		newProxyAddr.Address = fields[1]
+		newProxyAddr.Address = addr
 
 		return newProxyAddr, nil
 	}
 
 	// Split <address> into <address> and <ports>.
-	address, port, err := net.SplitHostPort(fields[1])
+	address, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
 	}
