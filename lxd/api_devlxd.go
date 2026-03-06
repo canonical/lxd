@@ -225,8 +225,7 @@ func getLXCMonitorContainer(s *state.State, candidateMonitorPID int32) (c instan
 		}
 
 		// Extract the container name from the command line.
-		parts := strings.Split(cmdLine, " ") // Container names can't have spaces.
-		name := parts[len(parts)-1]
+		name := cmdLine[strings.LastIndex(cmdLine, " ")+1:] // Container names can't have spaces.
 
 		projectName := api.ProjectDefaultName
 		p, n, found := strings.Cut(name, "_")
