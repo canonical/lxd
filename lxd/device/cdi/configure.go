@@ -172,28 +172,24 @@ func specHookToLXDCDIHook(hook *specs.Hook, hooks *Hooks) error {
 				continue
 			}
 
-			if strings.Contains(args[i], "=") {
+			_, after, found := strings.Cut(args[i], "=")
+			if found {
 				// We can assume the arg is `--link=<target>::<link>`
-				splitted := strings.Split(args[i], "=")
-				if len(splitted) != 2 {
-					return fmt.Errorf("Invalid symlink arg %q", args[i])
-				}
-
-				targetWithLink = splitted[1]
+				targetWithLink = after
 			} else {
 				// We can assume the arg is `<target>::<link>`
 				targetWithLink = args[i]
 			}
 
-			entry := strings.Split(targetWithLink, "::")
-			if len(entry) != 2 {
+			target, link, found := strings.Cut(targetWithLink, "::")
+			if !found {
 				return fmt.Errorf("Invalid symlink entry %q", targetWithLink)
 			}
 
 			// `Link` is always an absolute path and `Target` (a `Link` points to a `Target`) is relative
 			// to the `Link` location in the CDI spec. A resolving operation will be needed to have the absolute
 			// path of the `Target`
-			hooks.Symlinks = append(hooks.Symlinks, SymlinkEntry{Target: strings.TrimPrefix(entry[0], rootPath), Link: strings.TrimPrefix(entry[1], rootPath)})
+			hooks.Symlinks = append(hooks.Symlinks, SymlinkEntry{Target: strings.TrimPrefix(target, rootPath), Link: strings.TrimPrefix(link, rootPath)})
 		}
 
 		return nil
@@ -210,14 +206,10 @@ func specHookToLXDCDIHook(hook *specs.Hook, hooks *Hooks) error {
 				continue
 			}
 
-			if strings.Contains(args[i], "=") {
+			_, after, found := strings.Cut(args[i], "=")
+			if found {
 				// We can assume the arg is `--folder=<folder>`
-				splitted := strings.Split(args[i], "=")
-				if len(splitted) != 2 {
-					return fmt.Errorf("Invalid CDI folder arg %q", args[i])
-				}
-
-				folder = splitted[1]
+				folder = after
 			} else {
 				// We can assume the arg is `<folder>`
 				folder = args[i]
