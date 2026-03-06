@@ -428,8 +428,7 @@ func (d *zfs) Delete(op *operations.Operation) error {
 			continue
 		}
 
-		fields := strings.Split(dataset, "/")
-		if len(fields) > 1 {
+		if strings.Contains(dataset, "/") {
 			return fmt.Errorf("ZFS pool has leftover datasets: %s", dataset)
 		}
 	}
