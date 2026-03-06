@@ -822,8 +822,8 @@ func filterPromotionCandidates(candidates []client.NodeInfo, memberRoles map[str
 	return eligible
 }
 
-// adjustRoles determines the next role change using the same generic roles algorithm as [app.RolesChanges.Adjust], while applying LXD-specific control-plane restrictions.
-func adjustRoles(roles *app.RolesChanges, leaderID uint64, nodes []db.RaftNode, connectivity map[string]bool, memberRoles map[string][]db.ClusterRole) (client.NodeRole, []client.NodeInfo) {
+// rolesAdjust determines the next role change using the same generic roles algorithm as [app.RolesChanges.Adjust], while applying LXD-specific control-plane restrictions.
+func rolesAdjust(roles *app.RolesChanges, leaderID uint64, nodes []db.RaftNode, connectivity map[string]bool, memberRoles map[string][]db.ClusterRole) (client.NodeRole, []client.NodeInfo) {
 	if roles.Size() == 1 {
 		return -1, nil
 	}
@@ -1074,7 +1074,7 @@ func GetNextRoleChange(state *state.State, gateway *Gateway, unavailableMembers 
 		return "", nil, nil, err
 	}
 
-	role, candidates := adjustRoles(roles, gateway.info.ID, nodes, connectivity, memberRoles)
+	role, candidates := rolesAdjust(roles, gateway.info.ID, nodes, connectivity, memberRoles)
 
 	if role == -1 || len(candidates) == 0 {
 		// No node to promote
