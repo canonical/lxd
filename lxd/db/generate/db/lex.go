@@ -53,8 +53,8 @@ func operation(kind string) string {
 
 // activeFilters returns the filters mentioned in the command name.
 func activeFilters(kind string) []string {
-	startIndex := strings.Index(kind, "-by-") + len("-by-")
-	return strings.Split(kind[startIndex:], "-and-")
+	_, after, _ := strings.Cut(kind, "-by-")
+	return strings.Split(after, "-and-")
 }
 
 // Return an expression evaluating if a filter should be used (based on active
