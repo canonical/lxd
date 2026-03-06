@@ -9242,7 +9242,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 			return nil, err
 		}
 
-		parts := strings.Split(string(cmdline), " ")
+		parts := strings.Fields(string(cmdline))
 
 		// Check if SME is enabled in the kernel command line.
 		if slices.Contains(parts, "mem_encrypt=on") {
