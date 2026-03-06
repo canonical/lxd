@@ -96,8 +96,7 @@ func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instance
 		args = append(args, strings.Split(rsyncArgs, " ")...)
 	}
 
-	args = append(args, []string{path, "localhost:/tmp/foo"}...)
-	args = append(args, []string{"-e", rsyncCmd}...)
+	args = append(args, path, "localhost:/tmp/foo", "-e", rsyncCmd)
 
 	cmd := exec.CommandContext(ctx, "rsync", args...)
 	cmd.Stdout = os.Stderr
