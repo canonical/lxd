@@ -732,8 +732,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 	var remote string
 
 	for _, arg := range args {
-		split := strings.Split(arg, "=")
-		if len(split) == 1 || shared.PathExists(shared.HostPathFollow(arg)) {
+		if !strings.Contains(arg, "=") || shared.PathExists(shared.HostPathFollow(arg)) {
 			if strings.HasSuffix(arg, ":") {
 				var err error
 				remote, _, err = conf.ParseRemote(arg)
