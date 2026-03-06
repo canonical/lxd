@@ -704,7 +704,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		// Lower devices.
 		strValue, err = os.ReadFile(filepath.Join(bondPath, "slaves"))
 		if err == nil {
-			bonding.LowerDevices = strings.Split(strings.TrimSpace(string(strValue)), " ")
+			bonding.LowerDevices = strings.Fields(strings.TrimSpace(string(strValue)))
 		}
 
 		network.Bond = &bonding
