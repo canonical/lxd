@@ -2250,39 +2250,33 @@ func (s *Server) mountHandleHugetlbfsArgs(c Instance, args *MountArgs, nsuid int
 	optStrings := strings.Split(args.data, ",")
 	for i, optString := range optStrings {
 		if strings.HasPrefix(optString, "uid=") {
-			uidFields := strings.Split(optString, "=")
-			if len(uidFields) > 1 {
-				n, err := strconv.ParseInt(uidFields[1], 10, 64)
-				if err != nil {
-					// If the user specified garbage, let the kernel tell em whats what.
-					return nil
-				}
-
-				uidOpt, _ = idmapset.ShiftIntoNs(n, 0)
-				if uidOpt < 0 {
-					// If the user specified garbage, let the kernel tell em whats what.
-					return nil
-				}
-
-				optStrings[i] = fmt.Sprintf("uid=%d", uidOpt)
+			n, err := strconv.ParseInt(strings.TrimPrefix(optString, "uid="), 10, 64)
+			if err != nil {
+				// If the user specified garbage, let the kernel tell em whats what.
+				return nil
 			}
+
+			uidOpt, _ = idmapset.ShiftIntoNs(n, 0)
+			if uidOpt < 0 {
+				// If the user specified garbage, let the kernel tell em whats what.
+				return nil
+			}
+
+			optStrings[i] = fmt.Sprintf("uid=%d", uidOpt)
 		} else if strings.HasPrefix(optString, "gid=") {
-			gidFields := strings.Split(optString, "=")
-			if len(gidFields) > 1 {
-				n, err := strconv.ParseInt(gidFields[1], 10, 64)
-				if err != nil {
-					// If the user specified garbage, let the kernel tell em whats what.
-					return nil
-				}
-
-				gidOpt, _ = idmapset.ShiftIntoNs(n, 0)
-				if gidOpt < 0 {
-					// If the user specified garbage, let the kernel tell em whats what.
-					return nil
-				}
-
-				optStrings[i] = fmt.Sprintf("gid=%d", gidOpt)
+			n, err := strconv.ParseInt(strings.TrimPrefix(optString, "gid="), 10, 64)
+			if err != nil {
+				// If the user specified garbage, let the kernel tell em whats what.
+				return nil
 			}
+
+			gidOpt, _ = idmapset.ShiftIntoNs(n, 0)
+			if gidOpt < 0 {
+				// If the user specified garbage, let the kernel tell em whats what.
+				return nil
+			}
+
+			optStrings[i] = fmt.Sprintf("gid=%d", gidOpt)
 		}
 	}
 
