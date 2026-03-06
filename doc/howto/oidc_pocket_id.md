@@ -14,25 +14,25 @@ Pocket ID is a simple, passwordless, self-hosted OIDC provider that allows you t
 
 1.  Set up [Pocket ID](https://pocket-id.org/docs) using their [installation guide](https://pocket-id.org/docs/setup/installation). For this guide, it is assumed that Pocket ID is available over HTTPS.
 1.  Sign in to the admin account at `https://<your-app-url>/setup`.
-1.  From the main navigation, go to `Adminstration` > `OIDC Clients`
+1.  From the main navigation, go to `Adminstration` > `OIDC Clients`.
 1.  From the `Create OIDC Client` section, click `Add OIDC Client`.
-    - Enter a name such as `lxd-client`
-    - In the field for `Callback URLs`, enter your LXD UI address, followed by /oidc/callback.
-      - Example: https://example.com:8443/oidc/callback
+    - Enter a name such as `lxd-client`.
+    - In the field for `Callback URLs`, enter your LXD UI address, followed by `/oidc/callback`.
+      - Example: `https://example.com:8443/oidc/callback`
       - An IP address can be used instead of a domain name.
-      - Note :8443 is the default listening port for the LXD server. It might differ for your setup. You can verify the LXD configuration value core.https_address to find the correct port for your LXD server.
-      - In the field for `Logout Callback URLs`, enter your LXD UI address, followed by /oidc/logout.
+      - Note `:8443` is the default listening port for the LXD server. It might differ for your setup. You can verify the LXD configuration value `core.https_address` to find the correct port for your LXD server.
+      - In the field for `Logout Callback URLs`, enter your LXD UI address, followed by `/oidc/logout`.
     - Turn on the `Public Client` option.
     - Optionally, to require users to authenticate again on each authorization, turn on the `Requires Re-Authentication` option.
     - Click `Save`.
 1.  Click `Show more details` to see your client configuration.
     - Copy the `Client ID` and set it in LXD server configuration using
 
-            lxc config set oidc.client.id=<Client ID>
+       lxc config set oidc.client.id=<Client ID>
 
     - Copy the `Issuer URL` and set it in your LXD server configuration using
 
-           lxc config set oidc.issuer=<Issuer URL>
+       lxc config set oidc.issuer=<Issuer URL>
 
 1.  From the main navigation, go to `Adminstration` > `Users`.
     - From the `Create User` section, click `Add User`. Enter the user information and click `Save`.
