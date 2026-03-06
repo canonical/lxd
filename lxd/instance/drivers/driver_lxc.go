@@ -6496,7 +6496,7 @@ func (d *lxc) processesState(pid int) (int64, error) {
 			continue
 		}
 
-		content := strings.Split(string(fcont), " ")
+		content := strings.Fields(string(fcont))
 		for j := range content {
 			pid, err := strconv.ParseInt(content[j], 10, 64)
 			if err == nil {
