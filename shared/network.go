@@ -10,6 +10,9 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/tcp"
 )
 
 // connectErrorPrefix used as prefix to error returned from RFC3493Dialer.
@@ -30,7 +33,8 @@ func RFC3493Dialer(context context.Context, network string, address string) (net
 
 	var errs []error
 	for _, a := range addrs {
-		c, err := net.DialTimeout(network, net.JoinHostPort(a, port), 10*time.Second)
+		a := net.JoinHostPort(a, port)
+		c, err := net.DialTimeout(network, a, 10*time.Second)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -38,8 +42,10 @@ func RFC3493Dialer(context context.Context, network string, address string) (net
 
 		tc, ok := c.(*net.TCPConn)
 		if ok {
-			_ = tc.SetKeepAlive(true)
-			_ = tc.SetKeepAlivePeriod(3 * time.Second)
+			err = tcp.SetTimeouts(tc, 0)
+			if err != nil {
+				logger.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"address": a, "err": err})
+			}
 		}
 
 		return c, nil
