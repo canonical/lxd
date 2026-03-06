@@ -55,7 +55,7 @@ Automatic roles are assigned by LXD itself and cannot be modified by the user.
 | `database-voter`      | yes           | Voting member of the distributed database |
 | `database-leader`     | yes           | Current leader of the distributed database |
 | `database-standby`    | yes           | Stand-by (non-voting) member of the distributed database |
-| `control-plane`       | no            | Eligible to participate in Raft as voter, standby, or leader. When control plane mode is active, members without this role are assigned as spares and excluded from automatic promotion. |
+| `control-plane`       | no            | Eligible to participate in Raft as voter, standby, or leader; when control plane mode is active, members without this role are assigned as spares and excluded from automatic promotion |
 | `ovn-chassis`         | no            | Uplink gateway candidate for OVN networks |
 
 The default number of voter members ({config:option}`server-cluster:cluster.max_voters`) is three.

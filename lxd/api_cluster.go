@@ -1201,7 +1201,12 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	d.clusterMembershipMutex.Lock()
 	defer d.clusterMembershipMutex.Unlock()
 
-	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, nil)
+	memberRoles, err := getClusterMemberRoles(r.Context(), s)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, memberRoles)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1214,21 +1219,6 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.Gateway, unavailableMembers []string, memberRoles map[string][]db.ClusterRole) error {
 	if s.ShutdownCtx.Err() != nil {
 		return nil
-	}
-
-	if memberRoles == nil {
-		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
-			memberRoles, err = cluster.GetMemberRoles(ctx, tx)
-			if err != nil {
-				return fmt.Errorf("Failed loading cluster member roles: %w", err)
-			}
-
-			return nil
-		})
-		if err != nil {
-			return err
-		}
 	}
 
 	for {
@@ -1609,12 +1599,37 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 		return response.SmartError(err)
 	}
 
-	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, nil)
+	memberRoles, err := getClusterMemberRoles(r.Context(), s)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, memberRoles)
 	if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 		logger.Warn("Could not rebalance cluster member roles after raft member removal", logger.Ctx{"err": err})
 	}
 
 	return response.SyncResponse(true, nil)
+}
+
+// getClusterMemberRoles returns cluster member roles keyed by member address.
+func getClusterMemberRoles(ctx context.Context, s *state.State) (map[string][]db.ClusterRole, error) {
+	var memberRoles map[string][]db.ClusterRole
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		memberRoles, err = cluster.GetMemberRoles(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("Failed loading cluster member roles: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return memberRoles, nil
 }
 
 func autoHealClusterTask(stateFunc func() *state.State, gateway *cluster.Gateway) (task.Func, task.Schedule) {

@@ -2641,75 +2641,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	// are other members in the cluster, then check if we need to update roles. We do not want to do this if
 	// we are called on the leader as part of a notification heartbeat being received from another member.
 	if isLeader && unavailableMembers != nil && len(heartbeatData.Members) > 1 {
-		isDegraded := false
-		hasNodesNotPartOfRaft := false
-		hasNonControlPlaneMemberWithDatabaseRole := false
-		onlineVoters := int64(0)
-		onlineStandbys := int64(0)
-		offlineMemberIDs := make([]int64, 0, len(heartbeatData.Members))
-
-		// Build member roles map from heartbeat data.
-		memberRoles := make(map[string][]db.ClusterRole, len(heartbeatData.Members))
-		for _, member := range heartbeatData.Members {
-			memberRoles[member.Address] = member.Roles
-		}
-
-		controlPlaneActive := cluster.IsControlPlaneActive(memberRoles)
-		for id, node := range heartbeatData.Members {
-			role := db.RaftRole(node.RaftRole)
-			if node.Online {
-				// Count online members that have voter or stand-by raft role.
-				switch role {
-				case db.RaftVoter:
-					onlineVoters++
-				case db.RaftStandBy:
-					onlineStandbys++
-				}
-
-				if node.RaftID == 0 {
-					hasNodesNotPartOfRaft = true
-				}
-
-				// Check if an online non-control-plane node currently has a raft role other than spare.
-				if controlPlaneActive && !slices.Contains(node.Roles, db.ClusterRoleControlPlane) && role != db.RaftSpare {
-					hasNonControlPlaneMemberWithDatabaseRole = true
-					logger.Info("Detected non-control-plane member with database role", logger.Ctx{"address": node.Address, "role": role, "local": localClusterAddress})
-				}
-			} else {
-				offlineMemberIDs = append(offlineMemberIDs, id)
-				if role != db.RaftSpare {
-					isDegraded = true // Offline member that has voter or stand-by raft role.
-				}
-			}
-		}
-
-		maxVoters := s.GlobalConfig.MaxVoters()
-		maxStandBy := s.GlobalConfig.MaxStandBy()
-
-		needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy || hasNonControlPlaneMemberWithDatabaseRole
-
-		if needsRebalance || hasNodesNotPartOfRaft {
-			d.clusterMembershipMutex.Lock()
-			defer d.clusterMembershipMutex.Unlock()
-
-			// If there are offline members that have voter or stand-by database roles, let's see if we can replace them with spare ones.
-			if needsRebalance {
-				logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
-				err := rebalanceMemberRoles(context.Background(), d.State(), d.gateway, unavailableMembers, memberRoles)
-				if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
-					logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
-				}
-			}
-
-			// If we don't have enough voters or standbys, let's see if we can upgrade some member.
-			if hasNodesNotPartOfRaft {
-				logger.Debug("Upgrading members without raft role in heartbeat", logger.Ctx{"local": localClusterAddress})
-				err := upgradeNodesWithoutRaftRole(d.State(), d.gateway)
-				if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
-					logger.Warn("Failed upgrading raft roles:", logger.Ctx{"err": err, "local": localClusterAddress})
-				}
-			}
-		}
+		offlineMemberIDs := d.handleHeartbeatClusterRoleChanges(heartbeatData, unavailableMembers, localClusterAddress)
 
 		// On initial heartbeat, if there are offline nodes (whether part of raft or not) delete any orphaned operations
 		// that may be present there. After the initial heartbeat, this is handled by the autoRemoveOrphanedOperationsTask.
@@ -2725,4 +2657,80 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	}
 
 	wg.Wait()
+}
+
+func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHeartbeat, unavailableMembers []string, localClusterAddress string) []int64 {
+	s := d.State()
+	isDegraded := false
+	hasNodesNotPartOfRaft := false
+	hasNonControlPlaneMemberWithDatabaseRole := false
+	onlineVoters := int64(0)
+	onlineStandbys := int64(0)
+	offlineMemberIDs := make([]int64, 0, len(heartbeatData.Members))
+
+	// Build member roles map from heartbeat data.
+	memberRoles := make(map[string][]db.ClusterRole, len(heartbeatData.Members))
+	for _, member := range heartbeatData.Members {
+		memberRoles[member.Address] = member.Roles
+	}
+
+	controlPlaneActive := cluster.IsControlPlaneActive(memberRoles)
+	for id, node := range heartbeatData.Members {
+		role := db.RaftRole(node.RaftRole)
+		if node.Online {
+			// Count online members that have voter or stand-by raft role.
+			switch role {
+			case db.RaftVoter:
+				onlineVoters++
+			case db.RaftStandBy:
+				onlineStandbys++
+			}
+
+			if node.RaftID == 0 {
+				hasNodesNotPartOfRaft = true
+			}
+
+			// Check if an online non-control-plane node currently has a raft role other than spare.
+			if controlPlaneActive && !slices.Contains(node.Roles, db.ClusterRoleControlPlane) && role != db.RaftSpare {
+				hasNonControlPlaneMemberWithDatabaseRole = true
+				logger.Info("Detected non-control-plane member with database role", logger.Ctx{"address": node.Address, "role": role, "local": localClusterAddress})
+			}
+		} else {
+			offlineMemberIDs = append(offlineMemberIDs, id)
+			if role != db.RaftSpare {
+				isDegraded = true // Offline member that has voter or stand-by raft role.
+			}
+		}
+	}
+
+	maxVoters := s.GlobalConfig.MaxVoters()
+	maxStandBy := s.GlobalConfig.MaxStandBy()
+	needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy || hasNonControlPlaneMemberWithDatabaseRole
+
+	if !needsRebalance && !hasNodesNotPartOfRaft {
+		return offlineMemberIDs
+	}
+
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
+
+	// If there are offline members that have voter or stand-by database roles, let's see if we can replace them with spare ones.
+	if needsRebalance {
+		logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
+		err := rebalanceMemberRoles(context.Background(), s, d.gateway, unavailableMembers, memberRoles)
+		if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
+			logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
+		}
+	}
+
+	// If we don't have enough voters or standbys, let's see if we can upgrade some member.
+	if hasNodesNotPartOfRaft {
+		logger.Debug("Upgrading members without raft role in heartbeat", logger.Ctx{"local": localClusterAddress})
+		err := upgradeNodesWithoutRaftRole(s, d.gateway)
+		if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
+			logger.Warn("Failed upgrading raft roles", logger.Ctx{"err": err, "local": localClusterAddress})
+		}
+	}
+
+	return offlineMemberIDs
 }
