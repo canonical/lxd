@@ -150,22 +150,26 @@ const defaultColumnsAllProjects = "ens46tSL"
 const configColumnType = "config"
 const deviceColumnType = "devices"
 
-// This seems a little excessive.
 func (c *cmdList) dotPrefixMatch(short string, full string) bool {
-	fullMembs := strings.Split(full, ".")
-	shortMembs := strings.Split(short, ".")
+	for {
+		shortSeg, shortRest, shortHasMore := strings.Cut(short, ".")
+		fullSeg, fullRest, fullHasMore := strings.Cut(full, ".")
 
-	if len(fullMembs) != len(shortMembs) {
-		return false
-	}
-
-	for i := range fullMembs {
-		if !strings.HasPrefix(fullMembs[i], shortMembs[i]) {
+		if !strings.HasPrefix(fullSeg, shortSeg) {
 			return false
 		}
-	}
 
-	return true
+		if shortHasMore != fullHasMore {
+			return false
+		}
+
+		if !shortHasMore {
+			return true
+		}
+
+		short = shortRest
+		full = fullRest
+	}
 }
 
 func (c *cmdList) shouldShow(filters []string, inst *api.Instance, state *api.InstanceState, initial bool) bool {
