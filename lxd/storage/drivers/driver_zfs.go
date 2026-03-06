@@ -638,7 +638,7 @@ func (d *zfs) Unmount() (bool, error) {
 	}
 
 	// Export the pool.
-	poolName := strings.Split(d.config["zfs.pool_name"], "/")[0]
+	poolName, _, _ := strings.Cut(d.config["zfs.pool_name"], "/")
 	_, err = shared.RunCommand(context.TODO(), "zpool", "export", poolName)
 	if err != nil {
 		return false, err
