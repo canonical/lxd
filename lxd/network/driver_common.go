@@ -1633,18 +1633,19 @@ func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
 	rulesUsePeer := func(rules []api.NetworkACLRule) bool {
 		for _, rule := range rules {
 			for _, subject := range shared.SplitNTrimSpace(rule.Source, ",", -1, true) {
-				if !strings.HasPrefix(subject, "@") {
+				subject, found := strings.CutPrefix(subject, "@")
+				if !found {
 					continue
 				}
 
-				peerParts := strings.SplitN(strings.TrimPrefix(subject, "@"), "/", 2)
-				if len(peerParts) != 2 {
+				networkName, peerSubjectName, found := strings.Cut(subject, "/")
+				if !found {
 					continue // Not a valid network/peer name combination.
 				}
 
 				peer := db.NetworkPeer{
-					NetworkName: peerParts[0],
-					PeerName:    peerParts[1],
+					NetworkName: networkName,
+					PeerName:    peerSubjectName,
 				}
 
 				if peer.NetworkName == n.Name() && peer.PeerName == peerName {
