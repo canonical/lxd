@@ -37,10 +37,23 @@ func ExtractConn(conn net.Conn) (*net.TCPConn, error) {
 }
 
 // SetTimeouts sets TCP_USER_TIMEOUT and TCP keep alive timeouts on a connection.
-// If userTimeout is zero, then defaults to 2 minutes.
+// Sets:
+// - TCP keep alive idle time to 3 seconds.
+// - TCP keep alive interval to 15 seconds.
+// - TCP keep alive count to 9.
+// - TCP_USER_TIMEOUT to the provided userTimeout value, or if zero, to a value slightly longer than the total time
+// it would take for all keep alive probes to be sent.
 func SetTimeouts(conn *net.TCPConn, userTimeout time.Duration) error {
-	if userTimeout == 0 {
-		userTimeout = time.Minute * 2
+	ka := net.KeepAliveConfig{
+		Enable:   true,
+		Idle:     3 * time.Second,
+		Interval: 15 * time.Second,
+		Count:    9,
+	}
+
+	err := conn.SetKeepAliveConfig(ka)
+	if err != nil {
+		return err
 	}
 
 	// Set TCP_USER_TIMEOUT option to limit the maximum amount of time in ms that transmitted data may remain
@@ -51,17 +64,14 @@ func SetTimeouts(conn *net.TCPConn, userTimeout time.Duration) error {
 	// up to 20 minutes with the current system defaults in a normal WAN environment if there are packets in
 	// the send queue that will prevent the keepalive timer from working as the retransmission timers kick in.
 	// See https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=dca43c75e7e545694a9dd6288553f55c53e2a3a3
-	err := SetUserTimeout(conn, userTimeout)
-	if err != nil {
-		return err
+	if userTimeout == 0 {
+		// Set user timeout to be slightly longer than the total time it would take for all keep alive
+		// probes to be sent, which means that if the remote side disappears then the connection will be
+		// closed shortly after the last keep alive probe is sent.
+		userTimeout = ka.Idle + (ka.Interval * time.Duration(ka.Count))
 	}
 
-	err = conn.SetKeepAlive(true)
-	if err != nil {
-		return err
-	}
-
-	err = conn.SetKeepAlivePeriod(3 * time.Second)
+	err = SetUserTimeout(conn, userTimeout)
 	if err != nil {
 		return err
 	}
