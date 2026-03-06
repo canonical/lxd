@@ -107,10 +107,10 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	}
 
 	// User requested types
-	types := strings.Split(r.FormValue("type"), ",")
-	if len(types) == 1 && types[0] == "" {
+	var types []string
+	typeStr := r.FormValue("type")
+	if typeStr == "" {
 		// If no types were requested, return all event types the caller has permission to view.
-		types = []string{}
 		for _, entry := range eventTypes {
 			if !canViewServerEvents && slices.Contains(privilegedEventTypes, entry) {
 				continue
@@ -120,6 +120,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		}
 	} else {
 		// Otherwise, validate the provided types.
+		types = strings.Split(typeStr, ",")
 		for _, entry := range types {
 			if !slices.Contains(eventTypes, entry) {
 				return api.StatusErrorf(http.StatusBadRequest, "%q isn't a supported event type", entry)
