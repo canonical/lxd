@@ -94,8 +94,9 @@ func hasProfile(name string) (bool, error) {
 
 	mangled := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(name, "/", "."), "<", ""), ">", "")
 	for _, entry := range entries {
-		fields := strings.Split(entry.Name(), ".")
-		if mangled == strings.Join(fields[0:len(fields)-1], ".") {
+		entryName := entry.Name()
+		idx := strings.LastIndex(entryName, ".")
+		if idx >= 0 && mangled == entryName[:idx] {
 			return true, nil
 		}
 	}
