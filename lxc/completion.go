@@ -621,21 +621,21 @@ func (g *cmdGlobal) cmpInstanceAllDeviceTypes(remote string, toComplete string) 
 	devices := make([]string, 0, len(metadataConfiguration.Configs))
 
 	for key := range metadataConfiguration.Configs {
-		if !strings.HasPrefix(key, "device-") {
+		rest, found := strings.CutPrefix(key, "device-")
+		if !found {
 			continue
 		}
 
-		parts := strings.Split(key, "-")
-		deviceType := parts[1]
+		deviceType, subType, hasSubType := strings.Cut(rest, "-")
 
 		// "unix" is not a device, get the next part.
-		if deviceType == "unix" && len(parts) > 2 {
+		if deviceType == "unix" && hasSubType {
 			// The metadata API has "unix-usb", but the device type is just "usb"
-			if parts[2] == "usb" {
+			if subType == "usb" {
 				deviceType = "usb"
 			} else {
 				// Otherwise append the next part.
-				deviceType += "-" + parts[2]
+				deviceType += "-" + subType
 			}
 		}
 
