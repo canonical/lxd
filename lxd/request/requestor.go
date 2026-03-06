@@ -271,6 +271,17 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 	r.forwardedOriginAddress = forwardedAddress
 	r.forwardedUsername = forwardedUsername
 	r.forwardedProtocol = forwardedProtocol
+
+	// If this request was forwarded, then [RequestorArgs.Trusted] will have been set to true because we've
+	// authenticated the certificate of the forwarding cluster member. However, if the forwarding member did
+	// not a username or protocol header, this can only be because the original request was not authenticated!!
+	//
+	// In this case, set trusted to false. This means that an untrusted request will remain untrusted throughout
+	// the cluster (provided the request context is used appropriately).
+	if forwardedAddress != "" && (forwardedUsername == "" || forwardedProtocol == "") {
+		r.trusted = false
+	}
+
 	return nil
 }
 
