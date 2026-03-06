@@ -137,10 +137,6 @@ type byPrecedence struct {
 }
 
 func (a byPrecedence) Len() int {
-	if a.data == nil {
-		return 0
-	}
-
 	return len(a.data)
 }
 
