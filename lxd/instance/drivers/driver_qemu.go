@@ -8486,13 +8486,13 @@ func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	// Handle uevents.
 	for _, uevent := range runConf.Uevents {
 		for _, event := range uevent {
-			fields := strings.SplitN(event, "=", 2)
+			key, value, found := strings.Cut(event, "=")
 
-			if fields[0] != "ACTION" {
+			if !found || key != "ACTION" {
 				continue
 			}
 
-			switch fields[1] {
+			switch value {
 			case "add":
 				for _, usbDev := range runConf.USBDevice {
 					// This ensures that the device is actually removed from QEMU before adding it again.
