@@ -164,8 +164,13 @@ func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUS
 			}
 
 			if props["SUBSYSTEM"] == "usb" && !udevEvent {
-				parts := strings.Split(props["PRODUCT"], "/")
-				if len(parts) < 2 {
+				vendorID, rest, ok := strings.Cut(props["PRODUCT"], "/")
+				if !ok {
+					continue
+				}
+
+				productID, _, ok := strings.Cut(rest, "/")
+				if !ok {
 					continue
 				}
 
@@ -209,8 +214,8 @@ func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUS
 					 * everything else does, so let's zero pad them
 					 * for consistency
 					 */
-					zeroPad(parts[0], 4),
-					zeroPad(parts[1], 4),
+					zeroPad(vendorID, 4),
+					zeroPad(productID, 4),
 					serial,
 					major,
 					minor,
