@@ -561,7 +561,7 @@ func (d *zfs) importPool() (bool, error) {
 	}
 
 	// Check if the pool exists.
-	poolName := strings.Split(d.config["zfs.pool_name"], "/")[0]
+	poolName, _, _ := strings.Cut(d.config["zfs.pool_name"], "/")
 	exists, err = d.datasetExists(poolName)
 	if err != nil {
 		return false, err
