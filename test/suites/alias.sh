@@ -31,7 +31,7 @@ test_alias() {
 
   echo "Test 7: Prevent removing non-existent alias (should fail)"
   alias_err="$(! lxc alias remove non-existent 2>&1 || echo fail)"
-  [ "$(tail -1 <<< "${alias_err}")" = "Error: Alias non-existent doesn't exist" ]
+  [ "$(tail -1 <<< "${alias_err}")" = "Error: Alias non-existent does not exist" ]
 
   echo "Test 8: alias command with spaces in target"
   lxc alias add complex "list --format csv --all-projects"

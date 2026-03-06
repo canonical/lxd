@@ -26,12 +26,12 @@ test_devlxd() {
 
   # Issue another token, the old token should be invalid (so devlxd calls fail) and the new one valid.
   devlxd_token2="$(lxc auth identity token issue devlxd/foo --quiet)"
-  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token1}" devlxd -- devlxd-client get-state || false)" = 'Failed to verify bearer token: Failed to authenticate bearer token: Token is not valid: token signature is invalid: signature is invalid' ]
+  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token1}" devlxd -- devlxd-client get-state || false)" = 'Failed verifying bearer token: Failed authenticating bearer token: Token is not valid: token signature is invalid: signature is invalid' ]
   lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state | jq --exit-status '.auth == "trusted"'
 
   # Revoke the token, it should no longer be valid.
   lxc auth identity token revoke devlxd/foo
-  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state || false)" = "Failed to verify bearer token: Unrecognized token subject: No secret found for bearer token identity" ]
+  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state || false)" = "Failed verifying bearer token: Unrecognized token subject: No secret found for bearer token identity" ]
 
   # Issue a new token, it should be valid
   devlxd_token3="$(lxc auth identity token issue devlxd/foo --quiet)"
@@ -39,7 +39,7 @@ test_devlxd() {
 
   # Delete the identity, the token should no longer be valid.
   lxc auth identity delete devlxd/foo
-  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token3}" devlxd -- devlxd-client get-state || false)" = "Failed to verify bearer token: Unrecognized token subject: No secret found for bearer token identity" ]
+  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token3}" devlxd -- devlxd-client get-state || false)" = "Failed verifying bearer token: Unrecognized token subject: No secret found for bearer token identity" ]
 
   # Create a token with an expiry
   lxc auth identity create devlxd/foo
@@ -51,7 +51,7 @@ test_devlxd() {
 
   # It's not valid after the expiry
   sleep 3
-  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token4}" devlxd -- devlxd-client get-state || false)" = 'Failed to verify bearer token: Failed to authenticate bearer token: Token is not valid: token has invalid claims: token is expired' ]
+  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token4}" devlxd -- devlxd-client get-state || false)" = 'Failed verifying bearer token: Failed authenticating bearer token: Token is not valid: token has invalid claims: token is expired' ]
 
   # Clean up
   lxc auth identity delete devlxd/foo
