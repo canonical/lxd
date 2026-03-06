@@ -115,7 +115,7 @@ func (r *Requestor) ExpiresAt() *time.Time {
 
 // OriginAddress returns the original address of the caller.
 func (r *Requestor) OriginAddress() string {
-	if r.forwardedOriginAddress != "" {
+	if r.IsForwarded() {
 		return r.forwardedOriginAddress
 	}
 
@@ -124,7 +124,8 @@ func (r *Requestor) OriginAddress() string {
 
 // CallerUsername returns the original caller Username.
 func (r *Requestor) CallerUsername() string {
-	if r.forwardedUsername != "" {
+	if r.IsForwarded() {
+		// Always return forwarded username if the request was forwarded.
 		return r.forwardedUsername
 	}
 
@@ -133,7 +134,8 @@ func (r *Requestor) CallerUsername() string {
 
 // CallerProtocol returns the original caller protocol.
 func (r *Requestor) CallerProtocol() string {
-	if r.forwardedProtocol != "" {
+	if r.IsForwarded() {
+		// Always return forwarded protocol if the request was forwarded.
 		return r.forwardedProtocol
 	}
 
