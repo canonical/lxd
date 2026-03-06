@@ -8,6 +8,12 @@ const UserAgentNotifier = "lxd-cluster-notifier"
 // joining a node to a cluster.
 const UserAgentJoiner = "lxd-cluster-joiner"
 
+// UserAgentOperationNotifier is used to distinguish between a standard internal cluster request (which uses UserAgentNotifier)
+// and an internal cluster request coming from within an operation (which uses UserAgentOperationNotifier). The notified node
+// does not need to create another operation to handle the request in this case, as the asynchronous nature is already achieved
+// by the operation on the sending node.
+const UserAgentOperationNotifier = "lxd-operation-notifier"
+
 // ClientType indicates which sort of client type is being used.
 type ClientType string
 
@@ -20,11 +26,16 @@ const ClientTypeJoiner ClientType = "joiner"
 // ClientTypeNormal normal client.
 const ClientTypeNormal ClientType = "normal"
 
+// ClientTypeOperationNotifier cluster notification client coming from within an operation.
+const ClientTypeOperationNotifier ClientType = "operation-notifier"
+
 // UserAgentClientType converts user agent to client type.
 func userAgentClientType(userAgent string) ClientType {
 	switch userAgent {
 	case UserAgentNotifier:
 		return ClientTypeNotifier
+	case UserAgentOperationNotifier:
+		return ClientTypeOperationNotifier
 	case UserAgentJoiner:
 		return ClientTypeJoiner
 	}
@@ -35,4 +46,9 @@ func userAgentClientType(userAgent string) ClientType {
 // IsClusterNotification returns true if the ClientType is ClientTypeNotifier.
 func (c ClientType) IsClusterNotification() bool {
 	return c == ClientTypeNotifier
+}
+
+// IsClusterOperationNotification returns true if the ClientType is ClientTypeOperationNotifier.
+func (c ClientType) IsClusterOperationNotification() bool {
+	return c == ClientTypeOperationNotifier
 }
