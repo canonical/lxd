@@ -1081,12 +1081,12 @@ func ovnParseLogEntry(logline string, syslogTimestamp string, prefix string) str
 	// Parse the ACL log entry.
 	aclEntry := map[string]string{}
 	for _, entry := range shared.SplitNTrimSpace(fields[4], ",", -1, true) {
-		pair := strings.Split(entry, "=")
-		if len(pair) != 2 {
+		key, value, found := strings.Cut(entry, "=")
+		if !found {
 			continue
 		}
 
-		aclEntry[strings.Trim(pair[0], "\"")] = strings.Trim(pair[1], "\"")
+		aclEntry[strings.Trim(key, "\"")] = strings.Trim(value, "\"")
 	}
 
 	// Filter for our ACL.
@@ -1107,12 +1107,10 @@ func ovnParseLogEntry(logline string, syslogTimestamp string, prefix string) str
 	}
 
 	// Get the protocol.
-	directionFields := strings.Split(aclEntry["direction"], " ")
-	if len(directionFields) != 2 {
+	_, protocol, found := strings.Cut(aclEntry["direction"], " ")
+	if !found {
 		return ""
 	}
-
-	protocol := directionFields[1]
 
 	// Get the source and destination addresses.
 	srcAddr, ok := aclEntry["nw_src"]
