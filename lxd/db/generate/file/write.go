@@ -58,15 +58,14 @@ import (
 }
 
 func resetInterface(path string, buildComment string) error {
-	if strings.HasSuffix(path, "mapper.go") {
-		parts := strings.Split(path, ".")
-		interfacePath := strings.Join(parts[:len(parts)-2], ".") + ".interface.mapper.go"
-		content := fmt.Sprintf("%spackage %s", buildComment, os.Getenv("GOPACKAGE"))
-		err := os.WriteFile(interfacePath, []byte(content), 0644)
-		return err
+	base, found := strings.CutSuffix(path, ".mapper.go")
+	if !found {
+		return nil
 	}
 
-	return nil
+	interfacePath := base + ".interface.mapper.go"
+	content := buildComment + "package " + os.Getenv("GOPACKAGE")
+	return os.WriteFile(interfacePath, []byte(content), 0644)
 }
 
 // Append a code snippet to a file.
