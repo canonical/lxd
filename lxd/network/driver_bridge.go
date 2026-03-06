@@ -288,7 +288,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		// The default value varies depending on whether the bridge uses a tunnel or a fan setup.
 		// ---
 		//  type: integer
-		//  defaultdesc: `1500` if `bridge.mode=standard`, `1480` if `bridge.mode=fan` and `fan.type=ipip`, or `1450` if `bridge.mode=fan` and `fan.type=vxlan`
+		//  defaultdesc: `1400` when tunnels are configured, otherwise `1500` if `bridge.mode=standard` or `1450` if `bridge.mode=fan`
 		//  shortdesc: Bridge MTU
 		//  scope: global
 		"bridge.mtu": validate.Optional(validate.IsNetworkMTU),
@@ -326,15 +326,6 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return validate.IsNetworkV4(value)
 		}),
-		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=fan.type)
-		// Possible values are `vxlan` and `ipip`.
-		// ---
-		//  type: string
-		//  condition: fan mode
-		//  defaultdesc: `vxlan`
-		//  shortdesc: Tunneling type for the FAN
-		//  scope: global
-		"fan.type": validate.Optional(validate.IsOneOf("vxlan", "ipip")),
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.address)
 		// Use CIDR notation.
 		//
@@ -843,16 +834,10 @@ func (n *bridge) Validate(config map[string]string) error {
 				return errors.New("The minimum MTU for an IPv4 network is 68")
 			}
 
-			if config["bridge.mode"] == "fan" {
-				if config["fan.type"] == "ipip" {
-					if mtu > 1480 {
-						return errors.New("Maximum MTU for an IPIP FAN bridge is 1480")
-					}
-				} else {
-					if mtu > 1450 {
-						return errors.New("Maximum MTU for a VXLAN FAN bridge is 1450")
-					}
-				}
+			if config["bridge.mode"] == "fan" && mtu > 1450 {
+				return errors.New("Maximum MTU for a FAN bridge is 1450")
+			} else if n.hasTunnels(config) && mtu > 1400 {
+				return errors.New("Maximum MTU for a bridge with tunnels is 1400")
 			}
 		}
 	}
@@ -1359,11 +1344,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	} else if len(tunnels) > 0 {
 		bridge.MTU = 1400
 	} else if n.config["bridge.mode"] == "fan" {
-		if n.config["fan.type"] == "ipip" {
-			bridge.MTU = 1480
-		} else {
-			bridge.MTU = 1450
-		}
+		bridge.MTU = 1450
 	}
 
 	// Decide the MAC address of bridge interface.
@@ -1923,19 +1904,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		address, _, _ := strings.Cut(fanAddress, "/")
-		if n.config["fan.type"] == "ipip" {
-			fanAddress = address + "/24"
-		}
 
 		// Update the MTU based on overlay device (if available).
 		fanMTU, err := GetDevMTU(devName)
 		if err == nil {
 			// Apply overhead.
-			if n.config["fan.type"] == "ipip" {
-				fanMTU = fanMTU - 20
-			} else {
-				fanMTU = fanMTU - 50
-			}
+			fanMTU = fanMTU - 50
 
 			// Apply changes.
 			if fanMTU != bridge.MTU {
@@ -1977,72 +1951,39 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		ipv4Address = net.ParseIP(address)
 
 		// Setup the tunnel.
-		if n.config["fan.type"] == "ipip" {
-			r := &ip.Route{
-				DevName: "tunl0",
-				Family:  ip.FamilyV4,
-			}
+		vxlanID := strconv.FormatUint(uint64(binary.BigEndian.Uint32(overlaySubnet.IP.To4())>>8), 10)
+		vxlan := &ip.Vxlan{
+			Link:    ip.Link{Name: tunName},
+			VxlanID: vxlanID,
+			DevName: devName,
+			DstPort: "0",
+			Local:   devAddr,
+			FanMap:  overlay + ":" + underlay,
+		}
 
-			err = r.Flush()
-			if err != nil {
-				return err
-			}
+		err = vxlan.Add()
+		if err != nil {
+			return err
+		}
 
-			tunLink := &ip.Link{Name: "tunl0"}
-			err = tunLink.SetUp()
-			if err != nil {
-				return err
-			}
+		err = AttachInterface(n.name, tunName)
+		if err != nil {
+			return err
+		}
 
-			// Fails if the map is already set.
-			_ = tunLink.Change("ipip", fmt.Sprintf("%s:%s", overlay, underlay))
+		err = vxlan.SetMTU(bridge.MTU)
+		if err != nil {
+			return err
+		}
 
-			r = &ip.Route{
-				DevName: "tunl0",
-				Route:   overlay,
-				Src:     address,
-				Proto:   "static",
-			}
+		err = vxlan.SetUp()
+		if err != nil {
+			return err
+		}
 
-			err = r.Add()
-			if err != nil {
-				return err
-			}
-		} else {
-			vxlanID := strconv.FormatUint(uint64(binary.BigEndian.Uint32(overlaySubnet.IP.To4())>>8), 10)
-			vxlan := &ip.Vxlan{
-				Link:    ip.Link{Name: tunName},
-				VxlanID: vxlanID,
-				DevName: devName,
-				DstPort: "0",
-				Local:   devAddr,
-				FanMap:  fmt.Sprintf("%s:%s", overlay, underlay),
-			}
-
-			err = vxlan.Add()
-			if err != nil {
-				return err
-			}
-
-			err = AttachInterface(n.name, tunName)
-			if err != nil {
-				return err
-			}
-
-			err = vxlan.SetMTU(bridge.MTU)
-			if err != nil {
-				return err
-			}
-
-			err = vxlan.SetUp()
-			if err != nil {
-				return err
-			}
-
-			err = bridge.SetUp()
-			if err != nil {
-				return err
-			}
+		err = bridge.SetUp()
+		if err != nil {
+			return err
 		}
 
 		// Configure NAT.
@@ -2608,17 +2549,29 @@ func (n *bridge) getTunnels() []string {
 	tunnels := []string{}
 
 	for k := range n.config {
-		if !strings.HasPrefix(k, "tunnel.") {
+		rest, found := strings.CutPrefix(k, "tunnel.")
+		if !found {
 			continue
 		}
 
-		fields := strings.Split(k, ".")
-		if !slices.Contains(tunnels, fields[1]) {
-			tunnels = append(tunnels, fields[1])
+		name, _, _ := strings.Cut(rest, ".")
+		if !slices.Contains(tunnels, name) {
+			tunnels = append(tunnels, name)
 		}
 	}
 
 	return tunnels
+}
+
+// hasTunnels returns true if the given config contains any tunnel entries.
+func (n *bridge) hasTunnels(config map[string]string) bool {
+	for k := range config {
+		if strings.HasPrefix(k, "tunnel.") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // bootRoutesV4 returns a list of IPv4 boot routes on the network's device.
