@@ -2679,14 +2679,12 @@ func SyscallInterceptMountFilter(config map[string]string) (map[string]string, e
 	fsFused := strings.Split(config["security.syscalls.intercept.mount.fuse"], ",")
 	if len(fsFused) > 0 && fsFused[0] != "" {
 		for _, ent := range fsFused {
-			fsfuse := strings.Split(ent, "=")
-			if len(fsfuse) != 2 {
+			filesystem, fuseBinary, found := strings.Cut(ent, "=")
+			if !found {
 				return map[string]string{}, fmt.Errorf("security.syscalls.intercept.mount.fuse is not of the form 'filesystem=fuse-binary': %s", ent)
 			}
 
-			// fsfuse[0] == filesystems that are ok to mount
-			// fsfuse[1] == fuse binary to use to mount filesystemstype
-			fsMap[fsfuse[0]] = fsfuse[1]
+			fsMap[filesystem] = fuseBinary
 		}
 	}
 
