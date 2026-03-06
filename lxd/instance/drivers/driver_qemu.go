@@ -9519,8 +9519,7 @@ func (d *qemu) setCPUs(count int) error {
 		for i := range totalReservedCPUs - count {
 			cpu := hotpluggedCPUs[i]
 
-			fields := strings.Split(cpu.QOMPath, "/")
-			devID := fields[len(fields)-1]
+			devID := filepath.Base(cpu.QOMPath)
 
 			err := monitor.RemoveDevice(devID)
 			if err != nil {
