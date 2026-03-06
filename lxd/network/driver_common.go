@@ -792,8 +792,8 @@ func (n *common) bgpClearPeers(config map[string]string) error {
 	peers := n.bgpGetPeers(config)
 	for _, peer := range peers {
 		// Remove the peer.
-		fields := strings.Split(peer, ",")
-		err := n.state.BGP.RemovePeer(net.ParseIP(fields[0]))
+		addr, _, _ := strings.Cut(peer, ",")
+		err := n.state.BGP.RemovePeer(net.ParseIP(addr))
 		if err != nil && !errors.Is(err, bgp.ErrPeerNotFound) {
 			return err
 		}
