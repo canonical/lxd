@@ -1998,7 +1998,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			dnsClustered = true
 		}
 
-		dnsClusteredAddress = strings.Split(fanAddress, "/")[0]
+		dnsClusteredAddress, _, _ = strings.Cut(fanAddress, "/")
 	}
 
 	// Configure tunnels.
