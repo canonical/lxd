@@ -289,17 +289,17 @@ func (d *nicPhysical) startVMUSB(name string) (*deviceConfig.RunConfig, error) {
 	}
 
 	// Parse the USB address.
-	fields := strings.Split(addr, ":")
-	if len(fields) != 2 {
+	usbBusStr, usbDevStr, found := strings.Cut(addr, ":")
+	if !found {
 		return nil, fmt.Errorf("Bad USB device info for %q", name)
 	}
 
-	usbBus, err := strconv.Atoi(fields[0])
+	usbBus, err := strconv.Atoi(usbBusStr)
 	if err != nil {
 		return nil, fmt.Errorf("Bad USB device info for %q: %w", name, err)
 	}
 
-	usbDev, err := strconv.Atoi(fields[1])
+	usbDev, err := strconv.Atoi(usbDevStr)
 	if err != nil {
 		return nil, fmt.Errorf("Bad USB device info for %q: %w", name, err)
 	}
