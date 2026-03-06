@@ -809,8 +809,8 @@ func (n *common) bgpSetupPeers(oldConfig map[string]string) error {
 		}
 
 		// Remove old peer.
-		fields := strings.Split(peer, ",")
-		err := n.state.BGP.RemovePeer(net.ParseIP(fields[0]))
+		addr, _, _ := strings.Cut(peer, ",")
+		err := n.state.BGP.RemovePeer(net.ParseIP(addr))
 		if err != nil {
 			return err
 		}
