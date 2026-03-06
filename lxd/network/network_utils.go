@@ -78,7 +78,7 @@ func RandomDevName(prefix string) string {
 
 // MACDevName returns interface name with prefix 'lxd' and MAC without leading 2 digits.
 func MACDevName(mac net.HardwareAddr) string {
-	devName := strings.Join(strings.Split(mac.String(), ":"), "")
+	devName := strings.ReplaceAll(mac.String(), ":", "")
 	return "lxd" + devName[2:]
 }
 
