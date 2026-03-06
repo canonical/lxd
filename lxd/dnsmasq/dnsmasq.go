@@ -2,6 +2,7 @@ package dnsmasq
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -29,6 +30,8 @@ type DHCPAllocation struct {
 var ConfigMutex sync.Mutex
 
 // UpdateStaticEntry writes a single dhcp-host line for a network/instance combination.
+// With --dhcp-hostsdir, dnsmasq uses inotify to automatically detect new and changed files,
+// so no SIGHUP is required after calling this function.
 func UpdateStaticEntry(network string, projectName string, instanceName string, deviceName string, netConfig map[string]string, hwaddr string, ipv4Address string, ipv6Address string) error {
 	hwaddr = strings.ToLower(hwaddr)
 	line := hwaddr
@@ -51,7 +54,16 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 	}
 
 	deviceStaticFileName := StaticAllocationFileName(projectName, instanceName, deviceName)
-	err := os.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName), []byte(line+"\n"), 0644)
+	filePath := shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName)
+
+	// Check if file already has the same content, skip write to avoid unnecessary inotify events.
+	existingContent, readErr := os.ReadFile(filePath)
+	content := []byte(line + "\n")
+	if readErr == nil && bytes.Equal(existingContent, content) {
+		return nil
+	}
+
+	err := os.WriteFile(filePath, content, 0644)
 	if err != nil {
 		return err
 	}
@@ -60,10 +72,26 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 }
 
 // RemoveStaticEntry removes a single dhcp-host line for a network/instance combination.
-func RemoveStaticEntry(network string, projectName string, instanceName string, deviceName string) error {
+// The file is moved out of the dnsmasq.hosts directory before deletion to avoid triggering
+// inotify events. The caller should send SIGHUP via Kill(network, true) to reload dnsmasq.
+func RemoveStaticEntry(network, projectName, instanceName, deviceName string) error {
 	deviceStaticFileName := StaticAllocationFileName(projectName, instanceName, deviceName)
-	err := os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName))
-	if err != nil && !os.IsNotExist(err) {
+	filePath := shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName)
+
+	// Sibling path avoids IN_MOVED_TO in dnsmasq's inotify watch on dnsmasq.hosts/.
+	tmpPath := shared.VarPath("networks", network, "dnsmasq.hosts") + "." + deviceStaticFileName + ".removing"
+
+	err := os.Rename(filePath, tmpPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		return err
+	}
+
+	err = os.Remove(tmpPath)
+	if err != nil {
 		return err
 	}
 
