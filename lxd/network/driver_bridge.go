@@ -836,7 +836,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			if config["bridge.mode"] == "fan" {
 				if mtu > 1450 {
-					return errors.New("Maximum MTU for a VXLAN FAN bridge is 1450")
+					return errors.New("Maximum MTU for a FAN bridge is 1450")
 				}
 			}
 		}
