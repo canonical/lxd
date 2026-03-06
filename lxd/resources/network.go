@@ -44,8 +44,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	if len(vDPAMatches) > 0 {
 		vdpa := api.ResourcesNetworkCardVDPA{}
 
-		splittedPath := strings.Split(vDPAMatches[0], "/")
-		vdpa.Name = splittedPath[len(splittedPath)-1]
+		vdpa.Name = filepath.Base(vDPAMatches[0])
 		vDPADevMatches, err := filepath.Glob(filepath.Join(vDPAMatches[0], "vhost-vdpa-*"))
 		if err != nil {
 			return fmt.Errorf("Malformed VDPA device name search pattern: %w", err)
@@ -55,8 +54,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 			return fmt.Errorf("Failed to find VDPA device at device path %q", vDPAMatches[0])
 		}
 
-		splittedPath = strings.Split(vDPADevMatches[0], "/")
-		vdpa.Device = splittedPath[len(splittedPath)-1]
+		vdpa.Device = filepath.Base(vDPADevMatches[0])
 
 		// Add the VDPA data to the card
 		card.VDPA = &vdpa
