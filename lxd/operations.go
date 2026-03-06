@@ -364,8 +364,12 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	return response.ForwardedResponse(client)
 }
 
-// operationCancel cancels an operation that exists on any member.
-func operationCancel(ctx context.Context, s *state.State, projectName string, op *api.Operation) error {
+// operationCancelToken cancels a token operation that exists on any member.
+func operationCancelToken(ctx context.Context, s *state.State, projectName string, op *api.Operation) error {
+	if op.Class != api.OperationClassToken {
+		return fmt.Errorf("Expected operation of class %q but received %q", api.OperationClassToken, op.Class)
+	}
+
 	// Check if operation is local and if so, cancel it.
 	localOp, _ := operations.OperationGetInternal(op.ID)
 	if localOp != nil {
@@ -403,7 +407,11 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 		return err
 	}
 
-	client, err := cluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	// When cancelling a token operation we need to pass in a context that DOES NOT contain a requestor.
+	// Tokens are used by untrusted callers for temporary access to LXD to specific endpoints.
+	// The caller does not have permission to actually cancel the operation.
+	// In the case, the cluster is cancelling its own operation because it received a valid token.
+	client, err := cluster.Connect(s.ShutdownCtx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return fmt.Errorf("Failed connecting to %q: %w", memberAddress, err)
 	}
