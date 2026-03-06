@@ -15,6 +15,7 @@ How to configure Auth0 </howto/oidc_auth0>
 How to configure Ory Hydra </howto/oidc_ory>
 How to configure Keycloak </howto/oidc_keycloak>
 How to configure Entra ID </howto/oidc_entra_id>
+How to configure Pocket ID </howto/oidc_pocket_id>
 ```
 
 ## Related topics
