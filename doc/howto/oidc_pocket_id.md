@@ -21,7 +21,7 @@ Pocket ID is a simple, passwordless, self-hosted OIDC provider that allows you t
       - Example: `https://example.com:8443/oidc/callback`
       - An IP address can be used instead of a domain name.
       - Note `:8443` is the default listening port for the LXD server. It might differ for your setup. You can verify the LXD configuration value `core.https_address` to find the correct port for your LXD server.
-      - In the field for {guilabel}`Logout Callback URLs`, enter your LXD UI address, followed by `/oidc/logout`.
+    - In the field for {guilabel}`Logout Callback URLs`, enter your LXD UI address, followed by `/oidc/logout`.
     - Turn on the {guilabel}`Public Client` option.
     - Optionally, to require users to authenticate again on each authorization, turn on the {guilabel}`Requires Re-Authentication` option.
     - Click {guilabel}`Save`.
