@@ -2608,13 +2608,14 @@ func (n *bridge) getTunnels() []string {
 	tunnels := []string{}
 
 	for k := range n.config {
-		if !strings.HasPrefix(k, "tunnel.") {
+		rest, found := strings.CutPrefix(k, "tunnel.")
+		if !found {
 			continue
 		}
 
-		fields := strings.Split(k, ".")
-		if !slices.Contains(tunnels, fields[1]) {
-			tunnels = append(tunnels, fields[1])
+		name, _, _ := strings.Cut(rest, ".")
+		if !slices.Contains(tunnels, name) {
+			tunnels = append(tunnels, name)
 		}
 	}
 
