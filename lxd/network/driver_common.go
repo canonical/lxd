@@ -455,10 +455,10 @@ func (n *common) DHCPv6Ranges() []shared.IPRange {
 	dhcpRanges := make([]shared.IPRange, 0)
 	if n.config["ipv6.dhcp.ranges"] != "" {
 		for r := range strings.SplitSeq(n.config["ipv6.dhcp.ranges"], ",") {
-			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
-			if len(parts) == 2 {
-				startIP := net.ParseIP(parts[0])
-				endIP := net.ParseIP(parts[1])
+			startStr, endStr, found := strings.Cut(strings.TrimSpace(r), "-")
+			if found {
+				startIP := net.ParseIP(startStr)
+				endIP := net.ParseIP(endStr)
 				dhcpRanges = append(dhcpRanges, shared.IPRange{
 					Start: startIP.To16(),
 					End:   endIP.To16(),
