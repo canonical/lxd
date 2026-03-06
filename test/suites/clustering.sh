@@ -4297,21 +4297,22 @@ test_clustering_events() {
     [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "2" ]
   done
 
-  # Switch into event-hub mode.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster role add node2 event-hub
+  # Switch into hub mode by activating control-plane mode.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster role add node2 control-plane
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster role add node3 control-plane
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc event-hub)" = "2" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc control-plane)" = "3" ]
 
   # Check events were distributed.
   for i in 1 2 3; do
-    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "2" ]
+    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "3" ]
   done
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-server"
-  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_FOUR_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_FIVE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
 
@@ -4333,9 +4334,9 @@ test_clustering_events() {
     [ "$(grep -wFc "instance-created" "${TEST_DIR}/node${i}.log")" = "1" ]
   done
 
-  # Switch into full-mesh mode by removing one event-hub role so there is <2 in the cluster.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc event-hub)" = "1" ]
+  # Switch into full-mesh mode by removing one control-plane role so there is <3 in the cluster.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 control-plane
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wFc control-plane)" = "2" ]
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
@@ -4346,7 +4347,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
-    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "3" ]
+    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "4" ]
   done
 
   # Restart instance generating restart lifecycle event.
@@ -4360,15 +4361,20 @@ test_clustering_events() {
     [ "$(grep -wFc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
   done
 
-  # Switch back into event-hub mode by giving the role to node4 and node5.
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster role remove node2 event-hub
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster role add node4 event-hub
-  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster role add node5 event-hub
+  # Switch back into hub mode by reassigning control-plane roles to node3/node4/node5.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster role remove node2 control-plane
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster role add node4 control-plane
+  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster role add node5 control-plane
+
+  # Check events were distributed.
+  for i in 1 2 3; do
+    [ "$(grep -wFc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "7" ]
+  done
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-client"
-  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_FOUR_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_FIVE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
 
@@ -4376,6 +4382,7 @@ test_clustering_events() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls
 
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
 
@@ -4403,8 +4410,6 @@ test_clustering_events() {
   # `No active cluster event listener clients` and `Failed heartbeat`
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c2
-  LXD_DIR="${LXD_THREE_DIR}" lxc delete c3
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
@@ -4442,7 +4447,8 @@ test_clustering_roles() {
   # Spawn a fifth node.
   spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
 
-  # Configure cluster with max_voters=3 and max_standby=1
+  # With 3 database voters and 1 standby, 4 nodes will be given DB roles, so the remaining 5th node remains unassigned (a "spare").
+  # Node5 is intentionally left spare so we can verify it has no database or control-plane roles and test that adding the control-plane role makes it eligible for database roles during rebalance.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.max_voters=3 cluster.max_standby=1 cluster.offline_threshold=11
 
   sleep 12 # Wait a bit for cluster to stabilize.
@@ -4451,6 +4457,7 @@ test_clustering_roles() {
 
   # Get cluster list once and reuse it for all queries.
   cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+  echo "$cluster_list"
 
   # Find a member without database-voter role (to test adding it).
   non_voter_member="$(jq --exit-status --raw-output '[.[] | select(any(.roles[]; contains("database-voter")) | not) | .server_name] | first' <<< "${cluster_list}")"
@@ -4464,45 +4471,161 @@ test_clustering_roles() {
   non_leader_member="$(jq --exit-status --raw-output '[.[] | select(any(.roles[]; contains("database-leader")) | not) | .server_name] | first' <<< "${cluster_list}")"
   echo "Found non-leader member: ${non_leader_member}"
 
-  echo "==> Reject adding automatic role 'database-voter'"
+  sub_test "Role validation"
+  # Reject automatic roles
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${non_voter_member}" database-voter 2>&1)" = 'Error: The automatically assigned "database-voter" role cannot be added manually' ]
 
-  echo "==> Reject adding automatic role 'database-standby'"
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${non_standby_member}" database-standby 2>&1)" = 'Error: The automatically assigned "database-standby" role cannot be added manually' ]
 
-  echo "==> Reject adding automatic role 'database-leader'"
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${non_leader_member}" database-leader 2>&1)" = 'Error: The automatically assigned "database-leader" role cannot be added manually' ]
 
-  echo "==> Reject invalid role name"
+  # Reject invalid role name
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 invalid-role 2>&1)" = 'Error: Invalid cluster role "invalid-role"' ]
 
-  echo "==> Reject typo in role name"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hubb 2>&1)" = 'Error: Invalid cluster role "event-hubb"' ]
+  # Reject typo in role name
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-planee 2>&1)" = 'Error: Invalid cluster role "control-planee"' ]
 
-  echo "==> Reject duplicate roles in request"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub,event-hub 2>&1)" = 'Error: Duplicate role "event-hub" in request' ]
+  # Reject duplicate roles in request
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane,control-plane 2>&1)" = 'Error: Duplicate role "control-plane" in request' ]
 
-  echo "==> Accept valid manual role addition"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub"
+  # Accept valid manual role addition
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane"
 
-  echo "==> Accept adding multiple manual roles"
+  # Accept adding multiple manual roles
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 ovn-chassis
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- ovn-chassis"
 
-  echo "==> Reject adding role member already has"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub 2>&1)" = 'Error: Member "node1" already has role "event-hub"' ]
+  # Reject adding role member already has
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane 2>&1)" = 'Error: Member "node1" already has role "control-plane"' ]
 
-  echo "==> Accept removing manual role"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- event-hub" || false
+  # Accept removing manual role
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 control-plane
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane" || false
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- ovn-chassis"
 
-  echo "==> Reject removing role member does not have"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub 2>&1)" = 'Error: Member "node1" does not have role "event-hub"' ]
+  # Reject removing role member does not have
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 control-plane 2>&1)" = 'Error: Member "node1" does not have role "control-plane"' ]
 
-  echo "==> Cleanup"
+  sub_test "Control plane mode behavior"
+  # Test safe incremental assignment: add control-plane to 2 members (below minimum for control plane mode)
+  # Control plane mode remains inactive until 3 members have the control-plane role
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node2 control-plane
+  sleep 12 # Wait for heartbeat
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+
+  # Control plane mode is inactive (2 < 3), so all members are still eligible for database roles
+  # Verify node4 or node5 (spares without control-plane) can still have database roles
+  jq --exit-status '[.[] | select(.server_name == "node4" or .server_name == "node5") | select(any(.roles[]; test("database-(leader|voter|standby)")))] | length > 0' <<< "${cluster_list}"
+
+  # Activate control plane mode by assigning control-plane role to 3 members
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node3 control-plane
+  sleep 12 # Wait for heartbeat cycle to detect control plane mode becoming active and demote non-control-plane members
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+
+  # Verify control-plane displayed alongside database roles
+  node1_show=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1)
+  grep -xF -- "- control-plane" <<< "${node1_show}"
+  grep -E -- "- database-(leader|voter|standby)" <<< "${node1_show}"
+
+  # node4 and node5 should now be spares (no database roles) since control plane mode is active
+  # Verify node4 and node5 demoted to spares after control plane mode activated
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -E -- "- database-(leader|voter|standby)" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -E -- "- database-(leader|voter|standby)" || false
+
+  # Test adding control-plane role to spare makes it eligible for database roles
+  # Current: 3 control-plane members, max_voters=3, max_standby=1
+  # Control plane mode active, only control-plane members eligible
+  # We have 3 voters and room for 1 standby
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node5 control-plane
+  sleep 12 # Wait for heartbeat to promote node5 to standby
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -xF -- "- control-plane"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -E -- "- database-(leader|voter|standby)"
+  echo "node5 promoted to database role after gaining control-plane"
+
+  # Test removing control-plane role demotes member back to spare
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node5 control-plane
+  sleep 12 # Wait for heartbeat to demote node5
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -xF -- "- control-plane" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -E -- "- database-(leader|voter|standby)" || false
+  echo "node5 demoted to spare after losing control-plane"
+
+  # Test control plane mode becoming inactive when dropping below minimum members
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node3 control-plane
+  sleep 12 # Wait for heartbeat to deactivate control plane mode (2 < 3)
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+
+  jq --exit-status '[.[] | select(any(.roles[]; . == "control-plane"))] | length == 2' <<< "${cluster_list}"
+
+  # Control plane mode is now inactive (2 < 3), so all members are eligible again
+  # Verify at least one of the former spares (node4 or node5) gets promoted
+  sleep 12 # Wait for promotion
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+  jq --exit-status '[.[] | select(.server_name == "node4" or .server_name == "node5") | select(any(.roles[]; test("database-(leader|voter|standby)")))] | length > 0' <<< "${cluster_list}"
+
+  # Verify we still have 3 database voters
+  jq --exit-status '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader")))] | length == 3' <<< "${cluster_list}"
+
+  # Test voter replacement when activating control plane mode
+  # Deactivate control plane mode
+  # Remove remaining control-plane roles to fully deactivate mode
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 control-plane
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node2 control-plane
+  sleep 12
+
+  # Ensure we have two spares available.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.max_standby=0
+  sleep 12
+
+  # Identify current voters and spares
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+  voter1="$(jq -r '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader")))] | .[0].server_name' <<< "${cluster_list}")"
+  voter2="$(jq -r '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader")))] | .[1].server_name' <<< "${cluster_list}")"
+  voter3="$(jq -r '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader")))] | .[2].server_name' <<< "${cluster_list}")"
+  spare1="$(jq -r '[.[] | select(any(.roles[]; contains("database")) | not)] | .[0].server_name' <<< "${cluster_list}")"
+  spare2="$(jq -r '[.[] | select(any(.roles[]; contains("database")) | not)] | .[1].server_name' <<< "${cluster_list}")"
+
+  echo "Current voters: ${voter1}, ${voter2}, ${voter3} (none have control-plane)"
+  echo "Current spares: ${spare1}, ${spare2}"
+  # Verify 2 spares found
+  [ -n "${spare1}" ] && [ -n "${spare2}" ]
+
+  # Assign control-plane to 2 spares + 1 voter to activate control plane mode
+  # voter2 and voter3 lack control-plane when mode activates
+  # Promotes spares first, interleaves demotions and maintains quorum
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${spare1}" control-plane
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${spare2}" control-plane
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${voter1}" control-plane
+  sleep 12
+
+  # Verify voter count during transition
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+  jq --exit-status '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader")))] | length > 0' <<< "${cluster_list}"
+
+  sleep 24
+
+  # Verify all voters now have control-plane role
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
+  jq --exit-status '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader"))) | select(any(.roles[]; . == "control-plane") | not)] | length == 0' <<< "${cluster_list}"
+
+  # Verify non-control-plane members have no database roles
+  jq --exit-status '[.[] | select(any(.roles[]; . == "control-plane") | not) | select(any(.roles[]; test("database-(leader|voter|standby)")))] | length == 0' <<< "${cluster_list}"
+
+  # Cleanup
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown

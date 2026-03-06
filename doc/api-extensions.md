@@ -2980,3 +2980,22 @@ During refresh, the server applies the target instance configuration from the re
 The request payload is treated as the full desired writable target configuration for the refresh update.
 The server does not merge or preserve omitted target keys automatically.
 Clients must include any target values that should remain on the destination after refresh.
+
+(extension-clustering-control-plane)=
+## `clustering_control_plane`
+
+Adds a new `control-plane` cluster member role that can be manually assigned to designate which members participate in Raft consensus. Control plane mode is inactive by default until the number of members assigned the `control-plane` role reaches 3 or more. During this inactive period, all cluster members are eligible for automatic promotion to database roles. Once control plane mode activates, only members with the `control-plane` role are eligible to become voters, standbys, or the database leader. Members without the `control-plane` role are automatically assigned the `RAFT_SPARE` role and are excluded from automatic promotion to database roles, enabling safe scaling of cluster members without affecting quorum.
+
+If fewer than 3 members are assigned the `control-plane` role, all members remain eligible for automatic promotion to database roles, maintaining backwards compatibility with existing cluster behavior.
+
+The `control-plane` role is displayed alongside the database role (`database-leader`, `database-voter`, `database-standby`) for members participating in Raft.
+
+The role also controls internal event routing:
+- When control plane mode is active, members with the `control-plane` role act as event hubs.
+- When control plane mode is inactive, the cluster uses full-mesh event connectivity.
+
+These behaviors are applied asynchronously on heartbeat. Role changes are detected on the next heartbeat cycle, and control-plane mode activation or deactivation triggers automatic role rebalancing.
+
+The `event-hub` role is deprecated in favor of the functionally equivalent `control-plane` role.
+
+For more information, see {ref}`dqlite-internals-lxd-cluster-roles` and {ref}`cluster-manage-control-plane`.

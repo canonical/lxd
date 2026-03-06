@@ -479,6 +479,7 @@ var APIExtensions = []string{
 	"project_delete_operation",
 	"gpu_cdi_amd",
 	"instance_refresh_config",
+	"clustering_control_plane",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
