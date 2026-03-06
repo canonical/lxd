@@ -5,12 +5,11 @@ relatedlinks: "[LXD's&#32;S3&#32;API&#32;-&#32;YouTube](https://youtube.com/watc
 (howto-storage-buckets)=
 # How to manage storage buckets
 
-{ref}`storage-buckets` let you store and manage object-based data using either local or distributed storage.
+{ref}`storage-buckets` let you store and manage object-based data using non-local object storage.
 
 Unlike custom storage volumes, storage buckets cannot be attached to instances. Instead, applications access them directly via a URL using the S3 protocol.
 
-- For local buckets, the LXD server provides the S3-compatible URL via its {ref}`S3 address setting <howto-storage-buckets-create-requirements-local-s3>`.
-- For distributed buckets, a {ref}`Ceph RADOS Gateway endpoint <howto-storage-pools-ceph-requirements-radosgw-endpoint>` provides the S3-compatible URL.
+- A {ref}`Ceph RADOS Gateway endpoint <howto-storage-pools-ceph-requirements-radosgw-endpoint>` provides the S3-compatible URL.
 
 (howto-storage-buckets-view)=
 ## View storage buckets
@@ -44,14 +43,7 @@ Select {guilabel}`Buckets` from the {guilabel}`Storage` section of the main navi
 (howto-storage-buckets-create-requirements)=
 ### Requirements
 
-Storage buckets can only be created in storage pools that use a driver capable of **object storage**. View the {ref}`storage-buckets` reference guide's {ref}`storage-drivers-features` table to see which drivers support object storage.
-
-Other requirements must be met before you can create a storage bucket, depending on whether you want to create a distributed or local storage bucket.
-
-(howto-storage-buckets-create-requirements-distributed)=
-#### Distributed storage buckets
-
-To create a distributed storage bucket, your LXD server must have access to a {ref}`Ceph Object <storage-cephobject>` storage pool.
+Your LXD server must have access to a {ref}`Ceph Object <storage-cephobject>` storage pool.
 
 `````{tabs}
 ````{group-tab} CLI
@@ -83,69 +75,16 @@ Finally, click {guilabel}`Create bucket`.
 ````
 `````
 
-(howto-storage-buckets-create-requirements-local)=
-#### Local storage buckets
-
-(howto-storage-buckets-create-requirements-local-minio)=
-##### MinIO
-
-LXD uses [MinIO](https://www.min.io/) to set up local storage buckets. To use this feature with LXD, you must install both the server and client binaries.
-
-- MinIO Server:
-   - Source:
-      - [MinIO Server on GitHub](https://github.com/minio/minio)
-   - Direct download for various architectures:
-      - [MinIO Server pre-built for `amd64`](https://dl.min.io/server/minio/release/linux-amd64/minio)
-      - [MinIO Server pre-built for `arm64`](https://dl.min.io/server/minio/release/linux-arm64/minio)
-      - [MinIO Server pre-built for `arm`](https://dl.min.io/server/minio/release/linux-arm/minio)
-      - [MinIO Server pre-built for `ppc64le`](https://dl.min.io/server/minio/release/linux-ppc64le/minio)
-      - [MinIO Server pre-built for `s390x`](https://dl.min.io/server/minio/release/linux-s390x/minio)
-
-- MinIO Client:
-   - Source:
-      - [MinIO Client on GitHub](https://github.com/minio/mc)
-   - Direct download for various architectures:
-      - [MinIO Client pre-built for `amd64`](https://dl.min.io/client/mc/release/linux-amd64/mc)
-      - [MinIO Client pre-built for `arm64`](https://dl.min.io/client/mc/release/linux-arm64/mc)
-      - [MinIO Client pre-built for `arm`](https://dl.min.io/client/mc/release/linux-arm/mc)
-      - [MinIO Client pre-built for `ppc64le`](https://dl.min.io/client/mc/release/linux-ppc64le/mc)
-      - [MinIO Client pre-built for `s390x`](https://dl.min.io/client/mc/release/linux-s390x/mc)
-
-If LXD is installed from a Snap, you must configure the snap environment to detect the binaries, and restart LXD.
-Note that the path to the directory containing the binaries must not be under the home directory of any user.
-
-```bash
-snap set lxd minio.path=/path/to/directory/containing/both/binaries
-snap restart lxd
-```
-
-If LXD is installed from another source, both binaries must be included in the `$PATH` that LXD was started with.
-
-(howto-storage-buckets-create-requirements-local-s3)=
-##### Configure the S3 address
-
-Storage buckets provide access to object storage exposed using the S3 protocol.
-
-If you want to use storage buckets on local storage (thus in a `dir`, `btrfs`, `lvm`, or `zfs` pool), you must configure the S3 address for your LXD server.
-This is the address that you can then use to access the buckets through the S3 protocol.
-
-To configure the S3 address, set the {config:option}`server-core:core.storage_buckets_address` server configuration option.
-For example:
-
-```bash
-lxc config set core.storage_buckets_address :8555
-```
-
 (howto-storage-buckets-create-single)=
 ### Create a bucket on a single, non-clustered LXD server
 
-To create a local or distributed storage bucket on a non-clustered LXD server, run:
+To create a storage bucket on a non-clustered LXD server, run:
 
 ```bash
 lxc storage bucket create <pool-name> <bucket-name> [configuration_options...]
 ```
 
-See the {ref}`storage-drivers` documentation for a list of available storage bucket configuration options for each driver that supports object storage.
+See the {ref}`Ceph Object <storage-cephobject>` documentation for a list of available storage bucket configuration options for the driver.
 
 (howto-storage-buckets-create-cluster)=
 ### Create a bucket on a cluster member
@@ -158,18 +97,10 @@ Storage buckets created in `cephobject` storage pools are available from any LXD
 lxc storage bucket create <pool-name> <bucket-name> [configuration_options...]
 ```
 
-#### Local storage buckets
-
-For local storage drivers, storage buckets are not replicated across the cluster and exist only on the member for which they were created. To create a storage bucket on a cluster member, add the `--target` flag:
-
-```bash
-lxc storage bucket create <pool-name> <bucket-name> --target=<cluster-member> [configuration_options...]
-```
-
 (howto-storage-buckets-configure)=
 ## Configure storage bucket settings
 
-See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver that supports object storage.
+See the {ref}`Ceph Object <storage-cephobject>` documentation for a list of available storage bucket configuration options for the driver.
 
 `````{tabs}
 ````{group-tab} CLI

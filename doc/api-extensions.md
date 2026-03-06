@@ -2027,10 +2027,6 @@ This also introduces a change whereby network access is controlled by the projec
 * If `restricted.devices.nic` is set to `allow`, all networks are accessible (dependent on the `restricted.networks.access` setting).
 * If `restricted.devices.nic` is set to `block`, no networks are accessible.
 
-## `storage_buckets_local`
-
-This introduces the ability to use storage buckets on local storage pools by setting the new {config:option}`server-core:core.storage_buckets_address` global configuration setting.
-
 ## `loki`
 
 This adds support for sending life cycle and logging events to a Loki server.

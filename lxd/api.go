@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -16,13 +13,10 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/bearer"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
-	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	storagePools "github.com/canonical/lxd/lxd/storage"
-	"github.com/canonical/lxd/lxd/storage/s3"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -285,147 +279,6 @@ func metricsServer(d *Daemon) *http.Server {
 	})
 
 	return &http.Server{Handler: &lxdHTTPServer{r: mux, d: d}}
-}
-
-func storageBucketsServer(d *Daemon) *http.Server {
-	/* Setup the web server */
-	m := mux.NewRouter()
-	m.StrictSlash(false)
-	m.SkipClean(true)
-
-	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Wait until daemon is fully started.
-		<-d.waitReady.Done()
-
-		s := d.State()
-
-		// Check if request contains an access key, and if so try and route it to the associated bucket.
-		accessKey := s3.AuthorizationHeaderAccessKey(r.Header.Get("Authorization"))
-		if accessKey != "" {
-			// Lookup access key to ascertain if it maps to a bucket.
-			var err error
-			var bucket *db.StorageBucket
-			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				bucket, err = tx.GetStoragePoolLocalBucketByAccessKey(ctx, accessKey)
-				return err
-			})
-			if err != nil {
-				if api.StatusErrorCheck(err, http.StatusNotFound) {
-					errResult := s3.Error{Code: s3.ErrorCodeInvalidAccessKeyID}
-					errResult.Response(w)
-
-					return
-				}
-
-				errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
-				errResult.Response(w)
-
-				return
-			}
-
-			pool, err := storagePools.LoadByName(s, bucket.PoolName)
-			if err != nil {
-				errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
-				errResult.Response(w)
-
-				return
-			}
-
-			minioProc, err := pool.ActivateBucket(bucket.Project, bucket.Name, nil)
-			if err != nil {
-				errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
-				errResult.Response(w)
-
-				return
-			}
-
-			u := minioProc.URL()
-
-			rproxy := httputil.NewSingleHostReverseProxy(&u)
-			rproxy.ServeHTTP(w, r)
-
-			return
-		}
-
-		// Otherwise treat request as anonymous.
-		listResult := s3.ListAllMyBucketsResult{Owner: s3.Owner{ID: "anonymous"}}
-		listResult.Response(w)
-	})
-
-	// We use the NotFoundHandler to reverse proxy requests to dynamically started local MinIO processes.
-	m.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Wait until daemon is fully started.
-		<-d.waitReady.Done()
-
-		s := d.State()
-
-		reqURL, err := url.Parse(r.RequestURI)
-		if err != nil {
-			errResult := s3.Error{Code: s3.ErrorInvalidRequest, Message: err.Error()}
-			errResult.Response(w)
-
-			return
-		}
-
-		pathParts := strings.Split(reqURL.Path, "/")
-		if len(pathParts) < 2 {
-			errResult := s3.Error{Code: s3.ErrorInvalidRequest, Message: "Bucket name not specified"}
-			errResult.Response(w)
-
-			return
-		}
-
-		bucketName, err := url.PathUnescape(pathParts[1])
-		if err != nil {
-			errResult := s3.Error{Code: s3.ErrorCodeNoSuchBucket, BucketName: pathParts[1]}
-			errResult.Response(w)
-
-			return
-		}
-
-		// Lookup bucket.
-		var bucket *db.StorageBucket
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			bucket, err = tx.GetStoragePoolLocalBucket(ctx, bucketName)
-			return err
-		})
-		if err != nil {
-			if api.StatusErrorCheck(err, http.StatusNotFound) {
-				errResult := s3.Error{Code: s3.ErrorCodeNoSuchBucket, BucketName: bucketName}
-				errResult.Response(w)
-
-				return
-			}
-
-			errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error(), BucketName: bucketName}
-			errResult.Response(w)
-
-			return
-		}
-
-		pool, err := storagePools.LoadByName(s, bucket.PoolName)
-		if err != nil {
-			errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
-			errResult.Response(w)
-
-			return
-		}
-
-		minioProc, err := pool.ActivateBucket(bucket.Project, bucket.Name, nil)
-		if err != nil {
-			errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
-			errResult.Response(w)
-
-			return
-		}
-
-		u := minioProc.URL()
-
-		rproxy := httputil.NewSingleHostReverseProxy(&u)
-		rproxy.ServeHTTP(w, r)
-	})
-
-	return &http.Server{Handler: &lxdHTTPServer{r: m, d: d}}
 }
 
 type lxdHTTPServer struct {

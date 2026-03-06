@@ -158,51 +158,16 @@ create_object_storage_pool() {
     exit 1
   fi
 
-  # Check cephobject.radosgw.endpoint is required for cephobject pools.
-  if [ "${lxd_backend}" = "ceph" ]; then
-    lxc storage create "${poolName}" cephobject cephobject.radosgw.endpoint="${LXD_CEPH_CEPHOBJECT_RADOSGW}"
-  else
-
-    # Create a loop device for dir pools as MinIO doesn't support running on tmpfs (which the test suite can do).
-    # This is because tmpfs does not support O_direct which MinIO requires. This landed in kernel 6.6 (https://kernelnewbies.org/Linux_6.6#TMPFS).
-    if [ "${lxd_backend}" = "dir" ]; then
-      mkdir -p "${TEST_DIR}/s3/${poolName}"
-      configure_loop_device loop_file_1 loop_device_1
-      # shellcheck disable=SC2154
-      mkfs.ext4 -E assume_storage_prezeroed=1 -m0 "${loop_device_1}"
-      mount "${loop_device_1}" "${TEST_DIR}/s3/${poolName}"
-      mkdir "${TEST_DIR}/s3/${poolName}/objects"
-      lxc storage create "${poolName}" dir source="${TEST_DIR}/s3/${poolName}/objects"
-      # shellcheck disable=SC2154
-      echo "${loop_device_1}" > "${TEST_DIR}/s3/${poolName}/dev"
-      # shellcheck disable=SC2154
-      echo "${loop_file_1}" > "${TEST_DIR}/s3/${poolName}/file"
-    else
-      lxc storage create "${poolName}" "${lxd_backend}"
-    fi
-
-    buckets_addr="127.0.0.1:$(local_tcp_port)"
-    lxc config set core.storage_buckets_address "${buckets_addr}"
+  if [ "${lxd_backend}" != "ceph" ]; then
+    echo "Object storage pools require the ceph (cephobject) backend"
+    exit 1
   fi
+
+  lxc storage create "${poolName}" cephobject cephobject.radosgw.endpoint="${LXD_CEPH_CEPHOBJECT_RADOSGW}"
 }
 
 delete_object_storage_pool() {
   poolName="${1}"
-  lxd_backend=$(storage_backend "$LXD_DIR")
 
   lxc storage delete "${poolName}"
-
-  if [ "${lxd_backend}" != "ceph" ]; then
-    lxc config unset core.storage_buckets_address
-  fi
-
-  if [ "$lxd_backend" = "dir" ]; then
-    loop_file="$(< "${TEST_DIR}/s3/${poolName}/file")"
-    loop_device="$(< "${TEST_DIR}/s3/${poolName}/dev")"
-    umount "${TEST_DIR}/s3/${poolName}"
-    rmdir "${TEST_DIR}/s3/${poolName}"
-
-    # shellcheck disable=SC2154
-    deconfigure_loop_device "${loop_file}" "${loop_device}"
-  fi
 }

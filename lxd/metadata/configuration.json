@@ -5377,14 +5377,6 @@
 						}
 					},
 					{
-						"core.storage_buckets_address": {
-							"longdesc": "See {ref}`howto-storage-buckets`.",
-							"scope": "local",
-							"shortdesc": "Address to bind the storage object server to (HTTPS)",
-							"type": "string"
-						}
-					},
-					{
 						"core.syslog_socket": {
 							"defaultdesc": "`false`",
 							"longdesc": "Set this option to `true` to enable the syslog unixgram socket to receive log messages from external processes.",
@@ -5943,20 +5935,6 @@
 			}
 		},
 		"storage-btrfs": {
-			"bucket-conf": {
-				"keys": [
-					{
-						"size": {
-							"condition": "appropriate driver",
-							"defaultdesc": "same as `volume.size`",
-							"longdesc": "",
-							"scope": "local",
-							"shortdesc": "Size/quota of the storage bucket",
-							"type": "string"
-						}
-					}
-				]
-			},
 			"pool-conf": {
 				"keys": [
 					{
@@ -6769,20 +6747,6 @@
 			}
 		},
 		"storage-lvm": {
-			"bucket-conf": {
-				"keys": [
-					{
-						"size": {
-							"condition": "appropriate driver",
-							"defaultdesc": "same as `volume.size`",
-							"longdesc": "",
-							"scope": "local",
-							"shortdesc": "Size/quota of the storage bucket",
-							"type": "string"
-						}
-					}
-				]
-			},
 			"pool-conf": {
 				"keys": [
 					{
@@ -7472,20 +7436,6 @@
 			}
 		},
 		"storage-zfs": {
-			"bucket-conf": {
-				"keys": [
-					{
-						"size": {
-							"condition": "appropriate driver",
-							"defaultdesc": "same as `volume.size`",
-							"longdesc": "",
-							"scope": "local",
-							"shortdesc": "Size/quota of the storage bucket",
-							"type": "string"
-						}
-					}
-				]
-			},
 			"pool-conf": {
 				"keys": [
 					{

@@ -184,7 +184,7 @@ Instead, applications can access a storage bucket directly using its URL.
 
 Each storage bucket is assigned one or more access keys, which the applications must use to access it.
 
-Storage buckets can be located on local storage (with `dir`, `btrfs`, `lvm` or `zfs` pools) or on distributed storage (with {ref}`Ceph Object <storage-cephobject>` pools). For Ceph Object storage buckets, the {ref}`RADOS Gateway <howto-storage-pools-ceph-requirements-radosgw>` configured on the Ceph cluster acts as an S3 interface.
+Storage buckets must be located on distributed storage (with {ref}`Ceph Object <storage-cephobject>` pools). For Ceph Object storage buckets, the {ref}`RADOS Gateway <howto-storage-pools-ceph-requirements-radosgw>` configured on the Ceph cluster acts as an S3 interface.
 
 See the following how-to guide for additional information:
 

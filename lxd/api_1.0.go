@@ -1182,14 +1182,6 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		}
 	}
 
-	value, ok = nodeChanged["core.storage_buckets_address"]
-	if ok {
-		err := s.Endpoints.StorageBucketsUpdateAddress(value, s.Endpoints.NetworkCert())
-		if err != nil {
-			return err
-		}
-	}
-
 	value, ok = nodeChanged["storage.backups_volume"]
 	if ok {
 		oldValue := oldNodeConfig["storage.backups_volume"]

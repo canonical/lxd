@@ -538,22 +538,6 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 				revert.Add(cleanup)
 			}
-
-			// Recover unknown buckets.
-			for _, poolVol := range poolVols {
-				// Skip non bucket volumes.
-				if poolVol.Bucket == nil {
-					continue
-				}
-
-				// Import bucket.
-				cleanup, err := pool.ImportBucket(projectName, poolVol, nil)
-				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed importing bucket %q in project %q: %w", poolVol.Bucket.Name, projectName, err))
-				}
-
-				revert.Add(cleanup)
-			}
 		}
 	}
 
