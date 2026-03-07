@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxc/config"
-	"github.com/canonical/lxd/shared"
 )
 
 var numberedArgRegex = regexp.MustCompile(`@ARG(\d+)@`)
@@ -199,11 +199,10 @@ func execIfAliases() error {
 
 	// Load the configuration
 	var conf *config.Config
-	var err error
-	if shared.PathExists(confPath) {
-		conf, err = config.LoadConfig(confPath)
-		if err != nil {
-			return nil
+	conf, err := config.LoadConfig(confPath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
 		}
 	} else {
 		conf = config.NewConfig(filepath.Dir(confPath), true)
