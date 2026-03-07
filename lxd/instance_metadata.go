@@ -613,11 +613,9 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	templatesPath := c.TemplatesPath()
-	if !shared.PathExists(templatesPath) {
-		err := os.MkdirAll(templatesPath, 0711)
-		if err != nil {
-			return response.SmartError(err)
-		}
+	err = os.MkdirAll(templatesPath, 0711)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Check if the template already exists
