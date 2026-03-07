@@ -219,19 +219,12 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	// Read the existing data.
 	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
 	metadata := api.ImageMetadata{}
-	if shared.PathExists(metadataPath) {
-		metadataFile, err := os.Open(metadataPath)
-		if err != nil {
-			return response.InternalError(err)
-		}
+	data, err := os.ReadFile(metadataPath)
+	if err != nil && !os.IsNotExist(err) {
+		return response.InternalError(err)
+	}
 
-		defer func() { _ = metadataFile.Close() }()
-
-		data, err := io.ReadAll(metadataFile)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
+	if len(data) > 0 {
 		// Parse into the API struct
 		err = yaml.Unmarshal(data, &metadata)
 		if err != nil {
