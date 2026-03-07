@@ -2314,16 +2314,14 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 				Type:     newImage.Type,
 			}
 
-			if shared.PathExists(imageRootfsPath) {
-				rootfsFile, err := os.Open(imageRootfsPath)
-				if err != nil {
-					return err
-				}
-
+			rootfsFile, err := os.Open(imageRootfsPath)
+			if err == nil {
 				defer func() { _ = rootfsFile.Close() }()
 
 				createArgs.RootfsFile = rootfsFile
 				createArgs.RootfsName = filepath.Base(rootfsFile.Name())
+			} else if !os.IsNotExist(err) {
+				return err
 			}
 
 			image := api.ImagesPost{
