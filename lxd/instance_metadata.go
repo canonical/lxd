@@ -735,13 +735,13 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 		return response.SmartError(err)
 	}
 
-	if !shared.PathExists(templatePath) {
-		return response.NotFound(fmt.Errorf("Template %q not found", templateName))
-	}
-
 	// Delete the template
 	err = os.Remove(templatePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return response.NotFound(fmt.Errorf("Template %q not found", templateName))
+		}
+
 		return response.InternalError(err)
 	}
 
