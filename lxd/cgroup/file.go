@@ -3,7 +3,6 @@ package cgroup
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/canonical/lxd/shared"
@@ -73,11 +72,25 @@ type fileReadWriter struct {
 	paths map[string]string
 }
 
+// path returns the full path for a cgroup key under the given controller.
+func (rw *fileReadWriter) path(controller string, key string) (string, error) {
+	base := rw.paths[controller]
+	if cgLayout == CgroupsUnified {
+		base = rw.paths["unified"]
+	}
+
+	if base == "" {
+		return "", ErrControllerMissing
+	}
+
+	return base + "/" + key, nil
+}
+
 // Get returns the value of a cgroup key for a specific controller.
 func (rw *fileReadWriter) Get(version Backend, controller string, key string) (string, error) {
-	path := filepath.Join(rw.paths[controller], key)
-	if cgLayout == CgroupsUnified {
-		path = filepath.Join(rw.paths["unified"], key)
+	path, err := rw.path(controller, key)
+	if err != nil {
+		return "", err
 	}
 
 	value, err := os.ReadFile(path)
@@ -90,9 +103,9 @@ func (rw *fileReadWriter) Get(version Backend, controller string, key string) (s
 
 // Set applies the given value to a cgroup key for a specific controller.
 func (rw *fileReadWriter) Set(version Backend, controller string, key string, value string) error {
-	path := filepath.Join(rw.paths[controller], key)
-	if cgLayout == CgroupsUnified {
-		path = filepath.Join(rw.paths["unified"], key)
+	path, err := rw.path(controller, key)
+	if err != nil {
+		return err
 	}
 
 	return os.WriteFile(path, []byte(value), 0600)
