@@ -458,13 +458,14 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	if templateName == "" {
 		templates := []string{}
 		templatesPath := c.TemplatesPath()
-		if !shared.PathExists(templatesPath) {
-			return response.SyncResponse(true, templates)
-		}
 
 		// List templates
 		entries, err := os.ReadDir(templatesPath)
 		if err != nil {
+			if os.IsNotExist(err) {
+				return response.SyncResponse(true, templates)
+			}
+
 			return response.InternalError(err)
 		}
 
@@ -483,14 +484,14 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 		return response.SmartError(err)
 	}
 
-	if !shared.PathExists(templatePath) {
-		return response.NotFound(fmt.Errorf("Template %q not found", templateName))
-	}
-
 	// Create a temporary file with the template content (since the container
 	// storage might not be available when the file is read from FileResponse)
 	template, err := os.Open(templatePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return response.NotFound(fmt.Errorf("Template %q not found", templateName))
+		}
+
 		return response.SmartError(err)
 	}
 
