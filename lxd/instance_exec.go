@@ -637,7 +637,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			instPID := inst.InitPID()
 			for k, v := range extraPaths {
 				if shared.PathExists(fmt.Sprintf("/proc/%d/root%s", instPID, k)) {
-					post.Environment["PATH"] = fmt.Sprintf("%s:%s", post.Environment["PATH"], v)
+					post.Environment["PATH"] = post.Environment["PATH"] + ":" + v
 				}
 			}
 		}
@@ -711,6 +711,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		metadata := shared.Jmap{}
+		instName := inst.Name()
+		opID := op.ID()
 
 		var err error
 		var stdout, stderr *os.File
@@ -724,14 +726,16 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Prepare stdout and stderr recording.
-			stdout, err = os.OpenFile(filepath.Join(execOutputDir, fmt.Sprintf("exec_%s.stdout", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stdoutFile := "exec_" + opID + ".stdout"
+			stdout, err = os.OpenFile(filepath.Join(execOutputDir, stdoutFile), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
 
 			defer func() { _ = stdout.Close() }()
 
-			stderr, err = os.OpenFile(filepath.Join(execOutputDir, fmt.Sprintf("exec_%s.stderr", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stderrFile := "exec_" + opID + ".stderr"
+			stderr, err = os.OpenFile(filepath.Join(execOutputDir, stderrFile), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
@@ -740,8 +744,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 
 			// Update metadata with the right URLs.
 			metadata["output"] = shared.Jmap{
-				"1": api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "logs", "exec-output", filepath.Base(stdout.Name())).String(),
-				"2": api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "logs", "exec-output", filepath.Base(stderr.Name())).String(),
+				"1": api.NewURL().Path(version.APIVersion, "instances", instName, "logs", "exec-output", stdoutFile).String(),
+				"2": api.NewURL().Path(version.APIVersion, "instances", instName, "logs", "exec-output", stderrFile).String(),
 			}
 		}
 
@@ -751,7 +755,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "PID": cmd.PID(), "recordOutput": post.RecordOutput})
+		l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": instName, "PID": cmd.PID(), "recordOutput": post.RecordOutput})
 		l.Debug("Instance process started")
 
 		exitStatus, cmdErr := cmd.Wait()
