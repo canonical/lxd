@@ -2,11 +2,11 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"os"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -38,11 +38,9 @@ func loadInfo(database *db.Node) (*db.RaftNode, error) {
 
 	// Data directory
 	dir := database.DqliteDir()
-	if !shared.PathExists(dir) {
-		err := os.Mkdir(dir, 0750)
-		if err != nil {
-			return nil, err
-		}
+	err = os.Mkdir(dir, 0750)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return nil, err
 	}
 
 	return info, nil
