@@ -2614,15 +2614,14 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 	}
 
 	// Create isos directory if needed.
-	if !shared.PathExists(shared.VarPath("isos")) {
-		err := os.MkdirAll(shared.VarPath("isos"), 0644)
-		if err != nil {
-			return response.InternalError(err)
-		}
+	isosPath := shared.VarPath("isos")
+	err := os.MkdirAll(isosPath, 0711)
+	if err != nil {
+		return response.InternalError(err)
 	}
 
 	// Create temporary file to store uploaded ISO data.
-	isoFile, err := os.CreateTemp(shared.VarPath("isos"), "lxd_iso_")
+	isoFile, err := os.CreateTemp(isosPath, "lxd_iso_")
 	if err != nil {
 		return response.InternalError(err)
 	}
