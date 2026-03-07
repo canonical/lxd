@@ -3177,20 +3177,15 @@ func doImageDelete(isClusterNotification bool, opCreator operations.OperationSch
 func imageDeleteFromDisk(daemonStorageVolume string, fingerprint string) error {
 	// Remove main image file.
 	fname := filepath.Join(daemonStoragePath(daemonStorageVolume, config.DaemonStorageTypeImages), fingerprint)
-	if shared.PathExists(fname) {
-		err := os.Remove(fname)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Error deleting image file %s: %s", fname, err)
-		}
+	err := os.Remove(fname)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed deleting image file %q: %w", fname, err)
 	}
 
 	// Remove the rootfs file for the image.
-	fname = fname + ".rootfs"
-	if shared.PathExists(fname) {
-		err := os.Remove(fname)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Error deleting image file %s: %s", fname, err)
-		}
+	err = os.Remove(fname + ".rootfs")
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed deleting image file %q: %w", fname+".rootfs", err)
 	}
 
 	return nil
