@@ -22,11 +22,9 @@ func StartSyslogListener(ctx context.Context, eventServer *events.Server) error 
 
 	sockFile := shared.VarPath("syslog.socket")
 
-	if shared.PathExists(sockFile) {
-		err := os.Remove(sockFile)
-		if err != nil {
-			return fmt.Errorf("Failed deleting stale syslog.socket: %w", err)
-		}
+	err := os.Remove(sockFile)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed deleting stale syslog.socket: %w", err)
 	}
 
 	conn, err := listenConfig.ListenPacket(ctx, "unixgram", sockFile)
