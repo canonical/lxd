@@ -449,17 +449,20 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	// Create the target path if needed.
 	backupsPathBase := s.BackupsStoragePath(projectName)
 
-	backupsPath := filepath.Join(backupsPathBase, "custom", pool.Name(), project.StorageVolume(projectName, volumeName))
-	if !shared.PathExists(backupsPath) {
-		err := os.MkdirAll(backupsPath, 0700)
-		if err != nil {
-			return err
-		}
+	backupsPath := filepath.Join(backupsPathBase, "custom", poolName, project.StorageVolume(projectName, volumeName))
+	err = os.MkdirAll(filepath.Dir(backupsPath), 0700)
+	if err != nil {
+		return err
+	}
 
+	err = os.Mkdir(backupsPath, 0700)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		return err
+	} else if err == nil {
 		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
-	target := filepath.Join(backupsPathBase, "custom", pool.Name(), project.StorageVolume(projectName, backupRow.Name))
+	target := filepath.Join(backupsPathBase, "custom", poolName, project.StorageVolume(projectName, backupRow.Name))
 
 	// Setup the tarball writer.
 	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})
