@@ -113,11 +113,9 @@ func (b *InstanceBackup) Delete() error {
 	backupPath := filepath.Join(backupsPathBase, "instances", project.Instance(b.instance.Project().Name, b.name))
 
 	// Delete the on-disk data.
-	if shared.PathExists(backupPath) {
-		err := os.RemoveAll(backupPath)
-		if err != nil {
-			return err
-		}
+	err := os.RemoveAll(backupPath)
+	if err != nil {
+		return err
 	}
 
 	// Check if we can remove the instance directory.
@@ -131,7 +129,7 @@ func (b *InstanceBackup) Delete() error {
 	}
 
 	// Remove the database record.
-	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.DeleteInstanceBackup(ctx, b.name)
 	})
 	if err != nil {
