@@ -61,15 +61,13 @@ func (b *VolumeBackup) Rename(newName string) error {
 	defer revert.Fail()
 
 	// Create the new backup path if doesn't exist.
-	if !shared.PathExists(newParentBackupsPath) {
-		err := os.MkdirAll(newParentBackupsPath, 0700)
-		if err != nil {
-			return err
-		}
+	err := os.MkdirAll(newParentBackupsPath, 0700)
+	if err != nil {
+		return err
 	}
 
 	// Rename the backup directory.
-	err := os.Rename(oldBackupPath, newBackupPath)
+	err = os.Rename(oldBackupPath, newBackupPath)
 	if err != nil {
 		return err
 	}
