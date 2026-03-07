@@ -82,11 +82,7 @@ func (c *cmdForkstart) run(cmd *cobra.Command, args []string) error {
 
 	// Redirect stdout and stderr to a log file
 	logPath := shared.LogPath(name, "forkstart.log")
-	if shared.PathExists(logPath) {
-		_ = os.Remove(logPath)
-	}
-
-	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
+	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_SYNC, 0644)
 	if err == nil {
 		_ = unix.Dup3(int(logFile.Fd()), 1, 0)
 		_ = unix.Dup3(int(logFile.Fd()), 2, 0)
