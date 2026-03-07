@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"os/user"
 	"path"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -204,8 +203,8 @@ func execIfAliases() error {
 		if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
-	} else {
-		conf = config.NewConfig(filepath.Dir(confPath), true)
+
+		conf = config.NewConfig(configDir, true)
 	}
 
 	// Expand the aliases
