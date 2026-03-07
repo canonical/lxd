@@ -60,7 +60,7 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 
 	// Check if either the local database files exists.
 	path := d.os.LocalDatabasePath()
-	if !shared.PathExists(d.os.LocalDatabasePath()) {
+	if !shared.PathExists(path) {
 		logger.Debug("No local database, so no need to start the daemon now")
 		return nil
 	}
