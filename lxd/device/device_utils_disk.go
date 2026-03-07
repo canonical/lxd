@@ -103,7 +103,7 @@ func DiskMountClear(mntPath string) error {
 		}
 
 		err := os.Remove(mntPath)
-		if err != nil {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("Failed removing %q: %w", mntPath, err)
 		}
 	}
