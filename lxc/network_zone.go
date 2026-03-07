@@ -73,12 +73,23 @@ func (c *cmdNetworkZone) command() *cobra.Command {
 }
 
 // List.
+// networkZoneColumn represents a column in the network zone list output.
 type cmdNetworkZoneList struct {
 	global      *cmdGlobal
 	networkZone *cmdNetworkZone
 
 	flagFormat      string
+	flagColumns     string
 	flagAllProjects bool
+}
+
+// columns returns the ordered column definitions for network zone list.
+func (c *cmdNetworkZoneList) columns() []cli.ShorthandColumn[api.NetworkZone] {
+	return []cli.ShorthandColumn[api.NetworkZone]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+	}
 }
 
 func (c *cmdNetworkZoneList) command() *cobra.Command {
@@ -90,6 +101,7 @@ func (c *cmdNetworkZoneList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display network zones from all projects")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -141,35 +153,43 @@ func (c *cmdNetworkZoneList) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	data := [][]string{}
-	for _, zone := range zones {
-		strUsedBy := strconv.Itoa(len(zone.UsedBy))
-		details := []string{
-			zone.Name,
-			zone.Description,
-			strUsedBy,
-		}
-
-		if c.flagAllProjects {
-			details = append([]string{zone.Project}, details...)
-		}
-
-		data = append(data, details)
-	}
-
-	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"DESCRIPTION",
-		"USED BY",
-	}
-
+	// Parse column flags.
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
 	if c.flagAllProjects {
-		header = append([]string{"PROJECT"}, header...)
+		projectCol := cli.ShorthandColumn[api.NetworkZone]{Shorthand: 'e', Name: "PROJECT", Data: c.projectColumnData}
+		cols = append([]cli.ShorthandColumn[api.NetworkZone]{projectCol}, cols...)
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = cli.DefaultColumnString(cols)
+		}
 	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
+	if err != nil {
+		return err
+	}
+
+	data := cli.ColumnData(columns, zones)
+	sort.Sort(cli.SortColumnsNaturally(data))
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, zones)
+}
+
+func (c *cmdNetworkZoneList) projectColumnData(zone api.NetworkZone) string {
+	return zone.Project
+}
+
+func (c *cmdNetworkZoneList) nameColumnData(zone api.NetworkZone) string {
+	return zone.Name
+}
+
+func (c *cmdNetworkZoneList) descriptionColumnData(zone api.NetworkZone) string {
+	return zone.Description
+}
+
+func (c *cmdNetworkZoneList) usedByColumnData(zone api.NetworkZone) string {
+	return strconv.Itoa(len(zone.UsedBy))
 }
 
 // Show.
@@ -767,12 +787,23 @@ func (c *cmdNetworkZoneRecord) command() *cobra.Command {
 	return cmd
 }
 
+// networkZoneRecordColumn represents a column in the network zone record list output.
 // List.
 type cmdNetworkZoneRecordList struct {
 	global            *cmdGlobal
 	networkZoneRecord *cmdNetworkZoneRecord
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
+}
+
+// columns returns the ordered column definitions for network zone record list.
+func (c *cmdNetworkZoneRecordList) columns() []cli.ShorthandColumn[api.NetworkZoneRecord] {
+	return []cli.ShorthandColumn[api.NetworkZoneRecord]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'e', Name: "ENTRIES", Data: c.entriesColumnData},
+	}
 }
 
 func (c *cmdNetworkZoneRecordList) command() *cobra.Command {
@@ -784,6 +815,7 @@ func (c *cmdNetworkZoneRecordList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -820,32 +852,34 @@ func (c *cmdNetworkZoneRecordList) run(cmd *cobra.Command, args []string) error 
 		return err
 	}
 
-	data := [][]string{}
-	for _, record := range records {
-		entries := []string{}
-
-		for _, entry := range record.Entries {
-			entries = append(entries, entry.Type+" "+entry.Value)
-		}
-
-		details := []string{
-			record.Name,
-			record.Description,
-			strings.Join(entries, "\n"),
-		}
-
-		data = append(data, details)
+	// Parse column flags.
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
+	if err != nil {
+		return err
 	}
 
+	data := cli.ColumnData(columns, records)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"DESCRIPTION",
-		"ENTRIES",
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, records)
+}
+
+func (c *cmdNetworkZoneRecordList) nameColumnData(record api.NetworkZoneRecord) string {
+	return record.Name
+}
+
+func (c *cmdNetworkZoneRecordList) descriptionColumnData(record api.NetworkZoneRecord) string {
+	return record.Description
+}
+
+func (c *cmdNetworkZoneRecordList) entriesColumnData(record api.NetworkZoneRecord) string {
+	entries := make([]string, 0, len(record.Entries))
+	for _, entry := range record.Entries {
+		entries = append(entries, entry.Type+" "+entry.Value)
+	}
+
+	return strings.Join(entries, "\n")
 }
 
 // Show.

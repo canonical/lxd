@@ -470,7 +470,24 @@ type cmdProjectList struct {
 	global  *cmdGlobal
 	project *cmdProject
 
-	flagFormat string
+	flagFormat     string
+	flagColumns    string
+	currentProject string
+}
+
+// columns returns the ordered column definitions for project list.
+func (c *cmdProjectList) columns() []cli.ShorthandColumn[api.Project] {
+	return []cli.ShorthandColumn[api.Project]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'I', Name: "IMAGES", Data: c.imagesColumnData},
+		{Shorthand: 'P', Name: "PROFILES", Data: c.profilesColumnData},
+		{Shorthand: 'v', Name: "STORAGE VOLUMES", Data: c.storageVolumesColumnData},
+		{Shorthand: 'b', Name: "STORAGE BUCKETS", Data: c.storageBucketsColumnData},
+		{Shorthand: 'N', Name: "NETWORKS", Data: c.networksColumnData},
+		{Shorthand: 'z', Name: "NETWORK ZONES", Data: c.networkZonesColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+	}
 }
 
 func (c *cmdProjectList) command() *cobra.Command {
@@ -481,6 +498,7 @@ func (c *cmdProjectList) command() *cobra.Command {
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -529,62 +547,84 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	data := [][]string{}
-	for _, project := range projects {
-		images := "NO"
-		if shared.IsTrue(project.Config["features.images"]) {
-			images = "YES"
-		}
+	c.currentProject = info.Project
 
-		profiles := "NO"
-		if shared.IsTrue(project.Config["features.profiles"]) {
-			profiles = "YES"
-		}
-
-		storageVolumes := "NO"
-		if shared.IsTrue(project.Config["features.storage.volumes"]) {
-			storageVolumes = "YES"
-		}
-
-		storageBuckets := "NO"
-		if shared.IsTrue(project.Config["features.storage.buckets"]) {
-			storageBuckets = "YES"
-		}
-
-		networks := "NO"
-		if shared.IsTrue(project.Config["features.networks"]) {
-			networks = "YES"
-		}
-
-		networkZones := "NO"
-		if shared.IsTrue(project.Config["features.networks.zones"]) {
-			networkZones = "YES"
-		}
-
-		name := project.Name
-		if name == info.Project {
-			name = name + " (current)"
-		}
-
-		strUsedBy := strconv.Itoa(len(project.UsedBy))
-		data = append(data, []string{name, images, profiles, storageVolumes, storageBuckets, networks, networkZones, project.Description, strUsedBy})
+	// Parse column flags.
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
+	if err != nil {
+		return err
 	}
 
+	data := cli.ColumnData(columns, projects)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"IMAGES",
-		"PROFILES",
-		"STORAGE VOLUMES",
-		"STORAGE BUCKETS",
-		"NETWORKS",
-		"NETWORK ZONES",
-		"DESCRIPTION",
-		"USED BY",
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, projects)
+}
+
+func (c *cmdProjectList) nameColumnData(project api.Project) string {
+	name := project.Name
+	if name == c.currentProject {
+		name = name + " (current)"
+	}
+
+	return name
+}
+
+func (c *cmdProjectList) imagesColumnData(project api.Project) string {
+	if shared.IsTrue(project.Config["features.images"]) {
+		return "YES"
+	}
+
+	return "NO"
+}
+
+func (c *cmdProjectList) profilesColumnData(project api.Project) string {
+	if shared.IsTrue(project.Config["features.profiles"]) {
+		return "YES"
+	}
+
+	return "NO"
+}
+
+func (c *cmdProjectList) storageVolumesColumnData(project api.Project) string {
+	if shared.IsTrue(project.Config["features.storage.volumes"]) {
+		return "YES"
+	}
+
+	return "NO"
+}
+
+func (c *cmdProjectList) storageBucketsColumnData(project api.Project) string {
+	if shared.IsTrue(project.Config["features.storage.buckets"]) {
+		return "YES"
+	}
+
+	return "NO"
+}
+
+func (c *cmdProjectList) networksColumnData(project api.Project) string {
+	if shared.IsTrue(project.Config["features.networks"]) {
+		return "YES"
+	}
+
+	return "NO"
+}
+
+func (c *cmdProjectList) networkZonesColumnData(project api.Project) string {
+	if shared.IsTrue(project.Config["features.networks.zones"]) {
+		return "YES"
+	}
+
+	return "NO"
+}
+
+func (c *cmdProjectList) descriptionColumnData(project api.Project) string {
+	return project.Description
+}
+
+func (c *cmdProjectList) usedByColumnData(project api.Project) string {
+	return strconv.Itoa(len(project.UsedBy))
 }
 
 // Rename.

@@ -635,7 +635,20 @@ type cmdStorageList struct {
 	global  *cmdGlobal
 	storage *cmdStorage
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
+}
+
+// columns returns the ordered column definitions for storage pool list.
+func (c *cmdStorageList) columns() []cli.ShorthandColumn[api.StoragePool] {
+	return []cli.ShorthandColumn[api.StoragePool]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'D', Name: "DRIVER", Data: c.driverColumnData},
+		{Shorthand: 's', Name: "SOURCE", Data: c.sourceColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+		{Shorthand: 'S', Name: "STATE", Data: c.stateColumnData},
+	}
 }
 
 func (c *cmdStorageList) command() *cobra.Command {
@@ -645,6 +658,7 @@ func (c *cmdStorageList) command() *cobra.Command {
 	cmd.Short = "List available storage pools"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel(("Format (csv|json|table|yaml|compact)")))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -685,34 +699,62 @@ func (c *cmdStorageList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	data := [][]string{}
-	for _, pool := range pools {
-		usedby := strconv.Itoa(len(pool.UsedBy))
-		details := []string{pool.Name, pool.Driver}
-		if !resource.server.IsClustered() {
-			details = append(details, pool.Config["source"])
+	clustered := resource.server.IsClustered()
+
+	// Parse column flags.
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
+	if clustered {
+		// Remove SOURCE column when clustered.
+		filteredCols := make([]cli.ShorthandColumn[api.StoragePool], 0, len(cols)-1)
+		for _, col := range cols {
+			if col.Shorthand != 's' {
+				filteredCols = append(filteredCols, col)
+			}
 		}
 
-		details = append(details, pool.Description)
-		details = append(details, usedby)
-		details = append(details, strings.ToUpper(pool.Status))
-		data = append(data, details)
+		cols = filteredCols
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = cli.DefaultColumnString(cols)
+		} else if strings.ContainsAny(c.flagColumns, "s") {
+			return errors.New("Can't use column shorthand char 's' (SOURCE) when clustered")
+		}
 	}
 
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
+	if err != nil {
+		return err
+	}
+
+	data := cli.ColumnData(columns, pools)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"DRIVER",
-	}
-
-	if !resource.server.IsClustered() {
-		header = append(header, "SOURCE")
-	}
-
-	header = append(header, "DESCRIPTION", "USED BY", "STATE")
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, pools)
+}
+
+func (c *cmdStorageList) nameColumnData(pool api.StoragePool) string {
+	return pool.Name
+}
+
+func (c *cmdStorageList) driverColumnData(pool api.StoragePool) string {
+	return pool.Driver
+}
+
+func (c *cmdStorageList) sourceColumnData(pool api.StoragePool) string {
+	return pool.Config["source"]
+}
+
+func (c *cmdStorageList) descriptionColumnData(pool api.StoragePool) string {
+	return pool.Description
+}
+
+func (c *cmdStorageList) usedByColumnData(pool api.StoragePool) string {
+	return strconv.Itoa(len(pool.UsedBy))
+}
+
+func (c *cmdStorageList) stateColumnData(pool api.StoragePool) string {
+	return strings.ToUpper(pool.Status)
 }
 
 // Set.

@@ -77,7 +77,19 @@ type cmdPlacementGroupList struct {
 	placementGroup *cmdPlacementGroup
 
 	flagFormat      string
+	flagColumns     string
 	flagAllProjects bool
+}
+
+// columns returns the ordered column definitions for placement group list.
+func (c *cmdPlacementGroupList) columns() []cli.ShorthandColumn[api.PlacementGroup] {
+	return []cli.ShorthandColumn[api.PlacementGroup]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'p', Name: "POLICY", Data: c.policyColumnData},
+		{Shorthand: 'r', Name: "RIGOR", Data: c.rigorColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+	}
 }
 
 func (c *cmdPlacementGroupList) command() *cobra.Command {
@@ -89,6 +101,7 @@ func (c *cmdPlacementGroupList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display placement groups from all projects")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -140,38 +153,51 @@ func (c *cmdPlacementGroupList) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	data := [][]string{}
-	for _, placementGroup := range placementGroups {
-		details := []string{
-			placementGroup.Name,
-			placementGroup.Description,
-			placementGroup.Config["policy"],
-			placementGroup.Config["rigor"],
-			strconv.Itoa(len(placementGroup.UsedBy)),
-		}
-
-		if c.flagAllProjects {
-			details = append([]string{placementGroup.Project}, details...)
-		}
-
-		data = append(data, details)
-	}
-
-	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"DESCRIPTION",
-		"POLICY",
-		"RIGOR",
-		"USED BY",
-	}
-
+	// Parse column flags.
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
 	if c.flagAllProjects {
-		header = append([]string{"PROJECT"}, header...)
+		projectCol := cli.ShorthandColumn[api.PlacementGroup]{Shorthand: 'e', Name: "PROJECT", Data: c.projectColumnData}
+		cols = append([]cli.ShorthandColumn[api.PlacementGroup]{projectCol}, cols...)
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = cli.DefaultColumnString(cols)
+		}
 	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
+	if err != nil {
+		return err
+	}
+
+	data := cli.ColumnData(columns, placementGroups)
+	sort.Sort(cli.SortColumnsNaturally(data))
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, placementGroups)
+}
+
+func (c *cmdPlacementGroupList) projectColumnData(placementGroup api.PlacementGroup) string {
+	return placementGroup.Project
+}
+
+func (c *cmdPlacementGroupList) nameColumnData(placementGroup api.PlacementGroup) string {
+	return placementGroup.Name
+}
+
+func (c *cmdPlacementGroupList) descriptionColumnData(placementGroup api.PlacementGroup) string {
+	return placementGroup.Description
+}
+
+func (c *cmdPlacementGroupList) policyColumnData(placementGroup api.PlacementGroup) string {
+	return placementGroup.Config["policy"]
+}
+
+func (c *cmdPlacementGroupList) rigorColumnData(placementGroup api.PlacementGroup) string {
+	return placementGroup.Config["rigor"]
+}
+
+func (c *cmdPlacementGroupList) usedByColumnData(placementGroup api.PlacementGroup) string {
+	return strconv.Itoa(len(placementGroup.UsedBy))
 }
 
 // Show.

@@ -81,11 +81,22 @@ func (c *cmdNetworkLoadBalancer) command() *cobra.Command {
 }
 
 // List.
+// networkLoadBalancerColumn represents a column in the network load balancer list output.
 type cmdNetworkLoadBalancerList struct {
 	global              *cmdGlobal
 	networkLoadBalancer *cmdNetworkLoadBalancer
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
+}
+
+// columns returns the ordered column definitions for network load balancer list.
+func (c *cmdNetworkLoadBalancerList) columns() []cli.ShorthandColumn[api.NetworkLoadBalancer] {
+	return []cli.ShorthandColumn[api.NetworkLoadBalancer]{
+		{Shorthand: 'l', Name: "LISTEN ADDRESS", Data: c.listenAddressColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'p', Name: "PORTS", Data: c.portsColumnData},
+	}
 }
 
 func (c *cmdNetworkLoadBalancerList) command() *cobra.Command {
@@ -97,6 +108,7 @@ func (c *cmdNetworkLoadBalancerList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -140,34 +152,40 @@ func (c *cmdNetworkLoadBalancerList) run(cmd *cobra.Command, args []string) erro
 
 	clustered := resource.server.IsClustered()
 
-	data := make([][]string, 0, len(loadBalancers))
-	for _, loadBalancer := range loadBalancers {
-		details := []string{
-			loadBalancer.ListenAddress,
-			loadBalancer.Description,
-			strconv.Itoa(len(loadBalancer.Ports)),
-		}
-
-		if clustered {
-			details = append(details, loadBalancer.Location)
-		}
-
-		data = append(data, details)
-	}
-
-	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"LISTEN ADDRESS",
-		"DESCRIPTION",
-		"PORTS",
-	}
-
+	// Parse column flags.
+	cols := c.columns()
 	if clustered {
-		header = append(header, "LOCATION")
+		cols = append(cols, cli.ShorthandColumn[api.NetworkLoadBalancer]{Shorthand: 'L', Name: "LOCATION", Data: c.locationColumnData})
+	} else if strings.ContainsAny(c.flagColumns, "L") {
+		return errors.New("Can't use column shorthand char 'L' (LOCATION) when not clustered")
 	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
+	if err != nil {
+		return err
+	}
+
+	data := cli.ColumnData(columns, loadBalancers)
+	sort.Sort(cli.SortColumnsNaturally(data))
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, loadBalancers)
+}
+
+func (c *cmdNetworkLoadBalancerList) listenAddressColumnData(lb api.NetworkLoadBalancer) string {
+	return lb.ListenAddress
+}
+
+func (c *cmdNetworkLoadBalancerList) descriptionColumnData(lb api.NetworkLoadBalancer) string {
+	return lb.Description
+}
+
+func (c *cmdNetworkLoadBalancerList) portsColumnData(lb api.NetworkLoadBalancer) string {
+	return strconv.Itoa(len(lb.Ports))
+}
+
+func (c *cmdNetworkLoadBalancerList) locationColumnData(lb api.NetworkLoadBalancer) string {
+	return lb.Location
 }
 
 // Show.

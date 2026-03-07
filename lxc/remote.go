@@ -765,11 +765,32 @@ func (c *cmdRemoteGetDefault) run(cmd *cobra.Command, args []string) error {
 }
 
 // List.
+// remoteColumn represents a column in the remote list output.
+// remoteListEntry combines a remote name with its configuration for column rendering.
+type remoteListEntry struct {
+	name   string
+	remote config.Remote
+}
+
 type cmdRemoteList struct {
 	global *cmdGlobal
 	remote *cmdRemote
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
+}
+
+// columns returns the ordered column definitions for remote list.
+func (c *cmdRemoteList) columns() []cli.ShorthandColumn[remoteListEntry] {
+	return []cli.ShorthandColumn[remoteListEntry]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'u', Name: "URL", Data: c.urlColumnData},
+		{Shorthand: 'p', Name: "PROTOCOL", Data: c.protocolColumnData},
+		{Shorthand: 'a', Name: "AUTH TYPE", Data: c.authTypeColumnData},
+		{Shorthand: 'P', Name: "PUBLIC", Data: c.publicColumnData},
+		{Shorthand: 'S', Name: "STATIC", Data: c.staticColumnData},
+		{Shorthand: 'g', Name: "GLOBAL", Data: c.globalColumnData},
+	}
 }
 
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
@@ -782,6 +803,7 @@ func (c *cmdRemoteList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	return cmd
 }
@@ -796,24 +818,9 @@ func (c *cmdRemoteList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// List the remotes
-	data := [][]string{}
+	// Prepare remote entries with computed defaults.
+	entries := []remoteListEntry{}
 	for name, rc := range conf.Remotes {
-		strPublic := "NO"
-		if rc.Public {
-			strPublic = "YES"
-		}
-
-		strStatic := "NO"
-		if rc.Static {
-			strStatic = "YES"
-		}
-
-		strGlobal := "NO"
-		if rc.Global {
-			strGlobal = "YES"
-		}
-
 		if rc.Protocol == "" {
 			rc.Protocol = "lxd"
 		}
@@ -828,27 +835,65 @@ func (c *cmdRemoteList) run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		strName := name
-		if name == conf.DefaultRemote {
-			strName = name + " (current)"
-		}
-
-		data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic, strGlobal})
+		entries = append(entries, remoteListEntry{name: name, remote: rc})
 	}
 
+	// Parse column flags.
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
+	if err != nil {
+		return err
+	}
+
+	// List the remotes.
+	data := cli.ColumnData(columns, entries)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"URL",
-		"PROTOCOL",
-		"AUTH TYPE",
-		"PUBLIC",
-		"STATIC",
-		"GLOBAL",
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, conf.Remotes)
+}
+
+func (c *cmdRemoteList) nameColumnData(entry remoteListEntry) string {
+	if entry.name == c.global.conf.DefaultRemote {
+		return entry.name + " (current)"
+	}
+
+	return entry.name
+}
+
+func (c *cmdRemoteList) urlColumnData(entry remoteListEntry) string {
+	return entry.remote.Addr
+}
+
+func (c *cmdRemoteList) protocolColumnData(entry remoteListEntry) string {
+	return entry.remote.Protocol
+}
+
+func (c *cmdRemoteList) authTypeColumnData(entry remoteListEntry) string {
+	return entry.remote.AuthType
+}
+
+func (c *cmdRemoteList) publicColumnData(entry remoteListEntry) string {
+	if entry.remote.Public {
+		return "YES"
+	}
+
+	return "NO"
+}
+
+func (c *cmdRemoteList) staticColumnData(entry remoteListEntry) string {
+	if entry.remote.Static {
+		return "YES"
+	}
+
+	return "NO"
+}
+
+func (c *cmdRemoteList) globalColumnData(entry remoteListEntry) string {
+	if entry.remote.Global {
+		return "YES"
+	}
+
+	return "NO"
 }
 
 // Rename.

@@ -991,13 +991,29 @@ func (c *cmdNetworkInfo) run(cmd *cobra.Command, args []string) error {
 }
 
 // List.
+// networkColumn represents a column in the network list output.
 type cmdNetworkList struct {
 	global  *cmdGlobal
 	network *cmdNetwork
 
 	flagFormat      string
+	flagColumns     string
 	flagTarget      string
 	flagAllProjects bool
+}
+
+// columns returns the ordered column definitions for network list.
+func (c *cmdNetworkList) columns() []cli.ShorthandColumn[api.Network] {
+	return []cli.ShorthandColumn[api.Network]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 't', Name: "TYPE", Data: c.typeColumnData},
+		{Shorthand: 'm', Name: "MANAGED", Data: c.managedColumnData},
+		{Shorthand: '4', Name: "IPV4", Data: c.ipv4ColumnData},
+		{Shorthand: '6', Name: "IPV6", Data: c.ipv6ColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+		{Shorthand: 's', Name: "STATE", Data: c.stateColumnData},
+	}
 }
 
 func (c *cmdNetworkList) command() *cobra.Command {
@@ -1009,6 +1025,7 @@ func (c *cmdNetworkList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display networks from all projects")
 
@@ -1068,54 +1085,76 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	data := [][]string{}
+	// Parse column flags.
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
+	if c.flagAllProjects {
+		projectCol := cli.ShorthandColumn[api.Network]{Shorthand: 'e', Name: "PROJECT", Data: c.projectColumnData}
+		cols = append([]cli.ShorthandColumn[api.Network]{projectCol}, cols...)
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = cli.DefaultColumnString(cols)
+		}
+	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
+	if err != nil {
+		return err
+	}
+
+	filteredNetworks := make([]api.Network, 0, len(networks))
 	for _, network := range networks {
 		if slices.Contains([]string{"loopback", "unknown"}, network.Type) {
 			continue
 		}
 
-		strManaged := "NO"
-		if network.Managed {
-			strManaged = "YES"
-		}
-
-		strUsedBy := strconv.Itoa(len(network.UsedBy))
-		details := []string{
-			network.Name,
-			network.Type,
-			strManaged,
-			network.Config["ipv4.address"],
-			network.Config["ipv6.address"],
-			network.Description,
-			strUsedBy,
-			strings.ToUpper(network.Status),
-		}
-
-		if c.flagAllProjects {
-			details = append([]string{network.Project}, details...)
-		}
-
-		data = append(data, details)
+		filteredNetworks = append(filteredNetworks, network)
 	}
 
+	data := cli.ColumnData(columns, filteredNetworks)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"TYPE",
-		"MANAGED",
-		"IPV4",
-		"IPV6",
-		"DESCRIPTION",
-		"USED BY",
-		"STATE",
-	}
-
-	if c.flagAllProjects {
-		header = append([]string{"PROJECT"}, header...)
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, networks)
+}
+
+func (c *cmdNetworkList) projectColumnData(network api.Network) string {
+	return network.Project
+}
+
+func (c *cmdNetworkList) nameColumnData(network api.Network) string {
+	return network.Name
+}
+
+func (c *cmdNetworkList) typeColumnData(network api.Network) string {
+	return network.Type
+}
+
+func (c *cmdNetworkList) managedColumnData(network api.Network) string {
+	if network.Managed {
+		return "YES"
+	}
+
+	return "NO"
+}
+
+func (c *cmdNetworkList) ipv4ColumnData(network api.Network) string {
+	return network.Config["ipv4.address"]
+}
+
+func (c *cmdNetworkList) ipv6ColumnData(network api.Network) string {
+	return network.Config["ipv6.address"]
+}
+
+func (c *cmdNetworkList) descriptionColumnData(network api.Network) string {
+	return network.Description
+}
+
+func (c *cmdNetworkList) usedByColumnData(network api.Network) string {
+	return strconv.Itoa(len(network.UsedBy))
+}
+
+func (c *cmdNetworkList) stateColumnData(network api.Network) string {
+	return strings.ToUpper(network.Status)
 }
 
 // List leases.

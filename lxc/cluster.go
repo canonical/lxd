@@ -112,11 +112,27 @@ func (c *cmdCluster) command() *cobra.Command {
 }
 
 // List.
+// clusterMemberColumn represents a column in the cluster member list output.
 type cmdClusterList struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
+}
+
+// columns returns the ordered column definitions for cluster member list.
+func (c *cmdClusterList) columns() []cli.ShorthandColumn[api.ClusterMember] {
+	return []cli.ShorthandColumn[api.ClusterMember]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'u', Name: "URL", Data: c.urlColumnData},
+		{Shorthand: 'r', Name: "ROLES", Data: c.rolesColumnData},
+		{Shorthand: 'a', Name: "ARCHITECTURE", Data: c.architectureColumnData},
+		{Shorthand: 'f', Name: "FAILURE DOMAIN", Data: c.failureDomainColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 's', Name: "STATE", Data: c.stateColumnData},
+		{Shorthand: 'm', Name: "MESSAGE", Data: c.messageColumnData},
+	}
 }
 
 func (c *cmdClusterList) command() *cobra.Command {
@@ -126,6 +142,7 @@ func (c *cmdClusterList) command() *cobra.Command {
 	cmd.Short = "List all the cluster members"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -176,33 +193,55 @@ func (c *cmdClusterList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Render the table
-	data := [][]string{}
-	for _, member := range members {
-		roles := member.Roles
-		rolesDelimiter := "\n"
-		if c.flagFormat == "csv" {
-			rolesDelimiter = ","
-		}
-
-		line := []string{member.ServerName, member.URL, strings.Join(roles, rolesDelimiter), member.Architecture, member.FailureDomain, member.Description, strings.ToUpper(member.Status), member.Message}
-		data = append(data, line)
+	// Parse column flags.
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
+	if err != nil {
+		return err
 	}
 
+	// Render the table.
+	data := cli.ColumnData(columns, members)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"URL",
-		"ROLES",
-		"ARCHITECTURE",
-		"FAILURE DOMAIN",
-		"DESCRIPTION",
-		"STATE",
-		"MESSAGE",
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, members)
+}
+
+func (c *cmdClusterList) nameColumnData(member api.ClusterMember) string {
+	return member.ServerName
+}
+
+func (c *cmdClusterList) urlColumnData(member api.ClusterMember) string {
+	return member.URL
+}
+
+func (c *cmdClusterList) rolesColumnData(member api.ClusterMember) string {
+	rolesDelimiter := "\n"
+	if c.flagFormat == cli.TableFormatCSV {
+		rolesDelimiter = ","
+	}
+
+	return strings.Join(member.Roles, rolesDelimiter)
+}
+
+func (c *cmdClusterList) architectureColumnData(member api.ClusterMember) string {
+	return member.Architecture
+}
+
+func (c *cmdClusterList) failureDomainColumnData(member api.ClusterMember) string {
+	return member.FailureDomain
+}
+
+func (c *cmdClusterList) descriptionColumnData(member api.ClusterMember) string {
+	return member.Description
+}
+
+func (c *cmdClusterList) stateColumnData(member api.ClusterMember) string {
+	return strings.ToUpper(member.Status)
+}
+
+func (c *cmdClusterList) messageColumnData(member api.ClusterMember) string {
+	return member.Message
 }
 
 // Show.

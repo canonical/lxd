@@ -422,12 +422,23 @@ func (c *cmdClusterGroupEdit) helpTemplate() string {
 ### Any line starting with a '# will be ignored.`
 }
 
+// clusterGroupColumn represents a column in the cluster group list output.
 // List.
 type cmdClusterGroupList struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
 
-	flagFormat string
+	flagFormat  string
+	flagColumns string
+}
+
+// columns returns the ordered column definitions for cluster group list.
+func (c *cmdClusterGroupList) columns() []cli.ShorthandColumn[api.ClusterGroup] {
+	return []cli.ShorthandColumn[api.ClusterGroup]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'm', Name: "MEMBERS", Data: c.membersColumnData},
+	}
 }
 
 // Command returns a cobra command to list all the cluster groups in a specified format.
@@ -438,6 +449,7 @@ func (c *cmdClusterGroupList) command() *cobra.Command {
 	cmd.Short = "List all the cluster groups"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -488,22 +500,30 @@ func (c *cmdClusterGroupList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Render the table
-	data := [][]string{}
-	for _, group := range groups {
-		line := []string{group.Name, group.Description, strconv.Itoa(len(group.Members))}
-		data = append(data, line)
+	// Parse column flags.
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
+	if err != nil {
+		return err
 	}
 
+	// Render the table.
+	data := cli.ColumnData(columns, groups)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"DESCRIPTION",
-		"MEMBERS",
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, groups)
+}
+
+func (c *cmdClusterGroupList) nameColumnData(group api.ClusterGroup) string {
+	return group.Name
+}
+
+func (c *cmdClusterGroupList) descriptionColumnData(group api.ClusterGroup) string {
+	return group.Description
+}
+
+func (c *cmdClusterGroupList) membersColumnData(group api.ClusterGroup) string {
+	return strconv.Itoa(len(group.Members))
 }
 
 // Remove.
