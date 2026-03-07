@@ -597,11 +597,9 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			return nil, err
 		}
 
-		if shared.PathExists(destName + ".rootfs") {
-			err = shared.FileMove(destName+".rootfs", newDestName+".rootfs")
-			if err != nil {
-				return nil, err
-			}
+		err = shared.FileMove(destName+".rootfs", newDestName+".rootfs")
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
 		}
 	}
 
