@@ -225,17 +225,19 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	revert.Success()
-	s.Events.SendLifecycle(sourceInst.Project().Name, lifecycle.InstanceBackupCreated.Event(args.Name, b.Instance(), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceBackupCreated.Event(args.Name, b.Instance(), nil))
 
 	return nil
 }
 
 // backupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
 func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, optimized bool, snapshots bool, version uint32, tarWriter *instancewriter.InstanceTarWriter) error {
+	driverInfo := pool.Driver().Info()
+
 	// Indicate whether the driver will include a driver-specific optimized header.
 	poolDriverOptimizedHeader := false
 	if optimized {
-		poolDriverOptimizedHeader = pool.Driver().Info().OptimizedBackupHeader
+		poolDriverOptimizedHeader = driverInfo.OptimizedBackupHeader
 	}
 
 	backupType := backup.InstanceTypeToBackupType(api.InstanceType(sourceInst.Type().String()))
@@ -268,7 +270,7 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	indexInfo := backup.Info{
 		Name:             sourceInst.Name(),
 		Pool:             pool.Name(),
-		Backend:          pool.Driver().Info().Name,
+		Backend:          driverInfo.Name,
 		Type:             backupType,
 		OptimizedStorage: &optimized,
 		OptimizedHeader:  &poolDriverOptimizedHeader,
