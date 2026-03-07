@@ -787,13 +787,13 @@ func getFromShadow(fname string, username string) ([][]int64, error) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		// Skip comments
-		s := strings.Split(scanner.Text(), "#")
-		if len(s[0]) == 0 {
+		line, _, _ := strings.Cut(scanner.Text(), "#")
+		if len(line) == 0 {
 			continue
 		}
 
 		// Validate format
-		s = strings.Split(s[0], ":")
+		s := strings.Split(line, ":")
 		if len(s) < 3 {
 			return nil, fmt.Errorf("Unexpected values in %q: %q", fname, s)
 		}

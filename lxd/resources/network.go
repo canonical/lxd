@@ -44,8 +44,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	if len(vDPAMatches) > 0 {
 		vdpa := api.ResourcesNetworkCardVDPA{}
 
-		splittedPath := strings.Split(vDPAMatches[0], "/")
-		vdpa.Name = splittedPath[len(splittedPath)-1]
+		vdpa.Name = filepath.Base(vDPAMatches[0])
 		vDPADevMatches, err := filepath.Glob(filepath.Join(vDPAMatches[0], "vhost-vdpa-*"))
 		if err != nil {
 			return fmt.Errorf("Malformed VDPA device name search pattern: %w", err)
@@ -55,8 +54,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 			return fmt.Errorf("Failed to find VDPA device at device path %q", vDPAMatches[0])
 		}
 
-		splittedPath = strings.Split(vDPADevMatches[0], "/")
-		vdpa.Device = splittedPath[len(splittedPath)-1]
+		vdpa.Device = filepath.Base(vDPADevMatches[0])
 
 		// Add the VDPA data to the card
 		card.VDPA = &vdpa
@@ -670,13 +668,13 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		// Bond mode.
 		strValue, err := os.ReadFile(filepath.Join(bondPath, "mode"))
 		if err == nil {
-			bonding.Mode = strings.Split(strings.TrimSpace(string(strValue)), " ")[0]
+			bonding.Mode, _, _ = strings.Cut(strings.TrimSpace(string(strValue)), " ")
 		}
 
 		// Bond transmit policy.
 		strValue, err = os.ReadFile(filepath.Join(bondPath, "xmit_hash_policy"))
 		if err == nil {
-			bonding.TransmitPolicy = strings.Split(strings.TrimSpace(string(strValue)), " ")[0]
+			bonding.TransmitPolicy, _, _ = strings.Cut(strings.TrimSpace(string(strValue)), " ")
 		}
 
 		// Up delay.
@@ -706,7 +704,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		// Lower devices.
 		strValue, err = os.ReadFile(filepath.Join(bondPath, "slaves"))
 		if err == nil {
-			bonding.LowerDevices = strings.Split(strings.TrimSpace(string(strValue)), " ")
+			bonding.LowerDevices = strings.Fields(strings.TrimSpace(string(strValue)))
 		}
 
 		network.Bond = &bonding

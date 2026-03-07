@@ -878,9 +878,10 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	// script which redirects the stop hook requests to lxd-user (which is statically compiled) so that stop
 	// hook notifications to LXD work when the snap base version is changed.
 	lxdStopHookPath := d.state.OS.ExecPath
-	if shared.InSnap() && strings.HasSuffix(lxdStopHookPath, "sbin/lxd") {
+	prefix, found := strings.CutSuffix(lxdStopHookPath, "sbin/lxd")
+	if found && shared.InSnap() {
 		// Convert /snap/lxd/current/sbin/lxd into /snap/lxd/current/bin/lxd.
-		lxdStopHookPath = strings.TrimSuffix(lxdStopHookPath, "sbin/lxd") + "bin/lxd"
+		lxdStopHookPath = prefix + "bin/lxd"
 	}
 
 	// Call the onstopns hook on stop but before namespaces are unmounted.
@@ -3639,7 +3640,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 
 			for _, sname := range results {
 				// Rename the snapshot.
-				oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
+				_, oldSnapName, _ := strings.Cut(sname, shared.SnapshotDelimiter)
 				baseSnapName := filepath.Base(sname)
 
 				err := cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldName, oldSnapName, baseSnapName)
@@ -3659,9 +3660,9 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	// Rename the instance database entry.
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if d.IsSnapshot() {
-			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
-			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
-			return cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldParts[0], oldParts[1], newParts[1])
+			oldParent, oldSnap, _ := strings.Cut(oldName, shared.SnapshotDelimiter)
+			_, newSnap, _ := strings.Cut(newName, shared.SnapshotDelimiter)
+			return cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldParent, oldSnap, newSnap)
 		}
 
 		return cluster.RenameInstance(ctx, tx.Tx(), d.project.Name, oldName, newName)
@@ -3706,7 +3707,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	for _, backup := range backups {
 		b := backup
 		oldName := b.Name()
-		backupName := strings.Split(oldName, "/")[1]
+		_, backupName, _ := strings.Cut(oldName, "/")
 		newName := newName + "/" + backupName
 
 		err = b.Rename(newName)
@@ -6495,7 +6496,7 @@ func (d *lxc) processesState(pid int) (int64, error) {
 			continue
 		}
 
-		content := strings.Split(string(fcont), " ")
+		content := strings.Fields(string(fcont))
 		for j := range content {
 			pid, err := strconv.ParseInt(content[j], 10, 64)
 			if err == nil {

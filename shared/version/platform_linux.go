@@ -19,7 +19,8 @@ func getPlatformVersionStrings() []string {
 		return versions
 	}
 
-	versions = append(versions, strings.Split(uname.Release, "-")[0])
+	kernelVersion, _, _ := strings.Cut(uname.Release, "-")
+	versions = append(versions, kernelVersion)
 
 	// Add distribution info
 	lsbRelease, err := osarch.GetLSBRelease()

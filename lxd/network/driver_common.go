@@ -435,10 +435,10 @@ func (n *common) DHCPv4Ranges() []shared.IPRange {
 	dhcpRanges := make([]shared.IPRange, 0)
 	if n.config["ipv4.dhcp.ranges"] != "" {
 		for r := range strings.SplitSeq(n.config["ipv4.dhcp.ranges"], ",") {
-			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
-			if len(parts) == 2 {
-				startIP := net.ParseIP(parts[0])
-				endIP := net.ParseIP(parts[1])
+			startStr, endStr, found := strings.Cut(strings.TrimSpace(r), "-")
+			if found {
+				startIP := net.ParseIP(startStr)
+				endIP := net.ParseIP(endStr)
 				dhcpRanges = append(dhcpRanges, shared.IPRange{
 					Start: startIP.To4(),
 					End:   endIP.To4(),
@@ -455,10 +455,10 @@ func (n *common) DHCPv6Ranges() []shared.IPRange {
 	dhcpRanges := make([]shared.IPRange, 0)
 	if n.config["ipv6.dhcp.ranges"] != "" {
 		for r := range strings.SplitSeq(n.config["ipv6.dhcp.ranges"], ",") {
-			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
-			if len(parts) == 2 {
-				startIP := net.ParseIP(parts[0])
-				endIP := net.ParseIP(parts[1])
+			startStr, endStr, found := strings.Cut(strings.TrimSpace(r), "-")
+			if found {
+				startIP := net.ParseIP(startStr)
+				endIP := net.ParseIP(endStr)
 				dhcpRanges = append(dhcpRanges, shared.IPRange{
 					Start: startIP.To16(),
 					End:   endIP.To16(),
@@ -792,8 +792,8 @@ func (n *common) bgpClearPeers(config map[string]string) error {
 	peers := n.bgpGetPeers(config)
 	for _, peer := range peers {
 		// Remove the peer.
-		fields := strings.Split(peer, ",")
-		err := n.state.BGP.RemovePeer(net.ParseIP(fields[0]))
+		addr, _, _ := strings.Cut(peer, ",")
+		err := n.state.BGP.RemovePeer(net.ParseIP(addr))
 		if err != nil && !errors.Is(err, bgp.ErrPeerNotFound) {
 			return err
 		}
@@ -815,8 +815,8 @@ func (n *common) bgpSetupPeers(oldConfig map[string]string) error {
 		}
 
 		// Remove old peer.
-		fields := strings.Split(peer, ",")
-		err := n.state.BGP.RemovePeer(net.ParseIP(fields[0]))
+		addr, _, _ := strings.Cut(peer, ",")
+		err := n.state.BGP.RemovePeer(net.ParseIP(addr))
 		if err != nil {
 			return err
 		}
@@ -1633,18 +1633,19 @@ func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
 	rulesUsePeer := func(rules []api.NetworkACLRule) bool {
 		for _, rule := range rules {
 			for _, subject := range shared.SplitNTrimSpace(rule.Source, ",", -1, true) {
-				if !strings.HasPrefix(subject, "@") {
+				subject, found := strings.CutPrefix(subject, "@")
+				if !found {
 					continue
 				}
 
-				peerParts := strings.SplitN(strings.TrimPrefix(subject, "@"), "/", 2)
-				if len(peerParts) != 2 {
+				networkName, peerSubjectName, found := strings.Cut(subject, "/")
+				if !found {
 					continue // Not a valid network/peer name combination.
 				}
 
 				peer := db.NetworkPeer{
-					NetworkName: peerParts[0],
-					PeerName:    peerParts[1],
+					NetworkName: networkName,
+					PeerName:    peerSubjectName,
 				}
 
 				if peer.NetworkName == n.Name() && peer.PeerName == peerName {

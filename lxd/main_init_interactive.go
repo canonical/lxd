@@ -838,7 +838,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 						fmt.Sprintf("Size in GiB of the new loop device (1GiB minimum) [default=%dGiB]: ", defaultSize),
 						fmt.Sprintf("%dGiB", defaultSize),
 						func(input string) error {
-							input = strings.Split(input, "GiB")[0]
+							input = strings.TrimSuffix(input, "GiB")
 
 							result, err := strconv.ParseInt(input, 10, 64)
 							if err != nil {

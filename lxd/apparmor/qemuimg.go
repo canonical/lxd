@@ -78,8 +78,8 @@ func handleWriter(out io.Writer, hand func(int64, int64)) io.Writer {
 	var current int64
 	return writerFunc(func(b []byte) (int, error) {
 		n, _ := out.Write(b)
-		ss := strings.Split(strings.Trim(string(b), "(%) \t\n\v\f\r"), "/")
-		f, err := strconv.ParseFloat(ss[0], 64)
+		numStr, _, _ := strings.Cut(strings.Trim(string(b), "(%) \t\n\v\f\r"), "/")
+		f, err := strconv.ParseFloat(numStr, 64)
 		if err != nil {
 			return n, nil
 		}

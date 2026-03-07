@@ -732,8 +732,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 	var remote string
 
 	for _, arg := range args {
-		split := strings.Split(arg, "=")
-		if len(split) == 1 || shared.PathExists(shared.HostPathFollow(arg)) {
+		if !strings.Contains(arg, "=") || shared.PathExists(shared.HostPathFollow(arg)) {
 			if strings.HasSuffix(arg, ":") {
 				var err error
 				remote, _, err = conf.ParseRemote(arg)
@@ -1241,9 +1240,8 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 
 	for _, filter := range filters {
 		found := false
-		if strings.Contains(filter, "=") {
-			key, value, _ := strings.Cut(filter, "=")
-
+		key, value, hasValue := strings.Cut(filter, "=")
+		if hasValue {
 			for configKey, configValue := range state.Properties {
 				list := cmdList{}
 				list.global = c.global

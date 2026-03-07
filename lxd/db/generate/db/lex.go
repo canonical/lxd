@@ -47,13 +47,14 @@ func stmtCodeVar(entity string, kind string, filters ...string) string {
 
 // operation returns the kind of operation being performed, without filter fields.
 func operation(kind string) string {
-	return strings.Split(kind, "-by-")[0]
+	op, _, _ := strings.Cut(kind, "-by-")
+	return op
 }
 
 // activeFilters returns the filters mentioned in the command name.
 func activeFilters(kind string) []string {
-	startIndex := strings.Index(kind, "-by-") + len("-by-")
-	return strings.Split(kind[startIndex:], "-and-")
+	_, after, _ := strings.Cut(kind, "-by-")
+	return strings.Split(after, "-and-")
 }
 
 // Return an expression evaluating if a filter should be used (based on active
