@@ -1226,22 +1226,14 @@ func (c *cmdClusterUpdateCertificate) run(cmd *cobra.Command, args []string) err
 		return errors.New("LXD server isn't part of a cluster")
 	}
 
-	if !shared.PathExists(certFile) {
-		return fmt.Errorf("Could not find certificate file path: %s", certFile)
-	}
-
-	if !shared.PathExists(keyFile) {
-		return fmt.Errorf("Could not find certificate key file path: %s", keyFile)
-	}
-
 	cert, err := os.ReadFile(certFile)
 	if err != nil {
-		return fmt.Errorf("Could not read certificate file: %s with error: %v", certFile, err)
+		return fmt.Errorf("Failed reading certificate file: %w", err)
 	}
 
 	key, err := os.ReadFile(keyFile)
 	if err != nil {
-		return fmt.Errorf("Could not read certificate key file: %s with error: %v", keyFile, err)
+		return fmt.Errorf("Failed reading certificate key file: %w", err)
 	}
 
 	certificates := api.ClusterCertificatePut{
