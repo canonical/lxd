@@ -322,12 +322,8 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		tokenPath := c.OIDCTokenPath(name)
 
 		if c.oidcTokens[name] == nil {
-			if shared.PathExists(tokenPath) {
-				content, err := os.ReadFile(tokenPath)
-				if err != nil {
-					return nil, err
-				}
-
+			content, err := os.ReadFile(tokenPath)
+			if err == nil {
 				var tokens oidc.Tokens[*oidc.IDTokenClaims]
 
 				err = json.Unmarshal(content, &tokens)
@@ -336,28 +332,30 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 				}
 
 				c.oidcTokens[name] = &tokens
-			} else {
+			} else if os.IsNotExist(err) {
 				c.oidcTokens[name] = &oidc.Tokens[*oidc.IDTokenClaims]{}
+			} else {
+				return nil, err
 			}
 		}
 
 		args.OIDCTokens = c.oidcTokens[name]
 
 		if c.cookieJars == nil || c.cookieJars[name] == nil {
-			if !shared.PathExists(c.ConfigPath("jars")) {
-				err := os.MkdirAll(c.ConfigPath("jars"), 0700)
-				if err != nil {
-					return nil, err
-				}
+			err := os.MkdirAll(c.ConfigPath("jars"), 0700)
+			if err != nil {
+				return nil, err
 			}
 
-			if !shared.PathExists(c.CookiesPath(name)) {
-				if shared.PathExists(c.ConfigPath("cookies")) {
-					err := shared.FileCopy(c.ConfigPath("cookies"), c.CookiesPath(name))
-					if err != nil {
-						return nil, err
-					}
+			_, err = os.Stat(c.CookiesPath(name))
+			if err != nil && os.IsNotExist(err) {
+				// Migrate legacy cookies file if it exists.
+				err = shared.FileCopy(c.ConfigPath("cookies"), c.CookiesPath(name))
+				if err != nil && !os.IsNotExist(err) {
+					return nil, err
 				}
+			} else if err != nil {
+				return nil, err
 			}
 
 			jar, err := cookiejar.Open(c.CookiesPath(name), remote.Addr)
@@ -381,13 +379,11 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	}
 
 	// Server certificate
-	if shared.PathExists(c.ServerCertPath(name)) {
-		content, err := os.ReadFile(c.ServerCertPath(name))
-		if err != nil {
-			return nil, err
-		}
-
+	content, err := os.ReadFile(c.ServerCertPath(name))
+	if err == nil {
 		args.TLSServerCert = string(content)
+	} else if !os.IsNotExist(err) {
+		return nil, err
 	}
 
 	// Stop here if no client certificate involved
@@ -404,33 +400,27 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	}
 
 	// Client certificate
-	if shared.PathExists(c.ConfigPath("client.crt")) {
-		content, err := os.ReadFile(c.ConfigPath("client.crt"))
-		if err != nil {
-			return nil, err
-		}
-
+	content, err = os.ReadFile(c.ConfigPath("client.crt"))
+	if err == nil {
 		args.TLSClientCert = string(content)
+	} else if !os.IsNotExist(err) {
+		return nil, err
 	}
 
 	// Client CA
-	if shared.PathExists(c.ConfigPath("client.ca")) {
-		content, err := os.ReadFile(c.ConfigPath("client.ca"))
-		if err != nil {
-			return nil, err
-		}
-
+	content, err = os.ReadFile(c.ConfigPath("client.ca"))
+	if err == nil {
 		args.TLSCA = string(content)
+	} else if !os.IsNotExist(err) {
+		return nil, err
 	}
 
 	// Client key
-	if shared.PathExists(c.ConfigPath("client.key")) {
-		content, err := os.ReadFile(c.ConfigPath("client.key"))
-		if err != nil {
-			return nil, err
-		}
-
+	content, err = os.ReadFile(c.ConfigPath("client.key"))
+	if err == nil {
 		args.TLSClientKey = string(content)
+	} else if !os.IsNotExist(err) {
+		return nil, err
 	}
 
 	return &args, nil
