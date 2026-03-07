@@ -378,11 +378,9 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 	if !localBridgeCreate {
 		// At this time, only the Ubuntu kernel supports the Fan, detect it
 		fanKernel := false
-		if shared.PathExists("/proc/sys/kernel/version") {
-			content, _ := os.ReadFile("/proc/sys/kernel/version")
-			if content != nil && strings.Contains(string(content), "Ubuntu") {
-				fanKernel = true
-			}
+		content, err := os.ReadFile("/proc/sys/kernel/version")
+		if err == nil && strings.Contains(string(content), "Ubuntu") {
+			fanKernel = true
 		}
 
 		useExistingInterface, err := c.global.asker.AskBool("Would you like to configure LXD to use an existing bridge or host interface? (yes/no) [default=no]: ", "no")
