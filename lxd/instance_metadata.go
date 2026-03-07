@@ -112,22 +112,14 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 
 	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
-	// If missing, just return empty result
+	// Read the metadata, return empty result if missing.
 	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
-	if !shared.PathExists(metadataPath) {
-		return response.SyncResponse(true, api.ImageMetadata{})
-	}
-
-	// Read the metadata
-	metadataFile, err := os.Open(metadataPath)
+	data, err := os.ReadFile(metadataPath)
 	if err != nil {
-		return response.InternalError(err)
-	}
+		if os.IsNotExist(err) {
+			return response.SyncResponse(true, api.ImageMetadata{})
+		}
 
-	defer func() { _ = metadataFile.Close() }()
-
-	data, err := io.ReadAll(metadataFile)
-	if err != nil {
 		return response.InternalError(err)
 	}
 
