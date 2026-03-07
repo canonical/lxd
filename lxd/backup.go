@@ -549,15 +549,18 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 
 // volumeBackupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
 func volumeBackupWriteIndex(projectName string, volumeName string, pool storagePools.Pool, optimized bool, snapshots bool, version uint32, tarWriter *instancewriter.InstanceTarWriter) error {
+	driverInfo := pool.Driver().Info()
+	poolName := pool.Name()
+
 	// Indicate whether the driver will include a driver-specific optimized header.
 	poolDriverOptimizedHeader := false
 	if optimized {
-		poolDriverOptimizedHeader = pool.Driver().Info().OptimizedBackupHeader
+		poolDriverOptimizedHeader = driverInfo.OptimizedBackupHeader
 	}
 
 	config, err := pool.GenerateCustomVolumeBackupConfig(projectName, volumeName, snapshots, nil)
 	if err != nil {
-		return fmt.Errorf("Failed generating backup config of volume %q in pool %q and project %q: %w", volumeName, pool.Name(), projectName, err)
+		return fmt.Errorf("Failed generating backup config of volume %q in pool %q and project %q: %w", volumeName, poolName, projectName, err)
 	}
 
 	customVol, err := config.CustomVolume()
@@ -573,8 +576,8 @@ func volumeBackupWriteIndex(projectName string, volumeName string, pool storageP
 
 	indexInfo := backup.Info{
 		Name:             customVol.Name,
-		Pool:             pool.Name(),
-		Backend:          pool.Driver().Info().Name,
+		Pool:             poolName,
+		Backend:          driverInfo.Name,
 		OptimizedStorage: &optimized,
 		OptimizedHeader:  &poolDriverOptimizedHeader,
 		Type:             backupConfig.TypeCustom,
