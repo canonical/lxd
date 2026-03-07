@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/user"
 	"path"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -387,13 +386,15 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 	// Load the configuration
 	if c.flagForceLocal {
 		c.conf = config.NewConfig("", true)
-	} else if shared.PathExists(c.confPath) {
+	} else {
 		c.conf, err = config.LoadConfig(c.confPath)
 		if err != nil {
-			return err
+			if !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+
+			c.conf = config.NewConfig(configDir, true)
 		}
-	} else {
-		c.conf = config.NewConfig(filepath.Dir(c.confPath), true)
 	}
 
 	// Override the project
