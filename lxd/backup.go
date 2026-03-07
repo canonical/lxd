@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -37,7 +38,8 @@ import (
 
 // Create a new backup.
 func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, version uint32, op *operations.Operation) error {
-	l := logger.AddContext(logger.Ctx{"project": sourceInst.Project().Name, "instance": sourceInst.Name(), "name": args.Name})
+	projectName := sourceInst.Project().Name
+	l := logger.AddContext(logger.Ctx{"project": projectName, "instance": sourceInst.Name(), "name": args.Name})
 	l.Debug("Instance backup started")
 	defer l.Debug("Instance backup finished")
 
@@ -70,7 +72,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	})
 
 	// Get the backup struct.
-	b, err := instance.BackupLoadByName(s, sourceInst.Project().Name, args.Name)
+	b, err := instance.BackupLoadByName(s, projectName, args.Name)
 	if err != nil {
 		return fmt.Errorf("Load backup object: %w", err)
 	}
@@ -83,7 +85,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	} else {
 		var p *api.Project
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			project, err := dbCluster.GetProject(ctx, tx.Tx(), sourceInst.Project().Name)
+			project, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 			if err != nil {
 				return err
 			}
@@ -104,19 +106,22 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	// Create the target path if needed.
-	backupsPathBase := s.BackupsStoragePath(sourceInst.Project().Name)
+	backupsPathBase := s.BackupsStoragePath(projectName)
 
-	backupsPath := filepath.Join(backupsPathBase, "instances", project.Instance(sourceInst.Project().Name, sourceInst.Name()))
-	if !shared.PathExists(backupsPath) {
-		err := os.MkdirAll(backupsPath, 0700)
-		if err != nil {
-			return err
-		}
+	backupsPath := filepath.Join(backupsPathBase, "instances", project.Instance(projectName, sourceInst.Name()))
+	err = os.MkdirAll(filepath.Dir(backupsPath), 0700)
+	if err != nil {
+		return err
+	}
 
+	err = os.Mkdir(backupsPath, 0700)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		return err
+	} else if err == nil {
 		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
-	target := filepath.Join(backupsPathBase, "instances", project.Instance(sourceInst.Project().Name, b.Name()))
+	target := filepath.Join(backupsPathBase, "instances", project.Instance(projectName, b.Name()))
 
 	// Setup the tarball writer.
 	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})
