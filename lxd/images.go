@@ -4694,16 +4694,14 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		createArgs.MetaFile = metaFile
 		createArgs.MetaName = filepath.Base(imageMetaPath)
 
-		if shared.PathExists(imageRootfsPath) {
-			rootfsFile, err := os.Open(imageRootfsPath)
-			if err != nil {
-				return err
-			}
-
+		rootfsFile, err := os.Open(imageRootfsPath)
+		if err == nil {
 			defer func() { _ = rootfsFile.Close() }()
 
 			createArgs.RootfsFile = rootfsFile
 			createArgs.RootfsName = filepath.Base(imageRootfsPath)
+		} else if !os.IsNotExist(err) {
+			return err
 		}
 
 		image := api.ImagesPost{
