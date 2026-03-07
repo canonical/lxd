@@ -131,7 +131,7 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	clientAuth := api.AuthUntrusted
-	if requestor.IsTrusted() {
+	if requestor.IsTrusted {
 		clientAuth = api.AuthTrusted
 	}
 
@@ -160,7 +160,7 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		},
 	}
 
-	if !requestor.IsTrusted() {
+	if !requestor.IsTrusted {
 		// Return early for untrusted clients.
 		return response.DevLXDResponse(http.StatusOK, resp, "json")
 	}
@@ -695,7 +695,7 @@ func allowDevLXDAuthenticated(_ *Daemon, r *http.Request) response.Response {
 		return response.DevLXDErrorResponse(err)
 	}
 
-	if !requestor.IsTrusted() {
+	if !requestor.IsTrusted {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusForbidden))
 	}
 

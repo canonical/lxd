@@ -165,7 +165,7 @@ func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) response.Res
 
 	respVols := make([]api.DevLXDStorageVolume, 0, len(vols))
 	for _, vol := range vols {
-		if !isDevLXDVolumeOwner(vol.Config, requestor.CallerUsername()) {
+		if !isDevLXDVolumeOwner(vol.Config, requestor.Username) {
 			// Skip volumes not owned by the caller.
 			continue
 		}
@@ -236,7 +236,7 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 
 	// Set the caller's identity ID as the volume owner, as volume updates or removal through DevLXD
 	// are only allowed for volumes owned by the caller.
-	vol.Config["volatile.devlxd.owner"] = requestor.CallerUsername()
+	vol.Config["volatile.devlxd.owner"] = requestor.Username
 
 	// Create storage volume.
 	reqBody := api.StorageVolumesPost{
@@ -301,7 +301,7 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 		}
 
 		// Ensure the source volume is owned by the caller.
-		if !isDevLXDVolumeOwner(sourceVol.Config, requestor.CallerUsername()) {
+		if !isDevLXDVolumeOwner(sourceVol.Config, requestor.Username) {
 			return response.DevLXDErrorResponse(api.NewStatusError(http.StatusNotFound, "Source volume not found"))
 		}
 
@@ -371,7 +371,7 @@ func devLXDStoragePoolVolumeGet(ctx context.Context, d *Daemon, target string, p
 	}
 
 	// If the volume does not belong to the caller, return not found.
-	if !isDevLXDVolumeOwner(vol.Config, requestor.CallerUsername()) {
+	if !isDevLXDVolumeOwner(vol.Config, requestor.Username) {
 		return nil, "", api.NewGenericStatusError(http.StatusNotFound)
 	}
 
@@ -452,12 +452,12 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Resp
 
 	// Ensure the volume owner cannot be changed.
 	_, ok := vol.Config["volatile.devlxd.owner"]
-	if ok && !isDevLXDVolumeOwner(vol.Config, requestor.CallerUsername()) {
+	if ok && !isDevLXDVolumeOwner(vol.Config, requestor.Username) {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Volume owner cannot be changed"))
 	}
 
 	// Ensure caller's identity ID is retained as the volume owner.
-	vol.Config["volatile.devlxd.owner"] = requestor.CallerUsername()
+	vol.Config["volatile.devlxd.owner"] = requestor.Username
 
 	//nolint:staticcheck // Explicitly copying fields to avoid future issues if the types diverge.
 	reqBody := api.StorageVolumePut{

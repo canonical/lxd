@@ -8,6 +8,11 @@ const (
 	// ctxRequestor is used to access the Requestor.
 	ctxRequestor CtxKey = "requestor"
 
+	// ctxRequestorAuditor is used to access the RequestorAuditor.
+	ctxRequestorAuditor CtxKey = "requestor_auditor"
+
+	ctxClusterMemberCertificateFingerprint CtxKey = "cluster_member_certificate_fingerprint"
+
 	// CtxDevLXDInstance is the instance that made a request over the devLXD API.
 	CtxDevLXDInstance CtxKey = "devlxd_instance"
 

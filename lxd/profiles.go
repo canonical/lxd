@@ -610,7 +610,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestProjectName := request.ProjectParam(r)
-	clusterNotification := requestor.IsClusterNotification()
+	clusterNotification := request.UserAgentClientType(r).IsClusterNotification()
 
 	if clusterNotification {
 		// In this case the ProfilePut request payload contains information about the old profile, since

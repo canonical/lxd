@@ -588,12 +588,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = netACL.Update(r.Context(), &req, requestor.ClientType())
+	err = netACL.Update(r.Context(), &req, request.UserAgentClientType(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -718,12 +713,7 @@ func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	log, err := netACL.GetLog(r.Context(), requestor.ClientType())
+	log, err := netACL.GetLog(r.Context(), request.UserAgentClientType(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
