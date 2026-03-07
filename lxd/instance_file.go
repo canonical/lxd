@@ -74,13 +74,13 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 
 	switch r.Method {
 	case "GET":
-		return instanceFileGet(s, inst, path)
+		return response.WithPathContext(instanceFileGet(s, inst, path), path)
 	case "HEAD":
-		return instanceFileHead(inst, path)
+		return response.WithPathContext(instanceFileHead(inst, path), path)
 	case "POST":
-		return instanceFilePost(s, inst, path, r)
+		return response.WithPathContext(instanceFilePost(s, inst, path, r), path)
 	case "DELETE":
-		return instanceFileDelete(s, inst, path)
+		return response.WithPathContext(instanceFileDelete(s, inst, path), path)
 	default:
 		return response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 	}

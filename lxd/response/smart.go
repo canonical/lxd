@@ -3,6 +3,7 @@ package response
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -56,4 +57,20 @@ func IsNotFoundError(err error) bool {
 	}
 
 	return false
+}
+
+// WithPathContext enriches a Not Found response with the given file path so users can tell
+// whether the instance or the file path was not found.
+// All other responses are returned unchanged.
+func WithPathContext(resp Response, path string) Response {
+	errResp, ok := resp.(*errorResponse)
+	if !ok || errResp.code != http.StatusNotFound {
+		return resp
+	}
+
+	if errResp.err != nil {
+		return &errorResponse{http.StatusNotFound, fmt.Errorf("Path %q: %w", path, errResp.err)}
+	}
+
+	return &errorResponse{http.StatusNotFound, fmt.Errorf("Path %q not found", path)}
 }
