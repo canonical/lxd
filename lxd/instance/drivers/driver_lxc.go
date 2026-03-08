@@ -5502,13 +5502,14 @@ func (d *lxc) ConversionReceive(args instance.ConversionReceiveArgs) error {
 func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 	// If there's no metadata, just return
 	fname := filepath.Join(d.Path(), "metadata.yaml")
-	if !shared.PathExists(fname) {
-		return nil
-	}
 
 	// Parse the metadata
 	content, err := os.ReadFile(fname)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
 		return fmt.Errorf("Failed to read metadata: %w", err)
 	}
 
