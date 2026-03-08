@@ -1043,38 +1043,38 @@ func kernelDefaultMap() (*IdmapSet, error) {
 func CurrentIdmapSet() (*IdmapSet, error) {
 	idmapset := new(IdmapSet)
 
-	if shared.PathExists("/proc/self/uid_map") {
-		// Parse the uidmap
-		entries, err := getFromProc("/proc/self/uid_map")
-		if err != nil {
+	// Parse the uidmap
+	entries, err := getFromProc("/proc/self/uid_map")
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
 
+		// Fallback map
+		e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: 0, Maprange: 0}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+	} else {
 		for _, entry := range entries {
 			e := IdmapEntry{Isuid: true, Nsid: entry[0], Hostid: entry[1], Maprange: entry[2]}
 			idmapset.Idmap = Extend(idmapset.Idmap, e)
 		}
-	} else {
-		// Fallback map
-		e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: 0, Maprange: 0}
-		idmapset.Idmap = Extend(idmapset.Idmap, e)
 	}
 
-	if shared.PathExists("/proc/self/gid_map") {
-		// Parse the gidmap
-		entries, err := getFromProc("/proc/self/gid_map")
-		if err != nil {
+	// Parse the gidmap
+	entries, err = getFromProc("/proc/self/gid_map")
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
 
+		// Fallback map
+		e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: 0, Maprange: 0}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+	} else {
 		for _, entry := range entries {
 			e := IdmapEntry{Isgid: true, Nsid: entry[0], Hostid: entry[1], Maprange: entry[2]}
 			idmapset.Idmap = Extend(idmapset.Idmap, e)
 		}
-	} else {
-		// Fallback map
-		e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: 0, Maprange: 0}
-		idmapset.Idmap = Extend(idmapset.Idmap, e)
 	}
 
 	return idmapset, nil
