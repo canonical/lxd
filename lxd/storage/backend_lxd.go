@@ -704,11 +704,9 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 
 	// If snapshot parent directory doesn't exist, remove symlink.
 	if !shared.PathExists(snapshotTargetPath) {
-		if shared.PathExists(snapshotSymlink) {
-			err := os.Remove(snapshotSymlink)
-			if err != nil {
-				return fmt.Errorf("Failed to remove symlink %q: %w", snapshotSymlink, err)
-			}
+		err := os.Remove(snapshotSymlink)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Failed to remove symlink %q: %w", snapshotSymlink, err)
 		}
 	}
 
