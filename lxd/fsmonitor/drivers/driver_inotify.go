@@ -11,7 +11,6 @@ import (
 	in "k8s.io/utils/inotify"
 
 	"github.com/canonical/lxd/lxd/fsmonitor"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -177,10 +176,6 @@ func (d *inotify) getEvents(ctx context.Context) {
 }
 
 func (d *inotify) watchFSTree(path string) error {
-	if !shared.PathExists(path) {
-		return errors.New("Path doesn't exist")
-	}
-
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		// Check for errors here as we only care about directories. Files and symlinks aren't of interest for this.
 		if err != nil {
