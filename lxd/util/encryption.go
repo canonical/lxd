@@ -14,7 +14,13 @@ import (
 // If neither a server or cluster certfificate exists, a new server certificate will be generated.
 func LoadCert(dir string) (*shared.CertInfo, error) {
 	prefix := "server"
-	if shared.PathExists(filepath.Join(dir, "cluster.crt")) {
+
+	_, err := os.Lstat(filepath.Join(dir, "cluster.crt"))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to check for cluster certificate: %w", err)
+	}
+
+	if err == nil {
 		prefix = "cluster"
 	}
 
