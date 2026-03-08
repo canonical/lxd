@@ -99,12 +99,10 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 		logger.Info("Seeding cloud-init")
 
 		cloudInitPath := "/run/cloud-init"
-		if shared.PathExists(cloudInitPath) {
-			logger.Info(`Removing "` + cloudInitPath + `"`)
-			err = os.RemoveAll(cloudInitPath)
-			if err != nil {
-				return err
-			}
+		logger.Info(`Removing "` + cloudInitPath + `"`)
+		err = os.RemoveAll(cloudInitPath)
+		if err != nil {
+			return err
 		}
 
 		logger.Info("Rebooting")
