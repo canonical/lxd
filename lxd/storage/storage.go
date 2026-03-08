@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -37,15 +38,9 @@ func InstancePath(instanceType instancetype.Type, projectName, instanceName stri
 
 // CreateContainerMountpoint creates the provided container mountpoint and symlink.
 func CreateContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
-	mntPointSymlinkExist := shared.PathExists(mountPointSymlink)
-	mntPointSymlinkTargetExist := shared.PathExists(mountPoint)
-
-	var err error
-	if !mntPointSymlinkTargetExist {
-		err = os.MkdirAll(mountPoint, 0711)
-		if err != nil {
-			return err
-		}
+	err := os.MkdirAll(mountPoint, 0711)
+	if err != nil {
+		return err
 	}
 
 	err = os.Chmod(mountPoint, 0100)
@@ -53,11 +48,9 @@ func CreateContainerMountpoint(mountPoint string, mountPointSymlink string, priv
 		return err
 	}
 
-	if !mntPointSymlinkExist {
-		err := os.Symlink(mountPoint, mountPointSymlink)
-		if err != nil {
-			return err
-		}
+	err = os.Symlink(mountPoint, mountPointSymlink)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return err
 	}
 
 	return nil
