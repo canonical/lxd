@@ -185,14 +185,9 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	volPath := vol.MountPath()
 
-	// If the volume doesn't exist, then nothing more to do.
-	if !shared.PathExists(volPath) {
-		return nil
-	}
-
 	// Remove the volume from the storage device.
 	err = forceRemoveAll(volPath)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil {
 		return fmt.Errorf("Failed to remove %q: %w", volPath, err)
 	}
 
