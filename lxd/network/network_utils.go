@@ -493,10 +493,10 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 
 	// Update the host files.
 	for _, network := range networks {
-		entries := entries[network]
+		networkPath := shared.VarPath("networks", network)
 
 		// Skip networks we don't manage (or don't have DHCP enabled).
-		if !shared.PathExists(shared.VarPath("networks", network, "dnsmasq.pid")) {
+		if !shared.PathExists(networkPath + "/dnsmasq.pid") {
 			continue
 		}
 
@@ -508,21 +508,24 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 
 		config := n.Config()
 
+		hostsPath := networkPath + "/dnsmasq.hosts"
+
 		// Wipe everything clean.
-		files, err := os.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
+		files, err := os.ReadDir(hostsPath)
 		if err != nil {
 			return err
 		}
 
 		for _, entry := range files {
-			err = os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", entry.Name()))
+			err = os.Remove(hostsPath + "/" + entry.Name())
 			if err != nil {
 				return err
 			}
 		}
 
 		// Apply the changes.
-		for entryIdx, entry := range entries {
+		networkEntries := entries[network]
+		for entryIdx, entry := range networkEntries {
 			hwaddr := entry[0]
 			projectName := entry[1]
 			cName := entry[2]
@@ -533,7 +536,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 
 			// Look for duplicates.
 			duplicate := false
-			for iIdx, i := range entries {
+			for iIdx, i := range networkEntries {
 				if project.Instance(entry[1], entry[2]) == project.Instance(i[1], i[2]) {
 					// Skip ourselves.
 					continue
