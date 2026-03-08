@@ -6772,12 +6772,10 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	// Include all the templates.
 	fnam = d.TemplatesPath()
-	if shared.PathExists(fnam) {
-		err = filepath.Walk(fnam, writeToTar)
-		if err != nil {
-			d.logger.Error("Failed exporting instance", ctxMap)
-			return meta, err
-		}
+	err = filepath.Walk(fnam, writeToTar)
+	if err != nil && !os.IsNotExist(err) {
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
 	}
 
 	err = tarWriter.Close()
