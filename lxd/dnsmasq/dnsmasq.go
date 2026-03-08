@@ -2,6 +2,7 @@ package dnsmasq
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -73,14 +74,14 @@ func RemoveStaticEntry(network string, projectName string, instanceName string, 
 func Kill(name string, reload bool) error {
 	pidPath := shared.VarPath("networks", name, "dnsmasq.pid")
 
-	// If the pid file doesn't exist, there is no process to kill.
-	if !shared.PathExists(pidPath) {
-		return nil
-	}
-
 	// Import saved subprocess details
 	p, err := subprocess.ImportProcess(pidPath)
 	if err != nil {
+		// If the pid file doesn't exist, there is no process to kill.
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
 		return fmt.Errorf("Could not read pid file: %s", err)
 	}
 
