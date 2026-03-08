@@ -2708,13 +2708,12 @@ func (n *bridge) killForkDNS() error {
 	// Check if we have a running forkdns at all
 	pidPath := shared.VarPath("networks", n.name, "forkdns.pid")
 
-	// If the pid file doesn't exist, there is no process to kill.
-	if !shared.PathExists(pidPath) {
-		return nil
-	}
-
 	p, err := subprocess.ImportProcess(pidPath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
 		return fmt.Errorf("Could not read pid file: %s", err)
 	}
 
