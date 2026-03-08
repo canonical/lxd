@@ -2657,10 +2657,8 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 	}
 
-	if shared.PathExists(d.StatePath()) {
-		// If stopping statelessly, wipe left over state.
-		_ = os.RemoveAll(d.StatePath())
-	}
+	// If stopping statelessly, wipe left over state.
+	_ = os.RemoveAll(d.StatePath())
 
 	// Load cgroup abstraction
 	cg, err := d.cgroup(cc, true)
