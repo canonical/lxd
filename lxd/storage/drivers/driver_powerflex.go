@@ -210,11 +210,6 @@ func (d *powerflex) Create() error {
 
 // Delete removes the storage pool from the storage device.
 func (d *powerflex) Delete(op *operations.Operation) error {
-	// If the user completely destroyed it, call it done.
-	if !shared.PathExists(GetPoolMountPath(d.name)) {
-		return nil
-	}
-
 	// On delete, wipe everything in the directory.
 	return wipeDirectory(GetPoolMountPath(d.name))
 }
