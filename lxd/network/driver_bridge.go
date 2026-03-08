@@ -1429,22 +1429,23 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// IPv6 bridge configuration.
+	ipv6ConfPath := "net/ipv6/conf/" + n.name
 	if !slices.Contains([]string{"", "none"}, n.config["ipv6.address"]) {
-		if !shared.PathExists("/proc/sys/net/ipv6") {
-			return errors.New("Network has ipv6.address but kernel IPv6 support is missing")
+		err := util.SysctlSet(ipv6ConfPath+"/disable_ipv6", "0")
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return errors.New("Network has ipv6.address but kernel IPv6 support is missing")
+			}
+
+			return err
 		}
 
-		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", n.name), "0")
+		err = util.SysctlSet(ipv6ConfPath+"/autoconf", "0")
 		if err != nil {
 			return err
 		}
 
-		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/autoconf", n.name), "0")
-		if err != nil {
-			return err
-		}
-
-		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_dad", n.name), "0")
+		err = util.SysctlSet(ipv6ConfPath+"/accept_dad", "0")
 		if err != nil {
 			return err
 		}
@@ -1452,11 +1453,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Disable IPv6 if no address is specified. This prevents the
 		// host being reachable over a guessable link-local address as well as it
 		// auto-configuring an address should an instance operate an IPv6 router.
-		if shared.PathExists("/proc/sys/net/ipv6") {
-			err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", n.name), "1")
-			if err != nil {
-				return err
-			}
+		err := util.SysctlSet(ipv6ConfPath+"/disable_ipv6", "1")
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
 		}
 	}
 
