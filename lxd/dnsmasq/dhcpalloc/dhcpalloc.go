@@ -288,8 +288,8 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 
 	// If we get here, then someone already has our SLAAC IP, or we are using custom ranges.
 	// Try and find a free one in the subnet pool/ranges.
+	inc := big.NewInt(1)
 	for _, IPRange := range dhcpRanges {
-		inc := big.NewInt(1)
 		startBig := big.NewInt(0)
 		startBig.SetBytes(IPRange.Start)
 		endBig := big.NewInt(0)
