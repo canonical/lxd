@@ -621,9 +621,7 @@ func (n *common) delete() error {
 	}
 
 	// Cleanup storage.
-	if shared.PathExists(shared.VarPath("networks", n.name)) {
-		_ = os.RemoveAll(shared.VarPath("networks", n.name))
-	}
+	_ = os.RemoveAll(shared.VarPath("networks", n.name))
 
 	pn := ProjectNetwork{
 		ProjectName: n.Project(),
