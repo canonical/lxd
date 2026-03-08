@@ -1096,9 +1096,16 @@ func (c *cmdConvert) askNetwork(server lxd.InstanceServer, config *cmdConvertDat
 // checkSource checks if the source path is valid and can be used for conversion.
 // Source path can represent a disk, image, or partition.
 func (c *cmdConvert) checkSource(path string, instanceType api.InstanceType, migrationMode api.SourceType) error {
-	if !shared.PathExists(path) {
-		return errors.New("Path does not exist")
+	file, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return errors.New("Path does not exist")
+		}
+
+		return err
 	}
+
+	defer file.Close()
 
 	if instanceType == api.InstanceTypeVM && migrationMode == api.SourceTypeMigration {
 		isImageTypeRaw, err := isImageTypeRaw(path)
@@ -1110,13 +1117,6 @@ func (c *cmdConvert) checkSource(path string, instanceType api.InstanceType, mig
 			return errors.New("Source disk format cannot be converted by server. Source disk should be in raw format")
 		}
 	}
-
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
 
 	// Ensure the source file is not a tarball.
 	_, err = tar.NewReader(file).Next()
