@@ -6559,7 +6559,14 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	// Look for metadata.yaml.
 	fnam := filepath.Join(cDir, "metadata.yaml")
-	if !shared.PathExists(fnam) {
+	content, err := os.ReadFile(fnam)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		_ = tarWriter.Close()
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
+	}
+
+	if err != nil {
 		// Generate a new metadata.yaml.
 		tempDir, err := os.MkdirTemp("", "lxd_lxd_metadata_")
 		if err != nil {
@@ -6634,13 +6641,6 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		}
 	} else {
 		// Parse the metadata.
-		content, err := os.ReadFile(fnam)
-		if err != nil {
-			_ = tarWriter.Close()
-			d.logger.Error("Failed exporting instance", ctxMap)
-			return meta, err
-		}
-
 		err = yaml.Unmarshal(content, &meta)
 		if err != nil {
 			_ = tarWriter.Close()
