@@ -250,11 +250,9 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 
 			newDirMode := os.ModeDir | os.FileMode(0700)
 
-			if !shared.PathExists(bucketPath) {
-				err = os.Mkdir(bucketPath, newDirMode)
-				if err != nil {
-					return fmt.Errorf("Failed creating MinIO bucket directory %q: %w", bucketPath, err)
-				}
+			err = os.Mkdir(bucketPath, newDirMode)
+			if err != nil && !os.IsExist(err) {
+				return fmt.Errorf("Failed creating MinIO bucket directory %q: %w", bucketPath, err)
 			}
 
 			dirInfo, err := os.Lstat(bucketPath)
