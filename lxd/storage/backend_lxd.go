@@ -672,11 +672,9 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Typ
 	snapshotTargetPath := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
 
 	// Remove any old symlinks left over by previous bugs that may point to a different pool.
-	if shared.PathExists(snapshotSymlink) {
-		err = os.Remove(snapshotSymlink)
-		if err != nil {
-			return fmt.Errorf("Failed to remove symlink %q: %w", snapshotSymlink, err)
-		}
+	err = os.Remove(snapshotSymlink)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("Failed to remove symlink %q: %w", snapshotSymlink, err)
 	}
 
 	// Create new symlink.
