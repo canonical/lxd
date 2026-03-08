@@ -407,15 +407,14 @@ func (d *cephfs) RenameVolume(vol Volume, newVolName string, op *operations.Oper
 
 	// Rename the snapshot directory first.
 	srcSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
+	targetSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
 
-	if shared.PathExists(srcSnapshotDir) {
-		targetSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
+	err = os.Rename(srcSnapshotDir, targetSnapshotDir)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("Failed to rename %q to %q: %w", srcSnapshotDir, targetSnapshotDir, err)
+	}
 
-		err = os.Rename(srcSnapshotDir, targetSnapshotDir)
-		if err != nil {
-			return fmt.Errorf("Failed to rename %q to %q: %w", srcSnapshotDir, targetSnapshotDir, err)
-		}
-
+	if err == nil {
 		revertPaths = append(revertPaths, volRevert{
 			oldPath: srcSnapshotDir,
 			newPath: targetSnapshotDir,
