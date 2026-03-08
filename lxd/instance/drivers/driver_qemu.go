@@ -3321,13 +3321,14 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) error {
 	// If there's no metadata, just return.
 	fname := filepath.Join(d.Path(), "metadata.yaml")
-	if !shared.PathExists(fname) {
-		return nil
-	}
 
 	// Parse the metadata.
 	content, err := os.ReadFile(fname)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
 		return fmt.Errorf("Failed to read metadata: %w", err)
 	}
 
