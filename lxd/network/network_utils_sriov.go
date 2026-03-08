@@ -204,12 +204,12 @@ func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, parentDev stri
 	for vfID := startVFID; vfID < vfCount; vfID++ {
 		vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, vfID)
 
-		if !shared.PathExists(vfListPath) {
-			continue // The vfListPath won't exist if the VF has been unbound and used with a VM.
-		}
-
 		ents, err := os.ReadDir(vfListPath)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue // The vfListPath won't exist if the VF has been unbound and used with a VM.
+			}
+
 			return -1, "", fmt.Errorf("Failed reading VF interface directory %q: %w", vfListPath, err)
 		}
 
