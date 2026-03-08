@@ -962,12 +962,12 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 		if vol.contentType == ContentTypeFS {
 			srcSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 			dstSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
-			if shared.PathExists(srcSnapshotDir) {
-				err = os.Rename(srcSnapshotDir, dstSnapshotDir)
-				if err != nil {
-					return fmt.Errorf("Error renaming LVM logical volume snapshot directory from %q to %q: %w", srcSnapshotDir, dstSnapshotDir, err)
-				}
+			err = os.Rename(srcSnapshotDir, dstSnapshotDir)
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("Error renaming LVM logical volume snapshot directory from %q to %q: %w", srcSnapshotDir, dstSnapshotDir, err)
+			}
 
+			if err == nil {
 				revert.Add(func() { _ = os.Rename(dstSnapshotDir, srcSnapshotDir) })
 			}
 		}
