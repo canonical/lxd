@@ -451,62 +451,21 @@ func createDevLXDListener(dir string) (net.Listener, error) {
 	//   http://stackoverflow.com/questions/15716302/so-reuseaddr-and-af-unix
 	//
 	// Note that this will force clients to reconnect when LXD is restarted.
-	err = socketUnixRemoveStale(path)
+	err = shared.RemoveUnixSocket(path)
 	if err != nil {
 		return nil, err
 	}
 
-	listener, err := socketUnixListen(path)
+	listener, err := shared.ListenUnix(path)
 	if err != nil {
 		return nil, err
 	}
 
-	err = socketUnixSetPermissions(path, 0600)
+	err = shared.SetUnixSocketPermissions(path, 0600)
 	if err != nil {
 		_ = listener.Close()
 		return nil, err
 	}
 
 	return listener, nil
-}
-
-// Remove any stale socket file at the given path.
-func socketUnixRemoveStale(path string) error {
-	// If there's no socket file at all, there's nothing to do.
-	if !shared.PathExists(path) {
-		return nil
-	}
-
-	logger.Debug("Detected stale unix socket, deleting")
-	err := os.Remove(path)
-	if err != nil {
-		return fmt.Errorf("could not delete stale local socket: %w", err)
-	}
-
-	return nil
-}
-
-// Change the file mode of the given unix socket file.
-func socketUnixSetPermissions(path string, mode os.FileMode) error {
-	err := os.Chmod(path, mode)
-	if err != nil {
-		return fmt.Errorf("cannot set permissions on local socket: %w", err)
-	}
-
-	return nil
-}
-
-// Bind to the given unix socket path.
-func socketUnixListen(path string) (net.Listener, error) {
-	addr, err := net.ResolveUnixAddr("unix", path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot resolve socket address: %w", err)
-	}
-
-	listener, err := net.ListenUnix("unix", addr)
-	if err != nil {
-		return nil, fmt.Errorf("cannot bind socket: %w", err)
-	}
-
-	return listener, err
 }
