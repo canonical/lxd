@@ -294,18 +294,11 @@ func createParentSnapshotDirIfMissing(poolName string, volType VolumeType, volNa
 func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName string) error {
 	snapshotsPath := GetVolumeSnapshotDir(poolName, volType, volName)
 
-	// If it exists, try to delete it.
-	if shared.PathExists(snapshotsPath) {
-		isEmpty, err := shared.PathIsEmpty(snapshotsPath)
-		if err != nil {
-			return err
-		}
-
-		if isEmpty {
-			err := os.Remove(snapshotsPath)
-			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("Failed to remove %q: %w", snapshotsPath, err)
-			}
+	err := os.Remove(snapshotsPath)
+	if err != nil && !os.IsNotExist(err) {
+		// If removal failed because the directory is not empty, that's fine.
+		if !errors.Is(err, unix.ENOTEMPTY) {
+			return fmt.Errorf("Failed to remove %q: %w", snapshotsPath, err)
 		}
 	}
 
