@@ -2345,14 +2345,13 @@ func (d *common) checkRootVolumeNotInUse() error {
 
 // removeUnixDevices reads the devices path and remove all unix devices.
 func (d *common) removeUnixDevices() error {
-	// Check that we indeed have devices to remove
-	if !shared.PathExists(d.DevicesPath()) {
-		return nil
-	}
-
 	// Load the directory listing
 	dents, err := os.ReadDir(d.DevicesPath())
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
 		return err
 	}
 
