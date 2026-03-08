@@ -324,7 +324,8 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 // AllocateTask initialises a new locked Transaction for a specific host and executes the supplied function on it.
 // The lock on the dnsmasq config is released when the function returns.
 func AllocateTask(opts *Options, f func(*Transaction) error) error {
-	l := logger.AddContext(logger.Ctx{"driver": opts.Network.Type(), "network": opts.Network.Name(), "project": opts.ProjectName, "host": opts.HostName})
+	netName := opts.Network.Name()
+	l := logger.AddContext(logger.Ctx{"driver": opts.Network.Type(), "network": netName, "project": opts.ProjectName, "host": opts.HostName})
 
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
@@ -334,7 +335,7 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
 	deviceStaticFileName := dnsmasq.StaticAllocationFileName(opts.ProjectName, opts.HostName, opts.DeviceName)
-	t.currentDHCPMAC, t.currentDHCPv4, t.currentDHCPv6, err = dnsmasq.DHCPStaticAllocation(opts.Network.Name(), deviceStaticFileName)
+	t.currentDHCPMAC, t.currentDHCPv4, t.currentDHCPv6, err = dnsmasq.DHCPStaticAllocation(netName, deviceStaticFileName)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -346,8 +347,8 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 
 	// Get all existing allocations in network if leases file exists. If not then we will detect this later
 	// due to the existing allocations maps being nil.
-	if shared.PathExists(shared.VarPath("networks", opts.Network.Name(), "dnsmasq.leases")) {
-		t.allocationsDHCPv4, t.allocationsDHCPv6, err = dnsmasq.DHCPAllAllocations(opts.Network.Name())
+	if shared.PathExists(shared.VarPath("networks", netName, "dnsmasq.leases")) {
+		t.allocationsDHCPv4, t.allocationsDHCPv6, err = dnsmasq.DHCPAllAllocations(netName)
 		if err != nil {
 			return err
 		}
@@ -383,12 +384,18 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 		}
 
 		// Write out new dnsmasq static host allocation config file.
-		err = dnsmasq.UpdateStaticEntry(opts.Network.Name(), opts.ProjectName, opts.HostName, opts.DeviceName, opts.Network.Config(), opts.HostMAC.String(), IPv4Str, IPv6Str)
+		err = dnsmasq.UpdateStaticEntry(netName, opts.ProjectName, opts.HostName, opts.DeviceName, opts.Network.Config(), opts.HostMAC.String(), IPv4Str, IPv6Str)
 		if err != nil {
 			return err
 		}
 
 		l.Debug("Updated static DHCP entry", logger.Ctx{"mac": opts.HostMAC.String(), "IPv4": IPv4Str, "IPv6": IPv6Str})
+
+		// Reload dnsmasq.
+		err = dnsmasq.Kill(netName, true)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
