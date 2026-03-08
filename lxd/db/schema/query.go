@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/canonical/lxd/lxd/db/query"
-	"github.com/canonical/lxd/shared"
 )
 
 // DoesSchemaTableExist return whether the schema table is present in the
@@ -84,12 +83,12 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"))
 
 // Read the given file (if it exists) and executes all queries it contains.
 func execFromFile(ctx context.Context, tx *sql.Tx, path string, hook Hook) error {
-	if !shared.PathExists(path) {
-		return nil
-	}
-
 	bytes, err := os.ReadFile(path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
