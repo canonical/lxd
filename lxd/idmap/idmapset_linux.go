@@ -878,63 +878,66 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 		username = currentUser.Username
 	}
 
-	// Check if shadow's uidmap tools are installed
+	// Parse the shadow uidmap.
 	subuidPath := path.Join(rootfs, "/etc/subuid")
 	subgidPath := path.Join(rootfs, "/etc/subgid")
-	if shared.PathExists(subuidPath) && shared.PathExists(subgidPath) {
-		// Parse the shadow uidmap
-		entries, err := getFromShadow(subuidPath, username)
-		if err != nil {
-			if username == "root" && err == ErrNoUserMap {
-				// No root map available, figure out a default map
-				return kernelDefaultMap()
-			}
 
-			return nil, err
+	entries, err := getFromShadow(subuidPath, username)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return kernelDefaultMap()
 		}
 
-		for _, entry := range entries {
-			// Check that it's big enough to be useful
-			if entry[1] < 65536 {
-				continue
-			}
-
-			e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
-			idmapset.Idmap = Extend(idmapset.Idmap, e)
-
-			// NOTE: Remove once LXD can deal with multiple shadow maps
-			break
+		if username == "root" && err == ErrNoUserMap {
+			// No root map available, figure out a default map
+			return kernelDefaultMap()
 		}
 
-		// Parse the shadow gidmap
-		entries, err = getFromShadow(subgidPath, username)
-		if err != nil {
-			if username == "root" && err == ErrNoUserMap {
-				// No root map available, figure out a default map
-				return kernelDefaultMap()
-			}
-
-			return nil, err
-		}
-
-		for _, entry := range entries {
-			// Check that it's big enough to be useful
-			if entry[1] < 65536 {
-				continue
-			}
-
-			e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
-			idmapset.Idmap = Extend(idmapset.Idmap, e)
-
-			// NOTE: Remove once LXD can deal with multiple shadow maps
-			break
-		}
-
-		return idmapset, nil
+		return nil, err
 	}
 
-	// No shadow available, figure out a default map
-	return kernelDefaultMap()
+	for _, entry := range entries {
+		// Check that it's big enough to be useful
+		if entry[1] < 65536 {
+			continue
+		}
+
+		e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+
+		// NOTE: Remove once LXD can deal with multiple shadow maps
+		break
+	}
+
+	// Parse the shadow gidmap.
+	entries, err = getFromShadow(subgidPath, username)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return kernelDefaultMap()
+		}
+
+		if username == "root" && err == ErrNoUserMap {
+			// No root map available, figure out a default map
+			return kernelDefaultMap()
+		}
+
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		// Check that it's big enough to be useful
+		if entry[1] < 65536 {
+			continue
+		}
+
+		e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+
+		// NOTE: Remove once LXD can deal with multiple shadow maps
+		break
+	}
+
+	return idmapset, nil
 }
 
 func kernelDefaultMap() (*IdmapSet, error) {
