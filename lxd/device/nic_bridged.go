@@ -506,7 +506,9 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	var mtu uint32
 
 	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
-	if d.inst.Type() == instancetype.Container {
+	instType := d.inst.Type()
+	switch instType {
+	case instancetype.Container:
 		if saveData["host_name"] == "" {
 			saveData["host_name"], err = d.generateHostName("veth", d.config["hwaddr"])
 			if err != nil {
@@ -514,7 +516,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 			}
 		}
 		peerName, mtu, err = networkCreateVethPair(saveData["host_name"], d.config)
-	} else if d.inst.Type() == instancetype.VM {
+	case instancetype.VM:
 		if saveData["host_name"] == "" {
 			saveData["host_name"], err = d.generateHostName("tap", d.config["hwaddr"])
 			if err != nil {
