@@ -2374,14 +2374,13 @@ func (d *common) removeUnixDevices() error {
 }
 
 func (d *common) removeDiskDevices() error {
-	// Check that we indeed have devices to remove
-	if !shared.PathExists(d.DevicesPath()) {
-		return nil
-	}
-
 	// Load the directory listing
 	dents, err := os.ReadDir(d.DevicesPath())
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
 		return err
 	}
 
