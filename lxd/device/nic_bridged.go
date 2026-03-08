@@ -202,7 +202,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 	// Check that if network property is set that conflicting keys are not present.
 	if d.config["network"] != "" {
 		requiredFields = append(requiredFields, "network")
-		inheritKeys := []string{"maas.subnet.ipv4", "maas.subnet.ipv6"}
+		inheritKeys := make([]string, 0, 5)
+		inheritKeys = append(inheritKeys, "maas.subnet.ipv4", "maas.subnet.ipv6")
 		bannedKeys := append(inheritKeys, "nictype", "parent", "mtu")
 		for _, bannedKey := range bannedKeys {
 			if d.config[bannedKey] != "" {
