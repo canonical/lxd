@@ -321,18 +321,8 @@ func (d *ceph) Delete(op *operations.Operation) error {
 		}
 	}
 
-	// If the user completely destroyed it, call it done.
-	if !shared.PathExists(GetPoolMountPath(d.name)) {
-		return nil
-	}
-
 	// On delete, wipe everything in the directory.
-	err = wipeDirectory(GetPoolMountPath(d.name))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return wipeDirectory(GetPoolMountPath(d.name))
 }
 
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
