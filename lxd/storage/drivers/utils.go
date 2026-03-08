@@ -806,18 +806,20 @@ func loopFileSizeDefault() (uint64, error) {
 // If recover is true and the file already exists, it derives the size from the existing file.
 // Otherwise it computes a default size based on available free space.
 func loopFileSizeResolve(sourcePath string, sourceRecover bool) (string, error) {
-	if sourceRecover && shared.PathExists(sourcePath) {
+	if sourceRecover {
 		fi, err := os.Stat(sourcePath)
-		if err != nil {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return "", fmt.Errorf("Failed getting size of existing source file %q: %w", sourcePath, err)
 		}
 
-		sizeBytes := fi.Size()
-		if sizeBytes%(1024*1024*1024) == 0 {
-			return strconv.FormatInt(sizeBytes/(1024*1024*1024), 10) + "GiB", nil
-		}
+		if err == nil {
+			sizeBytes := fi.Size()
+			if sizeBytes%(1024*1024*1024) == 0 {
+				return strconv.FormatInt(sizeBytes/(1024*1024*1024), 10) + "GiB", nil
+			}
 
-		return strconv.FormatInt(sizeBytes, 10) + "B", nil
+			return strconv.FormatInt(sizeBytes, 10) + "B", nil
+		}
 	}
 
 	defaultSize, err := loopFileSizeDefault()
