@@ -1264,9 +1264,16 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 	leaseFile := shared.VarPath("networks", network, "dnsmasq.leases")
 
 	// Check that we are in fact running a dnsmasq for the network
-	if !shared.PathExists(leaseFile) {
-		return nil
+	file, err := os.Open(leaseFile)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
+		return err
 	}
+
+	defer func() { _ = file.Close() }()
 
 	// Convert MAC string to bytes to avoid any case comparison issues later.
 	srcMAC, err := net.ParseMAC(hwaddr)
@@ -1304,13 +1311,6 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 	}
 
 	// Iterate the dnsmasq leases file looking for matching leases for this instance to release.
-	file, err := os.Open(leaseFile)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = file.Close() }()
-
 	var dstDUID string
 	errs := []error{}
 	scanner := bufio.NewScanner(file)
