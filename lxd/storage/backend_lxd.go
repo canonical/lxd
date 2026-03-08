@@ -648,11 +648,9 @@ func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, proje
 func (b *lxdBackend) removeInstanceSymlink(instanceType instancetype.Type, projectName string, instanceName string) error {
 	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
 
-	if shared.PathExists(symlinkPath) {
-		err := os.Remove(symlinkPath)
-		if err != nil {
-			return fmt.Errorf("Failed to remove symlink %q: %w", symlinkPath, err)
-		}
+	err := os.Remove(symlinkPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("Failed to remove symlink %q: %w", symlinkPath, err)
 	}
 
 	return nil
