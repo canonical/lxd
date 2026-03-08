@@ -5094,49 +5094,46 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 		iommuGroupPath = filepath.Join(pciDevPath, "iommu_group", "devices")
 	}
 
-	if shared.PathExists(iommuGroupPath) {
-		// Extract parent slot name by removing any virtual function ID.
-		parts := strings.SplitN(pciSlotName, ".", 2)
-		prefix := parts[0]
+	// Extract parent slot name by removing any virtual function ID.
+	prefix, _, _ := strings.Cut(pciSlotName, ".")
 
-		// Iterate the members of the IOMMU group and override any that match the parent slot name prefix.
-		err := filepath.Walk(iommuGroupPath, func(path string, _ os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-
-			iommuSlotName := filepath.Base(path) // Virtual function's address is dir name.
-
-			// Match any VFs that are related to the GPU device (but not the GPU device itself).
-			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
-				// Add VF device without VGA mode to qemu config.
-				_, devBus, devAddr, multi, err := busAllocate(devName, true)
-				if err != nil {
-					return fmt.Errorf("Failed allocating bus for GPU VF device %q: %w", devName, err)
-				}
-
-				gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
-					dev: qemuDevOpts{
-						busName:       busName,
-						devBus:        devBus,
-						devAddr:       devAddr,
-						multifunction: multi,
-					},
-					// Generate associated device name by combining main device name and VF ID.
-					devName:     devName + "_" + devAddr,
-					pciSlotName: iommuSlotName,
-					vga:         false,
-					vgpu:        "",
-				}
-
-				*cfg = append(*cfg, qemuGPUDevPhysical(&gpuDevPhysicalOpts)...)
-			}
-
-			return nil
-		})
+	// Iterate the members of the IOMMU group and override any that match the parent slot name prefix.
+	err = filepath.Walk(iommuGroupPath, func(path string, _ os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
+
+		iommuSlotName := filepath.Base(path) // Virtual function's address is dir name.
+
+		// Match any VFs that are related to the GPU device (but not the GPU device itself).
+		if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
+			// Add VF device without VGA mode to qemu config.
+			_, devBus, devAddr, multi, err := busAllocate(devName, true)
+			if err != nil {
+				return fmt.Errorf("Failed allocating bus for GPU VF device %q: %w", devName, err)
+			}
+
+			gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
+				dev: qemuDevOpts{
+					busName:       busName,
+					devBus:        devBus,
+					devAddr:       devAddr,
+					multifunction: multi,
+				},
+				// Generate associated device name by combining main device name and VF ID.
+				devName:     devName + "_" + devAddr,
+				pciSlotName: iommuSlotName,
+				vga:         false,
+				vgpu:        "",
+			}
+
+			*cfg = append(*cfg, qemuGPUDevPhysical(&gpuDevPhysicalOpts)...)
+		}
+
+		return nil
+	})
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
 
 	return nil
