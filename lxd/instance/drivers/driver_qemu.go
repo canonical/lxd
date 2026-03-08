@@ -4141,10 +4141,6 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 		return errors.New("No virtiofsd socket path provided")
 	}
 
-	if !shared.PathExists(virtiofsdSock.Path) {
-		return fmt.Errorf("Socket path %q for virtiofsd does not exist", virtiofsdSock.Path)
-	}
-
 	shouldBusAllocate := busName == "pcie" || busName == "pci"
 
 	reverter := revert.New()
