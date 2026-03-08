@@ -239,13 +239,15 @@ func (c *cmdAgent) writeStatus(status string) error {
 // mountHostShares reads the agent-mounts.json file from config share and mounts the shares requested.
 func (c *cmdAgent) mountHostShares() {
 	agentMountsFile := "./agent-mounts.json"
-	if !shared.PathExists(agentMountsFile) {
-		return
-	}
 
 	b, err := os.ReadFile(agentMountsFile)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return
+		}
+
 		logger.Errorf("Failed to load agent mounts file %q: %v", agentMountsFile, err)
+		return
 	}
 
 	var agentMounts []instancetype.VMAgentMount
@@ -269,15 +271,15 @@ func (c *cmdAgent) mountHostShares() {
 			l.AddContext(logger.Ctx{"path": mount.Target})
 		}
 
-		if !shared.PathExists(mount.Target) {
-			err := os.MkdirAll(mount.Target, 0755)
-			if err != nil {
-				l.Error("Failed to create mount target", logger.Ctx{"err": err})
-				continue // Don't try to mount if mount point can't be created.
-			}
-		} else if filesystem.IsMountPoint(mount.Target) {
+		if filesystem.IsMountPoint(mount.Target) {
 			// Already mounted.
 			continue
+		}
+
+		err := os.MkdirAll(mount.Target, 0755)
+		if err != nil {
+			l.Error("Failed to create mount target", logger.Ctx{"err": err})
+			continue // Don't try to mount if mount point can't be created.
 		}
 
 		args := []string{"-t", mount.FSType, mount.Source, mount.Target}
