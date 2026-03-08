@@ -250,28 +250,29 @@ func (s *OS) Init() ([]cluster.Warning, error) {
 // initServerUUID checks if there is a server.uuid file in OS.VarDir. If it is present, the contents are set as
 // OS.ServerUUID. If it is not present, a new v7 UUID is created and written to the file, and then set as OS.ServerUUID.
 func (s *OS) initServerUUID() error {
-	var serverUUID string
 	uuidPath := filepath.Join(s.VarDir, "server.uuid")
-	if !shared.PathExists(uuidPath) {
-		newServerUUID, err := uuid.NewV7()
-		if err != nil {
-			return fmt.Errorf("Failed to generate a new server UUID: %w", err)
-		}
 
-		serverUUID = newServerUUID.String()
-		err = os.WriteFile(uuidPath, []byte(serverUUID), 0600)
-		if err != nil {
-			return fmt.Errorf("Failed to create server.uuid file: %w", err)
-		}
+	uuidBytes, err := os.ReadFile(uuidPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed to read server.uuid file: %w", err)
 	}
 
-	if serverUUID == "" {
-		uuidBytes, err := os.ReadFile(uuidPath)
-		if err != nil {
-			return fmt.Errorf("Failed to read server.uuid file: %w", err)
-		}
+	if err == nil {
+		s.ServerUUID = string(uuidBytes)
+		return nil
+	}
 
-		serverUUID = string(uuidBytes)
+	// File doesn't exist; generate a new UUID and write it.
+	newServerUUID, err := uuid.NewV7()
+	if err != nil {
+		return fmt.Errorf("Failed to generate a new server UUID: %w", err)
+	}
+
+	serverUUID := newServerUUID.String()
+
+	err = os.WriteFile(uuidPath, []byte(serverUUID), 0600)
+	if err != nil {
+		return fmt.Errorf("Failed to create server.uuid file: %w", err)
 	}
 
 	s.ServerUUID = serverUUID
