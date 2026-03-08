@@ -276,11 +276,6 @@ func (d *alletra) Delete(op *operations.Operation) error {
 		return err
 	}
 
-	// If the user completely destroyed it, call it done.
-	if !shared.PathExists(GetPoolMountPath(d.name)) {
-		return nil
-	}
-
 	// On delete, wipe everything in the directory.
 	return wipeDirectory(GetPoolMountPath(d.name))
 }
