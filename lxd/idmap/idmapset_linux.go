@@ -741,10 +741,6 @@ func (set *IdmapSet) doUidShiftIntoContainer(dir string, testmode bool, how stri
 		return nil
 	}
 
-	if !shared.PathExists(dir) {
-		return fmt.Errorf("No such file or directory: %q", dir)
-	}
-
 	return filepath.Walk(dir, convert)
 }
 
