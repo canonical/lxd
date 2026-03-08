@@ -3668,12 +3668,10 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	// Rename the logging path.
 	newFullName := project.Instance(d.Project().Name, d.Name())
 	_ = os.RemoveAll(shared.LogPath(newFullName))
-	if shared.PathExists(d.LogPath()) {
-		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
-		if err != nil {
-			d.logger.Error("Failed renaming instance", ctxMap)
-			return fmt.Errorf("Failed renaming instance: %w", err)
-		}
+	err = os.Rename(d.LogPath(), shared.LogPath(newFullName))
+	if err != nil && !os.IsNotExist(err) {
+		d.logger.Error("Failed renaming instance", ctxMap)
+		return fmt.Errorf("Failed renaming instance: %w", err)
 	}
 
 	// Rename the MAAS entry.
