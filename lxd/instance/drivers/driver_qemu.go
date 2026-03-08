@@ -1117,6 +1117,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
+	// Cache UEFI support for this architecture.
+	supportsUEFI := d.architectureSupportsUEFI(d.architecture)
+
 	// Ensure secure boot is disabled for images that don't support it.
 	bootMode := d.effectiveBootMode()
 	if shared.IsFalse(d.localConfig["image.requirements.secureboot"]) && bootMode == instancetype.BootModeUEFISecureBoot {
@@ -1162,12 +1165,10 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Rotate the log file.
 	logfile := d.LogFilePath()
-	if shared.PathExists(logfile) {
-		err := os.Rename(logfile, logfile+".old")
-		if err != nil && !os.IsNotExist(err) {
-			op.Done(err)
-			return err
-		}
+	err = os.Rename(logfile, logfile+".old")
+	if err != nil && !os.IsNotExist(err) {
+		op.Done(err)
+		return err
 	}
 
 	// Remove old pid file if needed.
@@ -1257,7 +1258,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Copy EDK2 settings firmware to nvram file if needed.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
-	if d.architectureSupportsUEFI(d.architecture) {
+	if supportsUEFI {
 		// ovmfNeedsUpdate checks if nvram file needs to be regenerated using new template.
 		ovmfNeedsUpdate := func(nvramTarget string) bool {
 			if !shared.InSnap() {
@@ -1576,7 +1577,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// SMBIOS only on x86_64 and aarch64.
-	if d.architectureSupportsUEFI(d.architecture) {
+	if supportsUEFI {
 		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
 	}
 
@@ -1592,19 +1593,19 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 			qemuCmd = append(qemuCmd, "-runas", d.state.OS.UnprivUser)
 		}
 
-		nvRAMPath := d.nvramPath()
-		if d.architectureSupportsUEFI(d.architecture) && shared.PathExists(nvRAMPath) {
+		if supportsUEFI {
+			nvRAMPath := d.nvramPath()
 			// Ensure UEFI nvram file is writable by the QEMU process.
 			// This is needed when doing stateful snapshots because the QEMU process will reopen the
 			// file for writing.
 			err = os.Chown(nvRAMPath, int(d.state.OS.UnprivUID), -1)
-			if err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				op.Done(err)
 				return err
 			}
 
 			err = os.Chmod(nvRAMPath, 0600)
-			if err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				op.Done(err)
 				return err
 			}
@@ -3287,11 +3288,9 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 
 	// Copy the template metadata itself too.
 	metaPath := filepath.Join(d.Path(), "metadata.yaml")
-	if shared.PathExists(metaPath) {
-		err = shared.FileCopy(metaPath, filepath.Join(templateFilesPath, "metadata.yaml"))
-		if err != nil {
-			return err
-		}
+	err = shared.FileCopy(metaPath, filepath.Join(templateFilesPath, "metadata.yaml"))
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
 
 	// Clear NICConfigDir to ensure that no leftover configuration is erroneously applied by the agent.
