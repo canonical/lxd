@@ -341,7 +341,7 @@ func (d *powerflex) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	mountPath := vol.MountPath()
 
-	if vol.contentType == ContentTypeFS && shared.PathExists(mountPath) {
+	if vol.contentType == ContentTypeFS {
 		err := wipeDirectory(mountPath)
 		if err != nil {
 			return err
