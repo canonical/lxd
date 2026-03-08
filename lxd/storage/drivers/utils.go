@@ -70,10 +70,10 @@ func wipeDirectory(path string) error {
 // forceRemoveAll wipes a path including any immutable/non-append files.
 func forceRemoveAll(path string) error {
 	err := os.RemoveAll(path)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		_, _ = shared.RunCommand(context.TODO(), "chattr", "-ai", "-R", path)
 		err = os.RemoveAll(path)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
