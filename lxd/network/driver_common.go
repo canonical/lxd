@@ -578,19 +578,15 @@ func (n *common) rename(newName string) error {
 	newNamePath := shared.VarPath("networks", newName)
 
 	// Clear new directory if exists.
-	if shared.PathExists(newNamePath) {
-		_ = os.RemoveAll(newNamePath)
-	}
+	_ = os.RemoveAll(newNamePath)
 
 	// Rename directory to new name.
-	if shared.PathExists(oldNamePath) {
-		err := os.Rename(oldNamePath, newNamePath)
-		if err != nil {
-			return err
-		}
+	err := os.Rename(oldNamePath, newNamePath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Rename the database entry.
 		return tx.RenameNetwork(ctx, n.project, n.name, newName)
 	})
