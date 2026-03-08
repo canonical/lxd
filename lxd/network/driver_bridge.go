@@ -999,20 +999,16 @@ func (n *bridge) Rename(newName string) error {
 
 	// Rename forkdns log file.
 	forkDNSLogPath := shared.LogPath("forkdns." + n.name + ".log")
-	if shared.PathExists(forkDNSLogPath) {
-		err := os.Rename(forkDNSLogPath, shared.LogPath("forkdns."+newName+".log"))
-		if err != nil {
-			return err
-		}
+	err = os.Rename(forkDNSLogPath, shared.LogPath("forkdns."+newName+".log"))
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
 
 	// Rename dnsmasq log file.
 	dnsmasqLogPath := shared.LogPath("dnsmasq." + n.name + ".log")
-	if shared.PathExists(dnsmasqLogPath) {
-		err := os.Rename(dnsmasqLogPath, shared.LogPath("dnsmasq."+newName+".log"))
-		if err != nil {
-			return err
-		}
+	err = os.Rename(dnsmasqLogPath, shared.LogPath("dnsmasq."+newName+".log"))
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
 
 	// Rename common steps.
