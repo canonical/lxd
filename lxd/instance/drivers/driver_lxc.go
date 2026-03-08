@@ -7528,17 +7528,17 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 				backingFilePath := fmt.Sprintf("/sys/dev/block/%d:%d/loop/backing_file", unix.Major(uint64(stat.Dev)), unix.Minor(uint64(stat.Dev)))
 
-				if shared.PathExists(backingFilePath) {
-					// Read backing file
-					backingFile, err := os.ReadFile(backingFilePath)
-					if err != nil {
+				// Read backing file
+				backingFile, err := os.ReadFile(backingFilePath)
+				if err != nil {
+					if !errors.Is(err, os.ErrNotExist) {
 						return nil, fmt.Errorf("Failed to read %s: %w", backingFilePath, err)
 					}
 
-					realDev = string(backingFile)
-				} else {
 					// Use dev as device
 					realDev = mountDev
+				} else {
+					realDev = string(backingFile)
 				}
 
 				break
