@@ -997,12 +997,12 @@ func GetNeighbourIPs(interfaceName string, hwaddr net.HardwareAddr) ([]ip.Neigh,
 // GetLeaseAddresses returns the lease addresses for a network and hwaddr.
 func GetLeaseAddresses(networkName string, hwaddr string) ([]net.IP, error) {
 	leaseFile := shared.VarPath("networks", networkName, "dnsmasq.leases")
-	if !shared.PathExists(leaseFile) {
-		return nil, fmt.Errorf("Leases file not found for network %q", networkName)
-	}
-
 	content, err := os.ReadFile(leaseFile)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("Leases file not found for network %q", networkName)
+		}
+
 		return nil, err
 	}
 
