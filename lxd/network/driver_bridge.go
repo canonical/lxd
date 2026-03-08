@@ -3663,12 +3663,12 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 	// Get dynamic leases.
 	leaseFile := shared.VarPath("networks", n.name, "dnsmasq.leases")
-	if !shared.PathExists(leaseFile) {
-		return leases, nil
-	}
-
 	content, err := os.ReadFile(leaseFile)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return leases, nil
+		}
+
 		return nil, err
 	}
 
