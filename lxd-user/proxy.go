@@ -16,8 +16,10 @@ import (
 )
 
 func tlsConfig(uid uint32) (*tls.Config, error) {
+	userDir := filepath.Join("users", strconv.FormatUint(uint64(uid), 10))
+
 	// Load the client certificate.
-	content, err := os.ReadFile(filepath.Join("users", strconv.FormatUint(uint64(uid), 10), "client.crt"))
+	content, err := os.ReadFile(filepath.Join(userDir, "client.crt"))
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open client certificate: %w", err)
 	}
@@ -25,7 +27,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 	tlsClientCert := string(content)
 
 	// Load the client key.
-	content, err = os.ReadFile(filepath.Join("users", strconv.FormatUint(uint64(uid), 10), "client.key"))
+	content, err = os.ReadFile(filepath.Join(userDir, "client.key"))
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open client key: %w", err)
 	}
@@ -34,13 +36,18 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 
 	// Load the server certificate.
 	certPath := shared.VarPath("cluster.crt")
-	if !shared.PathExists(certPath) {
-		certPath = shared.VarPath("server.crt")
-	}
 
 	content, err = os.ReadFile(certPath)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("Unable to open server certificate: %w", err)
+	}
+
+	if os.IsNotExist(err) {
+		certPath = shared.VarPath("server.crt")
+		content, err = os.ReadFile(certPath)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to open server certificate: %w", err)
+		}
 	}
 
 	tlsServerCert := string(content)
@@ -81,7 +88,8 @@ func proxyConnection(conn *net.UnixConn) {
 	defer logger.Debug("Disconnected")
 
 	// Check if the user was setup.
-	if !shared.PathExists(filepath.Join("users", strconv.FormatUint(uint64(creds.Uid), 10))) {
+	userDir := filepath.Join("users", strconv.FormatUint(uint64(creds.Uid), 10))
+	if !shared.PathExists(userDir) {
 		log.Infof("Setting up LXD for uid %d", creds.Uid)
 		err := lxdSetupUser(creds.Uid)
 		if err != nil {
