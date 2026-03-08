@@ -2350,27 +2350,25 @@ func (d *lxc) Start(stateful bool) error {
 		// Attempt to extract the LXC errors
 		lxcLog := ""
 		logPath := filepath.Join(d.LogPath(), "lxc.log")
-		if shared.PathExists(logPath) {
-			logContent, err := os.ReadFile(logPath)
-			if err == nil {
-				for line := range strings.SplitSeq(string(logContent), "\n") {
-					fields := strings.Fields(line)
-					if len(fields) < 4 {
-						continue
-					}
-
-					// We only care about errors
-					if fields[2] != "ERROR" {
-						continue
-					}
-
-					// Prepend the line break
-					if len(lxcLog) == 0 {
-						lxcLog += "\n"
-					}
-
-					lxcLog += "  " + strings.Join(fields[0:], " ") + "\n"
+		logContent, logErr := os.ReadFile(logPath)
+		if logErr == nil {
+			for line := range strings.SplitSeq(string(logContent), "\n") {
+				fields := strings.Fields(line)
+				if len(fields) < 4 {
+					continue
 				}
+
+				// We only care about errors
+				if fields[2] != "ERROR" {
+					continue
+				}
+
+				// Prepend the line break
+				if len(lxcLog) == 0 {
+					lxcLog += "\n"
+				}
+
+				lxcLog += "  " + strings.Join(fields[0:], " ") + "\n"
 			}
 		}
 
