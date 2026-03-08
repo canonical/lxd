@@ -630,15 +630,13 @@ func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, proje
 	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
 
 	// Remove any old symlinks left over by previous bugs that may point to a different pool.
-	if shared.PathExists(symlinkPath) {
-		err := os.Remove(symlinkPath)
-		if err != nil {
-			return fmt.Errorf("Failed to remove symlink %q: %w", symlinkPath, err)
-		}
+	err := os.Remove(symlinkPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("Failed to remove symlink %q: %w", symlinkPath, err)
 	}
 
 	// Create new symlink.
-	err := os.Symlink(mountPath, symlinkPath)
+	err = os.Symlink(mountPath, symlinkPath)
 	if err != nil {
 		return fmt.Errorf("Failed to create symlink from %q to %q: %w", mountPath, symlinkPath, err)
 	}
