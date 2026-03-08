@@ -885,7 +885,7 @@ func (d *powerflex) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operatio
 
 	mountPath := snapVol.MountPath()
 
-	if snapVol.contentType == ContentTypeFS && shared.PathExists(mountPath) {
+	if snapVol.contentType == ContentTypeFS {
 		err = wipeDirectory(mountPath)
 		if err != nil {
 			return err
