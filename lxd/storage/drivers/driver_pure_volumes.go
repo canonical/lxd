@@ -1215,7 +1215,7 @@ func (d *pure) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 
 	mountPath := snapVol.MountPath()
 
-	if snapVol.contentType == ContentTypeFS && shared.PathExists(mountPath) {
+	if snapVol.contentType == ContentTypeFS {
 		err = wipeDirectory(mountPath)
 		if err != nil {
 			return err
