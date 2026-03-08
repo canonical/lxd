@@ -152,10 +152,6 @@ func (d *nicIPVLAN) validateEnvironment() error {
 		return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 	}
 
-	if d.config["parent"] == "" && d.config["vlan"] != "" {
-		return errors.New("The vlan setting can only be used when combined with a parent interface")
-	}
-
 	// Only check sysctls for l2proxy if mode is l3s.
 	if d.mode() != ipvlanModeL3S {
 		return nil
