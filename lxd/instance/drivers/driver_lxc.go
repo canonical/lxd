@@ -753,11 +753,12 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	}
 
 	for _, mnt := range bindMounts {
-		if !shared.PathExists(mnt) {
+		fi, err := os.Stat(mnt)
+		if err != nil {
 			continue
 		}
 
-		if shared.IsDir(mnt) {
+		if fi.IsDir() {
 			err = lxcSetConfigItem(cc, "lxc.mount.entry", mnt+" "+strings.TrimPrefix(mnt, "/")+" none rbind,create=dir,optional 0 0")
 			if err != nil {
 				return nil, err
