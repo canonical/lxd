@@ -194,13 +194,11 @@ func (d *gpuMdev) postStop() error {
 	v := d.volatileGet()
 
 	if v["vgpu.uuid"] != "" {
-		path := "/sys/bus/mdev/devices/" + v["vgpu.uuid"]
+		path := "/sys/bus/mdev/devices/" + v["vgpu.uuid"] + "/remove"
 
-		if shared.PathExists(path) {
-			err := os.WriteFile(filepath.Join(path, "remove"), []byte("1\n"), 0200)
-			if err != nil {
-				d.logger.Error("Failed to remove vgpu", logger.Ctx{"device": v["vgpu.uuid"], "err": err})
-			}
+		err := os.WriteFile(path, []byte("1\n"), 0200)
+		if err != nil && !os.IsNotExist(err) {
+			d.logger.Error("Failed to remove vgpu", logger.Ctx{"device": v["vgpu.uuid"], "err": err})
 		}
 	}
 
