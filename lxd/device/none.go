@@ -20,15 +20,9 @@ func (d *none) CanHotPlug() bool {
 }
 
 // validateConfig checks the supplied config for correctness.
-// validateConfig checks the supplied config for correctness.
 func (d *none) validateConfig(instConf instance.ConfigReader) error {
 	rules := map[string]func(string) error{} // No fields allowed.
-	err := d.config.Validate(rules)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.config.Validate(rules)
 }
 
 // Start is run when the device is added to the container.
