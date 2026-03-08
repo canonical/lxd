@@ -782,20 +782,18 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 			return -1, err
 		}
 
-		if shared.PathExists(dstPath) {
-			volSizeBytes, err := block.DiskSizeBytes(dstPath)
-			if err != nil {
+		volSizeBytes, err := block.DiskSizeBytes(dstPath)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
 				return -1, fmt.Errorf("Error getting current size of %q: %w", dstPath, err)
 			}
-
+		} else if volSizeBytes < imgVirtualSize {
 			// If the target volume's size is smaller than the image unpack size, then we need to
 			// increase the target volume's size.
-			if volSizeBytes < imgVirtualSize {
-				l.Debug("Increasing volume size", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize, "allowUnsafeResize": allowUnsafeResize})
-				err = vol.SetQuota(newVolSize, allowUnsafeResize, nil)
-				if err != nil {
-					return -1, fmt.Errorf("Error increasing volume size: %w", err)
-				}
+			l.Debug("Increasing volume size", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize, "allowUnsafeResize": allowUnsafeResize})
+			err = vol.SetQuota(newVolSize, allowUnsafeResize, nil)
+			if err != nil {
+				return -1, fmt.Errorf("Error increasing volume size: %w", err)
 			}
 		}
 
