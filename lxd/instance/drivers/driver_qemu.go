@@ -2408,9 +2408,6 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 
 	// Detect virtiofsd path.
 	virtiofsdSockPath := filepath.Join(d.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(deviceName)+".sock")
-	if !shared.PathExists(virtiofsdSockPath) {
-		return "", errors.New("Virtiofsd isn't running")
-	}
 
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -2421,7 +2418,11 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	// Open a file descriptor to the socket file through O_PATH to avoid acessing the file descriptor to the sockfs inode.
 	socketFile, err := os.OpenFile(virtiofsdSockPath, unix.O_PATH|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return "", fmt.Errorf("Failed to open device socket file %q: %w", virtiofsdSockPath, err)
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", fmt.Errorf("Failed opening virtiofsd socket file (virtiofsd isn't running) %q: %w", virtiofsdSockPath, err)
+		}
+
+		return "", fmt.Errorf("Failed opening virtiofsd socket file %q: %w", virtiofsdSockPath, err)
 	}
 
 	defer func() {
