@@ -253,11 +253,6 @@ func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	volPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
 
-	// If the volume doesn't exist, then nothing more to do.
-	if !shared.PathExists(volPath) {
-		return nil
-	}
-
 	// Remove the volume from the storage device.
 	err = os.RemoveAll(volPath)
 	if err != nil && !os.IsNotExist(err) {
