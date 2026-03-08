@@ -224,11 +224,9 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 	}
 
 	// Create the devices directory if missing.
-	if !shared.PathExists(devicesPath) {
-		err := os.Mkdir(devicesPath, 0711)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to create devices path: %s", err)
-		}
+	err = os.Mkdir(devicesPath, 0711)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return nil, fmt.Errorf("Failed to create devices path: %s", err)
 	}
 
 	destPath := unixDeviceDestPath(m)
