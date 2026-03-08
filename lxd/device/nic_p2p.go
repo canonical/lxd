@@ -90,7 +90,9 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 	var mtu uint32
 
 	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
-	if d.inst.Type() == instancetype.Container {
+	instType := d.inst.Type()
+	switch instType {
+	case instancetype.Container:
 		if saveData["host_name"] == "" {
 			saveData["host_name"], err = d.generateHostName("veth", d.config["hwaddr"])
 			if err != nil {
@@ -99,7 +101,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		peerName, mtu, err = networkCreateVethPair(saveData["host_name"], d.config)
-	} else if d.inst.Type() == instancetype.VM {
+	case instancetype.VM:
 		if saveData["host_name"] == "" {
 			saveData["host_name"], err = d.generateHostName("tap", d.config["hwaddr"])
 			if err != nil {
@@ -152,7 +154,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "hwaddr", Value: d.config["hwaddr"]},
 	}
 
-	if d.inst.Type() == instancetype.VM {
+	if instType == instancetype.VM {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
