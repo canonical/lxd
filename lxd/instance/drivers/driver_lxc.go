@@ -7538,7 +7538,8 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 					// Use dev as device
 					realDev = mountDev
 				} else {
-					realDev = string(backingFile)
+					realDev = strings.TrimRight(string(backingFile), "\n")
+					realDev = strings.TrimSuffix(realDev, " (deleted)")
 				}
 
 				break
