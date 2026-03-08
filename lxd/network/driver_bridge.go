@@ -1307,14 +1307,10 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Create directory.
 	networkDir := shared.VarPath("networks", n.name)
-	if !shared.PathExists(networkDir) {
-		err := os.MkdirAll(networkDir, 0711)
-		if err != nil {
-			return err
-		}
+	err := os.MkdirAll(networkDir, 0711)
+	if err != nil {
+		return err
 	}
-
-	var err error
 
 	// Build up the bridge interface's settings.
 	bridge := ip.Bridge{
@@ -2147,11 +2143,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if dnsClustered {
 			// Create forkdns servers directory.
 			forkdnsPath := shared.VarPath("networks", n.name, ForkdnsServersListPath)
-			if !shared.PathExists(forkdnsPath) {
-				err = os.MkdirAll(forkdnsPath, 0755)
-				if err != nil {
-					return err
-				}
+			err = os.MkdirAll(forkdnsPath, 0755)
+			if err != nil {
+				return err
 			}
 
 			// Create forkdns servers.conf file if doesn't exist.
@@ -2170,20 +2164,16 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	} else {
 		// Clean up old dnsmasq config if exists and we are not starting dnsmasq.
 		leasesPath := shared.VarPath("networks", n.name, "dnsmasq.leases")
-		if shared.PathExists(leasesPath) {
-			err := os.Remove(leasesPath)
-			if err != nil {
-				return fmt.Errorf("Failed to remove old dnsmasq leases file %q: %w", leasesPath, err)
-			}
+		err = os.Remove(leasesPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed to remove old dnsmasq leases file %q: %w", leasesPath, err)
 		}
 
 		// Clean up old dnsmasq PID file.
 		pidPath := shared.VarPath("networks", n.name, "dnsmasq.pid")
-		if shared.PathExists(pidPath) {
-			err := os.Remove(pidPath)
-			if err != nil {
-				return fmt.Errorf("Failed to remove old dnsmasq pid file %q: %w", pidPath, err)
-			}
+		err = os.Remove(pidPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed to remove old dnsmasq pid file %q: %w", pidPath, err)
 		}
 	}
 
