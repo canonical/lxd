@@ -113,27 +113,27 @@ func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int
 		return "", -1, fmt.Errorf("Failed getting in use device list: %w", err)
 	}
 
-	sriovNumVFsFile := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", parentDev)
-	sriovTotalVFsFile := fmt.Sprintf("/sys/class/net/%s/device/sriov_totalvfs", parentDev)
-
-	// Verify that this is indeed a SR-IOV enabled device.
-	if !shared.PathExists(sriovNumVFsFile) {
-		return "", -1, fmt.Errorf("Parent device %q doesn't support SR-IOV", parentDev)
-	}
-
-	// Get parent dev_port and dev_id values.
-	pfDevPort, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_port", parentDev))
-	if err != nil {
-		return "", -1, err
-	}
-
-	pfDevID, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_id", parentDev))
-	if err != nil {
-		return "", -1, err
-	}
+	parentDevPath := "/sys/class/net/" + parentDev
+	sriovNumVFsFile := parentDevPath + "/device/sriov_numvfs"
+	sriovTotalVFsFile := parentDevPath + "/device/sriov_totalvfs"
 
 	// Get number of currently enabled VFs.
 	sriovNumVFsBuf, err := os.ReadFile(sriovNumVFsFile)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", -1, fmt.Errorf("Parent device %q doesn't support SR-IOV", parentDev)
+		}
+
+		return "", -1, err
+	}
+
+	// Get parent dev_port and dev_id values.
+	pfDevPort, err := os.ReadFile(parentDevPath + "/dev_port")
+	if err != nil {
+		return "", -1, err
+	}
+
+	pfDevID, err := os.ReadFile(parentDevPath + "/dev_id")
 	if err != nil {
 		return "", -1, err
 	}
