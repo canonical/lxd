@@ -68,7 +68,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Sync the hostname.
-	if shared.PathExists("/proc/sys/kernel/hostname") && slices.Contains(files, "/etc/hostname") {
+	if slices.Contains(files, "/etc/hostname") && shared.PathExists("/proc/sys/kernel/hostname") {
 		// Open the two files.
 		src, err := os.Open("/etc/hostname")
 		if err != nil {
@@ -95,7 +95,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run cloud-init.
-	if shared.PathExists("/etc/cloud") && slices.Contains(files, "/var/lib/cloud/seed/nocloud-net/meta-data") {
+	if slices.Contains(files, "/var/lib/cloud/seed/nocloud-net/meta-data") && shared.PathExists("/etc/cloud") {
 		logger.Info("Seeding cloud-init")
 
 		cloudInitPath := "/run/cloud-init"
