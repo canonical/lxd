@@ -8,7 +8,6 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd-benchmark/benchmark"
-	"github.com/canonical/lxd/shared"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -44,11 +43,9 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	// Setup report handling
 	if c.flagReportFile != "" {
 		c.report = &benchmark.CSVReport{Filename: c.flagReportFile}
-		if shared.PathExists(c.flagReportFile) {
-			err := c.report.Load()
-			if err != nil {
-				return err
-			}
+		err := c.report.Load()
+		if err != nil && !os.IsNotExist(err) {
+			return err
 		}
 	}
 
