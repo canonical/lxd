@@ -1888,12 +1888,9 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 
 	// Rotate the log file.
 	logfile := d.LogFilePath()
-	if shared.PathExists(logfile) {
-		_ = os.Remove(logfile + ".old")
-		err := os.Rename(logfile, logfile+".old")
-		if err != nil && !os.IsNotExist(err) {
-			return nil, "", nil, err
-		}
+	err = os.Rename(logfile, logfile+".old")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, "", nil, err
 	}
 
 	// Wait for any file operations to complete.
@@ -2205,8 +2202,8 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 		return nil, "", nil, err
 	}
 
-	// If starting stateless, wipe state
-	if !d.IsStateful() && shared.PathExists(d.StatePath()) {
+	// If starting stateless, wipe state.
+	if !d.IsStateful() {
 		_ = os.RemoveAll(d.StatePath())
 	}
 
