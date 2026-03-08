@@ -43,34 +43,11 @@ func renderState() *api.InstanceState {
 }
 
 func cpuState() api.InstanceStateCPU {
-	var value []byte
-	var err error
 	cpu := api.InstanceStateCPU{}
 
-	if shared.PathExists("/sys/fs/cgroup/cpuacct/cpuacct.usage") {
-		// CPU usage in seconds
-		value, err = os.ReadFile("/sys/fs/cgroup/cpuacct/cpuacct.usage")
-		if err != nil {
-			cpu.Usage = -1
-			return cpu
-		}
-
-		valueInt, err := strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
-		if err != nil {
-			cpu.Usage = -1
-			return cpu
-		}
-
-		cpu.Usage = valueInt
-
-		return cpu
-	} else if shared.PathExists("/sys/fs/cgroup/cpu.stat") {
-		stats, err := os.ReadFile("/sys/fs/cgroup/cpu.stat")
-		if err != nil {
-			cpu.Usage = -1
-			return cpu
-		}
-
+	// Try cgroup v2.
+	stats, err := os.ReadFile("/sys/fs/cgroup/cpu.stat")
+	if err == nil {
 		scanner := bufio.NewScanner(bytes.NewReader(stats))
 
 		for scanner.Scan() {
@@ -88,6 +65,20 @@ func cpuState() api.InstanceStateCPU {
 				return cpu
 			}
 		}
+	}
+
+	// Try cgroup v1.
+	value, err := os.ReadFile("/sys/fs/cgroup/cpuacct/cpuacct.usage")
+	if err == nil {
+		valueInt, err := strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
+		if err != nil {
+			cpu.Usage = -1
+			return cpu
+		}
+
+		cpu.Usage = valueInt
+
+		return cpu
 	}
 
 	cpu.Usage = -1
