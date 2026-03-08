@@ -749,13 +749,14 @@ func (d *common) GetLog(ctx context.Context, clientType request.ClientType) (str
 		logEntries = []string{}
 		prefix := fmt.Sprintf("lxd_acl%d-", d.id)
 		logPath := shared.HostPath("/var/log/ovn/ovn-controller.log")
-		if !shared.PathExists(logPath) {
-			return "", errors.New("Only OVN log entries may be retrieved at this time")
-		}
 
 		// Open the log file.
 		logFile, err := os.Open(logPath)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return "", errors.New("Only OVN log entries may be retrieved at this time")
+			}
+
 			return "", fmt.Errorf("Failed to open OVN log file: %w", err)
 		}
 
