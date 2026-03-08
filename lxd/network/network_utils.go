@@ -949,9 +949,6 @@ func GetHostDevice(parent string, vlan string) string {
 
 	// If no VLANs are configured, use the default pattern
 	defaultVlan := fmt.Sprintf("%s.%s", parent, vlan)
-	if !shared.PathExists("/proc/net/vlan/config") {
-		return defaultVlan
-	}
 
 	// Look for an existing VLAN
 	f, err := os.Open("/proc/net/vlan/config")
