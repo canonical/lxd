@@ -303,6 +303,7 @@ update-schema:
 	go install golang.org/x/tools/cmd/goimports@latest
 	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
 	go build -C lxd/db/generate -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(COVER) $(DEBUG)
+	go build -C lxd/db/simplegen -v -trimpath -o $(GOPATH)/bin/simplegen -tags "$(TAG_SQLITE3)" $(COVER) $(DEBUG)
 	go generate ./...
 	@echo "Code generation completed"
 
