@@ -17,11 +17,17 @@ func SetUserTimeout(conn *net.TCPConn, timeout time.Duration) error {
 		return fmt.Errorf("Error getting raw connection: %w", err)
 	}
 
+	var sockOptErr error
 	err = rawConn.Control(func(fd uintptr) {
-		err = unix.SetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_USER_TIMEOUT, int(timeout/time.Millisecond))
+		sockOptErr = unix.SetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_USER_TIMEOUT, int(timeout.Milliseconds()))
 	})
+
 	if err != nil {
-		return fmt.Errorf("Error setting TCP_USER_TIMEOUT option on socket: %w", err)
+		return fmt.Errorf("Error accessing raw connection: %w", err)
+	}
+
+	if sockOptErr != nil {
+		return fmt.Errorf("Error setting TCP_USER_TIMEOUT option on socket: %w", sockOptErr)
 	}
 
 	return nil
