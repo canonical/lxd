@@ -706,7 +706,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 			}
 
 			args := operations.OperationArgs{
-				Type:    operationtype.SnapshotCreate,
+				Type:    operationtype.SnapshotsCreateScheduled,
 				Class:   operations.OperationClassTask,
 				RunHook: opRun,
 			}
