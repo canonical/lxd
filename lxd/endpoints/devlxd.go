@@ -5,6 +5,8 @@ package endpoints
 import (
 	"net"
 	"path/filepath"
+
+	"github.com/canonical/lxd/shared"
 )
 
 // Create a new net.Listener bound to the unix socket of the devlxd endpoint.
@@ -22,17 +24,17 @@ func createDevLxdlListener(dir string) (net.Listener, error) {
 	//   http://stackoverflow.com/questions/15716302/so-reuseaddr-and-af-unix
 	//
 	// Note that this will force clients to reconnect when LXD is restarted.
-	err := socketUnixRemoveStale(path)
+	err := shared.RemoveUnixSocket(path)
 	if err != nil {
 		return nil, err
 	}
 
-	listener, err := socketUnixListen(path)
+	listener, err := shared.ListenUnix(path)
 	if err != nil {
 		return nil, err
 	}
 
-	err = socketUnixSetPermissions(path, 0666)
+	err = shared.SetUnixSocketPermissions(path, 0666)
 	if err != nil {
 		_ = listener.Close()
 		return nil, err
