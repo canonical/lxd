@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -14,6 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // DevDiskByID represents the system's path for disks identified by their ID.
@@ -214,9 +216,6 @@ func WaitDiskDeviceGone(ctx context.Context, diskPath string) bool {
 // once it is found. If the device does not appear within the timeout, an error
 // is returned.
 func WaitDiskDevicePath(ctx context.Context, diskNamePrefix string, diskPathFilter devicePathFilterFunc) (string, error) {
-	var err error
-	var diskPath string
-
 	_, ok := ctx.Deadline()
 	if !ok {
 		// Set a default timeout of 30 seconds for the context
@@ -226,28 +225,62 @@ func WaitDiskDevicePath(ctx context.Context, diskNamePrefix string, diskPathFilt
 		defer cancel()
 	}
 
-	for {
-		// Check if the device is already present.
-		diskPath, err = findDiskDevicePath(diskNamePrefix, diskPathFilter)
+	// Inner fetching logic.
+	getDevPath := func() (string, error) {
+		// Check if the device is present.
+		devPath, err := findDiskDevicePath(diskNamePrefix, diskPathFilter)
 		if err != nil && !errors.Is(err, unix.ENOENT) {
 			return "", err
 		}
 
+		if devPath == "" {
+			// If the device is not found, break the wait loop.
+			return "", nil
+		}
+
+		// Wait for udev to settle as it may change the disk path or create
+		// holders.
+		err = WaitUdevSettle(ctx)
+		if err != nil {
+			return "", err
+		}
+
+		// Check if the found device has holders or is it ready to use.
+		hasHolders, err := HasDiskHaveHolders(devPath)
+		if err != nil {
+			return "", err
+		}
+
+		if hasHolders {
+			// Wait for either the holders to release the device or update the path.
+			return "", nil
+		}
+
+		// Successful attempt - we found the path, udev has settled and there are
+		// no holders.
+		return devPath, nil
+	}
+
+	for {
+		// Attempt to get the device path.
+		devPath, err := getDevPath()
+		if err != nil {
+			return "", err
+		}
+
 		// If the device is found, return the device path.
-		if diskPath != "" {
-			break
+		if devPath != "" {
+			return devPath, nil
 		}
 
 		// Check if context is cancelled.
-		err := ctx.Err()
+		err = ctx.Err()
 		if err != nil {
 			return "", err
 		}
 
 		time.Sleep(500 * time.Millisecond)
 	}
-
-	return diskPath, nil
 }
 
 // GetDiskDevicePath checks whether the disk device with a given prefix and suffix
@@ -284,6 +317,70 @@ func GetDisksByID(filterPrefix string) ([]string, error) {
 	}
 
 	return filteredDisks, nil
+}
+
+// WaitUdevSettle waits for the udev processing completion.
+func WaitUdevSettle(ctx context.Context) error {
+	_, ok := ctx.Deadline()
+	if !ok {
+		// Set a default timeout of 30 seconds for the context
+		// if no deadline is already configured.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
+
+	stdout, stderr, err := shared.RunCommandSplit(ctx, nil, nil, "udevadm", "settle")
+	if err != nil {
+		if ctx.Err() == nil {
+			// Debug log non context related errors.
+			logger.Debug("storage: udevadm settle failure", logger.Ctx{
+				"err":    err,
+				"stdout": stdout,
+				"stderr": stderr,
+			})
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+// HasDiskHaveHolders check if the given disk device have holders.
+func HasDiskHaveHolders(diskPath string) (bool, error) {
+	devPath, err := filepath.EvalSymlinks(diskPath)
+	if err != nil {
+		// Return any symlink evaluation error (if disk do not exists return unix.ENOENT).
+		return false, err
+	}
+
+	devName := filepath.Base(devPath)
+	f, err := os.Open("/sys/block/" + devName + "/holders")
+	if err != nil && (errors.Is(err, unix.ENOENT) || errors.Is(err, os.ErrNotExist)) {
+		// If the directory itself do not exists there are no holders.
+		return false, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	defer f.Close()
+
+	// Do not load more than a single entry to determine if there are any holders.
+	entries, err := f.ReadDir(1)
+	if err != nil && errors.Is(err, io.EOF) {
+		// ReadDir returns io.EOF if there are no more entires. Since this is
+		// the first call it means there are no entries at all (no holders).
+		return false, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	return len(entries) > 0, nil
 }
 
 // LoopDeviceSetupAlign creates a forced 512-byte aligned loop device.
