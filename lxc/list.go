@@ -150,6 +150,10 @@ const defaultColumnsAllProjects = "ens46tSL"
 const configColumnType = "config"
 const deviceColumnType = "devices"
 
+// dotPrefixMatch returns true if each dot-separated segment in full starts with the
+// corresponding segment in short, and both strings have the same number of segments.
+// For example, "f.bar" would match "foo.bar" and "food.bar2",
+// but not "foo.bar.baz" or "foobar.bar".
 func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 	for {
 		shortSeg, shortRest, shortHasMore := strings.Cut(short, ".")
