@@ -460,31 +460,11 @@ func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret 
 
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
 func GetAuthGroupsByIdentityID(ctx context.Context, tx *sql.Tx, identityID int64) ([]AuthGroup, error) {
-	stmt := `
-SELECT auth_groups.id, auth_groups.name, auth_groups.description
-FROM auth_groups
+	clause := `
 JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id
-WHERE identities_auth_groups.identity_id = ?`
-
-	var result []AuthGroup
-	dest := func(scan func(dest ...any) error) error {
-		g := AuthGroup{}
-		err := scan(&g.ID, &g.Name, &g.Description)
-		if err != nil {
-			return err
-		}
-
-		result = append(result, g)
-
-		return nil
-	}
-
-	err := query.Scan(ctx, tx, stmt, dest, identityID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get groups for identity with ID %d: %w", identityID, err)
-	}
-
-	return result, nil
+WHERE identities_auth_groups.identity_id = ?
+`
+	return query.Select[AuthGroup](ctx, tx, clause, identityID)
 }
 
 // GetAllAuthGroupsByIdentityIDs returns a map of identity ID to slice of groups the identity with that ID is a member of.
