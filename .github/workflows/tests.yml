@@ -332,7 +332,7 @@ jobs:
         run: go test -v ./shared/...
 
       - name: Upload lxc client artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         continue-on-error: true
         with:
           name: ${{ runner.os }}
@@ -359,7 +359,7 @@ jobs:
 
       - name: Upload documentation artifacts
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: documentation
           path: doc/html
