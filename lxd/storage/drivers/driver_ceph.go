@@ -128,14 +128,8 @@ func (d *ceph) FillConfig() error {
 		d.config["ceph.osd.pool_size"] = strconv.Itoa(defaultSize)
 	}
 
-	// Use an existing OSD pool.
-	if d.config["source"] != "" {
-		d.config["ceph.osd.pool_name"] = d.config["source"]
-	}
-
 	if d.config["ceph.osd.pool_name"] == "" {
 		d.config["ceph.osd.pool_name"] = d.name
-		d.config["source"] = d.name
 	}
 
 	return nil
@@ -158,10 +152,6 @@ func (d *ceph) SourceIdentifier() (string, error) {
 
 // ValidateSource checks whether the required config keys are set to access the remote source.
 func (d *ceph) ValidateSource() error {
-	if d.config["source"] != "" && d.config["ceph.osd.pool_name"] != "" && d.config["source"] != d.config["ceph.osd.pool_name"] {
-		return errors.New(`The "source" and "ceph.osd.pool_name" property must not differ for Ceph OSD storage pools`)
-	}
-
 	return nil
 }
 
@@ -170,8 +160,6 @@ func (d *ceph) ValidateSource() error {
 func (d *ceph) Create() error {
 	revert := revert.New()
 	defer revert.Fail()
-
-	d.config["volatile.initial_source"] = d.config["source"]
 
 	// Validate.
 	_, err := units.ParseByteSizeString(d.config["ceph.osd.pg_num"])
