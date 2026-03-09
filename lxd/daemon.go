@@ -2659,14 +2659,15 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	wg.Wait()
 }
 
-func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHeartbeat, unavailableMembers []string, localClusterAddress string) []int64 {
+// handleHeartbeatClusterRoleChanges rebalances and upgrades raft roles during leader heartbeat processing and returns offline member IDs.
+func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHeartbeat, unavailableMembers []string, localClusterAddress string) (offlineMemberIDs []int64) {
 	s := d.State()
 	isDegraded := false
 	hasNodesNotPartOfRaft := false
 	hasNonControlPlaneMemberWithDatabaseRole := false
 	onlineVoters := int64(0)
 	onlineStandbys := int64(0)
-	offlineMemberIDs := make([]int64, 0, len(heartbeatData.Members))
+	offlineMemberIDs = make([]int64, 0, len(heartbeatData.Members))
 
 	// Build member roles map from heartbeat data.
 	memberRoles := make(map[string][]db.ClusterRole, len(heartbeatData.Members))
