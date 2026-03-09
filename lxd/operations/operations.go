@@ -284,11 +284,9 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	}
 
 	op.logger.Debug("New operation")
-	_, md := op.Render()
 
 	operationsLock.Lock()
 	operations[op.id] = &op
-	op.sendEvent(md)
 	operationsLock.Unlock()
 
 	op.start()
