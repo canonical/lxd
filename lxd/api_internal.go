@@ -68,6 +68,7 @@ var apiInternal = []APIEndpoint{
 	internalIdentityCacheRefreshCmd,
 	internalPruneTokenCmd,
 	internalOperationWaitCmd,
+	internalCreateScheduledSnapshotCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
@@ -169,6 +170,12 @@ var internalIdentityCacheRefreshCmd = APIEndpoint{
 	Path: "identity-cache-refresh",
 
 	Post: APIEndpointAction{Handler: internalIdentityCacheRefresh, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var internalCreateScheduledSnapshotCmd = APIEndpoint{
+	Path: "testing/create-scheduled-snapshots",
+
+	Post: APIEndpointAction{Handler: internalCreateScheduledSnapshot, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 type internalImageOptimizePost struct {
@@ -1186,5 +1193,14 @@ func internalBGPState(d *Daemon, _ *http.Request) response.Response {
 func internalIdentityCacheRefresh(d *Daemon, _ *http.Request) response.Response {
 	logger.Debug("Received identity cache update notification - refreshing cache")
 	d.State().UpdateIdentityCache()
+	return response.EmptySyncResponse
+}
+
+func internalCreateScheduledSnapshot(d *Daemon, r *http.Request) response.Response {
+	err := pruneExpiredAndAutoCreateInstanceSnapshots(r.Context(), d.State())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	return response.EmptySyncResponse
 }
