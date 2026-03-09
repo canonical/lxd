@@ -20,7 +20,7 @@ const connectErrorPrefix = "Unable to connect to"
 
 // RFC3493Dialer connects to the specified server and returns the connection.
 // If the connection cannot be established then an error with the connectErrorPrefix is returned.
-func RFC3493Dialer(context context.Context, network string, address string) (net.Conn, error) {
+func RFC3493Dialer(ctx context.Context, network string, address string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func RFC3493Dialer(context context.Context, network string, address string) (net
 			KeepAliveConfig: kaConfig,
 		}
 
-		c, err := dialer.DialContext(context, network, a)
+		c, err := dialer.DialContext(ctx, network, a)
 		if err != nil {
 			errs = append(errs, err)
 			continue
