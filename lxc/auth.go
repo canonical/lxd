@@ -319,9 +319,19 @@ func (c *cmdGroupEdit) run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// cmdGroupList lists authentication groups.
 type cmdGroupList struct {
-	global     *cmdGlobal
-	flagFormat string
+	global      *cmdGlobal
+	flagFormat  string
+	flagColumns string
+}
+
+// columns returns the ordered column definitions for auth group list.
+func (c *cmdGroupList) columns() []cli.ShorthandColumn[api.AuthGroup] {
+	return []cli.ShorthandColumn[api.AuthGroup]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+	}
 }
 
 func (c *cmdGroupList) command() *cobra.Command {
@@ -333,6 +343,7 @@ func (c *cmdGroupList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	return cmd
 }
@@ -363,19 +374,25 @@ func (c *cmdGroupList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	data := [][]string{}
-	for _, group := range groups {
-		data = append(data, []string{group.Name, group.Description})
+	// Parse column flags.
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
+	if err != nil {
+		return err
 	}
 
+	data := cli.ColumnData(columns, groups)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"DESCRIPTION",
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, groups)
+}
+
+func (c *cmdGroupList) nameColumnData(group api.AuthGroup) string {
+	return group.Name
+}
+
+func (c *cmdGroupList) descriptionColumnData(group api.AuthGroup) string {
+	return group.Description
 }
 
 // Rename.
@@ -998,9 +1015,22 @@ func (c *cmdIdentityCreate) createBearerIdentity(remoteName string, identityName
 	return nil
 }
 
+// cmdIdentityList represents the "lxc auth identity list" command and its output configuration.
 type cmdIdentityList struct {
-	global     *cmdGlobal
-	flagFormat string
+	global      *cmdGlobal
+	flagFormat  string
+	flagColumns string
+}
+
+// columns returns the ordered column definitions for identity list.
+func (c *cmdIdentityList) columns() []cli.ShorthandColumn[api.Identity] {
+	return []cli.ShorthandColumn[api.Identity]{
+		{Shorthand: 'a', Name: "AUTHENTICATION METHOD", Data: c.authMethodColumnData},
+		{Shorthand: 't', Name: "TYPE", Data: c.typeColumnData},
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'i', Name: "IDENTIFIER", Data: c.identifierColumnData},
+		{Shorthand: 'g', Name: "GROUPS", Data: c.groupsColumnData},
+	}
 }
 
 func (c *cmdIdentityList) command() *cobra.Command {
@@ -1012,6 +1042,7 @@ func (c *cmdIdentityList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	return cmd
 }
@@ -1042,27 +1073,42 @@ func (c *cmdIdentityList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	data := [][]string{}
+	// Parse column flags.
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
+	if err != nil {
+		return err
+	}
+
+	data := cli.ColumnData(columns, identities)
+	sort.Sort(cli.SortColumnsNaturally(data))
+	header := cli.ColumnHeaders(columns)
+
+	return cli.RenderTable(c.flagFormat, header, data, identities)
+}
+
+func (c *cmdIdentityList) authMethodColumnData(identity api.Identity) string {
+	return identity.AuthenticationMethod
+}
+
+func (c *cmdIdentityList) typeColumnData(identity api.Identity) string {
+	return identity.Type
+}
+
+func (c *cmdIdentityList) nameColumnData(identity api.Identity) string {
+	return identity.Name
+}
+
+func (c *cmdIdentityList) identifierColumnData(identity api.Identity) string {
+	return identity.Identifier
+}
+
+func (c *cmdIdentityList) groupsColumnData(identity api.Identity) string {
 	delimiter := "\n"
 	if c.flagFormat == cli.TableFormatCSV {
 		delimiter = ","
 	}
 
-	for _, identity := range identities {
-		data = append(data, []string{identity.AuthenticationMethod, identity.Type, identity.Name, identity.Identifier, strings.Join(identity.Groups, delimiter)})
-	}
-
-	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"AUTHENTICATION METHOD",
-		"TYPE",
-		"NAME",
-		"IDENTIFIER",
-		"GROUPS",
-	}
-
-	return cli.RenderTable(c.flagFormat, header, data, identities)
+	return strings.Join(identity.Groups, delimiter)
 }
 
 // Show.
@@ -1659,7 +1705,10 @@ type cmdPermissionList struct {
 	global              *cmdGlobal
 	flagMaxEntitlements int
 	flagFormat          string
+	flagColumns         string
 }
+
+const defaultPermissionColumns = "tue"
 
 func (c *cmdPermissionList) command() *cobra.Command {
 	cmd := &cobra.Command{}
@@ -1669,6 +1718,7 @@ func (c *cmdPermissionList) command() *cobra.Command {
 
 	cmd.Flags().IntVar(&c.flagMaxEntitlements, "max-entitlements", 3, "Maximum number of unassigned entitlements to display before overflowing (set to zero to display all)")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", cli.TableFormatTable, "Display format (json, yaml, table, compact, csv)")
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultPermissionColumns, cli.FormatStringFlagLabel("Columns"))
 	cmd.RunE = c.run
 
 	return cmd
@@ -1834,7 +1884,24 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	return cli.RenderSlice(displayPermissions, c.flagFormat, "tue", "u", columns)
+	// Normalize the column specification so comma-separated values like "t,u,e" work,
+	// while rejecting empty entries (e.g. ",t", "t,,u", or trailing commas).
+	if c.flagColumns == "" {
+		return fmt.Errorf("Invalid column list %q: column list must not be empty", c.flagColumns)
+	}
+
+	var b strings.Builder
+	for _, p := range strings.Split(c.flagColumns, ",") {
+		if p == "" {
+			return fmt.Errorf("Invalid column list %q: empty column entry", c.flagColumns)
+		}
+
+		b.WriteString(p)
+	}
+
+	normalizedColumns := b.String()
+
+	return cli.RenderSlice(displayPermissions, c.flagFormat, normalizedColumns, "u", columns)
 }
 
 type cmdIdentityProviderGroup struct {
@@ -2088,9 +2155,19 @@ func (c *cmdIdentityProviderGroupEdit) run(cmd *cobra.Command, args []string) er
 	return nil
 }
 
+// cmdIdentityProviderGroupList implements the "list" subcommand for identity provider groups.
 type cmdIdentityProviderGroupList struct {
-	global     *cmdGlobal
-	flagFormat string
+	global      *cmdGlobal
+	flagFormat  string
+	flagColumns string
+}
+
+// columns returns the ordered column definitions for identity provider group list.
+func (c *cmdIdentityProviderGroupList) columns() []cli.ShorthandColumn[api.IdentityProviderGroup] {
+	return []cli.ShorthandColumn[api.IdentityProviderGroup]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'g', Name: "GROUPS", Data: c.groupsColumnData},
+	}
 }
 
 func (c *cmdIdentityProviderGroupList) command() *cobra.Command {
@@ -2102,6 +2179,7 @@ func (c *cmdIdentityProviderGroupList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 
 	return cmd
 }
@@ -2132,19 +2210,30 @@ func (c *cmdIdentityProviderGroupList) run(cmd *cobra.Command, args []string) er
 		return err
 	}
 
-	data := [][]string{}
-	for _, group := range groups {
-		data = append(data, []string{group.Name, strings.Join(group.Groups, "\n")})
+	// Parse column flags.
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
+	if err != nil {
+		return err
 	}
 
+	data := cli.ColumnData(columns, groups)
 	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"GROUPS",
-	}
+	header := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, header, data, groups)
+}
+
+func (c *cmdIdentityProviderGroupList) nameColumnData(group api.IdentityProviderGroup) string {
+	return group.Name
+}
+
+func (c *cmdIdentityProviderGroupList) groupsColumnData(group api.IdentityProviderGroup) string {
+	delimiter := "\n"
+	if c.flagFormat == cli.TableFormatCSV {
+		delimiter = ","
+	}
+
+	return strings.Join(group.Groups, delimiter)
 }
 
 // Rename.

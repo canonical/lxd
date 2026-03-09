@@ -22,11 +22,6 @@ import (
 	"github.com/canonical/lxd/shared/termios"
 )
 
-type imageColumn struct {
-	Name string
-	Data func(api.Image) string
-}
-
 type cmdImage struct {
 	global *cmdGlobal
 }
@@ -1067,7 +1062,7 @@ The -c option takes a (optionally comma-separated) list of arguments
 that control which image attributes to output when displaying in table
 or csv format.
 
-Default column layout is: lfpdasu
+Default column layout is: lfpdatsu
 
 Column shorthand chars:
 
@@ -1077,13 +1072,13 @@ Column shorthand chars:
     F - Fingerprint (long)
     p - Whether image is public
     d - Description
-    e - Project
+    e - Project (may be empty unless using --all-projects)
     a - Architecture
     s - Size
     u - Upload date
     t - Type`)
 
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultImagesColumns, cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display images from all projects")
 	cmd.RunE = c.run
@@ -1099,48 +1094,17 @@ Column shorthand chars:
 	return cmd
 }
 
-const defaultImagesColumns = "lfpdatsu"
-const defaultImagesColumnsAllProjects = "elfpdatsu"
-
-func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
-	columnsShorthandMap := map[rune]imageColumn{
-		'a': {"ARCHITECTURE", c.architectureColumnData},
-		'd': {"DESCRIPTION", c.descriptionColumnData},
-		'e': {"PROJECT", c.projectColumnData},
-		'f': {"FINGERPRINT", c.fingerprintColumnData},
-		'F': {"FINGERPRINT", c.fingerprintFullColumnData},
-		'l': {"ALIAS", c.aliasColumnData},
-		'L': {"ALIASES", c.aliasesColumnData},
-		'p': {"PUBLIC", c.publicColumnData},
-		's': {"SIZE", c.sizeColumnData},
-		't': {"TYPE", c.typeColumnData},
-		'u': {"UPLOAD DATE", c.uploadDateColumnData},
+func (c *cmdImageList) columns() []cli.ShorthandColumn[api.Image] {
+	return []cli.ShorthandColumn[api.Image]{
+		{Shorthand: 'l', Name: "ALIAS", Data: c.aliasColumnData},
+		{Shorthand: 'f', Name: "FINGERPRINT", Data: c.fingerprintColumnData},
+		{Shorthand: 'p', Name: "PUBLIC", Data: c.publicColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'a', Name: "ARCHITECTURE", Data: c.architectureColumnData},
+		{Shorthand: 't', Name: "TYPE", Data: c.typeColumnData},
+		{Shorthand: 's', Name: "SIZE", Data: c.sizeColumnData},
+		{Shorthand: 'u', Name: "UPLOAD DATE", Data: c.uploadDateColumnData},
 	}
-
-	// Add project column if --all-projects flag specified and custom columns are not specified.
-	if c.flagAllProjects && c.flagColumns == defaultImagesColumns {
-		c.flagColumns = defaultImagesColumnsAllProjects
-	}
-
-	columnList := strings.Split(c.flagColumns, ",")
-	columns := []imageColumn{}
-
-	for _, columnEntry := range columnList {
-		if columnEntry == "" {
-			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in %q", c.flagColumns)
-		}
-
-		for _, columnRune := range columnEntry {
-			column, ok := columnsShorthandMap[columnRune]
-			if !ok {
-				return nil, fmt.Errorf("Unknown column shorthand char '%c' in %q", columnRune, columnEntry)
-			}
-
-			columns = append(columns, column)
-		}
-	}
-
-	return columns, nil
 }
 
 func (c *cmdImageList) aliasColumnData(image api.Image) string {
@@ -1324,7 +1288,23 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Process the columns
-	columns, err := c.parseColumns()
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
+
+	// Add non-default columns that are available for user selection.
+	cols = append(cols,
+		cli.ShorthandColumn[api.Image]{Shorthand: 'L', Name: "ALIASES", Data: c.aliasesColumnData},
+		cli.ShorthandColumn[api.Image]{Shorthand: 'F', Name: "FINGERPRINT", Data: c.fingerprintFullColumnData},
+		cli.ShorthandColumn[api.Image]{Shorthand: 'e', Name: "PROJECT", Data: c.projectColumnData},
+	)
+
+	if c.flagAllProjects {
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = "e" + defaultColumns
+		}
+	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
 	if err != nil {
 		return err
 	}
@@ -1369,20 +1349,7 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Render the table
-	data := [][]string{}
-	for _, image := range images {
-		if !c.imageShouldShow(clientFilters, &image) {
-			continue
-		}
-
-		row := []string{}
-		for _, column := range columns {
-			row = append(row, column.Data(image))
-		}
-
-		data = append(data, row)
-	}
-
+	data := cli.ColumnData(columns, images)
 	sort.Sort(cli.StringList(data))
 
 	rawData := make([]*api.Image, len(images))
@@ -1390,10 +1357,7 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 		rawData[i] = &images[i]
 	}
 
-	headers := []string{}
-	for _, column := range columns {
-		headers = append(headers, column.Name)
-	}
+	headers := cli.ColumnHeaders(columns)
 
 	return cli.RenderTable(c.flagFormat, headers, data, rawData)
 }

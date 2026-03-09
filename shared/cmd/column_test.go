@@ -103,6 +103,26 @@ func TestParseShorthandColumns(t *testing.T) {
 	// Verify data functions work.
 	testItem := item{Name: "Alice", Value: "100"}
 	assert.Equal(t, "100", cols[0].Data(testItem))
+
+	// Comma-separated is equivalent to concatenated.
+	colsConcat, err := ParseShorthandColumns("nv", specs)
+	require.NoError(t, err)
+	colsComma, err := ParseShorthandColumns("n,v", specs)
+	require.NoError(t, err)
+	assert.Len(t, colsConcat, 2)
+	assert.Len(t, colsComma, 2)
+	assert.Equal(t, colsConcat[0].Name, colsComma[0].Name)
+	assert.Equal(t, colsConcat[1].Name, colsComma[1].Name)
+
+	// Duplicate shorthand in column definitions.
+	dupeSpecs := []ShorthandColumn[item]{
+		{Shorthand: 'n', Name: "NAME", Data: func(i item) string { return i.Name }},
+		{Shorthand: 'n', Name: "OTHER", Data: func(i item) string { return "" }},
+	}
+
+	_, err = ParseShorthandColumns("n", dupeSpecs)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Duplicate column shorthand char 'n'")
 }
 
 func TestColumnHeaders(t *testing.T) {

@@ -1634,7 +1634,7 @@ Column shorthand chars:
     t - Type of volume (custom, image, container or virtual-machine)
     u - Number of references (used by)
     U - Current disk usage`)
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
 
 	cmd.RunE = c.run
 

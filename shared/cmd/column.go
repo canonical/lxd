@@ -34,10 +34,16 @@ func DefaultColumnString[T any](columns []ShorthandColumn[T]) string {
 }
 
 // ParseShorthandColumns builds a shorthand map from the given column definitions
-// and parses the flagColumns string against it.
+// and parses the flagColumns string against it. It returns an error if any
+// duplicate shorthand runes are found in the column definitions.
 func ParseShorthandColumns[T any](flagColumns string, columns []ShorthandColumn[T]) ([]TypedColumn[T], error) {
 	shorthandMap := make(map[rune]TypedColumn[T], len(columns))
 	for _, col := range columns {
+		_, ok := shorthandMap[col.Shorthand]
+		if ok {
+			return nil, fmt.Errorf("Duplicate column shorthand char '%c'", col.Shorthand)
+		}
+
 		shorthandMap[col.Shorthand] = TypedColumn[T]{Name: col.Name, Data: col.Data}
 	}
 
