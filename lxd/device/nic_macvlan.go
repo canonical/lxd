@@ -58,7 +58,8 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 	// Check that if network property is set that conflicting keys are not present.
 	if d.config["network"] != "" {
 		requiredFields = append(requiredFields, "network")
-		inheritKeys := []string{"mtu", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "gvrp"}
+		inheritKeys := make([]string, 0, 7)
+		inheritKeys = append(inheritKeys, "mtu", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "gvrp")
 		bannedKeys := append(inheritKeys, "nictype", "parent")
 		for _, bannedKey := range bannedKeys {
 			if d.config[bannedKey] != "" {

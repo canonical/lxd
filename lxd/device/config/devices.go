@@ -225,7 +225,7 @@ func (list Devices) CloneNative() map[string]map[string]string {
 
 // Sorted returns the name of all devices in the set, sorted properly.
 func (list Devices) Sorted() DevicesSortable {
-	sortable := DevicesSortable{}
+	sortable := make(DevicesSortable, 0, len(list))
 	for k, d := range list {
 		sortable = append(sortable, DeviceNamed{k, d})
 	}
@@ -236,7 +236,7 @@ func (list Devices) Sorted() DevicesSortable {
 
 // Reversed returns the name of all devices in the set, sorted reversed.
 func (list Devices) Reversed() DevicesSortable {
-	sortable := DevicesSortable{}
+	sortable := make(DevicesSortable, 0, len(list))
 	for k, d := range list {
 		sortable = append(sortable, DeviceNamed{k, d})
 	}
