@@ -482,17 +482,15 @@ func DqliteLatestSegment() (string, error) {
 	for i := range fileNames {
 		fileName := fileNames[len(fileNames)-1-i]
 		if r.MatchString(fileName) {
-			segment := strings.Split(fileName, "-")[1]
-			// Trim leading o's.
-			index := 0
-			for i, c := range segment {
-				index = i
-				if c != '0' {
-					break
-				}
+			_, segment, _ := strings.Cut(fileName, "-")
+
+			// Trim leading 0s.
+			segment = strings.TrimLeft(segment, "0")
+			if segment == "" {
+				segment = "0"
 			}
 
-			return segment[index:], nil
+			return segment, nil
 		}
 	}
 

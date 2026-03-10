@@ -723,7 +723,7 @@ func genericVFSBackupUnpack(d Driver, s *state.State, vol VolumeCopy, snapshots 
 		// Custom block volumes do not have a filesystem component to their volumes.
 		if !vol.IsCustomBlock() {
 			// Prepare tar arguments.
-			srcParts := strings.Split(srcPrefix, string(os.PathSeparator))
+			numSrcParts := strings.Count(srcPrefix, string(os.PathSeparator)) + 1
 			args := append(tarArgs, []string{
 				"-",
 				"--xattrs-include=*",
@@ -742,7 +742,7 @@ func genericVFSBackupUnpack(d Driver, s *state.State, vol VolumeCopy, snapshots 
 			} else {
 				// For instance volumes, the user created files are stored in the rootfs sub-directory
 				// and so strip-components flag works fine.
-				args = append(args, "--strip-components="+strconv.Itoa(len(srcParts)))
+				args = append(args, "--strip-components="+strconv.Itoa(numSrcParts))
 			}
 
 			// Directory to unpack comes after other options.

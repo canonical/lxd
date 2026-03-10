@@ -33,7 +33,7 @@ func getLSBRelease(filename string) (map[string]string, error) {
 			continue
 		}
 
-		if strings.HasPrefix(line, "#") {
+		if line[0] == '#' {
 			continue
 		}
 

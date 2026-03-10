@@ -1190,22 +1190,23 @@ func (d Xtables) matchEbtablesRule(activeRule []string, matchRule []string, dele
 		// the active IP address "198.0.2.1".
 		//
 		// First, check that the match is a subnet and that the IPs are the same.
-		matchIPMaskStr := strings.SplitN(match, "/", 2)
-		if len(matchIPMaskStr) == 2 && matchIPMaskStr[0] == strings.Split(active, "/")[0] {
+		matchIP, matchMask, isSubnet := strings.Cut(match, "/")
+		activeIP, _, _ := strings.Cut(active, "/")
+		if isSubnet && matchIP == activeIP {
 			// If the active subnet is a CIDR string we have a match if the masks are identical.
 			_, activeIPNet, err := net.ParseCIDR(active)
 			if err == nil {
-				return subnetMask(activeIPNet) == matchIPMaskStr[1]
+				return subnetMask(activeIPNet) == matchMask
 			}
 
 			// If the active subnet is a single IP then we have a match if the generated mask is a full mask.
-			activeIP := net.ParseIP(active)
-			if activeIP != nil {
-				if activeIP.To4() != nil {
-					return matchIPMaskStr[1] == "255.255.255.255"
+			parsedActiveIP := net.ParseIP(active)
+			if parsedActiveIP != nil {
+				if parsedActiveIP.To4() != nil {
+					return matchMask == "255.255.255.255"
 				}
 
-				return matchIPMaskStr[1] == "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
+				return matchMask == "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
 			}
 		}
 

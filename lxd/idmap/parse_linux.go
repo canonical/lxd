@@ -11,25 +11,25 @@ import (
 // ParseRawIdmap parses an IDMAP string.
 func ParseRawIdmap(value string) ([]IdmapEntry, error) {
 	getRange := func(r string) (int64, int64, error) {
-		entries := strings.Split(r, "-")
-		if len(entries) > 2 {
-			return -1, -1, fmt.Errorf("Invalid ID map range %q", r)
-		}
+		baseStr, endStr, hasRange := strings.Cut(r, "-")
 
-		base, err := strconv.ParseInt(entries[0], 10, 64)
+		base, err := strconv.ParseInt(baseStr, 10, 64)
 		if err != nil {
 			return -1, -1, err
 		}
 
 		size := int64(1)
-		if len(entries) > 1 {
-			size, err = strconv.ParseInt(entries[1], 10, 64)
+		if hasRange {
+			if strings.Contains(endStr, "-") {
+				return -1, -1, fmt.Errorf("Invalid ID map range %q", r)
+			}
+
+			end, err := strconv.ParseInt(endStr, 10, 64)
 			if err != nil {
 				return -1, -1, err
 			}
 
-			size -= base
-			size++
+			size = end - base + 1
 		}
 
 		return base, size, nil

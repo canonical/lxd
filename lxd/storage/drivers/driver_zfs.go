@@ -428,8 +428,7 @@ func (d *zfs) Delete(op *operations.Operation) error {
 			continue
 		}
 
-		fields := strings.Split(dataset, "/")
-		if len(fields) > 1 {
+		if strings.Contains(dataset, "/") {
 			return fmt.Errorf("ZFS pool has leftover datasets: %s", dataset)
 		}
 	}
@@ -562,7 +561,7 @@ func (d *zfs) importPool() (bool, error) {
 	}
 
 	// Check if the pool exists.
-	poolName := strings.Split(d.config["zfs.pool_name"], "/")[0]
+	poolName, _, _ := strings.Cut(d.config["zfs.pool_name"], "/")
 	exists, err = d.datasetExists(poolName)
 	if err != nil {
 		return false, err
@@ -639,7 +638,7 @@ func (d *zfs) Unmount() (bool, error) {
 	}
 
 	// Export the pool.
-	poolName := strings.Split(d.config["zfs.pool_name"], "/")[0]
+	poolName, _, _ := strings.Cut(d.config["zfs.pool_name"], "/")
 	_, err = shared.RunCommand(context.TODO(), "zpool", "export", poolName)
 	if err != nil {
 		return false, err
@@ -748,19 +747,19 @@ func (d *zfs) patchDropBlockVolumeFilesystemExtension() error {
 	}
 
 	for volume := range strings.SplitSeq(out, "\n") {
-		fields := strings.SplitN(volume, poolName+"/images/", 2)
-
-		if len(fields) != 2 || fields[1] == "" {
+		imageName, ok := strings.CutPrefix(volume, poolName+"/images/")
+		if !ok || imageName == "" {
 			continue
 		}
 
 		// Ignore non-block images, and images without filesystem extension
-		if !strings.HasSuffix(fields[1], ".block") || !strings.Contains(fields[1], "_") {
+		if !strings.HasSuffix(imageName, ".block") || !strings.Contains(imageName, "_") {
 			continue
 		}
 
 		// Rename zfs dataset. Snapshots will automatically be renamed.
-		newName := poolName + "/images/" + strings.Split(fields[1], "_")[0] + ".block"
+		baseName, _, _ := strings.Cut(imageName, "_")
+		newName := poolName + "/images/" + baseName + ".block"
 
 		_, err = shared.RunCommand(context.TODO(), "zfs", "rename", volume, newName)
 		if err != nil {

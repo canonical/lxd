@@ -621,21 +621,21 @@ func (g *cmdGlobal) cmpInstanceAllDeviceTypes(remote string, toComplete string) 
 	devices := make([]string, 0, len(metadataConfiguration.Configs))
 
 	for key := range metadataConfiguration.Configs {
-		if !strings.HasPrefix(key, "device-") {
+		rest, found := strings.CutPrefix(key, "device-")
+		if !found {
 			continue
 		}
 
-		parts := strings.Split(key, "-")
-		deviceType := parts[1]
+		deviceType, subType, hasSubType := strings.Cut(rest, "-")
 
 		// "unix" is not a device, get the next part.
-		if deviceType == "unix" && len(parts) > 2 {
+		if deviceType == "unix" && hasSubType {
 			// The metadata API has "unix-usb", but the device type is just "usb"
-			if parts[2] == "usb" {
+			if subType == "usb" {
 				deviceType = "usb"
 			} else {
 				// Otherwise append the next part.
-				deviceType += "-" + parts[2]
+				deviceType += "-" + subType
 			}
 		}
 
@@ -692,27 +692,27 @@ func (g *cmdGlobal) cmpInstanceAllDeviceOptions(remote string, deviceType string
 
 	appendOption, result := configOptionAppender(toComplete, "=", -1)
 	for key, device := range metadataConfiguration.Configs {
-		if !strings.HasPrefix(key, "device-") {
+		rest, found := strings.CutPrefix(key, "device-")
+		if !found {
 			continue
 		}
 
-		parts := strings.Split(key, "-")
-		metadataDeviceType := parts[1]
-		if metadataDeviceType == "unix" && len(parts) > 2 {
-			if parts[2] == "usb" {
+		metadataDeviceType, subType, hasSubType := strings.Cut(rest, "-")
+		if metadataDeviceType == "unix" && hasSubType {
+			if subType == "usb" {
 				metadataDeviceType = "usb"
 			} else {
-				metadataDeviceType += "-" + parts[2]
+				metadataDeviceType += "-" + subType
 			}
 		}
 
 		if metadataDeviceType == deviceType {
 			if subtype != "" {
-				if len(parts) < 3 {
+				if !hasSubType {
 					continue
 				}
 
-				if parts[2] != subtype {
+				if subType != subtype {
 					continue
 				}
 			}
@@ -1374,17 +1374,18 @@ func (g *cmdGlobal) cmpStoragePoolConfigs(poolName string) ([]string, cobra.Shel
 	resource := resources[0]
 	client := resource.server
 
-	if strings.Contains(poolName, ":") {
-		poolName = strings.Split(poolName, ":")[1]
+	_, pool, found := strings.Cut(poolName, ":")
+	if !found {
+		pool = poolName
 	}
 
-	pool, _, err := client.GetStoragePool(poolName)
+	storagePool, _, err := client.GetStoragePool(pool)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	results := make([]string, 0, len(pool.Config))
-	for k := range pool.Config {
+	results := make([]string, 0, len(storagePool.Config))
+	for k := range storagePool.Config {
 		results = append(results, k)
 	}
 
@@ -1412,7 +1413,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 		return results, compdir | cobra.ShellCompDirectiveNoSpace
 	}
 
-	pool := strings.Split(toComplete, "/")[0]
+	pool, _, _ := strings.Cut(toComplete, "/")
 	volumes, compdir := g.cmpStoragePoolVolumes(pool)
 	if compdir == cobra.ShellCompDirectiveError {
 		return nil, compdir

@@ -2458,7 +2458,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 
 	if fs == "zfs" && shared.PathExists("/dev/zfs") {
 		// Accessible zfs filesystems
-		poolName := strings.Split(dev[1], "/")[0]
+		poolName, _, _ := strings.Cut(dev[1], "/")
 
 		output, err := shared.RunCommand(context.TODO(), "zpool", "status", "-P", "-L", poolName)
 		if err != nil {

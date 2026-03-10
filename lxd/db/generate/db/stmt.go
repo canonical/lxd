@@ -78,7 +78,7 @@ func NewStmt(database, pkg, entity, kind string, config map[string]string) (*Stm
 
 // Generate plumbing and wiring code for the desired statement.
 func (s *Stmt) Generate(buf *file.Buffer) error {
-	kind := strings.Split(s.kind, "-by-")[0]
+	kind, _, _ := strings.Cut(s.kind, "-by-")
 
 	switch kind {
 	case "objects":
@@ -183,7 +183,8 @@ func (s *Stmt) objectsBy(buf *file.Buffer) error {
 	}
 
 	where := []string{}
-	filters := strings.Split(s.kind[len("objects-by-"):], "-and-")
+	suffix, _ := strings.CutPrefix(s.kind, "objects-by-")
+	filters := strings.Split(suffix, "-and-")
 	sqlString, err := ParseStmt(s.pkg, s.dbPkg, stmtCodeVar(s.entity, "objects"))
 	if err != nil {
 		return err
@@ -272,7 +273,7 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 	}
 
 	sql := fmt.Sprintf(tmpl, table, strings.Join(columns, ", "), strings.Join(values, ", "))
-	kind := strings.Replace(s.kind, "-", "_", -2)
+	kind := strings.ReplaceAll(s.kind, "-", "_")
 	stmtName := stmtCodeVar(s.entity, kind)
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		buf.L("const %s = `%s`", stmtName, sql)
@@ -397,8 +398,9 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 		where = "%s_id = ?"
 	}
 
-	if strings.HasPrefix(s.kind, "delete-by") {
-		filters := strings.Split(s.kind[len("delete-by-"):], "-and-")
+	suffix, found := strings.CutPrefix(s.kind, "delete-by-")
+	if found {
+		filters := strings.Split(suffix, "-and-")
 		conditions := make([]string, 0, len(filters))
 		for _, filter := range filters {
 			field, err := mapping.FilterFieldByName(filter)

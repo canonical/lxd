@@ -5619,7 +5619,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 			for _, sname := range results {
 				// Rename the snapshot.
-				oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
+				_, oldSnapName, _ := strings.Cut(sname, shared.SnapshotDelimiter)
 				baseSnapName := filepath.Base(sname)
 
 				err := dbCluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldName, oldSnapName, baseSnapName)
@@ -5639,9 +5639,9 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	// Rename the instance database entry.
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if d.IsSnapshot() {
-			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
-			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
-			return dbCluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldParts[0], oldParts[1], newParts[1])
+			oldParent, oldSnap, _ := strings.Cut(oldName, shared.SnapshotDelimiter)
+			_, newSnap, _ := strings.Cut(newName, shared.SnapshotDelimiter)
+			return dbCluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldParent, oldSnap, newSnap)
 		}
 
 		return dbCluster.RenameInstance(ctx, tx.Tx(), d.project.Name, oldName, newName)
@@ -5684,7 +5684,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	for _, backup := range backups {
 		b := backup
 		oldName := b.Name()
-		backupName := strings.Split(oldName, "/")[1]
+		_, backupName, _ := strings.Cut(oldName, "/")
 		newName := newName + "/" + backupName
 
 		err = b.Rename(newName)
@@ -8486,13 +8486,13 @@ func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	// Handle uevents.
 	for _, uevent := range runConf.Uevents {
 		for _, event := range uevent {
-			fields := strings.SplitN(event, "=", 2)
+			key, value, found := strings.Cut(event, "=")
 
-			if fields[0] != "ACTION" {
+			if !found || key != "ACTION" {
 				continue
 			}
 
-			switch fields[1] {
+			switch value {
 			case "add":
 				for _, usbDev := range runConf.USBDevice {
 					// This ensures that the device is actually removed from QEMU before adding it again.
@@ -9237,7 +9237,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 			return nil, err
 		}
 
-		parts := strings.Split(string(cmdline), " ")
+		parts := strings.Fields(string(cmdline))
 
 		// Check if SME is enabled in the kernel command line.
 		if slices.Contains(parts, "mem_encrypt=on") {
@@ -9519,8 +9519,7 @@ func (d *qemu) setCPUs(count int) error {
 		for i := range totalReservedCPUs - count {
 			cpu := hotpluggedCPUs[i]
 
-			fields := strings.Split(cpu.QOMPath, "/")
-			devID := fields[len(fields)-1]
+			devID := filepath.Base(cpu.QOMPath)
 
 			err := monitor.RemoveDevice(devID)
 			if err != nil {

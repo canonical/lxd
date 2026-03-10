@@ -77,20 +77,20 @@ func NewHMAC(key []byte, conf HMACConf) HMACFormatter {
 // splitVersionFromHMAC is a helper to separate the HMAC version from the actual HMAC.
 // Depending on the used format the HMAC value has to be splitted further (see argon2).
 func (h *HMAC) splitVersionFromHMAC(header string) (HMACVersion, string, error) {
-	authHeaderSplit := strings.Split(header, " ")
-	if len(authHeaderSplit) != 2 {
+	version, hmac, found := strings.Cut(header, " ")
+	if !found {
 		return "", "", errors.New("Version or HMAC is missing")
 	}
 
-	if authHeaderSplit[0] == "" {
+	if version == "" {
 		return "", "", errors.New("Version cannot be empty")
 	}
 
-	if authHeaderSplit[1] == "" {
+	if hmac == "" {
 		return "", "", errors.New("HMAC cannot be empty")
 	}
 
-	return HMACVersion(authHeaderSplit[0]), authHeaderSplit[1], nil
+	return HMACVersion(version), hmac, nil
 }
 
 // Version returns the used HMAC version.

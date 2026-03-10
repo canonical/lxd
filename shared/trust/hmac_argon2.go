@@ -73,25 +73,25 @@ func (h *HMACArgon2) ParseHTTPHeader(header string) (HMACFormatter, []byte, erro
 	}
 
 	// In case of argon2 the HMAC has the salt as prefix.
-	authHeaderDetails := strings.Split(hmacStr, ":")
-	if len(authHeaderDetails) != 2 {
+	saltStr, hmacHex, found := strings.Cut(hmacStr, ":")
+	if !found {
 		return nil, nil, errors.New("Argon2 salt or HMAC is missing")
 	}
 
-	if authHeaderDetails[0] == "" {
+	if saltStr == "" {
 		return nil, nil, errors.New("Argon2 salt cannot be empty")
 	}
 
-	if authHeaderDetails[1] == "" {
+	if hmacHex == "" {
 		return nil, nil, errors.New("Argon2 HMAC cannot be empty")
 	}
 
-	saltFromHeader, err := hex.DecodeString(authHeaderDetails[0])
+	saltFromHeader, err := hex.DecodeString(saltStr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to decode the argon2 salt: %w", err)
 	}
 
-	hmacFromHeader, err := hex.DecodeString(authHeaderDetails[1])
+	hmacFromHeader, err := hex.DecodeString(hmacHex)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to decode the argon2 HMAC: %w", err)
 	}

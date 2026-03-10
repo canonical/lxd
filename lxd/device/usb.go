@@ -286,8 +286,8 @@ func (d *usb) loadUsb() ([]USBEvent, error) {
 			return []USBEvent{}, err
 		}
 
-		parts := strings.Split(values["dev"], ":")
-		if len(parts) != 2 {
+		major, minor, found := strings.Cut(values["dev"], ":")
+		if !found {
 			return []USBEvent{}, fmt.Errorf("invalid device value %s", values["dev"])
 		}
 
@@ -296,8 +296,8 @@ func (d *usb) loadUsb() ([]USBEvent, error) {
 			values["idVendor"],
 			values["idProduct"],
 			values["serial"],
-			parts[0],
-			parts[1],
+			major,
+			minor,
 			values["busnum"],
 			values["devnum"],
 			values["devname"],
