@@ -169,7 +169,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string) respon
 	// Get the file stats.
 	stat, err := client.Lstat(path)
 	if err != nil {
-		return response.SmartError(err)
+		return response.SmartError(fmt.Errorf("Failed accessing %q in instance %q: %w", path, inst.Name(), err))
 	}
 
 	fileType := "file"
@@ -333,7 +333,7 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 	// Get the file stats.
 	stat, err := client.Lstat(path)
 	if err != nil {
-		return response.SmartError(err)
+		return response.SmartError(fmt.Errorf("Failed accessing %q in instance %q: %w", path, inst.Name(), err))
 	}
 
 	fileType := "file"
@@ -514,7 +514,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		// Open/create the file.
 		file, err := client.OpenFile(path, fileMode)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(fmt.Errorf("Failed opening %q in instance %q: %w", path, inst.Name(), err))
 		}
 
 		defer func() { _ = file.Close() }()
@@ -580,7 +580,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		// Create the symlink.
 		err = client.Symlink(string(target), path)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(fmt.Errorf("Failed creating symlink %q in instance %q: %w", path, inst.Name(), err))
 		}
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
@@ -594,7 +594,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		// Create the directory.
 		err = client.Mkdir(path)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(fmt.Errorf("Failed creating directory %q in instance %q: %w", path, inst.Name(), err))
 		}
 
 		// Set file permissions.
@@ -674,7 +674,7 @@ func instanceFileDelete(s *state.State, inst instance.Instance, path string) res
 	// Delete the file.
 	err = client.Remove(path)
 	if err != nil {
-		return response.SmartError(err)
+		return response.SmartError(fmt.Errorf("Failed removing %q in instance %q: %w", path, inst.Name(), err))
 	}
 
 	s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileDeleted.Event(inst, logger.Ctx{"path": path}))
