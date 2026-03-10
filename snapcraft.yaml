@@ -298,6 +298,7 @@ parts:
 
   dqlite:
     source: https://github.com/canonical/dqlite
+    source-branch: v1.18.x
     source-depth: 1
     source-type: git
     plugin: autotools
