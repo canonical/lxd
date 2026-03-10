@@ -158,6 +158,9 @@ liblxc:
 		git -C "$(LIBLXC_PATH)" fetch origin $(LIBLXC_BRANCH); \
 		git -C "$(LIBLXC_PATH)" reset --hard FETCH_HEAD; \
 	fi
+	# Fetch the specific commit and apply its reverse patch
+	git -C "$(LIBLXC_PATH)" fetch origin 589981f4f1330d23585cc3b1fda66aa1c816e09e
+	git -C "$(LIBLXC_PATH)" show 589981f4f1330d23585cc3b1fda66aa1c816e09e | git -C "$(LIBLXC_PATH)" apply -R
 
 	# XXX: the rootfs-mount-path must not depend on LIBLXC_PATH to allow
 	# building in "vendor" mode but move the resulting binaries elsewhere for
