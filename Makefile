@@ -19,7 +19,7 @@ else
 	COVER_TEST=-test.gocoverdir="$(GOCOVERDIR)"
 endif
 ARCH ?= $(shell uname -m)
-DQLITE_BRANCH=main
+DQLITE_BRANCH=v1.18.x
 LIBLXC_BRANCH=main
 
 ifneq "$(wildcard vendor)" ""
