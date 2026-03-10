@@ -754,6 +754,11 @@ definitions:
                 example: evacuate
                 type: string
                 x-go-name: Action
+            force:
+                description: Permit evacuation even if it would drop the cluster below the required voter majority.
+                example: false
+                type: boolean
+                x-go-name: Force
             mode:
                 description: |-
                     Override the configured evacuation mode.
