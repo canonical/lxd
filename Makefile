@@ -155,7 +155,8 @@ liblxc:
 		git clone --depth=1 --branch "${LIBLXC_BRANCH}" "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
 	elif [ -e "$(LIBLXC_PATH)/.git" ]; then \
 		echo "Updating existing lxc/liblxc branch"; \
-		git -C "$(LIBLXC_PATH)" pull; \
+		git -C "$(LIBLXC_PATH)" fetch origin $(LIBLXC_BRANCH); \
+		git -C "$(LIBLXC_PATH)" reset --hard FETCH_HEAD; \
 	fi
 
 	# XXX: the rootfs-mount-path must not depend on LIBLXC_PATH to allow
