@@ -81,7 +81,7 @@ Using an OSD pool of type "erasure"
 : To use a Ceph OSD pool of type "erasure", you must create the OSD pool beforehand.
   You must also create a separate OSD pool of type "replicated" that will be used for storing metadata.
   This is required because Ceph RBD does not support `omap`.
-  To specify which pool is "erasure coded", set the {config:option}`storage-ceph-pool-conf:ceph.osd.data_pool_name` configuration option to the erasure coded pool name and the {config:option}`storage-ceph-pool-conf:source` configuration option to the replicated pool name.
+  To specify which pool is "erasure coded", set the {config:option}`storage-ceph-pool-conf:ceph.osd.data_pool_name` configuration option to the erasure coded pool name and the {config:option}`storage-ceph-pool-conf:ceph.osd.pool_name` configuration option to the replicated pool name.
 
 ## Configuration options
 
