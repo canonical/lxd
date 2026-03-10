@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -282,12 +283,9 @@ func (d *alletra) unmapVolume(vol Volume) error {
 		// removeDevice removes device from the system if the device is removable.
 		removeDevice := func(devName string) error {
 			path := "/sys/block/" + devName + "/device/delete"
-			if shared.PathExists(path) {
-				// Delete device.
-				err := os.WriteFile(path, []byte("1"), 0400)
-				if err != nil {
-					return err
-				}
+			err := os.WriteFile(path, []byte("1"), 0400)
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
 			}
 
 			return nil
@@ -1073,7 +1071,7 @@ func (d *alletra) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	mountPath := vol.MountPath()
 
-	if vol.contentType == ContentTypeFS && shared.PathExists(mountPath) {
+	if vol.contentType == ContentTypeFS {
 		err := wipeDirectory(mountPath)
 		if err != nil {
 			return err
@@ -1525,7 +1523,7 @@ func (d *alletra) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation)
 
 	mountPath := snapVol.MountPath()
 
-	if snapVol.contentType == ContentTypeFS && shared.PathExists(mountPath) {
+	if snapVol.contentType == ContentTypeFS {
 		err = wipeDirectory(mountPath)
 		if err != nil {
 			return err

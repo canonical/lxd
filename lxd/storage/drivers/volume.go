@@ -236,22 +236,22 @@ func (v Volume) EnsureMountPath() error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Create volume's mount path if missing, with any created directories set to 0711.
-	if !shared.PathExists(volPath) {
-		if v.IsSnapshot() {
-			// Create the parent directory if needed.
-			parentName, _, _ := api.GetParentAndSnapshotName(v.name)
-			err := createParentSnapshotDirIfMissing(v.pool, v.volType, parentName)
-			if err != nil {
-				return err
-			}
-		}
-
-		err := os.Mkdir(volPath, 0711)
+	// Create the parent snapshot directory if needed.
+	if v.IsSnapshot() {
+		parentName, _, _ := api.GetParentAndSnapshotName(v.name)
+		err := createParentSnapshotDirIfMissing(v.pool, v.volType, parentName)
 		if err != nil {
-			return fmt.Errorf("Failed to create mount directory %q: %w", volPath, err)
+			return err
 		}
+	}
 
+	// Create volume's mount path if missing, with any created directories set to 0711.
+	err := os.Mkdir(volPath, 0711)
+	if err != nil && !os.IsExist(err) {
+		return fmt.Errorf("Failed to create mount directory %q: %w", volPath, err)
+	}
+
+	if err == nil {
 		revert.Add(func() { _ = os.Remove(volPath) })
 	}
 

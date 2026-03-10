@@ -253,11 +253,6 @@ func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	volPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
 
-	// If the volume doesn't exist, then nothing more to do.
-	if !shared.PathExists(volPath) {
-		return nil
-	}
-
 	// Remove the volume from the storage device.
 	err = os.RemoveAll(volPath)
 	if err != nil && !os.IsNotExist(err) {
@@ -412,15 +407,14 @@ func (d *cephfs) RenameVolume(vol Volume, newVolName string, op *operations.Oper
 
 	// Rename the snapshot directory first.
 	srcSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
+	targetSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
 
-	if shared.PathExists(srcSnapshotDir) {
-		targetSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
+	err = os.Rename(srcSnapshotDir, targetSnapshotDir)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("Failed to rename %q to %q: %w", srcSnapshotDir, targetSnapshotDir, err)
+	}
 
-		err = os.Rename(srcSnapshotDir, targetSnapshotDir)
-		if err != nil {
-			return fmt.Errorf("Failed to rename %q to %q: %w", srcSnapshotDir, targetSnapshotDir, err)
-		}
-
+	if err == nil {
 		revertPaths = append(revertPaths, volRevert{
 			oldPath: srcSnapshotDir,
 			newPath: targetSnapshotDir,

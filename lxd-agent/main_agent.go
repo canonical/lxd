@@ -68,7 +68,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Sync the hostname.
-	if shared.PathExists("/proc/sys/kernel/hostname") && slices.Contains(files, "/etc/hostname") {
+	if slices.Contains(files, "/etc/hostname") && shared.PathExists("/proc/sys/kernel/hostname") {
 		// Open the two files.
 		src, err := os.Open("/etc/hostname")
 		if err != nil {
@@ -95,16 +95,14 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run cloud-init.
-	if shared.PathExists("/etc/cloud") && slices.Contains(files, "/var/lib/cloud/seed/nocloud-net/meta-data") {
+	if slices.Contains(files, "/var/lib/cloud/seed/nocloud-net/meta-data") && shared.PathExists("/etc/cloud") {
 		logger.Info("Seeding cloud-init")
 
 		cloudInitPath := "/run/cloud-init"
-		if shared.PathExists(cloudInitPath) {
-			logger.Info(`Removing "` + cloudInitPath + `"`)
-			err = os.RemoveAll(cloudInitPath)
-			if err != nil {
-				return err
-			}
+		logger.Info(`Removing "` + cloudInitPath + `"`)
+		err = os.RemoveAll(cloudInitPath)
+		if err != nil {
+			return err
 		}
 
 		logger.Info("Rebooting")
@@ -241,13 +239,15 @@ func (c *cmdAgent) writeStatus(status string) error {
 // mountHostShares reads the agent-mounts.json file from config share and mounts the shares requested.
 func (c *cmdAgent) mountHostShares() {
 	agentMountsFile := "./agent-mounts.json"
-	if !shared.PathExists(agentMountsFile) {
-		return
-	}
 
 	b, err := os.ReadFile(agentMountsFile)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return
+		}
+
 		logger.Errorf("Failed to load agent mounts file %q: %v", agentMountsFile, err)
+		return
 	}
 
 	var agentMounts []instancetype.VMAgentMount
@@ -271,15 +271,15 @@ func (c *cmdAgent) mountHostShares() {
 			l.AddContext(logger.Ctx{"path": mount.Target})
 		}
 
-		if !shared.PathExists(mount.Target) {
-			err := os.MkdirAll(mount.Target, 0755)
-			if err != nil {
-				l.Error("Failed to create mount target", logger.Ctx{"err": err})
-				continue // Don't try to mount if mount point can't be created.
-			}
-		} else if filesystem.IsMountPoint(mount.Target) {
+		if filesystem.IsMountPoint(mount.Target) {
 			// Already mounted.
 			continue
+		}
+
+		err := os.MkdirAll(mount.Target, 0755)
+		if err != nil {
+			l.Error("Failed to create mount target", logger.Ctx{"err": err})
+			continue // Don't try to mount if mount point can't be created.
 		}
 
 		args := []string{"-t", mount.FSType, mount.Source, mount.Target}

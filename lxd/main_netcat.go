@@ -55,11 +55,7 @@ func (c *cmdNetcat) run(cmd *cobra.Command, args []string) error {
 	}
 
 	logPath := shared.LogPath(args[1], "netcat.log")
-	if shared.PathExists(logPath) {
-		_ = os.Remove(logPath)
-	}
-
-	logFile, logErr := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
+	logFile, logErr := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_SYNC, 0644)
 	if logErr == nil {
 		defer func() { _ = logFile.Close() }()
 	}

@@ -19,7 +19,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/logger"
@@ -271,11 +270,9 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 	var listener net.Listener
 	if runtime.GOOS != "windows" {
 		// Create a temporary unix socket mirroring the instance's spice socket.
-		if !shared.PathExists(conf.ConfigPath("sockets")) {
-			err := os.MkdirAll(conf.ConfigPath("sockets"), 0700)
-			if err != nil {
-				return err
-			}
+		err := os.MkdirAll(conf.ConfigPath("sockets"), 0700)
+		if err != nil {
+			return err
 		}
 
 		// Generate a random file name.

@@ -1117,6 +1117,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
+	// Cache UEFI support for this architecture.
+	supportsUEFI := d.architectureSupportsUEFI(d.architecture)
+
 	// Ensure secure boot is disabled for images that don't support it.
 	bootMode := d.effectiveBootMode()
 	if shared.IsFalse(d.localConfig["image.requirements.secureboot"]) && bootMode == instancetype.BootModeUEFISecureBoot {
@@ -1162,12 +1165,10 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Rotate the log file.
 	logfile := d.LogFilePath()
-	if shared.PathExists(logfile) {
-		err := os.Rename(logfile, logfile+".old")
-		if err != nil && !os.IsNotExist(err) {
-			op.Done(err)
-			return err
-		}
+	err = os.Rename(logfile, logfile+".old")
+	if err != nil && !os.IsNotExist(err) {
+		op.Done(err)
+		return err
 	}
 
 	// Remove old pid file if needed.
@@ -1257,7 +1258,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Copy EDK2 settings firmware to nvram file if needed.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
-	if d.architectureSupportsUEFI(d.architecture) {
+	if supportsUEFI {
 		// ovmfNeedsUpdate checks if nvram file needs to be regenerated using new template.
 		ovmfNeedsUpdate := func(nvramTarget string) bool {
 			if !shared.InSnap() {
@@ -1576,7 +1577,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// SMBIOS only on x86_64 and aarch64.
-	if d.architectureSupportsUEFI(d.architecture) {
+	if supportsUEFI {
 		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
 	}
 
@@ -1592,19 +1593,19 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 			qemuCmd = append(qemuCmd, "-runas", d.state.OS.UnprivUser)
 		}
 
-		nvRAMPath := d.nvramPath()
-		if d.architectureSupportsUEFI(d.architecture) && shared.PathExists(nvRAMPath) {
+		if supportsUEFI {
+			nvRAMPath := d.nvramPath()
 			// Ensure UEFI nvram file is writable by the QEMU process.
 			// This is needed when doing stateful snapshots because the QEMU process will reopen the
 			// file for writing.
 			err = os.Chown(nvRAMPath, int(d.state.OS.UnprivUID), -1)
-			if err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				op.Done(err)
 				return err
 			}
 
 			err = os.Chmod(nvRAMPath, 0600)
-			if err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				op.Done(err)
 				return err
 			}
@@ -2407,9 +2408,6 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 
 	// Detect virtiofsd path.
 	virtiofsdSockPath := filepath.Join(d.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(deviceName)+".sock")
-	if !shared.PathExists(virtiofsdSockPath) {
-		return "", errors.New("Virtiofsd isn't running")
-	}
 
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -2420,7 +2418,11 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	// Open a file descriptor to the socket file through O_PATH to avoid acessing the file descriptor to the sockfs inode.
 	socketFile, err := os.OpenFile(virtiofsdSockPath, unix.O_PATH|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return "", fmt.Errorf("Failed to open device socket file %q: %w", virtiofsdSockPath, err)
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", fmt.Errorf("Failed opening virtiofsd socket file (virtiofsd isn't running) %q: %w", virtiofsdSockPath, err)
+		}
+
+		return "", fmt.Errorf("Failed opening virtiofsd socket file %q: %w", virtiofsdSockPath, err)
 	}
 
 	defer func() {
@@ -2870,7 +2872,7 @@ func (d *qemu) UEFIVars() (*api.InstanceUEFIVars, error) {
 
 	uefiVarsPath := d.nvramPath()
 
-	// Initialise the NVRAM file if doesn't exist so we return the default variables.
+	// Initialise the NVRAM file if it doesn't exist so we return the default variables.
 	if !shared.PathExists(uefiVarsPath) {
 		// Ensure that a VM start or update isn't in progress.
 		instOp, err := d.LockExclusive()
@@ -2878,12 +2880,16 @@ func (d *qemu) UEFIVars() (*api.InstanceUEFIVars, error) {
 			return nil, fmt.Errorf("Failed getting exclusive access instance: %w", err)
 		}
 
-		defer instOp.Done(err)
-
-		err = d.setupNvram()
-		if err != nil {
-			return nil, fmt.Errorf("Failed setting up NVRAM: %w", err)
+		// Re-check under lock to avoid racing with another goroutine.
+		if !shared.PathExists(uefiVarsPath) {
+			err = d.setupNvram()
+			if err != nil {
+				instOp.Done(err)
+				return nil, fmt.Errorf("Failed setting up NVRAM: %w", err)
+			}
 		}
+
+		instOp.Done(nil)
 	}
 
 	instanceUEFI, err := uefi.UEFIVars(d.state.OS, uefiVarsPath)
@@ -3287,11 +3293,9 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 
 	// Copy the template metadata itself too.
 	metaPath := filepath.Join(d.Path(), "metadata.yaml")
-	if shared.PathExists(metaPath) {
-		err = shared.FileCopy(metaPath, filepath.Join(templateFilesPath, "metadata.yaml"))
-		if err != nil {
-			return err
-		}
+	err = shared.FileCopy(metaPath, filepath.Join(templateFilesPath, "metadata.yaml"))
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
 
 	// Clear NICConfigDir to ensure that no leftover configuration is erroneously applied by the agent.
@@ -3322,13 +3326,14 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) error {
 	// If there's no metadata, just return.
 	fname := filepath.Join(d.Path(), "metadata.yaml")
-	if !shared.PathExists(fname) {
-		return nil
-	}
 
 	// Parse the metadata.
 	content, err := os.ReadFile(fname)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
 		return fmt.Errorf("Failed to read metadata: %w", err)
 	}
 
@@ -4134,10 +4139,6 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 
 	if virtiofsdSock.Path == "" {
 		return errors.New("No virtiofsd socket path provided")
-	}
-
-	if !shared.PathExists(virtiofsdSock.Path) {
-		return fmt.Errorf("Socket path %q for virtiofsd does not exist", virtiofsdSock.Path)
 	}
 
 	shouldBusAllocate := busName == "pcie" || busName == "pci"
@@ -5094,49 +5095,46 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 		iommuGroupPath = filepath.Join(pciDevPath, "iommu_group", "devices")
 	}
 
-	if shared.PathExists(iommuGroupPath) {
-		// Extract parent slot name by removing any virtual function ID.
-		parts := strings.SplitN(pciSlotName, ".", 2)
-		prefix := parts[0]
+	// Extract parent slot name by removing any virtual function ID.
+	prefix, _, _ := strings.Cut(pciSlotName, ".")
 
-		// Iterate the members of the IOMMU group and override any that match the parent slot name prefix.
-		err := filepath.Walk(iommuGroupPath, func(path string, _ os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-
-			iommuSlotName := filepath.Base(path) // Virtual function's address is dir name.
-
-			// Match any VFs that are related to the GPU device (but not the GPU device itself).
-			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
-				// Add VF device without VGA mode to qemu config.
-				_, devBus, devAddr, multi, err := busAllocate(devName, true)
-				if err != nil {
-					return fmt.Errorf("Failed allocating bus for GPU VF device %q: %w", devName, err)
-				}
-
-				gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
-					dev: qemuDevOpts{
-						busName:       busName,
-						devBus:        devBus,
-						devAddr:       devAddr,
-						multifunction: multi,
-					},
-					// Generate associated device name by combining main device name and VF ID.
-					devName:     devName + "_" + devAddr,
-					pciSlotName: iommuSlotName,
-					vga:         false,
-					vgpu:        "",
-				}
-
-				*cfg = append(*cfg, qemuGPUDevPhysical(&gpuDevPhysicalOpts)...)
-			}
-
-			return nil
-		})
+	// Iterate the members of the IOMMU group and override any that match the parent slot name prefix.
+	err = filepath.Walk(iommuGroupPath, func(path string, _ os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
+
+		iommuSlotName := filepath.Base(path) // Virtual function's address is dir name.
+
+		// Match any VFs that are related to the GPU device (but not the GPU device itself).
+		if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
+			// Add VF device without VGA mode to qemu config.
+			_, devBus, devAddr, multi, err := busAllocate(devName, true)
+			if err != nil {
+				return fmt.Errorf("Failed allocating bus for GPU VF device %q: %w", devName, err)
+			}
+
+			gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
+				dev: qemuDevOpts{
+					busName:       busName,
+					devBus:        devBus,
+					devAddr:       devAddr,
+					multifunction: multi,
+				},
+				// Generate associated device name by combining main device name and VF ID.
+				devName:     devName + "_" + devAddr,
+				pciSlotName: iommuSlotName,
+				vga:         false,
+				vgpu:        "",
+			}
+
+			*cfg = append(*cfg, qemuGPUDevPhysical(&gpuDevPhysicalOpts)...)
+		}
+
+		return nil
+	})
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
 
 	return nil
@@ -5656,12 +5654,10 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	// Rename the logging path.
 	newFullName := project.Instance(d.Project().Name, d.Name())
 	_ = os.RemoveAll(shared.LogPath(newFullName))
-	if shared.PathExists(d.LogPath()) {
-		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
-		if err != nil {
-			d.logger.Error("Failed renaming instance", ctxMap)
-			return err
-		}
+	err = os.Rename(d.LogPath(), shared.LogPath(newFullName))
+	if err != nil && !os.IsNotExist(err) {
+		d.logger.Error("Failed renaming instance", ctxMap)
+		return err
 	}
 
 	// Rename the MAAS entry.
@@ -6563,7 +6559,14 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	// Look for metadata.yaml.
 	fnam := filepath.Join(cDir, "metadata.yaml")
-	if !shared.PathExists(fnam) {
+	content, err := os.ReadFile(fnam)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		_ = tarWriter.Close()
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
+	}
+
+	if err != nil {
 		// Generate a new metadata.yaml.
 		tempDir, err := os.MkdirTemp("", "lxd_lxd_metadata_")
 		if err != nil {
@@ -6638,13 +6641,6 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		}
 	} else {
 		// Parse the metadata.
-		content, err := os.ReadFile(fnam)
-		if err != nil {
-			_ = tarWriter.Close()
-			d.logger.Error("Failed exporting instance", ctxMap)
-			return meta, err
-		}
-
 		err = yaml.Unmarshal(content, &meta)
 		if err != nil {
 			_ = tarWriter.Close()
@@ -6777,12 +6773,10 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	// Include all the templates.
 	fnam = d.TemplatesPath()
-	if shared.PathExists(fnam) {
-		err = filepath.Walk(fnam, writeToTar)
-		if err != nil {
-			d.logger.Error("Failed exporting instance", ctxMap)
-			return meta, err
-		}
+	err = filepath.Walk(fnam, writeToTar)
+	if err != nil && !os.IsNotExist(err) {
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
 	}
 
 	err = tarWriter.Close()

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -37,7 +38,8 @@ import (
 
 // Create a new backup.
 func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, version uint32, op *operations.Operation) error {
-	l := logger.AddContext(logger.Ctx{"project": sourceInst.Project().Name, "instance": sourceInst.Name(), "name": args.Name})
+	projectName := sourceInst.Project().Name
+	l := logger.AddContext(logger.Ctx{"project": projectName, "instance": sourceInst.Name(), "name": args.Name})
 	l.Debug("Instance backup started")
 	defer l.Debug("Instance backup finished")
 
@@ -70,7 +72,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	})
 
 	// Get the backup struct.
-	b, err := instance.BackupLoadByName(s, sourceInst.Project().Name, args.Name)
+	b, err := instance.BackupLoadByName(s, projectName, args.Name)
 	if err != nil {
 		return fmt.Errorf("Load backup object: %w", err)
 	}
@@ -83,7 +85,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	} else {
 		var p *api.Project
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			project, err := dbCluster.GetProject(ctx, tx.Tx(), sourceInst.Project().Name)
+			project, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 			if err != nil {
 				return err
 			}
@@ -104,19 +106,22 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	// Create the target path if needed.
-	backupsPathBase := s.BackupsStoragePath(sourceInst.Project().Name)
+	backupsPathBase := s.BackupsStoragePath(projectName)
 
-	backupsPath := filepath.Join(backupsPathBase, "instances", project.Instance(sourceInst.Project().Name, sourceInst.Name()))
-	if !shared.PathExists(backupsPath) {
-		err := os.MkdirAll(backupsPath, 0700)
-		if err != nil {
-			return err
-		}
+	backupsPath := filepath.Join(backupsPathBase, "instances", project.Instance(projectName, sourceInst.Name()))
+	err = os.MkdirAll(filepath.Dir(backupsPath), 0700)
+	if err != nil {
+		return err
+	}
 
+	err = os.Mkdir(backupsPath, 0700)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		return err
+	} else if err == nil {
 		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
-	target := filepath.Join(backupsPathBase, "instances", project.Instance(sourceInst.Project().Name, b.Name()))
+	target := filepath.Join(backupsPathBase, "instances", project.Instance(projectName, b.Name()))
 
 	// Setup the tarball writer.
 	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})
@@ -220,17 +225,19 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	revert.Success()
-	s.Events.SendLifecycle(sourceInst.Project().Name, lifecycle.InstanceBackupCreated.Event(args.Name, b.Instance(), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceBackupCreated.Event(args.Name, b.Instance(), nil))
 
 	return nil
 }
 
 // backupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
 func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, optimized bool, snapshots bool, version uint32, tarWriter *instancewriter.InstanceTarWriter) error {
+	driverInfo := pool.Driver().Info()
+
 	// Indicate whether the driver will include a driver-specific optimized header.
 	poolDriverOptimizedHeader := false
 	if optimized {
-		poolDriverOptimizedHeader = pool.Driver().Info().OptimizedBackupHeader
+		poolDriverOptimizedHeader = driverInfo.OptimizedBackupHeader
 	}
 
 	backupType := backup.InstanceTypeToBackupType(api.InstanceType(sourceInst.Type().String()))
@@ -263,7 +270,7 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	indexInfo := backup.Info{
 		Name:             sourceInst.Name(),
 		Pool:             pool.Name(),
-		Backend:          pool.Driver().Info().Name,
+		Backend:          driverInfo.Name,
 		Type:             backupType,
 		OptimizedStorage: &optimized,
 		OptimizedHeader:  &poolDriverOptimizedHeader,
@@ -444,17 +451,20 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	// Create the target path if needed.
 	backupsPathBase := s.BackupsStoragePath(projectName)
 
-	backupsPath := filepath.Join(backupsPathBase, "custom", pool.Name(), project.StorageVolume(projectName, volumeName))
-	if !shared.PathExists(backupsPath) {
-		err := os.MkdirAll(backupsPath, 0700)
-		if err != nil {
-			return err
-		}
+	backupsPath := filepath.Join(backupsPathBase, "custom", poolName, project.StorageVolume(projectName, volumeName))
+	err = os.MkdirAll(filepath.Dir(backupsPath), 0700)
+	if err != nil {
+		return err
+	}
 
+	err = os.Mkdir(backupsPath, 0700)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		return err
+	} else if err == nil {
 		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
-	target := filepath.Join(backupsPathBase, "custom", pool.Name(), project.StorageVolume(projectName, backupRow.Name))
+	target := filepath.Join(backupsPathBase, "custom", poolName, project.StorageVolume(projectName, backupRow.Name))
 
 	// Setup the tarball writer.
 	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})
@@ -539,15 +549,18 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 
 // volumeBackupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
 func volumeBackupWriteIndex(projectName string, volumeName string, pool storagePools.Pool, optimized bool, snapshots bool, version uint32, tarWriter *instancewriter.InstanceTarWriter) error {
+	driverInfo := pool.Driver().Info()
+	poolName := pool.Name()
+
 	// Indicate whether the driver will include a driver-specific optimized header.
 	poolDriverOptimizedHeader := false
 	if optimized {
-		poolDriverOptimizedHeader = pool.Driver().Info().OptimizedBackupHeader
+		poolDriverOptimizedHeader = driverInfo.OptimizedBackupHeader
 	}
 
 	config, err := pool.GenerateCustomVolumeBackupConfig(projectName, volumeName, snapshots, nil)
 	if err != nil {
-		return fmt.Errorf("Failed generating backup config of volume %q in pool %q and project %q: %w", volumeName, pool.Name(), projectName, err)
+		return fmt.Errorf("Failed generating backup config of volume %q in pool %q and project %q: %w", volumeName, poolName, projectName, err)
 	}
 
 	customVol, err := config.CustomVolume()
@@ -563,8 +576,8 @@ func volumeBackupWriteIndex(projectName string, volumeName string, pool storageP
 
 	indexInfo := backup.Info{
 		Name:             customVol.Name,
-		Pool:             pool.Name(),
-		Backend:          pool.Driver().Info().Name,
+		Pool:             poolName,
+		Backend:          driverInfo.Name,
 		OptimizedStorage: &optimized,
 		OptimizedHeader:  &poolDriverOptimizedHeader,
 		Type:             backupConfig.TypeCustom,

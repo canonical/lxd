@@ -112,22 +112,14 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 
 	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
-	// If missing, just return empty result
+	// Read the metadata, return empty result if missing.
 	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
-	if !shared.PathExists(metadataPath) {
-		return response.SyncResponse(true, api.ImageMetadata{})
-	}
-
-	// Read the metadata
-	metadataFile, err := os.Open(metadataPath)
+	data, err := os.ReadFile(metadataPath)
 	if err != nil {
-		return response.InternalError(err)
-	}
+		if os.IsNotExist(err) {
+			return response.SyncResponse(true, api.ImageMetadata{})
+		}
 
-	defer func() { _ = metadataFile.Close() }()
-
-	data, err := io.ReadAll(metadataFile)
-	if err != nil {
 		return response.InternalError(err)
 	}
 
@@ -227,19 +219,12 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	// Read the existing data.
 	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
 	metadata := api.ImageMetadata{}
-	if shared.PathExists(metadataPath) {
-		metadataFile, err := os.Open(metadataPath)
-		if err != nil {
-			return response.InternalError(err)
-		}
+	data, err := os.ReadFile(metadataPath)
+	if err != nil && !os.IsNotExist(err) {
+		return response.InternalError(err)
+	}
 
-		defer func() { _ = metadataFile.Close() }()
-
-		data, err := io.ReadAll(metadataFile)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
+	if len(data) > 0 {
 		// Parse into the API struct
 		err = yaml.Unmarshal(data, &metadata)
 		if err != nil {
@@ -473,13 +458,14 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	if templateName == "" {
 		templates := []string{}
 		templatesPath := c.TemplatesPath()
-		if !shared.PathExists(templatesPath) {
-			return response.SyncResponse(true, templates)
-		}
 
 		// List templates
 		entries, err := os.ReadDir(templatesPath)
 		if err != nil {
+			if os.IsNotExist(err) {
+				return response.SyncResponse(true, templates)
+			}
+
 			return response.InternalError(err)
 		}
 
@@ -498,14 +484,14 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 		return response.SmartError(err)
 	}
 
-	if !shared.PathExists(templatePath) {
-		return response.NotFound(fmt.Errorf("Template %q not found", templateName))
-	}
-
 	// Create a temporary file with the template content (since the container
 	// storage might not be available when the file is read from FileResponse)
 	template, err := os.Open(templatePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return response.NotFound(fmt.Errorf("Template %q not found", templateName))
+		}
+
 		return response.SmartError(err)
 	}
 
@@ -627,11 +613,9 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	templatesPath := c.TemplatesPath()
-	if !shared.PathExists(templatesPath) {
-		err := os.MkdirAll(templatesPath, 0711)
-		if err != nil {
-			return response.SmartError(err)
-		}
+	err = os.MkdirAll(templatesPath, 0711)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Check if the template already exists
@@ -751,13 +735,13 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 		return response.SmartError(err)
 	}
 
-	if !shared.PathExists(templatePath) {
-		return response.NotFound(fmt.Errorf("Template %q not found", templateName))
-	}
-
 	// Delete the template
 	err = os.Remove(templatePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return response.NotFound(fmt.Errorf("Template %q not found", templateName))
+		}
+
 		return response.InternalError(err)
 	}
 

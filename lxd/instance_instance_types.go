@@ -50,12 +50,12 @@ func instanceSaveCache() error {
 }
 
 func instanceLoadCache() error {
-	if !shared.PathExists(shared.CachePath("instance_types.yaml")) {
-		return nil
-	}
-
 	content, err := os.ReadFile(shared.CachePath("instance_types.yaml"))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
 		return err
 	}
 

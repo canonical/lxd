@@ -138,13 +138,13 @@ func forkproxyProfile(inst instance, dev device) (string, error) {
 
 	// AppArmor requires deref of all paths.
 	for k := range sockets {
-		// Skip non-existing because of the additional entry for the host side.
-		if !shared.PathExists(sockets[k]) {
-			continue
-		}
-
 		v, err := filepath.EvalSymlinks(sockets[k])
 		if err != nil {
+			// Skip non-existing because of the additional entry for the host side.
+			if os.IsNotExist(err) {
+				continue
+			}
+
 			return "", err
 		}
 

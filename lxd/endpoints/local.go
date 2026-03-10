@@ -4,6 +4,8 @@ package endpoints
 
 import (
 	"net"
+
+	"github.com/canonical/lxd/shared"
 )
 
 // Create a new net.Listener bound to the unix socket of the local endpoint.
@@ -13,12 +15,12 @@ func localCreateListener(path string, group string) (net.Listener, error) {
 		return nil, err
 	}
 
-	err = socketUnixRemoveStale(path)
+	err = shared.RemoveUnixSocket(path)
 	if err != nil {
 		return nil, err
 	}
 
-	listener, err := socketUnixListen(path)
+	listener, err := shared.ListenUnix(path)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +38,7 @@ func localCreateListener(path string, group string) (net.Listener, error) {
 // so access is granted only to the process user and to the given group (or the
 // process group if group is empty).
 func localSetAccess(path string, group string) error {
-	err := socketUnixSetPermissions(path, 0660)
+	err := shared.SetUnixSocketPermissions(path, 0660)
 	if err != nil {
 		return err
 	}

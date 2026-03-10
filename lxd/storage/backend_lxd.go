@@ -630,15 +630,13 @@ func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, proje
 	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
 
 	// Remove any old symlinks left over by previous bugs that may point to a different pool.
-	if shared.PathExists(symlinkPath) {
-		err := os.Remove(symlinkPath)
-		if err != nil {
-			return fmt.Errorf("Failed to remove symlink %q: %w", symlinkPath, err)
-		}
+	err := os.Remove(symlinkPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("Failed to remove symlink %q: %w", symlinkPath, err)
 	}
 
 	// Create new symlink.
-	err := os.Symlink(mountPath, symlinkPath)
+	err = os.Symlink(mountPath, symlinkPath)
 	if err != nil {
 		return fmt.Errorf("Failed to create symlink from %q to %q: %w", mountPath, symlinkPath, err)
 	}
@@ -650,11 +648,9 @@ func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, proje
 func (b *lxdBackend) removeInstanceSymlink(instanceType instancetype.Type, projectName string, instanceName string) error {
 	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
 
-	if shared.PathExists(symlinkPath) {
-		err := os.Remove(symlinkPath)
-		if err != nil {
-			return fmt.Errorf("Failed to remove symlink %q: %w", symlinkPath, err)
-		}
+	err := os.Remove(symlinkPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("Failed to remove symlink %q: %w", symlinkPath, err)
 	}
 
 	return nil
@@ -676,11 +672,9 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Typ
 	snapshotTargetPath := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
 
 	// Remove any old symlinks left over by previous bugs that may point to a different pool.
-	if shared.PathExists(snapshotSymlink) {
-		err = os.Remove(snapshotSymlink)
-		if err != nil {
-			return fmt.Errorf("Failed to remove symlink %q: %w", snapshotSymlink, err)
-		}
+	err = os.Remove(snapshotSymlink)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("Failed to remove symlink %q: %w", snapshotSymlink, err)
 	}
 
 	// Create new symlink.
@@ -710,11 +704,9 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 
 	// If snapshot parent directory doesn't exist, remove symlink.
 	if !shared.PathExists(snapshotTargetPath) {
-		if shared.PathExists(snapshotSymlink) {
-			err := os.Remove(snapshotSymlink)
-			if err != nil {
-				return fmt.Errorf("Failed to remove symlink %q: %w", snapshotSymlink, err)
-			}
+		err := os.Remove(snapshotSymlink)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Failed to remove symlink %q: %w", snapshotSymlink, err)
 		}
 	}
 
@@ -6603,11 +6595,9 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 
 	// Remove backups directory for volume.
 	backupsPath := filepath.Join(b.state.BackupsStoragePath(projectName), "custom", b.name, project.StorageVolume(projectName, volName))
-	if shared.PathExists(backupsPath) {
-		err := os.RemoveAll(backupsPath)
-		if err != nil {
-			return err
-		}
+	err = os.RemoveAll(backupsPath)
+	if err != nil {
+		return fmt.Errorf("Failed removing volume backups directory %q: %w", backupsPath, err)
 	}
 
 	// Finally, remove the volume record from the database.

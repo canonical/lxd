@@ -761,9 +761,6 @@ func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
 // Moves backups from shared.VarPath("backups") to shared.VarPath("backups", "instances").
 func patchMoveBackupsInstances(name string, d *Daemon) error {
 	backupsPathBase := d.State().BackupsStoragePath("")
-	if !shared.PathExists(backupsPathBase) {
-		return nil // Nothing to do, no backups directory.
-	}
 
 	backupsPath := filepath.Join(backupsPathBase, "instances")
 
@@ -774,6 +771,10 @@ func patchMoveBackupsInstances(name string, d *Daemon) error {
 
 	backups, err := os.ReadDir(backupsPathBase)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // Nothing to do, no backups directory.
+		}
+
 		return fmt.Errorf("Failed listing existing backup directory %q: %w", backupsPathBase, err)
 	}
 

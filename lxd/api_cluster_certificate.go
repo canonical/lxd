@@ -203,11 +203,9 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 		return err
 	}
 
-	if shared.PathExists(newClusterCertFilename) {
-		err := os.Remove(newClusterCertFilename)
-		if err != nil {
-			return fmt.Errorf("Failed removing cluster certificate: %w", err)
-		}
+	err = os.Remove(newClusterCertFilename)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed removing cluster certificate: %w", err)
 	}
 
 	// Get the new cluster certificate struct

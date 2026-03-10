@@ -721,21 +721,20 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 			return -1, err
 		}
 
-		// Check for separate root file.
-		if shared.PathExists(imageRootfsFile) {
-			err = os.MkdirAll(rootfsPath, 0755)
-			if err != nil {
-				return -1, errors.New("Error creating rootfs directory")
-			}
-
-			err = archive.UnpackImage(s, imageRootfsFile, rootfsPath, vol.IsBlockBacked(), tracker)
-			if err != nil {
-				return -1, err
-			}
+		// Try unpacking a separate rootfs file if present.
+		err = os.MkdirAll(rootfsPath, 0755)
+		if err != nil {
+			return -1, errors.New("Error creating rootfs directory")
 		}
 
-		// Check that the container image unpack has resulted in a rootfs dir.
-		if !shared.PathExists(rootfsPath) {
+		err = archive.UnpackImage(s, imageRootfsFile, rootfsPath, vol.IsBlockBacked(), tracker)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return -1, err
+		}
+
+		// Check that the container image unpack has resulted in a populated rootfs dir.
+		entries, err := os.ReadDir(rootfsPath)
+		if err != nil || len(entries) == 0 {
 			return -1, fmt.Errorf("Image is missing a rootfs: %s", imageFile)
 		}
 
@@ -783,20 +782,18 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 			return -1, err
 		}
 
-		if shared.PathExists(dstPath) {
-			volSizeBytes, err := block.DiskSizeBytes(dstPath)
-			if err != nil {
+		volSizeBytes, err := block.DiskSizeBytes(dstPath)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
 				return -1, fmt.Errorf("Error getting current size of %q: %w", dstPath, err)
 			}
-
+		} else if volSizeBytes < imgVirtualSize {
 			// If the target volume's size is smaller than the image unpack size, then we need to
 			// increase the target volume's size.
-			if volSizeBytes < imgVirtualSize {
-				l.Debug("Increasing volume size", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize, "allowUnsafeResize": allowUnsafeResize})
-				err = vol.SetQuota(newVolSize, allowUnsafeResize, nil)
-				if err != nil {
-					return -1, fmt.Errorf("Error increasing volume size: %w", err)
-				}
+			l.Debug("Increasing volume size", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize, "allowUnsafeResize": allowUnsafeResize})
+			err = vol.SetQuota(newVolSize, allowUnsafeResize, nil)
+			if err != nil {
+				return -1, fmt.Errorf("Error increasing volume size: %w", err)
 			}
 		}
 

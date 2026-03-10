@@ -385,13 +385,11 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	}
 
 	// Delete the pool from the parent.
-	if shared.PathExists(filepath.Join(mountPoint, fsPath)) {
-		// Delete the path itself.
-		if fsPath != "" && fsPath != "/" {
-			err = os.Remove(filepath.Join(mountPoint, fsPath))
-			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("Failed to remove directory %q: %w", filepath.Join(mountPoint, fsPath), err)
-			}
+	if fsPath != "" && fsPath != "/" {
+		poolPath := filepath.Join(mountPoint, fsPath)
+		err = os.Remove(poolPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed to remove directory %q: %w", poolPath, err)
 		}
 	}
 

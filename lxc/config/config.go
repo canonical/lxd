@@ -8,7 +8,6 @@ import (
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/lxc/cookiejar"
-	"github.com/canonical/lxd/shared"
 )
 
 // Config holds settings to be used by a client or daemon.
@@ -97,9 +96,7 @@ func (c *Config) SaveOIDCTokens() {
 
 	tokenParentPath := c.ConfigPath("oidctokens")
 
-	if !shared.PathExists(tokenParentPath) {
-		_ = os.MkdirAll(tokenParentPath, 0750)
-	}
+	_ = os.MkdirAll(tokenParentPath, 0750)
 
 	for remote, tokens := range c.oidcTokens {
 		tokenPath := c.OIDCTokenPath(remote)

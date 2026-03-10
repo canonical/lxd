@@ -1022,16 +1022,18 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 	// Modify the limit.
 	if sizeBytes > 0 {
 		// Custom handling for filesystem volume associated with a VM.
-		if vol.volType == VolumeTypeVM && shared.PathExists(filepath.Join(volPath, genericVolumeDiskFile)) {
+		if vol.volType == VolumeTypeVM {
 			// Get the size of the VM image.
 			blockSize, err := block.DiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
-			if err != nil {
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
 
-			// Add that to the requested filesystem size (to ignore it from the quota).
-			sizeBytes += blockSize
-			d.logger.Debug("Accounting for VM image file size", logger.Ctx{"sizeBytes": sizeBytes})
+			if blockSize > 0 {
+				// Add that to the requested filesystem size (to ignore it from the quota).
+				sizeBytes += blockSize
+				d.logger.Debug("Accounting for VM image file size", logger.Ctx{"sizeBytes": sizeBytes})
+			}
 		}
 
 		// Apply the limit to referenced data in qgroup.

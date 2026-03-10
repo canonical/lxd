@@ -537,14 +537,12 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 		// Deal with recursion
 		if resp.Type == "directory" {
 			if c.file.flagRecursive {
-				if !shared.PathExists(target) {
-					err := os.MkdirAll(target, DirMode)
-					if err != nil {
-						return err
-					}
-
-					targetIsDir = true
+				err := os.MkdirAll(target, DirMode)
+				if err != nil {
+					return err
 				}
+
+				targetIsDir = true
 
 				// Open target as a sandboxed root so all recursive writes are
 				// confined to the destination tree, preventing path traversal

@@ -247,25 +247,22 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 
 	// Move it back to the host.
 	phyPath := "/sys/class/net/" + hostName + "/phy80211/name"
-	if shared.PathExists(phyPath) {
-		// Get the phy name.
-		phyName, err := os.ReadFile(phyPath)
-		if err != nil {
-			return err
-		}
-
+	phyName, err := os.ReadFile(phyPath)
+	if err == nil {
 		// Wifi cards (move the phy instead).
 		_, err = shared.RunCommand(context.TODO(), "iw", "phy", strings.TrimSpace(string(phyName)), "set", "netns", lxdPID)
 		if err != nil {
 			return err
 		}
-	} else {
+	} else if os.IsNotExist(err) {
 		// Regular NICs.
 		link = &ip.Link{Name: hostName}
 		err = link.SetNetns(lxdPID)
 		if err != nil {
 			return err
 		}
+	} else {
+		return err
 	}
 
 	return nil

@@ -844,12 +844,8 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 	// Update our TLS configuration using our original certificate.
 	for _, suffix := range []string{"crt", "key", "ca"} {
 		path := filepath.Join(s.OS.VarDir, "cluster."+suffix)
-		if !shared.PathExists(path) {
-			continue
-		}
-
-		err := os.Remove(path)
-		if err != nil {
+		err = os.Remove(path)
+		if err != nil && !os.IsNotExist(err) {
 			return response.InternalError(err)
 		}
 	}

@@ -61,15 +61,13 @@ func (b *VolumeBackup) Rename(newName string) error {
 	defer revert.Fail()
 
 	// Create the new backup path if doesn't exist.
-	if !shared.PathExists(newParentBackupsPath) {
-		err := os.MkdirAll(newParentBackupsPath, 0700)
-		if err != nil {
-			return err
-		}
+	err := os.MkdirAll(newParentBackupsPath, 0700)
+	if err != nil {
+		return err
 	}
 
 	// Rename the backup directory.
-	err := os.Rename(oldBackupPath, newBackupPath)
+	err = os.Rename(oldBackupPath, newBackupPath)
 	if err != nil {
 		return err
 	}
@@ -102,11 +100,9 @@ func (b *VolumeBackup) Delete() error {
 	backupsPathBase := b.state.BackupsStoragePath(b.projectName)
 	backupPath := filepath.Join(backupsPathBase, "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
 	// Delete the on-disk data.
-	if shared.PathExists(backupPath) {
-		err := os.RemoveAll(backupPath)
-		if err != nil {
-			return err
-		}
+	err := os.RemoveAll(backupPath)
+	if err != nil {
+		return err
 	}
 
 	// Check if we can remove the volume directory.
@@ -120,7 +116,7 @@ func (b *VolumeBackup) Delete() error {
 	}
 
 	// Remove the database record.
-	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.DeleteStoragePoolVolumeBackup(ctx, b.name)
 	})
 	if err != nil {

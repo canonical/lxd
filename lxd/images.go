@@ -2314,16 +2314,14 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 				Type:     newImage.Type,
 			}
 
-			if shared.PathExists(imageRootfsPath) {
-				rootfsFile, err := os.Open(imageRootfsPath)
-				if err != nil {
-					return err
-				}
-
+			rootfsFile, err := os.Open(imageRootfsPath)
+			if err == nil {
 				defer func() { _ = rootfsFile.Close() }()
 
 				createArgs.RootfsFile = rootfsFile
 				createArgs.RootfsName = filepath.Base(rootfsFile.Name())
+			} else if !os.IsNotExist(err) {
+				return err
 			}
 
 			image := api.ImagesPost{
@@ -3179,20 +3177,15 @@ func doImageDelete(isClusterNotification bool, opCreator operations.OperationSch
 func imageDeleteFromDisk(daemonStorageVolume string, fingerprint string) error {
 	// Remove main image file.
 	fname := filepath.Join(daemonStoragePath(daemonStorageVolume, config.DaemonStorageTypeImages), fingerprint)
-	if shared.PathExists(fname) {
-		err := os.Remove(fname)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Error deleting image file %s: %s", fname, err)
-		}
+	err := os.Remove(fname)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed deleting image file %q: %w", fname, err)
 	}
 
 	// Remove the rootfs file for the image.
-	fname = fname + ".rootfs"
-	if shared.PathExists(fname) {
-		err := os.Remove(fname)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Error deleting image file %s: %s", fname, err)
-		}
+	err = os.Remove(fname + ".rootfs")
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed deleting image file %q: %w", fname+".rootfs", err)
 	}
 
 	return nil
@@ -4701,16 +4694,14 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		createArgs.MetaFile = metaFile
 		createArgs.MetaName = filepath.Base(imageMetaPath)
 
-		if shared.PathExists(imageRootfsPath) {
-			rootfsFile, err := os.Open(imageRootfsPath)
-			if err != nil {
-				return err
-			}
-
+		rootfsFile, err := os.Open(imageRootfsPath)
+		if err == nil {
 			defer func() { _ = rootfsFile.Close() }()
 
 			createArgs.RootfsFile = rootfsFile
 			createArgs.RootfsName = filepath.Base(imageRootfsPath)
+		} else if !os.IsNotExist(err) {
+			return err
 		}
 
 		image := api.ImagesPost{

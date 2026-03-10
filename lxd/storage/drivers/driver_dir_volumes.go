@@ -185,14 +185,9 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	volPath := vol.MountPath()
 
-	// If the volume doesn't exist, then nothing more to do.
-	if !shared.PathExists(volPath) {
-		return nil
-	}
-
 	// Remove the volume from the storage device.
 	err = forceRemoveAll(volPath)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil {
 		return fmt.Errorf("Failed to remove %q: %w", volPath, err)
 	}
 
@@ -346,16 +341,19 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 
 		// Custom handling for filesystem volume associated with a VM.
 		volPath := vol.MountPath()
-		if sizeBytes > 0 && vol.volType == VolumeTypeVM && shared.PathExists(filepath.Join(volPath, genericVolumeDiskFile)) {
+		if sizeBytes > 0 && vol.volType == VolumeTypeVM {
 			// Get the size of the VM image.
-			blockSize, err := block.DiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
-			if err != nil {
+			diskFile := filepath.Join(volPath, genericVolumeDiskFile)
+			blockSize, err := block.DiskSizeBytes(diskFile)
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
 
-			// Add that to the requested filesystem size (to ignore it from the quota).
-			sizeBytes += blockSize
-			d.logger.Debug("Accounting for VM image file size", logger.Ctx{"sizeBytes": sizeBytes})
+			if blockSize > 0 {
+				// Add that to the requested filesystem size (to ignore it from the quota).
+				sizeBytes += blockSize
+				d.logger.Debug("Accounting for VM image file size", logger.Ctx{"sizeBytes": sizeBytes})
+			}
 		}
 
 		return d.setQuota(vol.MountPath(), volID, sizeBytes)

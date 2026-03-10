@@ -48,39 +48,42 @@ func UpdateCertificate(s *state.State, provider HTTP01Provider, clustered bool, 
 	// If clusterCertFilename exists, it means that a previously issued certificate couldn't be
 	// distributed to all cluster members and was therefore kept back. In this case, don't issue
 	// a new certificate but return the previously issued one.
-	if !force && clustered && shared.PathExists(clusterCertFilename) {
-		keyFilename := shared.VarPath("cluster.key")
-
+	if !force && clustered {
 		clusterCert, err := os.ReadFile(clusterCertFilename)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("Failed reading cluster certificate file: %w", err)
 		}
 
-		key, err := os.ReadFile(keyFilename)
-		if err != nil {
-			return nil, fmt.Errorf("Failed reading cluster key file: %w", err)
-		}
+		if err == nil {
+			keyFilename := shared.VarPath("cluster.key")
 
-		keyPair, err := tls.X509KeyPair(clusterCert, key)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get keypair: %w", err)
-		}
+			key, err := os.ReadFile(keyFilename)
+			if err != nil {
+				return nil, fmt.Errorf("Failed reading cluster key file: %w", err)
+			}
 
-		cert, err := x509.ParseCertificate(keyPair.Certificate[0])
-		if err != nil {
-			return nil, fmt.Errorf("Failed to parse certificate: %w", err)
-		}
+			keyPair, err := tls.X509KeyPair(clusterCert, key)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get keypair: %w", err)
+			}
 
-		if !certificateNeedsUpdate(domain, cert) {
-			return &certificate.Resource{
-				Certificate: clusterCert,
-				PrivateKey:  key,
-			}, nil
+			cert, err := x509.ParseCertificate(keyPair.Certificate[0])
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse certificate: %w", err)
+			}
+
+			if !certificateNeedsUpdate(domain, cert) {
+				return &certificate.Resource{
+					Certificate: clusterCert,
+					PrivateKey:  key,
+				}, nil
+			}
 		}
 	}
 
-	if shared.PathExists(clusterCertFilename) {
-		_ = os.Remove(clusterCertFilename)
+	err := os.Remove(clusterCertFilename)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("Failed removing old cluster certificate file: %w", err)
 	}
 
 	// Load the certificate.

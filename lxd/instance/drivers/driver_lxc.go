@@ -753,11 +753,12 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	}
 
 	for _, mnt := range bindMounts {
-		if !shared.PathExists(mnt) {
+		fi, err := os.Stat(mnt)
+		if err != nil {
 			continue
 		}
 
-		if shared.IsDir(mnt) {
+		if fi.IsDir() {
 			err = lxcSetConfigItem(cc, "lxc.mount.entry", mnt+" "+strings.TrimPrefix(mnt, "/")+" none rbind,create=dir,optional 0 0")
 			if err != nil {
 				return nil, err
@@ -1887,12 +1888,9 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 
 	// Rotate the log file.
 	logfile := d.LogFilePath()
-	if shared.PathExists(logfile) {
-		_ = os.Remove(logfile + ".old")
-		err := os.Rename(logfile, logfile+".old")
-		if err != nil && !os.IsNotExist(err) {
-			return nil, "", nil, err
-		}
+	err = os.Rename(logfile, logfile+".old")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, "", nil, err
 	}
 
 	// Wait for any file operations to complete.
@@ -2204,8 +2202,8 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 		return nil, "", nil, err
 	}
 
-	// If starting stateless, wipe state
-	if !d.IsStateful() && shared.PathExists(d.StatePath()) {
+	// If starting stateless, wipe state.
+	if !d.IsStateful() {
 		_ = os.RemoveAll(d.StatePath())
 	}
 
@@ -2352,27 +2350,25 @@ func (d *lxc) Start(stateful bool) error {
 		// Attempt to extract the LXC errors
 		lxcLog := ""
 		logPath := filepath.Join(d.LogPath(), "lxc.log")
-		if shared.PathExists(logPath) {
-			logContent, err := os.ReadFile(logPath)
-			if err == nil {
-				for line := range strings.SplitSeq(string(logContent), "\n") {
-					fields := strings.Fields(line)
-					if len(fields) < 4 {
-						continue
-					}
-
-					// We only care about errors
-					if fields[2] != "ERROR" {
-						continue
-					}
-
-					// Prepend the line break
-					if len(lxcLog) == 0 {
-						lxcLog += "\n"
-					}
-
-					lxcLog += "  " + strings.Join(fields[0:], " ") + "\n"
+		logContent, logErr := os.ReadFile(logPath)
+		if logErr == nil {
+			for line := range strings.SplitSeq(string(logContent), "\n") {
+				fields := strings.Fields(line)
+				if len(fields) < 4 {
+					continue
 				}
+
+				// We only care about errors
+				if fields[2] != "ERROR" {
+					continue
+				}
+
+				// Prepend the line break
+				if len(lxcLog) == 0 {
+					lxcLog += "\n"
+				}
+
+				lxcLog += "  " + strings.Join(fields[0:], " ") + "\n"
 			}
 		}
 
@@ -2661,10 +2657,8 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 	}
 
-	if shared.PathExists(d.StatePath()) {
-		// If stopping statelessly, wipe left over state.
-		_ = os.RemoveAll(d.StatePath())
-	}
+	// If stopping statelessly, wipe left over state.
+	_ = os.RemoveAll(d.StatePath())
 
 	// Load cgroup abstraction
 	cg, err := d.cgroup(cc, true)
@@ -3674,12 +3668,10 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	// Rename the logging path.
 	newFullName := project.Instance(d.Project().Name, d.Name())
 	_ = os.RemoveAll(shared.LogPath(newFullName))
-	if shared.PathExists(d.LogPath()) {
-		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
-		if err != nil {
-			d.logger.Error("Failed renaming instance", ctxMap)
-			return fmt.Errorf("Failed renaming instance: %w", err)
-		}
+	err = os.Rename(d.LogPath(), shared.LogPath(newFullName))
+	if err != nil && !os.IsNotExist(err) {
+		d.logger.Error("Failed renaming instance", ctxMap)
+		return fmt.Errorf("Failed renaming instance: %w", err)
 	}
 
 	// Rename the MAAS entry.
@@ -4746,12 +4738,10 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 
 	// Include all the templates.
 	fnam = d.TemplatesPath()
-	if shared.PathExists(fnam) {
-		err = filepath.Walk(fnam, writeToTar)
-		if err != nil {
-			d.logger.Error("Failed exporting instance", ctxMap)
-			return meta, err
-		}
+	err = filepath.Walk(fnam, writeToTar)
+	if err != nil && !os.IsNotExist(err) {
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
 	}
 
 	err = tarWriter.Close()
@@ -5512,13 +5502,14 @@ func (d *lxc) ConversionReceive(args instance.ConversionReceiveArgs) error {
 func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 	// If there's no metadata, just return
 	fname := filepath.Join(d.Path(), "metadata.yaml")
-	if !shared.PathExists(fname) {
-		return nil
-	}
 
 	// Parse the metadata
 	content, err := os.ReadFile(fname)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
 		return fmt.Errorf("Failed to read metadata: %w", err)
 	}
 
@@ -7537,17 +7528,18 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 				backingFilePath := fmt.Sprintf("/sys/dev/block/%d:%d/loop/backing_file", unix.Major(uint64(stat.Dev)), unix.Minor(uint64(stat.Dev)))
 
-				if shared.PathExists(backingFilePath) {
-					// Read backing file
-					backingFile, err := os.ReadFile(backingFilePath)
-					if err != nil {
+				// Read backing file
+				backingFile, err := os.ReadFile(backingFilePath)
+				if err != nil {
+					if !errors.Is(err, os.ErrNotExist) {
 						return nil, fmt.Errorf("Failed to read %s: %w", backingFilePath, err)
 					}
 
-					realDev = string(backingFile)
-				} else {
 					// Use dev as device
 					realDev = mountDev
+				} else {
+					realDev = strings.TrimRight(string(backingFile), "\n")
+					realDev = strings.TrimSuffix(realDev, " (deleted)")
 				}
 
 				break

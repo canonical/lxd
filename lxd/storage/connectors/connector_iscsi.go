@@ -81,12 +81,12 @@ func (c *connectorISCSI) QualifiedName() (string, error) {
 	// does not allow providing the IQN directly, so we need to extract it
 	// from the /etc/iscsi/initiatorname.iscsi file on the host.
 	filename := shared.HostPath("/etc/iscsi/initiatorname.iscsi")
-	if !shared.PathExists(filename) {
-		return "", fmt.Errorf("Failed to extract host IQN: File %q does not exist", filename)
-	}
-
 	content, err := os.ReadFile(filename)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("Failed to extract host IQN: File %q does not exist", filename)
+		}
+
 		return "", err
 	}
 

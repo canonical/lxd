@@ -60,19 +60,18 @@ func (s *SimpleStreams) SetCache(path string, expiry time.Duration) {
 }
 
 func (s *SimpleStreams) readCache(path string) ([]byte, bool) {
-	cacheName := filepath.Join(s.cachePath, path)
-
 	if s.cachePath == "" {
 		return nil, false
 	}
 
-	if !shared.PathExists(cacheName) {
-		return nil, false
-	}
+	cacheName := filepath.Join(s.cachePath, path)
 
 	fi, err := os.Stat(cacheName)
 	if err != nil {
-		_ = os.Remove(cacheName)
+		if !os.IsNotExist(err) {
+			_ = os.Remove(cacheName)
+		}
+
 		return nil, false
 	}
 

@@ -196,21 +196,30 @@ func CephKeyring(cluster string, client string) (string, error) {
 	keyringPathGlobal := "/etc/ceph/keyring"
 	keyringPathGlobalBin := "/etc/ceph/keyring.bin"
 
-	if shared.PathExists(keyringPathFull) {
-		return getCephKeyFromFile(keyringPathFull)
-	} else if shared.PathExists(keyringPathCluster) {
-		return getCephKeyFromFile(keyringPathCluster)
-	} else if shared.PathExists(keyringPathGlobal) {
-		return getCephKeyFromFile(keyringPathGlobal)
-	} else if shared.PathExists(keyringPathGlobalBin) {
-		return getCephKeyFromFile(keyringPathGlobalBin)
-	} else if shared.PathExists(cephConfigPath) {
-		// Open the CEPH config file.
-		cephConfig, err := os.Open(cephConfigPath)
-		if err != nil {
-			return "", fmt.Errorf("Failed to open %q: %w", cephConfigPath, err)
+	// Try keyring files in order of specificity.
+	for _, keyringPath := range []string{
+		keyringPathFull,
+		keyringPathCluster,
+		keyringPathGlobal,
+		keyringPathGlobalBin,
+	} {
+		secret, err := getCephKeyFromFile(keyringPath)
+		if err == nil {
+			return secret, nil
 		}
 
+		if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+	}
+
+	// Fall back to parsing the Ceph config file.
+	cephConfig, err := os.Open(cephConfigPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("Failed to open %q: %w", cephConfigPath, err)
+	}
+
+	if err == nil {
 		defer func() { _ = cephConfig.Close() }()
 
 		// Locate the keyring entry and its value.

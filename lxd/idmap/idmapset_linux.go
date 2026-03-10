@@ -741,10 +741,6 @@ func (set *IdmapSet) doUidShiftIntoContainer(dir string, testmode bool, how stri
 		return nil
 	}
 
-	if !shared.PathExists(dir) {
-		return fmt.Errorf("No such file or directory: %q", dir)
-	}
-
 	return filepath.Walk(dir, convert)
 }
 
@@ -882,63 +878,66 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 		username = currentUser.Username
 	}
 
-	// Check if shadow's uidmap tools are installed
+	// Parse the shadow uidmap.
 	subuidPath := path.Join(rootfs, "/etc/subuid")
 	subgidPath := path.Join(rootfs, "/etc/subgid")
-	if shared.PathExists(subuidPath) && shared.PathExists(subgidPath) {
-		// Parse the shadow uidmap
-		entries, err := getFromShadow(subuidPath, username)
-		if err != nil {
-			if username == "root" && err == ErrNoUserMap {
-				// No root map available, figure out a default map
-				return kernelDefaultMap()
-			}
 
-			return nil, err
+	entries, err := getFromShadow(subuidPath, username)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return kernelDefaultMap()
 		}
 
-		for _, entry := range entries {
-			// Check that it's big enough to be useful
-			if entry[1] < 65536 {
-				continue
-			}
-
-			e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
-			idmapset.Idmap = Extend(idmapset.Idmap, e)
-
-			// NOTE: Remove once LXD can deal with multiple shadow maps
-			break
+		if username == "root" && err == ErrNoUserMap {
+			// No root map available, figure out a default map
+			return kernelDefaultMap()
 		}
 
-		// Parse the shadow gidmap
-		entries, err = getFromShadow(subgidPath, username)
-		if err != nil {
-			if username == "root" && err == ErrNoUserMap {
-				// No root map available, figure out a default map
-				return kernelDefaultMap()
-			}
-
-			return nil, err
-		}
-
-		for _, entry := range entries {
-			// Check that it's big enough to be useful
-			if entry[1] < 65536 {
-				continue
-			}
-
-			e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
-			idmapset.Idmap = Extend(idmapset.Idmap, e)
-
-			// NOTE: Remove once LXD can deal with multiple shadow maps
-			break
-		}
-
-		return idmapset, nil
+		return nil, err
 	}
 
-	// No shadow available, figure out a default map
-	return kernelDefaultMap()
+	for _, entry := range entries {
+		// Check that it's big enough to be useful
+		if entry[1] < 65536 {
+			continue
+		}
+
+		e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+
+		// NOTE: Remove once LXD can deal with multiple shadow maps
+		break
+	}
+
+	// Parse the shadow gidmap.
+	entries, err = getFromShadow(subgidPath, username)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return kernelDefaultMap()
+		}
+
+		if username == "root" && err == ErrNoUserMap {
+			// No root map available, figure out a default map
+			return kernelDefaultMap()
+		}
+
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		// Check that it's big enough to be useful
+		if entry[1] < 65536 {
+			continue
+		}
+
+		e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+
+		// NOTE: Remove once LXD can deal with multiple shadow maps
+		break
+	}
+
+	return idmapset, nil
 }
 
 func kernelDefaultMap() (*IdmapSet, error) {
@@ -1043,38 +1042,38 @@ func kernelDefaultMap() (*IdmapSet, error) {
 func CurrentIdmapSet() (*IdmapSet, error) {
 	idmapset := new(IdmapSet)
 
-	if shared.PathExists("/proc/self/uid_map") {
-		// Parse the uidmap
-		entries, err := getFromProc("/proc/self/uid_map")
-		if err != nil {
+	// Parse the uidmap
+	entries, err := getFromProc("/proc/self/uid_map")
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
 
+		// Fallback map
+		e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: 0, Maprange: 0}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+	} else {
 		for _, entry := range entries {
 			e := IdmapEntry{Isuid: true, Nsid: entry[0], Hostid: entry[1], Maprange: entry[2]}
 			idmapset.Idmap = Extend(idmapset.Idmap, e)
 		}
-	} else {
-		// Fallback map
-		e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: 0, Maprange: 0}
-		idmapset.Idmap = Extend(idmapset.Idmap, e)
 	}
 
-	if shared.PathExists("/proc/self/gid_map") {
-		// Parse the gidmap
-		entries, err := getFromProc("/proc/self/gid_map")
-		if err != nil {
+	// Parse the gidmap
+	entries, err = getFromProc("/proc/self/gid_map")
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
 
+		// Fallback map
+		e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: 0, Maprange: 0}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+	} else {
 		for _, entry := range entries {
 			e := IdmapEntry{Isgid: true, Nsid: entry[0], Hostid: entry[1], Maprange: entry[2]}
 			idmapset.Idmap = Extend(idmapset.Idmap, e)
 		}
-	} else {
-		// Fallback map
-		e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: 0, Maprange: 0}
-		idmapset.Idmap = Extend(idmapset.Idmap, e)
 	}
 
 	return idmapset, nil

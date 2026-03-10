@@ -999,20 +999,16 @@ func (n *bridge) Rename(newName string) error {
 
 	// Rename forkdns log file.
 	forkDNSLogPath := shared.LogPath("forkdns." + n.name + ".log")
-	if shared.PathExists(forkDNSLogPath) {
-		err := os.Rename(forkDNSLogPath, shared.LogPath("forkdns."+newName+".log"))
-		if err != nil {
-			return err
-		}
+	err = os.Rename(forkDNSLogPath, shared.LogPath("forkdns."+newName+".log"))
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
 
 	// Rename dnsmasq log file.
 	dnsmasqLogPath := shared.LogPath("dnsmasq." + n.name + ".log")
-	if shared.PathExists(dnsmasqLogPath) {
-		err := os.Rename(dnsmasqLogPath, shared.LogPath("dnsmasq."+newName+".log"))
-		if err != nil {
-			return err
-		}
+	err = os.Rename(dnsmasqLogPath, shared.LogPath("dnsmasq."+newName+".log"))
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
 
 	// Rename common steps.
@@ -1222,11 +1218,9 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 
 	// Create DHCP hosts directory.
 	dnsmasqHostDir := shared.VarPath("networks", n.name, "dnsmasq.hosts")
-	if !shared.PathExists(dnsmasqHostDir) {
-		err = os.MkdirAll(dnsmasqHostDir, 0755)
-		if err != nil {
-			return err
-		}
+	err = os.MkdirAll(dnsmasqHostDir, 0755)
+	if err != nil {
+		return err
 	}
 
 	// Check for dnsmasq.
@@ -1313,14 +1307,10 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Create directory.
 	networkDir := shared.VarPath("networks", n.name)
-	if !shared.PathExists(networkDir) {
-		err := os.MkdirAll(networkDir, 0711)
-		if err != nil {
-			return err
-		}
+	err := os.MkdirAll(networkDir, 0711)
+	if err != nil {
+		return err
 	}
-
-	var err error
 
 	// Build up the bridge interface's settings.
 	bridge := ip.Bridge{
@@ -1439,22 +1429,23 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// IPv6 bridge configuration.
+	ipv6ConfPath := "net/ipv6/conf/" + n.name
 	if !slices.Contains([]string{"", "none"}, n.config["ipv6.address"]) {
-		if !shared.PathExists("/proc/sys/net/ipv6") {
-			return errors.New("Network has ipv6.address but kernel IPv6 support is missing")
+		err := util.SysctlSet(ipv6ConfPath+"/disable_ipv6", "0")
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return errors.New("Network has ipv6.address but kernel IPv6 support is missing")
+			}
+
+			return err
 		}
 
-		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", n.name), "0")
+		err = util.SysctlSet(ipv6ConfPath+"/autoconf", "0")
 		if err != nil {
 			return err
 		}
 
-		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/autoconf", n.name), "0")
-		if err != nil {
-			return err
-		}
-
-		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_dad", n.name), "0")
+		err = util.SysctlSet(ipv6ConfPath+"/accept_dad", "0")
 		if err != nil {
 			return err
 		}
@@ -1462,11 +1453,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Disable IPv6 if no address is specified. This prevents the
 		// host being reachable over a guessable link-local address as well as it
 		// auto-configuring an address should an instance operate an IPv6 router.
-		if shared.PathExists("/proc/sys/net/ipv6") {
-			err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", n.name), "1")
-			if err != nil {
-				return err
-			}
+		err := util.SysctlSet(ipv6ConfPath+"/disable_ipv6", "1")
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
 		}
 	}
 
@@ -2153,11 +2142,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if dnsClustered {
 			// Create forkdns servers directory.
 			forkdnsPath := shared.VarPath("networks", n.name, ForkdnsServersListPath)
-			if !shared.PathExists(forkdnsPath) {
-				err = os.MkdirAll(forkdnsPath, 0755)
-				if err != nil {
-					return err
-				}
+			err = os.MkdirAll(forkdnsPath, 0755)
+			if err != nil {
+				return err
 			}
 
 			// Create forkdns servers.conf file if doesn't exist.
@@ -2176,20 +2163,16 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	} else {
 		// Clean up old dnsmasq config if exists and we are not starting dnsmasq.
 		leasesPath := shared.VarPath("networks", n.name, "dnsmasq.leases")
-		if shared.PathExists(leasesPath) {
-			err := os.Remove(leasesPath)
-			if err != nil {
-				return fmt.Errorf("Failed to remove old dnsmasq leases file %q: %w", leasesPath, err)
-			}
+		err = os.Remove(leasesPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed to remove old dnsmasq leases file %q: %w", leasesPath, err)
 		}
 
 		// Clean up old dnsmasq PID file.
 		pidPath := shared.VarPath("networks", n.name, "dnsmasq.pid")
-		if shared.PathExists(pidPath) {
-			err := os.Remove(pidPath)
-			if err != nil {
-				return fmt.Errorf("Failed to remove old dnsmasq pid file %q: %w", pidPath, err)
-			}
+		err = os.Remove(pidPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed to remove old dnsmasq pid file %q: %w", pidPath, err)
 		}
 	}
 
@@ -2725,13 +2708,12 @@ func (n *bridge) killForkDNS() error {
 	// Check if we have a running forkdns at all
 	pidPath := shared.VarPath("networks", n.name, "forkdns.pid")
 
-	// If the pid file doesn't exist, there is no process to kill.
-	if !shared.PathExists(pidPath) {
-		return nil
-	}
-
 	p, err := subprocess.ImportProcess(pidPath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
 		return fmt.Errorf("Could not read pid file: %s", err)
 	}
 
@@ -3681,12 +3663,12 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 	// Get dynamic leases.
 	leaseFile := shared.VarPath("networks", n.name, "dnsmasq.leases")
-	if !shared.PathExists(leaseFile) {
-		return leases, nil
-	}
-
 	content, err := os.ReadFile(leaseFile)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return leases, nil
+		}
+
 		return nil, err
 	}
 

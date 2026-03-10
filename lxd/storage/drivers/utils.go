@@ -70,10 +70,10 @@ func wipeDirectory(path string) error {
 // forceRemoveAll wipes a path including any immutable/non-append files.
 func forceRemoveAll(path string) error {
 	err := os.RemoveAll(path)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		_, _ = shared.RunCommand(context.TODO(), "chattr", "-ai", "-R", path)
 		err = os.RemoveAll(path)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
@@ -281,14 +281,9 @@ func GetSnapshotVolumeName(parentName, snapshotName string) string {
 func createParentSnapshotDirIfMissing(poolName string, volType VolumeType, volName string) error {
 	snapshotsPath := GetVolumeSnapshotDir(poolName, volType, volName)
 
-	// If it's missing, create it.
-	if !shared.PathExists(snapshotsPath) {
-		err := os.Mkdir(snapshotsPath, 0700)
-		if err != nil {
-			return fmt.Errorf("Failed to create parent snapshot directory %q: %w", snapshotsPath, err)
-		}
-
-		return nil
+	err := os.Mkdir(snapshotsPath, 0700)
+	if err != nil && !os.IsExist(err) {
+		return fmt.Errorf("Failed to create parent snapshot directory %q: %w", snapshotsPath, err)
 	}
 
 	return nil
@@ -299,18 +294,11 @@ func createParentSnapshotDirIfMissing(poolName string, volType VolumeType, volNa
 func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName string) error {
 	snapshotsPath := GetVolumeSnapshotDir(poolName, volType, volName)
 
-	// If it exists, try to delete it.
-	if shared.PathExists(snapshotsPath) {
-		isEmpty, err := shared.PathIsEmpty(snapshotsPath)
-		if err != nil {
-			return err
-		}
-
-		if isEmpty {
-			err := os.Remove(snapshotsPath)
-			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("Failed to remove %q: %w", snapshotsPath, err)
-			}
+	err := os.Remove(snapshotsPath)
+	if err != nil && !os.IsNotExist(err) {
+		// If removal failed because the directory is not empty, that's fine.
+		if !errors.Is(err, unix.ENOTEMPTY) {
+			return fmt.Errorf("Failed to remove %q: %w", snapshotsPath, err)
 		}
 	}
 
@@ -348,12 +336,12 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 	// Get rounded block size to avoid QEMU boundary issues.
 	sizeBytes = vol.driver.roundVolumeBlockSizeBytes(vol, sizeBytes)
 
-	if shared.PathExists(path) {
-		fi, err := os.Stat(path)
-		if err != nil {
-			return false, err
-		}
+	fi, err := os.Stat(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return false, err
+	}
 
+	if err == nil {
 		oldSizeBytes := fi.Size()
 		if sizeBytes == oldSizeBytes {
 			return false, nil
@@ -388,7 +376,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 
 	// If path doesn't exist, then there has been no filler function supplied to create it from another source.
 	// So instead create an empty volume (use for PXE booting a VM).
-	err := ensureSparseFile(path, sizeBytes)
+	err = ensureSparseFile(path, sizeBytes)
 	if err != nil {
 		return false, fmt.Errorf("Failed creating disk image %q as size %d: %w", path, sizeBytes, err)
 	}
@@ -818,18 +806,20 @@ func loopFileSizeDefault() (uint64, error) {
 // If recover is true and the file already exists, it derives the size from the existing file.
 // Otherwise it computes a default size based on available free space.
 func loopFileSizeResolve(sourcePath string, sourceRecover bool) (string, error) {
-	if sourceRecover && shared.PathExists(sourcePath) {
+	if sourceRecover {
 		fi, err := os.Stat(sourcePath)
-		if err != nil {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return "", fmt.Errorf("Failed getting size of existing source file %q: %w", sourcePath, err)
 		}
 
-		sizeBytes := fi.Size()
-		if sizeBytes%(1024*1024*1024) == 0 {
-			return strconv.FormatInt(sizeBytes/(1024*1024*1024), 10) + "GiB", nil
-		}
+		if err == nil {
+			sizeBytes := fi.Size()
+			if sizeBytes%(1024*1024*1024) == 0 {
+				return strconv.FormatInt(sizeBytes/(1024*1024*1024), 10) + "GiB", nil
+			}
 
-		return strconv.FormatInt(sizeBytes, 10) + "B", nil
+			return strconv.FormatInt(sizeBytes, 10) + "B", nil
+		}
 	}
 
 	defaultSize, err := loopFileSizeDefault()

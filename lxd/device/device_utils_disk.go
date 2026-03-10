@@ -103,7 +103,7 @@ func DiskMountClear(mntPath string) error {
 		}
 
 		err := os.Remove(mntPath)
-		if err != nil {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("Failed removing %q: %w", mntPath, err)
 		}
 	}
@@ -354,12 +354,12 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 
 // DiskVMVirtiofsdStop stops an existing virtiofsd process and cleans up.
 func DiskVMVirtiofsdStop(socketPath string, pidPath string) error {
-	if shared.PathExists(pidPath) {
-		proc, err := subprocess.ImportProcess(pidPath)
-		if err != nil {
+	proc, err := subprocess.ImportProcess(pidPath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
-
+	} else {
 		err = proc.Stop()
 		// The virtiofsd process will terminate automatically once the VM has stopped.
 		// We therefore should only return an error if it's still running and fails to stop.
@@ -375,7 +375,7 @@ func DiskVMVirtiofsdStop(socketPath string, pidPath string) error {
 	}
 
 	// Remove socket file if needed.
-	err := os.Remove(socketPath)
+	err = os.Remove(socketPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("Failed to remove socket file: %w", err)
 	}

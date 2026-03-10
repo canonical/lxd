@@ -1353,12 +1353,10 @@ func (d *pure) unmapVolume(vol Volume) error {
 		// removeDevice removes device from the system if the device is removable.
 		removeDevice := func(devName string) error {
 			path := "/sys/block/" + devName + "/device/delete"
-			if shared.PathExists(path) {
-				// Delete device.
-				err := os.WriteFile(path, []byte("1"), 0400)
-				if err != nil {
-					return err
-				}
+			// Delete device.
+			err := os.WriteFile(path, []byte("1"), 0400)
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
 			}
 
 			return nil

@@ -1069,11 +1069,9 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 	}
 
 	// Cleanup existing sockets
-	if shared.PathExists(path) {
-		err := os.Remove(path)
-		if err != nil {
-			return nil, err
-		}
+	err := os.Remove(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
 	}
 
 	// Bind new socket
