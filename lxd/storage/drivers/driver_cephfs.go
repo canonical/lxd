@@ -416,7 +416,8 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  scope: global
 		"cephfs.fscache": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.path)
-		//
+		// This option specifies the base path for the CephFS mount.
+		// The path gets created if missing.
 		// ---
 		//  type: string
 		//  defaultdesc: `/`

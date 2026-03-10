@@ -341,7 +341,8 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  shortdesc: Number of RADOS object replicas. Set to 1 for no replication.
 		"ceph.osd.pool_size": validate.Optional(validate.IsInRange(1, 255)),
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.pool_name)
-		//
+		// This option specifies the name of the OSD storage pool.
+		// The OSD storage pool gets created if missing.
 		// ---
 		//  type: string
 		//  defaultdesc: name of the pool
