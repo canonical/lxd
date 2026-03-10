@@ -167,7 +167,7 @@ test_container_copy_start() {
   spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn a third node.
-  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Set up a TLS identity with admin permissions.
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group create copy
