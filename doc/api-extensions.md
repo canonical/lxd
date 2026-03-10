@@ -3081,3 +3081,10 @@ This includes the following new endpoints (see {ref}`rest-api` for details):
 * [`POST /1.0/replicators/<name>`](swagger:/replicators/replicator_post)
 * [`DELETE /1.0/replicators/<name>`](swagger:/replicators/replicator_delete)
 * [`GET /1.0/replicators/<name>/state`](swagger:/replicators/replicator_state_get)
+
+(extension-clustering-evacuation-force)=
+## `clustering_evacuation_force`
+
+Adds a `force` field to `POST /1.0/cluster/members/{name}/state` when performing an `evacuate` action.
+
+When `force` is set to `true`, LXD skips the quorum safety check that would otherwise reject evacuating an online raft voter when the remaining online voters would fall below the required majority.
