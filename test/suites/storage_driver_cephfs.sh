@@ -13,24 +13,24 @@ test_storage_driver_cephfs() {
   fi
 
   # Simple create/delete attempt
-  lxc storage create cephfs cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")"
+  lxc storage create cephfs cephfs cephfs.path="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")"
   lxc storage delete cephfs
 
   # Test invalid key combinations for auto-creation of cephfs entities.
-  ! lxc storage create cephfs cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")" cephfs.osd_pg_num=32 || false
-  ! lxc storage create cephfs cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")" cephfs.meta_pool=xyz || false
-  ! lxc storage create cephfs cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")" cephfs.data_pool=xyz || false
-  ! lxc storage create cephfs cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")" cephfs.create_missing=true cephfs.data_pool=xyz_data cephfs.meta_pool=xyz_meta || false
-  ! lxc storage create cephfs cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")" volume.security.shared=true || false
+  ! lxc storage create cephfs cephfs cephfs.path="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")" cephfs.osd_pg_num=32 || false
+  ! lxc storage create cephfs cephfs cephfs.path="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")" cephfs.meta_pool=xyz || false
+  ! lxc storage create cephfs cephfs cephfs.path="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")" cephfs.data_pool=xyz || false
+  ! lxc storage create cephfs cephfs cephfs.path="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")" cephfs.create_missing=true cephfs.data_pool=xyz_data cephfs.meta_pool=xyz_meta || false
+  ! lxc storage create cephfs cephfs cephfs.path="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")" volume.security.shared=true || false
 
   # Test cephfs storage volumes.
   for fs in "cephfs" "cephfs2" ; do
     if [ "${fs}" = "cephfs" ]; then
       # Create one cephfs with pre-existing OSDs.
-      lxc storage create "${fs}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")"
+      lxc storage create "${fs}" cephfs cephfs.path="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")"
     else
       # Create one cephfs by creating the OSDs and the cephfs itself.
-      lxc storage create "${fs}" cephfs source=cephfs2 cephfs.create_missing=true cephfs.data_pool=xyz_data cephfs.meta_pool=xyz_meta
+      lxc storage create "${fs}" cephfs cephfs.path=cephfs2 cephfs.create_missing=true cephfs.data_pool=xyz_data cephfs.meta_pool=xyz_meta
     fi
 
     # Confirm got cleaned up properly

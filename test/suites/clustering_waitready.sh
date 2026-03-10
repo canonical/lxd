@@ -26,10 +26,6 @@ test_clustering_waitready() {
       driver_config="size=1GiB"
   fi
 
-  if [ "${poolDriver}" = "ceph" ]; then
-      driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"
-  fi
-
   # Define storage pools on the two nodes.
   driver_config_node1="${driver_config}"
   driver_config_node2="${driver_config}"
@@ -57,7 +53,12 @@ test_clustering_waitready() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" ${driver_config_node2} --target "node2"
   # shellcheck disable=SC2086
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" ${driver_config_node3} --target "node3"
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}"
+
+  if [ "${poolDriver}" = "ceph" ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" ceph.osd.pool_name="lxdtest-$(basename "${TEST_DIR}")-pool1"
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}"
+  fi
 
   # Evacuate the first cluster member.
   # Afterwards we break both the cluster member's network and storage to see how the waitready command behaves.

@@ -17,7 +17,7 @@ test_storage_local_volume_handling() {
     if storage_backend_available "ceph"; then
       lxc storage create "${pool_base}-ceph" ceph volume.size="${DEFAULT_VOLUME_SIZE}" ceph.osd.pg_num=8
       if [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
-        lxc storage create "${pool_base}-cephfs" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
+        lxc storage create "${pool_base}-cephfs" cephfs cephfs.path="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
       fi
     fi
 

@@ -175,7 +175,7 @@ storage_pools:
     if [ "${driver}" = "ceph" ]; then
     preseed+="
   config:
-    source: lxdtest-$(basename "${TEST_DIR}")
+    ceph.osd.pool_name: lxdtest-$(basename "${TEST_DIR}")
     volume.size: 25MiB
     ceph.osd.pg_num: 16"
     fi

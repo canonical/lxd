@@ -720,10 +720,6 @@ test_clustering_storage() {
       driver_config="size=1GiB"
   fi
 
-  if [ "${poolDriver}" = "ceph" ]; then
-      driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"
-  fi
-
   # Define storage pools on the two nodes
   driver_config_node1="${driver_config}"
   driver_config_node2="${driver_config}"
@@ -767,7 +763,7 @@ test_clustering_storage() {
   if [ "${poolDriver}" = "lvm" ]; then
       LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size="${DEFAULT_VOLUME_SIZE}"
   elif [ "${poolDriver}" = "ceph" ]; then
-      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size="${DEFAULT_VOLUME_SIZE}" ceph.osd.pg_num=16
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size="${DEFAULT_VOLUME_SIZE}" ceph.osd.pg_num=16 ceph.osd.pool_name="lxdtest-$(basename "${TEST_DIR}")-pool1"
   else
       LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}"
   fi
@@ -781,13 +777,17 @@ test_clustering_storage() {
   ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -wF source || false
   source1="$(basename "${LXD_ONE_DIR}")"
   source2="$(basename "${LXD_TWO_DIR}")"
+
+  local source_key="source"
   if [ "${poolDriver}" = "ceph" ]; then
-    # For ceph volume the source field is the name of the underlying ceph pool
+    # For Ceph the source field is the name of the underlying ceph pool.
+    # Unlike local drivers, the Ceph driver exposes this pool name through the ceph.osd.pool_name key.
     source1="lxdtest-$(basename "${TEST_DIR}")"
     source2="${source1}"
+    source_key="ceph.osd.pool_name"
   fi
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node1 | grep -wF source | grep -F "${source1}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node2 | grep -wF source | grep -F "${source2}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node1 | grep -wF "${source_key}" | grep -F "${source1}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node2 | grep -wF "${source_key}" | grep -F "${source2}"
 
   # Update the storage pool
   if [ "${poolDriver}" = "dir" ]; then
@@ -986,9 +986,6 @@ test_clustering_storage_single_node() {
   if [ "${poolDriver}" = "zfs" ]; then
       driver_config="size=1GiB"
   fi
-  if [ "${poolDriver}" = "ceph" ]; then
-      driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"
-  fi
   driver_config_node="${driver_config}"
   if [ "${poolDriver}" = "zfs" ]; then
       driver_config_node="${driver_config_node} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns1}"
@@ -1002,7 +999,11 @@ test_clustering_storage_single_node() {
   fi
 
   # Finalize the storage pool creation
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}"
+  if [ "${poolDriver}" = "ceph" ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" ceph.osd.pool_name="lxdtest-$(basename "${TEST_DIR}")-pool1"
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}"
+  fi
 
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -F status: | grep -wF Created
 
