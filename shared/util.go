@@ -959,6 +959,31 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 	return s
 }
 
+// Unique removes all duplicated values from the provided slice (in place) while
+// preserving order of unique elements.
+func Unique[S ~[]E, E comparable](s S) S {
+	seen := make(map[E]struct{})
+	end := 0
+	for _, v := range s {
+		_, exists := seen[v]
+		if exists {
+			continue
+		}
+
+		seen[v] = struct{}{}
+		s[end] = v
+		end++
+	}
+
+	// Clear the rest of elements.
+	var zero E
+	for i := end; i < len(s); i++ {
+		s[i] = zero
+	}
+
+	return s[:end]
+}
+
 // RunError is the error from the RunCommand family of functions.
 type RunError struct {
 	cmd    string
