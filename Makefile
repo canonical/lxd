@@ -131,7 +131,8 @@ dqlite:
 			exit 1; \
 		fi; \
 		echo "Updating existing dqlite branch"; \
-		git -C "$(DQLITE_PATH)" pull; \
+		git -C "$(DQLITE_PATH)" fetch origin $(DQLITE_BRANCH); \
+		git -C "$(DQLITE_PATH)" reset --hard FETCH_HEAD; \
 	fi
 
 	cd "$(DQLITE_PATH)" && \
