@@ -10,6 +10,9 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/tcp"
 )
 
 // connectErrorPrefix used as prefix to error returned from RFC3493Dialer.
@@ -17,7 +20,7 @@ const connectErrorPrefix = "Unable to connect to"
 
 // RFC3493Dialer connects to the specified server and returns the connection.
 // If the connection cannot be established then an error with the connectErrorPrefix is returned.
-func RFC3493Dialer(context context.Context, network string, address string) (net.Conn, error) {
+func RFC3493Dialer(ctx context.Context, network string, address string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err
@@ -28,9 +31,17 @@ func RFC3493Dialer(context context.Context, network string, address string) (net
 		return nil, err
 	}
 
+	kaConfig, userTimeout := tcp.KeepAliveTimeouts()
 	var errs []error
 	for _, a := range addrs {
-		c, err := net.DialTimeout(network, net.JoinHostPort(a, port), 10*time.Second)
+		a := net.JoinHostPort(a, port)
+
+		dialer := net.Dialer{
+			Timeout:         10 * time.Second,
+			KeepAliveConfig: kaConfig,
+		}
+
+		c, err := dialer.DialContext(ctx, network, a)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -38,8 +49,10 @@ func RFC3493Dialer(context context.Context, network string, address string) (net
 
 		tc, ok := c.(*net.TCPConn)
 		if ok {
-			_ = tc.SetKeepAlive(true)
-			_ = tc.SetKeepAlivePeriod(3 * time.Second)
+			err = tcp.SetUserTimeout(tc, userTimeout)
+			if err != nil {
+				logger.Warn("Failed setting TCP user timeout on remote connection", logger.Ctx{"address": a, "err": err})
+			}
 		}
 
 		return c, nil

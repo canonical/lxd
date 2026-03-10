@@ -36,11 +36,17 @@ func ExtractConn(conn net.Conn) (*net.TCPConn, error) {
 	return tcpConn, nil
 }
 
-// SetTimeouts sets TCP_USER_TIMEOUT and TCP keep alive timeouts on a connection.
-// If userTimeout is zero, then defaults to 2 minutes.
-func SetTimeouts(conn *net.TCPConn, userTimeout time.Duration) error {
-	if userTimeout == 0 {
-		userTimeout = time.Minute * 2
+// KeepAliveTimeouts defines the TCP keep alive configuration to be applied to connections.
+// - TCP keep alive idle time set to 3 seconds.
+// - TCP keep alive interval set to 15 seconds.
+// - TCP keep alive count set to 9.
+// - userTimeout set to a value slightly longer than the total time it would take for all keep alive probes to be sent.
+func KeepAliveTimeouts() (keepaliveConfig net.KeepAliveConfig, userTimeout time.Duration) {
+	keepaliveConfig = net.KeepAliveConfig{
+		Enable:   true,
+		Idle:     3 * time.Second,
+		Interval: 15 * time.Second,
+		Count:    9,
 	}
 
 	// Set TCP_USER_TIMEOUT option to limit the maximum amount of time in ms that transmitted data may remain
@@ -51,17 +57,27 @@ func SetTimeouts(conn *net.TCPConn, userTimeout time.Duration) error {
 	// up to 20 minutes with the current system defaults in a normal WAN environment if there are packets in
 	// the send queue that will prevent the keepalive timer from working as the retransmission timers kick in.
 	// See https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=dca43c75e7e545694a9dd6288553f55c53e2a3a3
-	err := SetUserTimeout(conn, userTimeout)
+	// userTimeout is set to a value slightly longer than the total time it would take for all keep alive
+	// probes to be sent.
+	userTimeout = keepaliveConfig.Idle + (keepaliveConfig.Interval * time.Duration(keepaliveConfig.Count))
+
+	return keepaliveConfig, userTimeout
+}
+
+// SetTimeouts sets TCP_USER_TIMEOUT and TCP keep alive timeouts on a connection using values from KeepAliveTimeouts.
+// If userTimeout is set to 0 then the default value from KeepAliveTimeouts will be used.
+func SetTimeouts(conn *net.TCPConn, userTimeout time.Duration) error {
+	kc, defaultUserTimeout := KeepAliveTimeouts()
+	if userTimeout == 0 {
+		userTimeout = defaultUserTimeout
+	}
+
+	err := conn.SetKeepAliveConfig(kc)
 	if err != nil {
 		return err
 	}
 
-	err = conn.SetKeepAlive(true)
-	if err != nil {
-		return err
-	}
-
-	err = conn.SetKeepAlivePeriod(3 * time.Second)
+	err = SetUserTimeout(conn, userTimeout)
 	if err != nil {
 		return err
 	}
