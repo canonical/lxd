@@ -223,8 +223,15 @@ func (r *ProtocolLXD) UpdateClusterMemberState(name string, state api.ClusterMem
 		return nil, err
 	}
 
-	if state.Action != "" {
+	if state.Action == "restore" && state.Mode == api.ClusterRestoreModeSkip {
 		err = r.CheckExtension("clustering_restore_skip_mode")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if state.Action == "evacuate" && state.Force {
+		err = r.CheckExtension("clustering_evacuation_force")
 		if err != nil {
 			return nil, err
 		}
