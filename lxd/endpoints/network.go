@@ -87,12 +87,12 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 	}
 
 	// Attempt to setup the new listening socket
-	getListener := func(address string) (*net.Listener, error) {
+	getListener := func(address string) (net.Listener, error) {
 		var err error
 		var listener net.Listener
 
 		for range 10 { // Ten retries over a second seems reasonable.
-			listener, err = net.Listen("tcp", address)
+			listener, err = networkCreateListener(address, e.cert)
 			if err == nil {
 				break
 			}
@@ -104,7 +104,7 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 			return nil, fmt.Errorf("Cannot listen on network HTTPS socket %q: %w", address, err)
 		}
 
-		return &listener, nil
+		return listener, nil
 	}
 
 	// If setting a new address, setup the listener
@@ -114,14 +114,14 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 			// Attempt to revert to the previous address
 			listener, err1 := getListener(oldAddress)
 			if err1 == nil {
-				e.listeners[network] = listeners.NewFancyTLSListener(*listener, e.cert)
+				e.listeners[network] = listener
 				e.serve(network)
 			}
 
 			return err
 		}
 
-		e.listeners[network] = listeners.NewFancyTLSListener(*listener, e.cert)
+		e.listeners[network] = listener
 		e.serve(network)
 	}
 
