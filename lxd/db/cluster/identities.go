@@ -27,34 +27,6 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t identities.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -e identity objects table=identities
-//go:generate mapper stmt -e identity objects-by-ID table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod-and-Type table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod-and-Identifier table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod-and-Name table=identities
-//go:generate mapper stmt -e identity objects-by-Type table=identities
-//go:generate mapper stmt -e identity id table=identities
-//go:generate mapper stmt -e identity create struct=Identity table=identities
-//go:generate mapper stmt -e identity delete-by-AuthMethod-and-Identifier table=identities
-//go:generate mapper stmt -e identity delete-by-Name-and-Type table=identities
-//go:generate mapper stmt -e identity update struct=Identity table=identities
-//
-//go:generate mapper method -i -e identity GetMany
-//go:generate mapper method -i -e identity GetOne
-//go:generate mapper method -i -e identity ID struct=Identity
-//go:generate mapper method -i -e identity Create struct=Identity
-//go:generate mapper method -i -e identity DeleteOne-by-AuthMethod-and-Identifier
-//go:generate mapper method -i -e identity DeleteMany-by-Name-and-Type
-//go:generate mapper method -i -e identity Update struct=Identity
-//go:generate goimports -w identities.mapper.go
-//go:generate goimports -w identities.interface.mapper.go
-
 // AuthMethod is a database representation of an authentication method.
 //
 // AuthMethod is defined on string so that API constants can be converted by casting. The [sql.Scanner] and
@@ -171,22 +143,14 @@ func (i IdentityType) toCertificateType() (certificate.Type, error) {
 }
 
 // Identity is a database representation of any authenticated party.
+// db:model identities
 type Identity struct {
-	ID         int64
-	AuthMethod AuthMethod `db:"primary=yes"`
-	Type       IdentityType
-	Identifier string `db:"primary=yes"`
-	Name       string
-	Metadata   string
-}
-
-// IdentityFilter contains fields upon which identities can be filtered.
-type IdentityFilter struct {
-	ID         *int64
-	AuthMethod *AuthMethod
-	Type       *IdentityType
-	Identifier *string
-	Name       *string
+	ID         int64        `db:"id"`
+	AuthMethod AuthMethod   `db:"auth_method"`
+	Type       IdentityType `db:"type"`
+	Identifier string       `db:"identifier"`
+	Name       string       `db:"name"`
+	Metadata   string       `db:"metadata"`
 }
 
 // CertificateMetadata contains metadata for certificate identities. Currently this is only the certificate itself.
