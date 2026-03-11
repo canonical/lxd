@@ -484,3 +484,35 @@ WHERE auth_groups.name IN %s
 func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*Identity, error) {
 	return query.SelectOne[Identity](ctx, tx, "WHERE id = ?", id)
 }
+
+// UpdateIdentityCertificate replaces an identities certificate with the given one.
+func UpdateIdentityCertificate(ctx context.Context, tx *sql.Tx, id Identity, cert x509.Certificate) error {
+	certificateID := id.CertificateID
+	if certificateID == 0 {
+		clause := `JOIN identities_certificates ON certificates.id = identities_certificates.certificate_id WHERE identities_certificates.identity_id = ?`
+		dbCert, err := query.SelectOne[Certificate](ctx, tx, clause, id.ID)
+		if err != nil {
+			return fmt.Errorf("Failed getting certificate associated with identity: %w", err)
+		}
+
+		certificateID = dbCert.ID
+	}
+
+	certToUpdate := Certificate{
+		ID:          certificateID,
+		Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
+	}
+
+	err := query.Update(ctx, tx, certToUpdate)
+	if err != nil {
+		return fmt.Errorf("Failed updating certificate: %w", err)
+	}
+
+	id.Identifier = shared.CertFingerprint(&cert)
+	err = query.Update(ctx, tx, id)
+	if err != nil {
+		return fmt.Errorf("Failed updating identity identifier: %w", err)
+	}
+
+	return nil
+}
