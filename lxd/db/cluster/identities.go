@@ -378,13 +378,17 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 
 	id, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
 	if err != nil {
-		return fmt.Errorf("Failed to get pending TLS identity: %w", err)
+		return fmt.Errorf("Failed getting pending TLS identity: %w", err)
 	}
 
-	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
-	b, err := json.Marshal(metadata)
+	certID, err := query.Create(ctx, tx, Certificate{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))})
 	if err != nil {
-		return fmt.Errorf("Failed to encode certificate metadata: %w", err)
+		return fmt.Errorf("Failed creating certificate for pending TLS identity: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, "INSERT INTO identities_certificates (identity_id, certificate_id) VALUES (?, ?)", id.ID, certID)
+	if err != nil {
+		return fmt.Errorf("Failed associating identity with certificate: %w", err)
 	}
 
 	identityTypeActive, err := id.Type.ActiveType()
@@ -394,7 +398,6 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 
 	id.Type = identityTypeActive
 	id.Identifier = fingerprint
-	id.Metadata = string(b)
 	return query.Update(ctx, tx, id)
 }
 
