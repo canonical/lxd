@@ -230,6 +230,13 @@ func (r *ProtocolLXD) UpdateClusterMemberState(name string, state api.ClusterMem
 		}
 	}
 
+	if state.Force {
+		err = r.CheckExtension("clustering_evacuation_force")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	u := api.NewURL().Path("cluster", "members", name, "state")
 	op, _, err := r.queryOperation(http.MethodPost, u.String(), state, "", true)
 	if err != nil {
