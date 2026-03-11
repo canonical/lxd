@@ -345,18 +345,34 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 	}, nil
 }
 
+// GetIdentityByAuthenticationMethodAndIdentifier gets a single identity by authentication method and identifier.
+func GetIdentityByAuthenticationMethodAndIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, identifier string) (*Identity, error) {
+	return query.SelectOne[Identity](ctx, tx, "WHERE auth_method = ? AND identifier = ?", AuthMethod(authenticationMethod), identifier)
+}
+
+// DeleteIdentityByNameAndType deletes a single identity with the given name and type.
+// Note that the name of an identity is not guaranteed to be unique for OIDC identities.
+func DeleteIdentityByNameAndType(ctx context.Context, tx *sql.Tx, name string, identityType string) error {
+	return query.DeleteOne[Identity](ctx, tx, "WHERE name = ? AND type = ?", name, IdentityType(identityType))
+}
+
+// DeleteIdentityByAuthenticationMethodAndIdentifier deletes a single identity with the given authentication method and identifier.
+func DeleteIdentityByAuthenticationMethodAndIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, identifier string) error {
+	return query.DeleteOne[Identity](ctx, tx, "WHERE auth_method = ? AND identifier = ?", AuthMethod(authenticationMethod), identifier)
+}
+
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
 // the type.
 func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
 	fingerprint := shared.CertFingerprint(cert)
-	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	_, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 	if err == nil {
 		return api.StatusErrorf(http.StatusConflict, "Identity already exists")
 	}
 
-	identity, err := GetIdentity(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
+	id, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
 	if err != nil {
-		return fmt.Errorf("Failed to get pending %q TLS identity: %w", identity.Type, err)
+		return fmt.Errorf("Failed to get pending TLS identity: %w", err)
 	}
 
 	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
@@ -365,29 +381,15 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 		return fmt.Errorf("Failed to encode certificate metadata: %w", err)
 	}
 
-	identityTypeActive, err := identity.Type.ActiveType()
+	identityTypeActive, err := id.Type.ActiveType()
 	if err != nil {
 		return err
 	}
 
-	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
-	res, err := tx.ExecContext(ctx, stmt, identityTypeActive, fingerprint, string(b), identifier.String(), authMethodTLS)
-	if err != nil {
-		return fmt.Errorf("Failed to activate %q TLS identity: %w", identity.Type, err)
-	}
-
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Failed to check for activated %q TLS identity: %w", identity.Type, err)
-	}
-
-	if n == 0 {
-		return api.StatusErrorf(http.StatusNotFound, "No pending %q TLS identity found with identifier %q", identity.Type, identifier)
-	} else if n > 1 {
-		return fmt.Errorf("Unknown error occurred when activating %q TLS identity: %w", identity.Type, err)
-	}
-
-	return nil
+	id.Type = identityTypeActive
+	id.Identifier = fingerprint
+	id.Metadata = string(b)
+	return query.Update(ctx, tx, id)
 }
 
 var pendingIdentityTypes = func() (result []int64) {
@@ -402,24 +404,21 @@ var pendingIdentityTypes = func() (result []int64) {
 
 // GetPendingTLSIdentityByTokenSecret gets a single identity of type [identityTypeCertificateClientPending] or [identityTypeCertificateClusterLinkPending] with the given secret in its metadata. If no pending identity is found, an [api.StatusError] is returned with [http.StatusNotFound].
 func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
-	stmt := fmt.Sprintf(`
-	SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
-	FROM identities
+	clause := fmt.Sprintf(`
 	WHERE identities.type IN %s
 	AND json_extract(identities.metadata, '$.secret') = ?`, query.IntParams(pendingIdentityTypes()...))
 
-	identities, err := getIdentitysRaw(ctx, tx, stmt, secret)
+	id, err := query.SelectOne[Identity](ctx, tx, clause, secret)
 	if err != nil {
-		return nil, err
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Maintain error message for clarity.
+			return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
+		}
+
+		return nil, fmt.Errorf("Failed getting identity by token secret: %w", err)
 	}
 
-	if len(identities) == 0 {
-		return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
-	} else if len(identities) > 1 {
-		return nil, errors.New("Multiple pending identities found with given secret")
-	}
-
-	return &identities[0], nil
+	return id, nil
 }
 
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
@@ -464,26 +463,11 @@ JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_grou
 // it will try to use the nameOrID argument as a name and will return the result only if the query matches a single Identity.
 // It will return an [api.StatusError] with [http.StatusNotFound] if none are found or [http.StatusBadRequest] if multiple are found.
 func GetIdentityByNameOrIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, nameOrID string) (*Identity, error) {
-	id, err := GetIdentity(ctx, tx, AuthMethod(authenticationMethod), nameOrID)
+	id, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, authenticationMethod, nameOrID)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return nil, err
 	} else if err != nil {
-		dbAuthMethod := AuthMethod(authenticationMethod)
-		identities, err := GetIdentitys(ctx, tx, IdentityFilter{
-			AuthMethod: &dbAuthMethod,
-			Name:       &nameOrID,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		if len(identities) == 0 {
-			return nil, api.StatusErrorf(http.StatusNotFound, "No identity found with name or identifier %q", nameOrID)
-		} else if len(identities) > 1 {
-			return nil, api.StatusErrorf(http.StatusBadRequest, "More than one identity found with name %q", nameOrID)
-		}
-
-		id = &identities[0]
+		return query.SelectOne[Identity](ctx, tx, "WHERE auth_method = ? AND name = ?", AuthMethod(authenticationMethod), nameOrID)
 	}
 
 	return id, nil
@@ -551,18 +535,5 @@ WHERE auth_groups.name IN %s
 
 // GetIdentityByID gets a single identity with the given ID.
 func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*Identity, error) {
-	identityFilter := IdentityFilter{ID: &id}
-	clusterIdentities, err := GetIdentitys(ctx, tx, identityFilter)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get identity with ID %d: %w", id, err)
-	}
-
-	switch len(clusterIdentities) {
-	case 0:
-		return nil, api.NewStatusError(http.StatusNotFound, "No identity found with given ID")
-	case 1:
-		return &clusterIdentities[0], nil
-	default:
-		return nil, fmt.Errorf("Multiple identities found with ID %d", id)
-	}
+	return query.SelectOne[Identity](ctx, tx, "WHERE id = ?", id)
 }
