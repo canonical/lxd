@@ -53,7 +53,7 @@ func (e *Endpoints) MetricsUpdateAddress(address string, cert *shared.CertInfo) 
 	}
 
 	// Attempt to setup the new listening socket
-	getListener := func(address string) (*net.Listener, error) {
+	getListener := func(address string) (net.Listener, error) {
 		var err error
 		var listener net.Listener
 
@@ -70,7 +70,7 @@ func (e *Endpoints) MetricsUpdateAddress(address string, cert *shared.CertInfo) 
 			return nil, fmt.Errorf("Cannot listen on http socket: %w", err)
 		}
 
-		return &listener, nil
+		return listener, nil
 	}
 
 	// If setting a new address, setup the listener
@@ -80,14 +80,14 @@ func (e *Endpoints) MetricsUpdateAddress(address string, cert *shared.CertInfo) 
 			// Attempt to revert to the previous address
 			listener, err1 := getListener(oldAddress)
 			if err1 == nil {
-				e.listeners[metrics] = *listener
+				e.listeners[metrics] = listener
 				e.serve(metrics)
 			}
 
 			return err
 		}
 
-		e.listeners[metrics] = *listener
+		e.listeners[metrics] = listener
 		e.serve(metrics)
 	}
 

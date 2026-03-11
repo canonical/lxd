@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/canonical/lxd/lxd/endpoints/listeners"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
@@ -58,12 +57,12 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 	}
 
 	// Attempt to setup the new listening socket
-	getListener := func(address string) (*net.Listener, error) {
+	getListener := func(address string) (net.Listener, error) {
 		var err error
 		var listener net.Listener
 
 		for range 10 { // Ten retries over a second seems reasonable.
-			listener, err = net.Listen("tcp", address)
+			listener, err = networkCreateListener(address, e.cert)
 			if err == nil {
 				break
 			}
@@ -75,7 +74,7 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 			return nil, fmt.Errorf("Cannot listen on cluster HTTPS socket %q: %w", address, err)
 		}
 
-		return &listener, nil
+		return listener, nil
 	}
 
 	// If setting a new address, setup the listener
@@ -85,14 +84,14 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 			// Attempt to revert to the previous address
 			listener, err1 := getListener(oldAddress)
 			if err1 == nil {
-				e.listeners[cluster] = listeners.NewFancyTLSListener(*listener, e.cert)
+				e.listeners[cluster] = listener
 				e.serve(cluster)
 			}
 
 			return err
 		}
 
-		e.listeners[cluster] = listeners.NewFancyTLSListener(*listener, e.cert)
+		e.listeners[cluster] = listener
 		e.serve(cluster)
 	}
 
