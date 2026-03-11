@@ -1133,12 +1133,9 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 		return "", nil, err
 	}
 
-	var prefix string
-	switch d.config["powerflex.mode"] {
-	case connectors.TypeNVME:
-		prefix = "nvme-eui."
-	case connectors.TypeSDC:
-		prefix = "emc-vol-"
+	connector, err := d.connector()
+	if err != nil {
+		return "", nil, err
 	}
 
 	devicePathFilter := func(path string) bool {
@@ -1148,10 +1145,10 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 	var devicePath string
 	if mapVolume {
 		// Wait for the device path to appear as the volume has been just mapped to the host.
-		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, prefix, devicePathFilter)
+		devicePath, err = connector.WaitDiskDevicePath(d.state.ShutdownCtx, devicePathFilter)
 	} else {
 		// Get the the device path without waiting.
-		devicePath, err = block.GetDiskDevicePath(prefix, devicePathFilter)
+		devicePath, err = connector.GetDiskDevicePath(devicePathFilter)
 	}
 
 	if err != nil {
