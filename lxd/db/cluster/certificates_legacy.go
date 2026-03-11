@@ -222,7 +222,22 @@ func CreateLegacyCertificate(ctx context.Context, tx *sql.Tx, object Certificate
 		return 0, err
 	}
 
-	return query.Create(ctx, tx, *identity)
+	identityID, err := query.Create(ctx, tx, *identity)
+	if err != nil {
+		return 0, fmt.Errorf("Failed creating identity: %w", err)
+	}
+
+	certificateID, err := query.Create(ctx, tx, Certificate{Certificate: object.Certificate})
+	if err != nil {
+		return 0, fmt.Errorf("Failed creating certificate: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, "INSERT INTO identities_certificates (identity_id, certificate_id) VALUES (?, ?)", identityID, certificateID)
+	if err != nil {
+		return 0, fmt.Errorf("Failed associating identity with certificate: %w", err)
+	}
+
+	return identityID, nil
 }
 
 // DeleteLegacyCertificate deletes the legacy certificate with the given fingerprint.
