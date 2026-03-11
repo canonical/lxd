@@ -3375,11 +3375,21 @@ test_clustering_evacuation() {
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list -c nsL
 
+  local cluster_list
+  echo "Verify node1 starts as the database leader"
+  cluster_list="$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list -f json)"
+  jq --exit-status '[.[] | select(any(.roles[]; . == "database-leader")) | .server_name] == ["node1"]' <<< "${cluster_list}"
+
   echo "Evacuate first node"
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --yes
 
   echo "Ensure the node is evacuated"
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -F "status: Evacuated"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "database: false"
+
+  echo "Verify leadership moved away from the evacuated member"
+  cluster_list="$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list -f json)"
+  jq --exit-status '[.[] | select(any(.roles[]; . == "database-leader")) | .server_name] | length == 1 and .[0] != "node1"' <<< "${cluster_list}"
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list -c nsL
@@ -3436,7 +3446,7 @@ test_clustering_evacuation() {
 
   # Now test a full restore for comparison
   echo 'Evacuate node1 again'
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --yes
 
   echo 'Ensure instances cannot be created on the evacuated node'
   ! LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c8 --target=node1 || false
@@ -3498,7 +3508,7 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-c3 -c placement.group=pg-evac-compact-permissive -c cluster.evacuate=migrate --target node1
 
   echo "Evacuating..."
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --yes
 
   echo "Verify all instances moved off node1"
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-c1)" != "node1" ]
@@ -3533,7 +3543,7 @@ test_clustering_evacuation() {
   wait_for_evacuation_op "${LXD_ONE_DIR}"
 
   echo "Evacuating..."
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --yes
 
   echo "Verify all instances moved off node1"
   LXD_DIR="${LXD_ONE_DIR}" lxc list
@@ -3565,7 +3575,7 @@ test_clustering_evacuation() {
   wait_for_evacuation_op "${LXD_ONE_DIR}"
 
   echo "Evacuating..."
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --yes
 
   echo "Verify all instances have moved off node1"
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-c1)" != "node1" ]
@@ -3600,7 +3610,7 @@ test_clustering_evacuation() {
   wait_for_evacuation_op "${LXD_ONE_DIR}"
 
   echo "Evacuating..."
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --yes
 
   echo "Verify all instances have moved off node1"
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-c1)" != "node1" ]
@@ -3627,7 +3637,7 @@ test_clustering_evacuation() {
   wait_for_evacuation_op "${LXD_ONE_DIR}"
 
   echo "Evacuating..."
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --yes
   LXD_DIR="${LXD_ONE_DIR}" lxc list # For debugging
 
   echo "Verify instances evacuated (with fallback behavior during evacuation)"
@@ -3739,12 +3749,13 @@ test_clustering_evacuation_restore_operations() {
   for c in c{1..3}; do LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage "${c}" --target node1; done
 
   echo "Start node1 evacuation in background"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --quiet --force &
+  # In a 2-node cluster node1 is the only raft voter, so bypass the pre-evacuation quorum guard.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --quiet --yes --force &
   evac_pid=$!
   sleep 0.5 # Wait a bit for the operation to register
 
   echo "Check evacuation fails while another evacuation is in progress"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node2 --force 2>&1)" = 'Error: Failed updating cluster member state: Failed creating "Evacuating cluster member" operation record: An operation with this conflict reference is already running' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node2 --yes 2>&1)" = 'Error: Failed updating cluster member state: Failed creating "Evacuating cluster member" operation record: An operation with this conflict reference is already running' ]
 
   echo "Check restore fails while evacuation operation in progress"
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force 2>&1)" = 'Error: Failed updating cluster member state: Cannot restore "node1" while an evacuate operation is in progress' ]
@@ -3763,7 +3774,7 @@ test_clustering_evacuation_restore_operations() {
   sleep 0.5 # Wait a bit for the operation to register
 
   echo "Check evacuation fails while restore operation in progress"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force 2>&1)" = 'Error: Failed updating cluster member state: Cannot evacuate "node1" while a restore operation is in progress' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --yes 2>&1)" = 'Error: Failed updating cluster member state: Cannot evacuate "node1" while a restore operation is in progress' ]
 
   echo "Wait for all containers to be restored to node1"
   wait "${restore_pid}"
