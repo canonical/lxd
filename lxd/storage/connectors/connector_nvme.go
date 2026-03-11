@@ -291,3 +291,8 @@ func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string)
 
 	return result, nil
 }
+
+// RemoveDiskDevice does nothing. Device is removed when volume is unmapped on the storage array.
+func (c *connectorNVMe) RemoveDiskDevice(ctx context.Context, diskPath string) error {
+	return nil
+}
