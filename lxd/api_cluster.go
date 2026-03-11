@@ -1197,12 +1197,12 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	d.clusterMembershipMutex.Lock()
 	defer d.clusterMembershipMutex.Unlock()
 
-	memberRoles, err := getClusterMemberRoles(r.Context(), s)
+	memberRoles, evacuatedMembers, err := getClusterMemberRolesAndEvacuatedMembers(r.Context(), s)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, memberRoles)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, memberRoles, evacuatedMembers)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1212,13 +1212,13 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
-func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.Gateway, unavailableMembers []string, memberRoles map[string][]db.ClusterRole) error {
+func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.Gateway, unavailableMembers []string, memberRoles map[string][]db.ClusterRole, evacuatedMembers map[string]bool) error {
 	if s.ShutdownCtx.Err() != nil {
 		return nil
 	}
 
 	for {
-		address, nodes, connectivity, err := cluster.GetNextRoleChange(s, gateway, unavailableMembers, memberRoles)
+		address, nodes, connectivity, err := cluster.GetNextRoleChange(s, gateway, unavailableMembers, memberRoles, evacuatedMembers)
 		if err != nil {
 			return err
 		}
@@ -1329,7 +1329,7 @@ func handoverMemberRole(s *state.State, gateway *cluster.Gateway) error {
 	logCtx := logger.Ctx{"address": localClusterAddress}
 
 	// Use context.Background() because s.ShutdownCtx may already be cancelled at this point in the shutdown sequence, but the handover must complete.
-	memberRoles, err := getClusterMemberRoles(context.Background(), s)
+	memberRoles, evacuatedMembers, err := getClusterMemberRolesAndEvacuatedMembers(context.Background(), s)
 	if err != nil {
 		return err
 	}
@@ -1343,7 +1343,7 @@ findLeader:
 
 	if leaderInfo.Leader {
 		logger.Info("Transferring leadership", logCtx)
-		err := gateway.TransferLeadership(memberRoles)
+		err := gateway.TransferLeadership(memberRoles, evacuatedMembers)
 		if err != nil {
 			return fmt.Errorf("Failed transferring leadership: %w", err)
 		}
@@ -1601,12 +1601,12 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 		return response.SmartError(err)
 	}
 
-	memberRoles, err := getClusterMemberRoles(r.Context(), s)
+	memberRoles, evacuatedMembers, err := getClusterMemberRolesAndEvacuatedMembers(r.Context(), s)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, memberRoles)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, memberRoles, evacuatedMembers)
 	if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 		logger.Warn("Could not rebalance cluster member roles after raft member removal", logger.Ctx{"err": err})
 	}
@@ -1614,24 +1614,56 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 	return response.SyncResponse(true, nil)
 }
 
-// getClusterMemberRoles returns cluster member roles keyed by member address.
-func getClusterMemberRoles(ctx context.Context, s *state.State) (map[string][]db.ClusterRole, error) {
+// getClusterMemberRolesAndEvacuatedMembers returns cluster member roles keyed by member address and a set of evacuated members.
+func getClusterMemberRolesAndEvacuatedMembers(ctx context.Context, s *state.State) (map[string][]db.ClusterRole, map[string]bool, error) {
 	var memberRoles map[string][]db.ClusterRole
+	var evacuatedMembers map[string]bool
 
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		memberRoles, err = cluster.GetMemberRoles(ctx, tx)
+		members, err := tx.GetNodes(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed loading cluster member roles: %w", err)
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		memberRoles = make(map[string][]db.ClusterRole, len(members))
+		evacuatedMembers = make(map[string]bool, len(members))
+		for _, member := range members {
+			memberRoles[member.Address] = member.Roles
+			evacuatedMembers[member.Address] = member.State == db.ClusterMemberStateEvacuated
 		}
 
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return memberRoles, nil
+	return memberRoles, evacuatedMembers, nil
+}
+
+// triggerClusterRebalance asks the current leader to run the internal cluster
+// rebalance flow immediately.
+func triggerClusterRebalance(ctx context.Context, s *state.State) error {
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return err
+	}
+
+	if !leaderInfo.Clustered {
+		return cluster.ErrNodeIsNotClustered
+	}
+
+	client, err := cluster.Connect(ctx, leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	if err != nil {
+		return fmt.Errorf("Failed connecting to leader for rebalance: %w", err)
+	}
+
+	_, _, err = client.RawQuery(http.MethodPost, "/internal/cluster/rebalance", nil, "")
+	if err != nil {
+		return fmt.Errorf("Failed triggering cluster rebalance: %w", err)
+	}
+
+	return nil
 }
 
 func autoHealClusterTask(stateFunc func() *state.State, gateway *cluster.Gateway) (task.Func, task.Schedule) {
@@ -1789,7 +1821,7 @@ func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.
 		return nil
 	}
 
-	err := evacuateClusterMember(context.Background(), s, gateway, op, name, api.ClusterEvacuateModeHeal, nil, migrateFunc)
+	err := evacuateClusterMember(context.Background(), s, gateway, op, name, api.ClusterEvacuateModeHeal, false, nil, migrateFunc)
 	if err != nil {
 		logger.Error("Failed healing cluster member", logger.Ctx{"member": name, "err": err})
 		return err
