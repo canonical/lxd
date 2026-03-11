@@ -89,3 +89,8 @@ func (c *connectorSDC) WaitDiskDevicePath(ctx context.Context, diskPathFilter bl
 func (c *connectorSDC) GetDiskDevicePath(diskPathFilter block.DevicePathFilterFunc) (string, error) {
 	return block.GetDiskDevicePath(sdcDiskDevicePrefix, diskPathFilter)
 }
+
+// RemoveDiskDevice does nothing. Device is removed when volume is unmapped on the storage array.
+func (c *connectorSDC) RemoveDiskDevice(ctx context.Context, devicePath string) error {
+	return nil
+}
