@@ -408,15 +408,12 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 		return "", nil, fmt.Errorf("Failed to locate device for volume %q: Unexpected length of NGUID %q (%d)", vol.name, hpeVol.NGUID, len(hpeVol.NGUID))
 	}
 
-	var diskPrefix string
 	var diskSuffix string
 
 	switch connector.Type() {
 	case connectors.TypeISCSI:
-		diskPrefix = "scsi-"
 		diskSuffix = strings.ToLower(hpeVol.WWN)
 	case connectors.TypeNVME:
-		diskPrefix = "nvme-eui."
 		diskSuffix = strings.ToLower(hpeVol.NGUID)
 	default:
 		return "", nil, fmt.Errorf("Unsupported Alletra Storage mode %q", connector.Type())
@@ -432,10 +429,10 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 	var devicePath string
 	if mapVolume {
 		// Wait until the disk device is mapped to the host.
-		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, diskPrefix, diskPathFilter)
+		devicePath, err = connector.WaitDiskDevicePath(d.state.ShutdownCtx, diskPathFilter)
 	} else {
 		// Expect device to be already mapped.
-		devicePath, err = block.GetDiskDevicePath(diskPrefix, diskPathFilter)
+		devicePath, err = connector.GetDiskDevicePath(diskPathFilter)
 	}
 
 	if err != nil {
