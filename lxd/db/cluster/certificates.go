@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -121,9 +120,7 @@ func (cert Certificate) ToIdentity() (*Identity, error) {
 	return identity, nil
 }
 
-var getCertificateIdentitiesStmt = `
-SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
-	FROM identities
+var getCertificateIdentitiesClause = `
 	WHERE auth_method = ` + strconv.Itoa(int(authMethodTLS)) + `
 	AND type in ` + query.IntParams(certIdentityTypes()...)
 
@@ -133,20 +130,12 @@ SELECT identities.id, identities.auth_method, identities.type, identities.identi
 // There can never be more than one certificate with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
 func GetCertificateByFingerprintPrefix(ctx context.Context, tx *sql.Tx, fingerprintPrefix string) (*Certificate, error) {
-	dbCertificateIdentities, err := getIdentitysRaw(ctx, tx, getCertificateIdentitiesStmt+" AND identities.identifier LIKE ?", fingerprintPrefix+"%")
+	id, err := query.SelectOne[Identity](ctx, tx, getCertificateIdentitiesClause+" AND identities.identifier LIKE ?", fingerprintPrefix+"%")
 	if err != nil {
 		return nil, err
 	}
 
-	if len(dbCertificateIdentities) > 1 {
-		return nil, errors.New("More than one certificate matches")
-	}
-
-	if len(dbCertificateIdentities) == 0 {
-		return nil, api.StatusErrorf(http.StatusNotFound, "Certificate not found")
-	}
-
-	return dbCertificateIdentities[0].ToCertificate()
+	return id.ToCertificate()
 }
 
 // CreateCertificateWithProjects stores a Certificate object in the db, and associates it to a list of project names.
@@ -204,7 +193,7 @@ func UpdateCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID in
 
 // GetCertificates returns all available certificates.
 func GetCertificates(ctx context.Context, tx *sql.Tx) ([]Certificate, error) {
-	certificateIdentities, err := getIdentitysRaw(ctx, tx, getCertificateIdentitiesStmt)
+	certificateIdentities, err := query.Select[Identity](ctx, tx, getCertificateIdentitiesClause)
 	if err != nil {
 		return nil, err
 	}
@@ -224,18 +213,12 @@ func GetCertificates(ctx context.Context, tx *sql.Tx) ([]Certificate, error) {
 
 // GetCertificate returns the certificate with the given fingerprint.
 func GetCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*Certificate, error) {
-	dbCertificateIdentities, err := getIdentitysRaw(ctx, tx, getCertificateIdentitiesStmt+" AND identities.identifier = ?", fingerprint)
+	id, err := query.SelectOne[Identity](ctx, tx, getCertificateIdentitiesClause+" AND identities.identifier = ?", fingerprint)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(dbCertificateIdentities) == 0 {
-		return nil, api.NewStatusError(http.StatusNotFound, "Certificate not found")
-	} else if len(dbCertificateIdentities) > 1 {
-		return nil, fmt.Errorf("More than one certificate with fingerprint %q", fingerprint)
-	}
-
-	return dbCertificateIdentities[0].ToCertificate()
+	return id.ToCertificate()
 }
 
 // GetCertificateID returns the ID of the certificate with the given fingerprint.
@@ -245,7 +228,7 @@ func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int6
 		return 0, err
 	}
 
-	return int64(cert.ID), nil
+	return cert.ID, nil
 }
 
 // CreateCertificate adds a new certificate to the database.
@@ -255,20 +238,20 @@ func CreateCertificate(ctx context.Context, tx *sql.Tx, object Certificate) (int
 		return 0, err
 	}
 
-	return CreateIdentity(ctx, tx, *identity)
+	return query.Create(ctx, tx, *identity)
 }
 
 // DeleteCertificate deletes the certificate matching the given key parameters.
 func DeleteCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) error {
-	return DeleteIdentity(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	return DeleteIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 }
 
 // UpdateCertificate updates the certificate matching the given key parameters.
-func UpdateCertificate(ctx context.Context, tx *sql.Tx, fingerprint string, object Certificate) error {
+func UpdateCertificate(ctx context.Context, tx *sql.Tx, object Certificate) error {
 	identity, err := object.ToIdentity()
 	if err != nil {
 		return err
 	}
 
-	return UpdateIdentity(ctx, tx, api.AuthenticationMethodTLS, fingerprint, *identity)
+	return query.Update(ctx, tx, identity)
 }
