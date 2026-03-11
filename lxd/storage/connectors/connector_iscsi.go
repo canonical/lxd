@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
@@ -28,6 +29,9 @@ const (
 	// to execute the operation on.
 	iscsiErrCodeNotFound = 21
 )
+
+// iscsiDiskDevicePrefix is the prefix of the iSCSI disk device name in /dev/disk/by-id/.
+const iscsiDiskDevicePrefix = "scsi-"
 
 var _ Connector = &connectorISCSI{}
 
@@ -313,4 +317,61 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 	}
 
 	return result, nil
+}
+
+// WaitDiskDevicePath waits for the mapped iSCSI device to appear.
+// If the device is not a multipath device, multipath is forced and the device path is looked up again.
+// An error is returned if no multipath device is found after that.
+func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter block.DevicePathFilterFunc) (string, error) {
+	_, ok := ctx.Deadline()
+	if !ok {
+		// Set a default timeout of 30 seconds for the context
+		// if no deadline is already configured.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
+
+	devicePath, err := block.WaitDiskDevicePath(ctx, iscsiDiskDevicePrefix, diskPathFilter)
+	if err != nil {
+		return "", err
+	}
+
+	if isMultipathDevice(devicePath) {
+		return devicePath, nil
+	}
+
+	// Device is not a multipath device.
+	// Create multipath device from a found device path.
+	_, err = shared.RunCommand(ctx, "multipath", devicePath)
+	if err != nil {
+		return "", fmt.Errorf("Failed to configure multipath for device %q: %w", devicePath, err)
+	}
+
+	// Filter that makes sure the found device resolves to a multipath device.
+	multipathDeviceFiler := func(devicePath string) bool {
+		if !diskPathFilter(devicePath) {
+			return false
+		}
+
+		path, err := filepath.EvalSymlinks(devicePath)
+		if err != nil {
+			return false
+		}
+
+		return isMultipathDevice(path)
+	}
+
+	// The multipath command is synchronous, but udev updates the /dev/disk/by-id
+	// symlinks asynchronously. Wait for the multipath-backed device path to appear.
+	return block.WaitDiskDevicePath(ctx, iscsiDiskDevicePrefix, multipathDeviceFiler)
+}
+
+// GetDiskDevicePath returns the path of the mapped iSCSI device.
+func (c *connectorISCSI) GetDiskDevicePath(diskPathFilter block.DevicePathFilterFunc) (string, error) {
+	return block.GetDiskDevicePath(iscsiDiskDevicePrefix, diskPathFilter)
+}
+
+func isMultipathDevice(devicePath string) bool {
+	return strings.HasPrefix(filepath.Base(devicePath), "dm-")
 }
