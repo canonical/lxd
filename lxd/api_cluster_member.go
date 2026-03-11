@@ -1755,10 +1755,6 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 		instances = append(instances, inst)
 	}
 
-	// Setup a reverter.
-	revert := revert.New()
-	defer revert.Fail()
-
 	skipRoleRebalance := mode == api.ClusterEvacuateModeHeal
 	if !skipRoleRebalance {
 		err = ensureEvacuationLeadershipHandover(ctx, s, gateway, name)
@@ -1782,10 +1778,6 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 	evacuationCommittedError := func(err error) error {
 		return fmt.Errorf("%w (cluster member remains evacuated)", err)
 	}
-	// Ensure node is put into its previous state if anything fails.
-	revert.Add(func() {
-		_ = evacuateClusterSetState(s, name, db.ClusterMemberStateCreated)
-	})
 
 	if !skipRoleRebalance {
 		// Trigger a raft rebalance now that the member is marked EVACUATED, before
@@ -1798,7 +1790,7 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 		err = triggerClusterRebalance(ctx, s)
 		if err != nil {
 			if !force {
-				return err
+				return evacuationCommittedError(err)
 			}
 
 			logger.Warn("Proceeding with forced evacuation after role rebalance failure", logger.Ctx{"err": err, "member": name})
@@ -1833,15 +1825,13 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 
 	err = evacuateInstances(context.Background(), opts)
 	if err != nil {
-		return err
+		return evacuationCommittedError(err)
 	}
 
 	// Evacuate networks too, but not during healing.
 	if mode != api.ClusterEvacuateModeHeal {
 		networkStop(s, true)
 	}
-
-	revert.Success()
 
 	if mode != api.ClusterEvacuateModeHeal {
 		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberEvacuated.Event(name, op.EventLifecycleRequestor(), nil))
