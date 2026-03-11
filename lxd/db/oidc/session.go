@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
@@ -80,7 +81,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 	err = s.db.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the identity from their email address. If none is found, it's a first time login.
 		var firstTimeLogin bool
-		identity, err := cluster.GetIdentity(ctx, tx.Tx(), api.AuthenticationMethodOIDC, res.Email)
+		identity, err := cluster.GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), api.AuthenticationMethodOIDC, res.Email)
 		if err != nil {
 			if !api.StatusErrorCheck(err, http.StatusNotFound) {
 				return fmt.Errorf("Failed checking if the identity exists: %w", err)
@@ -120,39 +121,39 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 		}
 
 		// If we're creating or updating the identity, create the db representation.
-		var newOrUpdatedIdentity cluster.IdentitiesRow
 		if firstTimeLogin || doUpdateIdentity {
 			metadataJSON, err := json.Marshal(newMetadata)
 			if err != nil {
 				return fmt.Errorf("Failed encoding OIDC metadata: %w", err)
 			}
 
-			newOrUpdatedIdentity = cluster.IdentitiesRow{
-				AuthMethod: api.AuthenticationMethodOIDC,
-				Type:       api.IdentityTypeOIDCClient,
-				Identifier: res.Email,
-				Name:       res.Name,
-				Metadata:   string(metadataJSON),
+			if firstTimeLogin {
+				identity = &cluster.IdentitiesRow{
+					AuthMethod: api.AuthenticationMethodOIDC,
+					Type:       api.IdentityTypeOIDCClient,
+					Identifier: res.Email,
+					Name:       res.Name,
+					Metadata:   string(metadataJSON),
+				}
+			} else {
+				identity.Metadata = string(metadataJSON)
+				identity.Name = res.Name
 			}
 		}
 
 		// Create or update the identity and get the identity ID for creating the session.
-		var identityID int64
+		identityID := identity.ID
 		if firstTimeLogin {
 			action = lifecycle.IdentityCreated
-			identityID, err = cluster.CreateIdentity(ctx, tx.Tx(), newOrUpdatedIdentity)
+			identityID, err = query.Create(ctx, tx.Tx(), identity)
 			if err != nil {
 				return fmt.Errorf("Failed creating new identity with session information: %w", err)
 			}
-		} else {
-			identityID = identity.ID
-
-			if doUpdateIdentity {
-				action = lifecycle.IdentityUpdated
-				err = cluster.UpdateIdentity(ctx, tx.Tx(), api.AuthenticationMethodOIDC, res.Email, newOrUpdatedIdentity)
-				if err != nil {
-					return fmt.Errorf("Failed updating user session information: %w", err)
-				}
+		} else if doUpdateIdentity {
+			action = lifecycle.IdentityUpdated
+			err = query.UpdateByPrimaryKey(ctx, tx.Tx(), identity)
+			if err != nil {
+				return fmt.Errorf("Failed updating user session information: %w", err)
 			}
 		}
 
