@@ -5,7 +5,6 @@ package cluster
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -103,18 +102,13 @@ func (cert CertificateLegacy) ToIdentity() (*Identity, error) {
 		return nil, fmt.Errorf("Failed converting certificate to identity: %w", err)
 	}
 
-	b, err := json.Marshal(CertificateMetadata{Certificate: cert.Certificate})
-	if err != nil {
-		return nil, fmt.Errorf("Failed converting certificate to identity: %w", err)
-	}
-
 	identity := &Identity{
-		ID:         cert.ID,
-		AuthMethod: AuthMethod(api.AuthenticationMethodTLS),
-		Type:       identityType,
-		Identifier: cert.Fingerprint,
-		Name:       cert.Name,
-		Metadata:   string(b),
+		ID:          cert.ID,
+		AuthMethod:  AuthMethod(api.AuthenticationMethodTLS),
+		Type:        identityType,
+		Identifier:  cert.Fingerprint,
+		Name:        cert.Name,
+		Certificate: cert.Certificate,
 	}
 
 	return identity, nil

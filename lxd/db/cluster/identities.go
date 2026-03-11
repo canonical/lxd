@@ -159,14 +159,9 @@ type Identity struct {
 	Certificate string `db:"coalesce(certificates.certificate, '') AS certificate"`
 }
 
-// CertificateMetadata contains metadata for certificate identities. Currently this is only the certificate itself.
-type CertificateMetadata struct {
-	Certificate string `json:"cert"`
-}
-
-// X509 returns an [x509.Certificate] from the [CertificateMetadata].
-func (c CertificateMetadata) X509() (*x509.Certificate, error) {
-	certBlock, _ := pem.Decode([]byte(c.Certificate))
+// X509 returns an [x509.Certificate] from the [Identity.Certificate].
+func (i Identity) X509() (*x509.Certificate, error) {
+	certBlock, _ := pem.Decode([]byte(i.Certificate))
 	if certBlock == nil {
 		return nil, errors.New("Failed decoding certificate")
 	}
@@ -184,12 +179,6 @@ func (i Identity) ToCertificate() (*CertificateLegacy, error) {
 	certificateType, err := i.Type.toCertificateType()
 	if err != nil {
 		return nil, fmt.Errorf("Failed converting identity type to certificate type: %w", err)
-	}
-
-	var metadata CertificateMetadata
-	err = json.Unmarshal([]byte(i.Metadata), &metadata)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
 	}
 
 	identityType, err := identity.New(string(i.Type))
@@ -211,47 +200,11 @@ func (i Identity) ToCertificate() (*CertificateLegacy, error) {
 		Fingerprint: i.Identifier,
 		Type:        certificateType,
 		Name:        i.Name,
-		Certificate: metadata.Certificate,
+		Certificate: i.Certificate,
 		Restricted:  isRestricted,
 	}
 
 	return c, nil
-}
-
-// CertificateMetadata returns the metadata associated with the identity as [CertificateMetadata]. It fails if the
-// authentication method is not [api.AuthentictionMethodTLS] or if the type is [api.IdentityTypeClientCertificatePending],
-// as they do not have metadata of this type.
-func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
-	if i.AuthMethod != api.AuthenticationMethodTLS {
-		return nil, fmt.Errorf("Cannot get certificate metadata: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
-	}
-
-	identityType, err := identity.New(string(i.Type))
-	if err != nil {
-		return nil, err
-	}
-
-	if identityType.IsPending() {
-		return nil, errors.New("Cannot get certificate metadata: Identity is pending")
-	}
-
-	var metadata CertificateMetadata
-	err = json.Unmarshal([]byte(i.Metadata), &metadata)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
-	}
-
-	return &metadata, nil
-}
-
-// X509 returns an [x509.Certificate] from the identity metadata. The [AuthMethod] of the [Identity] must be [api.AuthenticationMethodTLS].
-func (i Identity) X509() (*x509.Certificate, error) {
-	metadata, err := i.CertificateMetadata()
-	if err != nil {
-		return nil, err
-	}
-
-	return metadata.X509()
 }
 
 // OIDCMetadata contains metadata for OIDC identities.
@@ -326,28 +279,13 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 		}
 	}
 
-	identityType, err := identity.New(string(i.Type))
-	if err != nil {
-		return nil, err
-	}
-
-	var tlsCertificate string
-	if i.AuthMethod == api.AuthenticationMethodTLS && !identityType.IsPending() {
-		metadata, err := i.CertificateMetadata()
-		if err != nil {
-			return nil, err
-		}
-
-		tlsCertificate = metadata.Certificate
-	}
-
 	return &api.Identity{
 		AuthenticationMethod: string(i.AuthMethod),
 		Type:                 string(i.Type),
 		Identifier:           i.Identifier,
 		Name:                 i.Name,
 		Groups:               groupNames,
-		TLSCertificate:       tlsCertificate,
+		TLSCertificate:       i.Certificate,
 	}, nil
 }
 
