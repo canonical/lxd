@@ -151,6 +151,12 @@ type Identity struct {
 	Identifier string       `db:"identifier"`
 	Name       string       `db:"name"`
 	Metadata   string       `db:"metadata"`
+
+	// db:join LEFT JOIN identities_certificates ON identities.id = identities_certificates.identity_id
+	CertificateID int64 `db:"coalesce(identities_certificates.certificate_id, 0) AS certificate_id"`
+
+	// db:join LEFT JOIN certificates ON identities_certificates.certificate_id = certificates.id
+	Certificate string `db:"coalesce(certificates.certificate, '') AS certificate"`
 }
 
 // CertificateMetadata contains metadata for certificate identities. Currently this is only the certificate itself.
