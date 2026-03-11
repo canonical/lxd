@@ -13,7 +13,6 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -805,6 +804,11 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 		return nil
 	}
 
+	connector, err := d.connector()
+	if err != nil {
+		return err
+	}
+
 	inUse := vol.MountInUse()
 	truncate := sizeBytes < oldSizeBytes
 
@@ -843,12 +847,7 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 				return err
 			}
 
-			err = block.RefreshDiskDeviceSize(d.state.ShutdownCtx, devPath)
-			if err != nil {
-				return fmt.Errorf("Failed refreshing volume %q size: %w", vol.name, err)
-			}
-
-			err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+			err = connector.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
 			if err != nil {
 				return err
 			}
@@ -866,15 +865,10 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 
 			defer cleanup()
 
-			err = block.RefreshDiskDeviceSize(d.state.ShutdownCtx, devPath)
-			if err != nil {
-				return fmt.Errorf("Failed refreshing volume %q size: %w", vol.name, err)
-			}
-
 			// Ensure the block device is resized before growing the filesystem.
 			// This should succeed immediately, but if volume was already mapped,
 			// it may take a moment for the size to be reflected on the host.
-			err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+			err = connector.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
 			if err != nil {
 				return err
 			}
@@ -914,16 +908,11 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 
 		defer cleanup()
 
-		err = block.RefreshDiskDeviceSize(d.state.ShutdownCtx, devPath)
-		if err != nil {
-			return fmt.Errorf("Failed refreshing volume %q size: %w", vol.name, err)
-		}
-
 		// Wait for the block device to be resized before moving GPT alt header.
 		// This ensures that the GPT alt header is not moved before the actual
 		// size is reflected on a local host. Otherwise, the GPT alt header
 		// would be moved to the same location.
-		err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+		err = connector.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
 		if err != nil {
 			return err
 		}
