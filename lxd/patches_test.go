@@ -46,7 +46,7 @@ func Test_patchSplitIdentityCertificateEntityTypes(t *testing.T) {
 		x509Cert, err := shared.ParseCert(cert)
 		require.NoError(t, err)
 
-		certificateIDint64, err := dbCluster.CreateCertificate(ctx, tx.Tx(), dbCluster.CertificateLegacy{
+		certificateIDint64, err := dbCluster.CreateLegacyCertificate(ctx, tx.Tx(), dbCluster.CertificateLegacy{
 			Fingerprint: shared.CertFingerprint(x509Cert),
 			Type:        certificate.TypeClient,
 			Name:        "test-cert",

@@ -67,7 +67,7 @@ func TestImportPreClusteringData(t *testing.T) {
 
 	// certificates
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		certs, err := cluster.GetCertificates(context.Background(), tx.Tx())
+		certs, err := cluster.GetLegacyCertificates(context.Background(), tx.Tx())
 		require.NoError(t, err)
 		assert.Len(t, certs, 1)
 		cert := certs[0]

@@ -203,7 +203,7 @@ func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertIn
 	// Add our server cert to the DB trust store (so when other members join this cluster they will be
 	// able to trust intra-cluster requests from this member).
 	ctx := context.Background()
-	existingCert, _ := cluster.GetCertificate(ctx, tx.Tx(), dbCert.Fingerprint)
+	existingCert, _ := cluster.GetLegacyCertificate(ctx, tx.Tx(), dbCert.Fingerprint)
 	if existingCert != nil {
 		if existingCert.Name != dbCert.Name && existingCert.Type == certificate.TypeServer {
 			// Don't alter an existing server certificate that has our fingerprint but not our name.
@@ -213,13 +213,13 @@ func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertIn
 			// Ensure that if a client certificate already exists that matches our fingerprint, that it
 			// has the correct name and type for cluster operation, to allow us to associate member
 			// server names to certificate names.
-			err = cluster.UpdateCertificate(ctx, tx.Tx(), dbCert)
+			err = cluster.UpdateLegacyCertificate(ctx, tx.Tx(), dbCert)
 			if err != nil {
 				return fmt.Errorf("Failed updating certificate name and type in trust store: %w", err)
 			}
 		}
 	} else {
-		_, err = cluster.CreateCertificate(ctx, tx.Tx(), dbCert)
+		_, err = cluster.CreateLegacyCertificate(ctx, tx.Tx(), dbCert)
 		if err != nil {
 			return fmt.Errorf("Failed adding server certifcate to trust store: %w", err)
 		}

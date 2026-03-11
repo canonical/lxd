@@ -297,7 +297,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 		var err error
 		var dbCerts []dbCluster.CertificateLegacy
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			dbCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
+			dbCerts, err = dbCluster.GetLegacyCertificates(ctx, tx.Tx())
 			return err
 		})
 		if err != nil {

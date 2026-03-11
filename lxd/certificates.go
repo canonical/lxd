@@ -154,7 +154,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	var certURLs []string
 	urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		baseCerts, err := dbCluster.GetCertificates(ctx, tx.Tx())
+		baseCerts, err := dbCluster.GetLegacyCertificates(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -1071,17 +1071,12 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, certificateID int64, db
 
 	// Update the database record.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.GetCertificateID(ctx, tx.Tx(), dbInfo.Fingerprint)
+		err = dbCluster.UpdateLegacyCertificate(ctx, tx.Tx(), dbCert)
 		if err != nil {
 			return err
 		}
 
-		err = dbCluster.UpdateCertificate(ctx, tx.Tx(), dbCert)
-		if err != nil {
-			return err
-		}
-
-		return dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), id, certProjects)
+		return dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), certificateID, certProjects)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1197,7 +1192,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Perform the delete with the expanded fingerprint.
-		return dbCluster.DeleteCertificate(ctx, tx.Tx(), certInfo.Fingerprint)
+		return dbCluster.DeleteLegacyCertificate(ctx, tx.Tx(), certInfo.Fingerprint)
 	})
 	if err != nil {
 		return response.SmartError(err)

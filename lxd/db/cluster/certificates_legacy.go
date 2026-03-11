@@ -143,7 +143,7 @@ func GetCertificateByFingerprintPrefix(ctx context.Context, tx *sql.Tx, fingerpr
 func CreateCertificateWithProjects(ctx context.Context, tx *sql.Tx, cert CertificateLegacy, projectNames []string) (int64, error) {
 	var id int64
 	var err error
-	id, err = CreateCertificate(ctx, tx, cert)
+	id, err = CreateLegacyCertificate(ctx, tx, cert)
 	if err != nil {
 		return -1, err
 	}
@@ -191,8 +191,8 @@ func UpdateCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID in
 	return nil
 }
 
-// GetCertificates returns all available certificates.
-func GetCertificates(ctx context.Context, tx *sql.Tx) ([]CertificateLegacy, error) {
+// GetLegacyCertificates returns all legacy certificates.
+func GetLegacyCertificates(ctx context.Context, tx *sql.Tx) ([]CertificateLegacy, error) {
 	certificateIdentities, err := query.Select[Identity](ctx, tx, getCertificateIdentitiesClause)
 	if err != nil {
 		return nil, err
@@ -211,8 +211,8 @@ func GetCertificates(ctx context.Context, tx *sql.Tx) ([]CertificateLegacy, erro
 	return certificates, nil
 }
 
-// GetCertificate returns the certificate with the given fingerprint.
-func GetCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*CertificateLegacy, error) {
+// GetLegacyCertificate returns the legacy certificate with the given fingerprint.
+func GetLegacyCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*CertificateLegacy, error) {
 	id, err := query.SelectOne[Identity](ctx, tx, getCertificateIdentitiesClause+" AND identities.identifier = ?", fingerprint)
 	if err != nil {
 		return nil, err
@@ -221,18 +221,8 @@ func GetCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*Certi
 	return id.ToCertificate()
 }
 
-// GetCertificateID returns the ID of the certificate with the given fingerprint.
-func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int64, error) {
-	cert, err := GetCertificate(ctx, tx, fingerprint)
-	if err != nil {
-		return 0, err
-	}
-
-	return cert.ID, nil
-}
-
-// CreateCertificate adds a new certificate to the database.
-func CreateCertificate(ctx context.Context, tx *sql.Tx, object CertificateLegacy) (int64, error) {
+// CreateLegacyCertificate creates a new legacy certificate.
+func CreateLegacyCertificate(ctx context.Context, tx *sql.Tx, object CertificateLegacy) (int64, error) {
 	identity, err := object.ToIdentity()
 	if err != nil {
 		return 0, err
@@ -241,13 +231,13 @@ func CreateCertificate(ctx context.Context, tx *sql.Tx, object CertificateLegacy
 	return query.Create(ctx, tx, *identity)
 }
 
-// DeleteCertificate deletes the certificate matching the given key parameters.
-func DeleteCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) error {
+// DeleteLegacyCertificate deletes the legacy certificate with the given fingerprint.
+func DeleteLegacyCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) error {
 	return DeleteIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 }
 
-// UpdateCertificate updates the certificate matching the given key parameters.
-func UpdateCertificate(ctx context.Context, tx *sql.Tx, object CertificateLegacy) error {
+// UpdateLegacyCertificate updates the certificate matching the given key parameters.
+func UpdateLegacyCertificate(ctx context.Context, tx *sql.Tx, object CertificateLegacy) error {
 	identity, err := object.ToIdentity()
 	if err != nil {
 		return err
