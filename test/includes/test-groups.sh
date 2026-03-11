@@ -31,6 +31,7 @@ readonly test_group_cluster=(
     "clustering_roles"
     "clustering_failure_domains"
     "clustering_evacuation"
+    "clustering_evacuation_quorum_force"
     "clustering_evacuation_restore_operations"
     "clustering_move"
     "clustering_remove_members"
