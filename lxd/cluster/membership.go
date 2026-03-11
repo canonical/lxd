@@ -213,7 +213,7 @@ func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertIn
 			// Ensure that if a client certificate already exists that matches our fingerprint, that it
 			// has the correct name and type for cluster operation, to allow us to associate member
 			// server names to certificate names.
-			err = cluster.UpdateCertificate(ctx, tx.Tx(), dbCert.Fingerprint, dbCert)
+			err = cluster.UpdateCertificate(ctx, tx.Tx(), dbCert)
 			if err != nil {
 				return fmt.Errorf("Failed updating certificate name and type in trust store: %w", err)
 			}
@@ -1496,7 +1496,7 @@ func Purge(c *db.Cluster, name string) error {
 			return fmt.Errorf("Failed removing member %q: %w", name, err)
 		}
 
-		err = cluster.DeleteIdentitys(ctx, tx.Tx(), name, api.IdentityTypeCertificateServer)
+		err = cluster.DeleteIdentityByNameAndType(ctx, tx.Tx(), name, api.IdentityTypeCertificateServer)
 		if err != nil {
 			return fmt.Errorf("Failed removing member %q certificate from trust store: %w", name, err)
 		}
