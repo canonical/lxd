@@ -29,6 +29,11 @@ CREATE TABLE auth_groups_permissions (
     FOREIGN KEY (auth_group_id) REFERENCES auth_groups (id) ON DELETE CASCADE,
     UNIQUE (auth_group_id, entity_type, entitlement, entity_id)
 );
+CREATE TABLE certificates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    certificate TEXT NOT NULL,
+    UNIQUE (certificate)
+);
 CREATE TABLE "cluster_groups" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -62,6 +67,20 @@ CREATE TABLE identities_auth_groups (
     FOREIGN KEY (auth_group_id) REFERENCES auth_groups (id) ON DELETE CASCADE,
     UNIQUE (identity_id, auth_group_id)
 );
+CREATE TABLE identities_certificates (
+    identity_id INTEGER NOT NULL,
+    certificate_id INTEGER NOT NULL,
+    FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE,
+    FOREIGN KEY (certificate_id) REFERENCES certificates (id) ON DELETE CASCADE,
+    PRIMARY KEY (identity_id,
+    certificate_id)
+) WITHOUT ROWID;
+CREATE TRIGGER identities_certificates_after_delete 
+    AFTER DELETE ON identities_certificates
+	BEGIN
+	DELETE FROM certificates
+		WHERE certificates.id = OLD.certificate_id;
+	END;
 CREATE TABLE identities_projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     identity_id INTEGER NOT NULL,
@@ -736,5 +755,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (80, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (81, strftime("%s"))
 `

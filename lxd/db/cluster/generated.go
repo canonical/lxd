@@ -65,6 +65,65 @@ func (a AuthGroup) UpdateValues() []any {
     return append(a.CreateValues(), a.PKValue())
 }
 
+// TableName returns the table name for [Certificate] entities.
+func (c Certificate) TableName() string {
+	return "certificates"
+}
+
+// ScanColumns returns a slice of column names for [Certificate] entities.
+func (c Certificate) ScanColumns() []string {
+	return []string{
+		"certificates.id",
+		"certificates.certificate",
+	}
+}
+
+// BaseQuery implements [query.BaseQuerier] for [Certificate].
+// Query columns appear in field definition order.
+func (c Certificate) BaseQuery() string {
+	return `SELECT
+	certificates.id,
+	certificates.certificate
+FROM certificates
+`
+}
+
+// ScanArgs implements [query.ScanArger] for [Certificate].
+// This returns references to struct fields in definition order.
+func (c *Certificate) ScanArgs() []any {
+	return []any{&c.ID, &c.Certificate}
+}
+
+// CreateValues returns a list of values from [Certificate] entities matching the columns returned from CreateColumns.
+func (c Certificate) CreateValues() []any {
+	return []any{c.Certificate}
+}
+
+// PKColumn returns the column name for the primary key of a [Certificate] entity used during an update.
+func (c Certificate) PKColumn() string {
+	return "id"
+}
+
+// PKValue returns the value for the primary key of a [Certificate] entity used during an update.
+func (c Certificate) PKValue() any {
+	return c.ID
+}
+
+// CreateStmt returns a query that creates a [Certificate] entity.
+func (c Certificate) CreateStmt() string {
+	return "INSERT INTO certificates (certificate) VALUES (?)"
+}
+
+// UpdateStmt returns a query that updates a [Certificate] by primary key.
+func (c Certificate) UpdateStmt() string {
+	return "UPDATE certificates SET certificate = ? WHERE certificates.id = ?"
+}
+
+// UpdateValues returns a list of values from [Certificate] entities to be used when updating a row by primary key.
+func (c Certificate) UpdateValues() []any {
+    return append(c.CreateValues(), c.PKValue())
+}
+
 // TableName returns the table name for [Identity] entities.
 func (i Identity) TableName() string {
 	return "identities"
@@ -79,6 +138,8 @@ func (i Identity) ScanColumns() []string {
 		"identities.identifier",
 		"identities.name",
 		"identities.metadata",
+		"coalesce(identities_certificates.certificate_id, 0) AS certificate_id",
+		"coalesce(certificates.certificate, '') AS certificate",
 	}
 }
 
@@ -91,15 +152,19 @@ func (i Identity) BaseQuery() string {
 	identities.type,
 	identities.identifier,
 	identities.name,
-	identities.metadata
+	identities.metadata,
+	coalesce(identities_certificates.certificate_id, 0) AS certificate_id,
+	coalesce(certificates.certificate, '') AS certificate
 FROM identities
+LEFT JOIN identities_certificates ON identities.id = identities_certificates.identity_id
+LEFT JOIN certificates ON identities_certificates.certificate_id = certificates.id
 `
 }
 
 // ScanArgs implements [query.ScanArger] for [Identity].
 // This returns references to struct fields in definition order.
 func (i *Identity) ScanArgs() []any {
-	return []any{&i.ID, &i.AuthMethod, &i.Type, &i.Identifier, &i.Name, &i.Metadata}
+	return []any{&i.ID, &i.AuthMethod, &i.Type, &i.Identifier, &i.Name, &i.Metadata, &i.CertificateID, &i.Certificate}
 }
 
 // CreateValues returns a list of values from [Identity] entities matching the columns returned from CreateColumns.
