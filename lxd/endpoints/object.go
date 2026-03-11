@@ -54,7 +54,7 @@ func (e *Endpoints) StorageBucketsUpdateAddress(address string, cert *shared.Cer
 	}
 
 	// Attempt to setup the new listening socket
-	getListener := func(address string) (*net.Listener, error) {
+	getListener := func(address string) (net.Listener, error) {
 		var err error
 		var listener net.Listener
 
@@ -71,7 +71,7 @@ func (e *Endpoints) StorageBucketsUpdateAddress(address string, cert *shared.Cer
 			return nil, fmt.Errorf("Cannot listen on http socket: %w", err)
 		}
 
-		return &listener, nil
+		return listener, nil
 	}
 
 	// If setting a new address, setup the listener
@@ -81,14 +81,14 @@ func (e *Endpoints) StorageBucketsUpdateAddress(address string, cert *shared.Cer
 			// Attempt to revert to the previous address
 			listener, err1 := getListener(oldAddress)
 			if err1 == nil {
-				e.listeners[storageBuckets] = *listener
+				e.listeners[storageBuckets] = listener
 				e.serve(storageBuckets)
 			}
 
 			return err
 		}
 
-		e.listeners[storageBuckets] = *listener
+		e.listeners[storageBuckets] = listener
 		e.serve(storageBuckets)
 	}
 
