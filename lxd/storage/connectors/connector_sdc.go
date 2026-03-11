@@ -75,3 +75,8 @@ func (c *connectorSDC) findSession(targetQN string) (*session, error) {
 func (c *connectorSDC) Discover(ctx context.Context, targetAddresses ...string) ([]any, error) {
 	return nil, ErrNotSupported
 }
+
+// RemoveDiskDevice does nothing. Device is removed when volume is unmapped on the storage array.
+func (c *connectorSDC) RemoveDiskDevice(ctx context.Context, diskPath string) error {
+	return nil
+}
