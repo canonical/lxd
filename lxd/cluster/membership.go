@@ -980,7 +980,7 @@ func rolesAdjust(roles *app.RolesChanges, leaderID uint64, nodes []db.RaftNode, 
 			return db.RaftSpare, onlineEvacuatedStandBys, false
 		}
 
-		if !controlPlaneActive {
+		if !controlPlaneActive && len(onlineEvacuatedVoters) == 0 {
 			return -1, nil, false
 		}
 
