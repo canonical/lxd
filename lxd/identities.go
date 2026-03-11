@@ -2373,7 +2373,7 @@ func updateIdentityCache(d *Daemon) {
 	metricsCerts := make(map[string]*x509.Certificate)
 	secrets := make(map[string][]byte)
 	var initialUITokenSecret []byte
-	var localServerCerts []dbCluster.Certificate
+	var localServerCerts []dbCluster.CertificateLegacy
 	for _, id := range identities {
 		identityType, err := identity.New(string(id.Type))
 		if err != nil {
@@ -2442,7 +2442,7 @@ func updateIdentityCache(d *Daemon) {
 func updateIdentityCacheFromLocal(d *Daemon) error {
 	logger.Debug("Refreshing identity cache with local trusted certificates")
 
-	var localServerCerts []dbCluster.Certificate
+	var localServerCerts []dbCluster.CertificateLegacy
 	var err error
 
 	err = d.State().DB.Node.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.NodeTx) error {

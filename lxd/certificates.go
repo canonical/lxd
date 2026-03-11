@@ -702,7 +702,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Store the certificate in the cluster database.
-		dbCert := dbCluster.Certificate{
+		dbCert := dbCluster.CertificateLegacy{
 			Fingerprint: shared.CertFingerprint(cert),
 			Type:        dbReqType,
 			Name:        name,
@@ -967,7 +967,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, certificateID int64, db
 	}
 
 	// Convert to the database type.
-	dbCert := dbCluster.Certificate{
+	dbCert := dbCluster.CertificateLegacy{
 		ID:          certificateID,
 		Certificate: dbInfo.Certificate,
 		Fingerprint: dbInfo.Fingerprint,
@@ -1005,7 +1005,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, certificateID int64, db
 		}
 
 		// Reset dbCert in order to prevent possible future security issues.
-		dbCert = dbCluster.Certificate{
+		dbCert = dbCluster.CertificateLegacy{
 			ID:          certificateID,
 			Certificate: dbInfo.Certificate,
 			Fingerprint: dbInfo.Fingerprint,
@@ -1135,7 +1135,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var certInfo *dbCluster.Certificate
+	var certInfo *dbCluster.CertificateLegacy
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get current database record.
 		var err error

@@ -295,7 +295,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 	// Check all other members have done the same.
 	for {
 		var err error
-		var dbCerts []dbCluster.Certificate
+		var dbCerts []dbCluster.CertificateLegacy
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			dbCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
 			return err
@@ -304,7 +304,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 			return err
 		}
 
-		trustedServerCerts := make(map[string]dbCluster.Certificate)
+		trustedServerCerts := make(map[string]dbCluster.CertificateLegacy)
 
 		for _, c := range dbCerts {
 			if c.Type == certificate.TypeServer {

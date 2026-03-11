@@ -193,7 +193,7 @@ func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertIn
 
 	fingerprint := shared.CertFingerprint(serverCertx509)
 
-	dbCert := cluster.Certificate{
+	dbCert := cluster.CertificateLegacy{
 		Fingerprint: fingerprint,
 		Type:        certificate.TypeServer, // Server type for intra-member communication.
 		Name:        serverName,

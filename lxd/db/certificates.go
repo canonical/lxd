@@ -11,7 +11,7 @@ import (
 )
 
 // GetCertificates returns all available local certificates.
-func (n *NodeTx) GetCertificates(ctx context.Context) ([]cluster.Certificate, error) {
+func (n *NodeTx) GetCertificates(ctx context.Context) ([]cluster.CertificateLegacy, error) {
 	type cert struct {
 		fingerprint string
 		certType    certificate.Type
@@ -37,9 +37,9 @@ func (n *NodeTx) GetCertificates(ctx context.Context) ([]cluster.Certificate, er
 		return nil, err
 	}
 
-	certs := make([]cluster.Certificate, 0, len(dbCerts))
+	certs := make([]cluster.CertificateLegacy, 0, len(dbCerts))
 	for _, dbCert := range dbCerts {
-		certs = append(certs, cluster.Certificate{
+		certs = append(certs, cluster.CertificateLegacy{
 			Fingerprint: dbCert.fingerprint,
 			Type:        dbCert.certType,
 			Name:        dbCert.name,
@@ -52,7 +52,7 @@ func (n *NodeTx) GetCertificates(ctx context.Context) ([]cluster.Certificate, er
 
 // ReplaceCertificates removes all existing certificates from the local certificates table and replaces them with
 // the ones provided.
-func (n *NodeTx) ReplaceCertificates(certs []cluster.Certificate) error {
+func (n *NodeTx) ReplaceCertificates(certs []cluster.CertificateLegacy) error {
 	_, err := n.tx.Exec("DELETE FROM certificates")
 	if err != nil {
 		return err

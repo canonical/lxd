@@ -664,7 +664,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 				}
 
 				// Store the certificate in the local database.
-				dbCert := dbCluster.Certificate{
+				dbCert := dbCluster.CertificateLegacy{
 					Fingerprint: trustedCert.Fingerprint,
 					Type:        dbType,
 					Name:        trustedCert.Name,

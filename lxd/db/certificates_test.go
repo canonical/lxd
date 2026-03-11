@@ -19,7 +19,7 @@ func TestGetCertificate(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	_, err := cluster.CreateCertificate(ctx, tx.Tx(), cluster.Certificate{
+	_, err := cluster.CreateCertificate(ctx, tx.Tx(), cluster.CertificateLegacy{
 		Fingerprint: "foobar",
 		Type:        certificate.TypeClient,
 	})
