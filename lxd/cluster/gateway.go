@@ -455,10 +455,10 @@ func (g *Gateway) Kill() {
 	g.cancel()
 }
 
-// TransferLeadership attempts to transfer leadership to another online voter.
+// TransferLeadership attempts to transfer leadership to another online, non-evacuated voter.
 // When memberRoles is provided and control-plane mode is active, only control-plane
-// voters are eligible targets.
-func (g *Gateway) TransferLeadership(memberRoles map[string][]db.ClusterRole) error {
+// voters are eligible targets. Evacuated members are never eligible.
+func (g *Gateway) TransferLeadership(memberRoles map[string][]db.ClusterRole, evacuatedMembers map[string]bool) error {
 	client, err := g.getClient()
 	if err != nil {
 		return err
@@ -484,6 +484,10 @@ func (g *Gateway) TransferLeadership(memberRoles map[string][]db.ClusterRole) er
 		address, err := g.nodeAddress(server.Address)
 		if err != nil {
 			return err
+		}
+
+		if evacuatedMembers[address] {
+			continue
 		}
 
 		if cpActive && !slices.Contains(memberRoles[address], db.ClusterRoleControlPlane) {
