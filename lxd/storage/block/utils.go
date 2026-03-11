@@ -19,14 +19,14 @@ import (
 // DevDiskByID represents the system's path for disks identified by their ID.
 const DevDiskByID = "/dev/disk/by-id"
 
-// devicePathFilterFunc is a function that accepts device path and returns true
+// DevicePathFilterFunc is a function that accepts device path and returns true
 // if the path matches the required criteria.
-type devicePathFilterFunc func(devPath string) bool
+type DevicePathFilterFunc func(devPath string) bool
 
 // findDiskDevivePath iterates over device names in /dev/disk/by-id directory and
 // returns the path to the disk device that matches the given prefix and suffix.
 // Disk partitions are skipped, and an error is returned if the device is not found.
-func findDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFunc) (string, error) {
+func findDiskDevicePath(diskNamePrefix string, diskPathFilter DevicePathFilterFunc) (string, error) {
 	var diskPaths []string
 
 	// If there are no other disks on the system by id, the directory might not
@@ -213,7 +213,7 @@ func WaitDiskDeviceGone(ctx context.Context, diskPath string) bool {
 // It periodically checks for the device to appear and returns the device path
 // once it is found. If the device does not appear within the timeout, an error
 // is returned.
-func WaitDiskDevicePath(ctx context.Context, diskNamePrefix string, diskPathFilter devicePathFilterFunc) (string, error) {
+func WaitDiskDevicePath(ctx context.Context, diskNamePrefix string, diskPathFilter DevicePathFilterFunc) (string, error) {
 	var err error
 	var diskPath string
 
@@ -253,7 +253,7 @@ func WaitDiskDevicePath(ctx context.Context, diskNamePrefix string, diskPathFilt
 // GetDiskDevicePath checks whether the disk device with a given prefix and suffix
 // exists in /dev/disk/by-id directory. A device path is returned if the device is
 // found, otherwise an error is returned.
-func GetDiskDevicePath(diskNamePrefix string, diskPathFilter devicePathFilterFunc) (string, error) {
+func GetDiskDevicePath(diskNamePrefix string, diskPathFilter DevicePathFilterFunc) (string, error) {
 	devPath, err := findDiskDevicePath(diskNamePrefix, diskPathFilter)
 	if err != nil {
 		return "", err
