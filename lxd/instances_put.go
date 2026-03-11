@@ -273,7 +273,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[entity.Type][]api.URL{}
 	for _, instName := range names {
-		resources[entity.TypeInstance] = append(resources[entity.TypeInstance], *api.NewURL().Path(version.APIVersion, "instances", instName))
+		resources[entity.TypeInstance] = append(resources[entity.TypeInstance], *api.NewURL().Path(version.APIVersion, "instances", instName).Project(projectName))
 	}
 
 	args := operations.OperationArgs{
