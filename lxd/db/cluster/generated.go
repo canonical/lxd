@@ -64,3 +64,70 @@ func (a AuthGroup) UpdateStmt() string {
 func (a AuthGroup) UpdateValues() []any {
     return append(a.CreateValues(), a.PKValue())
 }
+
+// TableName returns the table name for [Identity] entities.
+func (i Identity) TableName() string {
+	return "identities"
+}
+
+// ScanColumns returns a slice of column names for [Identity] entities.
+func (i Identity) ScanColumns() []string {
+	return []string{
+		"identities.id",
+		"identities.auth_method",
+		"identities.type",
+		"identities.identifier",
+		"identities.name",
+		"identities.metadata",
+	}
+}
+
+// BaseQuery implements [query.BaseQuerier] for [Identity].
+// Query columns appear in field definition order.
+func (i Identity) BaseQuery() string {
+	return `SELECT
+	identities.id,
+	identities.auth_method,
+	identities.type,
+	identities.identifier,
+	identities.name,
+	identities.metadata
+FROM identities
+`
+}
+
+// ScanArgs implements [query.ScanArger] for [Identity].
+// This returns references to struct fields in definition order.
+func (i *Identity) ScanArgs() []any {
+	return []any{&i.ID, &i.AuthMethod, &i.Type, &i.Identifier, &i.Name, &i.Metadata}
+}
+
+// CreateValues returns a list of values from [Identity] entities matching the columns returned from CreateColumns.
+func (i Identity) CreateValues() []any {
+	return []any{i.AuthMethod, i.Type, i.Identifier, i.Name, i.Metadata}
+}
+
+// PKColumn returns the column name for the primary key of a [Identity] entity used during an update.
+func (i Identity) PKColumn() string {
+	return "id"
+}
+
+// PKValue returns the value for the primary key of a [Identity] entity used during an update.
+func (i Identity) PKValue() any {
+	return i.ID
+}
+
+// CreateStmt returns a query that creates a [Identity] entity.
+func (i Identity) CreateStmt() string {
+	return "INSERT INTO identities (auth_method, type, identifier, name, metadata) VALUES (?, ?, ?, ?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [Identity] by primary key.
+func (i Identity) UpdateStmt() string {
+	return "UPDATE identities SET auth_method = ?, type = ?, identifier = ?, name = ?, metadata = ? WHERE identities.id = ?"
+}
+
+// UpdateValues returns a list of values from [Identity] entities to be used when updating a row by primary key.
+func (i Identity) UpdateValues() []any {
+    return append(i.CreateValues(), i.PKValue())
+}
