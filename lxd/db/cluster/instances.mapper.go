@@ -213,7 +213,7 @@ func getInstances(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Instance,
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"instances\" table: %w", err)
 	}
 
 	return objects, nil
@@ -237,7 +237,7 @@ func getInstancesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) (
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"instances\" table: %w", err)
 	}
 
 	return objects, nil
@@ -259,7 +259,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, instanceObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -269,7 +269,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndTypeAndNodeAndName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndTypeAndNodeAndName\" prepared statement: %w", err)
 				}
 
 				break
@@ -277,7 +277,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByProjectAndTypeAndNodeAndName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -293,7 +293,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndNode)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndTypeAndNode\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndTypeAndNode\" prepared statement: %w", err)
 				}
 
 				break
@@ -301,7 +301,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByProjectAndTypeAndNode)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -317,7 +317,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndTypeAndName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndTypeAndName\" prepared statement: %w", err)
 				}
 
 				break
@@ -325,7 +325,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByProjectAndTypeAndName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -341,7 +341,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndNameAndNode)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByTypeAndNameAndNode\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByTypeAndNameAndNode\" prepared statement: %w", err)
 				}
 
 				break
@@ -349,7 +349,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByTypeAndNameAndNode)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -365,7 +365,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndNameAndNode)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndNameAndNode\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndNameAndNode\" prepared statement: %w", err)
 				}
 
 				break
@@ -373,7 +373,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByProjectAndNameAndNode)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -389,7 +389,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndType)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndType\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndType\" prepared statement: %w", err)
 				}
 
 				break
@@ -397,7 +397,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByProjectAndType)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -413,7 +413,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndNode)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByTypeAndNode\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByTypeAndNode\" prepared statement: %w", err)
 				}
 
 				break
@@ -421,7 +421,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByTypeAndNode)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -437,7 +437,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByTypeAndName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByTypeAndName\" prepared statement: %w", err)
 				}
 
 				break
@@ -445,7 +445,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByTypeAndName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -461,7 +461,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndNode)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndNode\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndNode\" prepared statement: %w", err)
 				}
 
 				break
@@ -469,7 +469,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByProjectAndNode)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -485,7 +485,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndName\" prepared statement: %w", err)
 				}
 
 				break
@@ -493,7 +493,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByProjectAndName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -509,7 +509,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByNodeAndName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByNodeAndName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByNodeAndName\" prepared statement: %w", err)
 				}
 
 				break
@@ -517,7 +517,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByNodeAndName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -533,7 +533,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByType)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByType\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByType\" prepared statement: %w", err)
 				}
 
 				break
@@ -541,7 +541,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByType)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -557,7 +557,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByProject)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProject\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProject\" prepared statement: %w", err)
 				}
 
 				break
@@ -565,7 +565,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByProject)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -581,7 +581,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByNode)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByNode\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByNode\" prepared statement: %w", err)
 				}
 
 				break
@@ -589,7 +589,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByNode)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -605,7 +605,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByName\" prepared statement: %w", err)
 				}
 
 				break
@@ -613,7 +613,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -629,7 +629,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, instanceObjectsByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"instanceObjectsByID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"instanceObjectsByID\" prepared statement: %w", err)
 				}
 
 				break
@@ -637,7 +637,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 			query, err := StmtString(instanceObjectsByID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -664,7 +664,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"instances\" table: %w", err)
 	}
 
 	return objects, nil
@@ -716,7 +716,7 @@ func GetInstance(ctx context.Context, tx *sql.Tx, project string, name string) (
 
 	objects, err := GetInstances(ctx, tx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"instances\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -734,7 +734,7 @@ func GetInstance(ctx context.Context, tx *sql.Tx, project string, name string) (
 func GetInstanceID(ctx context.Context, tx *sql.Tx, project string, name string) (int64, error) {
 	stmt, err := Stmt(tx, instanceID)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"instanceID\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"instanceID\" prepared statement: %w", err)
 	}
 
 	row := stmt.QueryRowContext(ctx, project, name)
@@ -745,7 +745,7 @@ func GetInstanceID(ctx context.Context, tx *sql.Tx, project string, name string)
 			return -1, api.StatusErrorf(http.StatusNotFound, "Instance not found")
 		}
 
-		return -1, fmt.Errorf("Failed to get \"instances\" ID: %w", err)
+		return -1, fmt.Errorf("Failed getting \"instances\" ID: %w", err)
 	}
 
 	return id, nil
@@ -772,7 +772,7 @@ func CreateInstance(ctx context.Context, tx *sql.Tx, object Instance) (int64, er
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, instanceCreate)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"instanceCreate\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"instanceCreate\" prepared statement: %w", err)
 	}
 
 	// Execute the statement.
@@ -782,12 +782,12 @@ func CreateInstance(ctx context.Context, tx *sql.Tx, object Instance) (int64, er
 			return -1, api.NewStatusError(http.StatusConflict, "This \"instances\" entry already exists")
 		}
 
-		return -1, fmt.Errorf("Failed to create \"instances\" entry: %w", err)
+		return -1, fmt.Errorf("Failed creating \"instances\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"instances\" entry ID: %w", err)
+		return -1, fmt.Errorf("Failed fetching \"instances\" entry ID: %w", err)
 	}
 
 	return id, nil
@@ -835,7 +835,7 @@ func CreateInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int64, con
 func RenameInstance(ctx context.Context, tx *sql.Tx, project string, name string, to string) error {
 	stmt, err := Stmt(tx, instanceRename)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"instanceRename\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"instanceRename\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, to, project, name)
@@ -864,7 +864,7 @@ func RenameInstance(ctx context.Context, tx *sql.Tx, project string, name string
 func DeleteInstance(ctx context.Context, tx *sql.Tx, project string, name string) error {
 	stmt, err := Stmt(tx, instanceDeleteByProjectAndName)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"instanceDeleteByProjectAndName\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"instanceDeleteByProjectAndName\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, project, name)
@@ -896,7 +896,7 @@ func UpdateInstance(ctx context.Context, tx *sql.Tx, project string, name string
 
 	stmt, err := Stmt(tx, instanceUpdate)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"instanceUpdate\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"instanceUpdate\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, object.Project, object.Name, object.Node, object.Type, object.Architecture, object.Ephemeral, object.CreationDate, object.Stateful, object.LastUseDate, object.Description, object.ExpiryDate, id)

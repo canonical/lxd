@@ -108,7 +108,7 @@ func getIdentitys(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Identity,
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"identity\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"identity\" table: %w", err)
 	}
 
 	return objects, nil
@@ -132,7 +132,7 @@ func getIdentitysRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) (
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"identity\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"identity\" table: %w", err)
 	}
 
 	return objects, nil
@@ -154,7 +154,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, identityObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"identityObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed getting \"identityObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -164,7 +164,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, identityObjectsByAuthMethodAndType)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"identityObjectsByAuthMethodAndType\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"identityObjectsByAuthMethodAndType\" prepared statement: %w", err)
 				}
 
 				break
@@ -172,7 +172,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 
 			query, err := StmtString(identityObjectsByAuthMethodAndType)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"identityObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"identityObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -188,7 +188,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, identityObjectsByAuthMethodAndName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"identityObjectsByAuthMethodAndName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"identityObjectsByAuthMethodAndName\" prepared statement: %w", err)
 				}
 
 				break
@@ -196,7 +196,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 
 			query, err := StmtString(identityObjectsByAuthMethodAndName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"identityObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"identityObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -212,7 +212,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, identityObjectsByAuthMethodAndIdentifier)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"identityObjectsByAuthMethodAndIdentifier\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"identityObjectsByAuthMethodAndIdentifier\" prepared statement: %w", err)
 				}
 
 				break
@@ -220,7 +220,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 
 			query, err := StmtString(identityObjectsByAuthMethodAndIdentifier)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"identityObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"identityObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -236,7 +236,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, identityObjectsByType)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"identityObjectsByType\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"identityObjectsByType\" prepared statement: %w", err)
 				}
 
 				break
@@ -244,7 +244,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 
 			query, err := StmtString(identityObjectsByType)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"identityObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"identityObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -260,7 +260,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, identityObjectsByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"identityObjectsByID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"identityObjectsByID\" prepared statement: %w", err)
 				}
 
 				break
@@ -268,7 +268,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 
 			query, err := StmtString(identityObjectsByID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"identityObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"identityObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -284,7 +284,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, identityObjectsByAuthMethod)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"identityObjectsByAuthMethod\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"identityObjectsByAuthMethod\" prepared statement: %w", err)
 				}
 
 				break
@@ -292,7 +292,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 
 			query, err := StmtString(identityObjectsByAuthMethod)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"identityObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"identityObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -319,7 +319,7 @@ func GetIdentitys(ctx context.Context, tx *sql.Tx, filters ...IdentityFilter) ([
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"identity\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"identity\" table: %w", err)
 	}
 
 	return objects, nil
@@ -334,7 +334,7 @@ func GetIdentity(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, identif
 
 	objects, err := GetIdentitys(ctx, tx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"identity\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"identity\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -352,7 +352,7 @@ func GetIdentity(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, identif
 func GetIdentityID(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, identifier string) (int64, error) {
 	stmt, err := Stmt(tx, identityID)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"identityID\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"identityID\" prepared statement: %w", err)
 	}
 
 	row := stmt.QueryRowContext(ctx, authMethod, identifier)
@@ -363,7 +363,7 @@ func GetIdentityID(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, ident
 			return -1, api.StatusErrorf(http.StatusNotFound, "Identity not found")
 		}
 
-		return -1, fmt.Errorf("Failed to get \"identity\" ID: %w", err)
+		return -1, fmt.Errorf("Failed getting \"identity\" ID: %w", err)
 	}
 
 	return id, nil
@@ -384,7 +384,7 @@ func CreateIdentity(ctx context.Context, tx *sql.Tx, object Identity) (int64, er
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, identityCreate)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"identityCreate\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"identityCreate\" prepared statement: %w", err)
 	}
 
 	// Execute the statement.
@@ -394,12 +394,12 @@ func CreateIdentity(ctx context.Context, tx *sql.Tx, object Identity) (int64, er
 			return -1, api.NewStatusError(http.StatusConflict, "This \"identity\" entry already exists")
 		}
 
-		return -1, fmt.Errorf("Failed to create \"identity\" entry: %w", err)
+		return -1, fmt.Errorf("Failed creating \"identity\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"identity\" entry ID: %w", err)
+		return -1, fmt.Errorf("Failed fetching \"identity\" entry ID: %w", err)
 	}
 
 	return id, nil
@@ -410,7 +410,7 @@ func CreateIdentity(ctx context.Context, tx *sql.Tx, object Identity) (int64, er
 func DeleteIdentity(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, identifier string) error {
 	stmt, err := Stmt(tx, identityDeleteByAuthMethodAndIdentifier)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"identityDeleteByAuthMethodAndIdentifier\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"identityDeleteByAuthMethodAndIdentifier\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, authMethod, identifier)
@@ -437,7 +437,7 @@ func DeleteIdentity(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, iden
 func DeleteIdentitys(ctx context.Context, tx *sql.Tx, name string, identityType IdentityType) error {
 	stmt, err := Stmt(tx, identityDeleteByNameAndType)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"identityDeleteByNameAndType\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"identityDeleteByNameAndType\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, name, identityType)
@@ -463,7 +463,7 @@ func UpdateIdentity(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, iden
 
 	stmt, err := Stmt(tx, identityUpdate)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"identityUpdate\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"identityUpdate\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, object.AuthMethod, object.Type, object.Identifier, object.Name, object.Metadata, id)

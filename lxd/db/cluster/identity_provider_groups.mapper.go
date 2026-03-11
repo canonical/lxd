@@ -80,7 +80,7 @@ func getIdentityProviderGroups(ctx context.Context, stmt *sql.Stmt, args ...any)
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"identity_providers_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"identity_providers_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -104,7 +104,7 @@ func getIdentityProviderGroupsRaw(ctx context.Context, tx *sql.Tx, sql string, a
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"identity_providers_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"identity_providers_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -126,7 +126,7 @@ func GetIdentityProviderGroups(ctx context.Context, tx *sql.Tx, filters ...Ident
 	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, identityProviderGroupObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"identityProviderGroupObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed getting \"identityProviderGroupObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -136,7 +136,7 @@ func GetIdentityProviderGroups(ctx context.Context, tx *sql.Tx, filters ...Ident
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, identityProviderGroupObjectsByName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"identityProviderGroupObjectsByName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"identityProviderGroupObjectsByName\" prepared statement: %w", err)
 				}
 
 				break
@@ -144,7 +144,7 @@ func GetIdentityProviderGroups(ctx context.Context, tx *sql.Tx, filters ...Ident
 
 			query, err := StmtString(identityProviderGroupObjectsByName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"identityProviderGroupObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"identityProviderGroupObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -160,7 +160,7 @@ func GetIdentityProviderGroups(ctx context.Context, tx *sql.Tx, filters ...Ident
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, identityProviderGroupObjectsByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"identityProviderGroupObjectsByID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"identityProviderGroupObjectsByID\" prepared statement: %w", err)
 				}
 
 				break
@@ -168,7 +168,7 @@ func GetIdentityProviderGroups(ctx context.Context, tx *sql.Tx, filters ...Ident
 
 			query, err := StmtString(identityProviderGroupObjectsByID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"identityProviderGroupObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"identityProviderGroupObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -195,7 +195,7 @@ func GetIdentityProviderGroups(ctx context.Context, tx *sql.Tx, filters ...Ident
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"identity_providers_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"identity_providers_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -209,7 +209,7 @@ func GetIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string) (*Id
 
 	objects, err := GetIdentityProviderGroups(ctx, tx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"identity_providers_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"identity_providers_groups\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -233,7 +233,7 @@ func CreateIdentityProviderGroup(ctx context.Context, tx *sql.Tx, object Identit
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, identityProviderGroupCreate)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"identityProviderGroupCreate\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"identityProviderGroupCreate\" prepared statement: %w", err)
 	}
 
 	// Execute the statement.
@@ -243,12 +243,12 @@ func CreateIdentityProviderGroup(ctx context.Context, tx *sql.Tx, object Identit
 			return -1, api.NewStatusError(http.StatusConflict, "This \"identity_providers_groups\" entry already exists")
 		}
 
-		return -1, fmt.Errorf("Failed to create \"identity_providers_groups\" entry: %w", err)
+		return -1, fmt.Errorf("Failed creating \"identity_providers_groups\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"identity_providers_groups\" entry ID: %w", err)
+		return -1, fmt.Errorf("Failed fetching \"identity_providers_groups\" entry ID: %w", err)
 	}
 
 	return id, nil
@@ -259,7 +259,7 @@ func CreateIdentityProviderGroup(ctx context.Context, tx *sql.Tx, object Identit
 func DeleteIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string) error {
 	stmt, err := Stmt(tx, identityProviderGroupDeleteByName)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"identityProviderGroupDeleteByName\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"identityProviderGroupDeleteByName\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, name)
@@ -286,7 +286,7 @@ func DeleteIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string) e
 func RenameIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string, to string) error {
 	stmt, err := Stmt(tx, identityProviderGroupRename)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"identityProviderGroupRename\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"identityProviderGroupRename\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, to, name)

@@ -44,7 +44,7 @@ func getDevices(ctx context.Context, stmt *sql.Stmt, parent string, args ...any)
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
+		return nil, fmt.Errorf("Failed fetching from \"%s_devices\" table: %w", parent, err)
 	}
 
 	return objects, nil
@@ -68,7 +68,7 @@ func getDevicesRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, a
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
+		return nil, fmt.Errorf("Failed fetching from \"%s_devices\" table: %w", parent, err)
 	}
 
 	return objects, nil
@@ -123,7 +123,7 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 	// Select.
 	objects, err = getDevicesRaw(ctx, tx, queryStr, parent, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
+		return nil, fmt.Errorf("Failed fetching from \"%s_devices\" table: %w", parent, err)
 	}
 
 	configFilters := []ConfigFilter{}
@@ -183,7 +183,7 @@ func CreateDevices(ctx context.Context, tx *sql.Tx, parent string, objects map[s
 
 		id, err := result.LastInsertId()
 		if err != nil {
-			return fmt.Errorf("Failed to fetch ID: %w", err)
+			return fmt.Errorf("Failed fetching ID: %w", err)
 		}
 
 		referenceID := int(id)
