@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
-	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -103,7 +102,8 @@ type Operation struct {
 	resources       map[entity.Type][]api.URL
 	entityURL       *api.URL
 	metadata        map[string]any
-	err             error
+	err             string
+	errCode         int64
 	readonly        bool
 	description     string
 	dbOpType        operationtype.Type
@@ -427,7 +427,14 @@ func (op *Operation) start() {
 			if err != nil {
 				op.lock.Lock()
 
-				op.err = err
+				// Set the error and error code. We use either the error code from the error, or default to internal server error.
+				op.err = err.Error()
+				statusCode, found := api.StatusErrorMatch(err)
+				if found {
+					op.errCode = int64(statusCode)
+				} else {
+					op.errCode = http.StatusInternalServerError
+				}
 
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
@@ -496,14 +503,16 @@ func (op *Operation) Cancel() {
 	op.running.Cancel()
 
 	// If the operation has a run hook, then set the status to cancelling.
-	// When the hook returns, the status will be set to cancelled because the run context is cancelled.
+	// When the hook returns, the status, error and error code will be set to cancelled because the run context is cancelled.
 	// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
 	//
-	// If the operation does not have a run hook, immediately set the status to cancelled because there is nothing to clean up.
+	// If the operation does not have a run hook, immediately set the status and error to cancelled because there is nothing to clean up.
 	// We cannot use the operation context here because it has already been cancelled above.
 	if op.onRun != nil {
 		updateStatus(op, api.Cancelling)
 	} else {
+		op.err = context.Canceled.Error()
+		op.errCode = http.StatusInternalServerError
 		updateStatus(op, api.Cancelled)
 	}
 
@@ -534,8 +543,8 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 
 	if op.running.Err() != nil {
 		op.lock.Unlock()
-		if op.err != nil {
-			return nil, fmt.Errorf("Failed to connect to operation: %w", op.err)
+		if op.err != "" {
+			return nil, api.NewStatusError(int(op.errCode), "Failed to connect to operation: "+op.err)
 		}
 
 		return nil, api.NewStatusError(http.StatusBadRequest, "Only running operations can be connected")
@@ -602,15 +611,12 @@ func (op *Operation) Render() (string, *api.Operation) {
 		Metadata:    metadata,
 		MayCancel:   true,
 		Location:    op.location,
+		Err:         op.err,
 	}
 
 	requestor := op.Requestor()
 	if requestor != nil {
 		retOp.Requestor = requestor.OperationRequestor()
-	}
-
-	if op.err != nil {
-		retOp.Err = response.SmartError(op.err).String()
 	}
 
 	op.lock.Unlock()
@@ -638,7 +644,15 @@ func (op *Operation) RenderWithoutProgress() (string, *api.Operation) {
 func (op *Operation) Wait(ctx context.Context) error {
 	select {
 	case <-op.finished.Done():
-		return op.err
+		if op.err != "" {
+			// Custom error types can contain additional information about the failure.
+			// To ensure the error returned from the database is the same as error returned
+			// directly from the operation code, we return a new error object consisting
+			// only of the error message and error code.
+			return api.NewStatusError(int(op.errCode), op.err)
+		}
+
+		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}

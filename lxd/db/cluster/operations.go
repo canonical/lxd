@@ -157,15 +157,10 @@ func (r *RequestorProtocol) Value() (driver.Value, error) {
 // UpdateOperation updates operation status, metadata and error (if set) in the cluster db.
 // This is used to keep DB in sync with the current status of the operation when the operation changes
 // its status, or when calls to commit metadata explicitly.
-func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, updatedAt time.Time, newStatus api.StatusCode, metadata string, opErr error, opErrCode int64) error {
+func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, updatedAt time.Time, newStatus api.StatusCode, metadata string, opErr string, opErrCode int64) error {
 	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, metadata = ?, error = ?, error_code = ? WHERE uuid = ?`
 
-	opErrStr := ""
-	if opErr != nil {
-		opErrStr = opErr.Error()
-	}
-
-	result, err := tx.ExecContext(ctx, stmt, updatedAt, newStatus, metadata, opErrStr, opErrCode, opUUID)
+	result, err := tx.ExecContext(ctx, stmt, updatedAt, newStatus, metadata, opErr, opErrCode, opUUID)
 	if err != nil {
 		return fmt.Errorf("Failed updating operation status: %w", err)
 	}
