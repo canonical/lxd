@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
@@ -19,6 +20,12 @@ import (
 )
 
 var _ Connector = &connectorNVMe{}
+
+// nvmeDiskDevicePrefix is the prefix of the NVMe disk device name in /dev/disk/by-id/.
+const nvmeDiskDevicePrefix = "nvme-eui."
+
+// SubtypeNVMESubsys defines an NVMe subsystem type (from https://github.com/linux-nvme/libnvme/blob/97886cb68d238ccbbed804a275851f63e490b22f/src/nvme/fabrics.c#L99).
+const SubtypeNVMESubsys = "nvme subsystem"
 
 type connectorNVMe struct {
 	common
@@ -29,9 +36,6 @@ type NVMeDiscoveryLogRecord struct {
 	SubType string `json:"subtype"`
 	SubNQN  string `json:"subnqn"`
 }
-
-// SubtypeNVMESubsys defines an NVMe subsystem type (from https://github.com/linux-nvme/libnvme/blob/97886cb68d238ccbbed804a275851f63e490b22f/src/nvme/fabrics.c#L99).
-const SubtypeNVMESubsys = "nvme subsystem"
 
 type nvmeDiscoveryLog struct {
 	Records []NVMeDiscoveryLogRecord `json:"records"`
@@ -290,4 +294,14 @@ func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string)
 	}
 
 	return result, nil
+}
+
+// WaitDiskDevicePath waits for the mapped device to appear and returns its path.
+func (c *connectorNVMe) WaitDiskDevicePath(ctx context.Context, diskPathFilter block.DevicePathFilterFunc) (string, error) {
+	return block.WaitDiskDevicePath(ctx, nvmeDiskDevicePrefix, diskPathFilter)
+}
+
+// GetDiskDevicePath returns the path of the mapped device if it exists.
+func (c *connectorNVMe) GetDiskDevicePath(diskPathFilter block.DevicePathFilterFunc) (string, error) {
+	return block.GetDiskDevicePath(nvmeDiskDevicePrefix, diskPathFilter)
 }
