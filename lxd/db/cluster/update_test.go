@@ -804,7 +804,10 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	identity := getTLSIdentityByFingerprint("eeef45f0570ce713864c86ec60c8d88f60b4844d3a8849b262c77cb18e88394d")
 	assert.Equal(t, api.IdentityTypeCertificateClientRestricted, string(identity.Type))
 	assert.Equal(t, "restricted-client", identity.Name)
-	var metadata CertificateMetadata
+	var metadata struct {
+		Certificate string `json:"cert"`
+	}
+
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
 	assert.Equal(t, c1, metadata.Certificate)
