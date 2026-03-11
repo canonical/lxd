@@ -1995,7 +1995,7 @@ func (d *Daemon) init() error {
 func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string, identifier string) (*request.RequestorHookResult, error) {
 	res := &request.RequestorHookResult{}
 	err := d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(authenticationMethod), identifier)
+		id, err := dbCluster.GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), authenticationMethod, identifier)
 		if err != nil {
 			return fmt.Errorf("Failed getting identity: %w", err)
 		}
@@ -2015,16 +2015,12 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 
 		// If not fine-grained, get the project list.
 		if !idType.IsFineGrained() {
-			dbProjects, err := dbCluster.GetCertificateProjects(ctx, tx.Tx(), id.ID)
+			dbProjects, err := dbCluster.GetCertificateProjects(ctx, tx.Tx(), &id.ID)
 			if err != nil {
 				return fmt.Errorf("Failed getting projects for identity: %w", err)
 			}
 
-			res.Projects = make([]string, 0, len(dbProjects))
-			for _, p := range dbProjects {
-				res.Projects = append(res.Projects, p.Name)
-			}
-
+			res.Projects = dbProjects[id.ID]
 			return nil
 		}
 
