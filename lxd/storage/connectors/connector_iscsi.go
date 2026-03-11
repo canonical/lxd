@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
@@ -313,4 +314,53 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 	}
 
 	return result, nil
+}
+
+// RemoveDiskDevice removes the disk device from the system.
+//
+// When iSCSI volume is disconnected from the host, the device remains on the system.
+// The device can be removed either manually, or automatically when disconnecting from the iSCSI session.
+// However, logging out of the session is not desired as it would disconnect all connected volumes.
+// Therefore, this function manually removes the device, preserving other connected volumes.
+//
+// Note that iSCSI device should be removed from the host before being unmapped on the storage array side.
+// On some storage arrays (for example, HPE Alletra and Pure) we've seen that removing a vLUN from the array
+// immediately makes device inaccessible and traps any task that tries to access it
+// to D-state (and this task can be systemd-udevd which tries to remove a device node!).
+// That's why it is better to remove the device node from the host and then remove vLUN.
+func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, diskPath string) error {
+	if diskPath == "" {
+		return nil
+	}
+
+	if isMultipathDevice(diskPath) {
+		// Ask multipathd to remove the multipath device.
+		_, err := shared.RunCommand(ctx, "multipath", "-f", diskPath)
+		if err != nil {
+			return fmt.Errorf("Failed to remove multipath device %q: %w", diskPath, err)
+		}
+	} else {
+		// For non-multipath device (/dev/sd*), remove the device itself.
+		devName := filepath.Base(diskPath)
+		path := "/sys/block/" + devName + "/device/delete"
+
+		err := os.WriteFile(path, []byte("1"), 0400)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Failed to remove device %q: %w", diskPath, err)
+		}
+	}
+
+	// Wait until the device has disappeared.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	if !block.WaitDiskDeviceGone(ctx, diskPath) {
+		return fmt.Errorf("Timeout exceeded waiting for device %q to disappear", diskPath)
+	}
+
+	return nil
+}
+
+func isMultipathDevice(devicePath string) bool {
+	return strings.HasPrefix(filepath.Base(devicePath), "dm-")
 }
