@@ -43,6 +43,7 @@ type Connector interface {
 	Connect(ctx context.Context, targetQN string, targetAddrs ...string) (revert.Hook, error)
 	Disconnect(targetQN string) error
 	Discover(ctx context.Context, targetAddresses ...string) ([]any, error)
+	RemoveDiskDevice(ctx context.Context, diskPath string) error
 	findSession(targetQN string) (*session, error)
 }
 
