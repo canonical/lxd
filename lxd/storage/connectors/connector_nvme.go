@@ -305,3 +305,8 @@ func (c *connectorNVMe) WaitDiskDevicePath(ctx context.Context, diskPathFilter b
 func (c *connectorNVMe) GetDiskDevicePath(diskPathFilter block.DevicePathFilterFunc) (string, error) {
 	return block.GetDiskDevicePath(nvmeDiskDevicePrefix, diskPathFilter)
 }
+
+// RemoveDiskDevice does nothing. Device is removed when volume is unmapped on the storage array.
+func (c *connectorNVMe) RemoveDiskDevice(ctx context.Context, devicePath string) error {
+	return nil
+}
