@@ -3676,6 +3676,46 @@ test_clustering_evacuation() {
   LXD_NETNS=
 }
 
+test_clustering_evacuation_quorum_force() {
+  # Create a 2-node cluster. The second member joins as a standby, leaving
+  # node1 as the only raft voter. The quorum pre-check computes:
+  # requiredMajority=(totalVoters-1)/2+1 and remainingOnlineVoters=onlineVoters-1.
+  # Here that becomes requiredMajority=(1-1)/2+1=1 and
+  # remainingOnlineVoters=1-1=0, so evacuation without --force must fail (0 < 1).
+  spawn_lxd_and_bootstrap_cluster
+
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+
+  # Spawn a second node.
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+
+  # Verify the 2-node case above is rejected without --force.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --yes 2>&1)" = 'Error: Failed updating cluster member state: Evacuation aborted: insufficient online voters to maintain quorum' ]
+
+  # Verify --force overrides the quorum safety check.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --yes --force
+
+  # Verify the evacuation completed successfully.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Evacuated"
+
+  echo "Clean up"
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+
+  # shellcheck disable=SC2034
+  LXD_NETNS=
+}
+
 test_clustering_evacuation_restore_operations() {
   echo "Create cluster with 2 nodes"
 
