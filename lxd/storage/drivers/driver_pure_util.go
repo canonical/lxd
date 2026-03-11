@@ -1466,16 +1466,12 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 		return "", nil, fmt.Errorf("Failed to locate device for volume %q: Unexpected length of serial number %q (%d)", vol.name, pureVol.Serial, len(pureVol.Serial))
 	}
 
-	var diskPrefix string
 	var diskSuffix string
 
 	switch connector.Type() {
 	case connectors.TypeISCSI:
-		diskPrefix = "scsi-"
 		diskSuffix = pureVol.Serial
 	case connectors.TypeNVME:
-		diskPrefix = "nvme-eui."
-
 		// The disk device ID (e.g. "008726b5033af24324a9373d00014196") is constructed as:
 		// - "00"             - Padding
 		// - "8726b5033af243" - First 14 characters of serial number
@@ -1496,10 +1492,10 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 	var devicePath string
 	if mapVolume {
 		// Wait until the disk device is mapped to the host.
-		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, diskPrefix, diskPathFilter)
+		devicePath, err = connector.WaitDiskDevicePath(d.state.ShutdownCtx, diskPathFilter)
 	} else {
 		// Expect device to be already mapped.
-		devicePath, err = block.GetDiskDevicePath(diskPrefix, diskPathFilter)
+		devicePath, err = connector.GetDiskDevicePath(diskPathFilter)
 	}
 
 	if err != nil {
