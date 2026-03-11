@@ -4,7 +4,10 @@ package cluster
 
 import (
 	"context"
+	"crypto/x509"
 	"database/sql"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -247,10 +250,20 @@ func DeleteLegacyCertificate(ctx context.Context, tx *sql.Tx, fingerprint string
 
 // UpdateLegacyCertificate updates the certificate matching the given key parameters.
 func UpdateLegacyCertificate(ctx context.Context, tx *sql.Tx, object CertificateLegacy) error {
+	certBlock, _ := pem.Decode([]byte(object.Certificate))
+	if certBlock == nil {
+		return errors.New("Invalid certificate")
+	}
+
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return err
+	}
+
 	identity, err := object.ToIdentity()
 	if err != nil {
 		return err
 	}
 
-	return query.Update(ctx, tx, identity)
+	return UpdateIdentityCertificate(ctx, tx, *identity, *cert)
 }
