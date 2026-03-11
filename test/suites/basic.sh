@@ -676,6 +676,32 @@ test_basic_usage() {
   # Cleanup the containers
   lxc delete --force c1 c2
 
+  # Test --all flag in a non-default project
+  lxc project create foo
+  ensure_import_testimage foo
+  lxc profile show default | lxc profile edit default --project foo
+  lxc init testimage c1 --project foo
+  lxc init testimage c2 --project foo
+  lxc start --all --project foo
+  lxc list --project foo | grep c1 | grep RUNNING
+  lxc list --project foo | grep c2 | grep RUNNING
+
+  lxc freeze c2 --project foo
+  lxc list --project foo | grep c2 | grep FROZEN
+  lxc start --all --project foo
+  lxc list --project foo | grep c1 | grep RUNNING
+  lxc list --project foo | grep c2 | grep RUNNING
+
+  ! lxc stop --all c1 --project foo || false
+  lxc stop --all --force --project foo
+  lxc list --project foo | grep c1 | grep STOPPED
+  lxc list --project foo | grep c2 | grep STOPPED
+
+  # Cleanup the containers and project
+  lxc delete --force c1 c2 --project foo
+  lxc image delete testimage --project foo
+  lxc project delete foo
+
   # Ephemeral
   lxc launch testimage foo --ephemeral
   OLD_INIT="$(lxc list -f csv -c p foo)"
