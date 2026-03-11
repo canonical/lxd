@@ -858,12 +858,14 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 
 	// Get current database record.
 	var apiEntry *api.Certificate
+	var certificateID int64
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
 		}
 
+		certificateID = oldEntry.ID
 		apiEntry, err = oldEntry.ToAPI(ctx, tx.Tx())
 		return err
 	})
@@ -885,7 +887,7 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Apply the update.
-	return doCertificateUpdate(r.Context(), d, *apiEntry, req, r)
+	return doCertificateUpdate(r.Context(), d, certificateID, *apiEntry, req, r)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -925,12 +927,14 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get current database record.
 	var apiEntry *api.Certificate
+	var certificateID int64
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
 		}
 
+		certificateID = oldEntry.ID
 		apiEntry, err = oldEntry.ToAPI(ctx, tx.Tx())
 		return err
 	})
@@ -951,10 +955,10 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return doCertificateUpdate(r.Context(), d, *apiEntry, req.Writable(), r)
+	return doCertificateUpdate(r.Context(), d, certificateID, *apiEntry, req.Writable(), r)
 }
 
-func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate, req api.CertificatePut, r *http.Request) response.Response {
+func doCertificateUpdate(ctx context.Context, d *Daemon, certificateID int64, dbInfo api.Certificate, req api.CertificatePut, r *http.Request) response.Response {
 	s := d.State()
 
 	reqDBType, err := certificate.FromAPIType(req.Type)
@@ -964,6 +968,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 
 	// Convert to the database type.
 	dbCert := dbCluster.Certificate{
+		ID:          certificateID,
 		Certificate: dbInfo.Certificate,
 		Fingerprint: dbInfo.Fingerprint,
 		Restricted:  req.Restricted,
@@ -1001,6 +1006,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 
 		// Reset dbCert in order to prevent possible future security issues.
 		dbCert = dbCluster.Certificate{
+			ID:          certificateID,
 			Certificate: dbInfo.Certificate,
 			Fingerprint: dbInfo.Fingerprint,
 			Restricted:  dbInfo.Restricted,
@@ -1070,7 +1076,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 			return err
 		}
 
-		err = dbCluster.UpdateCertificate(ctx, tx.Tx(), dbInfo.Fingerprint, dbCert)
+		err = dbCluster.UpdateCertificate(ctx, tx.Tx(), dbCert)
 		if err != nil {
 			return err
 		}
