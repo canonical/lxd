@@ -94,3 +94,8 @@ func (c *connectorSDC) GetDiskDevicePath(diskPathFilter block.DevicePathFilterFu
 func (c *connectorSDC) RemoveDiskDevice(ctx context.Context, devicePath string) error {
 	return nil
 }
+
+// WaitDiskDeviceResize waits until the disk device reflects the new size.
+func (c *connectorSDC) WaitDiskDeviceResize(ctx context.Context, diskPath string, newSizeBytes int64) error {
+	return block.WaitDiskDeviceResize(ctx, diskPath, newSizeBytes)
+}
