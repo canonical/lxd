@@ -138,16 +138,16 @@ func (g *AuthGroupsRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity a
 }
 
 // GetIdentitiesByAuthGroupID returns the identities that are members of the group with the given ID.
-func GetIdentitiesByAuthGroupID(ctx context.Context, tx *sql.Tx, groupID int64) ([]Identity, error) {
+func GetIdentitiesByAuthGroupID(ctx context.Context, tx *sql.Tx, groupID int64) ([]IdentitiesRow, error) {
 	stmt := `
 SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 FROM identities
 JOIN identities_auth_groups ON identities.id = identities_auth_groups.identity_id
 WHERE identities_auth_groups.auth_group_id = ?`
 
-	var result []Identity
+	var result []IdentitiesRow
 	dest := func(scan func(dest ...any) error) error {
-		i := Identity{}
+		i := IdentitiesRow{}
 		err := scan(&i.ID, &i.AuthMethod, &i.Type, &i.Identifier, &i.Name, &i.Metadata)
 		if err != nil {
 			return err
@@ -167,16 +167,16 @@ WHERE identities_auth_groups.auth_group_id = ?`
 }
 
 // GetAllIdentitiesByAuthGroupIDs returns a map of group IDs to the identities that are members of the group with that ID.
-func GetAllIdentitiesByAuthGroupIDs(ctx context.Context, tx *sql.Tx) (map[int64][]Identity, error) {
+func GetAllIdentitiesByAuthGroupIDs(ctx context.Context, tx *sql.Tx) (map[int64][]IdentitiesRow, error) {
 	stmt := `
 SELECT identities_auth_groups.auth_group_id, identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 FROM identities
 JOIN identities_auth_groups ON identities.id = identities_auth_groups.identity_id`
 
-	result := make(map[int64][]Identity)
+	result := make(map[int64][]IdentitiesRow)
 	dest := func(scan func(dest ...any) error) error {
 		var groupID int64
-		i := Identity{}
+		i := IdentitiesRow{}
 		err := scan(&groupID, &i.ID, &i.AuthMethod, &i.Type, &i.Identifier, &i.Name, &i.Metadata)
 		if err != nil {
 			return err

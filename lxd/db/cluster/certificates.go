@@ -97,8 +97,8 @@ SELECT projects.id, projects.description, projects.name FROM projects
 	return getProjectsRaw(ctx, tx, q, certificateID)
 }
 
-// ToIdentity converts a Certificate to an Identity.
-func (cert Certificate) ToIdentity() (*Identity, error) {
+// ToIdentity converts a Certificate to an [IdentitiesRow].
+func (cert Certificate) ToIdentity() (*IdentitiesRow, error) {
 	identityType, err := cert.ToIdentityType()
 	if err != nil {
 		return nil, fmt.Errorf("Failed converting certificate to identity: %w", err)
@@ -109,7 +109,7 @@ func (cert Certificate) ToIdentity() (*Identity, error) {
 		return nil, fmt.Errorf("Failed converting certificate to identity: %w", err)
 	}
 
-	identity := &Identity{
+	identity := &IdentitiesRow{
 		ID:         cert.ID,
 		AuthMethod: AuthMethod(api.AuthenticationMethodTLS),
 		Type:       identityType,
