@@ -192,7 +192,7 @@ func createTLSListener(address string, defaultPort int64, cert *shared.CertInfo)
 
 	listener, err := net.Listen(protocol, listenAddress)
 	if err != nil {
-		return nil, fmt.Errorf("Bind network address: %w", err)
+		return nil, fmt.Errorf("Failed listening on address %q: %w", listenAddress, err)
 	}
 
 	return listeners.NewFancyTLSListener(listener, cert), nil
