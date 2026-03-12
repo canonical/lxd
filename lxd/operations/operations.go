@@ -110,6 +110,7 @@ type Operation struct {
 	requestor       *opRequestor
 	metricsCallback func(metrics.RequestResult)
 	logger          logger.Logger
+	location        string
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(context.Context, *Operation) error
@@ -254,6 +255,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 
 	if s != nil {
 		op.SetEventServer(s.Events)
+		op.location = s.ServerName
 	}
 
 	op.metadata, err = validateMetadata(args.Metadata)
@@ -599,15 +601,12 @@ func (op *Operation) Render() (string, *api.Operation) {
 		Resources:   renderedResources,
 		Metadata:    metadata,
 		MayCancel:   true,
+		Location:    op.location,
 	}
 
 	requestor := op.Requestor()
 	if requestor != nil {
 		retOp.Requestor = requestor.OperationRequestor()
-	}
-
-	if op.state != nil {
-		retOp.Location = op.state.ServerName
 	}
 
 	if op.err != nil {
