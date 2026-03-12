@@ -3520,13 +3520,6 @@ func (d *lxc) delete(force bool) error {
 			}
 		}
 
-		// Delete the MAAS entry.
-		err = d.maasDelete(d)
-		if err != nil {
-			d.logger.Error("Failed deleting instance MAAS record", logger.Ctx{"err": err})
-			return err
-		}
-
 		// Run device removal function for each device.
 		d.devicesRemove(d)
 
@@ -3673,14 +3666,6 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	if err != nil && !os.IsNotExist(err) {
 		d.logger.Error("Failed renaming instance", ctxMap)
 		return fmt.Errorf("Failed renaming instance: %w", err)
-	}
-
-	// Rename the MAAS entry.
-	if !d.IsSnapshot() {
-		err = d.maasRename(d, newName)
-		if err != nil {
-			return err
-		}
 	}
 
 	revert := revert.New()
@@ -4065,22 +4050,6 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	devlxdEvents, err := d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
-	}
-
-	// Update MAAS (must run after the MAC addresses have been generated).
-	updateMAAS := false
-	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
-		if slices.Contains(allUpdatedDeviceKeys, key) {
-			updateMAAS = true
-			break
-		}
-	}
-
-	if !d.IsSnapshot() && updateMAAS {
-		err = d.maasUpdate(d, oldExpandedDevices.CloneNative())
-		if err != nil {
-			return err
-		}
 	}
 
 	cpuLimitWasChanged := false
