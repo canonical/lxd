@@ -93,12 +93,6 @@ func (c *Config) MetricsAddress() string {
 	return metricsAddress
 }
 
-// MAASMachine returns the MAAS machine this instance is associated with, if
-// any.
-func (c *Config) MAASMachine() string {
-	return c.m.GetString("maas.machine")
-}
-
 // daemonStorageVolume returns the volume configured as images or backups storage for target project.
 // If project is not specified, or if project has no specifid storage volume configured, the daemon
 // storage volume is returned.
@@ -249,17 +243,6 @@ var ConfigSchema = config.Schema{
 		//  defaultdesc: `false`
 		//  shortdesc: Whether to enable the syslog unixgram socket listener
 		"core.syslog_socket": {Validator: validate.Optional(validate.IsBool), Type: config.Bool},
-
-		// MAAS machine this LXD instance is associated with
-
-		// lxdmeta:generate(entities=server; group=miscellaneous; key=maas.machine)
-		//
-		// ---
-		//  type: string
-		//  scope: local
-		//  defaultdesc: host name
-		//  shortdesc: Name of this LXD host in MAAS
-		"maas.machine": {},
 
 		// Storage volumes to store backups/images on
 
