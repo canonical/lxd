@@ -19,7 +19,7 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
-	lxd "github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/daemon"
