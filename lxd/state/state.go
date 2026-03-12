@@ -20,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/fsmonitor"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/maas"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/ubuntupro"
@@ -37,9 +36,6 @@ type State struct {
 
 	// Databases
 	DB *db.DB
-
-	// MAAS server
-	MAAS *maas.Controller
 
 	// BGP server
 	BGP *bgp.Server
