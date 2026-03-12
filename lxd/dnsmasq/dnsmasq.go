@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ import (
 )
 
 const staticAllocationDeviceSeparator = "."
+const staticAllocationRemovingSuffix = ".removing"
 
 // DHCPAllocation represents an IP allocation from dnsmasq.
 type DHCPAllocation struct {
@@ -76,10 +78,11 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 // inotify events. The caller should send SIGHUP via Kill(network, true) to reload dnsmasq.
 func RemoveStaticEntry(network, projectName, instanceName, deviceName string) error {
 	deviceStaticFileName := StaticAllocationFileName(projectName, instanceName, deviceName)
-	filePath := shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName)
+	netPath := shared.VarPath("networks", network, "dnsmasq.hosts")
+	filePath := filepath.Join(netPath, deviceStaticFileName)
 
 	// Sibling path avoids IN_MOVED_TO in dnsmasq's inotify watch on dnsmasq.hosts/.
-	tmpPath := shared.VarPath("networks", network, "dnsmasq.hosts") + "." + deviceStaticFileName + ".removing"
+	tmpPath := netPath + "." + deviceStaticFileName + staticAllocationRemovingSuffix
 
 	err := os.Rename(filePath, tmpPath)
 	if err != nil {
@@ -291,4 +294,37 @@ func StaticAllocationFileName(projectName string, instanceName string, deviceNam
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 
 	return strings.Join([]string{project.Instance(projectName, instanceName), escapedDeviceName}, staticAllocationDeviceSeparator)
+}
+
+// CleanupLeftoverRemovingFiles removes any leftover .removing files in the network directory.
+// These files can be left behind if LXD is stopped after renaming a file in RemoveStaticEntry
+// but before the file is actually deleted.
+// CleanupLeftoverRemovingFiles removes any leftover .removing files in the network directory.
+// These files can be left behind if LXD is stopped after renaming a file in RemoveStaticEntry
+// but before the file is actually deleted.
+func CleanupLeftoverRemovingFiles(network string) error {
+	netPath := shared.VarPath("networks", network, "dnsmasq.hosts")
+	dirPath := filepath.Dir(netPath)
+	basePrefix := filepath.Base(netPath) + "."
+
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return fmt.Errorf("Failed reading network directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		if strings.HasPrefix(name, basePrefix) && strings.HasSuffix(name, staticAllocationRemovingSuffix) {
+			err = os.Remove(filepath.Join(dirPath, name))
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("Failed removing leftover file %q: %w", name, err)
+			}
+		}
+	}
+
+	return nil
 }
