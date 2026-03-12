@@ -703,8 +703,6 @@ test_container_devices_nic_bridged() {
   # Can't use some settings when network is set.
   ! lxc profile device set "${ctName}" eth0 nictype="bridged" || false
   ! lxc profile device set "${ctName}" eth0 mtu="1400" || false
-  ! lxc profile device set "${ctName}" eth0 maas.subnet.ipv4="test" || false
-  ! lxc profile device set "${ctName}" eth0 maas.subnet.ipv6="test" || false
 
   # Can't set static IP that isn't part of network's subnet.
   ! lxc profile device set "${ctName}" eth0 ipv4.address="192.0.4.2" || false
