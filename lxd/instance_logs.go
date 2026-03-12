@@ -646,7 +646,12 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = pool.UnmountInstance(inst, nil) }()
+	defer func() {
+		err := pool.UnmountInstance(inst, nil)
+		if err != nil {
+			logger.Warn("Failed unmounting instance", logger.Ctx{"project": projectName, "instance": name, "err": err})
+		}
+	}()
 
 	err = os.Remove(filepath.Join(inst.ExecOutputPath(), file))
 	if err != nil {
