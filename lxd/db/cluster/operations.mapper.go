@@ -19,14 +19,14 @@ import (
 var _ = api.ServerEnvironment{}
 
 var operationObjects = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
+SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByNodeID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
+SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.node_id = ? )
@@ -34,7 +34,7 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
 `)
 
 var operationObjectsByID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
+SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.id = ? )
@@ -42,7 +42,7 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
 `)
 
 var operationObjectsByUUID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
+SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.uuid = ? )
@@ -73,7 +73,7 @@ func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operatio
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.Parent, &o.Stage)
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.Location, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.Parent, &o.Stage)
 		if err != nil {
 			return err
 		}
@@ -97,7 +97,7 @@ func getOperationsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) 
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.Parent, &o.Stage)
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.Location, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.Parent, &o.Stage)
 		if err != nil {
 			return err
 		}
