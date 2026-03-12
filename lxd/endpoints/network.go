@@ -1,6 +1,7 @@
 package endpoints
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/tcp"
 )
 
 // NetworkPublicKey returns the public key of the TLS certificate used by the
@@ -190,7 +192,12 @@ func createTLSListener(address string, defaultPort int64, cert *shared.CertInfo)
 		protocol = "tcp4"
 	}
 
-	listener, err := net.Listen(protocol, listenAddress)
+	kaConfig, _ := tcp.KeepAliveTimeouts()
+	lc := net.ListenConfig{
+		KeepAliveConfig: kaConfig,
+	}
+
+	listener, err := lc.Listen(context.TODO(), protocol, listenAddress)
 	if err != nil {
 		return nil, fmt.Errorf("Failed listening on address %q: %w", listenAddress, err)
 	}
