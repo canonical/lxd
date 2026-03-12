@@ -95,7 +95,7 @@ The following server options configure the external log aggregation system:
 (server-options-misc)=
 ## Miscellaneous options
 
-The following server options configure server-specific settings for {ref}`instances`, MAAS integration, {ref}`OVN <network-ovn>` integration, {ref}`Backups <backups>` and {ref}`storage`:
+The following server options configure server-specific settings for {ref}`instances`, {ref}`OVN <network-ovn>` integration, {ref}`Backups <backups>` and {ref}`storage`:
 
 % Include content from [metadata.txt](metadata.txt)
 ```{include} metadata.txt
