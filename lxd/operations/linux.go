@@ -173,10 +173,18 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 		finished:    cancel.New(),
 		running:     cancel.New(),
 		state:       s,
+		location:    dbOp.Location,
 	}
 
 	if dbOp.Error != "" {
 		op.err = errors.New(dbOp.Error)
+	}
+
+	// If server is not clustered, the DB contains 'none' as the node name. In that case we use the server name as the location.
+	if !s.ServerClustered {
+		op.location = s.ServerName
+	} else {
+		op.location = dbOp.Location
 	}
 
 	// If operation is already in final state, cancel both contexts, there's no point in running any hook.
