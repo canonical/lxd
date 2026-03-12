@@ -577,7 +577,12 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed starting transaction: %w", err))
 	}
 
-	defer func() { _ = tx.Rollback() }()
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+			logger.Warn("Failed rolling back transaction", logger.Ctx{"err": err})
+		}
+	}()
 
 	dump, err := query.Dump(r.Context(), tx, schemaOnly == 1)
 	if err != nil {
