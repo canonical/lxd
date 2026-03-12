@@ -544,35 +544,100 @@ test_container_devices_nic_bridged() {
     false
   fi
 
-  # Check dnsmasq host file is updated on new device.
+  # wait_for_dns_record retries a dig query until the response matches the given grep pattern or
+  # times out. A brief delay is expected after DHCP lease acquisition or dnsmasq reload.
+  wait_for_dns_record() {
+    local server="${1}" qtype="${2}" name="${3}" pattern="${4}" attempts=10
+    while [ "${attempts}" -gt 0 ]; do
+      if dig +short +retry=0 +timeout=1 "@${server}" "${qtype}" "${name}" | grep "${pattern}"; then
+        return 0
+      fi
+      sleep 0.2
+      attempts=$((attempts - 1))
+    done
+    false
+  }
+
+  sub_test "Verify bridged NIC add is reflected in dnsmasq config and DNS resolution"
   lxc init testimage "${ctName}" -d "${SMALL_ROOT_DISK}" -p "${ctName}"
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0 ipv4.address=192.0.2.200 ipv6.address=2001:db8::200
 
-  ls -lR "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/"
+  # Confirm static host entries are written to the hosts file.
+  grep -F "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0"
+  grep -F "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0"
 
-  if ! grep -F "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
-    echo "dnsmasq host config not updated with IPv4 address"
+  # Start the instance and request a DHCP lease; dnsmasq will then serve DNS for the static IP.
+  lxc start "${ctName}"
+  lxc exec "${ctName}" -- udhcpc -f -i eth0 -n -q -t5
+  wait_for_dns_record "192.0.2.1" A "${ctName}.${dnsDomain}" "192\.0\.2\.200"
+
+  # Request DHCPv6 lease and verify AAAA record (if udhcpc6 is in busybox image).
+  local hasIPv6=false
+  if lxc exec "${ctName}" -- busybox --list | grep -wF udhcpc6 ; then
+    lxc exec "${ctName}" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep -F 'IPv6 obtained'
+    wait_for_dns_record "192.0.2.1" AAAA "${ctName}.${dnsDomain}" "2001:db8::200"
+    hasIPv6=true
+  fi
+
+  sub_test "Verify bridged NIC update is reflected in dnsmasq config and DNS resolution"
+  lxc config device set "${ctName}" eth0 ipv4.address=192.0.2.201 ipv6.address=2001:db8::201
+
+  # Confirm the hosts file is updated with the new addresses and the old ones are gone.
+  grep -F "192.0.2.201" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0"
+  grep -F "2001:db8::201" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0"
+  if grep -F "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0"; then
+    echo "dnsmasq host config still contains stale IPv4 address after update"
+    false
+  fi
+  if grep -F "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0"; then
+    echo "dnsmasq host config still contains stale IPv6 address after update"
     false
   fi
 
-  if ! grep -F "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
-    echo "dnsmasq host config not updated with IPv6 address"
-    false
+  # Renew the DHCP lease so dnsmasq assigns and records the updated IP.
+  lxc exec "${ctName}" -- udhcpc -f -i eth0 -n -q -t5
+  wait_for_dns_record "192.0.2.1" A "${ctName}.${dnsDomain}" "192\.0\.2\.201"
+
+  # Renew DHCPv6 lease and verify updated AAAA record (if udhcpc6 is available).
+  if [ "${hasIPv6}" = "true" ]; then
+    lxc exec "${ctName}" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep -F 'IPv6 obtained'
+    wait_for_dns_record "192.0.2.1" AAAA "${ctName}.${dnsDomain}" "2001:db8::201"
   fi
 
-  lxc config device remove "${ctName}" eth0
+  sub_test "Verify bridged NIC delete is reflected in dnsmasq config and DNS resolution"
+  # Delete the instance. LXD calls Remove() on each NIC device, clearing the DHCP lease and
+  # the dnsmasq host entry, and notifying dnsmasq via SIGHUP.
+  lxc delete -f "${ctName}"
 
-  if grep -F "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
-    echo "dnsmasq host config still has old IPv4 address"
-    false
-  fi
+  # Confirm the hosts file entry is removed entirely.
+  [ ! -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ]
 
-  if grep -F "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
-    echo "dnsmasq host config still has old IPv6 address"
-    false
+  # Confirm the name no longer resolves after dnsmasq reloads.
+  local dns_gone_attempts=10
+  while [ "${dns_gone_attempts}" -gt 0 ]; do
+    if ! [ -n "$(dig +short +retry=0 +timeout=1 @192.0.2.1 A "${ctName}.${dnsDomain}")" ]; then
+      break
+    fi
+    sleep 0.2
+    dns_gone_attempts=$((dns_gone_attempts - 1))
+  done
+  [ "${dns_gone_attempts}" -gt 0 ]
+
+  # Confirm IPv6 no longer resolves either (only if DHCPv6 was tested).
+  if [ "${hasIPv6}" = "true" ]; then
+    local dns6_gone_attempts=10
+    while [ "${dns6_gone_attempts}" -gt 0 ]; do
+      if ! [ -n "$(dig +short +retry=0 +timeout=1 @192.0.2.1 AAAA "${ctName}.${dnsDomain}")" ]; then
+        break
+      fi
+      sleep 0.2
+      dns6_gone_attempts=$((dns6_gone_attempts - 1))
+    done
+    [ "${dns6_gone_attempts}" -gt 0 ]
   fi
 
   # Check dnsmasq leases file removed if DHCP disabled and that device can be removed.
+  lxc init testimage "${ctName}" -d "${SMALL_ROOT_DISK}" -p "${ctName}"
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
   lxc start "${ctName}"
   lxc exec "${ctName}" -- udhcpc -f -i eth0 -n -q -t5

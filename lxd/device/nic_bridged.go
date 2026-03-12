@@ -972,13 +972,8 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 		}
 	}
 
+	// Write the updated host entry. dnsmasq picks it up automatically via inotify on --dhcp-hostsdir.
 	err := dnsmasq.UpdateStaticEntry(d.config["parent"], d.inst.Project().Name, d.inst.Name(), d.Name(), d.network.Config(), d.config["hwaddr"], ipv4Address, ipv6Address)
-	if err != nil {
-		return err
-	}
-
-	// Reload dnsmasq to apply new settings.
-	err = dnsmasq.Kill(d.config["parent"], true)
 	if err != nil {
 		return err
 	}
