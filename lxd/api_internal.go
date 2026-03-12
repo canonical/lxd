@@ -1092,17 +1092,17 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 	}
 
 	// Next check if expandedDevices from backup.yaml has a root disk.
-	expandedRootName, expandedRootConfig, _ := api.GetRootDiskDevice(expandedDevices)
+	expandedRootName, expandedRootConfig, expandedRootErr := api.GetRootDiskDevice(expandedDevices)
 
 	// Extract root disk from expanded profile devices.
 	profileExpandedDevices := instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(localDevices), profiles)
-	profileExpandedRootName, profileExpandedRootConfig, _ := api.GetRootDiskDevice(profileExpandedDevices.CloneNative())
+	profileExpandedRootName, profileExpandedRootConfig, profileExpandedRootErr := api.GetRootDiskDevice(profileExpandedDevices.CloneNative())
 
 	// Record whether we need to add a new local disk device.
 	addLocalDisk := false
 
 	// We need to add a local root disk if the profiles don't have a root disk.
-	if profileExpandedRootName == "" {
+	if profileExpandedRootErr != nil || profileExpandedRootName == "" {
 		addLocalDisk = true
 	} else {
 		// Check profile expanded root disk is in the correct pool
@@ -1112,7 +1112,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 			// Check profile expanded root disk config matches the old expanded disk in backup.yaml.
 			// Excluding the "pool" property, which we ignore, as we have already checked the new
 			// profile root disk matches the target pool name.
-			if expandedRootName != "" {
+			if expandedRootErr == nil && expandedRootName != "" {
 				for k := range expandedRootConfig {
 					if k == "pool" {
 						continue // Ignore old pool name.
@@ -1147,7 +1147,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 		}
 
 		// Inherit any extra root disk config from the expanded root disk from backup.yaml.
-		if expandedRootName != "" {
+		if expandedRootErr == nil && expandedRootName != "" {
 			for k, v := range expandedRootConfig {
 				_, found := rootDev[k]
 				if !found {
