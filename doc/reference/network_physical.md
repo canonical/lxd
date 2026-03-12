@@ -17,7 +17,6 @@ The following configuration key namespaces are currently supported for the `phys
 - `dns` (DNS server and resolution configuration)
 - `ipv4` (L3 IPv4 configuration)
 - `ipv6` (L3 IPv6 configuration)
-- `maas` (MAAS network identification)
 - `ovn` (OVN configuration)
 - `user` (free-form key/value for user metadata)
 
