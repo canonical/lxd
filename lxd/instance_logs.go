@@ -546,7 +546,12 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	revert.Add(func() { _ = pool.UnmountInstance(inst, nil) })
+	revert.Add(func() {
+		err := pool.UnmountInstance(inst, nil)
+		if err != nil {
+			logger.Warn("Failed unmounting instance", logger.Ctx{"project": projectName, "instance": name, "err": err})
+		}
+	})
 	cleanup := revert.Clone()
 	revert.Success()
 
