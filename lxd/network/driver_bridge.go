@@ -2728,8 +2728,9 @@ func (n *bridge) updateForkdnsServersFile(addresses []string) error {
 	permName := shared.VarPath("networks", n.name, ForkdnsServersListPath+"/"+ForkdnsServersListFile)
 	tmpName := permName + ".tmp"
 
-	// Open tmp file and truncate
-	tmpFile, err := os.Create(tmpName)
+	// Open tmp file and truncate, using explicit permissions so the final servers.conf
+	// always ends up with mode 0644 regardless of the process umask.
+	tmpFile, err := os.OpenFile(tmpName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
