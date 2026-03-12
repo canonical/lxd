@@ -258,6 +258,55 @@ func LogPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
+// ParseEnvFile takes a path to a file with environment variables and returns a map of key-value pairs.
+func ParseEnvFile(path string) (map[string]string, error) {
+	envVars := map[string]string{}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Handle lines containing comments.
+		beforeComment, _, _ := strings.Cut(line, "#")
+		line = strings.TrimSpace(beforeComment)
+
+		// Skip empty lines and full-line comments.
+		if line == "" {
+			continue
+		}
+
+		// Handle the `export` keyword.
+		line = strings.TrimPrefix(line, "export ")
+
+		// Split into key and value (only on the first "=").
+		key, value, found := strings.Cut(line, "=")
+		if !found {
+			continue
+		}
+
+		// Trim and strip quotes.
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		value = strings.Trim(value, `"'`)
+
+		envVars[key] = value
+	}
+
+	err = scanner.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return envVars, nil
+}
+
 // LXDFileHeaders is extracted from the `X-LXD-*` family of file permissions
 // headers.
 type LXDFileHeaders struct {
