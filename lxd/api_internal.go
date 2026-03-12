@@ -641,11 +641,17 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 
 		if strings.HasPrefix(strings.ToUpper(query), "SELECT") {
 			err = internalSQLSelect(tx, query, &result)
-			_ = tx.Rollback()
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				logger.Warn("Failed rolling back transaction", logger.Ctx{"err": rollbackErr})
+			}
 		} else {
 			err = internalSQLExec(tx, query, &result)
 			if err != nil {
-				_ = tx.Rollback()
+				rollbackErr := tx.Rollback()
+				if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+					logger.Warn("Failed rolling back transaction", logger.Ctx{"err": rollbackErr})
+				}
 			} else {
 				err = tx.Commit()
 			}
