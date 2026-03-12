@@ -5660,14 +5660,6 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 		return err
 	}
 
-	// Rename the MAAS entry.
-	if !d.IsSnapshot() {
-		err = d.maasRename(d, newName)
-		if err != nil {
-			return err
-		}
-	}
-
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -6099,22 +6091,6 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	// Update MAAS (must run after the MAC addresses have been generated).
-	updateMAAS := false
-	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
-		if slices.Contains(allUpdatedDeviceKeys, key) {
-			updateMAAS = true
-			break
-		}
-	}
-
-	if !d.IsSnapshot() && updateMAAS {
-		err = d.maasUpdate(d, oldExpandedDevices.CloneNative())
-		if err != nil {
-			return err
-		}
-	}
-
 	if d.architectureSupportsUEFI(d.architecture) && slices.Contains(changedConfig, "boot.mode") {
 		// setupNvram() requires instance's config volume to be mounted.
 		// The easiest way to detect that is to check if instance is running.
@@ -6468,13 +6444,6 @@ func (d *qemu) delete(force bool) error {
 			if err != nil {
 				return err
 			}
-		}
-
-		// Delete the MAAS entry.
-		err = d.maasDelete(d)
-		if err != nil {
-			d.logger.Error("Failed deleting instance MAAS record", logger.Ctx{"err": err})
-			return err
 		}
 
 		// Run device removal function for each device.
