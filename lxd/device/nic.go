@@ -317,34 +317,6 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		//  managed: no
 		//  shortdesc: Whether to respect port isolation
 		"security.port_isolation": validate.Optional(validate.IsBool),
-		// lxdmeta:generate(entities=device-nic-{bridged+macvlan+sriov}; group=device-conf; key=maas.subnet.ipv4)
-		//
-		// ---
-		//  type: string
-		//  managed: yes
-		//  shortdesc: MAAS IPv4 subnet to register the instance in
-
-		// lxdmeta:generate(entities=device-nic-physical; group=device-conf; key=maas.subnet.ipv4)
-		//
-		// ---
-		//  type: string
-		//  managed: no
-		//  shortdesc: MAAS IPv4 subnet to register the instance in
-		"maas.subnet.ipv4": validate.IsAny,
-		// lxdmeta:generate(entities=device-nic-{bridged+macvlan+sriov}; group=device-conf; key=maas.subnet.ipv6)
-		//
-		// ---
-		//  type: string
-		//  managed: yes
-		//  shortdesc: MAAS IPv6 subnet to register the instance in
-
-		// lxdmeta:generate(entities=device-nic-physical; group=device-conf; key=maas.subnet.ipv6)
-		//
-		// ---
-		//  type: string
-		//  managed: no
-		//  shortdesc: MAAS IPv6 subnet to register the instance in
-		"maas.subnet.ipv6": validate.IsAny,
 		// lxdmeta:generate(entities=device-nic-bridged; group=device-conf; key=ipv4.address)
 		// Set this option to `none` to restrict all IPv4 traffic when {config:option}`device-nic-bridged-device-conf:security.ipv4_filtering` is set.
 		// ---
