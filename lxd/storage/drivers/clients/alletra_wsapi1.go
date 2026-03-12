@@ -985,7 +985,7 @@ func (p *AlletraClient) CreateVolumePhysicalCopy(ctx context.Context, poolName s
 
 	status, err := p.waitTaskFinish(ctx, strconv.Itoa(resp.TaskID))
 	if err != nil {
-		return fmt.Errorf(`Failed waiting for create a physical copy operation "%s/%s" to "%s/%s": %w`, poolName, volName, poolName, copyName, err)
+		return fmt.Errorf(`Failed waiting for the physical copy operation "%s/%s" to "%s/%s": %w`, poolName, volName, poolName, copyName, err)
 	}
 
 	switch status {
