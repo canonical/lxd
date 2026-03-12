@@ -38,7 +38,7 @@ const (
 	AppArmorNotAvailable
 	// MissingVirtiofsd represents the missing virtiofsd warning.
 	MissingVirtiofsd
-	// UnableToConnectToMAAS represents the unable to connect to MAAS warning.
+	// UnableToConnectToMAAS is deprecated and kept for backwards compatibility to preserve warning type codes.
 	UnableToConnectToMAAS
 	// AppArmorDisabledDueToRawDnsmasq represents the disabled AppArmor due to raw.dnsmasq warning.
 	AppArmorDisabledDueToRawDnsmasq
