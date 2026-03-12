@@ -45,23 +45,6 @@ func (n *sriov) Validate(config map[string]string) error {
 		//  shortdesc: VLAN ID to attach to
 		//  scope: global
 		"vlan": validate.Optional(validate.IsNetworkVLAN),
-		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=maas.subnet.ipv4)
-		//
-		// ---
-		//  type: string
-		//  condition: IPv4 address; using the `network` property on the NIC
-		//  shortdesc: MAAS IPv4 subnet to register instances in
-		//  scope: global
-		"maas.subnet.ipv4": validate.IsAny,
-		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=maas.subnet.ipv6)
-		//
-		// ---
-		//  type: string
-		//  condition: IPv6 address; using the `network` property on the NIC
-		//  shortdesc: MAAS IPv6 subnet to register instances in
-		//  scope: global
-		"maas.subnet.ipv6": validate.IsAny,
-
 		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=user.*)
 		//
 		// ---
