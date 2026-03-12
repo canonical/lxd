@@ -636,6 +636,22 @@ test_container_devices_nic_bridged() {
     [ "${dns6_gone_attempts}" -gt 0 ]
   fi
 
+  sub_test "Verify orphaned .removing files are cleaned up on network restart"
+  # Simulate a crash between the rename and delete in RemoveStaticEntry by placing a
+  # .removing file next to the dnsmasq.hosts directory (its sibling path).
+  local removingFile="${LXD_DIR}/networks/${brName}/dnsmasq.hosts.orphan.eth0.removing"
+  touch "${removingFile}"
+  [ -f "${removingFile}" ]
+
+  # Trigger a network reconfiguration to exercise CleanupLeftoverRemovingFiles during startup.
+  lxc network set "${brName}" ipv4.nat true
+
+  # Confirm the orphaned file was removed.
+  if [ -f "${removingFile}" ]; then
+    echo "orphaned .removing file was not cleaned up on network restart"
+    false
+  fi
+
   # Check dnsmasq leases file removed if DHCP disabled and that device can be removed.
   lxc init testimage "${ctName}" -d "${SMALL_ROOT_DISK}" -p "${ctName}"
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
