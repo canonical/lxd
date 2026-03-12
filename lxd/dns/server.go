@@ -83,15 +83,6 @@ func (s *Server) start(address string) error {
 	return nil
 }
 
-// Stop tears down the DNS listener.
-func (s *Server) Stop() error {
-	// Locking.
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.stop()
-}
-
 func (s *Server) stop() error {
 	// Skip if no instance.
 	if s.tcpDNS == nil || s.udpDNS == nil {
