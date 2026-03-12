@@ -404,10 +404,25 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 	deviceName := filepath.Base(devicePath)
 
 	if isMultipathDevice(devicePath) {
+		// Collect the slave devices before removing the multipath map,
+		// as /sys/block/dm-X/slaves/ will be gone after removal.
+		slavesPath := filepath.Join("/sys/block", deviceName, "slaves")
+		slaves, _ := os.ReadDir(slavesPath)
+
 		// Ask multipathd to remove the multipath device.
 		_, err := shared.RunCommand(ctx, "multipath", "-f", devicePath)
 		if err != nil {
 			return fmt.Errorf("Failed to remove multipath device %q: %w", devicePath, err)
+		}
+
+		// Remove the underlying SCSI devices that were part of the multipath map.
+		// If not removed, they remain on the system and cause I/O errors when the
+		// volume is disconnected from the storage array.
+		for _, slave := range slaves {
+			err := removeDevice(slave.Name())
+			if err != nil {
+				return fmt.Errorf("Failed to remove multipath slave device %q: %w", slave.Name(), err)
+			}
 		}
 	} else {
 		// For non-multipath device (/dev/sd*), remove the device itself.
