@@ -236,7 +236,7 @@ func (s *Client) watch(ctx context.Context, ubuntuAdvantageDir string) error {
 	configFilePath := path.Join(ubuntuAdvantageDir, "interfaces", "lxd-config.json")
 	err := s.parseConfigFile(configFilePath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		logger.Warn("Failed reading Ubunto Pro LXD configuration file", logger.Ctx{"err": err})
+		logger.Warn("Failed reading Ubuntu Pro LXD configuration file", logger.Ctx{"err": err})
 	}
 
 	// Watch /var/lib/ubuntu-advantage for write, remove, and rename events.
@@ -268,7 +268,7 @@ func (s *Client) watch(ctx context.Context, ubuntuAdvantageDir string) error {
 		// Otherwise, parse the config file and update the client accordingly.
 		err := s.parseConfigFile(path)
 		if err != nil {
-			logger.Warn("Failed reading Ubunto Pro LXD configuration file", logger.Ctx{"err": err})
+			logger.Warn("Failed reading Ubuntu Pro LXD configuration file", logger.Ctx{"err": err})
 		}
 
 		return true
