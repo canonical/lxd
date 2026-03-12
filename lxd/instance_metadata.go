@@ -613,7 +613,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	templatesPath := c.TemplatesPath()
-	err = os.MkdirAll(templatesPath, 0711)
+	err = os.MkdirAll(templatesPath, 0700)
 	if err != nil {
 		return response.SmartError(err)
 	}
