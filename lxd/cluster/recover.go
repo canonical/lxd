@@ -178,7 +178,7 @@ func writeGlobalNodesPatch(database *db.Node, nodes []db.RaftNode) error {
 		return fmt.Errorf("Found %s: %s", filePath, errPatchExists)
 	}
 
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
