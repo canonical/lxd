@@ -179,13 +179,13 @@ func CheckCASignature(cert x509.Certificate, networkCert *shared.CertInfo) (trus
 	}
 
 	if networkCert == nil {
-		logger.Error("Failed checking certificate has been signed by the CA, no network certificate provided")
+		logger.Error("Cannot verify whether the certificate was signed by the CA: no network certificate provided")
 		return false, false, ""
 	}
 
 	ca := networkCert.CA()
 	if ca == nil {
-		logger.Error("Failed checking certificate has been signed by the CA, no CA defined on network certificate")
+		logger.Error("Cannot verify whether the certificate was signed by the CA: no CA defined on network certificate")
 		return false, false, ""
 	}
 
