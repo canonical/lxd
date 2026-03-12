@@ -3024,7 +3024,7 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 	}
 
 	if targetSecrets[api.SecretNameControl] == "" {
-		return errors.New("Migration target did not setup the required \"control\" socket")
+		return errors.New("Migration target did not set up the required \"control\" socket")
 	}
 
 	// Struct used to hold everything together
