@@ -582,22 +582,6 @@
 						}
 					},
 					{
-						"maas.subnet.ipv4": {
-							"longdesc": "",
-							"managed": "yes",
-							"shortdesc": "MAAS IPv4 subnet to register the instance in",
-							"type": "string"
-						}
-					},
-					{
-						"maas.subnet.ipv6": {
-							"longdesc": "",
-							"managed": "yes",
-							"shortdesc": "MAAS IPv6 subnet to register the instance in",
-							"type": "string"
-						}
-					},
-					{
 						"mtu": {
 							"defaultdesc": "parent MTU",
 							"longdesc": "",
@@ -826,22 +810,6 @@
 							"longdesc": "",
 							"managed": "no",
 							"shortdesc": "MAC address of the new interface",
-							"type": "string"
-						}
-					},
-					{
-						"maas.subnet.ipv4": {
-							"longdesc": "",
-							"managed": "yes",
-							"shortdesc": "MAAS IPv4 subnet to register the instance in",
-							"type": "string"
-						}
-					},
-					{
-						"maas.subnet.ipv6": {
-							"longdesc": "",
-							"managed": "yes",
-							"shortdesc": "MAAS IPv6 subnet to register the instance in",
 							"type": "string"
 						}
 					},
@@ -1191,22 +1159,6 @@
 						}
 					},
 					{
-						"maas.subnet.ipv4": {
-							"longdesc": "",
-							"managed": "no",
-							"shortdesc": "MAAS IPv4 subnet to register the instance in",
-							"type": "string"
-						}
-					},
-					{
-						"maas.subnet.ipv6": {
-							"longdesc": "",
-							"managed": "no",
-							"shortdesc": "MAAS IPv6 subnet to register the instance in",
-							"type": "string"
-						}
-					},
-					{
 						"mtu": {
 							"condition": "container",
 							"defaultdesc": "parent MTU",
@@ -1456,22 +1408,6 @@
 							"longdesc": "",
 							"managed": "no",
 							"shortdesc": "MAC address of the new interface",
-							"type": "string"
-						}
-					},
-					{
-						"maas.subnet.ipv4": {
-							"longdesc": "",
-							"managed": "yes",
-							"shortdesc": "MAAS IPv4 subnet to register the instance in",
-							"type": "string"
-						}
-					},
-					{
-						"maas.subnet.ipv6": {
-							"longdesc": "",
-							"managed": "yes",
-							"shortdesc": "MAAS IPv6 subnet to register the instance in",
 							"type": "string"
 						}
 					},
@@ -3640,24 +3576,6 @@
 						}
 					},
 					{
-						"maas.subnet.ipv4": {
-							"condition": "IPv4 address; using the `network` property on the NIC",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "MAAS IPv4 subnet to register instances in",
-							"type": "string"
-						}
-					},
-					{
-						"maas.subnet.ipv6": {
-							"condition": "IPv6 address; using the `network` property on the NIC",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "MAAS IPv6 subnet to register instances in",
-							"type": "string"
-						}
-					},
-					{
 						"raw.dnsmasq": {
 							"longdesc": "",
 							"scope": "global",
@@ -4000,24 +3918,6 @@
 							"scope": "global",
 							"shortdesc": "Whether to use GARP VLAN Registration Protocol",
 							"type": "bool"
-						}
-					},
-					{
-						"maas.subnet.ipv4": {
-							"condition": "IPv4 address; using the `network` property on the NIC",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "MAAS IPv4 subnet to register instances in",
-							"type": "string"
-						}
-					},
-					{
-						"maas.subnet.ipv6": {
-							"condition": "IPv4 address; using the `network` property on the NIC",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "MAAS IPv6 subnet to register instances in",
-							"type": "string"
 						}
 					},
 					{
@@ -4472,24 +4372,6 @@
 						}
 					},
 					{
-						"maas.subnet.ipv4": {
-							"condition": "IPv4 address; using the `network` property on the NIC",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "MAAS IPv4 subnet to register instances in",
-							"type": "string"
-						}
-					},
-					{
-						"maas.subnet.ipv6": {
-							"condition": "IPv6 address; using the `network` property on the NIC",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "MAAS IPv6 subnet to register instances in",
-							"type": "string"
-						}
-					},
-					{
 						"mtu": {
 							"longdesc": "",
 							"scope": "global",
@@ -4537,24 +4419,6 @@
 		"network-sriov": {
 			"network-conf": {
 				"keys": [
-					{
-						"maas.subnet.ipv4": {
-							"condition": "IPv4 address; using the `network` property on the NIC",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "MAAS IPv4 subnet to register instances in",
-							"type": "string"
-						}
-					},
-					{
-						"maas.subnet.ipv6": {
-							"condition": "IPv6 address; using the `network` property on the NIC",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "MAAS IPv6 subnet to register instances in",
-							"type": "string"
-						}
-					},
 					{
 						"mtu": {
 							"longdesc": "",
@@ -5540,31 +5404,6 @@
 							"longdesc": "Possible values are `random` and `mac`.\n\nIf set to `random`, use the random host interface name as the host name.\nIf set to `mac`, generate a host name in the form `lxd\u003cmac_address\u003e` (MAC without leading two digits).",
 							"scope": "global",
 							"shortdesc": "How to set the host name for a NIC",
-							"type": "string"
-						}
-					},
-					{
-						"maas.api.key": {
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "API key to manage MAAS",
-							"type": "string"
-						}
-					},
-					{
-						"maas.api.url": {
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "URL of the MAAS server",
-							"type": "string"
-						}
-					},
-					{
-						"maas.machine": {
-							"defaultdesc": "host name",
-							"longdesc": "",
-							"scope": "local",
-							"shortdesc": "Name of this LXD host in MAAS",
 							"type": "string"
 						}
 					},
