@@ -19,7 +19,6 @@ Both the host and the instances can talk to the gateway, but they cannot communi
 
 The following configuration key namespaces are currently supported for the `macvlan` network type:
 
-- `maas` (MAAS network identification)
 - `user` (free-form key/value for user metadata)
 
 ```{note}
