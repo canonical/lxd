@@ -10,6 +10,8 @@ import (
 
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/tcp"
 )
 
 // FancyTLSListener is a variation of the standard tls.Listener that supports
@@ -38,6 +40,15 @@ func (l *FancyTLSListener) Accept() (net.Conn, error) {
 	c, err := l.Listener.Accept()
 	if err != nil {
 		return nil, err
+	}
+
+	tc, ok := c.(*net.TCPConn)
+	if ok {
+		_, userTimeout := tcp.KeepAliveTimeouts()
+		err = tcp.SetUserTimeout(tc, userTimeout)
+		if err != nil {
+			logger.Warn("Failed setting TCP user timeout on incoming connection", logger.Ctx{"address": c.RemoteAddr().String(), "err": err})
+		}
 	}
 
 	l.mu.RLock()
