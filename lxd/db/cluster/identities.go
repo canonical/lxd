@@ -478,30 +478,53 @@ WHERE identities_auth_groups.identity_id = ?
 	return query.Select[AuthGroupsRow](ctx, tx, clause, identityID)
 }
 
-// GetAllAuthGroupsByIdentityIDs returns a map of identity ID to slice of groups the identity with that ID is a member of.
-func GetAllAuthGroupsByIdentityIDs(ctx context.Context, tx *sql.Tx) (map[int64][]AuthGroupsRow, error) {
-	stmt := `
-SELECT identities_auth_groups.identity_id, auth_groups.id, auth_groups.name, auth_groups.description
-FROM auth_groups
-JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id`
+// GetIdentityAuthGroupNames returns a map of identity ID to slice of (alphabetically sorted) group names that the
+// identity with that ID is a member of. A filter can be passed in, which should return false to omit entries and true
+// to include them. This is useful for filtering out groups that the caller cannot view.
+// The optional identity ID field can be used to get authorization group names for only one identity, in which case the
+// output map contains only one key.
+func GetIdentityAuthGroupNames(ctx context.Context, tx *sql.Tx, identityID *int64, filter func(AuthGroupsRow) bool) (map[int64][]string, error) {
+	g := AuthGroupsRow{}
+	var b strings.Builder
+	b.WriteString(`SELECT identities_auth_groups.identity_id, `)
+	authGroupSelectColumns := g.SelectColumns()
+	b.WriteString(authGroupSelectColumns[0])
+	for _, col := range authGroupSelectColumns[1:] {
+		b.WriteString(", ")
+		b.WriteString(col)
+	}
 
-	result := make(map[int64][]AuthGroupsRow)
+	b.WriteString(` FROM auth_groups
+JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id
+`)
+	var args []any
+	if identityID != nil {
+		args = []any{*identityID}
+		b.WriteString(`WHERE identities_auth_groups.identity_id = ?`)
+	}
+
+	b.WriteString(`ORDER BY identities_auth_groups.identity_id, auth_groups.name`)
+
+	result := make(map[int64][]string)
 	dest := func(scan func(dest ...any) error) error {
 		var identityID int64
 		g := AuthGroupsRow{}
-		err := scan(&identityID, &g.ID, &g.Name, &g.Description)
+		err := scan(append([]any{&identityID}, g.ScanArgs()...)...)
 		if err != nil {
 			return err
 		}
 
-		result[identityID] = append(result[identityID], g)
+		if filter != nil && !filter(g) {
+			return nil
+		}
 
+		result[identityID] = append(result[identityID], g.Name)
 		return nil
 	}
 
-	err := query.Scan(ctx, tx, stmt, dest)
+	err := query.Scan(ctx, tx, b.String(), dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed getting identities for all groups: %w", err)
+		return nil, fmt.Errorf("Failed getting identities group membership: %w", err)
 	}
 
 	return result, nil
