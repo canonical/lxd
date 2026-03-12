@@ -547,8 +547,7 @@ func (c *cmdGlobal) CheckArgs(cmd *cobra.Command, args []string, minArgs int, ma
 			return true, nil
 		}
 
-		msg := "Invalid number of arguments"
-		return true, errors.New(msg)
+		return true, errors.New("Invalid number of arguments")
 	}
 
 	return false, nil
