@@ -1227,6 +1227,12 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 		return err
 	}
 
+	// Clean up any leftover .removing files from previous incomplete removals.
+	err = dnsmasq.CleanupLeftoverRemovingFiles(n.name)
+	if err != nil {
+		return err
+	}
+
 	// Check for dnsmasq.
 	_, err = exec.LookPath("dnsmasq")
 	if err != nil {
