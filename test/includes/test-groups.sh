@@ -113,6 +113,7 @@ readonly test_group_network=(
     "container_devices_nic_routed"
     "container_devices_nic_sriov"
     "projects_network"
+    "dns"
     "network"
     "network_acl"
     "network_forward"
