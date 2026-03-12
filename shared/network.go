@@ -51,7 +51,7 @@ func RFC3493Dialer(ctx context.Context, network string, address string) (net.Con
 		if ok {
 			err = tcp.SetUserTimeout(tc, userTimeout)
 			if err != nil {
-				logger.Warn("Failed setting TCP user timeout on remote connection", logger.Ctx{"address": a, "err": err})
+				logger.Warn("Failed setting TCP user timeout on outgoing connection", logger.Ctx{"address": a, "err": err})
 			}
 		}
 
