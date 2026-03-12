@@ -2140,7 +2140,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 
 			// Create forkdns servers.conf file if doesn't exist.
-			f, err := os.OpenFile(forkdnsPath+"/"+ForkdnsServersListFile, os.O_RDONLY|os.O_CREATE, 0666)
+			// forkdns reads servers.conf after dropping privileges to UnprivUser, so group and other read access is needed.
+			f, err := os.OpenFile(forkdnsPath+"/"+ForkdnsServersListFile, os.O_RDONLY|os.O_CREATE, 0644)
 			if err != nil {
 				return err
 			}
