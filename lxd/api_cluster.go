@@ -664,7 +664,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 				}
 
 				// Store the certificate in the local database.
-				dbCert := dbCluster.Certificate{
+				dbCert := dbCluster.CertificateLegacy{
 					Fingerprint: trustedCert.Fingerprint,
 					Type:        dbType,
 					Name:        trustedCert.Name,
@@ -675,7 +675,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 				logger.Debugf("Adding certificate %q (%s) to local trust store", trustedCert.Name, trustedCert.Fingerprint)
 
 				err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-					_, err := dbCluster.CreateCertificateWithProjects(ctx, tx.Tx(), dbCert, trustedCert.Projects)
+					_, err := dbCluster.CreateCertificateLegacyWithProjects(ctx, tx.Tx(), dbCert, trustedCert.Projects)
 					return err
 				})
 				if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {

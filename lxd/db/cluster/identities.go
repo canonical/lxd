@@ -184,8 +184,8 @@ func (c CertificateMetadata) X509() (*x509.Certificate, error) {
 	return cert, nil
 }
 
-// ToCertificate converts an [IdentitiesRow] to a [Certificate].
-func (i IdentitiesRow) ToCertificate() (*Certificate, error) {
+// ToCertificate converts an [IdentitiesRow] to a [CertificateLegacy].
+func (i IdentitiesRow) ToCertificate() (*CertificateLegacy, error) {
 	certificateType, err := i.Type.toCertificateType()
 	if err != nil {
 		return nil, fmt.Errorf("Failed converting identity type to certificate type: %w", err)
@@ -211,7 +211,7 @@ func (i IdentitiesRow) ToCertificate() (*Certificate, error) {
 		isRestricted = false
 	}
 
-	c := &Certificate{
+	c := &CertificateLegacy{
 		ID:          i.ID,
 		Fingerprint: i.Identifier,
 		Type:        certificateType,

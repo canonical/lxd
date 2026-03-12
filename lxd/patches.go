@@ -299,16 +299,16 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 	// Check all other members have done the same.
 	for {
 		var err error
-		var dbCerts []dbCluster.Certificate
+		var dbCerts []dbCluster.CertificateLegacy
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			dbCerts, _, err = dbCluster.GetCertificatesAndURLs(ctx, tx.Tx(), nil)
+			dbCerts, _, err = dbCluster.GetCertificatesAndURLsLegacy(ctx, tx.Tx(), nil)
 			return err
 		})
 		if err != nil {
 			return err
 		}
 
-		trustedServerCerts := make(map[string]dbCluster.Certificate)
+		trustedServerCerts := make(map[string]dbCluster.CertificateLegacy)
 
 		for _, c := range dbCerts {
 			if c.Type == certificate.TypeServer {

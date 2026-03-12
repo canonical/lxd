@@ -7,7 +7,7 @@ import (
 	"github.com/canonical/lxd/lxd/identity"
 )
 
-// entityTypeCertificate implements entityTypeDBInfo for a Certificate.
+// entityTypeCertificate implements entityTypeDBInfo for a CertificateLegacy.
 type entityTypeCertificate struct {
 	entityTypeCommon
 }

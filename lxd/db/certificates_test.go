@@ -19,13 +19,13 @@ func TestGetCertificate(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	_, err := cluster.CreateCertificate(ctx, tx.Tx(), cluster.Certificate{
+	_, err := cluster.CreateCertificateLegacy(ctx, tx.Tx(), cluster.CertificateLegacy{
 		Fingerprint: "foobar",
 		Type:        certificate.TypeClient,
 	})
 	require.NoError(t, err)
 
-	cert, err := cluster.GetCertificate(ctx, tx.Tx(), "foobar")
+	cert, err := cluster.GetCertificateLegacy(ctx, tx.Tx(), "foobar")
 	require.NoError(t, err)
 	assert.Equal(t, "foobar", cert.Fingerprint)
 }
