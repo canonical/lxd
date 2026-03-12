@@ -348,7 +348,7 @@ func doInstanceMetadataUpdate(s *state.State, inst instance.Instance, metadata a
 
 	// Update the metadata.
 	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
-	err = os.WriteFile(metadataPath, data, 0644)
+	err = os.WriteFile(metadataPath, data, 0600)
 	if err != nil {
 		return response.InternalError(err)
 	}
