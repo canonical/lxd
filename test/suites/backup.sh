@@ -434,61 +434,6 @@ EOF
   LXD_DIR="${LXD_INITIAL_DIR}"
 }
 
-test_bucket_recover() {
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-  if [ "${lxd_backend}" = "ceph" ]; then
-    export TEST_UNMET_REQUIREMENT="ceph does not support storage buckets"
-    return
-  fi
-
-  if ! command -v "minio" >/dev/null 2>&1; then
-    export TEST_UNMET_REQUIREMENT="minio command not found"
-    return
-  fi
-
-  poolName="lxdtest-$(basename "${LXD_DIR}")"
-  bucketName="bucket123"
-
-  # Create storage bucket
-  lxc storage bucket create "${poolName}" "${bucketName}"
-
-  # Create storage bucket keys
-  key1="$(lxc storage bucket key create "${poolName}" "${bucketName}" key1 --role admin)"
-  key2="$(lxc storage bucket key create "${poolName}" "${bucketName}" key2 --role read-only)"
-  key1_accessKey="$(echo "$key1" | awk '/^Access key/ { print $3 }')"
-  key1_secretKey="$(echo "$key1" | awk '/^Secret key/ { print $3 }')"
-  key2_accessKey="$(echo "$key2" | awk '/^Access key/ { print $3 }')"
-  key2_secretKey="$(echo "$key2" | awk '/^Secret key/ { print $3 }')"
-
-  # Remove bucket from global DB
-  lxd sql global "DELETE FROM storage_buckets WHERE name = '${bucketName}'"
-
-  # Recover bucket
-  lxd recover << EOF
-yes
-yes
-EOF
-
-  # Verify bucket is recovered
-  lxc storage bucket ls "${poolName}" --format compact | grep "${bucketName}"
-
-  # Verify bucket key with role admin is recovered
-  recoveredKey1=$(lxc storage bucket key show "${poolName}" "${bucketName}" "${key1_accessKey}")
-  echo "${recoveredKey1}" | grep -F "role: admin"
-  echo "${recoveredKey1}" | grep -F "access-key: ${key1_accessKey}"
-  echo "${recoveredKey1}" | grep -F "secret-key: ${key1_secretKey}"
-
-  # Verify bucket key with role read-only is recovered
-  recoveredKey2=$(lxc storage bucket key show "${poolName}" "${bucketName}" "${key2_accessKey}")
-  echo "${recoveredKey2}" | grep -F "role: read-only"
-  echo "${recoveredKey2}" | grep -F "access-key: ${key2_accessKey}"
-  echo "${recoveredKey2}" | grep -F "secret-key: ${key2_secretKey}"
-
-  # Cleanup
-  lxc storage bucket delete "${poolName}" "${bucketName}"
-}
-
 test_backup_import() {
   _backup_import_with_project
   _backup_import_with_project fooproject

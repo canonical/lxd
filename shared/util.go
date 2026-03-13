@@ -49,9 +49,6 @@ const HTTPDefaultPort = 8080
 // HTTPSMetricsDefaultPort is the default port for LXD metrics.
 const HTTPSMetricsDefaultPort = 9100
 
-// HTTPSStorageBucketsDefaultPort is the default port for the storage buckets listener.
-const HTTPSStorageBucketsDefaultPort = 9000
-
 // URLEncode encodes a path and query parameters to a URL.
 func URLEncode(path string, query map[string]string) (string, error) {
 	u, err := url.Parse(path)

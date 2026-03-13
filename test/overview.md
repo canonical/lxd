@@ -57,7 +57,7 @@ The **`code-tests`** job acts as the primary build and verification stage, provi
 graph TD
     subgraph CT_Cache [Cached assets]
         direction LR
-        O1[deps - liblxc/dqlite/minio]
+        O1[deps - liblxc/dqlite]
         O2[bins - lxd/lxc/dqlite]
         O3[snaps - lxd/microceph/microovn]
         O4[images - ubuntu-minimal-daily VM & container]
@@ -69,7 +69,7 @@ graph TD
         InstallDeps --> BuildProcess[Create LXD tarball & build binaries]
         BuildProcess --> StaticAnalysis[Run golangci-lint & generic static analysis]
         StaticAnalysis --> UnitTests[Execute unit tests]
-        UnitTests --> PrimeCaches[Prime caches: External images, snaps & minio]
+        UnitTests --> PrimeCaches[Prime caches: External images & snaps]
         PrimeCaches --> UploadArtifacts[Upload built binaries as system-test-deps]
         UploadArtifacts --> PickBackend[Logic: Select fast backend for system tests]
     end
@@ -189,7 +189,7 @@ graph TD
     subgraph ST [System tests]
         direction TB
         Matrix(["**Dimensions**: **group** x **backends**"]) --> InstallDeps[Install runtime & dqlite/liblxc dependencies]
-        InstallDeps --> PullArtifacts[Download images, snaps, minio & binaries]
+        InstallDeps --> PullArtifacts[Download images, snaps & binaries]
 
         PullArtifacts --> CephCheck{Is backend ceph or all?}
         CephCheck -- Yes --> SetupCeph[Setup MicroCeph 3-node cluster]

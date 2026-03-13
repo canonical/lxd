@@ -119,6 +119,7 @@ var patches = []patch{
 	{name: "storage_unset_ceph_force_reuse_setting", stage: patchPostDaemonStorage, run: patchUnsetCephForceReuseSetting},
 	{name: "vm_rename_security_csm", stage: patchPostDaemonStorage, run: patchVMRenameSecurityCSM},
 	{name: "vm_set_max_bus_ports", stage: patchPostDaemonStorage, run: patchVMSetMaxBusPorts},
+	{name: "storage_remove_local_buckets", stage: patchPostDaemonStorage, run: patchStorageRemoveLocalBuckets},
 }
 
 type patch struct {
@@ -2269,3 +2270,47 @@ func patchVMSetMaxBusPorts(_ string, d *Daemon) error {
 }
 
 // Patches end here
+
+// patchStorageRemoveLocalBuckets removes the orphaned "buckets/" directories from local storage pools
+// and the core.storage_buckets_address config key since local storage drivers no longer support storage buckets.
+func patchStorageRemoveLocalBuckets(_ string, d *Daemon) error {
+	s := d.State()
+
+	var pools []string
+
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		pools, err = tx.GetStoragePoolNames(ctx)
+
+		return err
+	})
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting storage pool names: %w", err)
+	}
+
+	for _, pool := range pools {
+		path := filepath.Join(storageDrivers.GetPoolMountPath(pool), "buckets")
+
+		// The upgrade is blocked by checkNoLocalStorageBuckets if any local
+		// buckets still exist in the database, so the "buckets/" directory is
+		// guaranteed to be empty here and os.Remove is safe (would fail if the
+		// directory is not empty).
+		err := os.Remove(path)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("Failed removing bucket directory %q: %w", path, err)
+		}
+	}
+
+	// Remove the core.storage_buckets_address config key which was used to configure the S3 listener.
+	_, err = s.DB.Cluster.DB().ExecContext(d.shutdownCtx, `DELETE FROM config WHERE key = 'core.storage_buckets_address'`)
+	if err != nil {
+		return fmt.Errorf("Failed removing core.storage_buckets_address config key: %w", err)
+	}
+
+	return nil
+}

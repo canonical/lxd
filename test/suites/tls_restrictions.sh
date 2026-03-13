@@ -449,50 +449,53 @@ test_tls_restrictions() {
   lxc_remote storage volume delete "localhost:${pool_name}" blah-volume --project blah
 
   ### STORAGE BUCKETS (initial value is true for new projects)
-  create_object_storage_pool s3
+  if [ "$(storage_backend "$LXD_DIR")" = "ceph" ] && [ -n "${LXD_CEPH_CEPHOBJECT_RADOSGW:-}" ]; then
+    create_object_storage_pool s3
 
-  # Unset the storage buckets feature (the default is false).
-  lxc project unset blah features.storage.buckets
+    # Unset the storage buckets feature (the default is false).
+    lxc project unset blah features.storage.buckets
 
-  # Create a storage bucket in the default project.
-  bucketName="bucket$$"
-  lxc storage bucket create s3 "${bucketName}" --project default
+    # Create a storage bucket in the default project.
+    bucketName="bucket$$"
+    lxc storage bucket create s3 "${bucketName}" --project default
 
-  # The storage bucket we created in the default project is visible in project blah.
-  lxc_remote storage bucket show localhost:s3 "${bucketName}" --project blah
-  lxc_remote storage bucket list localhost:s3 --project blah | grep -F "${bucketName}"
+    # The storage bucket we created in the default project is visible in project blah.
+    lxc_remote storage bucket show localhost:s3 "${bucketName}" --project blah
+    lxc_remote storage bucket list localhost:s3 --project blah | grep -F "${bucketName}"
 
-  # The restricted client can't view it via project default.
-  ! lxc_remote storage bucket show localhost:s3 "${bucketName}" --project default || false
-  ! lxc_remote storage bucket list localhost:s3 --project default | grep -F "${bucketName}" || false
+    # The restricted client can't view it via project default.
+    ! lxc_remote storage bucket show localhost:s3 "${bucketName}" --project default || false
+    ! lxc_remote storage bucket list localhost:s3 --project default | grep -F "${bucketName}" || false
 
-  # The restricted client can edit the storage bucket.
-  lxc_remote storage bucket set localhost:s3 "${bucketName}" user.foo=bar --project blah
+    # The restricted client can edit the storage bucket.
+    lxc_remote storage bucket set localhost:s3 "${bucketName}" user.foo=bar --project blah
 
-  # The restricted client can delete the storage bucket.
-  lxc_remote storage bucket delete localhost:s3 "${bucketName}" --project blah
+    # The restricted client can delete the storage bucket.
+    lxc_remote storage bucket delete localhost:s3 "${bucketName}" --project blah
 
-  # Create a storage bucket in the blah project.
-  lxc_remote storage bucket create localhost:s3 blah-bucket --project blah
+    # Create a storage bucket in the blah project.
+    lxc_remote storage bucket create localhost:s3 blah-bucket --project blah
 
-  # Storage bucket is visible to restricted client in project blah.
-  lxc_remote storage bucket show localhost:s3 blah-bucket --project blah
-  lxc_remote storage bucket list localhost:s3 --project blah | grep blah-bucket
+    # Storage bucket is visible to restricted client in project blah.
+    lxc_remote storage bucket show localhost:s3 blah-bucket --project blah
+    lxc_remote storage bucket list localhost:s3 --project blah | grep blah-bucket
 
-  # The storage bucket is actually in the default project.
-  lxc storage bucket show s3 blah-bucket --project default
+    # The storage bucket is actually in the default project.
+    lxc storage bucket show s3 blah-bucket --project default
 
-  # The restricted client can't view it via the default project.
-  ! lxc_remote storage bucket show localhost:s3 blah-bucket --project default || false
+    # The restricted client can't view it via the default project.
+    ! lxc_remote storage bucket show localhost:s3 blah-bucket --project default || false
 
-  # The restricted client can delete the storage bucket.
-  lxc_remote storage bucket delete localhost:s3 blah-bucket --project blah
+    # The restricted client can delete the storage bucket.
+    lxc_remote storage bucket delete localhost:s3 blah-bucket --project blah
+
+    # Cleanup
+    delete_object_storage_pool s3
+  fi
 
   echo "Trying to set restricted=false while projects is non-empty should fail."
   ! lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}" || false
 
-  # Cleanup
-  delete_object_storage_pool s3
   rm "${TEST_DIR}/${test_image_fingerprint}.tar"*
 
   # First clear projects (while still restricted=true, so validation allows it).

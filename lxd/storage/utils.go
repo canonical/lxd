@@ -322,40 +322,10 @@ func VolumeDBSnapshotsGet(pool Pool, projectName string, volume string, volumeTy
 	return snapshots, nil
 }
 
-// BucketDBGet loads a bucket from the database.
-func BucketDBGet(pool Pool, projectName string, bucketName string, memberSpecific bool) (*db.StorageBucket, error) {
-	p, ok := pool.(*lxdBackend)
-	if !ok {
-		return nil, errors.New("Pool is not a lxdBackend")
-	}
-
-	var err error
-	var bucket *db.StorageBucket
-
-	// Get the storage bucket.
-	err = p.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), projectName, memberSpecific, bucketName)
-		if err != nil {
-			if response.IsNotFoundError(err) {
-				return fmt.Errorf("Storage bucket %q in project %q does not exist on pool %q: %w", bucketName, projectName, pool.Name(), err)
-			}
-
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return bucket, nil
-}
-
 // BucketDBCreate creates a bucket in the database.
 // The supplied bucket's config may be modified with defaults for the storage pool being used.
 // Returns bucket DB record ID.
-func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSpecific bool, bucket *api.StorageBucketsPost) (int64, error) {
+func BucketDBCreate(ctx context.Context, pool Pool, projectName string, bucket *api.StorageBucketsPost) (int64, error) {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return -1, errors.New("Pool is not a lxdBackend")
@@ -391,7 +361,7 @@ func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSp
 
 	err = p.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Create the database entry for the storage bucket.
-		bucketID, err = tx.CreateStoragePoolBucket(ctx, p.ID(), projectName, memberSpecific, *bucket)
+		bucketID, err = tx.CreateStoragePoolBucket(ctx, p.ID(), projectName, *bucket)
 
 		return err
 	})
@@ -453,15 +423,6 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		// ---
 		//  type: string
 		//  shortdesc: Quota of the storage bucket
-		//  scope: local
-
-		// lxdmeta:generate(entities=storage-btrfs,storage-lvm,storage-zfs; group=bucket-conf; key=size)
-		//
-		// ---
-		//  type: string
-		//  condition: appropriate driver
-		//  defaultdesc: same as `volume.size`
-		//  shortdesc: Size/quota of the storage bucket
 		//  scope: local
 		"size": validate.Optional(validate.IsSize),
 		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure,storage-alletra; group=volume-conf; key=snapshots.expiry)

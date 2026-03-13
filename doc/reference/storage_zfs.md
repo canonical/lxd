@@ -115,13 +115,3 @@ The following configuration options are available for storage pools that use the
     :start-after: <!-- config group storage-zfs-volume-conf start -->
     :end-before: <!-- config group storage-zfs-volume-conf end -->
 ```
-
-### Storage bucket configuration
-
-To enable storage buckets for local storage pool drivers and allow applications to access the buckets via the S3 protocol, you must configure the {config:option}`server-core:core.storage_buckets_address` server setting.
-
-% Include content from [../metadata.txt](../metadata.txt)
-```{include} ../metadata.txt
-    :start-after: <!-- config group storage-zfs-bucket-conf start -->
-    :end-before: <!-- config group storage-zfs-bucket-conf end -->
-```

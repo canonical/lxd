@@ -141,6 +141,11 @@ func EnsureSchema(db *sql.DB, address string, dir string, serverUUID string) err
 			return fmt.Errorf("Failed updating cluster member version info for %q: %w", address, err)
 		}
 
+		err = checkNoLocalStorageBuckets(ctx, tx)
+		if err != nil {
+			return err
+		}
+
 		return checkClusterIsUpgradable(ctx, tx, [2]int{len(updates), apiExtensions})
 	}
 
@@ -262,6 +267,42 @@ func dqliteDriverName() string {
 // to unregister drivers, and in unit tests more than one driver gets
 // registered.
 var dqliteDriverSerial uint64
+
+// checkNoLocalStorageBuckets returns an error if the database contains any storage buckets backed by
+// a local (non-object) storage pool driver. Such buckets are no longer supported and must be removed
+// before the schema can be upgraded.
+func checkNoLocalStorageBuckets(ctx context.Context, tx *sql.Tx) error {
+	// Check whether the storage_buckets table already exists (it may not in very old schemas).
+	var tableName string
+	err := tx.QueryRowContext(ctx, "SELECT name FROM sqlite_master WHERE type='table' AND name='storage_buckets'").Scan(&tableName)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil // Table doesn't exist yet, nothing to check.
+	}
+
+	if err != nil {
+		return fmt.Errorf("Failed checking if storage_buckets table exists: %w", err)
+	}
+
+	var count int
+	err = tx.QueryRowContext(ctx, `
+SELECT COUNT(sb.id)
+FROM storage_buckets AS sb
+JOIN storage_pools AS sp ON sb.storage_pool_id = sp.id
+WHERE sp.driver != 'cephobject'
+`).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("Failed checking for local storage buckets: %w", err)
+	}
+
+	if count > 0 {
+		return errors.New("This LXD version no longer supports storage buckets backed by local storage drivers. " +
+			"This server has one or more such buckets and cannot be upgraded. " +
+			"To continue using those buckets, roll back to the previous LXD version. " +
+			"To proceed with the upgrade, back up and delete all locally-backed storage buckets first, then retry.")
+	}
+
+	return nil
+}
 
 func checkClusterIsUpgradable(ctx context.Context, tx *sql.Tx, target [2]int) error {
 	// Get the current versions in the nodes table.

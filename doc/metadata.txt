@@ -4822,13 +4822,6 @@ If this option is not specified, LXD falls back to the `NO_PROXY` environment va
 Specify the number of minutes to wait for running operations to complete before the LXD server shuts down.
 ```
 
-```{config:option} core.storage_buckets_address server-core
-:scope: "local"
-:shortdesc: "Address to bind the storage object server to (HTTPS)"
-:type: "string"
-See {ref}`howto-storage-buckets`.
-```
-
 ```{config:option} core.syslog_socket server-core
 :defaultdesc: "`false`"
 :scope: "local"
@@ -5344,17 +5337,6 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```
 
 <!-- config group storage-alletra-volume-conf end -->
-<!-- config group storage-btrfs-bucket-conf start -->
-```{config:option} size storage-btrfs-bucket-conf
-:condition: "appropriate driver"
-:defaultdesc: "same as `volume.size`"
-:scope: "local"
-:shortdesc: "Size/quota of the storage bucket"
-:type: "string"
-
-```
-
-<!-- config group storage-btrfs-bucket-conf end -->
 <!-- config group storage-btrfs-pool-conf start -->
 ```{config:option} btrfs.mount_options storage-btrfs-pool-conf
 :defaultdesc: "`user_subvol_rm_allowed`"
@@ -6113,17 +6095,6 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```
 
 <!-- config group storage-dir-volume-conf end -->
-<!-- config group storage-lvm-bucket-conf start -->
-```{config:option} size storage-lvm-bucket-conf
-:condition: "appropriate driver"
-:defaultdesc: "same as `volume.size`"
-:scope: "local"
-:shortdesc: "Size/quota of the storage bucket"
-:type: "string"
-
-```
-
-<!-- config group storage-lvm-bucket-conf end -->
 <!-- config group storage-lvm-pool-conf start -->
 ```{config:option} lvm.thinpool_metadata_size storage-lvm-pool-conf
 :defaultdesc: "`0` (auto)"
@@ -6774,17 +6745,6 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```
 
 <!-- config group storage-pure-volume-conf end -->
-<!-- config group storage-zfs-bucket-conf start -->
-```{config:option} size storage-zfs-bucket-conf
-:condition: "appropriate driver"
-:defaultdesc: "same as `volume.size`"
-:scope: "local"
-:shortdesc: "Size/quota of the storage bucket"
-:type: "string"
-
-```
-
-<!-- config group storage-zfs-bucket-conf end -->
 <!-- config group storage-zfs-pool-conf start -->
 ```{config:option} size storage-zfs-pool-conf
 :defaultdesc: "auto (20% of free disk space, >= 5 GiB and <= 30 GiB)"

@@ -35,7 +35,6 @@ Feature                                     | Directory | Btrfs | LVM   | ZFS
 {ref}`storage-restore-older-snapshots`      | ✅        | ✅   | ✅     | ❌
 {ref}`storage-quotas`                       | ✅[^3]    | ✅   | ✅     | ✅
 {ref}`storage-available-init`               | ✅        | ✅   | ✅     | ✅
-{ref}`storage-object-storage`               | ✅        | ✅   | ✅     | ✅
 {ref}`storage-volume-recovery`              | ✅        | ✅   | ✅     | ✅
 
 [^1]: Requires {config:option}`storage-lvm-pool-conf:lvm.use_thinpool` to be enabled. Only when refreshing local volumes.
