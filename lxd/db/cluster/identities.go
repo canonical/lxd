@@ -27,34 +27,6 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t identities.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -e identity objects table=identities
-//go:generate mapper stmt -e identity objects-by-ID table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod-and-Type table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod-and-Identifier table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod-and-Name table=identities
-//go:generate mapper stmt -e identity objects-by-Type table=identities
-//go:generate mapper stmt -e identity id table=identities
-//go:generate mapper stmt -e identity create struct=Identity table=identities
-//go:generate mapper stmt -e identity delete-by-AuthMethod-and-Identifier table=identities
-//go:generate mapper stmt -e identity delete-by-Name-and-Type table=identities
-//go:generate mapper stmt -e identity update struct=Identity table=identities
-//
-//go:generate mapper method -i -e identity GetMany
-//go:generate mapper method -i -e identity GetOne
-//go:generate mapper method -i -e identity ID struct=Identity
-//go:generate mapper method -i -e identity Create struct=Identity
-//go:generate mapper method -i -e identity DeleteOne-by-AuthMethod-and-Identifier
-//go:generate mapper method -i -e identity DeleteMany-by-Name-and-Type
-//go:generate mapper method -i -e identity Update struct=Identity
-//go:generate goimports -w identities.mapper.go
-//go:generate goimports -w identities.interface.mapper.go
-
 // AuthMethod is a database representation of an authentication method.
 //
 // AuthMethod is defined on string so that API constants can be converted by casting. The [sql.Scanner] and
@@ -171,32 +143,25 @@ func (i IdentityType) toCertificateType() (certificate.Type, error) {
 }
 
 // Identity is a database representation of any authenticated party.
+// db:model identities
 type Identity struct {
-	ID         int64
-	AuthMethod AuthMethod `db:"primary=yes"`
-	Type       IdentityType
-	Identifier string `db:"primary=yes"`
-	Name       string
-	Metadata   string
+	ID         int64        `db:"id"`
+	AuthMethod AuthMethod   `db:"auth_method"`
+	Type       IdentityType `db:"type"`
+	Identifier string       `db:"identifier"`
+	Name       string       `db:"name"`
+	Metadata   string       `db:"metadata"`
+
+	// db:join LEFT JOIN identities_certificates ON identities.id = identities_certificates.identity_id
+	CertificateID int64 `db:"coalesce(identities_certificates.certificate_id, 0) AS certificate_id"`
+
+	// db:join LEFT JOIN certificates ON identities_certificates.certificate_id = certificates.id
+	Certificate string `db:"coalesce(certificates.certificate, '') AS certificate"`
 }
 
-// IdentityFilter contains fields upon which identities can be filtered.
-type IdentityFilter struct {
-	ID         *int64
-	AuthMethod *AuthMethod
-	Type       *IdentityType
-	Identifier *string
-	Name       *string
-}
-
-// CertificateMetadata contains metadata for certificate identities. Currently this is only the certificate itself.
-type CertificateMetadata struct {
-	Certificate string `json:"cert"`
-}
-
-// X509 returns an [x509.Certificate] from the [CertificateMetadata].
-func (c CertificateMetadata) X509() (*x509.Certificate, error) {
-	certBlock, _ := pem.Decode([]byte(c.Certificate))
+// X509 returns an [x509.Certificate] from the [Identity.Certificate].
+func (i Identity) X509() (*x509.Certificate, error) {
+	certBlock, _ := pem.Decode([]byte(i.Certificate))
 	if certBlock == nil {
 		return nil, errors.New("Failed decoding certificate")
 	}
@@ -210,16 +175,10 @@ func (c CertificateMetadata) X509() (*x509.Certificate, error) {
 }
 
 // ToCertificate converts an [Identity] to a [Certificate].
-func (i Identity) ToCertificate() (*Certificate, error) {
+func (i Identity) ToCertificate() (*CertificateLegacy, error) {
 	certificateType, err := i.Type.toCertificateType()
 	if err != nil {
 		return nil, fmt.Errorf("Failed converting identity type to certificate type: %w", err)
-	}
-
-	var metadata CertificateMetadata
-	err = json.Unmarshal([]byte(i.Metadata), &metadata)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
 	}
 
 	identityType, err := identity.New(string(i.Type))
@@ -236,52 +195,16 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 		isRestricted = false
 	}
 
-	c := &Certificate{
+	c := &CertificateLegacy{
 		ID:          i.ID,
 		Fingerprint: i.Identifier,
 		Type:        certificateType,
 		Name:        i.Name,
-		Certificate: metadata.Certificate,
+		Certificate: i.Certificate,
 		Restricted:  isRestricted,
 	}
 
 	return c, nil
-}
-
-// CertificateMetadata returns the metadata associated with the identity as [CertificateMetadata]. It fails if the
-// authentication method is not [api.AuthentictionMethodTLS] or if the type is [api.IdentityTypeClientCertificatePending],
-// as they do not have metadata of this type.
-func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
-	if i.AuthMethod != api.AuthenticationMethodTLS {
-		return nil, fmt.Errorf("Cannot get certificate metadata: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
-	}
-
-	identityType, err := identity.New(string(i.Type))
-	if err != nil {
-		return nil, err
-	}
-
-	if identityType.IsPending() {
-		return nil, errors.New("Cannot get certificate metadata: Identity is pending")
-	}
-
-	var metadata CertificateMetadata
-	err = json.Unmarshal([]byte(i.Metadata), &metadata)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
-	}
-
-	return &metadata, nil
-}
-
-// X509 returns an [x509.Certificate] from the identity metadata. The [AuthMethod] of the [Identity] must be [api.AuthenticationMethodTLS].
-func (i Identity) X509() (*x509.Certificate, error) {
-	metadata, err := i.CertificateMetadata()
-	if err != nil {
-		return nil, err
-	}
-
-	return metadata.X509()
 }
 
 // OIDCMetadata contains metadata for OIDC identities.
@@ -356,74 +279,64 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 		}
 	}
 
-	identityType, err := identity.New(string(i.Type))
-	if err != nil {
-		return nil, err
-	}
-
-	var tlsCertificate string
-	if i.AuthMethod == api.AuthenticationMethodTLS && !identityType.IsPending() {
-		metadata, err := i.CertificateMetadata()
-		if err != nil {
-			return nil, err
-		}
-
-		tlsCertificate = metadata.Certificate
-	}
-
 	return &api.Identity{
 		AuthenticationMethod: string(i.AuthMethod),
 		Type:                 string(i.Type),
 		Identifier:           i.Identifier,
 		Name:                 i.Name,
 		Groups:               groupNames,
-		TLSCertificate:       tlsCertificate,
+		TLSCertificate:       i.Certificate,
 	}, nil
+}
+
+// GetIdentityByAuthenticationMethodAndIdentifier gets a single identity by authentication method and identifier.
+func GetIdentityByAuthenticationMethodAndIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, identifier string) (*Identity, error) {
+	return query.SelectOne[Identity](ctx, tx, "WHERE auth_method = ? AND identifier = ?", AuthMethod(authenticationMethod), identifier)
+}
+
+// DeleteIdentityByNameAndType deletes a single identity with the given name and type.
+// Note that the name of an identity is not guaranteed to be unique for OIDC identities.
+func DeleteIdentityByNameAndType(ctx context.Context, tx *sql.Tx, name string, identityType string) error {
+	return query.DeleteOne[Identity](ctx, tx, "WHERE name = ? AND type = ?", name, IdentityType(identityType))
+}
+
+// DeleteIdentityByAuthenticationMethodAndIdentifier deletes a single identity with the given authentication method and identifier.
+func DeleteIdentityByAuthenticationMethodAndIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, identifier string) error {
+	return query.DeleteOne[Identity](ctx, tx, "WHERE auth_method = ? AND identifier = ?", AuthMethod(authenticationMethod), identifier)
 }
 
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
 // the type.
 func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
 	fingerprint := shared.CertFingerprint(cert)
-	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	_, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 	if err == nil {
 		return api.StatusErrorf(http.StatusConflict, "Identity already exists")
 	}
 
-	identity, err := GetIdentity(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
+	id, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
 	if err != nil {
-		return fmt.Errorf("Failed to get pending %q TLS identity: %w", identity.Type, err)
+		return fmt.Errorf("Failed getting pending TLS identity: %w", err)
 	}
 
-	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
-	b, err := json.Marshal(metadata)
+	certID, err := query.Create(ctx, tx, Certificate{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))})
 	if err != nil {
-		return fmt.Errorf("Failed to encode certificate metadata: %w", err)
+		return fmt.Errorf("Failed creating certificate for pending TLS identity: %w", err)
 	}
 
-	identityTypeActive, err := identity.Type.ActiveType()
+	_, err = tx.ExecContext(ctx, "INSERT INTO identities_certificates (identity_id, certificate_id) VALUES (?, ?)", id.ID, certID)
+	if err != nil {
+		return fmt.Errorf("Failed associating identity with certificate: %w", err)
+	}
+
+	identityTypeActive, err := id.Type.ActiveType()
 	if err != nil {
 		return err
 	}
 
-	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
-	res, err := tx.ExecContext(ctx, stmt, identityTypeActive, fingerprint, string(b), identifier.String(), authMethodTLS)
-	if err != nil {
-		return fmt.Errorf("Failed to activate %q TLS identity: %w", identity.Type, err)
-	}
-
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Failed to check for activated %q TLS identity: %w", identity.Type, err)
-	}
-
-	if n == 0 {
-		return api.StatusErrorf(http.StatusNotFound, "No pending %q TLS identity found with identifier %q", identity.Type, identifier)
-	} else if n > 1 {
-		return fmt.Errorf("Unknown error occurred when activating %q TLS identity: %w", identity.Type, err)
-	}
-
-	return nil
+	id.Type = identityTypeActive
+	id.Identifier = fingerprint
+	return query.Update(ctx, tx, id)
 }
 
 var pendingIdentityTypes = func() (result []int64) {
@@ -438,53 +351,30 @@ var pendingIdentityTypes = func() (result []int64) {
 
 // GetPendingTLSIdentityByTokenSecret gets a single identity of type [identityTypeCertificateClientPending] or [identityTypeCertificateClusterLinkPending] with the given secret in its metadata. If no pending identity is found, an [api.StatusError] is returned with [http.StatusNotFound].
 func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
-	stmt := fmt.Sprintf(`
-	SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
-	FROM identities
+	clause := fmt.Sprintf(`
 	WHERE identities.type IN %s
 	AND json_extract(identities.metadata, '$.secret') = ?`, query.IntParams(pendingIdentityTypes()...))
 
-	identities, err := getIdentitysRaw(ctx, tx, stmt, secret)
+	id, err := query.SelectOne[Identity](ctx, tx, clause, secret)
 	if err != nil {
-		return nil, err
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Maintain error message for clarity.
+			return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
+		}
+
+		return nil, fmt.Errorf("Failed getting identity by token secret: %w", err)
 	}
 
-	if len(identities) == 0 {
-		return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
-	} else if len(identities) > 1 {
-		return nil, errors.New("Multiple pending identities found with given secret")
-	}
-
-	return &identities[0], nil
+	return id, nil
 }
 
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
 func GetAuthGroupsByIdentityID(ctx context.Context, tx *sql.Tx, identityID int64) ([]AuthGroup, error) {
-	stmt := `
-SELECT auth_groups.id, auth_groups.name, auth_groups.description
-FROM auth_groups
+	clause := `
 JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id
-WHERE identities_auth_groups.identity_id = ?`
-
-	var result []AuthGroup
-	dest := func(scan func(dest ...any) error) error {
-		g := AuthGroup{}
-		err := scan(&g.ID, &g.Name, &g.Description)
-		if err != nil {
-			return err
-		}
-
-		result = append(result, g)
-
-		return nil
-	}
-
-	err := query.Scan(ctx, tx, stmt, dest, identityID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get groups for identity with ID %d: %w", identityID, err)
-	}
-
-	return result, nil
+WHERE identities_auth_groups.identity_id = ?
+`
+	return query.Select[AuthGroup](ctx, tx, clause, identityID)
 }
 
 // GetAllAuthGroupsByIdentityIDs returns a map of identity ID to slice of groups the identity with that ID is a member of.
@@ -520,26 +410,11 @@ JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_grou
 // it will try to use the nameOrID argument as a name and will return the result only if the query matches a single Identity.
 // It will return an [api.StatusError] with [http.StatusNotFound] if none are found or [http.StatusBadRequest] if multiple are found.
 func GetIdentityByNameOrIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, nameOrID string) (*Identity, error) {
-	id, err := GetIdentity(ctx, tx, AuthMethod(authenticationMethod), nameOrID)
+	id, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, authenticationMethod, nameOrID)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return nil, err
 	} else if err != nil {
-		dbAuthMethod := AuthMethod(authenticationMethod)
-		identities, err := GetIdentitys(ctx, tx, IdentityFilter{
-			AuthMethod: &dbAuthMethod,
-			Name:       &nameOrID,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		if len(identities) == 0 {
-			return nil, api.StatusErrorf(http.StatusNotFound, "No identity found with name or identifier %q", nameOrID)
-		} else if len(identities) > 1 {
-			return nil, api.StatusErrorf(http.StatusBadRequest, "More than one identity found with name %q", nameOrID)
-		}
-
-		id = &identities[0]
+		return query.SelectOne[Identity](ctx, tx, "WHERE auth_method = ? AND name = ?", AuthMethod(authenticationMethod), nameOrID)
 	}
 
 	return id, nil
@@ -607,18 +482,37 @@ WHERE auth_groups.name IN %s
 
 // GetIdentityByID gets a single identity with the given ID.
 func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*Identity, error) {
-	identityFilter := IdentityFilter{ID: &id}
-	clusterIdentities, err := GetIdentitys(ctx, tx, identityFilter)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get identity with ID %d: %w", id, err)
+	return query.SelectOne[Identity](ctx, tx, "WHERE identities.id = ?", id)
+}
+
+// UpdateIdentityCertificate replaces an identities certificate with the given one.
+func UpdateIdentityCertificate(ctx context.Context, tx *sql.Tx, id Identity, cert x509.Certificate) error {
+	certificateID := id.CertificateID
+	if certificateID == 0 {
+		clause := `JOIN identities_certificates ON certificates.id = identities_certificates.certificate_id WHERE identities_certificates.identity_id = ?`
+		dbCert, err := query.SelectOne[Certificate](ctx, tx, clause, id.ID)
+		if err != nil {
+			return fmt.Errorf("Failed getting certificate associated with identity: %w", err)
+		}
+
+		certificateID = dbCert.ID
 	}
 
-	switch len(clusterIdentities) {
-	case 0:
-		return nil, api.NewStatusError(http.StatusNotFound, "No identity found with given ID")
-	case 1:
-		return &clusterIdentities[0], nil
-	default:
-		return nil, fmt.Errorf("Multiple identities found with ID %d", id)
+	certToUpdate := Certificate{
+		ID:          certificateID,
+		Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
 	}
+
+	err := query.Update(ctx, tx, certToUpdate)
+	if err != nil {
+		return fmt.Errorf("Failed updating certificate: %w", err)
+	}
+
+	id.Identifier = shared.CertFingerprint(&cert)
+	err = query.Update(ctx, tx, id)
+	if err != nil {
+		return fmt.Errorf("Failed updating identity identifier: %w", err)
+	}
+
+	return nil
 }

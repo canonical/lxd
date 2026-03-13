@@ -154,7 +154,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	var certURLs []string
 	urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		baseCerts, err := dbCluster.GetCertificates(ctx, tx.Tx())
+		baseCerts, err := dbCluster.GetLegacyCertificates(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -702,7 +702,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Store the certificate in the cluster database.
-		dbCert := dbCluster.Certificate{
+		dbCert := dbCluster.CertificateLegacy{
 			Fingerprint: shared.CertFingerprint(cert),
 			Type:        dbReqType,
 			Name:        name,
@@ -858,12 +858,14 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 
 	// Get current database record.
 	var apiEntry *api.Certificate
+	var certificateID int64
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
 		}
 
+		certificateID = oldEntry.ID
 		apiEntry, err = oldEntry.ToAPI(ctx, tx.Tx())
 		return err
 	})
@@ -885,7 +887,7 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Apply the update.
-	return doCertificateUpdate(r.Context(), d, *apiEntry, req, r)
+	return doCertificateUpdate(r.Context(), d, certificateID, *apiEntry, req, r)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -925,12 +927,14 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get current database record.
 	var apiEntry *api.Certificate
+	var certificateID int64
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
 		}
 
+		certificateID = oldEntry.ID
 		apiEntry, err = oldEntry.ToAPI(ctx, tx.Tx())
 		return err
 	})
@@ -951,10 +955,10 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return doCertificateUpdate(r.Context(), d, *apiEntry, req.Writable(), r)
+	return doCertificateUpdate(r.Context(), d, certificateID, *apiEntry, req.Writable(), r)
 }
 
-func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate, req api.CertificatePut, r *http.Request) response.Response {
+func doCertificateUpdate(ctx context.Context, d *Daemon, certificateID int64, dbInfo api.Certificate, req api.CertificatePut, r *http.Request) response.Response {
 	s := d.State()
 
 	reqDBType, err := certificate.FromAPIType(req.Type)
@@ -963,7 +967,8 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 	}
 
 	// Convert to the database type.
-	dbCert := dbCluster.Certificate{
+	dbCert := dbCluster.CertificateLegacy{
+		ID:          certificateID,
 		Certificate: dbInfo.Certificate,
 		Fingerprint: dbInfo.Fingerprint,
 		Restricted:  req.Restricted,
@@ -1000,7 +1005,8 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 		}
 
 		// Reset dbCert in order to prevent possible future security issues.
-		dbCert = dbCluster.Certificate{
+		dbCert = dbCluster.CertificateLegacy{
+			ID:          certificateID,
 			Certificate: dbInfo.Certificate,
 			Fingerprint: dbInfo.Fingerprint,
 			Restricted:  dbInfo.Restricted,
@@ -1065,17 +1071,12 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 
 	// Update the database record.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.GetCertificateID(ctx, tx.Tx(), dbInfo.Fingerprint)
+		err = dbCluster.UpdateLegacyCertificate(ctx, tx.Tx(), dbCert)
 		if err != nil {
 			return err
 		}
 
-		err = dbCluster.UpdateCertificate(ctx, tx.Tx(), dbInfo.Fingerprint, dbCert)
-		if err != nil {
-			return err
-		}
-
-		return dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), id, certProjects)
+		return dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), certificateID, certProjects)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1129,7 +1130,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var certInfo *dbCluster.Certificate
+	var certInfo *dbCluster.CertificateLegacy
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get current database record.
 		var err error
@@ -1191,7 +1192,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Perform the delete with the expanded fingerprint.
-		return dbCluster.DeleteCertificate(ctx, tx.Tx(), certInfo.Fingerprint)
+		return dbCluster.DeleteLegacyCertificate(ctx, tx.Tx(), certInfo.Fingerprint)
 	})
 	if err != nil {
 		return response.SmartError(err)

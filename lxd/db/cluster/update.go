@@ -123,6 +123,88 @@ var updates = map[int]schema.Update{
 	78: updateFromV77,
 	79: updateFromV78,
 	80: updateFromV79,
+	81: updateFromV80,
+}
+
+func updateFromV80(ctx context.Context, tx *sql.Tx) error {
+	q := `SELECT id, json_extract(identities.metadata, '$.cert') AS cert FROM identities WHERE cert NOT NULL`
+
+	idToCert := make(map[int64]string)
+	err := query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
+		var id int64
+		var cert string
+		err := scan(&id, &cert)
+		if err != nil {
+			return err
+		}
+
+		idToCert[id] = cert
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to get existing certificates: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, `
+CREATE TABLE certificates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    certificate TEXT NOT NULL,
+    UNIQUE (certificate)
+);
+CREATE TABLE identities_certificates (
+    identity_id INTEGER NOT NULL,
+    certificate_id INTEGER NOT NULL,
+    FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE,
+    FOREIGN KEY (certificate_id) REFERENCES certificates (id) ON DELETE CASCADE,
+    PRIMARY KEY (identity_id, certificate_id)
+) WITHOUT ROWID;
+-- We can't cascade deletion from the identities table to the certificates table.
+-- This trigger ensures certificates are deleted when an identity is deleted because rows of identities_certificates
+-- are deleted via foreign key cascade when the identity is deleted. 
+CREATE TRIGGER identities_certificates_after_delete 
+    AFTER DELETE ON identities_certificates
+	BEGIN
+	DELETE FROM certificates
+		WHERE certificates.id = OLD.certificate_id;
+	END;
+`)
+	if err != nil {
+		return fmt.Errorf("Failed writing certificates tables: %w", err)
+	}
+
+	for id, cert := range idToCert {
+		res, err := tx.ExecContext(ctx, `INSERT INTO certificates (certificate) VALUES (?)`, cert)
+		if err != nil {
+			return fmt.Errorf("Failed writing certificate: %w", err)
+		}
+
+		certID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx, `INSERT INTO identities_certificates (identity_id, certificate_id) VALUES (?, ?)`, id, certID)
+		if err != nil {
+			return fmt.Errorf("Failed writing identity certificate association: %w", err)
+		}
+	}
+
+	stmt := `UPDATE identities SET metadata = '' WHERE json_extract(identities.metadata, '$.cert') NOT NULL`
+	res, err := tx.ExecContext(ctx, stmt)
+	if err != nil {
+		return fmt.Errorf("Failed to unset identity metadata: %w", err)
+	}
+
+	nRowsUpdated, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if int(nRowsUpdated) != len(idToCert) {
+		return fmt.Errorf("Expected to update %d rows but updated %d", len(idToCert), nRowsUpdated)
+	}
+
+	return nil
 }
 
 func updateFromV79(ctx context.Context, tx *sql.Tx) error {

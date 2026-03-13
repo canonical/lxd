@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
@@ -80,7 +81,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 	err = s.db.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the identity from their email address. If none is found, it's a first time login.
 		var firstTimeLogin bool
-		identity, err := cluster.GetIdentity(ctx, tx.Tx(), api.AuthenticationMethodOIDC, res.Email)
+		identity, err := cluster.GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), api.AuthenticationMethodOIDC, res.Email)
 		if err != nil {
 			if !api.StatusErrorCheck(err, http.StatusNotFound) {
 				return fmt.Errorf("Failed to check if the identity exists: %w", err)
@@ -140,7 +141,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 		var identityID int64
 		if firstTimeLogin {
 			action = lifecycle.IdentityCreated
-			identityID, err = cluster.CreateIdentity(ctx, tx.Tx(), newOrUpdatedIdentity)
+			identityID, err = query.Create(ctx, tx.Tx(), newOrUpdatedIdentity)
 			if err != nil {
 				return fmt.Errorf("Failed to create new identity with session information: %w", err)
 			}
@@ -149,7 +150,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 
 			if doUpdateIdentity {
 				action = lifecycle.IdentityUpdated
-				err = cluster.UpdateIdentity(ctx, tx.Tx(), api.AuthenticationMethodOIDC, res.Email, newOrUpdatedIdentity)
+				err = query.Update(ctx, tx.Tx(), newOrUpdatedIdentity)
 				if err != nil {
 					return fmt.Errorf("Failed to update user session information: %w", err)
 				}

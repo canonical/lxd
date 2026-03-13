@@ -10,6 +10,8 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
+//go:generate simplegen . generated.go
+
 // RegisterStmt register a SQL statement.
 //
 // Registered statements will be prepared upfront and re-used, to speed up

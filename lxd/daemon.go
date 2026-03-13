@@ -2053,7 +2053,7 @@ func (d *Daemon) init() error {
 func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string, identifier string) (*request.RequestorHookResult, error) {
 	res := &request.RequestorHookResult{}
 	err := d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(authenticationMethod), identifier)
+		id, err := dbCluster.GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), authenticationMethod, identifier)
 		if err != nil {
 			return fmt.Errorf("Failed to get identity: %w", err)
 		}

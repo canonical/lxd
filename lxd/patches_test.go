@@ -15,6 +15,7 @@ import (
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -27,16 +28,17 @@ func Test_patchSplitIdentityCertificateEntityTypes(t *testing.T) {
 	defer cleanup()
 	ctx := cancel.New()
 
-	var groupID int
+	var groupID int64
 	var certificateID int
 	var identityID int
 	err := cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
 		// Create a group.
-		groupIDint64, err := dbCluster.CreateAuthGroup(ctx, tx.Tx(), dbCluster.AuthGroup{
+		groupID, err = query.Create(ctx, tx.Tx(), dbCluster.AuthGroup{
 			Name: "test-group",
 		})
 		require.NoError(t, err)
-		groupID = int(groupIDint64)
 
 		// Create a certificate
 		cert, _, err := shared.GenerateMemCert(true, shared.CertOptions{})
@@ -44,7 +46,7 @@ func Test_patchSplitIdentityCertificateEntityTypes(t *testing.T) {
 		x509Cert, err := shared.ParseCert(cert)
 		require.NoError(t, err)
 
-		certificateIDint64, err := dbCluster.CreateCertificate(ctx, tx.Tx(), dbCluster.Certificate{
+		certificateIDint64, err := dbCluster.CreateLegacyCertificate(ctx, tx.Tx(), dbCluster.CertificateLegacy{
 			Fingerprint: shared.CertFingerprint(x509Cert),
 			Type:        certificate.TypeClient,
 			Name:        "test-cert",
@@ -57,7 +59,7 @@ func Test_patchSplitIdentityCertificateEntityTypes(t *testing.T) {
 		// Create an OIDC identity
 		oidcMetadata, err := json.Marshal(dbCluster.OIDCMetadata{Subject: "test-subject"})
 		require.NoError(t, err)
-		identityIDint64, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+		identityIDint64, err := query.Create(ctx, tx.Tx(), dbCluster.Identity{
 			AuthMethod: api.AuthenticationMethodOIDC,
 			Type:       api.IdentityTypeOIDCClient,
 			Identifier: "jane.doe@example.com",
