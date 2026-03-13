@@ -450,8 +450,12 @@ func (c *ClusterTx) nodes(ctx context.Context, pending bool, where string, args 
 			nodeRoles[nodeID] = []ClusterRole{}
 		}
 
-		roleName := string(ClusterRoles[ClusterRoleClassManual][role])
-		nodeRoles[nodeID] = append(nodeRoles[nodeID], ClusterRole(roleName))
+		roleName, ok := ClusterRoles[ClusterRoleClassManual][role]
+		if !ok {
+			return fmt.Errorf("Unknown cluster role ID %d", role)
+		}
+
+		nodeRoles[nodeID] = append(nodeRoles[nodeID], roleName)
 
 		return nil
 	})

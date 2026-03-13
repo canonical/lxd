@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -454,8 +455,9 @@ func (g *Gateway) Kill() {
 	g.cancel()
 }
 
-// TransferLeadership attempts to transfer leadership to another node.
-func (g *Gateway) TransferLeadership() error {
+// TransferLeadership attempts to transfer leadership to another online voter.
+// If allowedAddresses is empty, any online voter is eligible.
+func (g *Gateway) TransferLeadership(allowedAddresses ...string) error {
 	client, err := g.getClient()
 	if err != nil {
 		return err
@@ -478,6 +480,10 @@ func (g *Gateway) TransferLeadership() error {
 		address, err := g.nodeAddress(server.Address)
 		if err != nil {
 			return err
+		}
+
+		if len(allowedAddresses) > 0 && !slices.Contains(allowedAddresses, address) {
+			continue
 		}
 
 		if !HasConnectivity(g.networkCert, g.state().ServerCert(), address) {
