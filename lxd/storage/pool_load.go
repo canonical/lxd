@@ -63,8 +63,9 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 // commonRules returns a set of common validators.
 func commonRules() *drivers.Validators {
 	return &drivers.Validators{
-		PoolRules:   validatePoolCommonRules,
-		VolumeRules: validateVolumeCommonRules,
+		PoolRules:      validatePoolCommonRules,
+		LocalPoolRules: validateLocalPoolCommonRules,
+		VolumeRules:    validateVolumeCommonRules,
 	}
 }
 
