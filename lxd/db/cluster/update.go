@@ -123,6 +123,14 @@ var updates = map[int]schema.Update{
 	78: updateFromV77,
 	79: updateFromV78,
 	80: updateFromV79,
+	81: updateFromV80,
+}
+
+func updateFromV80(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+ALTER TABLE operations ADD COLUMN error_code INTEGER NOT NULL DEFAULT 0;
+`)
+	return err
 }
 
 func updateFromV79(ctx context.Context, tx *sql.Tx) error {
