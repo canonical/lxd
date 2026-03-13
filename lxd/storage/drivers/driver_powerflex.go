@@ -93,6 +93,11 @@ func (d *powerflex) isRemote() bool {
 	return true
 }
 
+// hasThinCloneSupport returns true if the PowerFlex system version supports thin clones.
+func (d *powerflex) hasThinCloneSupport() bool {
+	return strings.Contains(d.config["powerflex.version"], "R5")
+}
+
 // Info returns info about the driver and its environment.
 func (d *powerflex) Info() Info {
 	return Info{
@@ -150,6 +155,14 @@ func (d *powerflex) FillConfig() error {
 	if d.config["volume.size"] == "" {
 		d.config["volume.size"] = powerFlexDefaultSize
 	}
+
+	// Retrieve and store the PowerFlex system version.
+	systemInfo, err := d.client().getSystemInfo()
+	if err != nil {
+		return err
+	}
+
+	d.config["powerflex.version"] = systemInfo.SystemVersionName
 
 	return nil
 }
@@ -295,6 +308,13 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  shortdesc: Size/quota of the storage volume
 		//  scope: global
 		"volume.size": validate.Optional(validate.IsMultipleOfUnit("8GiB")),
+		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.version)
+		// This field is automatically populated by querying the PowerFlex system.
+		// ---
+		//  type: string
+		//  shortdesc: Software version of the PowerFlex array.
+		//  scope: global
+		"powerflex.version": validate.IsAny,
 	}
 
 	err := d.validatePool(config, rules, d.commonVolumeRules())
