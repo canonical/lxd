@@ -62,6 +62,7 @@ type Operation struct {
 	Status              int64              `db:"sql=operations.status_code"` // Status code of the operation
 	ConflictReference   string             // All operations which cannot run concurrently share the same conflict reference
 	Error               string             // Error message if the operation failed
+	ErrorCode           int64              `db:"sql=operations.error_code"` // Error code if the operation failed
 	Parent              *int64             // Parent operation ID. This is used for sub-operations of other operations.
 	Stage               int64              // Stage of the operation
 }
@@ -156,15 +157,10 @@ func (r *RequestorProtocol) Value() (driver.Value, error) {
 // UpdateOperation updates operation status, metadata and error (if set) in the cluster db.
 // This is used to keep DB in sync with the current status of the operation when the operation changes
 // its status, or when calls to commit metadata explicitly.
-func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, updatedAt time.Time, newStatus api.StatusCode, metadata string, opErr error) error {
-	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, metadata = ?, error = ? WHERE uuid = ?`
+func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, updatedAt time.Time, newStatus api.StatusCode, metadata string, opErr string, opErrCode int64) error {
+	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, metadata = ?, error = ?, error_code = ? WHERE uuid = ?`
 
-	opErrStr := ""
-	if opErr != nil {
-		opErrStr = opErr.Error()
-	}
-
-	result, err := tx.ExecContext(ctx, stmt, updatedAt, newStatus, metadata, opErrStr, opUUID)
+	result, err := tx.ExecContext(ctx, stmt, updatedAt, newStatus, metadata, opErr, opErrCode, opUUID)
 	if err != nil {
 		return fmt.Errorf("Failed updating operation status: %w", err)
 	}

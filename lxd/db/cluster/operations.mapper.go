@@ -19,14 +19,14 @@ import (
 var _ = api.ServerEnvironment{}
 
 var operationObjects = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
+SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.error_code, operations.parent, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByNodeID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
+SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.error_code, operations.parent, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.node_id = ? )
@@ -34,7 +34,7 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name
 `)
 
 var operationObjectsByID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
+SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.error_code, operations.parent, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.id = ? )
@@ -42,7 +42,7 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name
 `)
 
 var operationObjectsByUUID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.parent, operations.stage
+SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.error_code, operations.parent, operations.stage
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.uuid = ? )
@@ -50,13 +50,13 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name
 `)
 
 var operationCreate = RegisterStmt(`
-INSERT INTO operations (uuid, project_id, node_id, type, requestor_protocol, requestor_identity_id, entity_id, metadata, class, created_at, updated_at, inputs, status_code, conflict_reference, error, parent, stage)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO operations (uuid, project_id, node_id, type, requestor_protocol, requestor_identity_id, entity_id, metadata, class, created_at, updated_at, inputs, status_code, conflict_reference, error, error_code, parent, stage)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
 var operationCreateOrReplace = RegisterStmt(`
-INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type, requestor_protocol, requestor_identity_id, entity_id, metadata, class, created_at, updated_at, inputs, status_code, conflict_reference, error, parent, stage)
- VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type, requestor_protocol, requestor_identity_id, entity_id, metadata, class, created_at, updated_at, inputs, status_code, conflict_reference, error, error_code, parent, stage)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
 var operationDeleteByUUID = RegisterStmt(`
@@ -73,7 +73,7 @@ func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operatio
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.Location, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.Parent, &o.Stage)
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.Location, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.ErrorCode, &o.Parent, &o.Stage)
 		if err != nil {
 			return err
 		}
@@ -97,7 +97,7 @@ func getOperationsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) 
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.Location, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.Parent, &o.Stage)
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.Location, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.ErrorCode, &o.Parent, &o.Stage)
 		if err != nil {
 			return err
 		}
@@ -233,7 +233,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 // CreateOperation adds a new operation to the database.
 // generator: operation Create
 func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
-	args := make([]any, 17)
+	args := make([]any, 18)
 
 	// Populate the statement arguments.
 	args[0] = object.UUID
@@ -251,8 +251,9 @@ func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, 
 	args[12] = object.Status
 	args[13] = object.ConflictReference
 	args[14] = object.Error
-	args[15] = object.Parent
-	args[16] = object.Stage
+	args[15] = object.ErrorCode
+	args[16] = object.Parent
+	args[17] = object.Stage
 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreate)
@@ -281,7 +282,7 @@ func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, 
 // CreateOrReplaceOperation adds a new operation to the database.
 // generator: operation CreateOrReplace
 func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
-	args := make([]any, 17)
+	args := make([]any, 18)
 
 	// Populate the statement arguments.
 	args[0] = object.UUID
@@ -299,8 +300,9 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 	args[12] = object.Status
 	args[13] = object.ConflictReference
 	args[14] = object.Error
-	args[15] = object.Parent
-	args[16] = object.Stage
+	args[15] = object.ErrorCode
+	args[16] = object.Parent
+	args[17] = object.Stage
 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreateOrReplace)

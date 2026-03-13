@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -127,7 +126,7 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 			return fmt.Errorf("Failed marshalling operation metadata: %w", err)
 		}
 
-		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, op.updatedAt, op.status, string(metadataJSON), op.err)
+		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, op.updatedAt, op.status, string(metadataJSON), op.err, op.errCode)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed updating operation %q record: %w", op.id, err)
@@ -174,10 +173,8 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 		running:     cancel.New(),
 		state:       s,
 		location:    dbOp.Location,
-	}
-
-	if dbOp.Error != "" {
-		op.err = errors.New(dbOp.Error)
+		err:         dbOp.Error,
+		errCode:     dbOp.ErrorCode,
 	}
 
 	// If server is not clustered, the DB contains 'none' as the node name. In that case we use the server name as the location.
