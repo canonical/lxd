@@ -144,7 +144,8 @@ func (d *dir) Delete(op *operations.Operation) error {
 
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *dir) Validate(config map[string]string) error {
-	return d.validatePool(config, nil, nil)
+	// Use common local pool rules.
+	return d.validatePool(config, d.commonRules.LocalPoolRules(), nil)
 }
 
 // Update applies any driver changes required from a configuration change.
