@@ -3124,7 +3124,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 				Live: live,
 			}
 
-			err := migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, req, op)
+			err := migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, "", req, op)
 			if err != nil {
 				return fmt.Errorf("Failed migrating instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 			}
@@ -3341,31 +3341,11 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 			continue
 		}
 
-		// Get candidate cluster members to move instances to.
-		var candidateMembers []db.NodeInfo
-		err := opts.s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			allMembers, err := tx.GetNodes(ctx)
-			if err != nil {
-				return fmt.Errorf("Failed getting cluster members: %w", err)
-			}
-
-			clusterGroupsAllowed := limits.GetRestrictedClusterGroups(&instProject)
-
-			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", clusterGroupsAllowed, opts.s.GlobalConfig.OfflineThreshold())
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-
-		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, opts.gateway, inst, candidateMembers)
+		// Find a new location for the instance.
+		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, opts.gateway, inst)
 		if err != nil {
 			if api.StatusErrorCheck(err, http.StatusNotFound) {
-				// Skip migration if no target is available
+				// Skip migration if no target is available.
 				l.Warn("No migration target available for instance")
 				continue
 			}
@@ -3679,7 +3659,7 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Quick checks.
-	err = clusterGroupValidateName(req.Name)
+	err = validate.IsClusterGroupName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -3837,6 +3817,12 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 					return err
 				}
 
+				usedBy, err := clusterGroupUsedBy(ctx, s, tx, clusterGroup.Name, false)
+				if err != nil {
+					return err
+				}
+
+				apiClusterGroup.UsedBy = usedBy
 				apiClusterGroups = append(apiClusterGroups, apiClusterGroup)
 			}
 		} else {
@@ -3930,6 +3916,12 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		usedBy, err := clusterGroupUsedBy(ctx, s, tx, name, false)
+		if err != nil {
+			return err
+		}
+
+		apiGroup.UsedBy = usedBy
 		return nil
 	})
 	if err != nil {
@@ -3991,7 +3983,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Quick checks.
-	err = clusterGroupValidateName(name)
+	err = validate.IsClusterGroupName(name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -4001,6 +3993,15 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 		_, err = dbCluster.GetClusterGroup(ctx, tx.Tx(), req.Name)
 		if err == nil {
 			return fmt.Errorf("Name %q already in use", req.Name)
+		}
+
+		usedBy, err := clusterGroupUsedBy(r.Context(), s, tx, name, true)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
+			return api.StatusErrorf(http.StatusBadRequest, "Cluster group is currently in use")
 		}
 
 		// Rename the cluster group.
@@ -4363,7 +4364,7 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 			return api.StatusErrorf(http.StatusBadRequest, "Only empty cluster groups can be removed")
 		}
 
-		usedBy, err := dbCluster.GetClusterGroupUsedBy(ctx, tx.Tx(), name)
+		usedBy, err := clusterGroupUsedBy(r.Context(), s, tx, name, true)
 		if err != nil {
 			return err
 		}
@@ -4385,44 +4386,46 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func clusterGroupValidateName(name string) error {
-	if name == "" {
-		return errors.New("No name provided")
-	}
-
-	if name == "*" {
-		return errors.New("Reserved cluster group name")
-	}
-
-	if name == "." || name == ".." {
-		return fmt.Errorf("Invalid cluster group name %q", name)
-	}
-
-	if strings.Contains(name, "\\") {
-		return errors.New("Cluster group names may not contain back slashes")
-	}
-
-	if strings.Contains(name, "/") {
-		return errors.New("Cluster group names may not contain slashes")
-	}
-
-	if strings.Contains(name, " ") {
-		return errors.New("Cluster group names may not contain spaces")
-	}
-
-	if strings.Contains(name, "_") {
-		return errors.New("Cluster group names may not contain underscores")
-	}
-
-	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
-		return errors.New("Cluster group names may not contain quotes")
-	}
-
-	return nil
-}
-
-func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *cluster.Gateway, inst instance.Instance, candidateMembers []db.NodeInfo) (*db.NodeInfo, error) {
+func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *cluster.Gateway, inst instance.Instance) (*db.NodeInfo, error) {
 	var targetMemberInfo *db.NodeInfo
+	var candidateMembers []db.NodeInfo
+
+	// Get candidate cluster members to move instances to.
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		allMembers, err := tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		// Filter candidates by group if needed.
+		_, group := limits.TargetDetect(inst.LocalConfig()["volatile.cluster.group"])
+		if group != "" {
+			newMembers := make([]db.NodeInfo, 0, len(allMembers))
+			for _, member := range allMembers {
+				if !slices.Contains(member.Groups, group) {
+					continue
+				}
+
+				newMembers = append(newMembers, member)
+			}
+
+			allMembers = newMembers
+		}
+
+		instProject := inst.Project()
+		clusterGroupsAllowed := limits.GetRestrictedClusterGroups(&instProject)
+
+		// Filter offline servers.
+		candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	// Run instance placement scriptlet if enabled.
 	if s.GlobalConfig.InstancesPlacementScriptlet() != "" {
@@ -4467,15 +4470,9 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *c
 	// If target member not specified yet, then find the least loaded cluster member which
 	// supports the instance's architecture.
 	if targetMemberInfo == nil {
-		var err error
-
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		})
 		if err != nil {
 			return nil, err
@@ -4648,4 +4645,48 @@ func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.
 
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberHealed.Event(name, op.EventLifecycleRequestor(), nil))
 	return nil
+}
+
+// clusterGroupUsedBy returns the list of resource URLs that reference the cluster group.
+// The returned slice contains project URLs (for projects whose "restricted.cluster.groups" configuration includes the group) and instance URLs (for instances whose config contains the group in the "volatile.cluster.group" key).
+// If firstOnly is true then search stops at first result.
+func clusterGroupUsedBy(ctx context.Context, s *state.State, tx *db.ClusterTx, name string, firstOnly bool) ([]string, error) {
+	var usedBy []string
+	var err error
+
+	usedBy, err = dbCluster.GetProjectsUsingRestrictedClusterGroups(ctx, tx.Tx(), name)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(usedBy) > 0 && firstOnly {
+		return usedBy[:1], nil
+	}
+
+	err = tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
+		// Check if instance references cluster group in "volatile.cluster.group" config key.
+		if inst.Config["volatile.cluster.group"] == name {
+			u := entity.InstanceURL(inst.Project, inst.Name)
+
+			// Omit the project query parameter if it is the default project.
+			if u.Query().Get("project") == api.ProjectDefaultName {
+				q := u.Query()
+				q.Del("project")
+				u.RawQuery = q.Encode()
+			}
+
+			usedBy = append(usedBy, u.String())
+
+			if firstOnly {
+				return db.ErrListStop
+			}
+		}
+
+		return nil
+	})
+	if err != nil && err != db.ErrListStop {
+		return nil, fmt.Errorf("Failed getting instances: %w", err)
+	}
+
+	return usedBy, nil
 }

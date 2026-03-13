@@ -50,25 +50,17 @@ type ClusterGroupFilter struct {
 
 // ToAPI returns a LXD API entry.
 func (c *ClusterGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.ClusterGroup, error) {
-	usedBy, err := GetClusterGroupUsedBy(ctx, tx, c.Name)
-	if err != nil {
-		return nil, err
-	}
-
 	result := api.ClusterGroup{
 		Name:        c.Name,
 		Description: c.Description,
 		Members:     c.Nodes,
-		UsedBy:      usedBy,
 	}
 
 	return &result, nil
 }
 
-// GetClusterGroupUsedBy collates references to the cluster group with the given name.
-// This currently only returns the URLs of projects whose `restricted.cluster.groups` configuration
-// contains the cluster group.
-func GetClusterGroupUsedBy(ctx context.Context, tx *sql.Tx, groupName string) ([]string, error) {
+// GetProjectsUsingRestrictedClusterGroups returns project URLs for all projects whose "restricted.cluster.groups" project configuration includes the specified groupName.
+func GetProjectsUsingRestrictedClusterGroups(ctx context.Context, tx *sql.Tx, groupName string) ([]string, error) {
 	q := `
 SELECT projects.name, projects_config.value FROM projects 
 JOIN projects_config ON projects.id = projects_config.project_id 
