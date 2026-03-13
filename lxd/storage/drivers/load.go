@@ -20,7 +20,13 @@ var drivers = map[string]func() driver{
 
 // Validators contains functions used for validating a drivers's config.
 type Validators struct {
-	PoolRules   func() map[string]func(string) error
+	// Regular list of rules valid for all pools.
+	PoolRules func() map[string]func(string) error
+
+	// List of rules valid for local pools.
+	LocalPoolRules func() map[string]func(string) error
+
+	// List of rules valid for pool volumes.
 	VolumeRules func(vol Volume) map[string]func(string) error
 }
 
