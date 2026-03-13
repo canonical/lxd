@@ -294,6 +294,13 @@ update-gomod:
 	@echo "Dependencies updated"
 	@./scripts/check-and-commit.sh "go.mod go.sum tools/go.mod tools/go.sum" "go: Update dependencies"
 
+.PHONY: update-golangci
+update-golangci:
+	go get -C tools github.com/golangci/golangci-lint/v2@latest
+	go mod -C tools tidy -go=$(GOMIN)
+	$(MAKE) check-gomin
+	@./scripts/check-and-commit.sh "tools/go.mod tools/go.sum" "tools: Update golangci-lint"
+
 .PHONY: update-protobuf
 update-protobuf:
 	protoc --go_out=. ./lxd/migration/migrate.proto
