@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -351,6 +352,9 @@ func (d *btrfs) Validate(config map[string]string) error {
 		//  scope: global
 		"btrfs.mount_options": validate.IsAny,
 	}
+
+	// Append common local pool rules.
+	maps.Insert(rules, maps.All(d.commonRules.LocalPoolRules()))
 
 	return d.validatePool(config, rules, nil)
 }
