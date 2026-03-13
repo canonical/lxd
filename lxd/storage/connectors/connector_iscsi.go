@@ -409,8 +409,31 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 		slavesPath := filepath.Join("/sys/block", deviceName, "slaves")
 		slaves, _ := os.ReadDir(slavesPath)
 
-		// Ask multipathd to remove the multipath device.
-		_, err := shared.RunCommand(ctx, "multipath", "-f", devicePath)
+		// Remove the multipath map.
+		//
+		// This may fail transiently with "map in use" if the device is still
+		// briefly open (for example by udev), so retry a few times before giving up.
+		var err error
+		for range 10 {
+			ctxErr := ctx.Err()
+			if ctxErr != nil {
+				// Preserve the command error if we already have one.
+				// Otherwise return the generic context error.
+				if err == nil {
+					err = ctxErr
+				}
+
+				break
+			}
+
+			_, err = shared.RunCommand(ctx, "multipath", "-f", devicePath)
+			if err == nil {
+				break
+			}
+
+			time.Sleep(500 * time.Millisecond)
+		}
+
 		if err != nil {
 			return fmt.Errorf("Failed to remove multipath device %q: %w", devicePath, err)
 		}
