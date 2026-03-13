@@ -940,3 +940,27 @@ func TestIsEntityName(t *testing.T) {
 		})
 	}
 }
+
+func TestIsHTTPSURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"valid HTTPS URL", "https://example.com/directory", false},
+		{"valid HTTPS with port", "https://127.0.0.1:8443/dir", false},
+		{"HTTP URL rejected", "http://example.com/directory", true},
+		{"empty URL rejected", "", true},
+		{"no scheme rejected", "example.com/directory", true},
+		{"FTP scheme rejected", "ftp://example.com/file", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validate.IsHTTPSURL(tt.value)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("IsHTTPSURL(%q) error = %v, wantErr %v", tt.value, err, tt.wantErr)
+			}
+		})
+	}
+}
