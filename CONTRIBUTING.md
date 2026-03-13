@@ -192,6 +192,14 @@ make test-shell
 ./main.sh exec
 ./main.sh query
 
+# or launch a fresh ephemeral VM from the host and run a test inside it
+./test/vmtest.sh exec
+./test/vmtest.sh --timeout=30m basic_usage
+./test/vmtest.sh --caffeinate=10m basic_usage
+# if `lxc` resolves to a snap wrapper that cannot talk to the local daemon,
+# override it explicitly
+LXC_BIN=/path/to/lxc ./test/vmtest.sh basic_usage
+
 # or manually interact with LXD, for example:
 lxc launch ubuntu:24.04 u1
 lxc exec u1 -- hostname
