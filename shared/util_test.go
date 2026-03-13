@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -39,6 +40,104 @@ func TestUrlsJoin(t *testing.T) {
 	expected := "https://cloud-images.ubuntu.com/releases/image/root.tar.xz"
 	if res != expected {
 		t.Error(fmt.Errorf("%q != %q", res, expected))
+	}
+}
+
+func TestParseEnvFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected map[string]string
+		wantErr  bool
+	}{
+		{
+			name: "Standard format",
+			content: `
+KEY1=VALUE1
+KEY2=VALUE2
+`,
+			expected: map[string]string{"KEY1": "VALUE1", "KEY2": "VALUE2"},
+			wantErr:  false,
+		},
+		{
+			name: "With quotes and comments",
+			content: `
+# This is a comment
+OVN_NB_CONNECT="ssl:10.251.3.75:6641"
+OVN_SB_CONNECT='ssl:10.251.3.75:6642'  # inline comment
+`,
+			expected: map[string]string{
+				"OVN_NB_CONNECT": "ssl:10.251.3.75:6641",
+				"OVN_SB_CONNECT": "ssl:10.251.3.75:6642",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Whitespace and empty lines",
+			content: `
+   KEY_WITH_SPACE = value_with_space   
+   
+#AnotherComment
+EMPTY_VAL=
+`,
+			expected: map[string]string{
+				"KEY_WITH_SPACE": "value_with_space",
+				"EMPTY_VAL":      "",
+			},
+			wantErr: false,
+		},
+		{
+			name:    "Values containing equals signs",
+			content: "KEY=url=http://localhost:8080",
+			expected: map[string]string{
+				"KEY": "url=http://localhost:8080",
+			},
+			wantErr: false,
+		},
+		{
+			name:     "Handle export keyword",
+			content:  `export OVN_NB_CONNECT="ssl:10.251.3.75:6641"`,
+			expected: map[string]string{"OVN_NB_CONNECT": "ssl:10.251.3.75:6641"},
+			wantErr:  false,
+		},
+		{
+			name:     "Handle inline comments",
+			content:  "LOCAL_IP=10.251.3.75 # This is the local IP",
+			expected: map[string]string{"LOCAL_IP": "10.251.3.75"},
+			wantErr:  false,
+		},
+		{
+			name:     "Mixed export and inline comment",
+			content:  "  export   VAR=val  # comment here",
+			expected: map[string]string{"VAR": "val"},
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary file with test content.
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "testenv")
+
+			// Write test content to the file.
+			err := os.WriteFile(tmpFile, []byte(tt.content), 0644)
+			if err != nil {
+				t.Fatalf("Failed writing to temp file: %v", err)
+			}
+
+			// Run the parser.
+			result, err := ParseEnvFile(tmpFile)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseEnvFile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !maps.Equal(result, tt.expected) {
+				t.Errorf("ParseEnvFile() = %v, want %v", result, tt.expected)
+			}
+		})
 	}
 }
 
