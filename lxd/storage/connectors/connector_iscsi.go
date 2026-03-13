@@ -29,6 +29,11 @@ const (
 	iscsiErrCodeNotFound = 21
 )
 
+const (
+	// Default port number for iSCSI targets.
+	iscsiDefaultPort = "3260"
+)
+
 var _ Connector = &connectorISCSI{}
 
 type connectorISCSI struct {
@@ -39,7 +44,9 @@ type connectorISCSI struct {
 
 // ISCSIDiscoveryLogRecord represents an ISCSI discovery entry.
 type ISCSIDiscoveryLogRecord struct {
-	IQN string
+	Address        string
+	PortalGroupTag string
+	IQN            string
 }
 
 // Type returns the type of the connector.
@@ -286,18 +293,30 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 
 		for scanner.Scan() {
 			// each string looks like "192.168.168.1:3260,41 iqn.2023-24.com.org:cz2e123asd"
-			fields := strings.Fields(scanner.Text())
 
-			if len(fields) != 2 {
+			// Skip non target entries.
+			addrAndTag, iqn, ok := strings.Cut(scanner.Text(), " ")
+			if !ok {
 				continue
 			}
 
-			if !strings.HasPrefix(fields[0], targetAddr) {
+			// Skip non target entries.
+			addr, tag, ok := strings.Cut(addrAndTag, ",")
+			if !ok {
+				continue
+			}
+
+			// Make sure addr have a port number for stable output.
+			addr = ensurePort(addr, iscsiDefaultPort)
+
+			if addr != ensurePort(targetAddr, iscsiDefaultPort) {
 				continue
 			}
 
 			result = append(result, ISCSIDiscoveryLogRecord{
-				IQN: fields[1],
+				Address:        addr,
+				PortalGroupTag: tag,
+				IQN:            iqn,
 			})
 		}
 

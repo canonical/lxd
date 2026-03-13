@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -191,4 +193,21 @@ func connect(ctx context.Context, c Connector, targetQN string, targetAddrs []st
 
 	// All connections attempts have failed.
 	return nil, fmt.Errorf("Failed to connect to any address on target %q", targetQN)
+}
+
+// ensurePort adds the provided port ot the given address unless it already
+// have a port number.
+func ensurePort(addr string, defaultPort string) string {
+	_, _, err := net.SplitHostPort(addr)
+	if err == nil {
+		return addr
+	}
+
+	// If port is missing, add default port.
+	if strings.Contains(addr, "[") {
+		// Assume ipv6 address is already in brackets.
+		return fmt.Sprintf("%s:%s", addr, defaultPort)
+	}
+
+	return net.JoinHostPort(addr, defaultPort)
 }
