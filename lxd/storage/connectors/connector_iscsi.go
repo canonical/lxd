@@ -345,7 +345,7 @@ func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter 
 	// Create multipath device from a found device path.
 	_, err = shared.RunCommand(ctx, "multipath", devicePath)
 	if err != nil {
-		return "", fmt.Errorf("Failed to configure multipath for device %q: %w", devicePath, err)
+		return "", fmt.Errorf("Failed configuring multipath for device %q: %w", devicePath, err)
 	}
 
 	// Filter that makes sure the found device resolves to a multipath device.
@@ -435,7 +435,7 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 		}
 
 		if err != nil {
-			return fmt.Errorf("Failed to remove multipath device %q: %w", devicePath, err)
+			return fmt.Errorf("Failed removing multipath device %q: %w", devicePath, err)
 		}
 
 		// Remove the underlying SCSI devices that were part of the multipath map.
@@ -444,14 +444,14 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 		for _, slave := range slaves {
 			err := removeDevice(slave.Name())
 			if err != nil {
-				return fmt.Errorf("Failed to remove multipath slave device %q: %w", slave.Name(), err)
+				return fmt.Errorf("Failed removing multipath slave device %q: %w", slave.Name(), err)
 			}
 		}
 	} else {
 		// For non-multipath device (/dev/sd*), remove the device itself.
 		err := removeDevice(deviceName)
 		if err != nil {
-			return fmt.Errorf("Failed to remove device %q: %w", devicePath, err)
+			return fmt.Errorf("Failed removing device %q: %w", devicePath, err)
 		}
 	}
 
