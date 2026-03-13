@@ -2999,3 +2999,19 @@ These behaviors are applied asynchronously on heartbeat. Role changes are detect
 The `event-hub` role is deprecated in favor of the functionally equivalent `control-plane` role.
 
 For more information, see {ref}`dqlite-internals-lxd-cluster-roles` and {ref}`cluster-manage-control-plane`.
+
+(extension-cluster-links)=
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see {ref}`rest-api` for details):
+
+* [`GET /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_get)
+* [`GET /1.0/cluster/links`](swagger:/cluster-links/cluster_links_get)
+* [`GET /1.0/cluster/links/<name>/state`](swagger:/cluster-links/cluster_link_state_get)
+* [`PUT /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_put)
+* [`PATCH /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_patch)
+* [`POST /1.0/cluster/links`](swagger:/cluster-links/cluster_links_post)
+* [`POST /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_post)
+* [`DELETE /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_delete)

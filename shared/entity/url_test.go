@@ -53,6 +53,14 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
+			Name:     "Cluster link",
+			URL:      "/1.0/cluster/links/foo",
+			WantType: TypeClusterLink,
+			WantArgs: map[string]string{
+				"name": "foo",
+			},
+		},
+		{
 			Name:     "Container",
 			URL:      "/1.0/containers/foo",
 			WantType: TypeContainer,

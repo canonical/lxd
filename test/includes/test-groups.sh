@@ -47,6 +47,8 @@ readonly test_group_cluster=(
     "clustering_placement_groups"
     "clustering_force_removal"
     "clustering_project_limits"
+    "clustering_link_auth"
+    "clustering_link_info"
 )
 
 readonly test_group_cluster_storage=(
