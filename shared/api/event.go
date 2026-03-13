@@ -88,7 +88,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 
 		if e.Requestor != nil {
 			requestor := e.Requestor.Protocol + "/" + e.Requestor.Username + " (" + e.Requestor.Address + ")"
-			record.Msg = "Action: " + e.Action + ", Source: " + e.Source + ", Requestor: " + requestor
+			record.Msg = "Action: " + e.Action + ", Source: " + e.Source + ", RequestorAuditor: " + requestor
 		} else {
 			record.Msg = "Action: " + e.Action + ", Source: " + e.Source
 		}
@@ -162,7 +162,7 @@ type EventLifecycleRequestor struct {
 	Username string `yaml:"username" json:"username"`
 	Protocol string `yaml:"protocol" json:"protocol"`
 
-	// Requestor address
+	// RequestorAuditor address
 	// Example: 10.0.2.15
 	//
 	// API extension: event_lifecycle_requestor_address

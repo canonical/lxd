@@ -277,12 +277,7 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	listenAddress, err := n.ForwardCreate(req, requestor.ClientType())
+	listenAddress, err := n.ForwardCreate(req, request.UserAgentClientType(r))
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating forward: %w", err))
 	}
@@ -355,12 +350,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = n.ForwardDelete(listenAddress, requestor.ClientType())
+	err = n.ForwardDelete(listenAddress, request.UserAgentClientType(r))
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting forward: %w", err))
 	}
@@ -612,12 +602,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 
 	req.Normalise() // So we handle the request in normalised/canonical form.
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = n.ForwardUpdate(listenAddress, req, requestor.ClientType())
+	err = n.ForwardUpdate(listenAddress, req, request.UserAgentClientType(r))
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed updating forward: %w", err))
 	}

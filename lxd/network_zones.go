@@ -631,17 +631,12 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
+	err = netzone.Update(&req, request.UserAgentClientType(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = netzone.Update(&req, requestor.ClientType())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneUpdated.Event(netzone, requestor.EventLifecycleRequestor(), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneUpdated.Event(netzone, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }

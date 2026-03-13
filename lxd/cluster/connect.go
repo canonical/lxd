@@ -53,7 +53,7 @@ func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 
 	requestor, err := request.GetRequestorAuditor(ctx)
 	if err == nil {
-		args.Proxy = request.RequestorForwardProxy(requestor)
+		args.Proxy = request.RequestorForwardProxy(*requestor)
 	}
 
 	url := "https://" + address

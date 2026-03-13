@@ -826,7 +826,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted := requestor.IsTrusted()
+	trusted := requestor.IsTrusted
 
 	if !trusted && secret == "" {
 		return response.Forbidden(nil)
@@ -937,7 +937,7 @@ func checkOperationViewAccess(ctx context.Context, op *operations.Operation, aut
 	}
 
 	// The caller must be trusted.
-	if !requestor.IsTrusted() {
+	if !requestor.IsTrusted {
 		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 

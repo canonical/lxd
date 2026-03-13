@@ -139,7 +139,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		return err
 	}
 
-	isClusterNotification := requestor.IsClusterNotification()
+	isClusterNotification := request.UserAgentClientType(r).IsClusterNotification()
 
 	var recvFunc events.EventHandler
 	var excludeSources []events.EventSource
@@ -148,7 +148,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		// Get the current local serverName and store it for the events.
 		// We do that now to avoid issues with changes to the name and to limit
 		// the number of DB access to just one per connection.
-		fingerprint, err := requestor.ClusterMemberTLSCertificateFingerprint()
+		fingerprint, err := request.ClusterMemberTLSCertificateFingerprint(r)
 		if err != nil {
 			l.Warn("Failed setting up event connection", logger.Ctx{"err": err})
 			return nil
@@ -166,7 +166,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 			return nil
 		})
 		if err != nil {
-			l.Warn("Failed setting up event connection", logger.Ctx{"err": err})
+			l.Warn("Failed setting up event connection", logger.Ctx{"err": err, "fingerprint": fingerprint, "protocol": requestor.Protocol})
 			return nil
 		}
 
@@ -234,7 +234,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		}
 
 		// Allow the event if the same requestor is connected.
-		if m.Requestor.Username == requestor.CallerUsername() && m.Requestor.Protocol == requestor.CallerProtocol() {
+		if m.Requestor.Username == requestor.Username && m.Requestor.Protocol == requestor.Protocol {
 			return true
 		}
 

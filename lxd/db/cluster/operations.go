@@ -73,7 +73,7 @@ type OperationFilter struct {
 	UUID   *string
 }
 
-// RequestorProtocol is the database representation of the Requestor Protocol.
+// RequestorProtocol is the database representation of the RequestorAuditor Protocol.
 //
 // RequestorProtocol is defined on string so that constants can be converted by casting. The [sql.Scanner] and
 // [driver.Valuer] interfaces are implemented on this type such that the string constants are converted into their int64

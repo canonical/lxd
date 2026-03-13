@@ -354,7 +354,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// On other cluster nodes, we're done.
-	if requestor.IsClusterNotification() {
+	if request.UserAgentClientType(r).IsClusterNotification() {
 		return response.SyncResponse(true, nil)
 	}
 
@@ -967,13 +967,8 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be renamed"))
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// On cluster notification, just update the node config values and we're done.
-	if requestor.IsClusterNotification() {
+	if request.UserAgentClientType(r).IsClusterNotification() {
 		err = projectNodeConfigRename(d, r.Context(), name, req.Name)
 		if err != nil {
 			return response.SmartError(err)
@@ -1237,10 +1232,11 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// On cluster notification, clear the node config values and handle force deletion of local entities (if requested).
-	if requestor.IsClusterNotification() {
+	clientType := request.UserAgentClientType(r)
+	if clientType.IsClusterNotification() {
 		run := func(ctx context.Context, op *operations.Operation) error {
 			if force {
-				err = doProjectForceDelete(ctx, requestor.ClientType(), op, s, name, nil)
+				err = doProjectForceDelete(ctx, clientType, op, s, name, nil)
 				if err != nil {
 					return fmt.Errorf("Failed to delete member specific project resources: %w", err)
 				}
@@ -1349,7 +1345,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	run := func(ctx context.Context, op *operations.Operation) error {
 		if force {
 			// Force delete all project entities from the local node.
-			err = doProjectForceDelete(ctx, requestor.ClientType(), op, s, project.Name, projectEntities)
+			err = doProjectForceDelete(ctx, clientType, op, s, project.Name, projectEntities)
 			if err != nil {
 				return fmt.Errorf("Failed to force delete project: %w", err)
 			}

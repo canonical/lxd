@@ -91,7 +91,7 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = updateClusterCertificate(r.Context(), s, d.gateway, r, requestor.IsClusterNotification(), req)
+	err = updateClusterCertificate(r.Context(), s, d.gateway, r, req)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -101,11 +101,16 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func updateClusterCertificate(ctx context.Context, s *state.State, gateway *cluster.Gateway, r *http.Request, isClusterNotification bool, req api.ClusterCertificatePut) error {
+func updateClusterCertificate(ctx context.Context, s *state.State, gateway *cluster.Gateway, r *http.Request, req api.ClusterCertificatePut) error {
 	revert := revert.New()
 	defer revert.Fail()
 
 	newClusterCertFilename := shared.VarPath(acme.ClusterCertFilename)
+
+	var isClusterNotification bool
+	if r != nil {
+		isClusterNotification = request.UserAgentClientType(r).IsClusterNotification()
+	}
 
 	// First node forwards request to all other cluster nodes
 	if r == nil || !isClusterNotification {

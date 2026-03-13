@@ -1347,7 +1347,7 @@ func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 	}
 
 	if !hasCapability && !bool(C.is_whiteout(args.cDev, args.cMode)) {
-		l.Error("Requestor process creds lacks CAP_MKNOD")
+		l.Error("RequestorAuditor process creds lacks CAP_MKNOD")
 		return int(-C.EPERM)
 	}
 
@@ -2058,7 +2058,7 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 	}
 
 	if !hasCapability {
-		ctx["err"] = "Requestor process creds lacks CAP_SYS_MODULE"
+		ctx["err"] = "RequestorAuditor process creds lacks CAP_SYS_MODULE"
 		return int(-C.EPERM)
 	}
 

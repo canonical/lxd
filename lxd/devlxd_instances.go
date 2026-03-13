@@ -66,7 +66,7 @@ func devLXDInstanceGetHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get owned devices.
-	ownedDevices := getDevLXDOwnedDevices(targetInst.Devices, targetInst.Config, requestor.CallerUsername())
+	ownedDevices := getDevLXDOwnedDevices(targetInst.Devices, targetInst.Config, requestor.Username)
 
 	// Filter devices that are not accessible to devLXD.
 	deviceAccessChecker := newDevLXDDeviceAccessValidator(inst)
@@ -141,7 +141,7 @@ func devLXDInstancePatchHandler(d *Daemon, r *http.Request) response.Response {
 
 	// Evaluate instance device changes and derive instance configuration with appropriate device ownership.
 	deviceChecker := newDevLXDDeviceAccessValidator(inst)
-	devices, config, err := generateDevLXDInstanceDevices(targetInst, reqInst, requestor.CallerUsername(), deviceChecker)
+	devices, config, err := generateDevLXDInstanceDevices(targetInst, reqInst, requestor.Username, deviceChecker)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}

@@ -107,7 +107,7 @@ type Operation struct {
 	readonly        bool
 	description     string
 	dbOpType        operationtype.Type
-	requestor       *opRequestor
+	requestor       *request.RequestorAuditor
 	metricsCallback func(metrics.RequestResult)
 	logger          logger.Logger
 	location        string
@@ -147,7 +147,7 @@ type OperationArgs struct {
 	Metadata        map[string]any
 	RunHook         func(ctx context.Context, op *Operation) error
 	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
-	requestor       *opRequestor
+	requestor       *request.RequestorAuditor
 	metricsCallback func(result metrics.RequestResult)
 	Inputs          map[string]any
 	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
@@ -174,10 +174,7 @@ func ScheduleUserOperationFromRequest(s *state.State, r *http.Request, args Oper
 		return nil, fmt.Errorf("Cannot create user operation: %w", err)
 	}
 
-	args.requestor = &opRequestor{
-		identityID: requestor.CallerIdentityID(),
-		r:          requestor.OperationRequestor(),
-	}
+	args.requestor = requestor.RequestorAuditor
 
 	args.metricsCallback = metricsCallback
 	return scheduleOperation(s, args)
@@ -312,7 +309,7 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 		return fmt.Errorf("Failed to verify operation requestor: %w", err)
 	}
 
-	if !opRequestor.CallerIsEqual(requestor) {
+	if !opRequestor.CallerIsEqual(requestor.RequestorAuditor) {
 		return api.StatusErrorf(http.StatusForbidden, "Operation requestor mismatch")
 	}
 
@@ -320,7 +317,7 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 }
 
 // Requestor returns the initial requestor for this operation.
-func (op *Operation) Requestor() *opRequestor {
+func (op *Operation) Requestor() *request.RequestorAuditor {
 	return op.requestor
 }
 
@@ -419,7 +416,7 @@ func (op *Operation) start() {
 		// in the request headers.
 		runCtx := context.Context(op.running)
 		if op.requestor != nil {
-			runCtx = request.WithRequestor(runCtx, op.requestor)
+			runCtx = request.WithRequestorAuditor(runCtx, op.requestor)
 		}
 
 		go func(ctx context.Context, op *Operation) {
