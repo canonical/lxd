@@ -2281,7 +2281,7 @@ func patchRemoveMAASConfigKeys(_ string, d *Daemon) error {
 		})
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to remove maas.machine from local node config: %w", err)
+		return fmt.Errorf("Failed removing maas.machine from local node config: %w", err)
 	}
 
 	// Remove all MAAS keys from the cluster database.
@@ -2297,49 +2297,49 @@ func patchRemoveMAASConfigKeys(_ string, d *Daemon) error {
 			"maas.machine": "",
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to remove global MAAS config keys: %w", err)
+			return fmt.Errorf("Failed removing global MAAS config keys: %w", err)
 		}
 
 		// Remove per-member maas.machine key from nodes_config.
 		_, err = tx.Tx().ExecContext(ctx, `DELETE FROM nodes_config WHERE key = 'maas.machine'`)
 		if err != nil {
-			return fmt.Errorf("Failed to remove maas.machine from nodes_config: %w", err)
+			return fmt.Errorf("Failed removing maas.machine from nodes_config: %w", err)
 		}
 
 		// Remove maas.subnet.ipv4 and maas.subnet.ipv6 from network configs.
 		_, err = tx.Tx().ExecContext(ctx, `DELETE FROM networks_config WHERE key IN ('maas.subnet.ipv4', 'maas.subnet.ipv6')`)
 		if err != nil {
-			return fmt.Errorf("Failed to remove MAAS keys from networks_config: %w", err)
+			return fmt.Errorf("Failed removing MAAS keys from networks_config: %w", err)
 		}
 
 		// Remove maas.subnet.ipv4 and maas.subnet.ipv6 from instance NIC device configs.
 		_, err = tx.Tx().ExecContext(ctx, `DELETE FROM instances_devices_config WHERE key IN ('maas.subnet.ipv4', 'maas.subnet.ipv6')`)
 		if err != nil {
-			return fmt.Errorf("Failed to remove MAAS keys from instances_devices_config: %w", err)
+			return fmt.Errorf("Failed removing MAAS keys from instances_devices_config: %w", err)
 		}
 
 		// Remove maas.subnet.ipv4 and maas.subnet.ipv6 from instance snapshot NIC device configs.
 		_, err = tx.Tx().ExecContext(ctx, `DELETE FROM instances_snapshots_devices_config WHERE key IN ('maas.subnet.ipv4', 'maas.subnet.ipv6')`)
 		if err != nil {
-			return fmt.Errorf("Failed to remove MAAS keys from instances_snapshots_devices_config: %w", err)
+			return fmt.Errorf("Failed removing MAAS keys from instances_snapshots_devices_config: %w", err)
 		}
 
 		// Remove maas.subnet.ipv4 and maas.subnet.ipv6 from profile NIC device configs.
 		_, err = tx.Tx().ExecContext(ctx, `DELETE FROM profiles_devices_config WHERE key IN ('maas.subnet.ipv4', 'maas.subnet.ipv6')`)
 		if err != nil {
-			return fmt.Errorf("Failed to remove MAAS keys from profiles_devices_config: %w", err)
+			return fmt.Errorf("Failed removing MAAS keys from profiles_devices_config: %w", err)
 		}
 
 		// Delete any stale UnableToConnectToMAAS warnings (type_code 18).
 		_, err = tx.Tx().ExecContext(ctx, `DELETE FROM warnings WHERE type_code = ?`, warningtype.UnableToConnectToMAAS)
 		if err != nil {
-			return fmt.Errorf("Failed to remove stale MAAS warnings: %w", err)
+			return fmt.Errorf("Failed removing stale MAAS warnings: %w", err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to remove MAAS configuration keys: %w", err)
+		return fmt.Errorf("Failed removing MAAS configuration keys: %w", err)
 	}
 
 	return nil
