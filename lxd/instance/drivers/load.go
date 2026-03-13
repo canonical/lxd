@@ -167,9 +167,10 @@ func DriverStatuses() map[instancetype.Type]*DriverStatus {
 		driverStatus.Info = driverInfo
 		driverStatus.Supported = true
 
-		// Parse the version string.
+		// Parse the version string, ignoring any extra suffixes
+		// like "(external)" that may be appended by external driver wrappers.
 		if driverInfo.Version != "" {
-			dottedVersion, err := version.NewDottedVersion(driverInfo.Version)
+			dottedVersion, err := version.Parse(driverInfo.Version)
 			if err == nil {
 				driverStatus.Version = dottedVersion
 			}
