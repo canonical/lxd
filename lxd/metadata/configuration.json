@@ -5963,7 +5963,7 @@
 					{
 						"ceph.osd.pool_name": {
 							"defaultdesc": "name of the pool",
-							"longdesc": "",
+							"longdesc": "This option specifies the name of the OSD storage pool.\nThe OSD storage pool gets created if missing.",
 							"scope": "global",
 							"shortdesc": "Name of the OSD storage pool",
 							"type": "string"
@@ -6010,14 +6010,6 @@
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "The Ceph user to use when creating storage pools and volumes",
-							"type": "string"
-						}
-					},
-					{
-						"source": {
-							"longdesc": "",
-							"scope": "local",
-							"shortdesc": "Existing OSD storage pool to use",
 							"type": "string"
 						}
 					},
@@ -6235,7 +6227,7 @@
 					{
 						"cephfs.path": {
 							"defaultdesc": "`/`",
-							"longdesc": "",
+							"longdesc": "This option specifies the base path for the CephFS mount.\nThe path gets created if missing.",
 							"scope": "global",
 							"shortdesc": "The base path for the CephFS mount",
 							"type": "string"
@@ -6247,14 +6239,6 @@
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "The Ceph user to use",
-							"type": "string"
-						}
-					},
-					{
-						"source": {
-							"longdesc": "",
-							"scope": "local",
-							"shortdesc": "Existing CephFS file system or file system path to use",
 							"type": "string"
 						}
 					},

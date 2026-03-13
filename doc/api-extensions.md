@@ -2988,3 +2988,12 @@ These behaviors are applied asynchronously on heartbeat. Role changes are detect
 The `event-hub` role is deprecated in favor of the functionally equivalent `control-plane` role.
 
 For more information, see {ref}`dqlite-internals-lxd-cluster-roles` and {ref}`cluster-manage-control-plane`.
+
+(extension-storage-remote-drop-source)=
+## `storage_remote_drop_source`
+
+Starting with this extension, support for the `source` configuration key in both the Ceph RBD `ceph` and CephFS `cephfs` drivers is dropped.
+This ensures the storage pool configuration is done consistently across all remote drivers.
+
+For Ceph RBD use the `ceph.osd.pool_name` configuration key.
+For CephFS use the `cephfs.path` configuration key.

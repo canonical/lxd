@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -500,6 +501,9 @@ func (d *zfs) Validate(config map[string]string) error {
 		//  scope: global
 		"zfs.export": validate.Optional(validate.IsBool),
 	}
+
+	// Append common local pool rules.
+	maps.Insert(rules, maps.All(d.commonRules.LocalPoolRules()))
 
 	return d.validatePool(config, rules, d.commonVolumeRules())
 }

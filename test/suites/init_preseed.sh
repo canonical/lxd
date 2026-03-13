@@ -11,6 +11,9 @@ test_init_preseed() {
 
     storage_pool="lxdtest-$(basename "${LXD_DIR}")-data"
     storage_volume="${storage_pool}-volume"
+    source="lxdtest-$(basename "${LXD_DIR}")-preseed-pool"
+    source_key="source"
+
     # In case we're running against the ZFS backend, let's test
     # creating a zfs storage pool, otherwise just use dir.
     if [ "$lxd_backend" = "zfs" ]; then
@@ -18,10 +21,9 @@ test_init_preseed() {
         # shellcheck disable=SC2154
         zpool create -f -m none -O compression=on "lxdtest-$(basename "${LXD_DIR}")-preseed-pool" "${loop_device_4}"
         driver="zfs"
-        source="lxdtest-$(basename "${LXD_DIR}")-preseed-pool"
     elif [ "$lxd_backend" = "ceph" ]; then
         driver="ceph"
-        source=""
+        source_key="ceph.osd.pool_name"
     else
         driver="dir"
         source=""
@@ -33,9 +35,9 @@ config:
   images.auto_update_interval: 15
 storage_pools:
 - name: ${storage_pool}
-  driver: $driver
+  driver: ${driver}
   config:
-    source: $source
+    ${source_key}: ${source}
 storage_volumes:
 - name: ${storage_volume}
   pool: ${storage_pool}

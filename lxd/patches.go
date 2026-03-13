@@ -122,6 +122,7 @@ var patches = []patch{
 	{name: "vm_set_max_bus_ports", stage: patchPostDaemonStorage, run: patchVMSetMaxBusPorts},
 	{name: "storage_remove_local_buckets", stage: patchPostDaemonStorage, run: patchStorageRemoveLocalBuckets},
 	{name: "config_remove_maas_keys", stage: patchPreLoadClusterConfig, run: patchRemoveMAASConfigKeys},
+	{name: "storage_unset_ceph_source_setting", stage: patchPostDaemonStorage, run: patchUnsetCephSourceSetting},
 }
 
 type patch struct {
@@ -2345,8 +2346,6 @@ func patchRemoveMAASConfigKeys(_ string, d *Daemon) error {
 	return nil
 }
 
-// Patches end here
-
 // patchStorageRemoveLocalBuckets removes the orphaned "buckets/" directories from local storage pools
 // and the core.storage_buckets_address config key since local storage drivers no longer support storage buckets.
 func patchStorageRemoveLocalBuckets(_ string, d *Daemon) error {
@@ -2390,3 +2389,18 @@ func patchStorageRemoveLocalBuckets(_ string, d *Daemon) error {
 
 	return nil
 }
+
+// patchUnsetCephSourceSetting unsets the source setting from all Ceph RBD and CephFS storage pools' configs.
+func patchUnsetCephSourceSetting(_ string, d *Daemon) error {
+	_, err := d.State().DB.Cluster.DB().ExecContext(d.shutdownCtx, `
+DELETE FROM storage_pools_config
+	WHERE key = "source"
+	AND storage_pool_id IN (
+		SELECT id FROM storage_pools
+			WHERE driver IN ("ceph", "cephfs")
+	)
+	`)
+	return err
+}
+
+// Patches end here

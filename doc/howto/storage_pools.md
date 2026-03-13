@@ -146,11 +146,11 @@ Create an OSD storage pool named `pool3` with the on-disk name `my-osd` in the d
 
 Use the existing OSD storage pool `my-already-existing-osd` for `pool4`:
 
-    lxc storage create pool4 ceph source=my-already-existing-osd
+    lxc storage create pool4 ceph ceph.osd.pool_name=my-already-existing-osd
 
 Use the existing OSD erasure-coded pool `ecpool` and the OSD replicated pool `rpl-pool` for `pool5`:
 
-    lxc storage create pool5 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
+    lxc storage create pool5 ceph ceph.osd.pool_name=rpl-pool ceph.osd.data_pool_name=ecpool
 
 ##### Create a CephFS pool
 
@@ -160,15 +160,15 @@ Each CephFS file system consists of two OSD storage pools, one for the actual da
 
 Use the existing CephFS file system `my-filesystem` for `pool1`:
 
-    lxc storage create pool1 cephfs source=my-filesystem
+    lxc storage create pool1 cephfs cephfs.path=my-filesystem
 
 Use the sub-directory `my-directory` from the `my-filesystem` file system for `pool2`:
 
-    lxc storage create pool2 cephfs source=my-filesystem/my-directory
+    lxc storage create pool2 cephfs cephfs.path=my-filesystem/my-directory
 
 Create a CephFS file system `my-filesystem` with a data pool called `my-data` and a metadata pool called `my-metadata` for `pool3`:
 
-    lxc storage create pool3 cephfs source=my-filesystem cephfs.create_missing=true cephfs.data_pool=my-data cephfs.meta_pool=my-metadata
+    lxc storage create pool3 cephfs cephfs.path=my-filesystem cephfs.create_missing=true cephfs.data_pool=my-data cephfs.meta_pool=my-metadata
 
 ##### Create a Ceph Object pool
 
@@ -563,11 +563,11 @@ Get a list of existing OSD pools by running `ceph osd pool ls`.
 
 Recover a pool named `pool1` using the existing OSD storage pool `my-osd`:
 
-    lxc storage create pool1 ceph source.recover=true source=my-osd
+    lxc storage create pool1 ceph source.recover=true ceph.osd.pool_name=my-osd
 
 Recover a pool named `pool2` using the existing OSD storage pool `my-osd` in the Ceph cluster `my-cluster`:
 
-    lxc storage create pool2 ceph source.recover=true source=my-osd ceph.cluster_name=my-cluster
+    lxc storage create pool2 ceph source.recover=true ceph.osd.pool_name=my-osd ceph.cluster_name=my-cluster
 
 #### Recover a CephFS pool
 
@@ -579,11 +579,11 @@ Get a list of existing CephFS file systems by running `ceph fs volume ls`.
 
 Recover a pool named `pool1` using the existing CephFS file system `my-filesystem`:
 
-    lxc storage create pool1 cephfs source.recover=true source=my-filesystem
+    lxc storage create pool1 cephfs source.recover=true cephfs.path=my-filesystem
 
 Recover a pool named `pool2` using the existing sub-directory `my-directory` on the Ceph FS file system `my-filesystem`:
 
-    lxc storage create pool2 cephfs source.recover=true source=my-filesystem/my-directory
+    lxc storage create pool2 cephfs source.recover=true cephfs.path=my-filesystem/my-directory
 
 #### Recover a Ceph Object pool
 
@@ -757,7 +757,7 @@ In the output, look for a cluster member with `rgw` in its `Services` list.
 
 Example:
 
-```{terminal} 
+```{terminal}
 :user: root
 :host: micro1
 microceph status

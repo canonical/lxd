@@ -523,48 +523,6 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 // validatePoolCommonRules returns a map of pool config rules common to all drivers.
 func validatePoolCommonRules() map[string]func(string) error {
 	rules := map[string]func(string) error{
-		// lxdmeta:generate(entities=storage-btrfs; group=pool-conf; key=source)
-		//
-		// ---
-		//  type: string
-		//  shortdesc: Path to an existing block device, loop file, or Btrfs subvolume
-		//  scope: local
-
-		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=source)
-		//
-		// ---
-		//  type: string
-		//  shortdesc: Existing CephFS file system or file system path to use
-		//  scope: local
-
-		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=source)
-		//
-		// ---
-		//  type: string
-		//  shortdesc: Existing OSD storage pool to use
-		//  scope: local
-
-		// lxdmeta:generate(entities=storage-dir; group=pool-conf; key=source)
-		//
-		// ---
-		//  type: string
-		//  shortdesc: Path to an existing directory
-		//  scope: local
-
-		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=source)
-		//
-		// ---
-		//  type: string
-		//  shortdesc: Path to an existing block device, loop file, or LVM volume group
-		//  scope: local
-
-		// lxdmeta:generate(entities=storage-zfs; group=pool-conf; key=source)
-		//
-		// ---
-		//  type: string
-		//  shortdesc: Path to an existing block device, loop file, or ZFS dataset/pool
-		//  scope: local
-		"source": validate.IsAny,
 		// lxdmeta:generate(entities=storage-btrfs,storage-lvm,storage-zfs; group=pool-conf; key=source.wipe)
 		// Set this option to `true` to wipe the block device specified in `source`
 		// prior to creating the storage pool.
@@ -605,6 +563,42 @@ func validatePoolCommonRules() map[string]func(string) error {
 	// Add to pool config rules (prefixed with volume.*) which are common for pool and volume.
 	for volRule, volValidator := range poolAndVolumeCommonRules(nil) {
 		rules["volume."+volRule] = volValidator
+	}
+
+	return rules
+}
+
+// validateLocalPoolCommonRules returns a map of pool config rules common to local drivers.
+func validateLocalPoolCommonRules() map[string]func(string) error {
+	rules := map[string]func(string) error{
+		// lxdmeta:generate(entities=storage-btrfs; group=pool-conf; key=source)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Path to an existing block device, loop file, or Btrfs subvolume
+		//  scope: local
+
+		// lxdmeta:generate(entities=storage-dir; group=pool-conf; key=source)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Path to an existing directory
+		//  scope: local
+
+		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=source)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Path to an existing block device, loop file, or LVM volume group
+		//  scope: local
+
+		// lxdmeta:generate(entities=storage-zfs; group=pool-conf; key=source)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Path to an existing block device, loop file, or ZFS dataset/pool
+		//  scope: local
+		"source": validate.IsAny,
 	}
 
 	return rules

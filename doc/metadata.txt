@@ -5377,7 +5377,8 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 :scope: "global"
 :shortdesc: "Name of the OSD storage pool"
 :type: "string"
-
+This option specifies the name of the OSD storage pool.
+The OSD storage pool gets created if missing.
 ```
 
 ```{config:option} ceph.osd.pool_size storage-ceph-pool-conf
@@ -5416,13 +5417,6 @@ This option specifies whether to use RBD `du` to obtain disk usage data for stop
 :defaultdesc: "`admin`"
 :scope: "global"
 :shortdesc: "The Ceph user to use when creating storage pools and volumes"
-:type: "string"
-
-```
-
-```{config:option} source storage-ceph-pool-conf
-:scope: "local"
-:shortdesc: "Existing OSD storage pool to use"
 :type: "string"
 
 ```
@@ -5633,20 +5627,14 @@ when creating an OSD pool.
 :scope: "global"
 :shortdesc: "The base path for the CephFS mount"
 :type: "string"
-
+This option specifies the base path for the CephFS mount.
+The path gets created if missing.
 ```
 
 ```{config:option} cephfs.user.name storage-cephfs-pool-conf
 :defaultdesc: "`admin`"
 :scope: "global"
 :shortdesc: "The Ceph user to use"
-:type: "string"
-
-```
-
-```{config:option} source storage-cephfs-pool-conf
-:scope: "local"
-:shortdesc: "Existing CephFS file system or file system path to use"
 :type: "string"
 
 ```

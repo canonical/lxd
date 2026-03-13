@@ -30,7 +30,7 @@ test_storage_driver_ceph() {
     ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool create "lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool" 1
 
     # Let LXD use an already existing osd pool.
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" ceph source="lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool" volume.size="${DEFAULT_VOLUME_SIZE}" ceph.osd.pg_num=8
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" ceph ceph.osd.pool_name="lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool" volume.size="${DEFAULT_VOLUME_SIZE}" ceph.osd.pg_num=8
 
     # Test that no invalid ceph storage pool configuration keys can be set.
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-ceph-pool-config" ceph lvm.thinpool_name=bla || false

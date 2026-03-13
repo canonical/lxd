@@ -108,8 +108,6 @@ func (d *cephfs) FillConfig() error {
 		d.config["cephfs.osd_pool_size"] = strconv.Itoa(defaultSize)
 	}
 
-	d.config["cephfs.path"] = d.config["source"]
-
 	return nil
 }
 
@@ -120,23 +118,19 @@ func (d *cephfs) SourceIdentifier() (string, error) {
 		return "", errors.New("Cannot derive identifier from empty cluster name")
 	}
 
-	source := d.config["source"]
-	if source == "" {
-		return "", errors.New("Cannot derive identifier from empty pool name")
+	path := d.config["cephfs.path"]
+	if path == "" {
+		return "", errors.New("Cannot derive identifier from empty path")
 	}
 
-	return cluster + "-" + source, nil
+	return cluster + "-" + path, nil
 }
 
 // ValidateSource checks whether the required config keys are set to access the remote source.
 func (d *cephfs) ValidateSource() error {
 	// Config validation.
-	if d.config["source"] == "" {
-		return errors.New("Missing required source name/path")
-	}
-
-	if d.config["cephfs.path"] != "" && d.config["cephfs.path"] != d.config["source"] {
-		return errors.New("cephfs.path must match the source")
+	if d.config["cephfs.path"] == "" {
+		return errors.New("Missing required path")
 	}
 
 	return nil
@@ -422,7 +416,8 @@ func (d *cephfs) Validate(config map[string]string) error {
 		//  scope: global
 		"cephfs.fscache": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.path)
-		//
+		// This option specifies the base path for the CephFS mount.
+		// The path gets created if missing.
 		// ---
 		//  type: string
 		//  defaultdesc: `/`

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"os/exec"
@@ -587,6 +588,9 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  scope: global
 		"lvm.vg.force_reuse": validate.Optional(validate.IsBool),
 	}
+
+	// Append common local pool rules.
+	maps.Insert(rules, maps.All(d.commonRules.LocalPoolRules()))
 
 	err := d.validatePool(config, rules, d.commonVolumeRules())
 	if err != nil {

@@ -734,8 +734,8 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 					return err
 				}
 
-				// Ask for the name of the cluster
-				pool.Config["source"], err = c.global.asker.AskString("Name of the CEPHfs volume: ", "", nil)
+				// Ask for the CephFS path
+				pool.Config["cephfs.path"], err = c.global.asker.AskString("Name of the CEPHfs path: ", "", nil)
 				if err != nil {
 					return err
 				}
@@ -803,12 +803,10 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 				}
 
 				// ask for the name of the existing pool
-				pool.Config["source"], err = c.global.asker.AskString("Name of the existing OSD storage pool [default=lxd]: ", "lxd", nil)
+				pool.Config["ceph.osd.pool_name"], err = c.global.asker.AskString("Name of the existing OSD storage pool [default=lxd]: ", "lxd", nil)
 				if err != nil {
 					return err
 				}
-
-				pool.Config["ceph.osd.pool_name"] = pool.Config["source"]
 			} else {
 				question := "Name of the existing " + strings.ToUpper(pool.Driver) + " pool or dataset: "
 				pool.Config["source"], err = c.global.asker.AskString(question, "", nil)

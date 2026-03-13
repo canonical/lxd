@@ -43,7 +43,7 @@ That driver can also be used for custom storage volumes with content type `files
     :end-before: <!-- Include end Ceph driver cluster -->
 ```
 
-You can either create the CephFS file system that you want to use beforehand and specify it through the {config:option}`storage-cephfs-pool-conf:source` option, or specify the {config:option}`storage-cephfs-pool-conf:cephfs.create_missing` option to automatically create the file system and the data and metadata OSD pools (with the names given in {config:option}`storage-cephfs-pool-conf:cephfs.data_pool` and {config:option}`storage-cephfs-pool-conf:cephfs.meta_pool`).
+You can either create the CephFS file system that you want to use beforehand and specify it through the {config:option}`storage-cephfs-pool-conf:cephfs.path` option, or specify the {config:option}`storage-cephfs-pool-conf:cephfs.create_missing` option to automatically create the file system and the data and metadata OSD pools (with the names given in {config:option}`storage-cephfs-pool-conf:cephfs.data_pool` and {config:option}`storage-cephfs-pool-conf:cephfs.meta_pool`).
 
 % Include content from [storage_ceph.md](storage_ceph.md)
 ```{include} storage_ceph.md
