@@ -206,24 +206,25 @@ func (d *zone) validateConfig(info *api.NetworkZonePut) error {
 		//  type: string
 		//  required: no
 		//  shortdesc: TSIG key for the server
-		if !strings.HasPrefix(k, "peers.") {
+		suffix, found := strings.CutPrefix(k, "peers.")
+		if !found {
 			continue
 		}
 
-		// Validate remote name in key.
-		fields := strings.Split(k, ".")
-		if len(fields) != 3 {
+		// Extract the field name (last component after the peer name).
+		_, peerKey, found := strings.Cut(suffix, ".")
+		if !found {
 			return fmt.Errorf("Invalid network zone configuration key %q", k)
 		}
-
-		peerKey := fields[2]
 
 		// Add the correct validation rule for the dynamic field based on last part of key.
 		switch peerKey {
 		case "address":
 			rules[k] = validate.Optional(validate.IsNetworkAddress)
 		case "key":
-			rules[k] = validate.Optional(validate.IsAny)
+			rules[k] = validate.IsAny
+		default:
+			return fmt.Errorf("Invalid network zone peer configuration key %q (unknown field %q)", k, peerKey)
 		}
 	}
 
