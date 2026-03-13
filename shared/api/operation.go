@@ -47,7 +47,7 @@ type Operation struct {
 	// Example: 103
 	StatusCode StatusCode `json:"status_code" yaml:"status_code"`
 
-	// Affected resourcs
+	// Affected resources
 	// Example: {"containers": ["/1.0/containers/foo"], "instances": ["/1.0/instances/foo"]}
 	Resources map[string][]string `json:"resources" yaml:"resources"`
 
@@ -59,7 +59,7 @@ type Operation struct {
 	// Example: false
 	MayCancel bool `json:"may_cancel" yaml:"may_cancel"`
 
-	// Operation error mesage
+	// Operation error message
 	// Example: Some error message
 	Err string `json:"err" yaml:"err"`
 
@@ -73,6 +73,18 @@ type Operation struct {
 	//
 	// API extension: operation_requestor
 	Requestor *OperationRequestor `json:"requestor,omitempty" yaml:"requestor,omitempty"`
+}
+
+// OperationFull is an Operation with its child operations.
+//
+// swagger:model
+//
+// API extension: bulk_operations.
+type OperationFull struct {
+	Operation `yaml:",inline"`
+
+	// Children is a list of child operations, if any exist.
+	Children []Operation `json:"children,omitempty" yaml:"children,omitempty"`
 }
 
 // OperationRequestor represents the initial requestor of an operation

@@ -165,46 +165,103 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	recursion, _ := util.IsRecursionRequest(r)
+
 	// Load the operation from the database.
-	var body *api.Operation
-	var dbLocation string
-	var operation dbCluster.Operation
+	opsLocations := make(map[string]string)
 	var op *operations.Operation
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projectNames := make(map[int64]string)
+		nodeNames := make(map[int64]string)
+		constructOperation := func(dbOp *dbCluster.Operation) (*operations.Operation, error) {
+			// Get project name from the cache of project IDs to names, or load it from the DB if not present.
+			var projectName string
+			var ok bool
+			if dbOp.ProjectID != nil {
+				projectName, ok = projectNames[*dbOp.ProjectID]
+				if !ok {
+					project, err := dbCluster.GetProjectByID(ctx, tx.Tx(), int(*dbOp.ProjectID))
+					if err != nil {
+						return nil, err
+					}
+
+					projectNames[*dbOp.ProjectID] = project.Name
+					projectName = project.Name
+				}
+			}
+
+			// Get location from the cache of node IDs to names, or load it from the DB if not present.
+			location, ok := nodeNames[dbOp.NodeID]
+			if !ok {
+				ni, err := tx.GetNodeByID(ctx, dbOp.NodeID)
+				if err != nil {
+					return nil, err
+				}
+
+				nodeNames[dbOp.NodeID] = ni.Name
+				location = ni.Name
+			}
+
+			opsLocations[dbOp.UUID] = location
+
+			op, err := operations.ConstructOperationFromDB(ctx, tx.Tx(), s, dbOp, projectName)
+			if err != nil {
+				return nil, err
+			}
+
+			return op, nil
+		}
+
 		filter := dbCluster.OperationFilter{UUID: &id}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		dbOps, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
 
 		// Make sure we have loaded exactly one operation from the DB.
-		switch len(ops) {
+		var dbOp *dbCluster.Operation
+		switch len(dbOps) {
 		case 0:
 			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		case 1:
-			operation = ops[0]
+			dbOp = &dbOps[0]
 		default:
 			return errors.New("More than one operation matches")
 		}
 
-		var projectName string
-		if operation.ProjectID != nil {
-			project, err := dbCluster.GetProjectByID(ctx, tx.Tx(), int(*operation.ProjectID))
-			if err != nil {
-				return err
-			}
-
-			projectName = project.Name
+		// Don't return child operations directly.
+		// Child operations can be returned embedded in their parents with recursion=1.
+		if dbOp.Parent != nil {
+			return api.StatusErrorf(http.StatusBadRequest, "Child operations cannot be retrieved individually")
 		}
 
-		ni, err := tx.GetNodeByID(ctx, operation.NodeID)
+		op, err = constructOperation(dbOp)
 		if err != nil {
 			return err
 		}
 
-		dbLocation = ni.Name
+		// Load children if needed
+		if recursion > 0 {
+			// Load all child operations.
+			childFilter := dbCluster.OperationFilter{Parent: &dbOp.ID}
+			childDbOps, err := dbCluster.GetOperations(ctx, tx.Tx(), childFilter)
+			if err != nil {
+				return err
+			}
 
-		op, err = operations.ConstructOperationFromDB(ctx, tx.Tx(), s, &operation, projectName)
+			children := make([]*operations.Operation, 0, len(childDbOps))
+			for _, childDbOp := range childDbOps {
+				childOp, err := constructOperation(&childDbOp)
+				if err != nil {
+					return err
+				}
+
+				children = append(children, childOp)
+			}
+
+			op.AddChildren(children...)
+		}
+
 		return err
 	})
 	if err != nil {
@@ -216,11 +273,28 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	_, body = op.RenderWithoutProgress()
+	_, body := op.RenderFullWithoutProgress()
 
 	// The [operations.Operation] doesn't contain the node where the operation is running.
 	// If we're loading operations from the DB, we need to set the location here.
-	body.Location = dbLocation
+	var ok bool
+	body.Location, ok = opsLocations[op.ID()]
+	if !ok {
+		logger.Warn("Failed to find operation location", logger.Ctx{"operationID": op.ID()})
+	}
+
+	newChildren := make([]api.Operation, 0, len(body.Children))
+	for _, child := range body.Children {
+		var ok bool
+		child.Location, ok = opsLocations[child.ID]
+		if !ok {
+			logger.Warn("Failed to find child operation location", logger.Ctx{"operationID": child.ID})
+		}
+
+		newChildren = append(newChildren, child)
+	}
+
+	body.Children = newChildren
 
 	return response.SyncResponse(true, body)
 }
@@ -501,7 +575,10 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed to check caller access to server operations: %w", err))
 	}
 
-	ops := make([]api.Operation, 0)
+	recursion, _ := util.IsRecursionRequest(r)
+
+	// Map of parent operations keyed by the operation ID.
+	parentOps := make(map[int64]*operations.Operation)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projects, err := dbCluster.GetProjectIDsToNames(ctx, tx.Tx())
 		if err != nil {
@@ -541,7 +618,14 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			membersByID[member.ID] = &member
 		}
 
+		// Map of child operations keyd by their parent operation ID.
+		childOps := make(map[int64][]*operations.Operation)
 		for _, dbOp := range dbOps {
+			// Omit child operations if not requested.
+			if dbOp.Parent != nil && recursion < 2 {
+				continue
+			}
+
 			// Get operation project name if it has one.
 			operationProject := ""
 			if dbOp.ProjectID != nil {
@@ -572,17 +656,29 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			_, apiOp := op.RenderWithoutProgress()
+			// If this is a child operations, add it to the list keyed by parent DB ID.
+			// We'll match these to actual parents later.
+			if dbOp.Parent != nil {
+				_, ok := childOps[*dbOp.Parent]
+				if !ok {
+					childOps[*dbOp.Parent] = make([]*operations.Operation, 0)
+				}
 
-			// The [operations.Operation] doesn't contain the node where the operation is running.
-			// Since we're loading operations from the DB, we need to set the location here.
-			apiOp.Location = ""
-			member, ok := membersByID[dbOp.NodeID]
-			if ok {
-				apiOp.Location = member.Name
+				childOps[*dbOp.Parent] = append(childOps[*dbOp.Parent], op)
+			} else {
+				parentOps[dbOp.ID] = op
+			}
+		}
+
+		// Now add the child operations to their parents.
+		for parentID, children := range childOps {
+			parentOp, ok := parentOps[parentID]
+			if !ok {
+				logger.Warn("Failed to find parent operation for child operations, skipping children", logger.Ctx{"parentID": parentID})
+				continue
 			}
 
-			ops = append(ops, *apiOp)
+			parentOp.AddChildren(children...)
 		}
 
 		return nil
@@ -591,26 +687,36 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recursion, _ := util.IsRecursionRequest(r)
+	// Render the operations.
+	apiOps := make([]*api.OperationFull, 0, len(parentOps))
+	for _, op := range parentOps {
+		_, apiOp := op.RenderFullWithoutProgress()
+		apiOps = append(apiOps, apiOp)
+	}
+
+	// Sort operations by UUID. Since we use UUIDv7, this will also sort operations by creation time.
+	slices.SortFunc(apiOps, func(a, b *api.OperationFull) int {
+		return strings.Compare(a.ID, b.ID)
+	})
 
 	// Sort all operations per status.
 	md := map[string]any{}
-	for _, op := range ops {
-		status := strings.ToLower(op.Status)
+	for _, apiOp := range apiOps {
+		status := strings.ToLower(apiOp.Status)
 
 		_, ok := md[status]
 		if !ok {
-			if recursion > 0 {
-				md[status] = make([]*api.Operation, 0)
-			} else {
+			if recursion == 0 {
 				md[status] = make([]string, 0)
+			} else {
+				md[status] = make([]*api.OperationFull, 0)
 			}
 		}
 
-		if recursion > 0 {
-			md[status] = append(md[status].([]*api.Operation), &op)
+		if recursion == 0 {
+			md[status] = append(md[status].([]string), "/1.0/operations/"+apiOp.ID)
 		} else {
-			md[status] = append(md[status].([]string), "/1.0/operations/"+op.ID)
+			md[status] = append(md[status].([]*api.OperationFull), apiOp)
 		}
 	}
 
@@ -1146,7 +1252,7 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 			offlineMembers = append(offlineMembers, member.ID)
 		}
 
-		err = dbCluster.DeleteOperationsFromNodes(ctx, tx.Tx(), offlineMembers...)
+		err = dbCluster.DeleteEphemeralOperationsFromNodes(ctx, tx.Tx(), offlineMembers...)
 		if err != nil {
 			return fmt.Errorf("Failed deleting operations from offline members: %w", err)
 		}
@@ -1160,6 +1266,48 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	logger.Debug("Done removing orphaned operations across the cluster")
 
 	return nil
+}
+
+// PruneExpiredOperationsTask returns a task function and schedule that is used to prune expired operations from the database.
+func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		s := stateFunc()
+
+		leaderInfo, err := s.LeaderInfo()
+		if err != nil {
+			logger.Error("Failed getting leader cluster member address", logger.Ctx{"err": err})
+			return
+		}
+
+		if !leaderInfo.Leader {
+			logger.Debug("Skipping pruning expired operations since we're not leader")
+			return
+		}
+
+		opRun := func(ctx context.Context, op *operations.Operation) error {
+			return operations.PruneExpiredOperations(ctx, s)
+		}
+
+		args := operations.OperationArgs{
+			Type:    operationtype.PruneExpiredOperations,
+			Class:   operations.OperationClassTask,
+			RunHook: opRun,
+		}
+
+		op, err := operations.ScheduleServerOperation(s, args)
+		if err != nil {
+			logger.Error("Failed creating prune expired operations operation", logger.Ctx{"err": err})
+			return
+		}
+
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed pruning expired operations", logger.Ctx{"err": err})
+			return
+		}
+	}
+
+	return f, task.Hourly()
 }
 
 // operationWaitPost represents the fields of a request to register a dummy operation.

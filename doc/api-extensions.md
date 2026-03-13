@@ -2999,3 +2999,8 @@ These behaviors are applied asynchronously on heartbeat. Role changes are detect
 The `event-hub` role is deprecated in favor of the functionally equivalent `control-plane` role.
 
 For more information, see {ref}`dqlite-internals-lxd-cluster-roles` and {ref}`cluster-manage-control-plane`.
+
+(extension-bulk-operations)=
+## `bulk_operations`
+
+Adds a `recursion=2` mode to `GET /1.0/operations`, enabling retrieval of parent-child relationships between operations. The parent-child operations are now also returned by the `GET /1.0/operations/{id}` endpoint when `recursion=1` is specified.

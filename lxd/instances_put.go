@@ -3,15 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"strings"
-	"sync"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -22,27 +20,6 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
-
-func coalesceErrors(local bool, errs map[string]error) error {
-	if len(errs) == 0 {
-		return nil
-	}
-
-	var errorMsg strings.Builder
-	if local {
-		errorMsg.WriteString("The following instances failed to update state:\n")
-	}
-
-	for instName, err := range errs {
-		if local {
-			fmt.Fprintf(&errorMsg, " - Instance: %s: %v\n", instName, err)
-		} else {
-			errorMsg.WriteString(strings.TrimSpace(fmt.Sprintf("%v\n", err)))
-		}
-	}
-
-	return errors.New(errorMsg.String())
-}
 
 // swagger:operation PUT /1.0/instances instances instances_put
 //
@@ -78,17 +55,47 @@ func coalesceErrors(local bool, errs map[string]error) error {
 //	    $ref: "#/responses/InternalServerError"
 func instancesPut(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	// Don't mess with instances while in setup mode.
 	<-d.waitReady.Done()
 
 	s := d.State()
 
-	c, err := instance.LoadNodeAll(s, instancetype.Any)
+	// Get all instances and all members in cluster.
+	var members map[string]*db.NodeInfo
+	var c []instance.Instance
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		filter := dbCluster.InstanceFilter{
+			Project: &projectName,
+		}
+
+		err := tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+			inst, err := instance.Load(s, dbInst, p)
+			if err != nil {
+				return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
+			}
+
+			c = append(c, inst)
+
+			return nil
+		}, filter)
+		if err != nil {
+			return err
+		}
+
+		membersList, err := tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		// Convert members list to map for easier lookup later.
+		members = make(map[string]*db.NodeInfo, len(membersList))
+		for _, member := range membersList {
+			members[member.Name] = &member
+		}
+
+		return nil
+	})
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -109,180 +116,120 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	for _, inst := range c {
-		if inst.Project().Name != projectName {
-			continue
-		}
-
 		// Check permission for all instances so that we apply the state change to all or none.
 		if !userHasPermission(entity.InstanceURL(inst.Project().Name, inst.Name())) {
 			return response.Forbidden(nil)
 		}
 	}
 
-	names := make([]string, 0, len(c))
-	instances := make([]instance.Instance, 0, len(c))
+	instances := make(map[string]instance.Instance, len(c))
 	for _, inst := range c {
 		if inst.Project().Name != projectName {
 			continue
 		}
 
-		switch action {
-		case instancetype.Freeze:
-			if !inst.IsRunning() {
-				continue
-			}
-
-		case instancetype.Restart:
-			if !inst.IsRunning() {
-				continue
-			}
-
-		case instancetype.Start:
-			if !inst.IsFrozen() && inst.IsRunning() {
-				continue
-			}
-
-		case instancetype.Stop:
-			if !inst.IsRunning() {
-				continue
-			}
-
-		case instancetype.Unfreeze:
-			if !inst.IsFrozen() {
-				continue
-			}
-		}
-
-		instances = append(instances, inst)
-		names = append(names, inst.Name())
+		instances[inst.Name()] = inst
 	}
 
-	isClusterNotification := requestor.IsClusterNotification()
+	getInstanceFromURL := func(instURL *api.URL) (instance.Instance, error) {
+		// Get the instance name.
+		_, _, _, args, err := entity.ParseURLWithNamedArgs(instURL.URL)
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing instance URL: %w", err)
+		}
+
+		instName, ok := args["name"]
+		if !ok {
+			return nil, fmt.Errorf("No instance name found in URL: %q", instURL.String())
+		}
+
+		// Get the instance itself.
+		inst, ok := instances[instName]
+		if !ok {
+			return nil, fmt.Errorf("Instance %q not found", instName)
+		}
+
+		return inst, nil
+	}
 
 	// Batch the changes.
-	do := func(ctx context.Context, op *operations.Operation) error {
-		localAction := func(local bool) error {
-			failures := map[string]error{}
-			failuresLock := sync.Mutex{}
-			wgAction := sync.WaitGroup{}
-
-			for _, inst := range instances {
-				wgAction.Add(1)
-				go func(inst instance.Instance) {
-					defer wgAction.Done()
-
-					inst.SetOperation(op)
-					err := doInstanceStatePut(inst, *req.State)
-					if err != nil {
-						failuresLock.Lock()
-						failures[inst.Name()] = err
-						failuresLock.Unlock()
-					}
-				}(inst)
-			}
-
-			wgAction.Wait()
-			return coalesceErrors(local, failures)
-		}
-
-		// Only return the local data if asked by cluster member.
-		if isClusterNotification {
-			return localAction(false)
-		}
-
-		// If not clustered, return the local data.
-		if !s.ServerClustered {
-			return localAction(true)
-		}
-
-		// Get all members in cluster.
-		var members []db.NodeInfo
-		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
-
-			members, err = tx.GetNodes(ctx)
-			if err != nil {
-				return fmt.Errorf("Failed getting cluster members: %w", err)
-			}
-
-			return nil
-		})
+	childRunHook := func(ctx context.Context, op *operations.Operation) error {
+		// Get the instance URL from resources.
+		inst, err := getInstanceFromURL(op.EntityURL())
 		if err != nil {
 			return err
+		}
+
+		// Get node member where the instance is located.
+		member, ok := members[inst.Location()]
+		if !ok {
+			return fmt.Errorf("No cluster member found for instance %q location %q", inst.Name(), inst.Location())
 		}
 
 		// Get local cluster address.
 		localClusterAddress := s.LocalConfig.ClusterAddress()
 
-		// Record the results.
-		failures := map[string]error{}
-		failuresLock := sync.Mutex{}
-		wgAction := sync.WaitGroup{}
+		// Run the action locally if not clustered, or if the instance is located on the local member.
+		if !s.ServerClustered || member.Address == localClusterAddress {
+			if !instanceActionNeeded(inst, action) {
+				return nil
+			}
 
-		networkCert := s.Endpoints.NetworkCert()
-		for _, member := range members {
-			wgAction.Add(1)
-			go func(member db.NodeInfo) {
-				defer wgAction.Done()
-
-				// Special handling for the local member.
-				if member.Address == localClusterAddress {
-					err := localAction(false)
-					if err != nil {
-						failuresLock.Lock()
-						failures[member.Name] = err
-						failuresLock.Unlock()
-					}
-
-					return
-				}
-
-				// Connect to the remote server.
-				client, err := cluster.Connect(ctx, member.Address, networkCert, s.ServerCert(), true)
-				if err != nil {
-					failuresLock.Lock()
-					failures[member.Name] = err
-					failuresLock.Unlock()
-					return
-				}
-
-				client = client.UseProject(projectName)
-
-				// Perform the action.
-				op, err := client.UpdateInstances(req, "")
-				if err != nil {
-					failuresLock.Lock()
-					failures[member.Name] = err
-					failuresLock.Unlock()
-					return
-				}
-
-				err = op.Wait()
-				if err != nil {
-					failuresLock.Lock()
-					failures[member.Name] = err
-					failuresLock.Unlock()
-					return
-				}
-			}(member)
+			inst.SetOperation(op)
+			return doInstanceStatePut(inst, *req.State)
 		}
 
-		wgAction.Wait()
-		return coalesceErrors(true, failures)
+		// Record the results.
+		networkCert := s.Endpoints.NetworkCert()
+
+		// Connect to the remote server.
+		client, err := cluster.ConnectNotification(ctx, member.Address, networkCert, s.ServerCert(), false)
+		if err != nil {
+			return err
+		}
+
+		action := req.State.Action
+
+		req := api.InstanceStatePut{
+			Action:   action,
+			Timeout:  req.State.Timeout,
+			Force:    req.State.Force,
+			Stateful: req.State.Stateful,
+		}
+
+		_, _, err = client.RawQuery("PUT", fmt.Sprintf("/%s/instances/%s/state", version.APIVersion, inst.Name()), req, "")
+		return err
 	}
 
-	resources := map[entity.Type][]api.URL{}
-	for _, instName := range names {
-		resources[entity.TypeInstance] = append(resources[entity.TypeInstance], *api.NewURL().Path(version.APIVersion, "instances", instName).Project(projectName))
+	// Set the child operations for each instance under a single parent operation on the project.
+	opType, err := instanceActionToOptype(string(action))
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
+	childArgs := make([]*operations.OperationArgs, 0, len(instances))
+	for _, inst := range instances {
+		instURL := api.NewURL().Path(version.APIVersion, "instances", inst.Name()).Project(projectName)
+		args := operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   instURL,
+			Type:        opType,
+			Class:       operations.OperationClassTask,
+			RunHook:     childRunHook,
+		}
+
+		childArgs = append(childArgs, &args)
+	}
+
+	// Create a parent operation for the bulk state change.
+	// There's no run hook, as the parent operation doesn't need to do anything.
+	projectURL := api.NewURL().Path(version.APIVersion, "projects", projectName)
 	args := operations.OperationArgs{
 		ProjectName: projectName,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
+		EntityURL:   projectURL,
 		Type:        operationtype.InstanceStateUpdateBulk,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
-		RunHook:     do,
+		Children:    childArgs,
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)

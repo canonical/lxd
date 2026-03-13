@@ -209,6 +209,27 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	if requestor.ClientType().IsClusterOperationNotification() {
+		// If this is a cluster notification from inside another operation,
+		// we should not change the status of the instance when not needed, as that would cause the operation to be marked as failed when it isn't.
+		if !instanceActionNeeded(inst, instancetype.InstanceAction(req.Action)) {
+			return response.EmptySyncResponse
+		}
+
+		// Don't create a new operation, but run the code synchronously.
+		err = do(r.Context(), nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+
 	args := operations.OperationArgs{
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
@@ -224,6 +245,38 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return operations.OperationResponse(op)
+}
+
+// instanceActionNeeded checks if the instance is already in the desired state for the given action, and thus whether the action needs to be performed or not.
+func instanceActionNeeded(inst instance.Instance, state instancetype.InstanceAction) bool {
+	switch state {
+	case instancetype.Freeze:
+		if !inst.IsRunning() {
+			return false
+		}
+
+	case instancetype.Restart:
+		if !inst.IsRunning() {
+			return false
+		}
+
+	case instancetype.Start:
+		if !inst.IsFrozen() && inst.IsRunning() {
+			return false
+		}
+
+	case instancetype.Stop:
+		if !inst.IsRunning() {
+			return false
+		}
+
+	case instancetype.Unfreeze:
+		if !inst.IsFrozen() {
+			return false
+		}
+	}
+
+	return true
 }
 
 func instanceActionToOptype(action string) (operationtype.Type, error) {
