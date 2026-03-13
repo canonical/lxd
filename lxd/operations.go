@@ -71,7 +71,7 @@ func runningInstanceOperations() map[string]map[string][]*operations.Operation {
 	setInstanceOp := func(u url.URL, op *operations.Operation) {
 		_, project, _, pathParts, err := entity.ParseURL(u)
 		if err != nil || len(pathParts) != 1 {
-			logger.Error("Failed to parse operation entity or resource URL during shutdown", logger.Ctx{"err": err, "url": u})
+			logger.Error("Failed parsing operation entity or resource URL during shutdown", logger.Ctx{"err": err, "url": u})
 			return
 		}
 
@@ -360,12 +360,12 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 
 	client, err := cluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to %q: %w", memberAddress, err)
+		return fmt.Errorf("Failed connecting to %q: %w", memberAddress, err)
 	}
 
 	err = client.UseProject(projectName).DeleteOperation(op.ID)
 	if err != nil {
-		return fmt.Errorf("Failed to delete remote operation %q on %q: %w", op.ID, memberAddress, err)
+		return fmt.Errorf("Failed deleting remote operation %q on %q: %w", op.ID, memberAddress, err)
 	}
 
 	return nil
@@ -489,7 +489,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 	canViewProjectOperations, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewOperations, entity.TypeProject)
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to get operation permission checker: %w", err))
+		return response.InternalError(fmt.Errorf("Failed getting operation permission checker: %w", err))
 	}
 
 	// Not all operations have a project. Operations that don't have a project should be considered "server level".
@@ -498,7 +498,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	if err == nil {
 		canViewServerOperations = true
 	} else if !auth.IsDeniedError(err) {
-		return response.SmartError(fmt.Errorf("Failed to check caller access to server operations: %w", err))
+		return response.SmartError(fmt.Errorf("Failed checking caller access to server operations: %w", err))
 	}
 
 	ops := make([]api.Operation, 0)
@@ -519,7 +519,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if !found {
-				return fmt.Errorf("Project %q doesn't exist", projectName)
+				return fmt.Errorf("Project %q does not exist", projectName)
 			}
 		}
 
@@ -548,7 +548,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				var ok bool
 				operationProject, ok = projects[*dbOp.ProjectID]
 				if !ok {
-					return fmt.Errorf("Failed to find project name for operation with non-existent project ID %d", *dbOp.ProjectID)
+					return fmt.Errorf("Failed finding project name for operation with non-existent project ID %d", *dbOp.ProjectID)
 				}
 			}
 
@@ -1078,7 +1078,7 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 
 		leaderInfo, err := s.LeaderInfo()
 		if err != nil {
-			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
+			logger.Error("Failed getting leader cluster member address", logger.Ctx{"err": err})
 			return
 		}
 
@@ -1154,7 +1154,7 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to remove orphaned operations: %w", err)
+		return fmt.Errorf("Failed removing orphaned operations: %w", err)
 	}
 
 	logger.Debug("Done removing orphaned operations across the cluster")

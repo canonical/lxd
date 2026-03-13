@@ -44,13 +44,13 @@ func FilterUsedBy(ctx context.Context, authorizer auth.Authorizer, entries []str
 	for _, entry := range entries {
 		u, err := url.Parse(entry)
 		if err != nil {
-			logger.Warn("Failed to parse project used-by entity URL", logger.Ctx{"url": entry, "err": err})
+			logger.Warn("Failed parsing project used-by entity URL", logger.Ctx{"url": entry, "err": err})
 			continue
 		}
 
 		entityType, _, _, _, err := entity.ParseURL(*u)
 		if err != nil {
-			logger.Warn("Failed to parse project used-by entity URL", logger.Ctx{"url": entry, "err": err})
+			logger.Warn("Failed parsing project used-by entity URL", logger.Ctx{"url": entry, "err": err})
 			continue
 		}
 
@@ -75,7 +75,7 @@ func FilterUsedBy(ctx context.Context, authorizer auth.Authorizer, entries []str
 		// Otherwise get a permission checker for the entity type.
 		canViewEntity, err := authorizer.GetPermissionCheckerWithoutEffectiveProject(ctx, auth.EntitlementCanView, entityType)
 		if err != nil {
-			logger.Error("Failed to get permission checker for project used-by filtering", logger.Ctx{"entity_type": entityType, "err": err})
+			logger.Error("Failed getting permission checker for project used-by filtering", logger.Ctx{"entity_type": entityType, "err": err})
 			continue
 		}
 

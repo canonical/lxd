@@ -118,7 +118,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 	for _, path := range oldPaths {
 		err := s.addPrefix(path.prefix, path.nexthop, path.owner)
 		if err != nil {
-			logger.Warn("Unable to add prefix to BGP server", logger.Ctx{"prefix": path.prefix.String(), "err": err})
+			logger.Warn("Cannot add prefix to BGP server", logger.Ctx{"prefix": path.prefix.String(), "err": err})
 		}
 	}
 
@@ -202,7 +202,7 @@ func (s *Server) configure(address string, asn uint32, routerID net.IP) error {
 	// Stop the listener.
 	err := s.stop()
 	if err != nil {
-		return fmt.Errorf("Failed to stop current listener: %w", err)
+		return fmt.Errorf("Failed stopping current listener: %w", err)
 	}
 
 	// Check if we should start.
@@ -213,7 +213,7 @@ func (s *Server) configure(address string, asn uint32, routerID net.IP) error {
 		// Start the listener with the new address.
 		err = s.start(address, asn, routerID)
 		if err != nil {
-			return fmt.Errorf("Failed to start new listener: %w", err)
+			return fmt.Errorf("Failed starting new listener: %w", err)
 		}
 	}
 
@@ -366,7 +366,7 @@ func (s *Server) removePrefixByUUID(pathUUID string) error {
 	// Remove it from the BGP server.
 	if s.bgp != nil {
 		err := s.bgp.DeletePath(context.Background(), &bgpAPI.DeletePathRequest{Uuid: []byte(pathUUID)})
-		if err != nil && err.Error() != "can't find a specified path" {
+		if err != nil && err.Error() != "cannot find a specified path" {
 			return err
 		}
 	}

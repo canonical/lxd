@@ -51,7 +51,7 @@ func TestParseLXDFileHeader(t *testing.T) {
 
 	headers, err := ParseLXDFileHeaders(header)
 	if err != nil {
-		t.Fatalf("Failed to parse headers %q: %s", header, err)
+		t.Fatalf("Failed parsing headers %q: %s", header, err)
 	}
 
 	if headers.UID != 1000 || headers.GID != 1001 || headers.Mode != 0o700 {
@@ -71,7 +71,7 @@ func TestParseLXDFileHeader(t *testing.T) {
 
 	headers, err = ParseLXDFileHeaders(header)
 	if err != nil {
-		t.Fatalf("Failed to parse headers %q: %s", header, err)
+		t.Fatalf("Failed parsing headers %q: %s", header, err)
 	}
 
 	if headers.UID != 0 || headers.GID != 99 || headers.Mode != 0o644 {
@@ -91,7 +91,7 @@ func TestParseLXDFileHeader(t *testing.T) {
 
 	headers, err = ParseLXDFileHeaders(header)
 	if err != nil {
-		t.Fatalf("Failed to parse headers %q: %s", header, err)
+		t.Fatalf("Failed parsing headers %q: %s", header, err)
 	}
 
 	if headers.Mode != 0o640 || headers.UID != -1 || headers.GID != -1 {
@@ -227,7 +227,7 @@ func TestReaderToChannel(t *testing.T) {
 		if len(data) > 0 {
 			for i := range data {
 				if buf[offset+i] != data[i] {
-					t.Errorf("byte %d didn't match", offset+i)
+					t.Errorf("byte %d did not match", offset+i)
 					return
 				}
 			}

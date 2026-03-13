@@ -95,7 +95,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			// Setup LXD client
 			remote, err = lxd.ConnectPublicLXD(args.Server, clientArgs)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to connect to LXD server %q: %w", args.Server, err)
+				return nil, fmt.Errorf("Failed connecting to LXD server %q: %w", args.Server, err)
 			}
 
 			server, ok := remote.(lxd.InstanceServer)
@@ -106,7 +106,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			// Setup simplestreams client
 			remote, err = lxd.ConnectSimpleStreams(args.Server, clientArgs)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to connect to simple streams server %q: %w", args.Server, err)
+				return nil, fmt.Errorf("Failed connecting to simple streams server %q: %w", args.Server, err)
 			}
 		}
 
@@ -257,13 +257,13 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 					_, err = rsync.CopyFile(sourcePath, destPath, "", false)
 					if err != nil {
-						return nil, fmt.Errorf("Failed to copy image files from other project: %w", err)
+						return nil, fmt.Errorf("Failed copying image files from other project: %w", err)
 					}
 
 					if shared.PathExists(sourcePath + ".rootfs") {
 						_, err = rsync.CopyFile(sourcePath+".rootfs", destPath, "", false)
 						if err != nil {
-							return nil, fmt.Errorf("Failed to copy image files from other project: %w", err)
+							return nil, fmt.Errorf("Failed copying image files from other project: %w", err)
 						}
 					}
 				}
@@ -323,8 +323,8 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 		err = imageCreateInPool(s, info, args.StoragePool, args.ProjectName)
 		if err != nil {
-			l.Debug("Failed to create image on storage pool", logger.Ctx{"err": err})
-			return nil, fmt.Errorf("Failed to create image %q on storage pool %q: %w", info.Fingerprint, args.StoragePool, err)
+			l.Debug("Failed creating image on storage pool", logger.Ctx{"err": err})
+			return nil, fmt.Errorf("Failed creating image %q on storage pool %q: %w", info.Fingerprint, args.StoragePool, err)
 		}
 
 		l.Debug("Created image on storage pool")
@@ -506,7 +506,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		defer close(doneCh)
 
 		if raw.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("Unable to fetch %q: %s", args.Server, raw.Status)
+			return nil, fmt.Errorf("Cannot fetch %q: %s", args.Server, raw.Status)
 		}
 
 		// Progress handler

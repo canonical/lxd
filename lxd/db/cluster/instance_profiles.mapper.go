@@ -54,7 +54,7 @@ func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Inst
 
 	sqlStmt, err := Stmt(tx, instanceProfileObjectsByProfileID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get \"instanceProfileObjectsByProfileID\" prepared statement: %w", err)
+		return nil, fmt.Errorf("Failed getting \"instanceProfileObjectsByProfileID\" prepared statement: %w", err)
 	}
 
 	args := []any{profileID}
@@ -62,7 +62,7 @@ func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Inst
 	// Select.
 	objects, err = getInstanceProfiles(ctx, sqlStmt, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"instances_profiles\" table: %w", err)
 	}
 
 	result := make([]Instance, len(objects))
@@ -96,7 +96,7 @@ func getInstanceProfiles(ctx context.Context, stmt *sql.Stmt, args ...any) ([]In
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"instances_profiles\" table: %w", err)
 	}
 
 	return objects, nil
@@ -120,7 +120,7 @@ func getInstanceProfilesRaw(ctx context.Context, tx *sql.Tx, sql string, args ..
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"instances_profiles\" table: %w", err)
 	}
 
 	return objects, nil
@@ -136,7 +136,7 @@ func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Pro
 
 	sqlStmt, err := Stmt(tx, instanceProfileObjectsByInstanceID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get \"instanceProfileObjectsByInstanceID\" prepared statement: %w", err)
+		return nil, fmt.Errorf("Failed getting \"instanceProfileObjectsByInstanceID\" prepared statement: %w", err)
 	}
 
 	args := []any{instanceID}
@@ -144,7 +144,7 @@ func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Pro
 	// Select.
 	objects, err = getInstanceProfiles(ctx, sqlStmt, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"instances_profiles\" table: %w", err)
 	}
 
 	result := make([]Profile, len(objects))
@@ -174,13 +174,13 @@ func CreateInstanceProfiles(ctx context.Context, tx *sql.Tx, objects []InstanceP
 		// Prepared statement to use.
 		stmt, err := Stmt(tx, instanceProfileCreate)
 		if err != nil {
-			return fmt.Errorf("Failed to get \"instanceProfileCreate\" prepared statement: %w", err)
+			return fmt.Errorf("Failed getting \"instanceProfileCreate\" prepared statement: %w", err)
 		}
 
 		// Execute the statement.
 		_, err = stmt.ExecContext(ctx, args...)
 		if err != nil {
-			return fmt.Errorf("Failed to create \"instances_profiles\" entry: %w", err)
+			return fmt.Errorf("Failed creating \"instances_profiles\" entry: %w", err)
 		}
 
 	}
@@ -193,7 +193,7 @@ func CreateInstanceProfiles(ctx context.Context, tx *sql.Tx, objects []InstanceP
 func DeleteInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) error {
 	stmt, err := Stmt(tx, instanceProfileDeleteByInstanceID)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"instanceProfileDeleteByInstanceID\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"instanceProfileDeleteByInstanceID\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, int(instanceID))

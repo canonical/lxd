@@ -85,7 +85,7 @@ func lxcSetConfigItem(c *liblxc.Container, key string, value string) error {
 
 	err := c.SetConfigItem(key, value)
 	if err != nil {
-		return fmt.Errorf("Failed to set LXC config: %s=%s", key, value)
+		return fmt.Errorf("Failed setting LXC config: %s=%s", key, value)
 	}
 
 	return nil
@@ -158,7 +158,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 	// Load the config.
 	err := d.init()
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to expand config: %w", err)
+		return nil, nil, fmt.Errorf("Failed expanding config: %w", err)
 	}
 
 	// When not a snapshot, perform full validation.
@@ -581,7 +581,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 	// Check if being called from a hook
 	if d.fromHook {
-		return nil, errors.New("You can't use go-lxc from inside a LXC hook")
+		return nil, errors.New("You cannot use go-lxc from inside a LXC hook")
 	}
 
 	// Check if already initialized
@@ -1037,12 +1037,12 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 		hookPath := filepath.Join(hookDir, "nvidia")
 		if !shared.PathExists(hookPath) {
-			return nil, errors.New("The NVIDIA LXC hook couldn't be found")
+			return nil, errors.New("The NVIDIA LXC hook could not be found")
 		}
 
 		_, err := exec.LookPath("nvidia-container-cli")
 		if err != nil {
-			return nil, errors.New("The NVIDIA container tools couldn't be found")
+			return nil, errors.New("The NVIDIA container tools could not be found")
 		}
 
 		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES=none")
@@ -1283,7 +1283,7 @@ func (d *lxc) IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
 	if bindMount {
 		err := unix.Statfs(path, buf)
 		if err != nil {
-			d.logger.Warn("Failed to statfs", logger.Ctx{"path": path, "err": err})
+			d.logger.Warn("Failed statfsing", logger.Ctx{"path": path, "err": err})
 			return mode
 		}
 	}
@@ -1412,7 +1412,7 @@ func (d *lxc) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfi
 func (d *lxc) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) error {
 	idmapSet, err := d.CurrentIdmap()
 	if err != nil {
-		return fmt.Errorf("Failed to get idmap for device: %s", err)
+		return fmt.Errorf("Failed getting idmap for device: %s", err)
 	}
 
 	// If there is an idmap being applied and LXD not running in a user namespace then shift the
@@ -1433,7 +1433,7 @@ func (d *lxc) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) erro
 			err := idmapSet.ShiftFile(pathSource.Path)
 			if err != nil {
 				// uidshift failing is weird, but not a big problem. Log and proceed.
-				d.logger.Debug("Failed to uidshift device", logger.Ctx{"mountDevPath": pathSource.Path, "err": err})
+				d.logger.Debug("Failed uidshifting device", logger.Ctx{"mountDevPath": pathSource.Path, "err": err})
 			}
 		}
 	}
@@ -1462,7 +1462,7 @@ func (d *lxc) deviceAddCgroupRules(cgroups []deviceConfig.RunConfigItem) error {
 		// Add the new device cgroup rule.
 		err := d.CGroupSet(rule.Key, rule.Value)
 		if err != nil {
-			return fmt.Errorf("Failed to add cgroup rule for device: %w", err)
+			return fmt.Errorf("Failed adding cgroup rule for device: %w", err)
 		}
 	}
 
@@ -1480,7 +1480,7 @@ func (d *lxc) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig
 	}
 
 	if devName == "" {
-		return errors.New("Device didn't provide a link property to use")
+		return errors.New("Device did not provide a link property to use")
 	}
 
 	// Load the go-lxc struct.
@@ -1492,7 +1492,7 @@ func (d *lxc) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig
 	// Add the interface to the container.
 	err = cc.AttachInterface(devName, configCopy["name"])
 	if err != nil {
-		return fmt.Errorf("Failed to attach interface: %s to %s: %w", devName, configCopy["name"], err)
+		return fmt.Errorf("Failed attaching interface: %s to %s: %w", devName, configCopy["name"], err)
 	}
 
 	return nil
@@ -1564,7 +1564,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 	}
 
 	if devName == "" {
-		return errors.New("Device didn't provide a link property to use")
+		return errors.New("Device did not provide a link property to use")
 	}
 
 	// If container is running, perform live detach of interface back to host.
@@ -1581,7 +1581,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 		// Get interfaces inside container.
 		ifaces, err := cc.Interfaces()
 		if err != nil {
-			return fmt.Errorf("Failed to list network interfaces: %w", err)
+			return fmt.Errorf("Failed listing network interfaces: %w", err)
 		}
 
 		// If interface doesn't exist inside container, cannot proceed.
@@ -1591,7 +1591,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 
 		err = cc.DetachInterfaceRename(configCopy["name"], devName)
 		if err != nil {
-			return fmt.Errorf("Failed to detach interface: %q to %q: %w", configCopy["name"], devName, err)
+			return fmt.Errorf("Failed detaching interface: %q to %q: %w", configCopy["name"], devName, err)
 		}
 	} else {
 		// Currently liblxc does not move devices back to the host on stop that were added
@@ -1609,7 +1609,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 
 			err := d.detachInterfaceRename(stopHookNetnsPath, configCopy["name"], devName)
 			if err != nil {
-				return fmt.Errorf("Failed to detach interface: %q to %q: %w", configCopy["name"], devName, err)
+				return fmt.Errorf("Failed detaching interface: %q to %q: %w", configCopy["name"], devName, err)
 			}
 
 			d.logger.Debug("Detached NIC device interface", logger.Ctx{"name": configCopy["name"], "device": devName})
@@ -1657,7 +1657,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 			// Mount it into the container.
 			err := d.insertMount(pathSource.Path, mount.TargetPath, mount.FSType, flags, idmapType)
 			if err != nil {
-				return fmt.Errorf("Failed to add mount for device inside container: %s", err)
+				return fmt.Errorf("Failed adding mount for device inside container: %s", err)
 			}
 		} else {
 			relativeTargetPath := strings.TrimPrefix(mount.TargetPath, "/")
@@ -1882,7 +1882,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 			module = strings.TrimPrefix(module, " ")
 			err := util.LoadModule(module)
 			if err != nil {
-				return nil, "", nil, fmt.Errorf("Failed to load kernel module %q: %w", module, err)
+				return nil, "", nil, fmt.Errorf("Failed loading kernel module %q: %w", module, err)
 			}
 		}
 	}
@@ -1921,7 +1921,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 
 	idmapType, nextIdmap, err := d.handleIdmappedStorage()
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("Failed to handle idmapped storage: %w", err)
+		return nil, "", nil, fmt.Errorf("Failed handling idmapped storage: %w", err)
 	}
 
 	var idmapBytes []byte
@@ -2026,14 +2026,14 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 		// Start the device.
 		runConf, err := d.deviceStart(dev, false)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+			return nil, "", nil, fmt.Errorf("Failed starting device %q: %w", dev.Name(), err)
 		}
 
 		// Stop device on failure to setup container.
 		revert.Add(func() {
 			err := d.deviceStop(dev, false, "")
 			if err != nil {
-				d.logger.Error("Failed to cleanup device", logger.Ctx{"device": dev.Name(), "err": err})
+				d.logger.Error("Failed cleaning up device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
 		})
 
@@ -2050,26 +2050,26 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 			// Get an absolute path for the rootfs (avoid constantly traversing the symlink).
 			absoluteRootfs, err := filepath.EvalSymlinks(runConf.RootFS.Path)
 			if err != nil {
-				return nil, "", nil, fmt.Errorf("Unable to resolve container rootfs: %w", err)
+				return nil, "", nil, fmt.Errorf("Cannot resolve container rootfs: %w", err)
 			}
 
 			rootfsPath := "dir:" + absoluteRootfs
 			err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
 			if err != nil {
-				return nil, "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
+				return nil, "", nil, fmt.Errorf("Failed setting up device rootfs %q: %w", dev.Name(), err)
 			}
 
 			if len(runConf.RootFS.Opts) > 0 {
 				err = lxcSetConfigItem(cc, "lxc.rootfs.options", strings.Join(runConf.RootFS.Opts, ","))
 				if err != nil {
-					return nil, "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed setting up device rootfs %q: %w", dev.Name(), err)
 				}
 			}
 
 			if !d.IsPrivileged() && idmapType == idmap.IdmapStorageIdmapped {
 				err = lxcSetConfigItem(cc, "lxc.rootfs.options", "idmap=container")
 				if err != nil {
-					return nil, "", nil, fmt.Errorf("Failed to set \"idmap=container\" rootfs option: %w", err)
+					return nil, "", nil, fmt.Errorf("Failed setting \"idmap=container\" rootfs option: %w", err)
 				}
 			}
 		}
@@ -2088,7 +2088,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 				}
 
 				if err != nil {
-					return nil, "", nil, fmt.Errorf("Failed to setup device cgroup %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed setting up device cgroup %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2108,14 +2108,14 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 					case idmap.IdmapStorageIdmapped:
 						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
 					case idmap.IdmapStorageNone:
-						return nil, "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), errors.New("idmapping abilities are required but are not supported on system"))
+						return nil, "", nil, fmt.Errorf("Failed setting up device mount %q: %w", dev.Name(), errors.New("idmapping abilities are required but are not supported on system"))
 					}
 				}
 
 				mntVal := shared.EscapePathFstab(pathSource.Path) + " " + shared.EscapePathFstab(mount.TargetPath) + " " + mount.FSType + " " + mntOptions + " " + fmt.Sprint(mount.Freq, " ", mount.PassNo)
 				err = lxcSetConfigItem(cc, "lxc.mount.entry", mntVal)
 				if err != nil {
-					return nil, "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed setting up device mount %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2128,7 +2128,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 			for _, nicItem := range runConf.NetworkInterface {
 				err = lxcSetConfigItem(cc, "lxc.net."+strconv.Itoa(nicID)+"."+nicItem.Key, nicItem.Value)
 				if err != nil {
-					return nil, "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed setting up device network interface %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2156,14 +2156,14 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 	if len(nvidiaDevices) > 0 {
 		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES="+strings.Join(nvidiaDevices, ","))
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
+			return nil, "", nil, fmt.Errorf("Cannot set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
 		}
 	}
 
 	if len(cdiConfigFiles) > 0 {
 		err = lxcSetConfigItem(cc, "lxc.hook.mount", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+shared.ShellQuote(d.Project().Name)+" "+shared.ShellQuote(d.Name())+" startmountns --devicesRootFolder "+d.DevicesPath()+" "+strings.Join(cdiConfigFiles, " "))
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("Unable to set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
+			return nil, "", nil, fmt.Errorf("Cannot set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
 		}
 	}
 
@@ -2288,13 +2288,13 @@ func (d *lxc) Start(stateful bool) error {
 			return nil
 		}
 
-		return fmt.Errorf("Failed to create instance start operation: %w", err)
+		return fmt.Errorf("Failed creating instance start operation: %w", err)
 	}
 
 	defer op.Done(nil)
 
 	if !daemon.SharedMountsSetup {
-		err = errors.New("Daemon failed to setup shared mounts base. Does security.nesting need to be turned on?")
+		err = errors.New("Daemon failed setting up shared mounts base. Does security.nesting need to be turned on?")
 		op.Done(err)
 		return err
 	}
@@ -2949,21 +2949,21 @@ func (d *lxc) onStop(args map[string]string) error {
 		// Unload the apparmor profile
 		err = apparmor.InstanceUnload(d.state.OS, d)
 		if err != nil {
-			op.Done(fmt.Errorf("Failed to destroy apparmor namespace: %w", err))
+			op.Done(fmt.Errorf("Failed destroying apparmor namespace: %w", err))
 			return
 		}
 
 		// Clean all the unix devices
 		err = d.removeUnixDevices()
 		if err != nil {
-			op.Done(fmt.Errorf("Failed to remove unix devices: %w", err))
+			op.Done(fmt.Errorf("Failed removing unix devices: %w", err))
 			return
 		}
 
 		// Clean all the disk devices
 		err = d.removeDiskDevices()
 		if err != nil {
-			op.Done(fmt.Errorf("Failed to remove disk devices: %w", err))
+			op.Done(fmt.Errorf("Failed removing disk devices: %w", err))
 			return
 		}
 
@@ -3039,7 +3039,7 @@ func (d *lxc) cleanupDevices(instanceRunning bool, stopHookNetnsPath string) {
 		if dev != nil {
 			err = d.deviceStop(dev, instanceRunning, stopHookNetnsPath)
 			if err != nil {
-				d.logger.Error("Failed to stop device", logger.Ctx{"device": dev.Name(), "err": err})
+				d.logger.Error("Failed stopping device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
 		}
 	}
@@ -3054,7 +3054,7 @@ func (d *lxc) Freeze() error {
 
 	// Check that we're running
 	if !d.IsRunning() {
-		return errors.New("The instance isn't running")
+		return errors.New("The instance is not running")
 	}
 
 	// Load the go-lxc struct
@@ -3072,7 +3072,7 @@ func (d *lxc) Freeze() error {
 
 	// Check if the CGroup is available
 	if !d.state.OS.CGInfo.Supports(cgroup.Freezer, cg) {
-		d.logger.Info("Unable to freeze container (lack of kernel support)", ctxMap)
+		d.logger.Info("Cannot freeze container (lack of kernel support)", ctxMap)
 		return nil
 	}
 
@@ -3105,7 +3105,7 @@ func (d *lxc) Unfreeze() error {
 
 	// Check that we're running
 	if !d.IsRunning() {
-		return errors.New("The container isn't running")
+		return errors.New("The container is not running")
 	}
 
 	// Load the go-lxc struct
@@ -3122,7 +3122,7 @@ func (d *lxc) Unfreeze() error {
 
 	// Check if the CGroup is available
 	if !d.state.OS.CGInfo.Supports(cgroup.Freezer, cg) {
-		d.logger.Info("Unable to unfreeze container (lack of kernel support)", ctxMap)
+		d.logger.Info("Cannot unfreeze container (lack of kernel support)", ctxMap)
 		return nil
 	}
 
@@ -3462,7 +3462,7 @@ func (d *lxc) delete(force bool) error {
 
 	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
 		err := errors.New("Instance is protected from being deleted")
-		d.logger.Warn("Failed to delete instance", logger.Ctx{"err": err})
+		d.logger.Warn("Failed deleting instance", logger.Ctx{"err": err})
 		return err
 	}
 
@@ -3491,7 +3491,7 @@ func (d *lxc) delete(force bool) error {
 		} else {
 			// Remove all snapshots.
 			err := d.deleteSnapshots(func(snapInst instance.Instance) error {
-				return snapInst.(*lxc).delete(true) // Internal delete function that doesn't lock.
+				return snapInst.(*lxc).delete(true) // Internal delete function that does not lock.
 			})
 			if err != nil {
 				return fmt.Errorf("Failed deleting instance snapshots: %w", err)
@@ -3620,9 +3620,9 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 			// Rename all the instance snapshot database entries.
 			results, err = tx.GetInstanceSnapshotsNames(ctx, d.project.Name, oldName)
 			if err != nil {
-				d.logger.Error("Failed to get instance snapshots", ctxMap)
+				d.logger.Error("Failed getting instance snapshots", ctxMap)
 
-				return fmt.Errorf("Failed to get instance snapshots: Failed getting instance snapshot names: %w", err)
+				return fmt.Errorf("Failed getting instance snapshots: Failed getting instance snapshot names: %w", err)
 			}
 
 			for _, sname := range results {
@@ -3745,12 +3745,12 @@ func (d *lxc) CGroupSet(key string, value string) error {
 	// return false (because the container hasn't fully started yet) but it is sufficiently started to
 	// have its cgroup disk limits set.
 	if d.InitPID() <= 0 {
-		return errors.New("Can't set cgroups on a stopped container")
+		return errors.New("Cannot set cgroups on a stopped container")
 	}
 
 	err = cc.SetCgroupItem(key, value)
 	if err != nil {
-		return fmt.Errorf("Failed to set cgroup %s=\"%s\": %w", key, value, err)
+		return fmt.Errorf("Failed setting cgroup %s=\"%s\": %w", key, value, err)
 	}
 
 	return nil
@@ -3771,7 +3771,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// Setup a new operation
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
-		return fmt.Errorf("Failed to create instance update operation: %w", err)
+		return fmt.Errorf("Failed creating instance update operation: %w", err)
 	}
 
 	defer op.Done(nil)
@@ -3820,13 +3820,13 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to get profiles: %w", err)
+		return fmt.Errorf("Failed getting profiles: %w", err)
 	}
 
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
 		if !slices.Contains(profiles, profile.Name) {
-			return fmt.Errorf("Requested profile %q doesn't exist", profile.Name)
+			return fmt.Errorf("Requested profile %q does not exist", profile.Name)
 		}
 
 		if slices.Contains(checkedProfiles, profile.Name) {
@@ -3953,12 +3953,12 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		// device is considered to be being "updated" rather than "added & removed".
 		oldDevType, err := device.LoadByType(d.state, d.Project().Name, oldDevice)
 		if err != nil {
-			return []string{} // Couldn't create Device, so this cannot be an update.
+			return []string{} // Could not create Device, so this cannot be an update.
 		}
 
 		newDevType, err := device.LoadByType(d.state, d.Project().Name, newDevice)
 		if err != nil {
-			return []string{} // Couldn't create Device, so this cannot be an update.
+			return []string{} // Could not create Device, so this cannot be an update.
 		}
 
 		return newDevType.UpdatableFields(oldDevType)
@@ -4021,7 +4021,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				d.expandedConfig["raw.idmap"],
 			)
 			if err != nil {
-				return fmt.Errorf("Failed to get ID map: %w", err)
+				return fmt.Errorf("Failed getting ID map: %w", err)
 			}
 		}
 
@@ -4117,7 +4117,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					module = strings.TrimPrefix(module, " ")
 					err := util.LoadModule(module)
 					if err != nil {
-						return fmt.Errorf("Failed to load kernel module %q: %w", module, err)
+						return fmt.Errorf("Failed loading kernel module %q: %w", module, err)
 					}
 				}
 			} else if key == "limits.disk.priority" {
@@ -4434,12 +4434,12 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return cluster.UpdateInstanceProfiles(ctx, tx.Tx(), object.ID, object.Project, profileNames)
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to update database: %w", err)
+		return fmt.Errorf("Failed updating database: %w", err)
 	}
 
 	err = d.UpdateBackupFile()
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to write backup file: %w", err)
+		return fmt.Errorf("Failed writing backup file: %w", err)
 	}
 
 	// Send devlxd notifications
@@ -4839,7 +4839,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// Negotiated migration types.
 	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 	if err != nil {
-		err := fmt.Errorf("Failed to negotiate migration type: %w", err)
+		err := fmt.Errorf("Failed negotiating migration type: %w", err)
 		op.Done(err)
 		return err
 	}
@@ -5480,7 +5480,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			return nil
 		}
 
-		return fmt.Errorf("Failed to read metadata: %w", err)
+		return fmt.Errorf("Failed reading metadata: %w", err)
 	}
 
 	metadata := new(api.ImageMetadata)
@@ -5493,7 +5493,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 	// Find rootUID and rootGID
 	idmapset, err := d.DiskIdmap()
 	if err != nil {
-		return fmt.Errorf("Failed to set ID map: %w", err)
+		return fmt.Errorf("Failed setting ID map: %w", err)
 	}
 
 	rootUID := int64(0)
@@ -5509,7 +5509,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 	if err != nil {
 		arch, err = osarch.ArchitectureName(d.state.OS.Architectures[0])
 		if err != nil {
-			return fmt.Errorf("Failed to detect system architecture: %w", err)
+			return fmt.Errorf("Failed detecting system architecture: %w", err)
 		}
 	}
 
@@ -5639,7 +5639,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 				// Open the existing file
 				w, err = os.Create(fullpath)
 				if err != nil {
-					return fmt.Errorf("Failed to create template file: %w", err)
+					return fmt.Errorf("Failed creating template file: %w", err)
 				}
 			} else {
 				// Create the directories leading to the file
@@ -5670,7 +5670,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			// Read the template
 			tplString, err := os.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
 			if err != nil {
-				return fmt.Errorf("Failed to read template file: %w", err)
+				return fmt.Errorf("Failed reading template file: %w", err)
 			}
 
 			// Restrict filesystem access to within the container's rootfs
@@ -5678,7 +5678,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 
 			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 			if err != nil {
-				return fmt.Errorf("Failed to render template: %w", err)
+				return fmt.Errorf("Failed rendering template: %w", err)
 			}
 
 			configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
@@ -5894,7 +5894,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		// Start the server.
 		err = forkfile.Start()
 		if err != nil {
-			chReady <- fmt.Errorf("Failed to run forkfile: %w: %s", err, strings.TrimSpace(stderr.String()))
+			chReady <- fmt.Errorf("Failed running forkfile: %w: %s", err, strings.TrimSpace(stderr.String()))
 			return
 		}
 
@@ -5902,7 +5902,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		pidFile := filepath.Join(d.LogPath(), "forkfile.pid")
 		err = os.WriteFile(pidFile, fmt.Append(nil, forkfile.Process.Pid, "\n"), 0600)
 		if err != nil {
-			chReady <- fmt.Errorf("Failed to write forkfile PID: %w", err)
+			chReady <- fmt.Errorf("Failed writing forkfile PID: %w", err)
 			return
 		}
 
@@ -6014,7 +6014,7 @@ func (d *lxc) stopForkfile(force bool) {
 // Console attaches to the instance console.
 func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
 	if protocol != instance.ConsoleTypeConsole {
-		return nil, nil, fmt.Errorf("Container instances don't support %q output", protocol)
+		return nil, nil, fmt.Errorf("Container instances do not support %q output", protocol)
 	}
 
 	chDisconnect := make(chan error, 1)
@@ -6196,8 +6196,8 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	attachedPid := linux.ReadPid(rStatus)
 	if attachedPid <= 0 {
 		_ = cmd.Wait()
-		d.logger.Error("Failed to retrieve PID of executing child process")
-		return nil, errors.New("Failed to retrieve PID of executing child process")
+		d.logger.Error("Failed retrieving PID of executing child process")
+		return nil, errors.New("Failed retrieving PID of executing child process")
 	}
 
 	d.logger.Debug("Retrieved PID of executing child process", logger.Ctx{"attachedPid": attachedPid})
@@ -6257,7 +6257,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 			usage, err = pool.GetInstanceUsage(d)
 			if err != nil {
 				if !errors.Is(err, storageDrivers.ErrNotSupported) {
-					d.logger.Info("Unable to get disk usage", logger.Ctx{"err": err})
+					d.logger.Info("Cannot get disk usage", logger.Ctx{"err": err})
 				}
 
 				continue
@@ -6272,7 +6272,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 			usage, err = pool.GetCustomVolumeUsage(d.Project().Name, dev.Config["source"])
 			if err != nil {
 				if !errors.Is(err, storageDrivers.ErrNotSupported) {
-					d.logger.Info("Unable to get volume usage", logger.Ctx{"volume": dev.Config["source"], "err": err})
+					d.logger.Info("Cannot get volume usage", logger.Ctx{"volume": dev.Config["source"], "err": err})
 				}
 
 				continue
@@ -6364,7 +6364,7 @@ func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.Instan
 		nw, err := netutils.NetnsGetifaddrs(int32(pid), hostInterfaces)
 		if err != nil {
 			couldUseNetnsGetifaddrs = false
-			d.logger.Warn("Failed to retrieve network information via netlink", logger.Ctx{"pid": pid})
+			d.logger.Warn("Failed retrieving network information via netlink", logger.Ctx{"pid": pid})
 		} else {
 			result = nw
 		}
@@ -6539,7 +6539,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 		pid = d.InitPID()
 		if pid == -1 {
 			// Container isn't running
-			return errors.New("Can't insert mount into stopped container")
+			return errors.New("Cannot insert mount into stopped container")
 		}
 	}
 
@@ -6549,12 +6549,12 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 	if shared.IsDir(source) {
 		tmpMount, err = os.MkdirTemp(d.ShmountsPath(), "lxdmount_")
 		if err != nil {
-			return fmt.Errorf("Failed to create shmounts path: %s", err)
+			return fmt.Errorf("Failed creating shmounts path: %s", err)
 		}
 	} else {
 		f, err := os.CreateTemp(d.ShmountsPath(), "lxdmount_")
 		if err != nil {
-			return fmt.Errorf("Failed to create shmounts path: %s", err)
+			return fmt.Errorf("Failed creating shmounts path: %s", err)
 		}
 
 		tmpMount = f.Name()
@@ -6566,7 +6566,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 	// Mount the filesystem
 	err = unix.Mount(source, tmpMount, fstype, uintptr(flags), "")
 	if err != nil {
-		return fmt.Errorf("Failed to setup temporary mount: %s", err)
+		return fmt.Errorf("Failed setting up temporary mount: %s", err)
 	}
 
 	defer func() { _ = unix.Unmount(tmpMount, unix.MNT_DETACH) }()
@@ -6656,7 +6656,7 @@ func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idma
 	pid := d.InitPID()
 	if pid == -1 {
 		// Container isn't running
-		return errors.New("Can't insert mount into stopped container")
+		return errors.New("Cannot insert mount into stopped container")
 	}
 
 	switch idmapType {
@@ -6715,7 +6715,7 @@ func (d *lxc) removeMount(mount string) error {
 	pid := d.InitPID()
 	if pid == -1 {
 		// Container isn't running
-		return errors.New("Can't remove mount from stopped container")
+		return errors.New("Cannot remove mount from stopped container")
 	}
 
 	configPath := filepath.Join(d.LogPath(), "lxc.conf")
@@ -6788,7 +6788,7 @@ func (d *lxc) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid 
 
 	dev, err := device.UnixDeviceCreate(d.state, idmapSet, d.DevicesPath(), prefix, m, true)
 	if err != nil {
-		return fmt.Errorf("Failed to setup device: %s", err)
+		return fmt.Errorf("Failed setting up device: %s", err)
 	}
 
 	devPath := dev.HostPath
@@ -7120,7 +7120,7 @@ func (d *lxc) SetAffinity(set []string) error {
 
 	cg, err := d.CGroup()
 	if err != nil {
-		return fmt.Errorf("Unable to get cgroup struct: %w", err)
+		return fmt.Errorf("Cannot get cgroup struct: %w", err)
 	}
 
 	sort.Strings(set)
@@ -7128,7 +7128,7 @@ func (d *lxc) SetAffinity(set []string) error {
 
 	err = cg.SetCpuset(affinitySet)
 	if err != nil {
-		return fmt.Errorf("Unable to set cgroup cpuset to %q: %w", affinitySet, err)
+		return fmt.Errorf("Cannot set cgroup cpuset to %q: %w", affinitySet, err)
 	}
 
 	return nil
@@ -7241,7 +7241,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	// Get memory stats.
 	memStats, err := cg.GetMemoryStats()
 	if err != nil {
-		d.logger.Warn("Failed to get memory stats", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting memory stats", logger.Ctx{"err": err})
 	} else {
 		for k, v := range memStats {
 			var metricType metrics.MetricType
@@ -7289,7 +7289,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	// Get memory usage.
 	memoryUsage, err := cg.GetMemoryUsage()
 	if err != nil {
-		d.logger.Warn("Failed to get memory usage", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting memory usage", logger.Ctx{"err": err})
 	}
 
 	if memoryLimit > 0 {
@@ -7301,7 +7301,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	// Get OOM kills. If we fail to get the OOM kills count, 0 is returned.
 	oomKills, err := cg.GetOOMKills()
 	if err != nil {
-		d.logger.Warn("Failed to get OOM kills", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting OOM kills", logger.Ctx{"err": err})
 	}
 
 	out.AddSamples(metrics.MemoryOOMKillsTotal, metrics.Sample{Value: float64(oomKills)})
@@ -7310,7 +7310,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
 		swapUsage, err := cg.GetMemorySwapUsage()
 		if err != nil {
-			d.logger.Warn("Failed to get swap usage", logger.Ctx{"err": err})
+			d.logger.Warn("Failed getting swap usage", logger.Ctx{"err": err})
 		} else {
 			// If we failed to get swap memory usage, because of a couple of reasons (instance stopped, cgroup controller not available, etc),
 			// we default to 0 instead of -1 for the MemorySwapBytes metric (`-1` bytes would be misleading).
@@ -7325,7 +7325,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	// Get CPU stats
 	usage, err := cg.GetCPUAcctUsageAll()
 	if err != nil {
-		d.logger.Warn("Failed to get CPU usage", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting CPU usage", logger.Ctx{"err": err})
 	} else {
 		for cpu, stats := range usage {
 			cpuID := strconv.FormatInt(cpu, 10)
@@ -7338,7 +7338,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	// Get CPUs.
 	CPUs, err := cg.GetEffectiveCPUs()
 	if err != nil {
-		d.logger.Warn("Failed to get CPUs", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting CPUs", logger.Ctx{"err": err})
 	} else {
 		// If we failed to get the number of total effective CPUs, because of a couple of reasons (instance stopped, cgroup controller not available, etc),
 		// we default to 0 instead of -1 for the CPUs metric (a total of `-1` would be misleading).
@@ -7352,7 +7352,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	// Get disk stats
 	diskStats, err := cg.GetIOStats()
 	if err != nil {
-		d.logger.Warn("Failed to get disk stats", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting disk stats", logger.Ctx{"err": err})
 	} else {
 		for disk, stats := range diskStats {
 			labels := map[string]string{"device": disk}
@@ -7367,7 +7367,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	// Get filesystem stats
 	fsStats, err := d.getFSStats()
 	if err != nil {
-		d.logger.Warn("Failed to get fs stats", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting fs stats", logger.Ctx{"err": err})
 	} else {
 		out.Merge(fsStats)
 	}
@@ -7391,7 +7391,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	// Get number of processes
 	pids, err := d.processesState(d.InitPID())
 	if err != nil {
-		d.logger.Warn("Failed to get total number of processes", logger.Ctx{"err": err})
+		d.logger.Warn("Failed getting total number of processes", logger.Ctx{"err": err})
 	} else {
 		out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: float64(pids)})
 	}
@@ -7409,7 +7409,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 	mounts, err := os.ReadFile("/proc/mounts")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read /proc/mounts: %w", err)
+		return nil, fmt.Errorf("Failed reading /proc/mounts: %w", err)
 	}
 
 	mountMap := make(map[string]mountInfo)
@@ -7452,7 +7452,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 			// Grab the filesystem information.
 			statfs, err = filesystem.StatVFS(mountpoint)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to stat %s: %w", mountpoint, err)
+				return nil, fmt.Errorf("Failed statting %s: %w", mountpoint, err)
 			}
 
 			isMounted := false
@@ -7476,7 +7476,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 			statfs, err = filesystem.StatVFS(source)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to stat %s: %w", dev["source"], err)
+				return nil, fmt.Errorf("Failed statting %s: %w", dev["source"], err)
 			}
 
 			isMounted := false
@@ -7493,7 +7493,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 				// Check if dev has a backing file
 				err = unix.Stat(source, &stat)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to stat %s: %w", dev["source"], err)
+					return nil, fmt.Errorf("Failed statting %s: %w", dev["source"], err)
 				}
 
 				backingFilePath := fmt.Sprintf("/sys/dev/block/%d:%d/loop/backing_file", unix.Major(uint64(stat.Dev)), unix.Minor(uint64(stat.Dev)))
@@ -7502,7 +7502,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 				backingFile, err := os.ReadFile(backingFilePath)
 				if err != nil {
 					if !errors.Is(err, os.ErrNotExist) {
-						return nil, fmt.Errorf("Failed to read %s: %w", backingFilePath, err)
+						return nil, fmt.Errorf("Failed reading %s: %w", backingFilePath, err)
 					}
 
 					// Use dev as device
@@ -7565,7 +7565,7 @@ func (d *lxc) loadRawLXCConfig(cc *liblxc.Container) error {
 	// Load the config.
 	err = cc.LoadConfigFile(f.Name())
 	if err != nil {
-		return fmt.Errorf("Failed to load config file %q: %w", f.Name(), err)
+		return fmt.Errorf("Failed loading config file %q: %w", f.Name(), err)
 	}
 
 	_ = os.Remove(f.Name())

@@ -220,7 +220,7 @@ func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 	} else {
 		if c.flagColumns != defaultWarningColumns {
 			if strings.ContainsAny(c.flagColumns, "L") {
-				return nil, errors.New("Can't specify column L when not clustered")
+				return nil, errors.New("Cannot specify column L when not clustered")
 			}
 		}
 		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")

@@ -52,7 +52,7 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 	// The pool isn't configured to use zero-padding which might yield non pristine data when reading from the volume.
 	// Don't allow the creation of new volumes.
 	if !pool.ZeroPaddingEnabled {
-		return errors.New("The pool doesn't have zero-padding enabled")
+		return errors.New("The pool does not have zero-padding enabled")
 	}
 
 	volName, err := d.getVolumeName(vol)
@@ -349,7 +349,7 @@ func (d *powerflex) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
 		}
 	}
 
@@ -893,7 +893,7 @@ func (d *powerflex) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operatio
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
 		}
 	}
 

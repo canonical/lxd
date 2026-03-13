@@ -265,7 +265,7 @@ func (d *zfs) ValidateSource() error {
 	if d.config["source"] == "" || d.config["source"] == loopPath {
 		// Validate pool_name.
 		if strings.Contains(d.config["zfs.pool_name"], "/") {
-			return errors.New("zfs.pool_name can't point to a dataset when source isn't set")
+			return errors.New("zfs.pool_name cannot point to a dataset when source is not set")
 		}
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Handle existing block devices.
@@ -275,7 +275,7 @@ func (d *zfs) ValidateSource() error {
 
 		// Validate pool_name.
 		if strings.Contains(d.config["zfs.pool_name"], "/") {
-			return errors.New("zfs.pool_name can't point to a dataset when source isn't set")
+			return errors.New("zfs.pool_name cannot point to a dataset when source is not set")
 		}
 	} else {
 		// Validate pool_name.
@@ -329,7 +329,7 @@ func (d *zfs) Create() error {
 		if shared.IsTrue(d.config["source.wipe"]) {
 			err := wipeBlockHeaders(d.config["source"])
 			if err != nil {
-				return fmt.Errorf("Failed to wipe headers from disk %q: %w", d.config["source"], err)
+				return fmt.Errorf("Failed wiping headers from disk %q: %w", d.config["source"], err)
 			}
 
 			d.config["source.wipe"] = ""
@@ -386,7 +386,7 @@ func (d *zfs) Create() error {
 		}
 
 		if len(datasets) > 0 {
-			return fmt.Errorf(`Provided ZFS pool (or dataset) isn't empty, run "sudo zfs list -r %s" to see existing entries`, d.config["zfs.pool_name"])
+			return fmt.Errorf(`Provided ZFS pool (or dataset) is not empty, run "sudo zfs list -r %s" to see existing entries`, d.config["zfs.pool_name"])
 		}
 	}
 
@@ -457,7 +457,7 @@ func (d *zfs) Delete(op *operations.Operation) error {
 	loopPath := loopFilePath(d.name)
 	err = os.Remove(loopPath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove %q: %w", loopPath, err)
+		return fmt.Errorf("Failed removing %q: %w", loopPath, err)
 	}
 
 	return nil

@@ -60,7 +60,7 @@ func TestCreateHMAC(t *testing.T) {
 			conf:        NewDefaultHMACConf("LXD1.0"),
 			key:         []byte("foo"),
 			payload:     make(chan bool),
-			expectedErr: errors.New("Failed to calculate HMAC from struct: Failed to marshal payload: json: unsupported type: chan bool"),
+			expectedErr: errors.New("Failed calculating HMAC from struct: Failed marshaling payload: json: unsupported type: chan bool"),
 		},
 	}
 
@@ -154,7 +154,7 @@ func TestValidateHMAC(t *testing.T) {
 					"Authorization": []string{"invalid"},
 				},
 			},
-			expectedErr: errors.New("Failed to parse Authorization header: Version or HMAC is missing"),
+			expectedErr: errors.New("Failed parsing Authorization header: Version or HMAC is missing"),
 		},
 		{
 			name:     "Reject header missing the version using argon2 as KDF",
@@ -165,7 +165,7 @@ func TestValidateHMAC(t *testing.T) {
 					"Authorization": []string{"invalid"},
 				},
 			},
-			expectedErr: errors.New("Failed to parse Authorization header: Version or HMAC is missing"),
+			expectedErr: errors.New("Failed parsing Authorization header: Version or HMAC is missing"),
 		},
 		{
 			name:     "Reject header missing the HMAC and salt combination using argon2 as KDF",
@@ -176,7 +176,7 @@ func TestValidateHMAC(t *testing.T) {
 					"Authorization": []string{"LXD1.0 caffee"},
 				},
 			},
-			expectedErr: errors.New("Failed to parse Authorization header: Argon2 salt or HMAC is missing"),
+			expectedErr: errors.New("Failed parsing Authorization header: Argon2 salt or HMAC is missing"),
 		},
 		{
 			name:     "Reject header with a non hex salt using argon2 as KDF",
@@ -187,7 +187,7 @@ func TestValidateHMAC(t *testing.T) {
 					"Authorization": []string{"LXD1.0 nonhex:abc"},
 				},
 			},
-			expectedErr: errors.New("Failed to parse Authorization header: Failed to decode the argon2 salt: encoding/hex: invalid byte: U+006E 'n'"),
+			expectedErr: errors.New("Failed parsing Authorization header: Failed decoding the argon2 salt: encoding/hex: invalid byte: U+006E 'n'"),
 		},
 		{
 			name:     "Reject header with a non hex HMAC using argon2 as KDF",
@@ -198,7 +198,7 @@ func TestValidateHMAC(t *testing.T) {
 					"Authorization": []string{"LXD1.0 caffee:nonhex"},
 				},
 			},
-			expectedErr: errors.New("Failed to parse Authorization header: Failed to decode the argon2 HMAC: encoding/hex: invalid byte: U+006E 'n'"),
+			expectedErr: errors.New("Failed parsing Authorization header: Failed decoding the argon2 HMAC: encoding/hex: invalid byte: U+006E 'n'"),
 		},
 		{
 			name:        "Reject request with missing Authorization header",
@@ -227,7 +227,7 @@ func TestValidateHMAC(t *testing.T) {
 					"Authorization": []string{"LXD1.0 nonhexcharacters"},
 				},
 			},
-			expectedErr: errors.New("Failed to parse Authorization header: Failed to decode the HMAC: encoding/hex: invalid byte: U+006E 'n'"),
+			expectedErr: errors.New("Failed parsing Authorization header: Failed decoding the HMAC: encoding/hex: invalid byte: U+006E 'n'"),
 		},
 		{
 			name: "Reject request whose body cannot be read",
@@ -240,7 +240,7 @@ func TestValidateHMAC(t *testing.T) {
 				// Use reader that errors out immediately.
 				Body: errorReaderCloser{readErr: errors.New("Fail always")},
 			},
-			expectedErr: errors.New("Failed to calculate HMAC from request body: Failed to read request body: Fail always"),
+			expectedErr: errors.New("Failed calculating HMAC from request body: Failed reading request body: Fail always"),
 		},
 		{
 			name: "Reject request whose body cannot be closed",
@@ -254,7 +254,7 @@ func TestValidateHMAC(t *testing.T) {
 				// Return EOF from the reader to trigger a Close.
 				Body: errorReaderCloser{readErr: io.EOF, closeErr: errors.New("Fail always")},
 			},
-			expectedErr: errors.New("Failed to calculate HMAC from request body: Failed to close the request body: Fail always"),
+			expectedErr: errors.New("Failed calculating HMAC from request body: Failed closing the request body: Fail always"),
 		},
 		{
 			name: "Reject request with empty HMAC version",
@@ -265,7 +265,7 @@ func TestValidateHMAC(t *testing.T) {
 					"Authorization": []string{" 4022ad4878aff5a3bbd815aec63cce26cb5e8abd4df69589312cd0dee25fd717"},
 				},
 			},
-			expectedErr: errors.New("Failed to parse Authorization header: Version cannot be empty"),
+			expectedErr: errors.New("Failed parsing Authorization header: Version cannot be empty"),
 		},
 		{
 			name: "Reject request with empty HMAC",
@@ -276,7 +276,7 @@ func TestValidateHMAC(t *testing.T) {
 					"Authorization": []string{"LXD1.0 "},
 				},
 			},
-			expectedErr: errors.New("Failed to parse Authorization header: HMAC cannot be empty"),
+			expectedErr: errors.New("Failed parsing Authorization header: HMAC cannot be empty"),
 		},
 		{
 			name:     "Reject request with empty argon2 salt",
@@ -287,7 +287,7 @@ func TestValidateHMAC(t *testing.T) {
 					"Authorization": []string{"LXD1.0 :abc"},
 				},
 			},
-			expectedErr: errors.New("Failed to parse Authorization header: Argon2 salt cannot be empty"),
+			expectedErr: errors.New("Failed parsing Authorization header: Argon2 salt cannot be empty"),
 		},
 		{
 			name:     "Reject request with empty argon2 HMAC",
@@ -298,7 +298,7 @@ func TestValidateHMAC(t *testing.T) {
 					"Authorization": []string{"LXD1.0 caffee:"},
 				},
 			},
-			expectedErr: errors.New("Failed to parse Authorization header: Argon2 HMAC cannot be empty"),
+			expectedErr: errors.New("Failed parsing Authorization header: Argon2 HMAC cannot be empty"),
 		},
 	}
 

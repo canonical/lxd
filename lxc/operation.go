@@ -131,7 +131,7 @@ func (c *cmdOperationList) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name != "" {
-		return errors.New("Filtering isn't supported yet")
+		return errors.New("Filtering is not supported yet")
 	}
 
 	// Get operations

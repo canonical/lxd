@@ -88,7 +88,7 @@ func connect(ctx context.Context, c Connector, targetQN string, targetAddrs []st
 
 			select {
 			case <-ctx.Done():
-				return nil, errors.New("Failed to find any session whilst trying to connect")
+				return nil, errors.New("Failed finding any session whilst trying to connect")
 			default:
 				// Sleep a while before trying to acquire the lock another time.
 				time.Sleep(500 * time.Millisecond)
@@ -190,5 +190,5 @@ func connect(ctx context.Context, c Connector, targetQN string, targetAddrs []st
 	}
 
 	// All connections attempts have failed.
-	return nil, fmt.Errorf("Failed to connect to any address on target %q", targetQN)
+	return nil, fmt.Errorf("Failed connecting to any address on target %q", targetQN)
 }

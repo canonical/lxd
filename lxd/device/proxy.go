@@ -297,7 +297,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			if shared.IsTrue(d.config["nat"]) {
 				err = d.setupNAT()
 				if err != nil {
-					return fmt.Errorf("Failed to start device %q: %w", d.name, err)
+					return fmt.Errorf("Failed starting device %q: %w", d.name, err)
 				}
 
 				return nil // Don't proceed with forkproxy setup.
@@ -316,7 +316,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			// Load the apparmor profile
 			err = apparmor.ForkproxyLoad(d.state.OS, d.inst, d)
 			if err != nil {
-				return fmt.Errorf("Failed to start device %q: %w", d.name, err)
+				return fmt.Errorf("Failed starting device %q: %w", d.name, err)
 			}
 
 			// Spawn the daemon using subprocess
@@ -339,14 +339,14 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 
 			p, err := subprocess.NewProcess(command, forkproxyargs, logPath, logPath)
 			if err != nil {
-				return fmt.Errorf("Failed to start device %q: Failed to creating subprocess: %w", d.name, err)
+				return fmt.Errorf("Failed starting device %q: Failed creatinging subprocess: %w", d.name, err)
 			}
 
 			p.SetApparmor(apparmor.ForkproxyProfileName(d.inst, d))
 
 			err = p.StartWithFiles(context.Background(), proxyValues.inheritFds)
 			if err != nil {
-				return fmt.Errorf("Failed to start device %q: Failed running: %s %s: %w", d.name, command, strings.Join(forkproxyargs, " "), err)
+				return fmt.Errorf("Failed starting device %q: Failed running: %s %s: %w", d.name, command, strings.Join(forkproxyargs, " "), err)
 			}
 
 			for _, file := range proxyValues.inheritFds {
@@ -370,7 +370,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 							return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
 						}
 
-						return fmt.Errorf("Failed to start device %q: Failed saving subprocess details: %w", d.name, err)
+						return fmt.Errorf("Failed starting device %q: Failed saving subprocess details: %w", d.name, err)
 					}
 
 					return nil
@@ -380,7 +380,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			}
 
 			_ = p.Stop()
-			return fmt.Errorf("Failed to start device %q: Please look in %s", d.name, logPath)
+			return fmt.Errorf("Failed starting device %q: Please look in %s", d.name, logPath)
 		},
 	}
 
@@ -407,7 +407,7 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 		}
 
 		if strings.HasPrefix(line, "Error:") {
-			if strings.Contains(line, "Failed to listen on") {
+			if strings.Contains(line, "Failed listening on") {
 				return false, errors.New(line)
 			}
 
@@ -434,7 +434,7 @@ func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 	// Remove possible iptables entries
 	err := d.state.Firewall.InstanceClearProxyNAT(d.inst.Project().Name, d.inst.Name(), d.name)
 	if err != nil {
-		logger.Errorf("Failed to remove proxy NAT filters: %v", err)
+		logger.Errorf("Failed removing proxy NAT filters: %v", err)
 	}
 
 	devFileName := "proxy." + d.name
@@ -532,12 +532,12 @@ func (d *proxy) setupNAT() error {
 			return tx.UpsertWarningLocalNode(ctx, d.inst.Project().Name, entity.TypeInstance, d.inst.ID(), warningtype.ProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 		})
 		if err != nil {
-			logger.Warn("Failed to create warning", logger.Ctx{"err": err})
+			logger.Warn("Failed creating warning", logger.Ctx{"err": err})
 		}
 	} else {
 		err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project().Name, warningtype.ProxyBridgeNetfilterNotEnabled, entity.TypeInstance, d.inst.ID())
 		if err != nil {
-			logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
+			logger.Warn("Failed resolving warning", logger.Ctx{"err": err})
 		}
 
 		if hostName == "" {
@@ -669,12 +669,12 @@ func (d *proxy) killProxyProc(pidPath string) error {
 
 		err = p.Stop()
 		if err != nil && err != subprocess.ErrNotRunning {
-			return fmt.Errorf("Unable to kill forkproxy: %w", err)
+			return fmt.Errorf("Cannot kill forkproxy: %w", err)
 		}
 
 		err = os.Remove(pidPath)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("Failed to remove pid file %q: %w", pidPath, err)
+			return fmt.Errorf("Failed removing pid file %q: %w", pidPath, err)
 		}
 	}
 
@@ -688,7 +688,7 @@ func (d *proxy) killProxyProc(pidPath string) error {
 	if listenAddr.ConnType == "unix" && !listenAddr.Abstract && d.config["bind"] == "host" {
 		err = os.Remove(shared.HostPath(listenAddr.Address))
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("Failed to remove socket file: %w", err)
+			return fmt.Errorf("Failed removing socket file: %w", err)
 		}
 	}
 
@@ -699,7 +699,7 @@ func (d *proxy) killProxyProc(pidPath string) error {
 func (d *proxy) Remove() error {
 	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project().Name, warningtype.ProxyBridgeNetfilterNotEnabled, entity.TypeInstance, d.inst.ID())
 	if err != nil {
-		logger.Warn("Failed to delete warning", logger.Ctx{"err": err})
+		logger.Warn("Failed deleting warning", logger.Ctx{"err": err})
 	}
 
 	// Delete apparmor profile.

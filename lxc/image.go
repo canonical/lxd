@@ -216,7 +216,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	destinationServer := resources[0].server
 
 	if resources[0].name != "" {
-		return errors.New("Can't provide a name for the target image")
+		return errors.New("Cannot provide a name for the target image")
 	}
 
 	// Resolve image type

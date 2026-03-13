@@ -229,7 +229,7 @@ func (p *pureClient) createBodyReader(contents map[string]any) (io.Reader, error
 
 	err := json.NewEncoder(body).Encode(contents)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to write request body: %w", err)
+		return nil, fmt.Errorf("Failed writing request body: %w", err)
 	}
 
 	return body, nil
@@ -244,7 +244,7 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 
 	gwURL, err := url.Parse(gw)
 	if err != nil {
-		return fmt.Errorf("Failed to parse Pure Storage gateway URL %q: %w", gw, err)
+		return fmt.Errorf("Failed parsing Pure Storage gateway URL %q: %w", gw, err)
 	}
 
 	// Ensure the gateway URL does not include the "/api" path, as LXD will handle
@@ -261,7 +261,7 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 		if p.driver.apiVersion == "" {
 			apiVersions, err := p.getAPIVersions()
 			if err != nil {
-				return fmt.Errorf("Failed to retrieve supported Pure Storage API versions: %w", err)
+				return fmt.Errorf("Failed retrieving supported Pure Storage API versions: %w", err)
 			}
 
 			// Ensure the required API version is supported by Pure Storage array.
@@ -296,7 +296,7 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 
 	req, err := http.NewRequest(method, url.String(), reqBodyReader)
 	if err != nil {
-		return fmt.Errorf("Failed to create request: %w", err)
+		return fmt.Errorf("Failed creating request: %w", err)
 	}
 
 	// Set custom request headers.
@@ -319,7 +319,7 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to send request: %w", err)
+		return fmt.Errorf("Failed sending request: %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -340,7 +340,7 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 	if respBody != nil {
 		err = json.NewDecoder(resp.Body).Decode(respBody)
 		if err != nil {
-			return fmt.Errorf("Failed to read response body from %q: %w", url.String(), err)
+			return fmt.Errorf("Failed reading response body from %q: %w", url.String(), err)
 		}
 	}
 
@@ -409,7 +409,7 @@ func (p *pureClient) getAPIVersions() ([]string, error) {
 	url := api.NewURL().Path("api", "api_version")
 	err := p.request(http.MethodGet, url.URL, nil, nil, &resp, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve available API versions from Pure Storage: %w", err)
+		return nil, fmt.Errorf("Failed retrieving available API versions from Pure Storage: %w", err)
 	}
 
 	if len(resp.APIVersions) == 0 {
@@ -437,12 +437,12 @@ func (p *pureClient) login() error {
 	url := api.NewURL().Path("login")
 	err := p.request(http.MethodPost, url.URL, nil, reqHeaders, nil, respHeaders)
 	if err != nil {
-		return fmt.Errorf("Failed to login: %w", err)
+		return fmt.Errorf("Failed logging in: %w", err)
 	}
 
 	p.accessToken = respHeaders["X-Auth-Token"]
 	if p.accessToken == "" {
-		return errors.New("Failed to obtain access token")
+		return errors.New("Failed obtaining access token")
 	}
 
 	return nil
@@ -463,7 +463,7 @@ func (p *pureClient) getNetworkInterfaces(service string) ([]pureNetworkInterfac
 
 	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve Pure Storage network interfaces: %w", err)
+		return nil, fmt.Errorf("Failed retrieving Pure Storage network interfaces: %w", err)
 	}
 
 	return resp.Items, nil
@@ -480,7 +480,7 @@ func (p *pureClient) getProtectionGroup(name string) (*pureProtectionGroup, erro
 			return nil, api.StatusErrorf(http.StatusNotFound, "Protection group %q not found", name)
 		}
 
-		return nil, fmt.Errorf("Failed to get protection group %q: %w", name, err)
+		return nil, fmt.Errorf("Failed getting protection group %q: %w", name, err)
 	}
 
 	if len(resp.Items) == 0 {
@@ -512,14 +512,14 @@ func (p *pureClient) deleteProtectionGroup(name string) error {
 
 		err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 		if err != nil {
-			return fmt.Errorf("Failed to destroy protection group %q: %w", name, err)
+			return fmt.Errorf("Failed destroying protection group %q: %w", name, err)
 		}
 	}
 
 	// Delete the protection group.
 	err = p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to delete protection group %q: %w", name, err)
+		return fmt.Errorf("Failed deleting protection group %q: %w", name, err)
 	}
 
 	return nil
@@ -543,7 +543,7 @@ func (p *pureClient) deleteStoragePoolDefaultProtections(poolName string) error 
 			return nil
 		}
 
-		return fmt.Errorf("Failed to get default protections for storage pool %q: %w", poolName, err)
+		return fmt.Errorf("Failed getting default protections for storage pool %q: %w", poolName, err)
 	}
 
 	// Remove default protections and protection groups related to the storage pool.
@@ -566,7 +566,7 @@ func (p *pureClient) deleteStoragePoolDefaultProtections(poolName string) error 
 				continue
 			}
 
-			return fmt.Errorf("Failed to unset default protections for storage pool %q: %w", poolName, err)
+			return fmt.Errorf("Failed unsetting default protections for storage pool %q: %w", poolName, err)
 		}
 
 		// Iterate over default protections and extract protection group names.
@@ -578,7 +578,7 @@ func (p *pureClient) deleteStoragePoolDefaultProtections(poolName string) error 
 			// Remove protection groups.
 			err := p.deleteProtectionGroup(pg.Name)
 			if err != nil {
-				return fmt.Errorf("Failed to remove protection group %q for storage pool %q: %w", pg.Name, poolName, err)
+				return fmt.Errorf("Failed removing protection group %q for storage pool %q: %w", pg.Name, poolName, err)
 			}
 		}
 	}
@@ -594,7 +594,7 @@ func (p *pureClient) getStorageArrays(arrayNames ...string) ([]pureStorageArray,
 	url := api.NewURL().Path("arrays").WithQuery("names", strings.Join(arrayNames, ","))
 	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get storage arrays: %w", err)
+		return nil, fmt.Errorf("Failed getting storage arrays: %w", err)
 	}
 
 	return resp.Items, nil
@@ -611,7 +611,7 @@ func (p *pureClient) getStoragePool(poolName string) (*pureStoragePool, error) {
 			return nil, api.StatusErrorf(http.StatusNotFound, "Storage pool %q not found", poolName)
 		}
 
-		return nil, fmt.Errorf("Failed to get storage pool %q: %w", poolName, err)
+		return nil, fmt.Errorf("Failed getting storage pool %q: %w", poolName, err)
 	}
 
 	if len(resp.Items) == 0 {
@@ -639,7 +639,7 @@ func (p *pureClient) createStoragePool(poolName string, size int64) error {
 		url := api.NewURL().Path("pods").WithQuery("names", poolName)
 		err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 		if err != nil {
-			return fmt.Errorf("Failed to restore storage pool %q: %w", poolName, err)
+			return fmt.Errorf("Failed restoring storage pool %q: %w", poolName, err)
 		}
 
 		logger.Info("Storage pool has been restored", logger.Ctx{"pool": poolName})
@@ -648,7 +648,7 @@ func (p *pureClient) createStoragePool(poolName string, size int64) error {
 		url := api.NewURL().Path("pods").WithQuery("names", poolName)
 		err = p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 		if err != nil {
-			return fmt.Errorf("Failed to create storage pool %q: %w", poolName, err)
+			return fmt.Errorf("Failed creating storage pool %q: %w", poolName, err)
 		}
 	}
 
@@ -675,7 +675,7 @@ func (p *pureClient) updateStoragePool(poolName string, size int64) error {
 	url := api.NewURL().Path("pods").WithQuery("names", poolName)
 	err := p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to update storage pool %q: %w", poolName, err)
+		return fmt.Errorf("Failed updating storage pool %q: %w", poolName, err)
 	}
 
 	return nil
@@ -708,7 +708,7 @@ func (p *pureClient) deleteStoragePool(poolName string) error {
 				return nil
 			}
 
-			return fmt.Errorf("Failed to destroy storage pool %q: %w", poolName, err)
+			return fmt.Errorf("Failed destroying storage pool %q: %w", poolName, err)
 		}
 	}
 
@@ -728,7 +728,7 @@ func (p *pureClient) deleteStoragePool(poolName string) error {
 			return nil
 		}
 
-		return fmt.Errorf("Failed to delete storage pool %q: %w", poolName, err)
+		return fmt.Errorf("Failed deleting storage pool %q: %w", poolName, err)
 	}
 
 	return nil
@@ -745,7 +745,7 @@ func (p *pureClient) getVolume(poolName string, volName string) (*pureVolume, er
 			return nil, api.StatusErrorf(http.StatusNotFound, "Volume %q not found", volName)
 		}
 
-		return nil, fmt.Errorf("Failed to get volume %q: %w", volName, err)
+		return nil, fmt.Errorf("Failed getting volume %q: %w", volName, err)
 	}
 
 	if len(resp.Items) == 0 {
@@ -764,7 +764,7 @@ func (p *pureClient) getVolumes(poolName string) ([]pureVolume, error) {
 	url := api.NewURL().Path("volumes").WithQuery("filter", "pod.name='"+poolName+"'")
 	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list volumes in pool %q: %w", poolName, err)
+		return nil, fmt.Errorf("Failed listing volumes in pool %q: %w", poolName, err)
 	}
 
 	return resp.Items, nil
@@ -782,7 +782,7 @@ func (p *pureClient) createVolume(poolName string, volName string, sizeBytes int
 	url := api.NewURL().Path("volumes").WithQuery("names", poolName+"::"+volName).WithQuery("with_default_protection", "false")
 	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to create volume %q in storage pool %q: %w", volName, poolName, err)
+		return fmt.Errorf("Failed creating volume %q in storage pool %q: %w", volName, poolName, err)
 	}
 
 	return nil
@@ -799,14 +799,14 @@ func (p *pureClient) deleteVolume(poolName string, volName string) error {
 	// To destroy the volume, we need to patch it by setting the destroyed to true.
 	err := p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to destroy volume %q in storage pool %q: %w", volName, poolName, err)
+		return fmt.Errorf("Failed destroying volume %q in storage pool %q: %w", volName, poolName, err)
 	}
 
 	// Afterwards, we can eradicate the volume. If this operation fails, the volume will remain
 	// in the destroyed state.
 	err = p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to delete volume %q in storage pool %q: %w", volName, poolName, err)
+		return fmt.Errorf("Failed deleting volume %q in storage pool %q: %w", volName, poolName, err)
 	}
 
 	return nil
@@ -821,7 +821,7 @@ func (p *pureClient) resizeVolume(poolName string, volName string, sizeBytes int
 	url := api.NewURL().Path("volumes").WithQuery("names", poolName+"::"+volName).WithQuery("truncate", strconv.FormatBool(truncate))
 	err := p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to resize volume %q in storage pool %q: %w", volName, poolName, err)
+		return fmt.Errorf("Failed resizing volume %q in storage pool %q: %w", volName, poolName, err)
 	}
 
 	return nil
@@ -846,7 +846,7 @@ func (p *pureClient) copyVolume(srcPoolName string, srcVolName string, dstPoolNa
 
 	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf(`Failed to copy volume "%s/%s" to "%s/%s": %w`, srcPoolName, srcVolName, dstPoolName, dstVolName, err)
+		return fmt.Errorf(`Failed copying volume "%s/%s" to "%s/%s": %w`, srcPoolName, srcVolName, dstPoolName, dstVolName, err)
 	}
 
 	return nil
@@ -863,7 +863,7 @@ func (p *pureClient) getVolumeSnapshots(poolName string, volName string) ([]pure
 			return nil, api.StatusErrorf(http.StatusNotFound, "Volume %q not found", volName)
 		}
 
-		return nil, fmt.Errorf("Failed to retrieve snapshots for volume %q in storage pool %q: %w", volName, poolName, err)
+		return nil, fmt.Errorf("Failed retrieving snapshots for volume %q in storage pool %q: %w", volName, poolName, err)
 	}
 
 	return resp.Items, nil
@@ -880,7 +880,7 @@ func (p *pureClient) getVolumeSnapshot(poolName string, volName string, snapshot
 			return nil, api.StatusErrorf(http.StatusNotFound, "Snapshot %q not found", snapshotName)
 		}
 
-		return nil, fmt.Errorf("Failed to retrieve snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+		return nil, fmt.Errorf("Failed retrieving snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
 	}
 
 	if len(resp.Items) == 0 {
@@ -899,7 +899,7 @@ func (p *pureClient) createVolumeSnapshot(poolName string, volName string, snaps
 	url := api.NewURL().Path("volume-snapshots").WithQuery("source_names", poolName+"::"+volName)
 	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to create snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+		return fmt.Errorf("Failed creating snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
 	}
 
 	return nil
@@ -922,7 +922,7 @@ func (p *pureClient) deleteVolumeSnapshot(poolName string, volName string, snaps
 		url := api.NewURL().Path("volume-snapshots").WithQuery("names", poolName+"::"+volName+"."+snapshotName)
 		err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 		if err != nil {
-			return fmt.Errorf("Failed to destroy snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+			return fmt.Errorf("Failed destroying snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
 		}
 	}
 
@@ -930,7 +930,7 @@ func (p *pureClient) deleteVolumeSnapshot(poolName string, volName string, snaps
 	url := api.NewURL().Path("volume-snapshots").WithQuery("names", poolName+"::"+volName+"."+snapshotName)
 	err = p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to delete snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+		return fmt.Errorf("Failed deleting snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
 	}
 
 	return nil
@@ -954,7 +954,7 @@ func (p *pureClient) getHosts() ([]pureHost, error) {
 	url := api.NewURL().Path("hosts")
 	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get hosts: %w", err)
+		return nil, fmt.Errorf("Failed getting hosts: %w", err)
 	}
 
 	return resp.Items, nil
@@ -1020,7 +1020,7 @@ func (p *pureClient) createHost(hostName string, qns []string) error {
 			return api.StatusErrorf(http.StatusConflict, "Host %q already exists", hostName)
 		}
 
-		return fmt.Errorf("Failed to create host %q: %w", hostName, err)
+		return fmt.Errorf("Failed creating host %q: %w", hostName, err)
 	}
 
 	return nil
@@ -1048,7 +1048,7 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 	url := api.NewURL().Path("hosts").WithQuery("names", hostName)
 	err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to update host %q: %w", hostName, err)
+		return fmt.Errorf("Failed updating host %q: %w", hostName, err)
 	}
 
 	return nil
@@ -1059,7 +1059,7 @@ func (p *pureClient) deleteHost(hostName string) error {
 	url := api.NewURL().Path("hosts").WithQuery("names", hostName)
 	err := p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to delete host %q: %w", hostName, err)
+		return fmt.Errorf("Failed deleting host %q: %w", hostName, err)
 	}
 
 	return nil
@@ -1077,7 +1077,7 @@ func (p *pureClient) connectHostToVolume(poolName string, volName string, hostNa
 			return false, nil
 		}
 
-		return false, fmt.Errorf("Failed to connect volume %q with host %q: %w", volName, hostName, err)
+		return false, fmt.Errorf("Failed connecting volume %q with host %q: %w", volName, hostName, err)
 	}
 
 	return true, nil
@@ -1093,7 +1093,7 @@ func (p *pureClient) disconnectHostFromVolume(poolName string, volName string, h
 			return api.StatusErrorf(http.StatusNotFound, "Connection between host %q and volume %q not found", volName, hostName)
 		}
 
-		return fmt.Errorf("Failed to disconnect volume %q from host %q: %w", volName, hostName, err)
+		return fmt.Errorf("Failed disconnecting volume %q from host %q: %w", volName, hostName, err)
 	}
 
 	return nil
@@ -1111,7 +1111,7 @@ func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err err
 	// Get Pure Storage service name based on the configured mode.
 	service, ok := pureServiceNameMapping[mode]
 	if !ok {
-		return "", nil, fmt.Errorf("Failed to determine service name for Pure Storage mode %q", mode)
+		return "", nil, fmt.Errorf("Failed determining service name for Pure Storage mode %q", mode)
 	}
 
 	// Retrieve the list of Pure Storage network interfaces.
@@ -1144,7 +1144,7 @@ func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err err
 		url := api.NewURL().Path("ports").WithQuery("filter", "name='"+iface.Name+"'")
 		err = p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed to retrieve Pure Storage targets: %w", err)
+			return "", nil, fmt.Errorf("Failed retrieving Pure Storage targets: %w", err)
 		}
 
 		if len(resp.Items) == 0 {
@@ -1339,7 +1339,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 	// Remove disk device.
 	err = connector.RemoveDiskDevice(d.state.ShutdownCtx, volumePath)
 	if err != nil {
-		return fmt.Errorf("Failed to unmap Pure Storage volume %q: %w", vol.name, err)
+		return fmt.Errorf("Failed unmapping Pure Storage volume %q: %w", vol.name, err)
 	}
 
 	// Disconnect the volume from the host and ignore error if connection does not exist.
@@ -1414,7 +1414,7 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 	// identifies the device. This check should never succeed, but prevents
 	// out-of-bounds errors when slicing the string later.
 	if len(pureVol.Serial) != 24 {
-		return "", nil, fmt.Errorf("Failed to locate device for volume %q: Unexpected length of serial number %q (%d)", vol.name, pureVol.Serial, len(pureVol.Serial))
+		return "", nil, fmt.Errorf("Failed locating device for volume %q: Unexpected length of serial number %q (%d)", vol.name, pureVol.Serial, len(pureVol.Serial))
 	}
 
 	var diskSuffix string
@@ -1450,7 +1450,7 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 	}
 
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to locate device for volume %q: %w", vol.name, err)
+		return "", nil, fmt.Errorf("Failed locating device for volume %q: %w", vol.name, err)
 	}
 
 	cleanup := revert.Clone().Fail

@@ -480,7 +480,7 @@ func (c *cmdClusterGroupList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return errors.New("LXD server isn't part of a cluster")
+		return errors.New("LXD server is not part of a cluster")
 	}
 
 	groups, err := resource.server.GetClusterGroups()
@@ -568,7 +568,7 @@ func (c *cmdClusterGroupRemove) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !slices.Contains(member.Groups, args[1]) {
-		return fmt.Errorf("Cluster group %s isn't currently applied to %s", args[1], resource.name)
+		return fmt.Errorf("Cluster group %s is not currently applied to %s", args[1], resource.name)
 	}
 
 	groups := []string{}

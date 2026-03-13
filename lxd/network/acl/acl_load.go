@@ -120,7 +120,7 @@ func UsedBy(ctx context.Context, s *state.State, aclProjectName string, usageFun
 		for _, networkName := range networkNames {
 			_, network, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, networkName)
 			if err != nil {
-				return fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
+				return fmt.Errorf("Failed getting network config for %q: %w", networkName, err)
 			}
 
 			netACLNames := shared.SplitNTrimSpace(network.Config["security.acls"], ",", -1, true)
@@ -313,7 +313,7 @@ func NetworkUsage(ctx context.Context, s *state.State, aclProjectName string, ac
 		case db.InstanceArgs, cluster.Profile:
 			networkID, network, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, nicConfig["network"])
 			if err != nil {
-				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
+				return fmt.Errorf("Failed loading network %q: %w", nicConfig["network"], err)
 			}
 
 			if slices.Contains(supportedNetTypes, network.Type) {
@@ -334,7 +334,7 @@ func NetworkUsage(ctx context.Context, s *state.State, aclProjectName string, ac
 				if !found {
 					networkID, network, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, u.Name)
 					if err != nil {
-						return fmt.Errorf("Failed to load network %q: %w", u.Name, err)
+						return fmt.Errorf("Failed loading network %q: %w", u.Name, err)
 					}
 
 					aclNets[u.Name] = NetworkACLUsage{

@@ -31,7 +31,7 @@ func PatchUpdatePowerFlexSnapshotPrefix(d Driver, snapVols []Volume) error {
 		// For all the volumes passed into this patch function their name has to include the snapshot prefix.
 		// If this is not the case, an invalid volume got passed.
 		if !strings.HasPrefix(newSnapVolName, powerFlexSnapshotPrefix) {
-			return fmt.Errorf("Actual volume snapshot %q in pool %q doesn't have the snapshot prefix", newSnapVolName, snapVol.Pool())
+			return fmt.Errorf("Actual volume snapshot %q in pool %q does not have the snapshot prefix", newSnapVolName, snapVol.Pool())
 		}
 
 		// We can easily derive the name of the existing snapshot volume by removing the prefix.

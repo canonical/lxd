@@ -20,7 +20,7 @@ func TestTransaction_BeginError(t *testing.T) {
 
 	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error { return nil })
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Failed to begin transaction")
+	assert.Contains(t, err.Error(), "Failed beginning transaction")
 }
 
 // Any error happening when in the transaction function will cause a rollback.

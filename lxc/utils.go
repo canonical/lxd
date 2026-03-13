@@ -202,7 +202,7 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 	for _, alias := range GetExistingAliases(names, resp) {
 		err := client.DeleteImageAlias(alias.Name)
 		if err != nil {
-			return fmt.Errorf("Failed to remove alias %s: %w", alias.Name, err)
+			return fmt.Errorf("Failed removing alias %s: %w", alias.Name, err)
 		}
 	}
 
@@ -213,7 +213,7 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 		aliasPost.Target = fingerprint
 		err := client.CreateImageAlias(aliasPost)
 		if err != nil {
-			return fmt.Errorf("Failed to create alias %s: %w", alias.Name, err)
+			return fmt.Errorf("Failed creating alias %s: %w", alias.Name, err)
 		}
 	}
 
@@ -238,7 +238,7 @@ func getConfig(args ...string) (map[string]string, error) {
 		if args[1] == "-" && !termios.IsTerminal(getStdinFd()) {
 			buf, err := io.ReadAll(os.Stdin)
 			if err != nil {
-				return nil, fmt.Errorf("Can't read from stdin: %w", err)
+				return nil, fmt.Errorf("Cannot read from stdin: %w", err)
 			}
 
 			args[1] = string(buf[:])
@@ -258,7 +258,7 @@ func getConfig(args ...string) (map[string]string, error) {
 		if value == "-" && !termios.IsTerminal(getStdinFd()) {
 			buf, err := io.ReadAll(os.Stdin)
 			if err != nil {
-				return nil, fmt.Errorf("Can't read from stdin: %w", err)
+				return nil, fmt.Errorf("Cannot read from stdin: %w", err)
 			}
 
 			value = string(buf[:])
@@ -371,11 +371,11 @@ func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, im
 	}
 
 	if len(fields) == 1 {
-		fmt.Fprintf(os.Stderr, "The local image '%s' couldn't be found, trying '%s:' instead.\n", imageRef, fields[0])
+		fmt.Fprintf(os.Stderr, "The local image '%s' could not be found, trying '%s:' instead.\n", imageRef, fields[0])
 		return fields[0], "default"
 	}
 
-	fmt.Fprintf(os.Stderr, "The local image '%s' couldn't be found, trying '%s:%s' instead.\n", imageRef, fields[0], fields[1])
+	fmt.Fprintf(os.Stderr, "The local image '%s' could not be found, trying '%s:%s' instead.\n", imageRef, fields[0], fields[1])
 	return fields[0], fields[1]
 }
 
@@ -413,7 +413,7 @@ func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, ins
 		// Get the image info
 		imgInfo, _, err = imgRemoteServer.GetImage(imageRef)
 		if err != nil {
-			return nil, nil, fmt.Errorf("Failed to find image %q on remote %q", imageRef, imgRemote)
+			return nil, nil, fmt.Errorf("Failed finding image %q on remote %q", imageRef, imgRemote)
 		}
 	}
 
@@ -450,7 +450,7 @@ func getExportVersion(d lxd.InstanceServer, flag string) (uint32, error) {
 		}
 	} else if !backupVersionSupported && versionUint32 > api.BackupMetadataVersion1 {
 		// Any version beyond 1 isn't supported by an older server without the backup_metadata_version extension.
-		return 0, errors.New("The server doesn't support setting the metadata format version")
+		return 0, errors.New("The server does not support setting the metadata format version")
 	}
 
 	// No export version was provided.
@@ -545,7 +545,7 @@ func getEntityFromOperationResources(operationResources map[string][]string, res
 func entityNameFromURL(urlStr string) (string, *url.URL, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to parse entity URL %q: %w", urlStr, err)
+		return "", nil, fmt.Errorf("Failed parsing entity URL %q: %w", urlStr, err)
 	}
 
 	// Always expect the entity name to be the last element of the URL.

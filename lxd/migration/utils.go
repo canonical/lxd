@@ -105,17 +105,17 @@ func (m *MigrationHeader) GetBtrfsFeaturesSlice() []string {
 }
 
 const (
-	unableToLiveMigrate = "Unable to perform live container migration."
+	unableToLiveMigrate = "Cannot perform live container migration."
 	toMigrateLive       = "To migrate the container, stop the container before migration or install CRIU"
 )
 
 var (
 	// ErrNoLiveMigrationSource indicates CRIU isn't installed on the source server.
-	ErrNoLiveMigrationSource = fmt.Errorf("%s CRIU isn't installed on the source server. %s on the source server", unableToLiveMigrate, toMigrateLive)
+	ErrNoLiveMigrationSource = fmt.Errorf("%s CRIU is not installed on the source server. %s on the source server", unableToLiveMigrate, toMigrateLive)
 
 	// ErrNoLiveMigrationTarget indicates CRIU isn't installed on the target server.
-	ErrNoLiveMigrationTarget = fmt.Errorf("%s CRIU isn't installed on the target server. %s on the target server", unableToLiveMigrate, toMigrateLive)
+	ErrNoLiveMigrationTarget = fmt.Errorf("%s CRIU is not installed on the target server. %s on the target server", unableToLiveMigrate, toMigrateLive)
 
 	// ErrNoLiveMigration indicates CRIU is not installed.
-	ErrNoLiveMigration = fmt.Errorf("%s CRIU isn't installed. %s", unableToLiveMigrate, toMigrateLive)
+	ErrNoLiveMigration = fmt.Errorf("%s CRIU is not installed. %s", unableToLiveMigrate, toMigrateLive)
 )

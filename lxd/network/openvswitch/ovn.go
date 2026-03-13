@@ -185,7 +185,7 @@ func NewOVN(nbConnection string, sslSettings func() (sslCACert string, sslClient
 	// Get database connection strings.
 	sbConnection, err := NewOVS().OVNSouthboundDBRemoteAddress()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get OVN southbound connection string: %w", err)
+		return nil, fmt.Errorf("Failed getting OVN southbound connection string: %w", err)
 	}
 
 	// Create the OVN struct.

@@ -149,7 +149,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 	}
 
 	if !network.InterfaceExists(d.config["parent"]) {
-		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 	}
 
 	if d.config["parent"] == "" && d.config["vlan"] != "" {
@@ -443,7 +443,7 @@ func (d *nicIPVLAN) postStop() error {
 	if network.InterfaceExists(d.config["host_name"]) {
 		err := network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
-			errs = append(errs, fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err))
+			errs = append(errs, fmt.Errorf("Failed removing interface %q: %w", d.config["host_name"], err))
 		}
 	}
 

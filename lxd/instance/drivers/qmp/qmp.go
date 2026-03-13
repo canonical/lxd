@@ -204,7 +204,7 @@ func (qmp *qemuMachineProtocol) listen(r io.Reader, events chan<- qmpEvent, repl
 			reply, ok := val.(chan rawResponse)
 			if !ok {
 				// Skip bad messages.
-				logger.Error("Failed to cast QMP reply to chan rawResponse")
+				logger.Error("Failed casting QMP reply to chan rawResponse")
 				continue
 			}
 
@@ -233,7 +233,7 @@ func (qmp *qemuMachineProtocol) listen(r io.Reader, events chan<- qmpEvent, repl
 		reply, ok := v.(chan rawResponse)
 		if !ok {
 			// Skip bad messages.
-			logger.Error("Failed to cast QMP reply to chan rawResponse")
+			logger.Error("Failed casting QMP reply to chan rawResponse")
 
 			return true
 		}
@@ -261,7 +261,7 @@ func (qmp *qemuMachineProtocol) qmpWriteMsg(b []byte, file *os.File) error {
 	}
 
 	if !qmp.oobSupported {
-		return errors.New("The QEMU server doesn't support oob (needed for RunWithFile)")
+		return errors.New("The QEMU server does not support oob (needed for RunWithFile)")
 	}
 
 	// Send the command along with the file descriptor.

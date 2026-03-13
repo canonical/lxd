@@ -90,37 +90,37 @@ static void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 
 	*hostnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
 	if (*hostnetns_fd < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to preserve host network namespace");
+		(void)sprintf(errbuf, "%s", "Failed preserving host network namespace");
 		return;
 	}
 
 	ret = unshare(CLONE_NEWNET);
 	if (ret < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to unshare network namespace");
+		(void)sprintf(errbuf, "%s", "Failed unsharing network namespace");
 		return;
 	}
 
 	*newnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
 	if (*newnetns_fd < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to preserve new network namespace");
+		(void)sprintf(errbuf, "%s", "Failed preserving new network namespace");
 		return;
 	}
 
 	ret = netns_set_nsid(*hostnetns_fd);
 	if (ret < 0) {
-		(void)sprintf(errbuf, "%s", "failed to set network namespace identifier");
+		(void)sprintf(errbuf, "%s", "failed setting network namespace identifier");
 		return;
 	}
 
 	netnsid = netns_get_nsid(*hostnetns_fd);
 	if (netnsid < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to get network namespace identifier");
+		(void)sprintf(errbuf, "%s", "Failed getting network namespace identifier");
 		return;
 	}
 
 	sock_fd = socket(PF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE);
 	if (sock_fd < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to open netlink routing socket");
+		(void)sprintf(errbuf, "%s", "Failed opening netlink routing socket");
 		return;
 	}
 
@@ -534,7 +534,7 @@ static void is_binfmt_aware(void)
 
 	pid = fork();
 	if (pid < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to spawn subprocess");
+		(void)sprintf(errbuf, "%s", "Failed spawning subprocess");
 		return;
 	}
 
@@ -542,65 +542,65 @@ static void is_binfmt_aware(void)
 		// Create namespaces
 		ret = unshare(CLONE_NEWNS|CLONE_NEWUSER);
 		if (ret < 0) {
-			(void)sprintf(errbuf, "%s", "Failed to unshare network and user namespace");
+			(void)sprintf(errbuf, "%s", "Failed unsharing network and user namespace");
 			_exit(EXIT_FAILURE);
 		}
 
 		// Setup uid_map
 		fd = openat(AT_FDCWD, "/proc/self/uid_map", O_WRONLY);
 		if (ret < 0) {
-			(void)sprintf(errbuf, "%s", "Failed to open uid_map");
+			(void)sprintf(errbuf, "%s", "Failed opening uid_map");
 			_exit(EXIT_FAILURE);
 		}
 
 		if (write(fd, "0 0 1", 5) != 5) {
-			(void)sprintf(errbuf, "%s", "Failed to write uid_map");
+			(void)sprintf(errbuf, "%s", "Failed writing uid_map");
 			_exit(EXIT_FAILURE);
 		}
 
 		if (close(fd) < 0) {
-			(void)sprintf(errbuf, "%s", "Failed to close uid_map");
+			(void)sprintf(errbuf, "%s", "Failed closing uid_map");
 			_exit(EXIT_FAILURE);
 		}
 
 		// Setup setgroups
 		fd = openat(AT_FDCWD, "/proc/self/setgroups", O_WRONLY);
 		if (ret < 0) {
-			(void)sprintf(errbuf, "%s", "Failed to open setgroups");
+			(void)sprintf(errbuf, "%s", "Failed opening setgroups");
 			_exit(EXIT_FAILURE);
 		}
 
 		if (write(fd, "deny", 4) != 4) {
-			(void)sprintf(errbuf, "%s", "Failed to write setgroups");
+			(void)sprintf(errbuf, "%s", "Failed writing setgroups");
 			_exit(EXIT_FAILURE);
 		}
 
 		if (close(fd) < 0) {
-			(void)sprintf(errbuf, "%s", "Failed to close setgroups");
+			(void)sprintf(errbuf, "%s", "Failed closing setgroups");
 			_exit(EXIT_FAILURE);
 		}
 
 		// Setup gid_map
 		fd = openat(AT_FDCWD, "/proc/self/gid_map", O_WRONLY);
 		if (ret < 0) {
-			(void)sprintf(errbuf, "%s", "Failed to open gid_map");
+			(void)sprintf(errbuf, "%s", "Failed opening gid_map");
 			_exit(EXIT_FAILURE);
 		}
 
 		if (write(fd, "0 0 1", 5) != 5) {
-			(void)sprintf(errbuf, "%s", "Failed to write gid_map");
+			(void)sprintf(errbuf, "%s", "Failed writing gid_map");
 			_exit(EXIT_FAILURE);
 		}
 
 		if (close(fd) < 0) {
-			(void)sprintf(errbuf, "%s", "Failed to close gid_map");
+			(void)sprintf(errbuf, "%s", "Failed closing gid_map");
 			_exit(EXIT_FAILURE);
 		}
 
 		// Re-mount / private
 		ret = mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL);
 		if (ret < 0) {
-			(void)sprintf(errbuf, "%s", "Failed to mount remount /");
+			(void)sprintf(errbuf, "%s", "Failed mounting remount /");
 			_exit(EXIT_FAILURE);
 		}
 
@@ -642,7 +642,7 @@ static void is_bpftoken_aware(void)
 	// Now let's check that a valid value works too. Just in case.
 	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_cmds", "any", 0);
 	if (ret < 0) {
-		(void)sprintf(errbuf, "%s - fsconfig failed to set delegate_cmds", strerror(errno));
+		(void)sprintf(errbuf, "%s - fsconfig failed setting delegate_cmds", strerror(errno));
 		return;
 	}
 
@@ -665,7 +665,7 @@ void checkfeature(void)
 		pidfd_setns_aware = !setns(pidfd, CLONE_NEWNET);
 
 	if (setns(hostnetns_fd, CLONE_NEWNET) < 0)
-		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace");
+		(void)sprintf(errbuf, "%s", "Failed attaching to host network namespace");
 
 	is_binfmt_aware();
 	is_bpftoken_aware();

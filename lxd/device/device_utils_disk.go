@@ -71,7 +71,7 @@ func DiskMount(srcPath string, dstPath string, recursive bool, propagation strin
 	// Mount the filesystem
 	err = unix.Mount(srcPath, dstPath, fsName, uintptr(flags), mountOptionsStr)
 	if err != nil {
-		return fmt.Errorf("Unable to mount %q at %q with filesystem %q: %w", srcPath, dstPath, fsName, err)
+		return fmt.Errorf("Cannot mount %q at %q with filesystem %q: %w", srcPath, dstPath, fsName, err)
 	}
 
 	// Remount bind mounts in readonly mode if requested
@@ -79,14 +79,14 @@ func DiskMount(srcPath string, dstPath string, recursive bool, propagation strin
 		flags = unix.MS_RDONLY | unix.MS_BIND | unix.MS_REMOUNT
 		err = unix.Mount("", dstPath, fsName, uintptr(flags), "")
 		if err != nil {
-			return fmt.Errorf("Unable to mount %q in readonly mode: %w", dstPath, err)
+			return fmt.Errorf("Cannot mount %q in readonly mode: %w", dstPath, err)
 		}
 	}
 
 	flags = unix.MS_REC | unix.MS_SLAVE
 	err = unix.Mount("", dstPath, "", uintptr(flags), "")
 	if err != nil {
-		return fmt.Errorf("Unable to make mount %q private: %w", dstPath, err)
+		return fmt.Errorf("Cannot make mount %q private: %w", dstPath, err)
 	}
 
 	return nil
@@ -126,7 +126,7 @@ func diskCephRbdMap(clusterName string, userName string, poolName string, volume
 
 	idx := strings.Index(devPath, "/dev/rbd")
 	if idx < 0 {
-		return "", errors.New("Failed to detect mapped device path")
+		return "", errors.New("Failed detecting mapped device path")
 	}
 
 	devPath = devPath[idx:]
@@ -292,7 +292,7 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 
 	listener, err := net.Listen("unix", socketFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create unix listener for virtiofsd: %w", err)
+		return nil, nil, fmt.Errorf("Failed creating unix listener for virtiofsd: %w", err)
 	}
 
 	revert.Add(func() {
@@ -311,7 +311,7 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 
 	unixFile, err := unixListener.File()
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to getting unix listener file for virtiofsd: %w", err)
+		return nil, nil, fmt.Errorf("Failed getting unix listener file for virtiofsd: %w", err)
 	}
 
 	defer func() { _ = unixFile.Close() }()
@@ -337,14 +337,14 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 
 	err = proc.StartWithFiles(context.Background(), []*os.File{unixFile})
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to start virtiofsd: %w", err)
+		return nil, nil, fmt.Errorf("Failed starting virtiofsd: %w", err)
 	}
 
 	revert.Add(func() { _ = proc.Stop() })
 
 	err = proc.Save(pidPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to save virtiofsd state: %w", err)
+		return nil, nil, fmt.Errorf("Failed saving virtiofsd state: %w", err)
 	}
 
 	cleanup := revert.Clone().Fail
@@ -370,14 +370,14 @@ func DiskVMVirtiofsdStop(socketPath string, pidPath string) error {
 		// Remove PID file if needed.
 		err = os.Remove(pidPath)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("Failed to remove PID file: %w", err)
+			return fmt.Errorf("Failed removing PID file: %w", err)
 		}
 	}
 
 	// Remove socket file if needed.
 	err = os.Remove(socketPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("Failed to remove socket file: %w", err)
+		return fmt.Errorf("Failed removing socket file: %w", err)
 	}
 
 	return nil

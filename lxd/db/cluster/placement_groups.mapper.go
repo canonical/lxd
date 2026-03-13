@@ -92,7 +92,7 @@ func getPlacementGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Pla
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"placements_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"placements_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -116,7 +116,7 @@ func getPlacementGroupsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"placements_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"placements_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -138,7 +138,7 @@ func GetPlacementGroups(ctx context.Context, tx *sql.Tx, filters ...PlacementGro
 	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, placementGroupObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"placementGroupObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed getting \"placementGroupObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -148,7 +148,7 @@ func GetPlacementGroups(ctx context.Context, tx *sql.Tx, filters ...PlacementGro
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, placementGroupObjectsByNameAndProject)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"placementGroupObjectsByNameAndProject\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"placementGroupObjectsByNameAndProject\" prepared statement: %w", err)
 				}
 
 				break
@@ -156,7 +156,7 @@ func GetPlacementGroups(ctx context.Context, tx *sql.Tx, filters ...PlacementGro
 
 			query, err := StmtString(placementGroupObjectsByNameAndProject)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"placementGroupObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"placementGroupObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -172,7 +172,7 @@ func GetPlacementGroups(ctx context.Context, tx *sql.Tx, filters ...PlacementGro
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, placementGroupObjectsByProject)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"placementGroupObjectsByProject\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"placementGroupObjectsByProject\" prepared statement: %w", err)
 				}
 
 				break
@@ -180,7 +180,7 @@ func GetPlacementGroups(ctx context.Context, tx *sql.Tx, filters ...PlacementGro
 
 			query, err := StmtString(placementGroupObjectsByProject)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"placementGroupObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"placementGroupObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -196,7 +196,7 @@ func GetPlacementGroups(ctx context.Context, tx *sql.Tx, filters ...PlacementGro
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, placementGroupObjectsByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"placementGroupObjectsByID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"placementGroupObjectsByID\" prepared statement: %w", err)
 				}
 
 				break
@@ -204,7 +204,7 @@ func GetPlacementGroups(ctx context.Context, tx *sql.Tx, filters ...PlacementGro
 
 			query, err := StmtString(placementGroupObjectsByID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"placementGroupObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"placementGroupObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -231,7 +231,7 @@ func GetPlacementGroups(ctx context.Context, tx *sql.Tx, filters ...PlacementGro
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"placements_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"placements_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -246,7 +246,7 @@ func GetPlacementGroup(ctx context.Context, tx *sql.Tx, name string, project str
 
 	objects, err := GetPlacementGroups(ctx, tx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"placements_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"placements_groups\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -264,7 +264,7 @@ func GetPlacementGroup(ctx context.Context, tx *sql.Tx, name string, project str
 func GetPlacementGroupID(ctx context.Context, tx *sql.Tx, name string, project string) (int64, error) {
 	stmt, err := Stmt(tx, placementGroupID)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"placementGroupID\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"placementGroupID\" prepared statement: %w", err)
 	}
 
 	row := stmt.QueryRowContext(ctx, name, project)
@@ -275,7 +275,7 @@ func GetPlacementGroupID(ctx context.Context, tx *sql.Tx, name string, project s
 			return -1, api.StatusErrorf(http.StatusNotFound, "PlacementGroup not found")
 		}
 
-		return -1, fmt.Errorf("Failed to get \"placements_groups\" ID: %w", err)
+		return -1, fmt.Errorf("Failed getting \"placements_groups\" ID: %w", err)
 	}
 
 	return id, nil
@@ -309,7 +309,7 @@ func CreatePlacementGroup(ctx context.Context, tx *sql.Tx, object PlacementGroup
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, placementGroupCreate)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"placementGroupCreate\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"placementGroupCreate\" prepared statement: %w", err)
 	}
 
 	// Execute the statement.
@@ -319,12 +319,12 @@ func CreatePlacementGroup(ctx context.Context, tx *sql.Tx, object PlacementGroup
 			return -1, api.NewStatusError(http.StatusConflict, "This \"placements_groups\" entry already exists")
 		}
 
-		return -1, fmt.Errorf("Failed to create \"placements_groups\" entry: %w", err)
+		return -1, fmt.Errorf("Failed creating \"placements_groups\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"placements_groups\" entry ID: %w", err)
+		return -1, fmt.Errorf("Failed fetching \"placements_groups\" entry ID: %w", err)
 	}
 
 	return id, nil
@@ -335,7 +335,7 @@ func CreatePlacementGroup(ctx context.Context, tx *sql.Tx, object PlacementGroup
 func DeletePlacementGroup(ctx context.Context, tx *sql.Tx, name string, project string) error {
 	stmt, err := Stmt(tx, placementGroupDeleteByNameAndProject)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"placementGroupDeleteByNameAndProject\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"placementGroupDeleteByNameAndProject\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, name, project)
@@ -367,7 +367,7 @@ func UpdatePlacementGroup(ctx context.Context, tx *sql.Tx, name string, project 
 
 	stmt, err := Stmt(tx, placementGroupUpdate)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"placementGroupUpdate\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"placementGroupUpdate\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, object.Name, object.Project, object.Description, id)
@@ -396,7 +396,7 @@ func UpdatePlacementGroup(ctx context.Context, tx *sql.Tx, name string, project 
 func RenamePlacementGroup(ctx context.Context, tx *sql.Tx, name string, project string, to string) error {
 	stmt, err := Stmt(tx, placementGroupRename)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"placementGroupRename\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"placementGroupRename\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, to, name, project)

@@ -37,7 +37,7 @@ func (d *pci) validateConfig(instConf instance.ConfigReader) error {
 
 	err := d.config.Validate(rules)
 	if err != nil {
-		return fmt.Errorf("Failed to validate config: %w", err)
+		return fmt.Errorf("Failed validating config: %w", err)
 	}
 
 	d.config["address"] = pcidev.NormaliseAddress(d.config["address"])
@@ -58,7 +58,7 @@ func (d *pci) validateEnvironment() error {
 func (d *pci) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to validate environment: %w", err)
+		return nil, fmt.Errorf("Failed validating environment: %w", err)
 	}
 
 	runConf := deviceConfig.RunConfig{}
@@ -75,7 +75,7 @@ func (d *pci) Start() (*deviceConfig.RunConfig, error) {
 	devicePath := filepath.Join("/sys/bus/pci/devices", pciAddress)
 	pciDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get PCI device info for %q: %w", pciAddress, err)
+		return nil, fmt.Errorf("Failed getting PCI device info for %q: %w", pciAddress, err)
 	}
 
 	saveData["last_state.pci.slot.name"] = pciDev.SlotName
@@ -88,7 +88,7 @@ func (d *pci) Start() (*deviceConfig.RunConfig, error) {
 
 	err = pcidev.DeviceDriverOverride(pciDev, "vfio-pci")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to override IOMMU group driver: %w", err)
+		return nil, fmt.Errorf("Failed overriding IOMMU group driver: %w", err)
 	}
 
 	runConf.PCIDevice = append(runConf.PCIDevice,

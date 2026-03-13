@@ -175,7 +175,7 @@ func (r *ProtocolLXD) rebuildInstance(instanceName string, instance api.Instance
 // It runs the rebuild process asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryRebuildInstance(instanceName string, req api.InstanceRebuildPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, errors.New("The source server isn't listening on the network")
+		return nil, errors.New("The source server is not listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -605,7 +605,7 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 // It runs the instance creation asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, errors.New("The source server isn't listening on the network")
+		return nil, errors.New("The source server is not listening on the network")
 	}
 
 	operation := req.Source.Operation
@@ -769,12 +769,12 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 	sourceInfo, err := source.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get source connection info: %w", err)
+		return nil, fmt.Errorf("Failed getting source connection info: %w", err)
 	}
 
 	destInfo, err := r.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get destination connection info: %w", err)
+		return nil, fmt.Errorf("Failed getting destination connection info: %w", err)
 	}
 
 	// Optimization for the local copy case
@@ -974,7 +974,7 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 
 	// Quick check.
 	if instance.Migration {
-		return nil, errors.New("Can't ask for a migration through RenameInstance")
+		return nil, errors.New("Cannot ask for a migration through RenameInstance")
 	}
 
 	// Send the request
@@ -990,7 +990,7 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 // The function runs the migration operation asynchronously and returns a RemoteOperation to track the progress and handle any errors.
 func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req api.InstancePost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, errors.New("The target server isn't listening on the network")
+		return nil, errors.New("The target server is not listening on the network")
 	}
 
 	operation := req.Target.Operation
@@ -1077,7 +1077,7 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 
 	// Quick check.
 	if !instance.Migration {
-		return nil, errors.New("Can't ask for a rename through MigrateInstance")
+		return nil, errors.New("Cannot ask for a rename through MigrateInstance")
 	}
 
 	// Send the request
@@ -1873,17 +1873,17 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 
 	sourceInfo, err := source.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get source connection info: %w", err)
+		return nil, fmt.Errorf("Failed getting source connection info: %w", err)
 	}
 
 	destInfo, err := r.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get destination connection info: %w", err)
+		return nil, fmt.Errorf("Failed getting destination connection info: %w", err)
 	}
 
 	instance, _, err := source.GetInstance(cName)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get instance info: %w", err)
+		return nil, fmt.Errorf("Failed getting instance info: %w", err)
 	}
 
 	// Optimization for the local copy case
@@ -2069,7 +2069,7 @@ func (r *ProtocolLXD) RenameInstanceSnapshot(instanceName string, name string, i
 
 	// Quick check.
 	if instance.Migration {
-		return nil, errors.New("Can't ask for a migration through RenameInstanceSnapshot")
+		return nil, errors.New("Cannot ask for a migration through RenameInstanceSnapshot")
 	}
 
 	// Send the request
@@ -2083,7 +2083,7 @@ func (r *ProtocolLXD) RenameInstanceSnapshot(instanceName string, name string, i
 
 func (r *ProtocolLXD) tryMigrateInstanceSnapshot(source InstanceServer, instanceName string, name string, req api.InstanceSnapshotPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, errors.New("The target server isn't listening on the network")
+		return nil, errors.New("The target server is not listening on the network")
 	}
 
 	operation := req.Target.Operation
@@ -2141,7 +2141,7 @@ func (r *ProtocolLXD) MigrateInstanceSnapshot(instanceName string, name string, 
 
 	// Quick check.
 	if !instance.Migration {
-		return nil, errors.New("Can't ask for a rename through MigrateInstanceSnapshot")
+		return nil, errors.New("Cannot ask for a rename through MigrateInstanceSnapshot")
 	}
 
 	// Send the request
@@ -3019,12 +3019,12 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 	for n := range targetSecrets {
 		_, ok := sourceSecrets[n]
 		if !ok {
-			return fmt.Errorf("Migration target expects the \"%s\" socket but source isn't providing it", n)
+			return fmt.Errorf("Migration target expects the \"%s\" socket but source is not providing it", n)
 		}
 	}
 
 	if targetSecrets[api.SecretNameControl] == "" {
-		return errors.New("Migration target didn't setup the required \"control\" socket")
+		return errors.New("Migration target did not set up the required \"control\" socket")
 	}
 
 	// Struct used to hold everything together

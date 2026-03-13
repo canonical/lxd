@@ -43,7 +43,7 @@ func Packages() (map[string]*packages.Package, error) {
 func ParsePackage(pkgPath string) (*packages.Package, error) {
 	pkg, err := lex.Parse(pkgPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse package path %q: %w", pkgPath, err)
+		return nil, fmt.Errorf("Failed parsing package path %q: %w", pkgPath, err)
 	}
 
 	return pkg, nil
@@ -156,7 +156,7 @@ func Parse(pkg *packages.Package, name string, kind string) (*Mapping, error) {
 
 	fields, err := parseStruct(str, kind)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse %q: %w", name, err)
+		return nil, fmt.Errorf("Failed parsing %q: %w", name, err)
 	}
 
 	m := &Mapping{
@@ -177,7 +177,7 @@ func Parse(pkg *packages.Package, name string, kind string) (*Mapping, error) {
 
 		filters, err := parseStruct(filterStr, kind)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse %q: %w", name, err)
+			return nil, fmt.Errorf("Failed parsing %q: %w", name, err)
 		}
 
 		for i, filter := range filters {
@@ -343,7 +343,7 @@ func parseStruct(str *ast.StructType, kind string) ([]*Field, error) {
 
 			parentFields, err := parseStruct(parentStr, kind)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse parent struct: %w", err)
+				return nil, fmt.Errorf("Failed parsing parent struct: %w", err)
 			}
 
 			fields = append(fields, parentFields...)

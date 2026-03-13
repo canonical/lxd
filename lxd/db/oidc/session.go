@@ -48,7 +48,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 	// Get a new session UUID. This is a v7 UUID from which we can extract the session creation date.
 	sessionID, err := uuid.NewV7()
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create new session UUID: %w", err)
+		return nil, nil, fmt.Errorf("Failed creating new session UUID: %w", err)
 	}
 
 	// Get the session expiry. Use the override, else get from config.
@@ -59,14 +59,14 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 		expiryConfig := s.expiryFunc()
 		expiry, err = shared.GetExpiry(time.Now().UTC(), expiryConfig)
 		if err != nil {
-			return nil, nil, fmt.Errorf("Failed to get session expiry: %w", err)
+			return nil, nil, fmt.Errorf("Failed getting session expiry: %w", err)
 		}
 	}
 
 	// Extract the IP address to store in the session.
 	remoteAddr, err := netip.ParseAddrPort(r.RemoteAddr)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to parse remote address: %w", err)
+		return nil, nil, fmt.Errorf("Failed parsing remote address: %w", err)
 	}
 
 	// New metadata to be saved if necessary. This includes the identity provider groups, which are per-identity and not
@@ -83,7 +83,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 		identity, err := cluster.GetIdentity(ctx, tx.Tx(), api.AuthenticationMethodOIDC, res.Email)
 		if err != nil {
 			if !api.StatusErrorCheck(err, http.StatusNotFound) {
-				return fmt.Errorf("Failed to check if the identity exists: %w", err)
+				return fmt.Errorf("Failed checking if the identity exists: %w", err)
 			}
 
 			firstTimeLogin = true
@@ -94,7 +94,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 		if !firstTimeLogin {
 			existingMetadata, err := identity.OIDCMetadata()
 			if err != nil {
-				return fmt.Errorf("Failed to get OIDC metadata: %w", err)
+				return fmt.Errorf("Failed getting OIDC metadata: %w", err)
 			}
 
 			if newMetadata.Subject != existingMetadata.Subject {
@@ -124,7 +124,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 		if firstTimeLogin || doUpdateIdentity {
 			metadataJSON, err := json.Marshal(newMetadata)
 			if err != nil {
-				return fmt.Errorf("Failed to encode OIDC metadata: %w", err)
+				return fmt.Errorf("Failed encoding OIDC metadata: %w", err)
 			}
 
 			newOrUpdatedIdentity = cluster.Identity{
@@ -142,7 +142,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 			action = lifecycle.IdentityCreated
 			identityID, err = cluster.CreateIdentity(ctx, tx.Tx(), newOrUpdatedIdentity)
 			if err != nil {
-				return fmt.Errorf("Failed to create new identity with session information: %w", err)
+				return fmt.Errorf("Failed creating new identity with session information: %w", err)
 			}
 		} else {
 			identityID = identity.ID
@@ -151,7 +151,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 				action = lifecycle.IdentityUpdated
 				err = cluster.UpdateIdentity(ctx, tx.Tx(), api.AuthenticationMethodOIDC, res.Email, newOrUpdatedIdentity)
 				if err != nil {
-					return fmt.Errorf("Failed to update user session information: %w", err)
+					return fmt.Errorf("Failed updating user session information: %w", err)
 				}
 			}
 		}
@@ -178,7 +178,7 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 		})
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to start session: %w", err)
+		return nil, nil, fmt.Errorf("Failed starting session: %w", err)
 	}
 
 	// Send lifecycle event.
@@ -201,7 +201,7 @@ func (s *sessionHandler) GetIdentityBySessionID(ctx context.Context, sessionID u
 		return err
 	})
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("Failed to get session details: %w", err)
+		return nil, nil, nil, fmt.Errorf("Failed getting session details: %w", err)
 	}
 
 	metadata, err := identity.OIDCMetadata()

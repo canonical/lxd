@@ -388,7 +388,7 @@ func (c *ClusterTx) CreatePendingNetwork(ctx context.Context, node string, proje
 
 		// Check that the existing network type matches the requested type.
 		if network.netType != netType {
-			return errors.New("Requested network type doesn't match type in existing database record")
+			return errors.New("Requested network type does not match type in existing database record")
 		}
 	}
 
@@ -517,7 +517,7 @@ func (c *ClusterTx) GetNetworkURIs(ctx context.Context, projectID int, project s
 
 	names, err := query.SelectStrings(ctx, c.tx, sql, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get URIs for network: %w", err)
+		return nil, fmt.Errorf("Cannot get URIs for network: %w", err)
 	}
 
 	uris := make([]string, len(names))

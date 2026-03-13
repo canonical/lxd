@@ -80,7 +80,7 @@ func getAuthGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]AuthGrou
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"auths_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"auths_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -104,7 +104,7 @@ func getAuthGroupsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) 
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"auths_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"auths_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -126,7 +126,7 @@ func GetAuthGroups(ctx context.Context, tx *sql.Tx, filters ...AuthGroupFilter) 
 	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, authGroupObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"authGroupObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed getting \"authGroupObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -136,7 +136,7 @@ func GetAuthGroups(ctx context.Context, tx *sql.Tx, filters ...AuthGroupFilter) 
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, authGroupObjectsByName)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"authGroupObjectsByName\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"authGroupObjectsByName\" prepared statement: %w", err)
 				}
 
 				break
@@ -144,7 +144,7 @@ func GetAuthGroups(ctx context.Context, tx *sql.Tx, filters ...AuthGroupFilter) 
 
 			query, err := StmtString(authGroupObjectsByName)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"authGroupObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"authGroupObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -160,7 +160,7 @@ func GetAuthGroups(ctx context.Context, tx *sql.Tx, filters ...AuthGroupFilter) 
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, authGroupObjectsByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"authGroupObjectsByID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"authGroupObjectsByID\" prepared statement: %w", err)
 				}
 
 				break
@@ -168,7 +168,7 @@ func GetAuthGroups(ctx context.Context, tx *sql.Tx, filters ...AuthGroupFilter) 
 
 			query, err := StmtString(authGroupObjectsByID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"authGroupObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"authGroupObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -195,7 +195,7 @@ func GetAuthGroups(ctx context.Context, tx *sql.Tx, filters ...AuthGroupFilter) 
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"auths_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"auths_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -209,7 +209,7 @@ func GetAuthGroup(ctx context.Context, tx *sql.Tx, name string) (*AuthGroup, err
 
 	objects, err := GetAuthGroups(ctx, tx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"auths_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"auths_groups\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -227,7 +227,7 @@ func GetAuthGroup(ctx context.Context, tx *sql.Tx, name string) (*AuthGroup, err
 func GetAuthGroupID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 	stmt, err := Stmt(tx, authGroupID)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"authGroupID\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"authGroupID\" prepared statement: %w", err)
 	}
 
 	row := stmt.QueryRowContext(ctx, name)
@@ -238,7 +238,7 @@ func GetAuthGroupID(ctx context.Context, tx *sql.Tx, name string) (int64, error)
 			return -1, api.StatusErrorf(http.StatusNotFound, "AuthGroup not found")
 		}
 
-		return -1, fmt.Errorf("Failed to get \"auths_groups\" ID: %w", err)
+		return -1, fmt.Errorf("Failed getting \"auths_groups\" ID: %w", err)
 	}
 
 	return id, nil
@@ -271,7 +271,7 @@ func CreateAuthGroup(ctx context.Context, tx *sql.Tx, object AuthGroup) (int64, 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, authGroupCreate)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"authGroupCreate\" prepared statement: %w", err)
+		return -1, fmt.Errorf("Failed getting \"authGroupCreate\" prepared statement: %w", err)
 	}
 
 	// Execute the statement.
@@ -281,12 +281,12 @@ func CreateAuthGroup(ctx context.Context, tx *sql.Tx, object AuthGroup) (int64, 
 			return -1, api.NewStatusError(http.StatusConflict, "This \"auths_groups\" entry already exists")
 		}
 
-		return -1, fmt.Errorf("Failed to create \"auths_groups\" entry: %w", err)
+		return -1, fmt.Errorf("Failed creating \"auths_groups\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"auths_groups\" entry ID: %w", err)
+		return -1, fmt.Errorf("Failed fetching \"auths_groups\" entry ID: %w", err)
 	}
 
 	return id, nil
@@ -297,7 +297,7 @@ func CreateAuthGroup(ctx context.Context, tx *sql.Tx, object AuthGroup) (int64, 
 func DeleteAuthGroup(ctx context.Context, tx *sql.Tx, name string) error {
 	stmt, err := Stmt(tx, authGroupDeleteByName)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"authGroupDeleteByName\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"authGroupDeleteByName\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, name)
@@ -329,7 +329,7 @@ func UpdateAuthGroup(ctx context.Context, tx *sql.Tx, name string, object AuthGr
 
 	stmt, err := Stmt(tx, authGroupUpdate)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"authGroupUpdate\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"authGroupUpdate\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, object.Name, object.Description, id)
@@ -358,7 +358,7 @@ func UpdateAuthGroup(ctx context.Context, tx *sql.Tx, name string, object AuthGr
 func RenameAuthGroup(ctx context.Context, tx *sql.Tx, name string, to string) error {
 	stmt, err := Stmt(tx, authGroupRename)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"authGroupRename\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"authGroupRename\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, to, name)

@@ -42,7 +42,7 @@ func ExtractWithFds(s *state.State, cmd string, args []string, allowedCmds []str
 	for _, c := range allowedCmds {
 		cmdPath, err := exec.LookPath(c)
 		if err != nil {
-			return fmt.Errorf("Failed to start extract: Failed to find executable: %w", err)
+			return fmt.Errorf("Failed starting extract: Failed finding executable: %w", err)
 		}
 
 		allowedCmdPaths = append(allowedCmdPaths, cmdPath)
@@ -50,7 +50,7 @@ func ExtractWithFds(s *state.State, cmd string, args []string, allowedCmds []str
 
 	err := apparmor.ArchiveLoad(s, outputPath, allowedCmdPaths)
 	if err != nil {
-		return fmt.Errorf("Failed to start extract: Failed to load profile: %w", err)
+		return fmt.Errorf("Failed starting extract: Failed loading profile: %w", err)
 	}
 
 	defer func() { _ = apparmor.ArchiveDelete(s.OS, outputPath) }()
@@ -62,7 +62,7 @@ func ExtractWithFds(s *state.State, cmd string, args []string, allowedCmds []str
 
 	err = p.Start(context.TODO())
 	if err != nil {
-		return fmt.Errorf("Failed to start extract: Failed running: tar: %w", err)
+		return fmt.Errorf("Failed starting extract: Failed running: tar: %w", err)
 	}
 
 	_, err = p.Wait(context.Background())
@@ -90,12 +90,12 @@ func CompressedTarReader(s *state.State, ctx context.Context, r io.ReadSeeker, u
 	if len(unpacker) > 0 {
 		cmdPath, err := exec.LookPath(unpacker[0])
 		if err != nil {
-			return nil, cancelFunc, fmt.Errorf("Failed to start unpack: Failed to find executable: %w", err)
+			return nil, cancelFunc, fmt.Errorf("Failed starting unpack: Failed finding executable: %w", err)
 		}
 
 		err = apparmor.ArchiveLoad(s, outputPath, []string{cmdPath})
 		if err != nil {
-			return nil, cancelFunc, fmt.Errorf("Failed to start unpack: Failed to load profile: %w", err)
+			return nil, cancelFunc, fmt.Errorf("Failed starting unpack: Failed loading profile: %w", err)
 		}
 
 		pipeReader, pipeWriter := io.Pipe()
@@ -103,7 +103,7 @@ func CompressedTarReader(s *state.State, ctx context.Context, r io.ReadSeeker, u
 		p.SetApparmor(apparmor.ArchiveProfileName(outputPath))
 		err = p.Start(ctx)
 		if err != nil {
-			return nil, cancelFunc, fmt.Errorf("Failed to start unpack: Failed running: %s: %w", unpacker[0], err)
+			return nil, cancelFunc, fmt.Errorf("Failed starting unpack: Failed running: %s: %w", unpacker[0], err)
 		}
 
 		ctxCancelFunc := cancelFunc
@@ -236,11 +236,11 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, exclu
 					continue
 				}
 
-				if !strings.Contains(line, "failed to create block device") {
+				if !strings.Contains(line, "failed creating block device") {
 					continue
 				}
 
-				if !strings.Contains(line, "failed to create character device") {
+				if !strings.Contains(line, "failed creating character device") {
 					continue
 				}
 
@@ -265,10 +265,10 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, exclu
 		// Check if we're running out of space
 		if int64(fs.Bfree) < 10 {
 			if blockBackend {
-				return errors.New("Unable to unpack image, run out of disk space (consider increasing your pool's volume.size)")
+				return errors.New("Cannot unpack image, run out of disk space (consider increasing your pool's volume.size)")
 			}
 
-			return errors.New("Unable to unpack image, run out of disk space")
+			return errors.New("Cannot unpack image, run out of disk space")
 		}
 
 		logger.Warn("Unpack failed", logger.Ctx{"file": file, "allowedCmds": allowedCmds, "extension": extension, "path": path, "err": err})

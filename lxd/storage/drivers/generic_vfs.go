@@ -77,7 +77,7 @@ func genericVFSRenameVolume(d Driver, vol Volume, newVolName string, op *operati
 
 	err := os.Rename(srcVolumePath, dstVolumePath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("Failed to rename %q to %q: %w", srcVolumePath, dstVolumePath, err)
+		return fmt.Errorf("Failed renaming %q to %q: %w", srcVolumePath, dstVolumePath, err)
 	}
 
 	if err == nil {
@@ -90,7 +90,7 @@ func genericVFSRenameVolume(d Driver, vol Volume, newVolName string, op *operati
 
 	err = os.Rename(srcSnapshotDir, dstSnapshotDir)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("Failed to rename %q to %q: %w", srcSnapshotDir, dstSnapshotDir, err)
+		return fmt.Errorf("Failed renaming %q to %q: %w", srcSnapshotDir, dstSnapshotDir, err)
 	}
 
 	if err == nil {
@@ -113,7 +113,7 @@ func genericVFSVolumeSnapshots(d Driver, vol Volume, op *operations.Operation) (
 			return snapshots, nil
 		}
 
-		return nil, fmt.Errorf("Failed to list directory %q: %w", snapshotDir, err)
+		return nil, fmt.Errorf("Failed listing directory %q: %w", snapshotDir, err)
 	}
 
 	for _, ent := range ents {
@@ -144,7 +144,7 @@ func genericVFSRenameVolumeSnapshot(d Driver, snapVol Volume, newSnapshotName st
 
 	err := os.Rename(oldPath, newPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("Failed to rename %q to %q: %w", oldPath, newPath, err)
+		return fmt.Errorf("Failed renaming %q to %q: %w", oldPath, newPath, err)
 	}
 
 	return nil
@@ -232,7 +232,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol VolumeCopy, conn io.R
 
 		err = from.Close()
 		if err != nil {
-			return fmt.Errorf("Failed to close file %q: %w", path, err)
+			return fmt.Errorf("Failed closing file %q: %w", path, err)
 		}
 
 		return nil
@@ -641,7 +641,7 @@ func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.
 
 			err = from.Close()
 			if err != nil {
-				return fmt.Errorf("Failed to close file %q: %w", blockPath, err)
+				return fmt.Errorf("Failed closing file %q: %w", blockPath, err)
 			}
 
 			return nil
@@ -1170,7 +1170,7 @@ func genericVFSListVolumes(d Driver) ([]Volume, error) {
 		volTypePath := filepath.Join(poolMountPath, BaseDirectories[volType].Paths[0])
 		ents, err := os.ReadDir(volTypePath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to list directory %q for volume type %q: %w", volTypePath, volType, err)
+			return nil, fmt.Errorf("Failed listing directory %q for volume type %q: %w", volTypePath, volType, err)
 		}
 
 		for _, ent := range ents {

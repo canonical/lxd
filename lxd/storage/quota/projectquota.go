@@ -167,7 +167,7 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
-var errNoDevice = errors.New("Couldn't find backing device for mountpoint")
+var errNoDevice = errors.New("Could not find backing device for mountpoint")
 
 func devForPath(path string) (string, error) {
 	// Get major/minor
@@ -230,7 +230,7 @@ func GetProject(path string) (uint32, error) {
 
 	id := C.quota_get_path(cPath)
 	if id < 0 {
-		return 0, fmt.Errorf("Failed to get project from %q", path)
+		return 0, fmt.Errorf("Failed getting project from %q", path)
 	}
 
 	return uint32(id), nil
@@ -263,7 +263,7 @@ func SetProject(path string, id uint32) error {
 		defer C.free(unsafe.Pointer(cPath))
 
 		if C.quota_set_path(cPath, C.uint32_t(id), C.bool(inherit)) != 0 {
-			return fmt.Errorf(`Failed to set project ID "%d" on %q (inherit %t)`, id, filePath, inherit)
+			return fmt.Errorf(`Failed setting project ID "%d" on %q (inherit %t)`, id, filePath, inherit)
 		}
 
 		return nil
@@ -303,7 +303,7 @@ func GetProjectUsage(path string, id uint32) (int64, error) {
 
 	size := C.quota_get_usage(cDevPath, C.uint32_t(id))
 	if size < 0 {
-		return -1, fmt.Errorf(`Failed to get project consumption for ID "%d" on %q`, id, devPath)
+		return -1, fmt.Errorf(`Failed getting project consumption for ID "%d" on %q`, id, devPath)
 	}
 
 	return int64(size), nil
@@ -322,7 +322,7 @@ func SetProjectQuota(path string, id uint32, bytes int64) error {
 	defer C.free(unsafe.Pointer(cDevPath))
 
 	if C.quota_set(cDevPath, C.uint32_t(id), C.uint64_t(bytes/1024)) != 0 {
-		return fmt.Errorf(`Failed to set project quota for ID "%d" on %q`, id, devPath)
+		return fmt.Errorf(`Failed setting project quota for ID "%d" on %q`, id, devPath)
 	}
 
 	return nil

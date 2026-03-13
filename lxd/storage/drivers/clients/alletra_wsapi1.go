@@ -50,7 +50,7 @@ func createBodyReader(contents map[string]any) (io.Reader, error) {
 
 	err := json.NewEncoder(body).Encode(contents)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to write request body: %w", err)
+		return nil, fmt.Errorf("Failed writing request body: %w", err)
 	}
 
 	return body, nil
@@ -218,7 +218,7 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 
 	gwURL, err := url.Parse(gw)
 	if err != nil {
-		return fmt.Errorf("Failed to parse Pure Storage gateway URL %q: %w", gw, err)
+		return fmt.Errorf("Failed parsing Pure Storage gateway URL %q: %w", gw, err)
 	}
 
 	url.Scheme = gwURL.Scheme
@@ -238,7 +238,7 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 
 	req, err := http.NewRequest(method, url.String(), reqBodyReader)
 	if err != nil {
-		return fmt.Errorf("Failed to create request: %w", err)
+		return fmt.Errorf("Failed creating request: %w", err)
 	}
 
 	// Set custom request headers.
@@ -261,7 +261,7 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to send request: %w", err)
+		return fmt.Errorf("Failed sending request: %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -270,7 +270,7 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 	teeReader := io.TeeReader(resp.Body, &responseBodyBuffer)
 	bodyBytes, err := io.ReadAll(teeReader)
 	if err != nil {
-		return fmt.Errorf("Failed to read response body for TeeReader: %w", err)
+		return fmt.Errorf("Failed reading response body for TeeReader: %w", err)
 	}
 
 	if resp.Header.Get("Content-Type") != "application/json" && len(bodyBytes) > 0 {
@@ -281,7 +281,7 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 		respBody = &hpeError{}
 		err := json.Unmarshal(bodyBytes, respBody)
 		if err != nil {
-			return fmt.Errorf("HPE failed to parse WSAPI error response: %w", err)
+			return fmt.Errorf("HPE failed parsing WSAPI error response: %w", err)
 		}
 	}
 
@@ -289,7 +289,7 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 	if len(bodyBytes) > 0 {
 		err = json.Unmarshal(bodyBytes, &respBody)
 		if err != nil {
-			return fmt.Errorf("HPE failed to read response body from %q: %w", url.String(), err)
+			return fmt.Errorf("HPE failed reading response body from %q: %w", url.String(), err)
 		}
 	}
 
@@ -432,7 +432,7 @@ func (p *AlletraClient) login() error {
 
 	err := p.request(http.MethodPost, url.URL, body, nil, &respBody, respHeaders)
 	if err != nil {
-		return fmt.Errorf("Failed to send login request to HPE Alletra WSAPI: %w", err)
+		return fmt.Errorf("Failed sending login request to HPE Alletra WSAPI: %w", err)
 	}
 
 	if respBody.Key == "" {
@@ -453,7 +453,7 @@ func (p *AlletraClient) CreateVolumeSet(volumeSetName string) error {
 	url := api.NewURL().Path("api", "v1", "volumesets")
 	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to create volume set for a storage pool %q: %w", volumeSetName, err)
+		return fmt.Errorf("Failed creating volume set for a storage pool %q: %w", volumeSetName, err)
 	}
 
 	return nil
@@ -464,7 +464,7 @@ func (p *AlletraClient) DeleteVolumeSet(volumeSetName string) error {
 	url := api.NewURL().Path("api", "v1", "volumesets", volumeSetName)
 	err := p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to delete volume set for a storage pool %q: %w", volumeSetName, err)
+		return fmt.Errorf("Failed deleting volume set for a storage pool %q: %w", volumeSetName, err)
 	}
 
 	return nil
@@ -481,7 +481,7 @@ func (p *AlletraClient) modifyVolumeSet(volumeSetName string, action int, volNam
 	url := api.NewURL().Path("api", "v1", "volumesets", volumeSetName)
 	err := p.requestAuthenticated(http.MethodPut, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to modify volume set for a storage pool %q: %w", volumeSetName, err)
+		return fmt.Errorf("Failed modifying volume set for a storage pool %q: %w", volumeSetName, err)
 	}
 
 	return nil
@@ -494,7 +494,7 @@ func (p *AlletraClient) getHosts() ([]hpeHost, error) {
 	url := api.NewURL().Path("api", "v1", "hosts")
 	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get hosts: %w", err)
+		return nil, fmt.Errorf("Failed getting hosts: %w", err)
 	}
 
 	return resp.Members, nil
@@ -564,7 +564,7 @@ func (p *AlletraClient) CreateHost(connectorType string, hostName string, qns []
 			}
 		}
 
-		return fmt.Errorf("Failed to create host %q: %w", hostName, err)
+		return fmt.Errorf("Failed creating host %q: %w", hostName, err)
 	}
 
 	return nil
@@ -575,7 +575,7 @@ func (p *AlletraClient) DeleteHost(hostName string) error {
 	url := api.NewURL().Path("api", "v1", "hosts", hostName)
 	err := p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to delete host %q: %w", hostName, err)
+		return fmt.Errorf("Failed deleting host %q: %w", hostName, err)
 	}
 
 	return nil
@@ -584,7 +584,7 @@ func (p *AlletraClient) DeleteHost(hostName string) error {
 // UpdateHost updates an existing host. This should be never called
 // and only needed to make code sharing with Pure easier.
 func (p *AlletraClient) UpdateHost(hostName string, qns []string) error {
-	return fmt.Errorf("Failed to update host %q. Operation not supported", hostName)
+	return fmt.Errorf("Failed updating host %q. Operation not supported", hostName)
 }
 
 func (p *AlletraClient) createVolume(poolName string, volName string, sizeBytes int64) error {
@@ -598,7 +598,7 @@ func (p *AlletraClient) createVolume(poolName string, volName string, sizeBytes 
 	url := api.NewURL().Path("api", "v1", "volumes")
 	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to create volume %q in storage pool %q: %w", volName, poolName, err)
+		return fmt.Errorf("Failed creating volume %q in storage pool %q: %w", volName, poolName, err)
 	}
 
 	return nil
@@ -634,7 +634,7 @@ func (p *AlletraClient) GetVolume(poolName string, volName string) (*hpeVolume, 
 			}
 		}
 
-		return nil, fmt.Errorf("Failed to get hpeVolume %q: %w", volName, err)
+		return nil, fmt.Errorf("Failed getting hpeVolume %q: %w", volName, err)
 	}
 
 	if resp.Name == "" {
@@ -660,7 +660,7 @@ func (p *AlletraClient) deleteVolume(poolName string, volName string) error {
 			}
 		}
 
-		return fmt.Errorf("Failed to delete volume (or snapshot) %q in pool %q: %w", volName, poolName, err)
+		return fmt.Errorf("Failed deleting volume (or snapshot) %q in pool %q: %w", volName, poolName, err)
 	}
 
 	return nil
@@ -684,7 +684,7 @@ func (p *AlletraClient) GetTargetAddrs(connectorType string) (targetAddrs []stri
 
 	err = p.requestAuthenticated(http.MethodGet, apiPorts.URL, nil, &portData)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve port list: %w", err)
+		return nil, fmt.Errorf("Failed retrieving port list: %w", err)
 	}
 
 	if len(portData.Members) == 0 {
@@ -748,14 +748,14 @@ func (p *AlletraClient) ConnectHostToVolume(poolName string, volName string, hos
 		if ok {
 			switch hpeErr.Code {
 			case hpeAPIErrorVolumeIsAlreadyExported:
-				p.logger.Debug("New vLUN hasn't been created. Volume %q already attached to %q", logger.Ctx{"volName": volName, "hostName": hostName})
+				p.logger.Debug("New vLUN has not been created. Volume %q already attached to %q", logger.Ctx{"volName": volName, "hostName": hostName})
 				return false, nil
 			default:
 				return false, fmt.Errorf("Unexpected Alletra WSAPI response: Code: %d. Desc: %q", hpeErr.Code, hpeErr.Desc)
 			}
 		}
 
-		return false, fmt.Errorf("Failed to connect volume %q with host %q: %w", volName, hostName, err)
+		return false, fmt.Errorf("Failed connecting volume %q with host %q: %w", volName, hostName, err)
 	}
 
 	return true, nil
@@ -782,7 +782,7 @@ func (p *AlletraClient) DisconnectHostFromVolume(poolName string, volName string
 			return api.StatusErrorf(http.StatusNotFound, "Connection between host %q and volume %q not found", volName, hostName)
 		}
 
-		return fmt.Errorf("Failed to disconnect volume %q from host %q: %w", volName, hostName, err)
+		return fmt.Errorf("Failed disconnecting volume %q from host %q: %w", volName, hostName, err)
 	}
 
 	return nil
@@ -815,7 +815,7 @@ func (p *AlletraClient) GetVLUNsForHost(hostName string) ([]hpeVLUN, error) {
 
 	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get vLUNs list for host %q: %w", hostName, err)
+		return nil, fmt.Errorf("Failed getting vLUNs list for host %q: %w", hostName, err)
 	}
 
 	return resp.Members, nil
@@ -831,7 +831,7 @@ func (p *AlletraClient) GrowVolume(poolName string, volName string, sizeBytes in
 	url := api.NewURL().Path("api", "v1", "volumes", volName)
 	err := p.requestAuthenticated(http.MethodPut, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to resize volume %q in storage pool %q: %w", volName, poolName, err)
+		return fmt.Errorf("Failed resizing volume %q in storage pool %q: %w", volName, poolName, err)
 	}
 
 	return nil
@@ -845,7 +845,7 @@ func (p *AlletraClient) GetVolumeSnapshots(poolName string, volName string) ([]h
 
 	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve snapshots for volume %q in storage pool %q: %w", volName, poolName, err)
+		return nil, fmt.Errorf("Failed retrieving snapshots for volume %q in storage pool %q: %w", volName, poolName, err)
 	}
 
 	return resp.Members, nil
@@ -868,7 +868,7 @@ func (p *AlletraClient) CreateVolumeSnapshot(poolName string, volName string, sn
 	url := api.NewURL().Path("api", "v1", "volumes", volName)
 	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to create snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+		return fmt.Errorf("Failed creating snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
 	}
 
 	return nil
@@ -878,7 +878,7 @@ func (p *AlletraClient) CreateVolumeSnapshot(poolName string, volName string, sn
 func (p *AlletraClient) DeleteVolumeSnapshot(poolName string, volName string, snapshotName string) error {
 	err := p.deleteVolume(poolName, snapshotName)
 	if err != nil {
-		return fmt.Errorf("Failed to delete snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+		return fmt.Errorf("Failed deleting snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
 	}
 
 	return nil
@@ -895,7 +895,7 @@ func (p *AlletraClient) getTaskState(taskID string) (*hpeTaskState, error) {
 			return nil, api.StatusErrorf(http.StatusNotFound, "Task with ID %q not found", taskID)
 		}
 
-		return nil, fmt.Errorf("Failed to retrieve task with ID %q: %w", taskID, err)
+		return nil, fmt.Errorf("Failed retrieving task with ID %q: %w", taskID, err)
 	}
 
 	return &resp, nil
@@ -942,25 +942,25 @@ func (p *AlletraClient) RestoreVolumeSnapshot(ctx context.Context, poolName stri
 
 	err := p.requestAuthenticated(http.MethodPut, url.URL, req, &resp)
 	if err != nil {
-		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": %w`, poolName, snapshotName, poolName, volName, err)
+		return fmt.Errorf(`Failed restoring snapshot "%s/%s" to "%s/%s": %w`, poolName, snapshotName, poolName, volName, err)
 	}
 
 	status, err := p.waitTaskFinish(ctx, strconv.Itoa(resp.TaskID))
 	if err != nil {
-		return fmt.Errorf(`Failed to wait for restore snapshot operation "%s/%s" to "%s/%s": %w`, poolName, snapshotName, poolName, volName, err)
+		return fmt.Errorf(`Failed waiting for restore snapshot operation "%s/%s" to "%s/%s": %w`, poolName, snapshotName, poolName, volName, err)
 	}
 
 	switch status {
 	case hpeTaskStatusDone:
 		return nil
 	case hpeTaskStatusActive:
-		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": timeout`, poolName, snapshotName, poolName, volName)
+		return fmt.Errorf(`Failed restoring snapshot "%s/%s" to "%s/%s": timeout`, poolName, snapshotName, poolName, volName)
 	case hpeTaskStatusCanceled:
-		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": cancelled`, poolName, snapshotName, poolName, volName)
+		return fmt.Errorf(`Failed restoring snapshot "%s/%s" to "%s/%s": cancelled`, poolName, snapshotName, poolName, volName)
 	case hpeTaskStatusFailed:
-		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": task failed`, poolName, snapshotName, poolName, volName)
+		return fmt.Errorf(`Failed restoring snapshot "%s/%s" to "%s/%s": task failed`, poolName, snapshotName, poolName, volName)
 	default:
-		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, snapshotName, poolName, volName)
+		return fmt.Errorf(`Failed restoring snapshot "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, snapshotName, poolName, volName)
 	}
 }
 
@@ -980,25 +980,25 @@ func (p *AlletraClient) CreateVolumePhysicalCopy(ctx context.Context, poolName s
 	url := api.NewURL().Path("api", "v1", "volumes", volName)
 	err := p.requestAuthenticated(http.MethodPost, url.URL, req, &resp)
 	if err != nil {
-		return fmt.Errorf("Failed to create a physical copy %q for volume/snapshot %q in storage pool %q: %w", copyName, volName, poolName, err)
+		return fmt.Errorf("Failed creating a physical copy %q for volume/snapshot %q in storage pool %q: %w", copyName, volName, poolName, err)
 	}
 
 	status, err := p.waitTaskFinish(ctx, strconv.Itoa(resp.TaskID))
 	if err != nil {
-		return fmt.Errorf(`Failed to wait for create a physical copy operation "%s/%s" to "%s/%s": %w`, poolName, volName, poolName, copyName, err)
+		return fmt.Errorf(`Failed waiting for the physical copy operation "%s/%s" to "%s/%s": %w`, poolName, volName, poolName, copyName, err)
 	}
 
 	switch status {
 	case hpeTaskStatusDone:
 		return nil
 	case hpeTaskStatusActive:
-		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": timeout`, poolName, volName, poolName, copyName)
+		return fmt.Errorf(`Failed creating a physical copy "%s/%s" to "%s/%s": timeout`, poolName, volName, poolName, copyName)
 	case hpeTaskStatusCanceled:
-		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": cancelled`, poolName, volName, poolName, copyName)
+		return fmt.Errorf(`Failed creating a physical copy "%s/%s" to "%s/%s": cancelled`, poolName, volName, poolName, copyName)
 	case hpeTaskStatusFailed:
-		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": task failed`, poolName, volName, poolName, copyName)
+		return fmt.Errorf(`Failed creating a physical copy "%s/%s" to "%s/%s": task failed`, poolName, volName, poolName, copyName)
 	default:
-		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, volName, copyName, volName)
+		return fmt.Errorf(`Failed creating a physical copy "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, volName, copyName, volName)
 	}
 }
 
@@ -1014,7 +1014,7 @@ func (p *AlletraClient) GetCPGSpaceReport() (*hpeSpaceReport, error) {
 
 	err := p.requestAuthenticated(http.MethodPost, url.URL, req, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve a space report for a CPG %q: %w", p.cpg, err)
+		return nil, fmt.Errorf("Failed retrieving a space report for a CPG %q: %w", p.cpg, err)
 	}
 
 	return &resp, nil

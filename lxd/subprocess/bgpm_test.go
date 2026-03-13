@@ -22,7 +22,7 @@ func TestSignalHandling(t *testing.T) {
 
 	err = p.Start(context.Background())
 	if err != nil {
-		t.Error("Failed to start process ", err)
+		t.Error("Failed starting process ", err)
 	}
 
 	time.Sleep(2 * time.Second)
@@ -90,32 +90,32 @@ func TestStopRestart(t *testing.T) {
 
 	err = p.Start(context.Background())
 	if err != nil {
-		t.Error("Failed to start process: ", err)
+		t.Error("Failed starting process: ", err)
 	}
 
 	err = p.Stop()
 	if err != nil {
-		t.Error("Failed to stop process: ", err)
+		t.Error("Failed stopping process: ", err)
 	}
 
 	err = p.Save("testscript/test2.yaml")
 	if err != nil {
-		t.Error("Failed to save process: ", err)
+		t.Error("Failed saving process: ", err)
 	}
 
 	p, err = ImportProcess("testscript/test2.yaml")
 	if err != nil {
-		t.Error("Failed to import process: ", err)
+		t.Error("Failed importing process: ", err)
 	}
 
 	err = p.Start(context.Background())
 	if err != nil {
-		t.Error("Failed to start process: ", err)
+		t.Error("Failed starting process: ", err)
 	}
 
 	err = p.Restart(context.Background())
 	if err != nil {
-		t.Error("Failed to restart process: ", err)
+		t.Error("Failed restarting process: ", err)
 	}
 
 	exitcode, err := p.Wait(context.Background())
@@ -143,7 +143,7 @@ func TestProcessStartWaitExit(t *testing.T) {
 
 	err = p.Start(context.Background())
 	if err != nil {
-		t.Error("Failed to start process: ", err)
+		t.Error("Failed starting process: ", err)
 	}
 
 	ecode, err := p.Wait(context.Background())

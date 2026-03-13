@@ -135,7 +135,7 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if c.flagType == "metrics" && !resource.server.HasExtension("metrics") {
-		return errors.New("The server doesn't implement metrics")
+		return errors.New("The server does not implement metrics")
 	}
 
 	// Warn users that a restricted certificate with no projects will have zero access.

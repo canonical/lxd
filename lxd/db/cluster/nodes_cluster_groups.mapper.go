@@ -55,7 +55,7 @@ func getNodeClusterGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]N
 
 	err := query.SelectObjects(ctx, stmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"nodes_clusters_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"nodes_clusters_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -79,7 +79,7 @@ func getNodeClusterGroupsRaw(ctx context.Context, tx *sql.Tx, sql string, args .
 
 	err := query.Scan(ctx, tx, sql, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"nodes_clusters_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"nodes_clusters_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -101,7 +101,7 @@ func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filters ...NodeCluste
 	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, nodeClusterGroupObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"nodeClusterGroupObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed getting \"nodeClusterGroupObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -111,7 +111,7 @@ func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filters ...NodeCluste
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, nodeClusterGroupObjectsByGroupID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"nodeClusterGroupObjectsByGroupID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed getting \"nodeClusterGroupObjectsByGroupID\" prepared statement: %w", err)
 				}
 
 				break
@@ -119,7 +119,7 @@ func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filters ...NodeCluste
 
 			query, err := StmtString(nodeClusterGroupObjectsByGroupID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"nodeClusterGroupObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed getting \"nodeClusterGroupObjects\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -146,7 +146,7 @@ func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filters ...NodeCluste
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"nodes_clusters_groups\" table: %w", err)
+		return nil, fmt.Errorf("Failed fetching from \"nodes_clusters_groups\" table: %w", err)
 	}
 
 	return objects, nil
@@ -157,7 +157,7 @@ func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filters ...NodeCluste
 func DeleteNodeClusterGroup(ctx context.Context, tx *sql.Tx, groupID int) error {
 	stmt, err := Stmt(tx, nodeClusterGroupDeleteByGroupID)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"nodeClusterGroupDeleteByGroupID\" prepared statement: %w", err)
+		return fmt.Errorf("Failed getting \"nodeClusterGroupDeleteByGroupID\" prepared statement: %w", err)
 	}
 
 	result, err := stmt.ExecContext(ctx, groupID)

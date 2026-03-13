@@ -41,7 +41,7 @@ func (t *tls) GetViewableProjects(ctx context.Context, permissions []api.Permiss
 func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
 	entityType, projectName, _, pathArguments, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
-		return fmt.Errorf("Failed to parse entity URL: %w", err)
+		return fmt.Errorf("Failed parsing entity URL: %w", err)
 	}
 
 	err = auth.ValidateEntitlement(entityType, entitlement)
@@ -75,7 +75,7 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 
 	projectSpecific, err := entityType.RequiresProject()
 	if err != nil {
-		return fmt.Errorf("Failed to check project specificity of entity type %q: %w", entityType, err)
+		return fmt.Errorf("Failed checking project specificity of entity type %q: %w", entityType, err)
 	}
 
 	// Check non- project-specific entity types.
@@ -140,14 +140,14 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 
 	projectSpecific, err := entityType.RequiresProject()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to check project specificity of entity type %q: %w", entityType, err)
+		return nil, fmt.Errorf("Failed checking project specificity of entity type %q: %w", entityType, err)
 	}
 
 	// Filter objects by project.
 	return func(entityURL *api.URL) bool {
 		eType, project, _, pathArguments, err := entity.ParseURL(entityURL.URL)
 		if err != nil {
-			logger.Warn("Permission checker failed to parse entity URL", logger.Ctx{"entity_url": entityURL, "err": err})
+			logger.Warn("Permission checker failed parsing entity URL", logger.Ctx{"entity_url": entityURL, "err": err})
 			return false
 		}
 

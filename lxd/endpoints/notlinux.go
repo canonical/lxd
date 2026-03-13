@@ -8,9 +8,9 @@ import (
 )
 
 func localCreateListener(path string, group string) (net.Listener, error) {
-	return nil, fmt.Errorf("Platform isn't supported")
+	return nil, fmt.Errorf("Platform is not supported")
 }
 
 func createDevLxdlListener(path string) (net.Listener, error) {
-	return nil, fmt.Errorf("Platform isn't supported")
+	return nil, fmt.Errorf("Platform is not supported")
 }

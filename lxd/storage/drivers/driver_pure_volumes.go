@@ -267,7 +267,7 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 			}
 
 			if srcSnapshot == nil {
-				return fmt.Errorf("Failed to copy snapshot %q: Source snapshot does not exist", snapshotShortName)
+				return fmt.Errorf("Failed copying snapshot %q: Source snapshot does not exist", snapshotShortName)
 			}
 
 			srcSnapshotName, err := d.getVolumeName(*srcSnapshot)
@@ -494,7 +494,7 @@ func (d *pure) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 			}
 
 			if srcSnapshot == nil {
-				return nil, fmt.Errorf("Failed to refresh snapshot %q: Source snapshot does not exist", snapshotShortName)
+				return nil, fmt.Errorf("Failed refreshing snapshot %q: Source snapshot does not exist", snapshotShortName)
 			}
 
 			srcSnapshotName, err := d.getVolumeName(*srcSnapshot)
@@ -527,7 +527,7 @@ func (d *pure) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 		// Ensure all snapshots were successfully refreshed.
 		missing := shared.RemoveElementsFromSlice(refreshSnapshots, refreshedSnapshots...)
 		if len(missing) > 0 {
-			return nil, fmt.Errorf("Failed to refresh snapshots %v", missing)
+			return nil, fmt.Errorf("Failed refreshing snapshots %v", missing)
 		}
 	}
 
@@ -623,7 +623,7 @@ func (d *pure) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
 		}
 	}
 
@@ -1223,7 +1223,7 @@ func (d *pure) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
 		}
 	}
 

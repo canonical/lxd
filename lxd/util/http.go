@@ -93,7 +93,7 @@ func EtagCheck(r *http.Request, data any) error {
 	}
 
 	if hash != match {
-		return api.StatusErrorf(http.StatusPreconditionFailed, "ETag doesn't match: %s vs %s. The configuration has been modified since this change began. Please retrieve the updated configuration before proceeding.", hash, match)
+		return api.StatusErrorf(http.StatusPreconditionFailed, "ETag does not match: %s vs %s. The configuration has been modified since this change began. Please retrieve the updated configuration before proceeding.", hash, match)
 	}
 
 	return nil
@@ -179,13 +179,13 @@ func CheckCASignature(cert x509.Certificate, networkCert *shared.CertInfo) (trus
 	}
 
 	if networkCert == nil {
-		logger.Error("Failed to check certificate has been signed by the CA, no network certificate provided")
+		logger.Error("Cannot verify whether the certificate was signed by the CA: no network certificate provided")
 		return false, false, ""
 	}
 
 	ca := networkCert.CA()
 	if ca == nil {
-		logger.Error("Failed to check certificate has been signed by the CA, no CA defined on network certificate")
+		logger.Error("Cannot verify whether the certificate was signed by the CA: no CA defined on network certificate")
 		return false, false, ""
 	}
 

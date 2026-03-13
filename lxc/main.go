@@ -97,7 +97,7 @@ For help with any of those, simply call them with --help.`)
 	app.PersistentFlags().StringVar(&globalCmd.flagProject, "project", "", cli.FormatStringFlagLabel("Override the source project"))
 	app.PersistentFlags().BoolVar(&globalCmd.flagLogDebug, "debug", false, "Show all debug messages")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagLogVerbose, "verbose", "v", false, "Show all information messages")
-	app.PersistentFlags().BoolVarP(&globalCmd.flagQuiet, "quiet", "q", false, "Don't show progress information")
+	app.PersistentFlags().BoolVarP(&globalCmd.flagQuiet, "quiet", "q", false, "Do not show progress information")
 	app.PersistentFlags().BoolVar(&globalCmd.flagSubCmds, "sub-commands", false, "Use with help or --help to view sub-commands")
 
 	_ = app.RegisterFlagCompletionFunc("project", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -332,8 +332,8 @@ For help with any of those, simply call them with --help.`)
 	if err != nil {
 		// Handle non-Linux systems
 		if err == config.ErrNotLinux {
-			msg := `This client hasn't been configured to use a remote LXD server yet.
-As your platform can't run native Linux instances, you must connect to a remote LXD server.
+			msg := `This client has not been configured to use a remote LXD server yet.
+As your platform cannot run native Linux instances, you must connect to a remote LXD server.
 
 If you already added a remote server, make it the default with "lxc remote switch NAME".
 To easily setup a local LXD server in a virtual machine, consider using: https://canonical.com/multipass`
@@ -465,7 +465,7 @@ Or for a virtual machine: lxc launch ubuntu:24.04 --vm`
 	// Set the user agent, indicating that we are able to store cookies.
 	err = version.UserAgentFeatures([]string{api.ClientFeatureCookieJar})
 	if err != nil {
-		return fmt.Errorf("Failed to advertise client features: %w", err)
+		return fmt.Errorf("Failed advertising client features: %w", err)
 	}
 
 	c.conf.UserAgent = version.UserAgent

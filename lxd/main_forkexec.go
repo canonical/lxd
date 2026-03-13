@@ -114,7 +114,7 @@ restart:
 			continue;
 
 		if (close(fd)) {
-			return log_error(-errno, "%s - Failed to close file descriptor %d", strerror(errno), fd);
+			return log_error(-errno, "%s - Failed closing file descriptor %d", strerror(errno), fd);
 		} else {
 			char fdpath[PATH_MAX], realpath[PATH_MAX];
 
@@ -199,11 +199,11 @@ __attribute__ ((noinline)) static int __forkexec(void)
 				attach_options.initial_cwd = arg + STRLITERALLEN("HOME=");
 			ret = push_vargs(&envvp, arg);
 			if (ret < 0)
-				return log_error(ret, "Failed to add %s to env array", arg);
+				return log_error(ret, "Failed adding %s to env array", arg);
 		} else if (!strcmp(section, "cmd")) {
 			ret = push_vargs(&argvp, arg);
 			if (ret < 0)
-				return log_error(ret, "Failed to add %s to arg array", arg);
+				return log_error(ret, "Failed adding %s to arg array", arg);
 		} else {
 			return log_error(EXIT_FAILURE, "Invalid exec section %s", section);
 		}
@@ -228,16 +228,16 @@ __attribute__ ((noinline)) static int __forkexec(void)
 
 	ret = fd_cloexec(status_pipe, true);
 	if (ret)
-		return log_errno(EXIT_FAILURE, "Failed to make pipe close-on-exec");
+		return log_errno(EXIT_FAILURE, "Failed making pipe close-on-exec");
 
 	c = lxc_container_new(name, lxcpath);
 	if (!c)
-		return log_error(EXIT_FAILURE, "Failed to load new container %s/%s", lxcpath, name);
+		return log_error(EXIT_FAILURE, "Failed loading new container %s/%s", lxcpath, name);
 
 	c->clear_config(c);
 
 	if (!c->load_config(c, config_path))
-		return log_error(EXIT_FAILURE, "Failed to load config file %s for %s/%s", config_path, lxcpath, name);
+		return log_error(EXIT_FAILURE, "Failed loading config file %s for %s/%s", config_path, lxcpath, name);
 
 	if (strcmp(cwd, ""))
 		attach_options.initial_cwd = cwd;
@@ -258,13 +258,13 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	ret = write_nointr(status_pipe, &attached_pid, sizeof(attached_pid));
 	if (ret < 0) {
 		// Kill the child just to be safe.
-		fprintf(stderr, "Failed to send pid %d of executing child to LXD. Killing child\n", attached_pid);
+		fprintf(stderr, "Failed sending pid %d of executing child to LXD. Killing child\n", attached_pid);
 		kill(attached_pid, SIGKILL);
 	}
 
 	ret = wait_for_pid_status_nointr(attached_pid);
 	if (ret < 0)
-		return log_error(EXIT_FAILURE, "Failed to wait for child process %d", attached_pid);
+		return log_error(EXIT_FAILURE, "Failed waiting for child process %d", attached_pid);
 
 	if (WIFEXITED(ret))
 		return WEXITSTATUS(ret);

@@ -112,12 +112,12 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	// Connect to LXD
 	d, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to local LXD: %w", err)
+		return fmt.Errorf("Failed connecting to local LXD: %w", err)
 	}
 
 	server, _, err := d.GetServer()
 	if err != nil {
-		return fmt.Errorf("Failed to connect to get LXD server info: %w", err)
+		return fmt.Errorf("Failed connecting to get LXD server info: %w", err)
 	}
 
 	// If UI initial access link flag is set, but auto mode is not enabled,
@@ -167,7 +167,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	// If yes then read cluster certificate from file
 	if config.Cluster != nil && config.Cluster.ClusterCertificatePath != "" {
 		if !shared.PathExists(config.Cluster.ClusterCertificatePath) {
-			return fmt.Errorf("Path %s doesn't exist", config.Cluster.ClusterCertificatePath)
+			return fmt.Errorf("Path %s does not exist", config.Cluster.ClusterCertificatePath)
 		}
 
 		content, err := os.ReadFile(config.Cluster.ClusterCertificatePath)
@@ -212,7 +212,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if config.Cluster.ClusterCertificate == "" {
-			return errors.New("Unable to connect to any of the cluster members specified in join token")
+			return errors.New("Cannot connect to any of the cluster members specified in join token")
 		}
 	}
 
@@ -233,12 +233,12 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 
 		op, err := d.UpdateCluster(config.Cluster.ClusterPut, "")
 		if err != nil {
-			return fmt.Errorf("Failed to join cluster: %w", err)
+			return fmt.Errorf("Failed joining cluster: %w", err)
 		}
 
 		err = op.Wait()
 		if err != nil {
-			return fmt.Errorf("Failed to join cluster: %w", err)
+			return fmt.Errorf("Failed joining cluster: %w", err)
 		}
 
 		return nil
@@ -289,7 +289,7 @@ func (c *cmdInit) createUIInitialAccessLink(d lxd.InstanceServer) error {
 	// Refresh server info.
 	server, _, err := d.GetServer()
 	if err != nil {
-		return fmt.Errorf("Failed to refresh LXD server info: %w", err)
+		return fmt.Errorf("Failed refreshing LXD server info: %w", err)
 	}
 
 	var serverAddress string
@@ -306,7 +306,7 @@ func (c *cmdInit) createUIInitialAccessLink(d lxd.InstanceServer) error {
 	// Check if identity already exists.
 	uiAdminIdentity, _, err := d.GetIdentity(api.AuthenticationMethodBearer, uiAdminIdentityName)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return fmt.Errorf("Failed to check for existing initial UI identity: %w", err)
+		return fmt.Errorf("Failed checking for existing initial UI identity: %w", err)
 	}
 
 	if uiAdminIdentity == nil {
@@ -318,7 +318,7 @@ func (c *cmdInit) createUIInitialAccessLink(d lxd.InstanceServer) error {
 
 		err := d.CreateIdentityBearer(uiAdminIdentityReq)
 		if err != nil {
-			return fmt.Errorf("Failed to create initial UI identity: %w", err)
+			return fmt.Errorf("Failed creating initial UI identity: %w", err)
 		}
 	} else if uiAdminIdentity.Type != api.IdentityTypeBearerTokenInitialUI {
 		return fmt.Errorf("A bearer identity with name %q already exists but is not of type %q", uiAdminIdentityName, api.IdentityTypeBearerTokenInitialUI)
@@ -326,7 +326,7 @@ func (c *cmdInit) createUIInitialAccessLink(d lxd.InstanceServer) error {
 
 	token, err := d.IssueBearerIdentityToken(uiAdminIdentityName, api.IdentityBearerTokenPost{})
 	if err != nil {
-		return fmt.Errorf("Failed to issue bearer token for initial UI access link: %w", err)
+		return fmt.Errorf("Failed issuing bearer token for initial UI access link: %w", err)
 	}
 
 	tokenExpiry := time.Now().Add(24 * time.Hour).Format("2006-01-02 15:04")

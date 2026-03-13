@@ -84,7 +84,7 @@ func (s *storageCache) getVolume(projectName string, poolName string, volName st
 	if !ok {
 		pool, err := s.GetPool(poolName)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to retrieve pool of volume %q in pool %q: %w", volName, poolName, err)
+			return nil, fmt.Errorf("Failed retrieving pool of volume %q in pool %q: %w", volName, poolName, err)
 		}
 
 		volConfig, err := pool.GenerateCustomVolumeBackupConfig(projectName, volName, snapshots, op)

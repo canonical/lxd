@@ -80,7 +80,7 @@ func (d *dir) ValidateSource() error {
 	sourcePath := shared.HostPath(d.config["source"])
 
 	if !shared.PathExists(sourcePath) {
-		return fmt.Errorf("Source path %q doesn't exist", sourcePath)
+		return fmt.Errorf("Source path %q does not exist", sourcePath)
 	}
 
 	// Check that if within LXD_DIR, we're at our expected spot.
@@ -107,17 +107,17 @@ func (d *dir) Create() error {
 		// If directory is not empty, the "lost+found" subdirectory is acceptable when
 		// the source path is the root of a mounted filesystem.
 		if !filesystem.IsMountPoint(sourcePath) {
-			return fmt.Errorf("Source path %q isn't empty", sourcePath)
+			return fmt.Errorf("Source path %q is not empty", sourcePath)
 		}
 
 		entries, err := os.ReadDir(sourcePath)
 		if err != nil {
-			return fmt.Errorf("Failed to read directory content of source path %q", sourcePath)
+			return fmt.Errorf("Failed reading directory content of source path %q", sourcePath)
 		}
 
 		for _, e := range entries {
 			if e.Name() != "lost+found" {
-				return fmt.Errorf("Source path %q isn't empty", sourcePath)
+				return fmt.Errorf("Source path %q is not empty", sourcePath)
 			}
 		}
 	}

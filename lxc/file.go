@@ -403,7 +403,7 @@ func (c *cmdFileEdit) run(cmd *cobra.Command, args []string) error {
 	// Create temp file
 	f, err := os.CreateTemp("", "lxd_file_edit_*"+filepath.Ext(args[0]))
 	if err != nil {
-		return fmt.Errorf("Unable to create a temporary file: %v", err)
+		return fmt.Errorf("Cannot create a temporary file: %v", err)
 	}
 
 	fname := f.Name()
@@ -566,7 +566,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 
 				continue
 			} else {
-				return errors.New("Can't pull a directory without --recursive")
+				return errors.New("Cannot pull a directory without --recursive")
 			}
 		}
 
@@ -778,7 +778,7 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 	if c.file.flagRecursive {
 		// Quick checks.
 		if c.file.flagUID != -1 || c.file.flagGID != -1 || c.file.flagMode != "" {
-			return errors.New("Can't supply uid/gid/mode in recursive mode")
+			return errors.New("Cannot supply uid/gid/mode in recursive mode")
 		}
 
 		// Create needed paths if requested
@@ -1097,12 +1097,12 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source st
 
 	sendFile := func(p string, fInfo os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("Failed to walk path for %s: %s", p, err)
+			return fmt.Errorf("Failed walking path for %s: %s", p, err)
 		}
 
 		// Detect unsupported files
 		if !fInfo.Mode().IsRegular() && !fInfo.Mode().IsDir() && fInfo.Mode()&os.ModeSymlink != os.ModeSymlink {
-			return fmt.Errorf("%q isn't a supported file type", p)
+			return fmt.Errorf("%q is not a supported file type", p)
 		}
 
 		// Prepare for file transfer
@@ -1518,7 +1518,7 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		return fmt.Errorf("Failed to listen for connection: %w", err)
+		return fmt.Errorf("Failed listening for connection: %w", err)
 	}
 
 	fmt.Printf("SSH SFTP listening on %v\n", listener.Addr())
@@ -1533,7 +1533,7 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 		// Wait for new SSH connections.
 		nConn, err := listener.Accept()
 		if err != nil {
-			return fmt.Errorf("Failed to accept incoming connection: %w", err)
+			return fmt.Errorf("Failed accepting incoming connection: %w", err)
 		}
 
 		// Handle each SSH connection in its own go routine.

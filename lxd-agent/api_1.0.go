@@ -124,7 +124,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 	// confirm the DevLXD is actually accessible.
 	_, _, err = server.GetServer()
 	if err != nil && !api.StatusErrorCheck(err, http.StatusForbidden) {
-		return response.SmartError(fmt.Errorf("Failed to verify connection to LXD server: %w", err))
+		return response.SmartError(fmt.Errorf("Failed verifying connection to LXD server: %w", err))
 	}
 
 	// Let LXD know, we were able to connect successfully.
@@ -220,7 +220,7 @@ func startHTTPServer(d *Daemon) error {
 	// subsequently restored using a different one.
 	l, err := vsock.ListenContextID(CIDAny, shared.HTTPSDefaultPort, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to listen on vsock: %w", err)
+		return fmt.Errorf("Failed listening on vsock: %w", err)
 	}
 
 	logger.Info("Started vsock listener")
@@ -228,12 +228,12 @@ func startHTTPServer(d *Daemon) error {
 	// Load the expected server certificate.
 	cert, err := shared.ReadCert("server.crt")
 	if err != nil {
-		return fmt.Errorf("Failed to read client certificate: %w", err)
+		return fmt.Errorf("Failed reading client certificate: %w", err)
 	}
 
 	tlsConfig, err := serverTLSConfig()
 	if err != nil {
-		return fmt.Errorf("Failed to get TLS config: %w", err)
+		return fmt.Errorf("Failed getting TLS config: %w", err)
 	}
 
 	// Prepare the HTTP server.

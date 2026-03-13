@@ -18,13 +18,13 @@ func TestConvertFormat(t *testing.T) {
 		convertToVersion   uint32
 	}{
 		{
-			name:               "The conversion doesn't drop the internal metadata (to 2)",
+			name:               "The conversion does not drop the internal metadata (to 2)",
 			sourceBackupConf:   config.NewConfig(now),
 			expectedBackupConf: config.NewConfig(now),
 			convertToVersion:   api.BackupMetadataVersion2,
 		},
 		{
-			name:               "The conversion doesn't drop the internal metadata (to 1)",
+			name:               "The conversion does not drop the internal metadata (to 1)",
 			sourceBackupConf:   config.NewConfig(now),
 			expectedBackupConf: config.NewConfig(now),
 			convertToVersion:   api.BackupMetadataVersion1,
@@ -38,7 +38,7 @@ func TestConvertFormat(t *testing.T) {
 		}
 
 		if !convertedBackupConf.LastModified().Equal(test.expectedBackupConf.LastModified()) {
-			t.Errorf("%s: Last modified times don't match: %q != %q", test.name, convertedBackupConf.LastModified(), test.expectedBackupConf.LastModified())
+			t.Errorf("%s: Last modified times do not match: %q != %q", test.name, convertedBackupConf.LastModified(), test.expectedBackupConf.LastModified())
 		}
 	}
 }

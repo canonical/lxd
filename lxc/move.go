@@ -129,7 +129,7 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 	// simply won't work).
 	if sourceRemote == destRemote && c.flagTarget == "" && c.flagStorage == "" && c.flagTargetProject == "" {
 		if c.flagConfig != nil || c.flagDevice != nil || c.flagProfile != nil || c.flagNoProfiles {
-			return errors.New("Can't override configuration or profiles in local rename")
+			return errors.New("Cannot override configuration or profiles in local rename")
 		}
 
 		source, err := conf.GetInstanceServer(sourceRemote)

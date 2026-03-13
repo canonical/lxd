@@ -153,12 +153,12 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 		if recursion == "1" {
 			groups, err = cluster.GetAuthGroups(ctx, tx.Tx())
 			if err != nil {
-				return fmt.Errorf("Failed to get groups: %w", err)
+				return fmt.Errorf("Failed getting groups: %w", err)
 			}
 
 			authGroupPermissions, err = cluster.GetPermissions(ctx, tx.Tx())
 			if err != nil {
-				return fmt.Errorf("Failed to get currently assigned permissions: %w", err)
+				return fmt.Errorf("Failed getting currently assigned permissions: %w", err)
 			}
 		}
 

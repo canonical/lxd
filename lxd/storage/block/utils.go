@@ -124,7 +124,7 @@ func DiskFSUUID(pathName string) (string, error) {
 			}
 		}
 
-		return "", fmt.Errorf("Failed to retrieve filesystem UUID from device %q: %w", pathName, err)
+		return "", fmt.Errorf("Failed retrieving filesystem UUID from device %q: %w", pathName, err)
 	}
 
 	return strings.TrimSpace(uuid), nil
@@ -134,7 +134,7 @@ func DiskFSUUID(pathName string) (string, error) {
 func DiskFSType(pathName string) (string, error) {
 	fsType, err := shared.RunCommand(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", pathName)
 	if err != nil {
-		return "", fmt.Errorf("Failed to retrieve filesystem type from device %q: %w", pathName, err)
+		return "", fmt.Errorf("Failed retrieving filesystem type from device %q: %w", pathName, err)
 	}
 
 	return strings.TrimSpace(fsType), nil
@@ -147,7 +147,7 @@ func RefreshDiskDeviceSize(ctx context.Context, diskPath string) error {
 		// Ask multipathd to refresh multipath device size.
 		_, err := shared.RunCommand(ctx, "multipath", "-r", diskPath)
 		if err != nil {
-			return fmt.Errorf("Failed to update multipath device %q size: %w", devName, err)
+			return fmt.Errorf("Failed updating multipath device %q size: %w", devName, err)
 		}
 	}
 

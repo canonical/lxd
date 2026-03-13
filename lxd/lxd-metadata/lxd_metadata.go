@@ -322,7 +322,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 	var metadataConfiguration api.MetadataConfiguration
 	err = json.Unmarshal(data, &metadataConfiguration)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal generated metadata into MetadataConfiguration API type: %w", err)
+		return nil, fmt.Errorf("Failed unmarshaling generated metadata into MetadataConfiguration API type: %w", err)
 	}
 
 	if outputJSONPath != "" {

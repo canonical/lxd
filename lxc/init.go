@@ -424,7 +424,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		}
 
 		if err != nil {
-			return nil, "", fmt.Errorf("Failed to get instance name from operation: %w", err)
+			return nil, "", fmt.Errorf("Failed getting instance name from operation: %w", err)
 		}
 
 		fmt.Printf("Instance name is: %s\n", name)
@@ -448,7 +448,7 @@ func (c *cmdInit) checkNetwork(d lxd.InstanceServer, name string) {
 		}
 	}
 
-	fmt.Fprint(os.Stderr, "\n"+"The instance you are starting doesn't have any network attached to it.\n")
+	fmt.Fprint(os.Stderr, "\n"+"The instance you are starting does not have any network attached to it.\n")
 	fmt.Fprint(os.Stderr, "  "+"To create a new network, use: lxc network create\n")
 	fmt.Fprint(os.Stderr, "  "+"To attach a network to an instance, use: lxc network attach\n\n")
 }

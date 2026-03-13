@@ -59,7 +59,7 @@ func unixRegisterHandler(s *state.State, inst instance.Instance, deviceName, pat
 		return true
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to add %q to watch targets: %w", path, err)
+		return fmt.Errorf("Failed adding %q to watch targets: %w", path, err)
 	}
 
 	logger.Debug("Added watch target", logger.Ctx{"path": path})
@@ -87,7 +87,7 @@ func unixUnregisterHandler(s *state.State, inst instance.Instance, deviceName st
 
 	err := s.DevMonitor.Unwatch(sub.Path, identifier)
 	if err != nil {
-		return fmt.Errorf("Failed to remove %q from inotify targets: %w", sub.Path, err)
+		return fmt.Errorf("Failed removing %q from inotify targets: %w", sub.Path, err)
 	}
 
 	return nil

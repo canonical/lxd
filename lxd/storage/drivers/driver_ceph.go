@@ -232,7 +232,7 @@ func (d *ceph) Create() error {
 			"init",
 			d.config["ceph.osd.pool_name"])
 		if err != nil {
-			d.logger.Warn("Failed to initialize pool", logger.Ctx{"pool": d.config["ceph.osd.pool_name"], "cluster": d.config["ceph.cluster_name"]})
+			d.logger.Warn("Failed initializing pool", logger.Ctx{"pool": d.config["ceph.osd.pool_name"], "cluster": d.config["ceph.cluster_name"]})
 		}
 
 		// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
@@ -273,7 +273,7 @@ func (d *ceph) Create() error {
 
 		idx := strings.Index(msg, "pg_num:")
 		if idx == -1 {
-			return fmt.Errorf("Failed to parse number of placement groups for pool: %s", msg)
+			return fmt.Errorf("Failed parsing number of placement groups for pool: %s", msg)
 		}
 
 		msg = msg[(idx + len("pg_num:")):]

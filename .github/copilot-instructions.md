@@ -249,6 +249,16 @@ For error message assertions, prefer single-quoted strings so error text with `"
   }
   ```
 - **Error message format**: Use gerund format for error messages: `Failed connecting to target` instead of `Failed to connect to target`. Another example is to better use `Failed retrieving current cluster config` instead of `Failed to retrieve current cluster config`.
+- **No "unable to"**: Use `cannot` instead (e.g. `Cannot open file` not `Unable to open file`).
+- **No contractions** in error messages: Use `does not` not `doesn't`, `cannot` not `can't`.
+- These error message rules apply to Go string literals only, not to comments.
+- When changing error messages, update any integration test assertions in `test/suites/*.sh` that match the old text.
+- Always use proper English grammar in error messages, even if it results in longer messages. Avoid abbreviations or slang that may be unclear to non-native speakers.
+
+### Shell Script Style
+
+- **Prefer simplicity over abstraction**: Inline code is preferred over helper functions or variables unless reuse is clear and immediate.
+- **Combine similar checks**: Merge related patterns into a single grep/git-grep call using alternation rather than running separate invocations.
 
 ### File Location Patterns
 

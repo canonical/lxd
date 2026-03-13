@@ -46,7 +46,7 @@ static int mkdir_p(const char *dir, mode_t mode)
 		makeme = strndup(orig, dir - orig);
 		if (*makeme) {
 			if (mkdir(makeme, mode) && errno != EEXIST) {
-				fprintf(stderr, "failed to create directory '%s': %s\n", makeme, strerror(errno));
+				fprintf(stderr, "failed creating directory '%s': %s\n", makeme, strerror(errno));
 				return -1;
 			}
 		}
@@ -61,12 +61,12 @@ static void ensure_dir(char *dest) {
 		if ((sb.st_mode & S_IFMT) == S_IFDIR)
 			return;
 		if (unlink(dest) < 0) {
-			fprintf(stderr, "Failed to remove old %s: %s\n", dest, strerror(errno));
+			fprintf(stderr, "Failed removing old %s: %s\n", dest, strerror(errno));
 			_exit(1);
 		}
 	}
 	if (mkdir(dest, 0755) < 0) {
-		fprintf(stderr, "Failed to mkdir %s: %s\n", dest, strerror(errno));
+		fprintf(stderr, "Failed mkdiring %s: %s\n", dest, strerror(errno));
 		_exit(1);
 	}
 }
@@ -80,14 +80,14 @@ static void ensure_file(char *dest)
 		if ((sb.st_mode & S_IFMT) != S_IFDIR)
 			return;
 		if (rmdir(dest) < 0) {
-			fprintf(stderr, "Failed to remove old %s: %s\n", dest, strerror(errno));
+			fprintf(stderr, "Failed removing old %s: %s\n", dest, strerror(errno));
 			_exit(1);
 		}
 	}
 
 	fd = creat(dest, 0755);
 	if (fd < 0) {
-		fprintf(stderr, "Failed to mkdir %s: %s\n", dest, strerror(errno));
+		fprintf(stderr, "Failed mkdiring %s: %s\n", dest, strerror(errno));
 		_exit(1);
 	}
 }
@@ -113,7 +113,7 @@ static void create(int fd_src, char *src, char *dest)
 	destdirname = dirname(dirdup);
 
 	if (mkdir_p(destdirname, 0755) < 0) {
-		fprintf(stderr, "failed to create path: %s\n", destdirname);
+		fprintf(stderr, "failed creating path: %s\n", destdirname);
 		_exit(1);
 	}
 
@@ -167,13 +167,13 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 
 		fd_userns = preserve_ns(-ESRCH, ns_fd, "user");
 		if (fd_userns < 0) {
-			fprintf(stderr, "Failed to open user namespace of container: %s\n", strerror(errno));
+			fprintf(stderr, "Failed opening user namespace of container: %s\n", strerror(errno));
 			_exit(1);
 		}
 
 		fd_mntns = preserve_ns(getpid(), -EBADF, "mnt");
 		if (fd_mntns < 0) {
-			fprintf(stderr, "Failed to open mount namespace of container: %s\n", strerror(errno));
+			fprintf(stderr, "Failed opening mount namespace of container: %s\n", strerror(errno));
 			_exit(1);
 		}
 
@@ -184,13 +184,13 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 
 		fd_tree = mount_detach_idmap(src, fd_userns);
 		if (fd_tree < 0) {
-			fprintf(stderr, "Failed to create detached idmapped mount \"%s\": %s\n", src, strerror(errno));
+			fprintf(stderr, "Failed creating detached idmapped mount \"%s\": %s\n", src, strerror(errno));
 			_exit(1);
 		}
 
 		ret = setns(fd_mntns, CLONE_NEWNS);
 		if (ret) {
-			fprintf(stderr, "Failed to switch to original mount namespace: %s\n", strerror(errno));
+			fprintf(stderr, "Failed switching to original mount namespace: %s\n", strerror(errno));
 			_exit(1);
 		}
 
@@ -208,19 +208,19 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 	create(-EBADF, src, dest);
 
 	if (access(src, F_OK) < 0) {
-		fprintf(stderr, "Mount source doesn't exist: %s\n", strerror(errno));
+		fprintf(stderr, "Mount source does not exist: %s\n", strerror(errno));
 		_exit(1);
 	}
 
 	if (access(dest, F_OK) < 0) {
-		fprintf(stderr, "Mount destination doesn't exist: %s\n", strerror(errno));
+		fprintf(stderr, "Mount destination does not exist: %s\n", strerror(errno));
 		_exit(1);
 	}
 
 	if (fd_tree >= 0) {
 		ret = lxd_move_mount(fd_tree, "", -EBADF, dest, MOVE_MOUNT_F_EMPTY_PATH);
 		if (ret) {
-			fprintf(stderr, "Failed to move detached mount to target from %d to %s: %s\n", fd_tree, dest, strerror(errno));
+			fprintf(stderr, "Failed moving detached mount to target from %d to %s: %s\n", fd_tree, dest, strerror(errno));
 			_exit(1);
 		}
 
@@ -433,12 +433,12 @@ static void do_move_forkmount(int pidfd, int ns_fd)
 
 	dest_fd = make_dest_open(mnt_fd, dest);
 	if (dest_fd < 0)
-		die("Failed to create destination mount point");
+		die("Failed creating destination mount point");
 
 	ret = lxd_move_mount(mnt_fd, "", dest_fd, "",
 			     MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH);
 	if (ret)
-		die("Failed to move detached mount to target from %d to %s", mnt_fd, dest);
+		die("Failed moving detached mount to target from %d to %s", mnt_fd, dest);
 
 	_exit(EXIT_SUCCESS);
 }
@@ -449,7 +449,7 @@ static void do_lxd_forkumount(int pidfd, int ns_fd)
 	char *path = NULL;
 
 	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS)) {
-		fprintf(stderr, "Failed to setns to container mount namespace: %s\n", strerror(errno));
+		fprintf(stderr, "Failed setnsing to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
 
@@ -574,7 +574,7 @@ static void do_mount_bpffs(int pidfd, int ns_fd)
 	ret = socketpair(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0, sk_fds);
 	if (ret < 0) {
 		fprintf(stderr,
-			"%s - Failed to create anonymous unix socket pair\n",
+			"%s - Failed creating anonymous unix socket pair\n",
 			strerror(errno));
 		exit(EXIT_FAILURE);
 	}
@@ -582,7 +582,7 @@ static void do_mount_bpffs(int pidfd, int ns_fd)
 	child_pid = fork();
 	if (child_pid < 0) {
 		fprintf(stderr,
-			"%s - Failed to fork()\n",
+			"%s - Failed forking()\n",
 			strerror(errno));
 		exit(EXIT_FAILURE);
 	}
@@ -625,14 +625,14 @@ static void do_mount_bpffs(int pidfd, int ns_fd)
 
 		mountpoint_fd = make_dest_open(mnt_fd, mountpoint);
 		if (mountpoint_fd < 0)
-			die("Failed to create destination mount point");
+			die("Failed creating destination mount point");
 
 		// 9. Move the detached mount of bpf filesystem to a right place in the container's mount namespace
 
 		ret = lxd_move_mount(mnt_fd, "", mountpoint_fd, "",
 				MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH);
 		if (ret)
-			die("Failed to move detached mount to target from %d to %s", mnt_fd, mountpoint);
+			die("Failed moving detached mount to target from %d to %s", mnt_fd, mountpoint);
 
 		exit(EXIT_SUCCESS);
 	}
@@ -659,7 +659,7 @@ static void do_mount_bpffs(int pidfd, int ns_fd)
 	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_cmds", delegate_cmds, 0);
 	if (ret < 0) {
 		fprintf(stderr,
-			"%s - fsconfig failed to set delegate_cmds=%s\n",
+			"%s - fsconfig failed setting delegate_cmds=%s\n",
 			strerror(errno),
 			delegate_cmds);
 		goto err_process;
@@ -668,7 +668,7 @@ static void do_mount_bpffs(int pidfd, int ns_fd)
 	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_maps", delegate_maps, 0);
 	if (ret < 0) {
 		fprintf(stderr,
-			"%s - fsconfig failed to set delegate_maps=%s\n",
+			"%s - fsconfig failed setting delegate_maps=%s\n",
 			strerror(errno),
 			delegate_maps);
 		goto err_process;
@@ -677,7 +677,7 @@ static void do_mount_bpffs(int pidfd, int ns_fd)
 	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_progs", delegate_progs, 0);
 	if (ret < 0) {
 		fprintf(stderr,
-			"%s - fsconfig failed to set delegate_progs=%s\n",
+			"%s - fsconfig failed setting delegate_progs=%s\n",
 			strerror(errno),
 			delegate_progs);
 		goto err_process;
@@ -686,7 +686,7 @@ static void do_mount_bpffs(int pidfd, int ns_fd)
 	ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "delegate_attachs", delegate_attachs, 0);
 	if (ret < 0) {
 		fprintf(stderr,
-			"%s - fsconfig failed to set delegate_attachs=%s\n",
+			"%s - fsconfig failed setting delegate_attachs=%s\n",
 			strerror(errno),
 			delegate_attachs);
 		goto err_process;

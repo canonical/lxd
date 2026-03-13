@@ -106,13 +106,13 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 
 		pciParentDev, err = pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 		if err != nil {
-			err = fmt.Errorf("Failed to get PCI device info for GPU %q: %w", parentPCIAddress, err)
+			err = fmt.Errorf("Failed getting PCI device info for GPU %q: %w", parentPCIAddress, err)
 			continue
 		}
 
 		vfID, err = d.findFreeVirtualFunction(pciParentDev)
 		if err != nil {
-			err = fmt.Errorf("Failed to find free virtual function: %w", err)
+			err = fmt.Errorf("Failed finding free virtual function: %w", err)
 			continue
 		}
 
@@ -166,7 +166,7 @@ func (d *gpuSRIOV) getParentPCIAddresses() ([]string, error) {
 	}
 
 	if len(parentPCIAddresses) == 0 {
-		return nil, errors.New("Failed to detect requested GPU device")
+		return nil, errors.New("Failed detecting requested GPU device")
 	}
 
 	return parentPCIAddresses, nil

@@ -212,7 +212,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 
 			renderedSnap, ok := render.(*api.InstanceSnapshot)
 			if !ok {
-				return response.InternalError(errors.New("Render didn't return a snapshot"))
+				return response.InternalError(errors.New("Render did not return a snapshot"))
 			}
 
 			resultMap = append(resultMap, renderedSnap)
@@ -619,7 +619,7 @@ func snapshotGet(s *state.State, _ *http.Request, snapInst instance.Instance) re
 
 	renderedSnap, ok := render.(*api.InstanceSnapshot)
 	if !ok {
-		return response.InternalError(errors.New("Render didn't return a snapshot"))
+		return response.InternalError(errors.New("Render did not return a snapshot"))
 	}
 
 	etag := []any{snapInst.ExpiryDate()}

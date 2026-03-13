@@ -195,7 +195,7 @@ func DeviceIOMMUGroup(slotName string) (uint64, error) {
 	iommuGroupStr := filepath.Base(iommuGroupPath)
 	iommuGroup, err := strconv.ParseUint(iommuGroupStr, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to parse %q: %w", iommuGroupStr, err)
+		return 0, fmt.Errorf("Failed parsing %q: %w", iommuGroupStr, err)
 	}
 
 	return iommuGroup, nil

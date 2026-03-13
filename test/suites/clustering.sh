@@ -1787,7 +1787,7 @@ test_clustering_update_cert_reversion() {
   LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -F "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -F "server_name: node1"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc warning list | grep -F "Unable to update cluster certificate"
+  LXD_DIR="${LXD_ONE_DIR}" lxc warning list | grep -F "Cannot update cluster certificate"
 
   rm "${cert_path}" "${key_path}"
 

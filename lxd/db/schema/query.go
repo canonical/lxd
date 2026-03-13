@@ -89,13 +89,13 @@ func execFromFile(ctx context.Context, tx *sql.Tx, path string, hook Hook) error
 			return nil
 		}
 
-		return fmt.Errorf("failed to read file: %w", err)
+		return fmt.Errorf("failed reading file: %w", err)
 	}
 
 	if hook != nil {
 		err := hook(ctx, -1, tx)
 		if err != nil {
-			return fmt.Errorf("failed to execute hook: %w", err)
+			return fmt.Errorf("failed executing hook: %w", err)
 		}
 	}
 
@@ -106,7 +106,7 @@ func execFromFile(ctx context.Context, tx *sql.Tx, path string, hook Hook) error
 
 	err = os.Remove(path)
 	if err != nil {
-		return fmt.Errorf("failed to remove file: %w", err)
+		return fmt.Errorf("failed removing file: %w", err)
 	}
 
 	return nil

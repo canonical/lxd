@@ -25,7 +25,7 @@ func TestURL(t *testing.T) {
 		{
 			name:        "not a LXD URL",
 			rawURL:      "/1.0/not/a/url",
-			expectedErr: fmt.Errorf("Failed to match entity URL %q", "/1.0/not/a/url"),
+			expectedErr: fmt.Errorf("Failed matching entity URL %q", "/1.0/not/a/url"),
 		},
 		{
 			name:                  "server",

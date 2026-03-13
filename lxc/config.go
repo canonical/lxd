@@ -721,7 +721,7 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 				if cmd.Name() == "unset" {
 					_, ok := writable.Config[k]
 					if !ok {
-						return fmt.Errorf("Can't unset key %q, it's not currently set", k)
+						return fmt.Errorf("Cannot unset key %q, it's not currently set", k)
 					}
 
 					delete(writable.Config, k)
@@ -1129,7 +1129,7 @@ func (c *cmdConfigUefiSet) run(cmd *cobra.Command, args []string) error {
 		if cmd.Name() == "unset" {
 			_, ok := instUEFI.Variables[k]
 			if !ok {
-				return fmt.Errorf("Can't unset key %q, it's not currently set", k)
+				return fmt.Errorf("Cannot unset key %q, it's not currently set", k)
 			}
 
 			delete(instUEFI.Variables, k)

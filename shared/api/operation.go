@@ -101,7 +101,7 @@ func (op *Operation) ToCertificateAddToken() (*CertificateAddToken, error) {
 
 	clientName, ok := req["name"].(string)
 	if !ok {
-		return nil, errors.New("Failed to get client name")
+		return nil, errors.New("Failed getting client name")
 	}
 
 	secret, fingerprint, addresses, err := op.parseCommonTokenFields()

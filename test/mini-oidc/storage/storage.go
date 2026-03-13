@@ -725,7 +725,7 @@ func (s *Storage) ValidateTokenExchangeRequest(ctx context.Context, request op.T
 
 	// Check impersonation permissions
 	if request.GetExchangeActor() == "" && !s.userStore.GetUserByID(request.GetExchangeSubject()).IsAdmin {
-		return errors.New("user doesn't have impersonation permission")
+		return errors.New("user does not have impersonation permission")
 	}
 
 	allowedScopes := make([]string, 0)

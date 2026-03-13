@@ -70,7 +70,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 		return err
 	})
 
-	suite.Req.NoError(err, "Failed to create the unprivileged profile.")
+	suite.Req.NoError(err, "Failed creating the unprivileged profile.")
 	defer func() {
 		_ = suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return cluster.DeleteProfile(ctx, tx.Tx(), "default", "unprivileged")
@@ -102,11 +102,11 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	suite.Len(
 		profiles,
 		2,
-		"Didn't get both profiles in instanceCreateInternal.")
+		"Did not get both profiles in instanceCreateInternal.")
 
 	suite.True(
 		c.IsPrivileged(),
-		"The container is not privileged (didn't apply the unprivileged profile?).")
+		"The container is not privileged (did not apply the unprivileged profile?).")
 }
 
 func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
@@ -144,7 +144,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 	suite.Equal(
 		"unknownbr0",
 		state.Devices["eth0"]["parent"],
-		"Container config doesn't overwrite profile config.")
+		"Container config does not overwrite profile config.")
 }
 
 func (suite *containerTestSuite) TestContainer_LoadFromDB() {
@@ -205,7 +205,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	suite.Exactly(
 		apiC1,
 		apiC2,
-		"The loaded container isn't excactly the same as the created one.",
+		"The loaded container is not excactly the same as the created one.",
 	)
 }
 
@@ -222,7 +222,7 @@ func (suite *containerTestSuite) TestContainer_Path_Regular() {
 	op.Done(nil)
 	defer func() { _ = c.Delete(true, "") }()
 
-	suite.Req.False(c.IsSnapshot(), "Shouldn't be a snapshot.")
+	suite.Req.False(c.IsSnapshot(), "Should not be a snapshot.")
 	suite.Req.Equal(shared.VarPath("containers", "testFoo"), c.Path())
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), storagePools.InstancePath(instancetype.Container, "default", "testFoo2", false))
 }
@@ -355,7 +355,7 @@ func (suite *containerTestSuite) TestContainer_Rename() {
 	op.Done(nil)
 	defer func() { _ = c.Delete(true, "") }()
 
-	suite.Req.NoError(c.Rename("testFoo2", true), "Failed to rename the container.")
+	suite.Req.NoError(c.Rename("testFoo2", true), "Failed renaming the container.")
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.Path())
 }
 
@@ -390,13 +390,13 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 	host := suite.d.os.IdmapSet.Idmap[0]
 
 	for i := range 2 {
-		suite.Req.Equal(host.Hostid+65536, map1.Idmap[i].Hostid, "hostids don't match %d", i)
+		suite.Req.Equal(host.Hostid+65536, map1.Idmap[i].Hostid, "hostids do not match %d", i)
 		suite.Req.Equal(int64(0), map1.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(int64(65536), map1.Idmap[i].Maprange, "incorrect maprange")
 	}
 
 	for i := range 2 {
-		suite.Req.Equal(host.Hostid+65536*2, map2.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(host.Hostid+65536*2, map2.Idmap[i].Hostid, "hostids do not match")
 		suite.Req.Equal(int64(0), map2.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(int64(65536), map2.Idmap[i].Maprange, "incorrect maprange")
 	}
@@ -433,13 +433,13 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 	host := suite.d.os.IdmapSet.Idmap[0]
 
 	for i := range 2 {
-		suite.Req.Equal(host.Hostid, map1.Idmap[i].Hostid, "hostids don't match %d", i)
+		suite.Req.Equal(host.Hostid, map1.Idmap[i].Hostid, "hostids do not match %d", i)
 		suite.Req.Equal(int64(0), map1.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(host.Maprange, map1.Idmap[i].Maprange, "incorrect maprange")
 	}
 
 	for i := range 2 {
-		suite.Req.Equal(host.Hostid+65536, map2.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(host.Hostid+65536, map2.Idmap[i].Hostid, "hostids do not match")
 		suite.Req.Equal(int64(0), map2.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(int64(65536), map2.Idmap[i].Maprange, "incorrect maprange")
 	}
@@ -464,19 +464,19 @@ func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 	host := suite.d.os.IdmapSet.Idmap[0]
 
 	for _, i := range []int{0, 3} {
-		suite.Req.Equal(host.Hostid, map1.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(host.Hostid, map1.Idmap[i].Hostid, "hostids do not match")
 		suite.Req.Equal(int64(0), map1.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(int64(1000), map1.Idmap[i].Maprange, "incorrect maprange")
 	}
 
 	for _, i := range []int{1, 4} {
-		suite.Req.Equal(int64(1000), map1.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(int64(1000), map1.Idmap[i].Hostid, "hostids do not match")
 		suite.Req.Equal(int64(1000), map1.Idmap[i].Nsid, "invalid nsid")
 		suite.Req.Equal(int64(1), map1.Idmap[i].Maprange, "incorrect maprange")
 	}
 
 	for _, i := range []int{2, 5} {
-		suite.Req.Equal(host.Hostid+1001, map1.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(host.Hostid+1001, map1.Idmap[i].Hostid, "hostids do not match")
 		suite.Req.Equal(int64(1001), map1.Idmap[i].Nsid, "invalid nsid")
 		suite.Req.Equal(host.Maprange-1000-1, map1.Idmap[i].Maprange, "incorrect maprange")
 	}

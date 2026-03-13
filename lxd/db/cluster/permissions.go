@@ -132,7 +132,7 @@ WHERE auth_groups.name IN ` + query.Params(len(groupNames))
 
 	rows, err := tx.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to query distinct permissions by group names: %w", err)
+		return nil, fmt.Errorf("Failed querying distinct permissions by group names: %w", err)
 	}
 
 	var permissions []Permission
@@ -140,7 +140,7 @@ WHERE auth_groups.name IN ` + query.Params(len(groupNames))
 		var permission Permission
 		err := rows.Scan(&permission.Entitlement, &permission.EntityType, &permission.EntityID)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to scan effective permissions: %w", err)
+			return nil, fmt.Errorf("Failed scanning effective permissions: %w", err)
 		}
 
 		permissions = append(permissions, permission)
@@ -159,7 +159,7 @@ JOIN auth_groups_permissions ON auth_groups_permissions.auth_group_id = auth_gro
 `
 	rows, err := tx.QueryContext(ctx, q)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to query group permissions: %w", err)
+		return nil, fmt.Errorf("Failed querying group permissions: %w", err)
 	}
 
 	groupPermissions := make(map[string][]Permission)
@@ -168,7 +168,7 @@ JOIN auth_groups_permissions ON auth_groups_permissions.auth_group_id = auth_gro
 		var groupName string
 		err := rows.Scan(&groupName, &permission.EntityID, &permission.EntityType, &permission.Entitlement)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to scan effective permissions: %w", err)
+			return nil, fmt.Errorf("Failed scanning effective permissions: %w", err)
 		}
 
 		groupPermissions[groupName] = append(groupPermissions[groupName], permission)

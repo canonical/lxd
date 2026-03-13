@@ -24,7 +24,7 @@ func NICType(s *state.State, deviceProjectName string, d deviceConfig.Device) (s
 			// Translate device's project name into a network project name.
 			networkProjectName, _, err := project.NetworkProject(s.DB.Cluster, deviceProjectName)
 			if err != nil {
-				return "", fmt.Errorf("Failed to translate device project %q into network project: %w", deviceProjectName, err)
+				return "", fmt.Errorf("Failed translating device project %q into network project: %w", deviceProjectName, err)
 			}
 
 			var netInfo *api.Network
@@ -35,7 +35,7 @@ func NICType(s *state.State, deviceProjectName string, d deviceConfig.Device) (s
 				return err
 			})
 			if err != nil {
-				return "", fmt.Errorf("Failed to load network %q for project %q: %w", d["network"], networkProjectName, err)
+				return "", fmt.Errorf("Failed loading network %q for project %q: %w", d["network"], networkProjectName, err)
 			}
 
 			var nicType string

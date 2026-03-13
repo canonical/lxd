@@ -102,7 +102,7 @@ func Create(ctx context.Context, s *state.State, projectName string, zoneInfo *a
 		}
 
 		if !found {
-			return api.StatusErrorf(http.StatusForbidden, "Project isn't allowed to use this DNS zone")
+			return api.StatusErrorf(http.StatusForbidden, "Project is not allowed to use this DNS zone")
 		}
 	}
 

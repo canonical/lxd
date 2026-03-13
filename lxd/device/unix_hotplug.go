@@ -166,7 +166,7 @@ func (d *unixHotplug) Register() error {
 			runConf.PostHooks = []func() error{func() error {
 				err := unixDeviceDeleteFiles(state, devicesPath, "unix", deviceName, relativeTargetPath)
 				if err != nil {
-					return fmt.Errorf("Failed to delete files for device %q: %w", deviceName, err)
+					return fmt.Errorf("Failed deleting files for device %q: %w", deviceName, err)
 				}
 
 				return nil
@@ -218,7 +218,7 @@ func (d *unixHotplug) Start() (*deviceConfig.RunConfig, error) {
 		runConf.Revert = func() { _ = unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf) }
 
 		if err != nil {
-			return nil, fmt.Errorf("Unable to setup unix hotplug device: %w", err)
+			return nil, fmt.Errorf("Cannot setup unix hotplug device: %w", err)
 		}
 	}
 
@@ -245,7 +245,7 @@ func (d *unixHotplug) Stop() (*deviceConfig.RunConfig, error) {
 func (d *unixHotplug) postStop() error {
 	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 	if err != nil {
-		return fmt.Errorf("Failed to delete files for device %q: %w", d.name, err)
+		return fmt.Errorf("Failed deleting files for device %q: %w", d.name, err)
 	}
 
 	return nil
@@ -260,27 +260,27 @@ func (d *unixHotplug) loadUnixDevices() []udev.Device {
 	if d.config["vendorid"] != "" {
 		err := e.AddMatchProperty("ID_VENDOR_ID", d.config["vendorid"])
 		if err != nil {
-			logger.Warn("Failed to add property to device", logger.Ctx{"property_name": "ID_VENDOR_ID", "property_value": d.config["vendorid"], "err": err})
+			logger.Warn("Failed adding property to device", logger.Ctx{"property_name": "ID_VENDOR_ID", "property_value": d.config["vendorid"], "err": err})
 		}
 	}
 
 	if d.config["productid"] != "" {
 		err := e.AddMatchProperty("ID_MODEL_ID", d.config["productid"])
 		if err != nil {
-			logger.Warn("Failed to add property to device", logger.Ctx{"property_name": "ID_MODEL_ID", "property_value": d.config["productid"], "err": err})
+			logger.Warn("Failed adding property to device", logger.Ctx{"property_name": "ID_MODEL_ID", "property_value": d.config["productid"], "err": err})
 		}
 	}
 
 	if d.config["subsystem"] != "" {
 		err := e.AddMatchProperty("SUBSYSTEM", d.config["subsystem"])
 		if err != nil {
-			logger.Warn("Failed to add property to device", logger.Ctx{"property_name": "SUBSYSTEM", "property_value": d.config["subsystem"]})
+			logger.Warn("Failed adding property to device", logger.Ctx{"property_name": "SUBSYSTEM", "property_value": d.config["subsystem"]})
 		}
 	}
 
 	err := e.AddMatchIsInitialized()
 	if err != nil {
-		logger.Warn("Failed to add initialised property to device", logger.Ctx{"err": err})
+		logger.Warn("Failed adding initialised property to device", logger.Ctx{"err": err})
 	}
 
 	devices, _ := e.Devices()

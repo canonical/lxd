@@ -31,7 +31,7 @@ import (
 
 // Errors.
 var errBtrfsNoQuota = errors.New("Quotas disabled on filesystem")
-var errBtrfsNoQGroup = errors.New("Unable to find quota group")
+var errBtrfsNoQGroup = errors.New("Cannot find quota group")
 
 // btrfsISOVolSuffix suffix used for iso content type volumes.
 const btrfsISOVolSuffix = ".iso"
@@ -650,7 +650,7 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *iopro
 	}
 
 	if filename == "" {
-		return "", errors.New("Failed to determine received subvolume")
+		return "", errors.New("Failed determining received subvolume")
 	}
 
 	subVolPath := filepath.Join(receivePath, filename)
@@ -662,11 +662,11 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *iopro
 func (d *btrfs) getDiskPathFromFSUUID(uuid string) (string, error) {
 	uuid, err := shared.RunCommand(context.TODO(), "blkid", "--cache=/dev/null", "--uuid", uuid)
 	if err != nil {
-		return "", fmt.Errorf("Failed to locate a device for filesystem UUID %q: %w", uuid, err)
+		return "", fmt.Errorf("Failed locating a device for filesystem UUID %q: %w", uuid, err)
 	}
 
 	if uuid == "" {
-		return "", fmt.Errorf("Failed to locate a device for filesystem UUID %q", uuid)
+		return "", fmt.Errorf("Failed locating a device for filesystem UUID %q", uuid)
 	}
 
 	return strings.TrimSpace(uuid), nil

@@ -537,11 +537,11 @@ func (c *cmdNetworkDetach) run(cmd *cobra.Command, args []string) error {
 
 	device, ok := inst.Devices[devName]
 	if !ok {
-		return errors.New("The specified device doesn't exist")
+		return errors.New("The specified device does not exist")
 	}
 
 	if device["type"] != "nic" || (device["parent"] != resource.name && device["network"] != resource.name) {
-		return errors.New("The specified device doesn't match the network")
+		return errors.New("The specified device does not match the network")
 	}
 
 	// Remove the device
@@ -633,11 +633,11 @@ func (c *cmdNetworkDetachProfile) run(cmd *cobra.Command, args []string) error {
 
 	device, ok := profile.Devices[devName]
 	if !ok {
-		return errors.New("The specified device doesn't exist")
+		return errors.New("The specified device does not exist")
 	}
 
 	if device["type"] != "nic" || (device["parent"] != resource.name && device["network"] != resource.name) {
-		return errors.New("The specified device doesn't match the network")
+		return errors.New("The specified device does not match the network")
 	}
 
 	// Remove the device
@@ -1045,7 +1045,7 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 
 	// List the networks
 	if resource.name != "" {
-		return errors.New("Filtering isn't supported yet")
+		return errors.New("Filtering is not supported yet")
 	}
 
 	client := resource.server

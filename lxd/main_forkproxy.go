@@ -106,14 +106,14 @@ void forkproxy(void)
 	ret = socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sk_fds);
 	if (ret < 0) {
 		fprintf(stderr,
-			"%s - Failed to create anonymous unix socket pair\n",
+			"%s - Failed creating anonymous unix socket pair\n",
 			strerror(errno));
 		_exit(EXIT_FAILURE);
 	}
 
 	pid = fork();
 	if (pid < 0) {
-		fprintf(stderr, "%s - Failed to create new process\n",
+		fprintf(stderr, "%s - Failed creating new process\n",
 			strerror(errno));
 		_exit(EXIT_FAILURE);
 	}
@@ -125,12 +125,12 @@ void forkproxy(void)
 
 		ret = close(sk_fds[0]);
 		if (ret < 0)
-			fprintf(stderr, "%s - Failed to close fd %d\n",
+			fprintf(stderr, "%s - Failed closing fd %d\n",
 				strerror(errno), sk_fds[0]);
 
 		listen_nsfd = pidfd_nsfd(listen_pidfd, listen_pid);
 		if (listen_nsfd < 0) {
-			fprintf(stderr, "Error: %m - Failed to safely open namespace file descriptor based on pidfd %d\n", listen_pidfd);
+			fprintf(stderr, "Error: %m - Failed safelying open namespace file descriptor based on pidfd %d\n", listen_pidfd);
 			_exit(EXIT_FAILURE);
 		}
 
@@ -154,14 +154,14 @@ void forkproxy(void)
 		ret = dup3(sk_fds[1], FORKPROXY_UDS_SOCK_FD_NUM, O_CLOEXEC);
 		if (ret < 0) {
 			fprintf(stderr,
-				"%s - Failed to duplicate fd %d to fd 200\n",
+				"%s - Failed duplicating fd %d to fd 200\n",
 				strerror(errno), sk_fds[1]);
 			_exit(EXIT_FAILURE);
 		}
 
 		ret = close(sk_fds[1]);
 		if (ret < 0)
-			fprintf(stderr, "%s - Failed to close fd %d\n",
+			fprintf(stderr, "%s - Failed closing fd %d\n",
 				strerror(errno), sk_fds[1]);
 	} else {
 		pthread_t thread;
@@ -171,12 +171,12 @@ void forkproxy(void)
 
 		ret = close(sk_fds[1]);
 		if (ret < 0)
-			fprintf(stderr, "%s - Failed to close fd %d\n",
+			fprintf(stderr, "%s - Failed closing fd %d\n",
 				strerror(errno), sk_fds[1]);
 
 		connect_nsfd = pidfd_nsfd(connect_pidfd, connect_pid);
 		if (connect_nsfd < 0) {
-			fprintf(stderr, "Error: %m - Failed to safely open namespace file descriptor based on pidfd %d\n", connect_pidfd);
+			fprintf(stderr, "Error: %m - Failed safelying open namespace file descriptor based on pidfd %d\n", connect_pidfd);
 			_exit(EXIT_FAILURE);
 		}
 
@@ -201,14 +201,14 @@ void forkproxy(void)
 		ret = dup3(sk_fds[0], FORKPROXY_UDS_SOCK_FD_NUM, O_CLOEXEC);
 		if (ret < 0) {
 			fprintf(stderr,
-				"%s - Failed to duplicate fd %d to fd 200\n",
+				"%s - Failed duplicating fd %d to fd 200\n",
 				strerror(errno), sk_fds[1]);
 			_exit(EXIT_FAILURE);
 		}
 
 		ret = close(sk_fds[0]);
 		if (ret < 0)
-			fprintf(stderr, "%s - Failed to close fd %d\n",
+			fprintf(stderr, "%s - Failed closing fd %d\n",
 				strerror(errno), sk_fds[0]);
 
 		// Usually we should wait for the child process somewhere here.
@@ -232,7 +232,7 @@ void forkproxy(void)
 		// single-threadedness.
 		if (pthread_create(&thread, NULL, async_wait_kludge, INT_TO_PTR(pid)) ||
 		    pthread_detach(thread)) {
-			fprintf(stderr, "%m - Failed to create detached thread\n");
+			fprintf(stderr, "%m - Failed creating detached thread\n");
 			_exit(EXIT_FAILURE);
 		}
 	}
@@ -307,7 +307,7 @@ func rearmUDPFd(epFd C.int, connFd C.int) {
 	*(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&ev)) + unsafe.Sizeof(ev.events))) = connFd
 	ret := C.epoll_ctl(epFd, C.EPOLL_CTL_MOD, connFd, &ev)
 	if ret < 0 {
-		fmt.Println("Error: Failed to add listener fd to epoll instance")
+		fmt.Println("Error: Failed adding listener fd to epoll instance")
 	}
 }
 
@@ -329,14 +329,14 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 		go func() {
 			srcConn, err := net.FileConn((*lStruct).f)
 			if err != nil {
-				fmt.Printf("Warning: Failed to re-assemble listener: %v\n", err)
+				fmt.Printf("Warning: Failed ring-assemble listener: %v\n", err)
 				rearmUDPFd(epFd, connFd)
 				return
 			}
 
 			dstConn, err := net.Dial(cAddr.ConnType, connectAddr)
 			if err != nil {
-				fmt.Printf("Warning: Failed to connect to target: %v\n", err)
+				fmt.Printf("Warning: Failed connecting to target: %v\n", err)
 				rearmUDPFd(epFd, connFd)
 				return
 			}
@@ -352,14 +352,14 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 	listener := (*lStruct).lConn
 	srcConn, err := (*listener).Accept()
 	if err != nil {
-		fmt.Printf("Warning: Failed to accept new connection: %v\n", err)
+		fmt.Printf("Warning: Failed accepting new connection: %v\n", err)
 		return err
 	}
 
 	dstConn, err := net.Dial(cAddr.ConnType, connectAddr)
 	if err != nil {
 		_ = srcConn.Close()
-		fmt.Printf("Warning: Failed to connect to target: %v\n", err)
+		fmt.Printf("Warning: Failed connecting to target: %v\n", err)
 		return err
 	}
 
@@ -425,7 +425,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 	// Check where we are in initialization
 	if C.whoami != C.FORKPROXY_PARENT && C.whoami != C.FORKPROXY_CHILD {
-		return errors.New("Failed to call forkproxy constructor")
+		return errors.New("Failed calling forkproxy constructor")
 	}
 
 	listenAddr := args[2]
@@ -552,13 +552,13 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				goto rAgain
 			}
 
-			fmt.Printf("Error: Failed to receive fd from listener process: %v\n", err)
+			fmt.Printf("Error: Failed receiving fd from listener process: %v\n", err)
 			_ = unix.Close(forkproxyUDSSockFDNum)
 			return err
 		}
 
 		if f == nil {
-			fmt.Println("Error: Failed to receive fd from listener process")
+			fmt.Println("Error: Failed receiving fd from listener process")
 			_ = unix.Close(forkproxyUDSSockFDNum)
 			return err
 		}
@@ -583,7 +583,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		for i, f := range files {
 			listener, err := net.FileListener(f)
 			if err != nil {
-				fmt.Printf("Error: Failed to re-assemble listener: %v\n", err)
+				fmt.Printf("Error: Failed ring-assemble listener: %v\n", err)
 				return err
 			}
 
@@ -614,7 +614,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	if uid != 0 || gid != 0 {
 		ret := C.switch_uid_gid(C.uint32_t(uid), C.uint32_t(gid))
 		if ret < 0 {
-			return fmt.Errorf("Failed to switch to uid %d and gid %d", uid, gid)
+			return fmt.Errorf("Failed switching to uid %d and gid %d", uid, gid)
 		}
 	}
 
@@ -628,7 +628,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 	epFd := C.epoll_create1(C.EPOLL_CLOEXEC)
 	if epFd < 0 {
-		return errors.New("Failed to create new epoll instance")
+		return errors.New("Failed creating new epoll instance")
 	}
 
 	// Wait for SIGTERM and close the listener in order to exit the loop below
@@ -663,7 +663,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		*(*C.int)(unsafe.Pointer(&ev.data)) = C.int(f.Fd())
 		ret := C.epoll_ctl(epFd, C.EPOLL_CTL_ADD, C.int(f.Fd()), &ev)
 		if ret < 0 {
-			return errors.New("Error: Failed to add listener fd to epoll instance")
+			return errors.New("Error: Failed adding listener fd to epoll instance")
 		}
 	}
 
@@ -675,7 +675,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 		nfds := C.lxc_epoll_wait_nointr(epFd, &events[0], 10, -1)
 		if nfds < 0 {
-			fmt.Println("Error: Failed to wait on epoll instance")
+			fmt.Println("Error: Failed waiting on epoll instance")
 			break
 		}
 
@@ -688,7 +688,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[11] == "true")
 			if err != nil {
-				fmt.Printf("Warning: Failed to prepare new listener instance: %v\n", err)
+				fmt.Printf("Warning: Failed preparing new listener instance: %v\n", err)
 			}
 		}
 	}
@@ -1005,7 +1005,7 @@ func tryListenUDP(protocol string, addr string) (*os.File, error) {
 	}
 
 	if UDPConn == nil {
-		return nil, errors.New("Failed to setup UDP listener")
+		return nil, errors.New("Failed setting up UDP listener")
 	}
 
 	file, err := UDPConn.File()
@@ -1020,7 +1020,7 @@ func getListenerFile(protocol string, addr string) (*os.File, error) {
 
 	listener, err := tryListen(protocol, addr)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to listen on %s: %w", addr, err)
+		return nil, fmt.Errorf("Failed listening on %s: %w", addr, err)
 	}
 
 	var file *os.File
@@ -1034,7 +1034,7 @@ func getListenerFile(protocol string, addr string) (*os.File, error) {
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get file from listener: %w", err)
+		return nil, fmt.Errorf("Failed getting file from listener: %w", err)
 	}
 
 	return file, nil

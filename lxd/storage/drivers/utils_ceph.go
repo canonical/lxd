@@ -65,7 +65,7 @@ func CephMonitors(cluster string) ([]string, error) {
 	// Open the CEPH configuration.
 	cephConf, err := os.Open("/etc/ceph/" + cluster + ".conf")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open %q: %w", "/etc/ceph/"+cluster+".conf", err)
+		return nil, fmt.Errorf("Failed opening %q: %w", "/etc/ceph/"+cluster+".conf", err)
 	}
 
 	defer func() { _ = cephConf.Close() }()
@@ -143,7 +143,7 @@ func CephMonitors(cluster string) ([]string, error) {
 	}
 
 	if len(cephMon) == 0 {
-		return nil, errors.New("Couldn't find a CEPH mon")
+		return nil, errors.New("Could not find a CEPH mon")
 	}
 
 	return cephMon, nil
@@ -152,7 +152,7 @@ func CephMonitors(cluster string) ([]string, error) {
 func getCephKeyFromFile(path string) (string, error) {
 	cephKeyring, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("Failed to open %q: %w", path, err)
+		return "", fmt.Errorf("Failed opening %q: %w", path, err)
 	}
 
 	defer func() { _ = cephKeyring.Close() }()
@@ -180,7 +180,7 @@ func getCephKeyFromFile(path string) (string, error) {
 	}
 
 	if cephSecret == "" {
-		return "", errors.New("Couldn't find a keyring entry")
+		return "", errors.New("Could not find a keyring entry")
 	}
 
 	return cephSecret, nil
@@ -216,7 +216,7 @@ func CephKeyring(cluster string, client string) (string, error) {
 	// Fall back to parsing the Ceph config file.
 	cephConfig, err := os.Open(cephConfigPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("Failed to open %q: %w", cephConfigPath, err)
+		return "", fmt.Errorf("Failed opening %q: %w", cephConfigPath, err)
 	}
 
 	if err == nil {
@@ -261,7 +261,7 @@ func CephKeyring(cluster string, client string) (string, error) {
 	}
 
 	if cephSecret == "" {
-		return "", errors.New("Couldn't find a keyring entry")
+		return "", errors.New("Could not find a keyring entry")
 	}
 
 	return cephSecret, nil

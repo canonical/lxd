@@ -44,7 +44,7 @@ func Dump(ctx context.Context, tx *sql.Tx, schemaOnly bool) (string, error) {
 
 		tableData, err := getTableData(ctx, tx, "sqlite_sequence")
 		if err != nil {
-			return "", fmt.Errorf("Failed to dump table sqlite_sequence: %w", err)
+			return "", fmt.Errorf("Failed dumping table sqlite_sequence: %w", err)
 		}
 
 		for _, stmt := range tableData {
@@ -101,7 +101,7 @@ func getTableData(ctx context.Context, tx *sql.Tx, table string) ([]string, erro
 	// Query all rows.
 	rows, err := tx.QueryContext(ctx, "SELECT * FROM "+table)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch rows for table %q: %w", table, err)
+		return nil, fmt.Errorf("Failed fetching rows for table %q: %w", table, err)
 	}
 
 	defer func() { _ = rows.Close() }()
@@ -109,7 +109,7 @@ func getTableData(ctx context.Context, tx *sql.Tx, table string) ([]string, erro
 	// Get the column names.
 	columns, err := rows.Columns()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get columns for table %q: %w", table, err)
+		return nil, fmt.Errorf("Failed getting columns for table %q: %w", table, err)
 	}
 
 	// Generate an INSERT statement for each row.
@@ -122,7 +122,7 @@ func getTableData(ctx context.Context, tx *sql.Tx, table string) ([]string, erro
 
 		err := rows.Scan(row...)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to scan row %d in table %q: %w", i, table, err)
+			return nil, fmt.Errorf("Failed scanning row %d in table %q: %w", i, table, err)
 		}
 
 		values := make([]string, len(columns))

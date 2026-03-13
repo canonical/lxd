@@ -19,12 +19,12 @@ import (
 func Open(filepath string, remoteAddress string) (*Jar, error) {
 	jar, err := newJar(filepath, remoteAddress)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open jar: %w", err)
+		return nil, fmt.Errorf("Failed opening jar: %w", err)
 	}
 
 	err = jar.openJar()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open jar: %w", err)
+		return nil, fmt.Errorf("Failed opening jar: %w", err)
 	}
 
 	return jar, nil
@@ -34,12 +34,12 @@ func Open(filepath string, remoteAddress string) (*Jar, error) {
 func newJar(filepath string, remoteAddress string) (*Jar, error) {
 	jar, err := cookiejar.New(&cookiejar.Options{})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to instantiate a cookie jar: %w", err)
+		return nil, fmt.Errorf("Failed instantiating a cookie jar: %w", err)
 	}
 
 	remoteURL, err := url.Parse(remoteAddress)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse remote URL: %w", err)
+		return nil, fmt.Errorf("Failed parsing remote URL: %w", err)
 	}
 
 	return &Jar{Jar: jar, filepath: filepath, remoteAddress: *remoteURL}, nil
@@ -62,7 +62,7 @@ func (j *Jar) openJar() error {
 	info, err := os.Stat(j.filepath)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("Failed to get cookie jar file info: %w", err)
+			return fmt.Errorf("Failed getting cookie jar file info: %w", err)
 		}
 
 		// If file doesn't exist, nothing to do.
@@ -71,13 +71,13 @@ func (j *Jar) openJar() error {
 
 	// File cannot be a directory.
 	if info.IsDir() {
-		return fmt.Errorf("Failed to get a cookie jar file: Given file path %q is a directory", j.filepath)
+		return fmt.Errorf("Failed getting a cookie jar file: Given file path %q is a directory", j.filepath)
 	}
 
 	// Open file
 	f, err := os.Open(j.filepath)
 	if err != nil {
-		return fmt.Errorf("Failed to open cookie jar file: %w", err)
+		return fmt.Errorf("Failed opening cookie jar file: %w", err)
 	}
 
 	defer f.Close()
@@ -85,7 +85,7 @@ func (j *Jar) openJar() error {
 	// Obtain a read lock.
 	err = rLockFile(f)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotImplemented) {
-		return fmt.Errorf("Failed to obtain read lock on cookie jar file: %w", err)
+		return fmt.Errorf("Failed obtaining read lock on cookie jar file: %w", err)
 	}
 
 	// Release the lock when finished.
@@ -98,7 +98,7 @@ func (j *Jar) openJar() error {
 	// Read the contents into this Jar.
 	err = json.NewDecoder(f).Decode(&j)
 	if err != nil {
-		return fmt.Errorf("Failed to read cookie jar: %w", err)
+		return fmt.Errorf("Failed reading cookie jar: %w", err)
 	}
 
 	return nil
@@ -154,7 +154,7 @@ func (j *Jar) Save() error {
 	// Create the file, or truncate it if it already exists. We are fully overwriting the contents.
 	f, err := os.Create(j.filepath)
 	if err != nil {
-		return fmt.Errorf("Failed to create cookie jar file: %w", err)
+		return fmt.Errorf("Failed creating cookie jar file: %w", err)
 	}
 
 	defer func() {
@@ -164,7 +164,7 @@ func (j *Jar) Save() error {
 	// Get a write lock.
 	err = lockFile(f)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotImplemented) {
-		return fmt.Errorf("Failed to obtain write lock on cookie jar file: %w", err)
+		return fmt.Errorf("Failed obtaining write lock on cookie jar file: %w", err)
 	}
 
 	// Release the lock when finished.
@@ -177,7 +177,7 @@ func (j *Jar) Save() error {
 	// Write the cookie jar contents to the file.
 	err = json.NewEncoder(f).Encode(j)
 	if err != nil {
-		return fmt.Errorf("Failed to save cookies: %w", err)
+		return fmt.Errorf("Failed saving cookies: %w", err)
 	}
 
 	return nil

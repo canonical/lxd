@@ -32,7 +32,7 @@ func checkAttachedRunningProcesses(devicePath string) ([]string, error) {
 	procDir := "/proc"
 	files, err := os.ReadDir(procDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read /proc directory: %w", err)
+		return nil, fmt.Errorf("failed reading /proc directory: %w", err)
 	}
 
 	for _, file := range files {

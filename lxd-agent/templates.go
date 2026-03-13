@@ -21,7 +21,7 @@ func templatesApply(path string) ([]string, error) {
 			return nil, nil
 		}
 
-		return nil, fmt.Errorf("Failed to read metadata: %w", err)
+		return nil, fmt.Errorf("Failed reading metadata: %w", err)
 	}
 
 	metadata := new(api.ImageMetadata)
@@ -68,12 +68,12 @@ func templatesApply(path string) ([]string, error) {
 			} else {
 				w, err = os.OpenFile(tplPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 				if err != nil {
-					return fmt.Errorf("Failed to create template file: %w", err)
+					return fmt.Errorf("Failed creating template file: %w", err)
 				}
 
 				err = w.Chmod(0644)
 				if err != nil {
-					return fmt.Errorf("Failed to set template file permissions: %w", err)
+					return fmt.Errorf("Failed setting template file permissions: %w", err)
 				}
 			}
 

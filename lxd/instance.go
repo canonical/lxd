@@ -138,7 +138,7 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 	}
 
 	if imgType != args.Type {
-		return fmt.Errorf("Requested image's type %q doesn't match instance type %q", imgType, args.Type)
+		return fmt.Errorf("Requested image's type %q does not match instance type %q", imgType, args.Type)
 	}
 
 	// Set the "image.*" keys.
@@ -210,7 +210,7 @@ func instanceRebuildFromImage(ctx context.Context, s *state.State, inst instance
 	}
 
 	if imgType != inst.Type() {
-		return fmt.Errorf("Requested image's type %q doesn't match instance type %q", imgType, inst.Type())
+		return fmt.Errorf("Requested image's type %q does not match instance type %q", imgType, inst.Type())
 	}
 
 	err = ensureImageIsLocallyAvailable(ctx, s, img, inst.Project().Name)
@@ -544,7 +544,7 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, snapshots []instance.Ins
 		err = snapshot.Delete(true, "")
 		instSnapshotsPruneRunning.Delete(snapshot.ID())
 		if err != nil {
-			return fmt.Errorf("Failed to delete expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project().Name, err)
+			return fmt.Errorf("Failed deleting expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project().Name, err)
 		}
 
 		logger.Debug("Deleted instance snapshot", logger.Ctx{"project": snapshot.Project().Name, "snapshot": snapshot.Name()})
@@ -558,7 +558,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 	f := func(ctx context.Context) {
 		err := pruneExpiredAndAutoCreateInstanceSnapshots(ctx, stateFunc())
 		if err != nil {
-			logger.Error("Failed to run scheduled instance snapshot task", logger.Ctx{"err": err})
+			logger.Error("Failed running scheduled instance snapshot task", logger.Ctx{"err": err})
 		}
 	}
 

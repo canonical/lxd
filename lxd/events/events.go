@@ -50,7 +50,7 @@ type Server struct {
 func NewServer(debug bool, verbose bool, notify NotifyFunc) (*Server, error) {
 	eventServerLogger, err := logger.New("", "", verbose, debug, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to instantiate event server logger: %w", err)
+		return nil, fmt.Errorf("Failed instantiating event server logger: %w", err)
 	}
 
 	server := &Server{
@@ -165,7 +165,7 @@ func (s *Server) Inject(event api.Event, eventSource EventSource) {
 
 	err := s.broadcast(event, eventSource)
 	if err != nil {
-		logger.Warn("Failed to forward event from member", logger.Ctx{"member": event.Location, "err": err})
+		logger.Warn("Failed forwarding event from member", logger.Ctx{"member": event.Location, "err": err})
 	}
 }
 
