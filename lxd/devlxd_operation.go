@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/api"
@@ -32,7 +30,7 @@ func devLXDOperationsWaitHandler(d *Daemon, r *http.Request) response.Response {
 
 	// Allow access only to the project where current instance is running.
 	projectName := inst.Project().Name
-	opID := mux.Vars(r)["id"]
+	opID := r.PathValue("id")
 
 	// Determine the timeout based on the timeout query parameter and the request context's deadline.
 	timeout := -1
@@ -75,7 +73,7 @@ func devLXDOperationDeleteHandler(d *Daemon, r *http.Request) response.Response 
 
 	// Allow access only to the project where current instance is running.
 	projectName := inst.Project().Name
-	opID := mux.Vars(r)["id"]
+	opID := r.PathValue("id")
 
 	// Delete the operation.
 	url := api.NewURL().Path("1.0", "operations", opID).Project(projectName)

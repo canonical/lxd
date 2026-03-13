@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -55,7 +53,7 @@ type networkZoneDetails struct {
 // addNetworkZoneDetailsToRequestContext sets the effective project in the request.Info and sets ctxNetworkZoneDetails (networkZoneDetails)
 // in the request context.
 func addNetworkZoneDetailsToRequestContext(s *state.State, r *http.Request) error {
-	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
+	zoneName, err := url.PathUnescape(r.PathValue("zone"))
 	if err != nil {
 		return err
 	}

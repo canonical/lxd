@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gorilla/mux"
 	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/lxd/instance"
@@ -74,7 +73,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -178,7 +177,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -291,7 +290,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -415,7 +414,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -568,7 +567,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -686,7 +685,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 
 	projectName := request.ProjectParam(r)
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}

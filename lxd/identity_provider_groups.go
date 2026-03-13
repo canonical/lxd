@@ -8,8 +8,6 @@ import (
 	"net/url"
 	"slices"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -248,7 +246,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	idpGroupName, err := url.PathUnescape(mux.Vars(r)["idpGroupName"])
+	idpGroupName, err := url.PathUnescape(r.PathValue("idpGroupName"))
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed unescaping identity provider group name path parameter: %w", err))
 	}
@@ -382,7 +380,7 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	idpGroupName, err := url.PathUnescape(mux.Vars(r)["idpGroupName"])
+	idpGroupName, err := url.PathUnescape(r.PathValue("idpGroupName"))
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed unescaping path argument: %w", err))
 	}
@@ -435,7 +433,7 @@ func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func updateIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	idpGroupName, err := url.PathUnescape(mux.Vars(r)["idpGroupName"])
+	idpGroupName, err := url.PathUnescape(r.PathValue("idpGroupName"))
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed unescaping path argument: %w", err))
 	}
@@ -504,7 +502,7 @@ func updateIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	idpGroupName, err := url.PathUnescape(mux.Vars(r)["idpGroupName"])
+	idpGroupName, err := url.PathUnescape(r.PathValue("idpGroupName"))
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed unescaping path argument: %w", err))
 	}
@@ -572,7 +570,7 @@ func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func deleteIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	idpGroupName, err := url.PathUnescape(mux.Vars(r)["idpGroupName"])
+	idpGroupName, err := url.PathUnescape(r.PathValue("idpGroupName"))
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed unescaping path argument: %w", err))
 	}

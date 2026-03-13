@@ -15,8 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -92,7 +90,7 @@ type networkDetails struct {
 // addNetworkDetailsToRequestContext sets the effective project on the request.Info and sets ctxNetworkDetails (networkDetails)
 // in the request context.
 func addNetworkDetailsToRequestContext(s *state.State, r *http.Request) error {
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	networkName, err := url.PathUnescape(r.PathValue("networkName"))
 	if err != nil {
 		return err
 	}
@@ -1641,7 +1639,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	networkName, err := url.PathUnescape(r.PathValue("networkName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2092,7 +2090,7 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	networkName, err := url.PathUnescape(r.PathValue("networkName"))
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/acme"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -51,7 +49,7 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(nil)
 	}
 
-	token, err := url.PathUnescape(mux.Vars(r)["token"])
+	token, err := url.PathUnescape(r.PathValue("token"))
 	if err != nil {
 		return response.SmartError(err)
 	}

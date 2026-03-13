@@ -9,8 +9,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -360,7 +358,7 @@ func placementGroupsPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func placementGroupDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
-	placementGroupName, err := url.PathUnescape(mux.Vars(r)["name"])
+	placementGroupName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -444,7 +442,7 @@ func doPlacementGroupDelete(ctx context.Context, s *state.State, name string, pr
 //	    $ref: "#/responses/InternalServerError"
 func placementGroupGet(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
-	placementGroupName, err := url.PathUnescape(mux.Vars(r)["name"])
+	placementGroupName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -564,7 +562,7 @@ func placementGroupGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
-	placementGroupName, err := url.PathUnescape(mux.Vars(r)["name"])
+	placementGroupName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -689,7 +687,7 @@ func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func placementGroupPost(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
-	placementGroupName, err := url.PathUnescape(mux.Vars(r)["name"])
+	placementGroupName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}

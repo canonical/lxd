@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/archive"
@@ -120,14 +119,14 @@ func checkStoragePoolVolumeTypeAccess(s *state.State, r *http.Request, entityTyp
 	case entity.TypeStorageVolume:
 		u = entity.StorageVolumeURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName)
 	case entity.TypeStorageVolumeBackup:
-		backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+		backupName, err := url.PathUnescape(r.PathValue("backupName"))
 		if err != nil {
 			return err
 		}
 
 		u = entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName)
 	case entity.TypeStorageVolumeSnapshot:
-		snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+		snapshotName, err := url.PathUnescape(r.PathValue("snapshotName"))
 		if err != nil {
 			return err
 		}
@@ -632,7 +631,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	targetMember := request.QueryParam(r, "target")
 	memberSpecific := targetMember != ""
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	poolName, err := url.PathUnescape(r.PathValue("poolName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -647,7 +646,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	allPools := poolName == ""
 
 	// Get the name of the volume type.
-	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	volumeTypeName, err := url.PathUnescape(r.PathValue("type"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -995,7 +994,7 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	poolName, err := url.PathUnescape(r.PathValue("poolName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1049,9 +1048,8 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle being called through the typed URL.
-	_, ok := mux.Vars(r)["type"]
-	if ok {
-		req.Type, err = url.PathUnescape(mux.Vars(r)["type"])
+	if r.PathValue("type") != "" {
+		req.Type, err = url.PathUnescape(r.PathValue("type"))
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -2962,7 +2960,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 		request.SetContextValue(r, ctxStorageVolumeDetails, details)
 	}()
 
-	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
+	volumeName, err := url.PathUnescape(r.PathValue("volumeName"))
 	if err != nil {
 		return err
 	}
@@ -2973,7 +2971,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 		return api.StatusErrorf(http.StatusBadRequest, "Invalid storage volume %q", volumeName)
 	}
 
-	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	volumeTypeName, err := url.PathUnescape(r.PathValue("type"))
 	if err != nil {
 		return err
 	}
@@ -2989,7 +2987,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	details.volumeType = volumeType
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	poolName, err := url.PathUnescape(r.PathValue("poolName"))
 	if err != nil {
 		return err
 	}

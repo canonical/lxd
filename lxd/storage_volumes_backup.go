@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/backup/config"
@@ -519,7 +517,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 	}
 
 	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	backupName, err := url.PathUnescape(r.PathValue("backupName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -601,7 +599,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 	}
 
 	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	backupName, err := url.PathUnescape(r.PathValue("backupName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -720,7 +718,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 	}
 
 	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	backupName, err := url.PathUnescape(r.PathValue("backupName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -821,7 +819,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 	}
 
 	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	backupName, err := url.PathUnescape(r.PathValue("backupName"))
 	if err != nil {
 		return response.SmartError(err)
 	}

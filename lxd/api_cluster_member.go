@@ -14,8 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -452,7 +450,7 @@ func clusterMemberGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(cluster.ErrNodeIsNotClustered)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -590,7 +588,7 @@ func clusterMemberPut(d *Daemon, r *http.Request) response.Response {
 
 // updateClusterMember is shared between clusterMemberPut and clusterMemberPatch.
 func updateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Request, isPatch bool) response.Response {
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -935,7 +933,7 @@ func clusterValidateConfig(config map[string]string) error {
 func clusterMemberPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	memberName, err := url.PathUnescape(mux.Vars(r)["name"])
+	memberName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1006,7 +1004,7 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(cluster.ErrNodeIsNotClustered)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1285,7 +1283,7 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func clusterMemberStateGet(d *Daemon, r *http.Request) response.Response {
-	memberName, err := url.PathUnescape(mux.Vars(r)["name"])
+	memberName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1334,7 +1332,7 @@ func clusterMemberStateGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	name, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1754,7 +1752,7 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Response {
 	s := d.State()
 
-	originName, err := url.PathUnescape(mux.Vars(r)["name"])
+	originName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}

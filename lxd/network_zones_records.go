@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/zone"
@@ -281,7 +279,7 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recordName, err := url.PathUnescape(mux.Vars(r)["name"])
+	recordName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -356,7 +354,7 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recordName, err := url.PathUnescape(mux.Vars(r)["name"])
+	recordName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -458,7 +456,7 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recordName, err := url.PathUnescape(mux.Vars(r)["name"])
+	recordName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}

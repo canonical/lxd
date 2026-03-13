@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/device/filters"
@@ -39,7 +37,7 @@ func devLXDInstanceGetHandler(d *Daemon, r *http.Request) response.Response {
 	// This is also enforced by the access handler.
 	projectName := inst.Project().Name
 
-	targetInstName, err := url.PathUnescape(mux.Vars(r)["name"])
+	targetInstName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}
@@ -99,7 +97,7 @@ func devLXDInstancePatchHandler(d *Daemon, r *http.Request) response.Response {
 	// This is also enforced by the access handler.
 	projectName := inst.Project().Name
 
-	targetInstName, err := url.PathUnescape(mux.Vars(r)["name"])
+	targetInstName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}

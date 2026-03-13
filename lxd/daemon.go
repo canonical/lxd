@@ -23,7 +23,6 @@ import (
 
 	dqliteClient "github.com/canonical/go-dqlite/v3/client"
 	"github.com/canonical/go-dqlite/v3/driver"
-	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/acme"
@@ -284,9 +283,8 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 			entityURL = entity.ProjectURL(request.ProjectParam(r))
 		} else {
 			muxValues := make([]string, 0, len(muxVars))
-			vars := mux.Vars(r)
 			for _, muxVar := range muxVars {
-				muxValue := vars[muxVar]
+				muxValue := r.PathValue(muxVar)
 				if muxValue == "" {
 					return response.InternalError(fmt.Errorf("Failed performing permission check: Path argument label %q not found in request URL %q", muxVar, r.URL))
 				}
@@ -799,7 +797,7 @@ func (d *Daemon) State() *state.State {
 //
 // The created handler also keeps track of handled requests for the API metrics
 // for the main API endpoints.
-func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
+func (d *Daemon) createCmd(restAPI *lxdMux, version string, c APIEndpoint) {
 	var uri string
 	if c.Path == "" {
 		uri = "/" + version
@@ -809,7 +807,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		uri = "/" + c.Path
 	}
 
-	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+	restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
 		// This prevents internal endpoints from being included as well.
 		if version == "1.0" {
@@ -1011,12 +1009,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 		}
 	})
-
-	// If the endpoint has a canonical name then record it so it can be used to build URLS
-	// and accessed in the context of the request by the handler function.
-	if c.Name != "" {
-		route.Name(c.Name)
-	}
 }
 
 // have we setup shared mounts?

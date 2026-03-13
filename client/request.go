@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+
+	"github.com/canonical/lxd/shared"
 )
 
 // NewRequestWithContext creates a new HTTP request with the specified method, URL, data, and ETag.
@@ -54,6 +56,15 @@ func NewRequestWithContext(ctx context.Context, method string, url string, data 
 	// Set the ETag if provided.
 	if ETag != "" {
 		req.Header.Set("If-Match", ETag)
+	}
+
+	// Copy path values stored in the context by lxdMux so they survive
+	// internal request forwarding (e.g., devLXD -> main API handlers).
+	vars, ok := ctx.Value(shared.CtxMuxPathVars).(map[string]string)
+	if ok {
+		for name, value := range vars {
+			req.SetPathValue(name, value)
+		}
 	}
 
 	return req, nil

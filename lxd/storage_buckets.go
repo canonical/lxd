@@ -9,8 +9,6 @@ import (
 	"net/url"
 	"sort"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -223,7 +221,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	poolName, err := url.PathUnescape(r.PathValue("poolName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -459,7 +457,7 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	poolName, err := url.PathUnescape(r.PathValue("poolName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -997,7 +995,7 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	keyName, err := url.PathUnescape(mux.Vars(r)["keyName"])
+	keyName, err := url.PathUnescape(r.PathValue("keyName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1075,7 +1073,7 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Storage pool does not support buckets"))
 	}
 
-	keyName, err := url.PathUnescape(mux.Vars(r)["keyName"])
+	keyName, err := url.PathUnescape(r.PathValue("keyName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1162,7 +1160,7 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	keyName, err := url.PathUnescape(mux.Vars(r)["keyName"])
+	keyName, err := url.PathUnescape(r.PathValue("keyName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1217,7 +1215,7 @@ func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
 
 	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	poolName, err := url.PathUnescape(r.PathValue("poolName"))
 	if err != nil {
 		return err
 	}
@@ -1229,7 +1227,7 @@ func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
 
 	details.pool = pool
 
-	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
+	bucketName, err := url.PathUnescape(r.PathValue("bucketName"))
 	if err != nil {
 		return err
 	}

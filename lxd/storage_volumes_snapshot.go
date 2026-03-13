@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -505,7 +503,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Get the name of the storage volume.
-	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+	snapshotName, err := url.PathUnescape(r.PathValue("snapshotName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -646,7 +644,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the name of the storage volume.
-	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+	snapshotName, err := url.PathUnescape(r.PathValue("snapshotName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -750,7 +748,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the name of the storage volume.
-	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+	snapshotName, err := url.PathUnescape(r.PathValue("snapshotName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -892,7 +890,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the name of the storage volume.
-	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+	snapshotName, err := url.PathUnescape(r.PathValue("snapshotName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1056,7 +1054,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	// Get the name of the storage volume.
-	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+	snapshotName, err := url.PathUnescape(r.PathValue("snapshotName"))
 	if err != nil {
 		return response.SmartError(err)
 	}

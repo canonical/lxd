@@ -17,8 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/certificate"
@@ -782,7 +780,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func certificateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	fingerprint, err := url.PathUnescape(r.PathValue("fingerprint"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -851,7 +849,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func certificatePut(d *Daemon, r *http.Request) response.Response {
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	fingerprint, err := url.PathUnescape(r.PathValue("fingerprint"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -918,7 +916,7 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func certificatePatch(d *Daemon, r *http.Request) response.Response {
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	fingerprint, err := url.PathUnescape(r.PathValue("fingerprint"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1124,7 +1122,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	fingerprint, err := url.PathUnescape(r.PathValue("fingerprint"))
 	if err != nil {
 		return response.SmartError(err)
 	}
