@@ -804,6 +804,20 @@ func IsRequestURL(value string) error {
 	return err
 }
 
+// IsHTTPSURL checks value is a valid HTTPS URL.
+func IsHTTPSURL(value string) error {
+	u, err := parseRequestURL(value)
+	if err != nil {
+		return err
+	}
+
+	if u.Scheme != "https" {
+		return errors.New("URL scheme must be HTTPS")
+	}
+
+	return nil
+}
+
 // IsCloudInitUserData checks value is valid cloud-init user data.
 func IsCloudInitUserData(value string) error {
 	content, found := strings.CutPrefix(value, "#cloud-config\n")
