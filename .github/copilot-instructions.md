@@ -238,6 +238,7 @@ For error message assertions, prefer single-quoted strings so error text with `"
 - Write table-driven unit tests where applicable
 - End comments with periods and use Go doc links where possible
 - Use early returns when possible to reduce nesting and improve readability
+- Avoid inline variable declarations in `if` statements. Prefer assigning on its own line before the `if`.
 - Use effective Go (see https://go.dev/doc/effective_go)
 
 ### Common Patterns
@@ -250,6 +251,29 @@ For error message assertions, prefer single-quoted strings so error text with `"
   ```
 - **Error message format**: Use gerund format for error messages: `Failed connecting to target` instead of `Failed to connect to target`. Another example is to better use `Failed retrieving current cluster config` instead of `Failed to retrieve current cluster config`.
 - **No "unable to"**: Use `cannot` instead (e.g. `Cannot open file` not `Unable to open file`).
+- **Avoid inline variable declarations in `if` statements**:
+  Bad:
+  ```go
+  if count := len(values); count < 1 {
+      return nil
+  }
+
+  if role, ok := roles[name]; ok {
+      return role
+  }
+  ```
+  Good:
+  ```go
+  count := len(values)
+  if count < 1 {
+      return nil
+  }
+
+  role, ok := roles[name]
+  if ok {
+      return role
+  }
+  ```
 - **No contractions** in error messages: Use `does not` not `doesn't`, `cannot` not `can't`.
 - These error message rules apply to Go string literals only, not to comments.
 - When changing error messages, update any integration test assertions in `test/suites/*.sh` that match the old text.
