@@ -26,18 +26,19 @@ import (
 //
 //go:generate mapper stmt -e operation objects
 //go:generate mapper stmt -e operation objects-by-NodeID
+//go:generate mapper stmt -e operation objects-by-NodeID-and-Class
+//go:generate mapper stmt -e operation objects-by-Class
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-UUID
+//go:generate mapper stmt -e operation objects-by-Parent
 //go:generate mapper stmt -e operation create
 //go:generate mapper stmt -e operation create-or-replace
 //go:generate mapper stmt -e operation delete-by-UUID
-//go:generate mapper stmt -e operation delete-by-NodeID
 //
 //go:generate mapper method -i -e operation GetMany
 //go:generate mapper method -i -e operation Create
 //go:generate mapper method -i -e operation CreateOrReplace
 //go:generate mapper method -i -e operation DeleteOne-by-UUID
-//go:generate mapper method -i -e operation DeleteMany-by-NodeID
 //go:generate goimports -w operations.mapper.go
 //go:generate goimports -w operations.interface.mapper.go
 
@@ -71,6 +72,8 @@ type OperationFilter struct {
 	ID     *int64
 	NodeID *int64
 	UUID   *string
+	Parent *int64
+	Class  *int64
 }
 
 // RequestorProtocol is the database representation of the Requestor Protocol.
@@ -277,11 +280,41 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 	return nil
 }
 
-// DeleteOperationsFromNodes deletes operations from nodes with the given list of IDs.
-func DeleteOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
-	_, err := tx.ExecContext(ctx, "DELETE FROM operations WHERE node_id IN "+query.IntParams(nodeIDs...))
+// DeleteEphemeralOperationsFromNodes deletes ephemeral operations from nodes with the given list of IDs.
+// Ephemeral operations are operations which are normally cleared few seconds after they finish. In other words, these are:
+// - Operations with class Task, Websocket or Token (class between 1 and 3), and
+// - Operations which are not bulk operations (parent is NULL and id not in parent column of any operation).
+func DeleteEphemeralOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	stmt := `DELETE FROM operations
+WHERE class BETWEEN 1 AND 3
+AND parent IS NULL
+AND id NOT IN (SELECT parent FROM operations WHERE parent IS NOT NULL)
+AND node_id IN ` + query.IntParams(nodeIDs...)
+
+	_, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return fmt.Errorf("Failed deleting operations from nodes: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateOperationNodeID updates the node_id field of an existing operation in the cluster db.
+func UpdateOperationNodeID(ctx context.Context, tx *sql.Tx, opUUID string, newNodeID int64, updatedAt time.Time) error {
+	stmt := `UPDATE operations SET node_id = ?, updated_at = ? WHERE uuid = ?`
+
+	result, err := tx.ExecContext(ctx, stmt, newNodeID, updatedAt, opUUID)
+	if err != nil {
+		return fmt.Errorf("Failed updating operation node ID: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
 
 	return nil
