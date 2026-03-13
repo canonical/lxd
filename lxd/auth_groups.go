@@ -10,8 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -418,7 +416,7 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getAuthGroup(d *Daemon, r *http.Request) response.Response {
-	groupName, err := url.PathUnescape(mux.Vars(r)["groupName"])
+	groupName, err := url.PathUnescape(r.PathValue("groupName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -494,7 +492,7 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
-	groupName, err := url.PathUnescape(mux.Vars(r)["groupName"])
+	groupName, err := url.PathUnescape(r.PathValue("groupName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -594,7 +592,7 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
-	groupName, err := url.PathUnescape(mux.Vars(r)["groupName"])
+	groupName, err := url.PathUnescape(r.PathValue("groupName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -708,7 +706,7 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
-	groupName, err := url.PathUnescape(mux.Vars(r)["groupName"])
+	groupName, err := url.PathUnescape(r.PathValue("groupName"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -766,7 +764,7 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
-	groupName, err := url.PathUnescape(mux.Vars(r)["groupName"])
+	groupName, err := url.PathUnescape(r.PathValue("groupName"))
 	if err != nil {
 		return response.SmartError(err)
 	}

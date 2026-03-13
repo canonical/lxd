@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/bearer"
 	"github.com/canonical/lxd/lxd/cloudinit"
@@ -275,7 +273,7 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
 		return response.DevLXDErrorResponse(err)
 	}
 
-	key, err := url.PathUnescape(mux.Vars(r)["key"])
+	key, err := url.PathUnescape(r.PathValue("key"))
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}
@@ -334,7 +332,7 @@ func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(err)
 	}
 
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	fingerprint, err := url.PathUnescape(r.PathValue("fingerprint"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -526,8 +524,7 @@ func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) response.Respon
 }
 
 func devLXDAPI(d *Daemon, authenticator devLXDAuthenticator) http.Handler {
-	m := mux.NewRouter()
-	m.UseEncodedPath() // Allow encoded values in path segments.
+	m := &lxdMux{ServeMux: http.NewServeMux()}
 
 	for _, handler := range apiDevLXD {
 		if !slices.Contains(entity.APIMetricsEntityTypes(), handler.MetricsType) {
@@ -540,9 +537,12 @@ func devLXDAPI(d *Daemon, authenticator devLXDAuthenticator) http.Handler {
 	return m
 }
 
-func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string, ep APIEndpoint, authenticator devLXDAuthenticator) {
+func registerDevLXDEndpoint(d *Daemon, apiRouter *lxdMux, apiVersion string, ep APIEndpoint, authenticator devLXDAuthenticator) {
 	uri := ep.Path
-	if uri != "/" {
+	if uri == "/" {
+		// Use /{$} to match only the exact root path, not as a catch-all.
+		uri = "/{$}"
+	} else {
 		uri = path.Join("/", apiVersion, ep.Path)
 	}
 
@@ -652,13 +652,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		}
 	}
 
-	route := apiRouter.HandleFunc(uri, handleFunc)
-
-	// If the endpoint has a canonical name then record it so it can be used to build URLS
-	// and accessed in the context of the request by the handler function.
-	if ep.Name != "" {
-		route.Name(ep.Name)
-	}
+	apiRouter.HandleFunc(uri, handleFunc)
 }
 
 // enforceDevLXDProject ensures the "project" query parameter matches the instance's project.
@@ -732,9 +726,8 @@ func allowDevLXDPermission(entityType entity.Type, entitlement auth.Entitlement,
 			entityURL = entity.ProjectURL(instProject)
 		} else {
 			muxValues := make([]string, 0, len(muxVars))
-			vars := mux.Vars(r)
 			for _, muxVar := range muxVars {
-				muxValue := vars[muxVar]
+				muxValue := r.PathValue(muxVar)
 				if muxValue == "" {
 					return response.DevLXDErrorResponse(fmt.Errorf("Failed performing permission check: Path argument label %q not found in request URL %q", muxVar, r.URL))
 				}

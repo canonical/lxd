@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -160,7 +158,7 @@ func runningInstanceOperations() map[string]map[string][]*operations.Operation {
 func operationGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -246,7 +244,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 func operationDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -814,7 +812,7 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1017,7 +1015,7 @@ func checkOperationViewAccess(ctx context.Context, op *operations.Operation, aut
 func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
 		return response.SmartError(err)
 	}

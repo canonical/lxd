@@ -1,14 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/bearer"
@@ -62,10 +62,7 @@ import (
 //	          example: ["/1.0"]
 func restServer(d *Daemon) *http.Server {
 	/* Setup the web server */
-	mux := mux.NewRouter()
-	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
-	mux.SkipClean(true)
-	mux.UseEncodedPath() // Allow encoded values in path segments.
+	mux := &lxdMux{ServeMux: http.NewServeMux()}
 
 	const errorMessage = `<html><title>The UI is not enabled</title><body><p>The UI is not enabled. For instructions to enable it check: <a href="https://documentation.ubuntu.com/lxd/latest/howto/access_ui/">How to access the LXD web UI</a></p></body></html>`
 
@@ -96,7 +93,7 @@ func restServer(d *Daemon) *http.Server {
 			uiHandler.ServeHTTP(w, r)
 		})
 
-		mux.PathPrefix("/ui/").Handler(uiHandlerWithSecurity)
+		mux.Handle("/ui/", uiHandlerWithSecurity)
 		mux.HandleFunc("/ui", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 		})
@@ -109,7 +106,8 @@ func restServer(d *Daemon) *http.Server {
 				logger.Warn("Failed sending error message to client", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr, "err": err})
 			}
 		})
-		mux.PathPrefix("/ui").Handler(uiHandlerErrorUINotEnabled)
+		mux.Handle("/ui", uiHandlerErrorUINotEnabled)
+		mux.Handle("/ui/", uiHandlerErrorUINotEnabled)
 	}
 
 	// Serving the LXD documentation.
@@ -131,7 +129,7 @@ func restServer(d *Daemon) *http.Server {
 			documentationHandler.ServeHTTP(w, r)
 		})
 
-		mux.PathPrefix("/documentation/").Handler(documentationHandlerWithSecurity)
+		mux.Handle("/documentation/", documentationHandlerWithSecurity)
 		mux.HandleFunc("/documentation", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/documentation/", http.StatusMovedPermanently)
 		})
@@ -183,7 +181,7 @@ func restServer(d *Daemon) *http.Server {
 		http.Redirect(w, r, "/ui/login", http.StatusFound)
 	})
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
 		if isBrowserClient(r) {
 			err := handleUIAccessLink(w, r, d.globalConfig.ClusterUUID(), d.identityCache)
 			if err != nil {
@@ -231,7 +229,7 @@ func restServer(d *Daemon) *http.Server {
 		d.createCmd(mux, "", c)
 	}
 
-	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		metrics.TrackStartedRequest(r, entity.TypeServer) // Use TypeServer for not found handler
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
@@ -255,11 +253,9 @@ func isBrowserClient(r *http.Request) bool {
 
 func metricsServer(d *Daemon) *http.Server {
 	/* Setup the web server */
-	mux := mux.NewRouter()
-	mux.StrictSlash(false)
-	mux.SkipClean(true)
+	mux := &lxdMux{ServeMux: http.NewServeMux()}
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
 	})
@@ -271,7 +267,7 @@ func metricsServer(d *Daemon) *http.Server {
 	d.createCmd(mux, "1.0", api10Cmd)
 	d.createCmd(mux, "1.0", metricsCmd)
 
-	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		metrics.TrackStartedRequest(r, entity.TypeServer) // Use TypeServer for not found handler
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
@@ -281,8 +277,153 @@ func metricsServer(d *Daemon) *http.Server {
 	return &http.Server{Handler: &lxdHTTPServer{r: mux, d: d}}
 }
 
+type lxdMux struct {
+	*http.ServeMux
+	prefixHandlers []lxdPrefixHandler
+}
+
+// lxdPrefixHandler handles patterns that could not be registered on ServeMux
+// due to routing conflicts [images/aliases/{name} vs. "images/{fingerprint}/export"]
+// It matches requests by prefix, an optional suffix, and a single-segment variable in between.
+type lxdPrefixHandler struct {
+	prefix  string
+	varName string
+	suffix  string
+	handler http.HandlerFunc
+}
+
+// HandleFunc registers a handler for the given pattern. If the pattern conflicts
+// with an already-registered ServeMux pattern, it falls back to prefix-based matching.
+// For patterns with path variables, the handler is wrapped to re-encode decoded path
+// values and store them in the request context.
+func (m *lxdMux) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	// Collect path variable names from this pattern.
+	var varNames []string
+	for _, seg := range strings.Split(pattern, "/") {
+		if len(seg) > 2 && seg[0] == '{' && seg[len(seg)-1] == '}' && seg != "{$}" {
+			name := strings.TrimSuffix(seg[1:len(seg)-1], "...")
+			varNames = append(varNames, name)
+		}
+	}
+
+	// Wrap handler to re-encode path values and store them in context.
+	// ServeMux decodes path values, but handlers expect encoded values
+	// (gorilla/mux UseEncodedPath behavior) and call url.PathUnescape.
+	// Context storage allows values to survive internal request forwarding.
+	if len(varNames) > 0 {
+		inner := handler
+		handler = func(w http.ResponseWriter, r *http.Request) {
+			vars := make(map[string]string, len(varNames))
+			for _, name := range varNames {
+				v := r.PathValue(name)
+				if v != "" {
+					encoded := url.PathEscape(v)
+					r.SetPathValue(name, encoded)
+					vars[name] = encoded
+				}
+			}
+
+			if len(vars) > 0 {
+				r = r.WithContext(context.WithValue(r.Context(), shared.CtxMuxPathVars, vars))
+			}
+
+			inner(w, r)
+		}
+	}
+
+	if !m.tryRegister(pattern, handler) {
+		// Parse the pattern to extract prefix, variable name, and suffix.
+		// for example, "images/{fingerprint}/export" becomes:
+		// prefix="/1.0/images/", varName="fingerprint", suffix="/export"
+		start := strings.Index(pattern, "{")
+		end := strings.Index(pattern, "}")
+		if start == -1 || end == -1 || end <= start {
+			return
+		}
+
+		m.prefixHandlers = append(m.prefixHandlers, lxdPrefixHandler{
+			prefix:  pattern[:start],
+			varName: strings.TrimSuffix(pattern[start+1:end], "..."),
+			suffix:  pattern[end+1:],
+			handler: handler,
+		})
+	}
+}
+
+// tryRegister attempts to register a pattern on the underlying ServeMux.
+// Returns false if ServeMux panics due to a routing conflict. Any other
+// panic is re-raised so that unexpected issues are not silently swallowed.
+func (m *lxdMux) tryRegister(pattern string, handler http.HandlerFunc) (registered bool) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+
+		msg := fmt.Sprint(r)
+		if strings.Contains(msg, "conflicts with pattern") || strings.Contains(msg, "multiple registrations") {
+			registered = false
+			return
+		}
+
+		panic(r)
+	}()
+
+	m.ServeMux.HandleFunc(pattern, handler)
+
+	return true
+}
+
+func (m *lxdMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// note that we prefer ServeMux when it has a matching pattern. This ensures
+	// that directly-registered routes take priority over prefix fallback
+	// handlers, which matters when both could match. like
+	// /images/aliases/export matches both "images/aliases/{name}" on ServeMux
+	// and the prefix handler for "images/{fingerprint}/export". See
+	// https://github.com/canonical/lxd/pull/17856
+	_, pattern := m.Handler(r)
+	if pattern != "" && pattern != "/" {
+		m.ServeMux.ServeHTTP(w, r)
+		return
+	}
+
+	// prefix handlers
+	escapedPath := r.URL.EscapedPath()
+	for _, ph := range m.prefixHandlers {
+		if !strings.HasPrefix(escapedPath, ph.prefix) {
+			continue
+		}
+
+		remainder := strings.TrimPrefix(escapedPath, ph.prefix)
+
+		if !strings.HasSuffix(remainder, ph.suffix) {
+			continue
+		}
+
+		val := strings.TrimSuffix(remainder, ph.suffix)
+
+		if val == "" || strings.Contains(val, "/") {
+			// encoded slashes (%2f) are fine and stay as-is.
+			continue
+		}
+
+		decoded, err := url.PathUnescape(val)
+		if err != nil {
+			decoded = val
+		}
+
+		r.SetPathValue(ph.varName, decoded)
+		ph.handler(w, r)
+
+		return
+	}
+
+	// a legit 404.
+	m.ServeMux.ServeHTTP(w, r)
+}
+
 type lxdHTTPServer struct {
-	r *mux.Router
+	r http.Handler
 	d *Daemon
 }
 

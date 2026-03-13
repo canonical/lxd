@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/oidc"
@@ -60,7 +59,7 @@ const ctxOIDCSessionDetails request.CtxKey = "session-details"
 func oidcSessionAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
-		sessionIDStr, err := url.PathUnescape(mux.Vars(r)["id"])
+		sessionIDStr, err := url.PathUnescape(r.PathValue("id"))
 		if err != nil {
 			return response.SmartError(err)
 		}

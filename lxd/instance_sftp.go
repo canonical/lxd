@@ -10,8 +10,6 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/metrics"
@@ -48,7 +46,7 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	instName, err := url.PathUnescape(mux.Vars(r)["name"])
+	instName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return response.SmartError(err)
 	}

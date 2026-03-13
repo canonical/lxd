@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -203,8 +202,7 @@ const (
 // of the identity matching what is expected by the authorizer. It returns the Identity for convenience, and also adds
 // it to the request context with the ctxClusterDBIdentity context key for later use.
 func addIdentityDetailsToContext(s *state.State, r *http.Request, authenticationMethod string) (*dbCluster.Identity, error) {
-	muxVars := mux.Vars(r)
-	nameOrID, err := url.PathUnescape(muxVars["nameOrIdentifier"])
+	nameOrID, err := url.PathUnescape(r.PathValue("nameOrIdentifier"))
 	if err != nil {
 		return nil, fmt.Errorf("Failed unescaping path argument: %w", err)
 	}

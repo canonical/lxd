@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/request"
@@ -69,7 +67,7 @@ func devLXDStoragePoolGetHandler(d *Daemon, r *http.Request) response.Response {
 		return response.DevLXDErrorResponse(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	poolName, err := url.PathUnescape(r.PathValue("poolName"))
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}
@@ -109,14 +107,13 @@ func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) response.Res
 	}
 
 	projectName := inst.Project().Name
-	pathVars := mux.Vars(r)
 
-	poolName, err := url.PathUnescape(pathVars["poolName"])
+	poolName, err := url.PathUnescape(r.PathValue("poolName"))
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}
 
-	volType, err := url.PathUnescape(pathVars["type"])
+	volType, err := url.PathUnescape(r.PathValue("type"))
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}
@@ -192,14 +189,13 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 	}
 
 	projectName := inst.Project().Name
-	pathVars := mux.Vars(r)
 
-	poolName, err := url.PathUnescape(pathVars["poolName"])
+	poolName, err := url.PathUnescape(r.PathValue("poolName"))
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}
 
-	volType, err := url.PathUnescape(pathVars["type"])
+	volType, err := url.PathUnescape(r.PathValue("type"))
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}
@@ -278,11 +274,9 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 
 		// Set path variables for the request, required when populating the request using volume details.
 		// Source volume is not part of the original request URL.
-		req = mux.SetURLVars(req, map[string]string{
-			"volumeName": sourceVolName,
-			"poolName":   vol.Source.Pool,
-			"type":       "custom",
-		})
+		req.SetPathValue("volumeName", sourceVolName)
+		req.SetPathValue("poolName", vol.Source.Pool)
+		req.SetPathValue("type", "custom")
 
 		// Populate request context with source volume details.
 		err = addStoragePoolVolumeDetailsToRequestContext(d.State(), req)
@@ -672,7 +666,7 @@ func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) respo
 		return response.DevLXDErrorResponse(err)
 	}
 
-	snapName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+	snapName, err := url.PathUnescape(r.PathValue("snapshotName"))
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}
@@ -734,7 +728,7 @@ func devLXDStoragePoolVolumeSnapshotDeleteHandler(d *Daemon, r *http.Request) re
 		return response.DevLXDErrorResponse(err)
 	}
 
-	snapName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+	snapName, err := url.PathUnescape(r.PathValue("snapshotName"))
 	if err != nil {
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}
@@ -808,19 +802,17 @@ func devLXDStoragePoolVolumeTypeAccessHandler(entityType entity.Type, entitlemen
 
 // extractVolumeParams extracts the pool name, volume type and volume name from the request URL.
 func extractVolumeParams(r *http.Request) (poolName string, volType string, volName string, err error) {
-	pathVars := mux.Vars(r)
-
-	poolName, err = url.PathUnescape(pathVars["poolName"])
+	poolName, err = url.PathUnescape(r.PathValue("poolName"))
 	if err != nil {
 		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
 	}
 
-	volType, err = url.PathUnescape(pathVars["type"])
+	volType, err = url.PathUnescape(r.PathValue("type"))
 	if err != nil {
 		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
 	}
 
-	volName, err = url.PathUnescape(pathVars["volumeName"])
+	volName, err = url.PathUnescape(r.PathValue("volumeName"))
 	if err != nil {
 		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
 	}

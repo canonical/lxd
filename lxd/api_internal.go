@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/auth"
@@ -373,7 +372,7 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 // It detects whether the instance reference is an instance ID or instance name and loads instance accordingly.
 func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (instance.Instance, error) {
 	var inst instance.Instance
-	instanceRef, err := url.PathUnescape(mux.Vars(r)["instanceRef"])
+	instanceRef, err := url.PathUnescape(r.PathValue("instanceRef"))
 	if err != nil {
 		return nil, err
 	}
