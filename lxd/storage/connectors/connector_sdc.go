@@ -5,12 +5,16 @@ import (
 	"errors"
 	"os"
 
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared/revert"
 )
 
 const (
 	// SDCDevicePath represents the SDC device once the respective kernel module is loaded.
 	SDCDevicePath = "/dev/scini"
+
+	// sdcDiskDevicePrefix is the prefix of the SDC disk device name in /dev/disk/by-id/.
+	sdcDiskDevicePrefix = "emc-vol-"
 )
 
 var _ Connector = &connectorSDC{}
@@ -74,4 +78,19 @@ func (c *connectorSDC) findSession(targetQN string) (*session, error) {
 // Discover returns the targets found on the first reachable targetAddr.
 func (c *connectorSDC) Discover(ctx context.Context, targetAddresses ...string) ([]any, error) {
 	return nil, ErrNotSupported
+}
+
+// WaitDiskDevicePath waits for the mapped device to appear and returns its path.
+func (c *connectorSDC) WaitDiskDevicePath(ctx context.Context, diskPathFilter block.DevicePathFilterFunc) (string, error) {
+	return block.WaitDiskDevicePath(ctx, sdcDiskDevicePrefix, diskPathFilter)
+}
+
+// GetDiskDevicePath returns the path of the mapped SDC device.
+func (c *connectorSDC) GetDiskDevicePath(diskPathFilter block.DevicePathFilterFunc) (string, error) {
+	return block.GetDiskDevicePath(sdcDiskDevicePrefix, diskPathFilter)
+}
+
+// RemoveDiskDevice does nothing. Device is removed when volume is unmapped on the storage array.
+func (c *connectorSDC) RemoveDiskDevice(ctx context.Context, devicePath string) error {
+	return nil
 }

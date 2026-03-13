@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared/revert"
 )
 
@@ -43,6 +44,9 @@ type Connector interface {
 	Connect(ctx context.Context, targetQN string, targetAddrs ...string) (revert.Hook, error)
 	Disconnect(targetQN string) error
 	Discover(ctx context.Context, targetAddresses ...string) ([]any, error)
+	GetDiskDevicePath(diskPathFilter block.DevicePathFilterFunc) (string, error)
+	WaitDiskDevicePath(ctx context.Context, diskPathFilter block.DevicePathFilterFunc) (string, error)
+	RemoveDiskDevice(ctx context.Context, devicePath string) error
 	findSession(targetQN string) (*session, error)
 }
 

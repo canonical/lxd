@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
@@ -28,6 +29,9 @@ const (
 	// to execute the operation on.
 	iscsiErrCodeNotFound = 21
 )
+
+// iscsiDiskDevicePrefix is the prefix of the iSCSI disk device name in /dev/disk/by-id/.
+const iscsiDiskDevicePrefix = "scsi-"
 
 var _ Connector = &connectorISCSI{}
 
@@ -313,4 +317,155 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 	}
 
 	return result, nil
+}
+
+// WaitDiskDevicePath waits for the mapped iSCSI device to appear.
+// If the device is not a multipath device, multipath is forced and the device path is looked up again.
+// An error is returned if no multipath device is found after that.
+func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter block.DevicePathFilterFunc) (string, error) {
+	_, ok := ctx.Deadline()
+	if !ok {
+		// Set a default timeout of 30 seconds for the context
+		// if no deadline is already configured.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
+
+	devicePath, err := block.WaitDiskDevicePath(ctx, iscsiDiskDevicePrefix, diskPathFilter)
+	if err != nil {
+		return "", err
+	}
+
+	if isMultipathDevice(devicePath) {
+		return devicePath, nil
+	}
+
+	// Device is not a multipath device.
+	// Create multipath device from a found device path.
+	_, err = shared.RunCommand(ctx, "multipath", devicePath)
+	if err != nil {
+		return "", fmt.Errorf("Failed to configure multipath for device %q: %w", devicePath, err)
+	}
+
+	// Filter that makes sure the found device resolves to a multipath device.
+	multipathDeviceFiler := func(devicePath string) bool {
+		if !diskPathFilter(devicePath) {
+			return false
+		}
+
+		path, err := filepath.EvalSymlinks(devicePath)
+		if err != nil {
+			return false
+		}
+
+		return isMultipathDevice(path)
+	}
+
+	// The multipath command is synchronous, but udev updates the /dev/disk/by-id
+	// symlinks asynchronously. Wait for the multipath-backed device path to appear.
+	return block.WaitDiskDevicePath(ctx, iscsiDiskDevicePrefix, multipathDeviceFiler)
+}
+
+// GetDiskDevicePath returns the path of the mapped iSCSI device.
+func (c *connectorISCSI) GetDiskDevicePath(diskPathFilter block.DevicePathFilterFunc) (string, error) {
+	return block.GetDiskDevicePath(iscsiDiskDevicePrefix, diskPathFilter)
+}
+
+// RemoveDiskDevice removes the disk device from the system.
+//
+// When iSCSI volume is disconnected from the host, the device remains on the system.
+// The device can be removed either manually, or automatically when disconnecting from the iSCSI session.
+// However, logging out of the session is not desired as it would disconnect all connected volumes.
+// Therefore, this function manually removes the device, preserving other connected volumes.
+//
+// Note that iSCSI device should be removed from the host before being unmapped on the storage array side.
+// On some storage arrays (for example, HPE Alletra and Pure) we've seen that removing a vLUN from the array
+// immediately makes device inaccessible and traps any task that tries to access it
+// to D-state (and this task can be systemd-udevd which tries to remove a device node!).
+// That's why it is better to remove the device node from the host and then remove vLUN.
+func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string) error {
+	if devicePath == "" {
+		return nil
+	}
+
+	// removeDevice removes device from the system if the device is removable.
+	removeDevice := func(devName string) error {
+		path := "/sys/block/" + devName + "/device/delete"
+
+		err := os.WriteFile(path, []byte("1"), 0400)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+
+		return nil
+	}
+
+	deviceName := filepath.Base(devicePath)
+
+	if isMultipathDevice(devicePath) {
+		// Collect the slave devices before removing the multipath map,
+		// as /sys/block/dm-X/slaves/ will be gone after removal.
+		slavesPath := filepath.Join("/sys/block", deviceName, "slaves")
+		slaves, _ := os.ReadDir(slavesPath)
+
+		// Remove the multipath map.
+		//
+		// This may fail transiently with "map in use" if the device is still
+		// briefly open (for example by udev), so retry a few times before giving up.
+		var err error
+		for range 10 {
+			ctxErr := ctx.Err()
+			if ctxErr != nil {
+				// Preserve the command error if we already have one.
+				// Otherwise return the generic context error.
+				if err == nil {
+					err = ctxErr
+				}
+
+				break
+			}
+
+			_, err = shared.RunCommand(ctx, "multipath", "-f", devicePath)
+			if err == nil {
+				break
+			}
+
+			time.Sleep(500 * time.Millisecond)
+		}
+
+		if err != nil {
+			return fmt.Errorf("Failed to remove multipath device %q: %w", devicePath, err)
+		}
+
+		// Remove the underlying SCSI devices that were part of the multipath map.
+		// If not removed, they remain on the system and cause I/O errors when the
+		// volume is disconnected from the storage array.
+		for _, slave := range slaves {
+			err := removeDevice(slave.Name())
+			if err != nil {
+				return fmt.Errorf("Failed to remove multipath slave device %q: %w", slave.Name(), err)
+			}
+		}
+	} else {
+		// For non-multipath device (/dev/sd*), remove the device itself.
+		err := removeDevice(deviceName)
+		if err != nil {
+			return fmt.Errorf("Failed to remove device %q: %w", devicePath, err)
+		}
+	}
+
+	// Wait until the device has disappeared.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	if !block.WaitDiskDeviceGone(ctx, devicePath) {
+		return fmt.Errorf("Timeout exceeded waiting for device %q to disappear", devicePath)
+	}
+
+	return nil
+}
+
+func isMultipathDevice(devicePath string) bool {
+	return strings.HasPrefix(filepath.Base(devicePath), "dm-")
 }
