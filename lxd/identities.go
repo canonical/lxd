@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
@@ -424,7 +425,7 @@ func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
 	newIdentityID := uuid.New()
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Create the identity.
-		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+		id, err := query.Create(ctx, tx.Tx(), dbCluster.Identity{
 			AuthMethod: api.AuthenticationMethodBearer,
 			Type:       dbCluster.IdentityType(req.Type),
 			Identifier: newIdentityID.String(),
@@ -725,7 +726,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertifica
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Create the identity.
-		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+		id, err := query.Create(ctx, tx.Tx(), dbCluster.Identity{
 			AuthMethod: api.AuthenticationMethodTLS,
 			Type:       api.IdentityTypeCertificateClient,
 			Identifier: fingerprint,
@@ -735,7 +736,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertifica
 		if err != nil {
 			if api.StatusErrorCheck(err, http.StatusConflict) {
 				// Check if we already have the certificate.
-				_, err := dbCluster.GetIdentityID(ctx, tx.Tx(), api.AuthenticationMethodTLS, fingerprint)
+				_, err := dbCluster.GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), api.AuthenticationMethodTLS, fingerprint)
 				if err == nil {
 					return api.NewStatusError(http.StatusConflict, "Identity already exists")
 				}
@@ -841,7 +842,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 
 	// Create the identity.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+		id, err := query.Create(ctx, tx.Tx(), dbCluster.Identity{
 			AuthMethod: api.AuthenticationMethodTLS,
 			Type:       api.IdentityTypeCertificateClientPending,
 			Identifier: identifier.String(),
@@ -892,7 +893,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 
 	reverter.Add(func() {
 		err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			return dbCluster.DeleteIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier)
+			return query.Delete(ctx, tx.Tx(), id)
 		})
 		if err != nil {
 			logger.Warn("Failed to delete invalid or expired pending TLS identity", logger.Ctx{"err": err, "identity_id": id.Identifier})
@@ -1282,13 +1283,14 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 		var apiIdentity *api.Identity
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get all identities, filter by authentication method if present.
-			var filters []dbCluster.IdentityFilter
+			var clause string
+			var args []any
 			if authenticationMethod != "" {
-				clusterAuthMethod := dbCluster.AuthMethod(authenticationMethod)
-				filters = append(filters, dbCluster.IdentityFilter{AuthMethod: &clusterAuthMethod})
+				clause = "WHERE auth_method = ?"
+				args = []any{dbCluster.AuthMethod(authenticationMethod)}
 			}
 
-			allIdentities, err := dbCluster.GetIdentitys(ctx, tx.Tx(), filters...)
+			allIdentities, err := query.Select[dbCluster.Identity](ctx, tx.Tx(), clause, args...)
 			if err != nil {
 				return err
 			}
@@ -1607,7 +1609,7 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 	var effectiveGroups []string
 	var effectivePermissions []api.Permission
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(requestor.CallerProtocol()), requestor.CallerUsername())
+		id, err := dbCluster.GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), requestor.CallerProtocol(), requestor.CallerUsername())
 		if err != nil {
 			return fmt.Errorf("Failed to get current identity from database: %w", err)
 		}
@@ -1837,13 +1839,9 @@ func updateSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluste
 			return nil
 		}
 
-		return dbCluster.UpdateIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier, dbCluster.Identity{
-			AuthMethod: id.AuthMethod,
-			Type:       id.Type,
-			Identifier: fingerprint,
-			Name:       id.Name,
-			Metadata:   metadata,
-		})
+		id.Identifier = fingerprint
+		id.Metadata = metadata
+		return query.Update(ctx, tx.Tx(), id)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1901,13 +1899,9 @@ func updateIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Iden
 		}
 
 		// Only update certificate if present and different to the existing one.
-		return dbCluster.UpdateIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier, dbCluster.Identity{
-			AuthMethod: id.AuthMethod,
-			Type:       id.Type,
-			Identifier: fingerprint,
-			Name:       id.Name,
-			Metadata:   metadata,
-		})
+		id.Identifier = fingerprint
+		id.Metadata = metadata
+		return query.Update(ctx, tx.Tx(), id)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -2114,13 +2108,9 @@ func patchIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Ident
 		// Only update the certificate if it is given. Additionally, we don't need to update it if it's the same as the
 		// existing one.
 		if identityPut.TLSCertificate != "" && fingerprint != id.Identifier {
-			return dbCluster.UpdateIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier, dbCluster.Identity{
-				AuthMethod: id.AuthMethod,
-				Type:       id.Type,
-				Identifier: fingerprint,
-				Name:       id.Name,
-				Metadata:   metadata,
-			})
+			id.Identifier = fingerprint
+			id.Metadata = metadata
+			return query.Update(ctx, tx.Tx(), id)
 		}
 
 		return nil
@@ -2180,13 +2170,9 @@ func patchSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluster
 			return err
 		}
 
-		return dbCluster.UpdateIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier, dbCluster.Identity{
-			AuthMethod: id.AuthMethod,
-			Type:       id.Type,
-			Identifier: fingerprint,
-			Name:       id.Name,
-			Metadata:   metadata,
-		})
+		id.Identifier = fingerprint
+		id.Metadata = metadata
+		return query.Update(ctx, tx.Tx(), id)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -2281,7 +2267,7 @@ func identityDelete(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.DeleteIdentity(ctx, tx.Tx(), id.AuthMethod, id.Identifier)
+		return query.Delete(ctx, tx.Tx(), id)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -2365,7 +2351,7 @@ func updateIdentityCache(d *Daemon) {
 	bearerIdentitySecrets := make(map[int64]dbCluster.AuthSecretValue)
 	var err error
 	err = s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		identities, err = dbCluster.GetIdentitys(ctx, tx.Tx())
+		identities, err = query.Select[dbCluster.Identity](ctx, tx.Tx(), "")
 		if err != nil {
 			return err
 		}

@@ -393,6 +393,11 @@ func TestJoin(t *testing.T) {
 	f := &membershipFixtures{t: t, state: state}
 	f.ClusterAddress(address)
 
+	err = targetState.DB.Cluster.Transaction(t.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return cluster.EnsureServerCertificateTrusted("rusp", altServerCert, tx)
+	})
+	require.NoError(t, err)
+
 	// Accept the joining node.
 	dbCluster.PreparedStmts = targetStmts
 	raftNodes, err := cluster.Accept(
