@@ -1224,8 +1224,17 @@ func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.
 		}
 
 		if address == "" {
-			// Nothing to do.
-			return nil
+			transferred, err := transferLeadershipForControlPlaneRebalance(s, gateway, nodes, connectivity, memberRoles)
+			if err != nil {
+				return err
+			}
+
+			if !transferred {
+				// Nothing to do.
+				return nil
+			}
+
+			continue
 		}
 
 		// Process demotions of offline nodes immediately.
@@ -1260,6 +1269,56 @@ func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.
 			return err
 		}
 	}
+}
+
+// transferLeadershipForControlPlaneRebalance hands leadership to a control-plane
+// voter when the current leader is the only remaining non-control-plane voter.
+func transferLeadershipForControlPlaneRebalance(s *state.State, gateway *cluster.Gateway, nodes []db.RaftNode, connectivity map[string]bool, memberRoles map[string][]db.ClusterRole) (bool, error) {
+	if !cluster.IsControlPlaneActive(memberRoles) {
+		return false, nil
+	}
+
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return false, err
+	}
+
+	if !leaderInfo.Clustered || !leaderInfo.Leader {
+		return false, nil
+	}
+
+	localClusterAddress := s.LocalConfig.ClusterAddress()
+	leaderNeedsTransfer := false
+	eligibleAddresses := make([]string, 0, len(nodes))
+
+	for _, node := range nodes {
+		if node.Role != db.RaftVoter || !connectivity[node.Address] {
+			continue
+		}
+
+		if node.Address == localClusterAddress {
+			leaderNeedsTransfer = !slices.Contains(memberRoles[node.Address], db.ClusterRoleControlPlane)
+			continue
+		}
+
+		if !slices.Contains(memberRoles[node.Address], db.ClusterRoleControlPlane) {
+			return false, nil
+		}
+
+		eligibleAddresses = append(eligibleAddresses, node.Address)
+	}
+
+	if !leaderNeedsTransfer || len(eligibleAddresses) == 0 {
+		return false, nil
+	}
+
+	logger.Info("Transferring leadership to continue control-plane rebalance", logger.Ctx{"address": localClusterAddress})
+	err = gateway.TransferLeadership(eligibleAddresses...)
+	if err != nil {
+		return false, fmt.Errorf("Failed transferring leadership for control-plane rebalance: %w", err)
+	}
+
+	return true, nil
 }
 
 // Check if there are nodes not part of the raft configuration and add them in
