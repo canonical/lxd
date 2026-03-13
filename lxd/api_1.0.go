@@ -1054,7 +1054,6 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, oldNodeConfig map[string]string, newNodeConfig *node.Config, newClusterConfig *clusterConfig.Config) error {
 	s := d.State()
 
-	maasChanged := false
 	bgpChanged := false
 	dnsChanged := false
 	lokiChanged := false
@@ -1073,10 +1072,6 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			fallthrough
 		case "core.proxy_ignore_hosts":
 			daemonConfigSetProxy(d, newClusterConfig)
-		case "maas.api.url":
-			fallthrough
-		case "maas.api.key":
-			maasChanged = true
 		case "cluster.images_minimal_replica":
 			err := autoSyncImages(s.ShutdownCtx, s)
 			if err != nil {
@@ -1123,8 +1118,6 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	projectVolumeConfigKeys := make([]string, 0)
 	for key := range nodeChanged {
 		switch key {
-		case "maas.machine":
-			maasChanged = true
 		case "core.bgp_address":
 			fallthrough
 		case "core.bgp_routerid":
@@ -1206,15 +1199,6 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfigKey], storageType)
 		if err != nil {
 			return fmt.Errorf("Failed setting node config %q: %w", projectVolumeConfigKey, err)
-		}
-	}
-
-	if maasChanged {
-		url, key := newClusterConfig.MAASController()
-		machine := newNodeConfig.MAASMachine()
-		err := d.setupMAASController(url, key, machine)
-		if err != nil {
-			return err
 		}
 	}
 

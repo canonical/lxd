@@ -49,8 +49,6 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"mtu",
 		"hwaddr",
 		"vlan",
-		"maas.subnet.ipv4",
-		"maas.subnet.ipv6",
 		"boot.priority",
 		"gvrp",
 	}
@@ -59,7 +57,7 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 	if d.config["network"] != "" {
 		requiredFields = append(requiredFields, "network")
 		inheritKeys := make([]string, 0, 7)
-		inheritKeys = append(inheritKeys, "mtu", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "gvrp")
+		inheritKeys = append(inheritKeys, "mtu", "vlan", "gvrp")
 		bannedKeys := append(inheritKeys, "nictype", "parent")
 		for _, bannedKey := range bannedKeys {
 			if d.config[bannedKey] != "" {

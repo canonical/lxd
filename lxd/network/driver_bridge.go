@@ -602,24 +602,6 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  shortdesc: Additional `dnsmasq` configuration to append to the configuration file
 		//  scope: global
 		"raw.dnsmasq": validate.IsAny,
-		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=maas.subnet.ipv4)
-		//
-		// ---
-		//  type: string
-		//  condition: IPv4 address; using the `network` property on the NIC
-		//  shortdesc: `true`
-		//  shortdesc: MAAS IPv4 subnet to register instances in
-		//  scope: global
-		"maas.subnet.ipv4": validate.IsAny,
-		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=maas.subnet.ipv6)
-		//
-		// ---
-		//  type: string
-		//  condition: IPv6 address; using the `network` property on the NIC
-		//  shortdesc: `true`
-		//  shortdesc: MAAS IPv6 subnet to register instances in
-		//  scope: global
-		"maas.subnet.ipv6": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls)
 		// Specify a comma-separated list of network ACLs.
 		//

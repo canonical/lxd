@@ -458,13 +458,3 @@ In such case, a `bridge` device is preferable.
 A bridge also lets you use MAC filtering and I/O limits, which cannot be applied to a `macvlan` device.
 
 `ipvlan` is similar to `macvlan`, with the difference being that the forked device has IPs statically assigned to it and inherits the parent's MAC address on the network.
-
-## MAAS integration
-
-If you're using MAAS to manage the physical network under your LXD host and want to attach your instances directly to a MAAS-managed network, LXD can be configured to interact with MAAS so that it can track your instances.
-
-At the daemon level, you must configure {config:option}`server-miscellaneous:maas.api.url` and {config:option}`server-miscellaneous:maas.api.key`, and then set the NIC-specific `maas.subnet.ipv4` and/or `maas.subnet.ipv6` keys on the instance or profile's `nic` entry.
-
-With this configuration, LXD registers all your instances with MAAS, giving them proper DHCP leases and DNS records.
-
-If you set the `ipv4.address` or `ipv6.address` keys on the NIC, those are registered as static assignments in MAAS.

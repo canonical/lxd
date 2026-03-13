@@ -515,20 +515,6 @@ The effect of this value depends on the particular qdisc implementation, for exa
 Consult the kernel qdisc documentation before setting this value.
 ```
 
-```{config:option} maas.subnet.ipv4 device-nic-bridged-device-conf
-:managed: "yes"
-:shortdesc: "MAAS IPv4 subnet to register the instance in"
-:type: "string"
-
-```
-
-```{config:option} maas.subnet.ipv6 device-nic-bridged-device-conf
-:managed: "yes"
-:shortdesc: "MAAS IPv6 subnet to register the instance in"
-:type: "string"
-
-```
-
 ```{config:option} mtu device-nic-bridged-device-conf
 :defaultdesc: "parent MTU"
 :managed: "yes"
@@ -732,20 +718,6 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 :defaultdesc: "randomly assigned"
 :managed: "no"
 :shortdesc: "MAC address of the new interface"
-:type: "string"
-
-```
-
-```{config:option} maas.subnet.ipv4 device-nic-macvlan-device-conf
-:managed: "yes"
-:shortdesc: "MAAS IPv4 subnet to register the instance in"
-:type: "string"
-
-```
-
-```{config:option} maas.subnet.ipv6 device-nic-macvlan-device-conf
-:managed: "yes"
-:shortdesc: "MAAS IPv6 subnet to register the instance in"
 :type: "string"
 
 ```
@@ -1053,20 +1025,6 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 
 ```
 
-```{config:option} maas.subnet.ipv4 device-nic-physical-device-conf
-:managed: "no"
-:shortdesc: "MAAS IPv4 subnet to register the instance in"
-:type: "string"
-
-```
-
-```{config:option} maas.subnet.ipv6 device-nic-physical-device-conf
-:managed: "no"
-:shortdesc: "MAAS IPv6 subnet to register the instance in"
-:type: "string"
-
-```
-
 ```{config:option} mtu device-nic-physical-device-conf
 :condition: "container"
 :defaultdesc: "parent MTU"
@@ -1283,20 +1241,6 @@ A higher value for this option means that the VM boots first.
 :defaultdesc: "randomly assigned"
 :managed: "no"
 :shortdesc: "MAC address of the new interface"
-:type: "string"
-
-```
-
-```{config:option} maas.subnet.ipv4 device-nic-sriov-device-conf
-:managed: "yes"
-:shortdesc: "MAAS IPv4 subnet to register the instance in"
-:type: "string"
-
-```
-
-```{config:option} maas.subnet.ipv6 device-nic-sriov-device-conf
-:managed: "yes"
-:shortdesc: "MAAS IPv6 subnet to register the instance in"
 :type: "string"
 
 ```
@@ -3266,22 +3210,6 @@ Specify a comma-separated list of IPv6 CIDR subnets.
 
 ```
 
-```{config:option} maas.subnet.ipv4 network-bridge-network-conf
-:condition: "IPv4 address; using the `network` property on the NIC"
-:scope: "global"
-:shortdesc: "MAAS IPv4 subnet to register instances in"
-:type: "string"
-
-```
-
-```{config:option} maas.subnet.ipv6 network-bridge-network-conf
-:condition: "IPv6 address; using the `network` property on the NIC"
-:scope: "global"
-:shortdesc: "MAAS IPv6 subnet to register instances in"
-:type: "string"
-
-```
-
 ```{config:option} raw.dnsmasq network-bridge-network-conf
 :scope: "global"
 :shortdesc: "Additional `dnsmasq` configuration to append to the configuration file"
@@ -3575,22 +3503,6 @@ See {ref}`network-load-balancers-port-specifications`.
 :shortdesc: "Whether to use GARP VLAN Registration Protocol"
 :type: "bool"
 This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
-```
-
-```{config:option} maas.subnet.ipv4 network-macvlan-network-conf
-:condition: "IPv4 address; using the `network` property on the NIC"
-:scope: "global"
-:shortdesc: "MAAS IPv4 subnet to register instances in"
-:type: "string"
-
-```
-
-```{config:option} maas.subnet.ipv6 network-macvlan-network-conf
-:condition: "IPv4 address; using the `network` property on the NIC"
-:scope: "global"
-:shortdesc: "MAAS IPv6 subnet to register instances in"
-:type: "string"
-
 ```
 
 ```{config:option} mtu network-macvlan-network-conf
@@ -3987,22 +3899,6 @@ Specify a comma-separated list of IPv6 CIDR subnets that can be used with child 
 If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.
 ```
 
-```{config:option} maas.subnet.ipv4 network-physical-network-conf
-:condition: "IPv4 address; using the `network` property on the NIC"
-:scope: "global"
-:shortdesc: "MAAS IPv4 subnet to register instances in"
-:type: "string"
-
-```
-
-```{config:option} maas.subnet.ipv6 network-physical-network-conf
-:condition: "IPv6 address; using the `network` property on the NIC"
-:scope: "global"
-:shortdesc: "MAAS IPv6 subnet to register instances in"
-:type: "string"
-
-```
-
 ```{config:option} mtu network-physical-network-conf
 :scope: "global"
 :shortdesc: "MTU of the new interface"
@@ -4042,22 +3938,6 @@ Possible values are `l2proxy` (proxy ARP/NDP) and `routed`.
 
 <!-- config group network-physical-network-conf end -->
 <!-- config group network-sriov-network-conf start -->
-```{config:option} maas.subnet.ipv4 network-sriov-network-conf
-:condition: "IPv4 address; using the `network` property on the NIC"
-:scope: "global"
-:shortdesc: "MAAS IPv4 subnet to register instances in"
-:type: "string"
-
-```
-
-```{config:option} maas.subnet.ipv6 network-sriov-network-conf
-:condition: "IPv6 address; using the `network` property on the NIC"
-:scope: "global"
-:shortdesc: "MAAS IPv6 subnet to register instances in"
-:type: "string"
-
-```
-
 ```{config:option} mtu network-sriov-network-conf
 :scope: "global"
 :shortdesc: "MTU of the new interface"
@@ -4968,28 +4848,6 @@ Possible values are `random` and `mac`.
 
 If set to `random`, use the random host interface name as the host name.
 If set to `mac`, generate a host name in the form `lxd<mac_address>` (MAC without leading two digits).
-```
-
-```{config:option} maas.api.key server-miscellaneous
-:scope: "global"
-:shortdesc: "API key to manage MAAS"
-:type: "string"
-
-```
-
-```{config:option} maas.api.url server-miscellaneous
-:scope: "global"
-:shortdesc: "URL of the MAAS server"
-:type: "string"
-
-```
-
-```{config:option} maas.machine server-miscellaneous
-:defaultdesc: "host name"
-:scope: "local"
-:shortdesc: "Name of this LXD host in MAAS"
-:type: "string"
-
 ```
 
 ```{config:option} network.ovn.ca_cert server-miscellaneous

@@ -45,8 +45,6 @@ func (d *nicSRIOV) validateConfig(instConf instance.ConfigReader) error {
 		"hwaddr",
 		"vlan",
 		"security.mac_filtering",
-		"maas.subnet.ipv4",
-		"maas.subnet.ipv6",
 		"boot.priority",
 	}
 
@@ -54,7 +52,7 @@ func (d *nicSRIOV) validateConfig(instConf instance.ConfigReader) error {
 	if d.config["network"] != "" {
 		requiredFields = append(requiredFields, "network")
 		inheritKeys := make([]string, 0, 6)
-		inheritKeys = append(inheritKeys, "mtu", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6")
+		inheritKeys = append(inheritKeys, "mtu", "vlan")
 		bannedKeys := append(inheritKeys, "nictype", "parent")
 		for _, bannedKey := range bannedKeys {
 			if d.config[bannedKey] != "" {

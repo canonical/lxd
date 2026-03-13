@@ -54,7 +54,6 @@ import (
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/loki"
-	"github.com/canonical/lxd/lxd/maas"
 	"github.com/canonical/lxd/lxd/metrics"
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
@@ -89,7 +88,6 @@ type Daemon struct {
 	os            *sys.OS
 	db            *db.DB
 	firewall      firewall.Firewall
-	maas          *maas.Controller
 	bgp           *bgp.Server
 	dns           *dns.Server
 
@@ -738,7 +736,6 @@ func (d *Daemon) State() *state.State {
 	s := &state.State{
 		ShutdownCtx:         d.shutdownCtx,
 		DB:                  d.db,
-		MAAS:                d.maas,
 		BGP:                 d.bgp,
 		DNS:                 d.dns,
 		OS:                  d.os,
@@ -1719,17 +1716,12 @@ func (d *Daemon) init() error {
 	bgpAddress := d.localConfig.BGPAddress()
 	bgpRouterID := d.localConfig.BGPRouterID()
 
-	maasAPIURL := ""
-	maasAPIKey := ""
-	maasMachine := d.localConfig.MAASMachine()
-
 	// Get specific config keys.
 	d.globalConfigMu.Lock()
 	bgpASN := d.globalConfig.BGPASN()
 
 	d.proxy = shared.ProxyFromConfig(d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts())
 
-	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := d.globalConfig.LokiServer()
 	oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim := d.globalConfig.OIDCServer()
@@ -1904,43 +1896,6 @@ func (d *Daemon) init() error {
 
 		// Read the trusted identities
 		updateIdentityCache(d)
-
-		// Connect to MAAS
-		if maasAPIURL != "" {
-			go func() {
-				warningAdded := false
-
-				for {
-					err = d.setupMAASController(maasAPIURL, maasAPIKey, maasMachine)
-					if err == nil {
-						logger.Info("Connected to MAAS controller", logger.Ctx{"url": maasAPIURL})
-						break
-					}
-
-					logger.Warn("Unable to connect to MAAS, trying again in a minute", logger.Ctx{"url": maasAPIURL, "err": err})
-
-					if !warningAdded {
-						_ = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-							err := tx.UpsertWarningLocalNode(ctx, "", "", -1, warningtype.UnableToConnectToMAAS, err.Error())
-							if err != nil {
-								logger.Warn("Failed to create warning", logger.Ctx{"err": err})
-							}
-
-							return nil
-						})
-
-						warningAdded = true
-					}
-
-					time.Sleep(time.Minute)
-				}
-
-				// Resolve any previously created warning once connected
-				if warningAdded {
-					_ = warnings.ResolveWarningsByLocalNodeAndType(d.db.Cluster, warningtype.UnableToConnectToMAAS)
-				}
-			}()
-		}
 	}
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -2352,35 +2307,6 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	}
 
 	return err
-}
-
-// Setup MAAS.
-func (d *Daemon) setupMAASController(server string, key string, machine string) error {
-	var err error
-	d.maas = nil
-
-	// Default the machine name to the hostname
-	if machine == "" {
-		machine, err = os.Hostname()
-		if err != nil {
-			return err
-		}
-	}
-
-	// We need both URL and key, otherwise disable MAAS
-	if server == "" || key == "" {
-		return nil
-	}
-
-	// Get a new controller struct
-	controller, err := maas.NewController(server, key, machine)
-	if err != nil {
-		d.maas = nil
-		return err
-	}
-
-	d.maas = controller
-	return nil
 }
 
 func (d *Daemon) setupSyslogSocket(enable bool) error {

@@ -63,22 +63,6 @@ func (n *physical) Validate(config map[string]string) error {
 		//  shortdesc: Whether to use GARP VLAN Registration Protocol
 		//  scope: global
 		"gvrp": validate.Optional(validate.IsBool),
-		// lxdmeta:generate(entities=network-physical; group=network-conf; key=maas.subnet.ipv4)
-		//
-		// ---
-		//  type: string
-		//  condition: IPv4 address; using the `network` property on the NIC
-		//  shortdesc: MAAS IPv4 subnet to register instances in
-		//  scope: global
-		"maas.subnet.ipv4": validate.IsAny,
-		// lxdmeta:generate(entities=network-physical; group=network-conf; key=maas.subnet.ipv6)
-		//
-		// ---
-		//  type: string
-		//  condition: IPv6 address; using the `network` property on the NIC
-		//  shortdesc: MAAS IPv6 subnet to register instances in
-		//  scope: global
-		"maas.subnet.ipv6": validate.IsAny,
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv4.gateway)
 		// Use CIDR notation.
 		// ---

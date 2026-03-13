@@ -199,9 +199,7 @@ if os.environ.get('CI') == 'true':
 linkcheck_anchors_ignore_for_url = [
     r'https://github\.com/.*',
     r'https://snapcraft\.io/docs/.*',
-    'https://docs.docker.com/network/packet-filtering-firewalls/',
-    'https://maas.io/docs/how-to-manage-machines',
-    'https://web.libera.chat'
+    'https://docs.docker.com/network/packet-filtering-firewalls/'
 ]
 
 linkcheck_exclude_documents = [r'.*/manpages/.*']

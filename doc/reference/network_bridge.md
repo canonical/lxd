@@ -46,7 +46,6 @@ The following configuration key namespaces are currently supported for the `brid
 - `fan` (configuration specific to the Ubuntu FAN overlay)
 - `ipv4` (L3 IPv4 configuration)
 - `ipv6` (L3 IPv6 configuration)
-- `maas` (MAAS network identification)
 - `security` (network ACL configuration)
 - `raw` (raw configuration file content)
 - `tunnel` (cross-host tunneling configuration)

@@ -168,7 +168,6 @@ LXCFS
 LXC's
 LXD
 LXD's
-MAAS
 macOS
 macvlan
 manpages
