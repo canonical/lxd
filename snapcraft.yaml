@@ -72,6 +72,9 @@ plugs:
  ovn-chassis:
    interface: content
    target: "$SNAP_DATA/microovn/chassis"
+ ovn-env:
+   interface: content
+   target: "$SNAP_DATA/microovn/ovn-env"
  gpu-2404:
    interface: content
    target: $SNAP/gpu-2404
