@@ -784,18 +784,24 @@ func IsDeviceName(name string) error {
 	return nil
 }
 
+// parseRequestURL parses value as an HTTP/HTTPS request URL and returns the parsed URL.
+func parseRequestURL(value string) (*url.URL, error) {
+	if value == "" {
+		return nil, errors.New("Empty URL")
+	}
+
+	u, err := url.ParseRequestURI(value)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid URL: %w", err)
+	}
+
+	return u, nil
+}
+
 // IsRequestURL checks value is a valid HTTP/HTTPS request URL.
 func IsRequestURL(value string) error {
-	if value == "" {
-		return errors.New("Empty URL")
-	}
-
-	_, err := url.ParseRequestURI(value)
-	if err != nil {
-		return fmt.Errorf("Invalid URL: %w", err)
-	}
-
-	return nil
+	_, err := parseRequestURL(value)
+	return err
 }
 
 // IsCloudInitUserData checks value is valid cloud-init user data.
