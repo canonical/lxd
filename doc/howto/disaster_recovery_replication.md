@@ -28,7 +28,7 @@ Before you can set up storage replication, you must set up the required {ref}`en
 
 Ensure that both the primary and secondary LXD deployments have a storage pool on their respective storage arrays that can later be used for replication.
 
-If you need to create a storage pool at either location, see: {ref}`storage-create-pool`.
+If you need to create a storage pool at either location, see: {ref}`howto-storage-pools-create`.
 
 (disaster-recovery-replication-entities-other)=
 ### Networks and profiles
@@ -108,7 +108,7 @@ The instances and custom storage volumes are then recovered on the secondary LXD
 
 If the LXD storage pool at the secondary location exists only in the storage array and has not yet been created in LXD (as described in {ref}`disaster-recovery-replication-entities-pool`), you must recover it first.
 
-Use the `lxc storage create` command to add the storage pool. This works for both single and clustered LXD deployments. For more information, see: {ref}`storage-create-pool`.
+Use the `lxc storage create` command to add the storage pool. This works for both single and clustered LXD deployments. For more information, see: {ref}`howto-storage-pools-create`.
 
 (disaster-recovery-replication-add-pool-cephrbd)=
 #### Recover Ceph RBD pool

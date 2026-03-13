@@ -1,56 +1,85 @@
 ---
 discourse: lxc:[How&#32;to&#32;resize&#32;ZFS&#32;used&#32;in&#32;LXD](1333)
+myst:
+  html_meta:
+    description: Learn how to create, configure, view, and resize LXD storage pools across drivers, with practical examples.
 ---
 
 (howto-storage-pools)=
 # How to manage storage pools
 
-See the following sections for instructions on how to create, configure, view and resize {ref}`storage-pools`.
+See the following sections for instructions on how to create, configure, view, and resize {ref}`storage-pools`.
 
-(storage-create-pool)=
-## Create a storage pool
+(howto-storage-pools-view)=
+## View storage pools
 
-LXD creates a storage pool during initialization. You can add more storage pools later, using the same driver or different drivers.
-
-For Ceph-based storage pools, first see the {ref}`howto-storage-pools-ceph-requirements` section.
+You can display a list of all available storage pools and check their configuration.
 
 `````{tabs}
 ````{group-tab} CLI
-To create a storage pool, use the following command:
 
-    lxc storage create <pool_name> <driver> [configuration_options...]
-See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
+To list all available storage pools, run:
+
+    lxc storage list
+
+The storage pool created during initialization is usually called `default` or `local`.
+
+To show detailed information about a specific pool, run:
+
+    lxc storage show <pool_name>
+
+To see usage information for a specific pool, run:
+
+    lxc storage info <pool_name>
 
 ````
-
 ````{group-tab} UI
-To create a storage pool, select {guilabel}`Pools` from the {guilabel}`Storage` section of the main navigation.
 
-On the resulting screen, click {guilabel}`Create pool` in the upper right corner.
+To view storage pools in the UI, select {guilabel}`Pools` from the {guilabel}`Storage` section of the main navigation. Select a pool from the list for detailed information.
 
-From this screen, you can configure the name and description of your storage pool.
-You can select a storage driver from the {guilabel}`Driver` dropdown. Additional settings might appear, depending on the storage driver selected.
-
-Click {guilabel}`Create` to create the storage pool.
-
-
-```{figure} /images/storage/storage_pools_create.png
-:width: 80%
-:alt: Create a storage pool in LXD
-```
 ````
 `````
 
+(howto-storage-pools-create)=
+## Create a storage pool
+
+LXD creates a storage pool during initialization. You can add more storage pools later, using the same or different driver. See the {ref}`storage-drivers` documentation to learn about available configuration options for each driver.
+
 By default, LXD sets up loop-based storage with a sensible default size/quota: 20% of the free disk space, with a minimum of 5 GiB and a maximum of 30 GiB.
 
-### Examples
+When using a Ceph storage driver, first see the {ref}`howto-storage-pools-ceph-requirements` section below.
 
 `````{tabs}
 ````{group-tab} CLI
+To create a storage pool, run:
 
-The following examples demonstrate how to create a storage pool using different types of storage drivers.
+    lxc storage create <pool_name> <driver> [configuration_options...]
 
-#### Create a directory pool
+See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
+````
+
+````{group-tab} UI
+To create a storage pool, select {guilabel}`Pools` from the {guilabel}`Storage` section of the main navigation, then click {guilabel}`Create pool`. On the resulting screen, the {guilabel}`Name` and {guilabel}`Driver` fields are required.
+
+Once you select a driver, the fields below the driver selection dropdown might change. Furthermore, some drivers also offer a secondary settings page, as shown in the example below for the ZFS driver:
+
+```{figure} /images/storage/storage_pools_create_ZFS_driver.png
+:width: 80%
+:alt: Storage pool options for driver ZFS in LXD-UI
+```
+
+````
+`````
+
+After creating a storage pool, {ref}`back up its configuration <howto-storage-pools-config-backup>` for future recovery.
+
+(howto-storage-pools-create-examples)=
+### Examples
+
+The following CLI syntax examples show how to create a storage pool using different storage drivers.
+
+`````{tabs}
+````{group-tab} dir
 
 Create a directory pool named `pool1`:
 
@@ -60,31 +89,35 @@ Use the existing directory `/data/lxd` for `pool2`:
 
     lxc storage create pool2 dir source=/data/lxd
 
-#### Create a Btrfs pool
+````
+````{group-tab} btrfs
 
 Create a loop-backed pool named `pool1`:
 
     lxc storage create pool1 btrfs
 
-Use the existing Btrfs file system at `/some/path` for `pool2`:
+You can specify `source` as either an existing filesystem path or a block device.
+
+Reuse the existing Btrfs filesystem at `/some/path` for `pool2`:
 
     lxc storage create pool2 btrfs source=/some/path
 
-Create a pool named `pool3` on `/dev/sdX`:
+Use a block device at `/dev/sdX` to create `pool3`:
 
     lxc storage create pool3 btrfs source=/dev/sdX
 
-#### Create an LVM pool
+````
+````{group-tab} lvm
 
 Create a loop-backed pool named `pool1` (the LVM volume group will also be called `pool1`):
 
     lxc storage create pool1 lvm
 
-Use the existing LVM volume group called `my-pool` for `pool2`:
+Use an existing LVM volume group called `my-pool` for `pool2`:
 
     lxc storage create pool2 lvm source=my-pool
 
-Use the existing LVM thin pool called `my-pool` in volume group `my-vg` for `pool3`:
+Use an existing LVM thin pool called `my-pool` in volume group `my-vg` for `pool3`:
 
     lxc storage create pool3 lvm source=my-vg lvm.thinpool_name=my-pool
 
@@ -96,7 +129,8 @@ Create a pool named `pool5` on `/dev/sdX` with the LVM volume group name `my-poo
 
     lxc storage create pool5 lvm source=/dev/sdX lvm.vg_name=my-pool
 
-#### Create a ZFS pool
+````
+````{group-tab} zfs
 
 Create a loop-backed pool named `pool1` (the ZFS zpool will also be called `pool1`):
 
@@ -126,11 +160,12 @@ Create a pool named `pool7` on `/dev/sdX` with the ZFS zpool name `my-tank`:
 
     lxc storage create pool7 zfs source=/dev/sdX zfs.pool_name=my-tank
 
-#### Ceph-based storage pools
+````
+````{group-tab} ceph*
 
 For Ceph-based storage pools, first see the {ref}`howto-storage-pools-ceph-requirements`.
 
-##### Create a Ceph RBD pool
+#### Ceph RBD
 
 Create an OSD storage pool named `pool1` in the default Ceph cluster (named `ceph`):
 
@@ -152,7 +187,7 @@ Use the existing OSD erasure-coded pool `ecpool` and the OSD replicated pool `rp
 
     lxc storage create pool5 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
 
-##### Create a CephFS pool
+#### Create a CephFS pool
 
 ```{note}
 Each CephFS file system consists of two OSD storage pools, one for the actual data and one for the file metadata.
@@ -162,7 +197,7 @@ Use the existing CephFS file system `my-filesystem` for `pool1`:
 
     lxc storage create pool1 cephfs source=my-filesystem
 
-Use the sub-directory `my-directory` from the `my-filesystem` file system for `pool2`:
+Use the sub-directory `my-directory` from `my-filesystem` for `pool2`:
 
     lxc storage create pool2 cephfs source=my-filesystem/my-directory
 
@@ -170,19 +205,18 @@ Create a CephFS file system `my-filesystem` with a data pool called `my-data` an
 
     lxc storage create pool3 cephfs source=my-filesystem cephfs.create_missing=true cephfs.data_pool=my-data cephfs.meta_pool=my-metadata
 
-##### Create a Ceph Object pool
+#### Ceph Object
 
 A RADOS Gateway endpoint is required for a {ref}`Ceph Object <storage-cephobject>` storage pool. See: {ref}`howto-storage-pools-ceph-requirements-radosgw`.
 
 For a non-clustered LXD server, create `pool1` by passing in a Ceph Object Gateway endpoint (the endpoint shown below is only an example; you must use your own):
 
-```bash
-lxc storage create pool1 cephobject cephobject.radosgw.endpoint=http://192.0.2.10:8080
-```
+    lxc storage create pool1 cephobject cephobject.radosgw.endpoint=http://192.0.2.10:8080
 
-If your LXD server is clustered, such as in a [MicroCloud](https://canonical.com/microcloud) deployment, see: {ref}`storage-pools-cluster`.
+If your LXD server is clustered, such as in a [MicroCloud](https://canonical.com/microcloud) deployment, see: {ref}`howto-storage-pools-create-cluster`.
 
-#### Create a Dell PowerFlex pool
+````
+````{group-tab} powerflex
 
 Create a storage pool named `pool1` using the PowerFlex pool `sp1` in the protection domain `pd1`:
 
@@ -204,7 +238,8 @@ Create a storage pool named `pool5` that explicitly uses the PowerFlex SDC:
 
     lxc storage create pool5 powerflex powerflex.mode=sdc powerflex.pool=<id of sp1> powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
 
-#### Create a Pure Storage pool
+````
+````{group-tab} pure
 
 Create a storage pool named `pool1` that uses NVMe/TCP by default:
 
@@ -222,7 +257,8 @@ Create a storage pool named `pool4` that uses NVMe/TCP to connect to Pure Storag
 
     lxc storage create pool4 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme pure.target=<target_address_1>,<target_address_2>
 
-#### Create a HPE Alletra pool
+````
+````{group-tab} alletra
 
 Create a storage pool named `pool1` that uses NVMe/TCP by default:
 
@@ -237,54 +273,56 @@ Create a storage pool named `pool3` that uses NVMe/TCP to connect to HPE Alletra
     lxc storage create pool3 alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password> alletra.mode=nvme alletra.target=<target_address_1>,<target_address_2>
 
 ````
-
-````{group-tab} UI
-
-You can select a storage driver from the {guilabel}`Driver` dropdown.
-
-Some storage drivers offer additional settings. Click the driver name in the secondary menu to further configure the storage pool.
-
-```{figure} /images/storage/storage_pools_create_ZFS_driver.png
-:width: 80%
-:alt: Storage pool options for driver ZFS in LXD-UI
-```
-
-See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
-
-````
 `````
 
-(storage-pools-cluster)=
+(howto-storage-pools-create-cluster)=
 ## Create a storage pool in a cluster
 
-If you are running a LXD cluster and want to add a storage pool, you must create the storage pool for each cluster member separately.
-The reason for this is that the configuration, for example, the storage location or the size of the pool, might be different between cluster members.
+If you want to add a storage pool to a LXD cluster, you must create the storage pool for each cluster member separately. This is because the configuration might differ among cluster members (for example, the storage location or the size of the pool).
 
-If some cluster members use disks that already contain a LXD storage pool or you want to recover an existing remote storage pool,
-refer to the {ref}`Recover a storage pool <storage-recover-pool>` section.
+If any cluster members use disks that already contain a LXD storage pool, or you want to recover an existing remote storage pool, refer to the {ref}`Recover a storage pool <howto-storage-pools-recover>` section.
 
 `````{tabs}
 ````{group-tab} CLI
 
 To create a storage pool via the CLI, start by creating a pending storage pool on each member with the `--target=<cluster_member>` flag and the appropriate configuration for the member.
 
-Make sure to use the same storage pool name for all members.
-Then create the storage pool without specifying the `--target` flag to actually set it up.
+Make sure to use the same storage pool name for all members. Then create the storage pool _without_ specifying the `--target` flag to actually set it up.
 
-Also see {ref}`cluster-config-storage`.
+For further details, see {ref}`howto-cluster-storage`.
 
-```{note}
-For most storage drivers, the storage pools exist locally on each cluster member.
-That means that if you create a storage volume in a storage pool on one member, it will not be available on other cluster members.
+```{admonition} Ceph-based storage pools in clusters
+:class: note
 
-This behavior is different for Ceph-based storage pools (`ceph`, `cephfs` and `cephobject`) where each storage pool exists in one central location and therefore, all cluster members access the same storage pool with the same storage volumes.
+For most storage drivers, the storage pools exist locally on each cluster member. That means if you create a storage volume in a storage pool on one member, it is not available for other cluster members.
+
+This behavior is different for Ceph-based storage drivers (`ceph`, `cephfs` and `cephobject`). When using these drivers, each storage pool exists in one central location and therefore, all cluster members access the same storage pool with the same storage volumes.
 ```
 
+````
+````{group-tab} UI
+
+Follow the same method to {ref}`create a storage pool <howto-storage-pools-create>` as for a non-clustered LXD server.
+
+Depending on the selected driver, some settings can be configured per cluster member or applied globally to the cluster, as shown in the example below for the ZFS driver:
+
+```{figure} /images/storage/storage_pools_create_clustered_pool.png
+:width: 80%
+:alt: Create a storage pool in a clustered LXD environment
+```
+
+````
+`````
+
+After creating a storage pool, {ref}`back up its configuration <howto-storage-pools-config-backup>` for future recovery.
+
+(howto-storage-pools-create-cluster-examples)=
 ### Examples
 
-See the following examples for different storage drivers for instructions on how to create local or remote storage pools in a cluster.
+The following CLI syntax examples show how to create a storage pool in a cluster using different storage drivers.
 
-#### Create a local storage pool
+`````{tabs}
+````{group-tab} zfs
 
 Create a storage pool named `my-pool` using the ZFS driver at different locations and with different sizes on three cluster members:
 
@@ -312,7 +350,12 @@ lxc storage create my-pool zfs
 Storage pool my-pool created
 ```
 
-#### Create a remote or distributed storage pool
+````
+````{group-tab} ceph*
+
+For Ceph-based storage pools, first see the {ref}`howto-storage-pools-ceph-requirements`.
+
+#### Ceph RBD
 
 Create a storage pool named `my-ceph-pool` using the {ref}`Ceph RBD driver <storage-ceph>` and the on-disk name `my-osd` on three cluster members.
 Because the {config:option}`storage-ceph-pool-conf:ceph.osd.pool_name` configuration setting isn't member-specific, it must be set when creating the actual storage pool:
@@ -341,6 +384,8 @@ lxc storage create my-ceph-pool ceph ceph.osd.pool_name=my-osd
 Storage pool my-ceph-pool created
 ```
 
+#### Ceph Object
+
 Create a storage pool named `my-cephobject-pool` using the {ref}`Ceph Object driver <storage-cephobject>` and a preconfigured {ref}`RADOS Gateway endpoint <howto-storage-pools-ceph-requirements-radosgw>` (the endpoint shown below is only an example):
 
 ```{terminal}
@@ -366,6 +411,9 @@ lxc storage create my-cephobject-pool cephobject cephobject.radosgw.endpoint=htt
 
 Storage pool my-cephobject-pool created
 ```
+
+````
+````{group-tab} powerflex
 
 Create a storage pool named `my-powerflex-pool` using the {ref}`Dell PowerFlex driver <storage-powerflex>` in SDC mode and the pool `sp1` in protection domain `pd1`:
 
@@ -393,6 +441,9 @@ lxc storage create my-powerflex-pool powerflex powerflex.mode=sdc powerflex.pool
 Storage pool my-powerflex-pool created
 ```
 
+````
+````{group-tab} pure
+
 Create a storage pool named `my-purestorage-pool` using the {ref}`Pure Storage driver <storage-pure>`:
 
 ```{terminal}
@@ -408,16 +459,19 @@ Storage pool my-purestorage-pool pending on member vm02
 ```
 
 ```{terminal}
-lxc storage create purestorage-pool pure --target=vm03
+lxc storage create my-purestorage-pool pure --target=vm03
 
-Storage pool purestorage-pool pending on member vm03
+Storage pool my-purestorage-pool pending on member vm03
 ```
 
 ```{terminal}
-lxc storage purestorage-pool pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
+lxc storage create my-purestorage-pool pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
 
-Storage pool purestorage-pool created
+Storage pool my-purestorage-pool created
 ```
+
+````
+````{group-tab} alletra
 
 Create a storage pool named `my-alletrastorage-pool` using the {ref}`HPE Alletra driver <storage-alletra>`:
 
@@ -440,70 +494,68 @@ Storage pool my-alletrastorage-pool pending on member vm03
 ```
 
 ```{terminal}
-lxc storage my-alletrastorage-pool alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
+lxc storage create my-alletrastorage-pool alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
 
 Storage pool my-alletrastorage-pool created
 ```
 
 ````
-````{group-tab} UI
-
-To create a storage pool in a cluster, select {guilabel}`Pools` from the {guilabel}`Storage` section of the main navigation, then click {guilabel}`Create pool` in the upper right corner.
-
-On the resulting page, configure the storage pool's name and description. Depending on the selected driver, some settings can be configured per cluster member or applied globally to the cluster.
-
-Finally, click {guilabel}`Create` to create the storage pool.
-
-```{figure} /images/storage/storage_pools_create_clustered_pool.png
-:width: 80%
-:alt: Create a storage pool in a clustered LXD environment
-```
-
-````
 `````
 
-(storage-recover-pool)=
+(howto-storage-pools-config-backup)=
+## Back up storage pool configuration
+
+To assist future {ref}`recovery <howto-storage-pools-recover>` in case a storage pool malfunctions, maintain a record of storage pools as a backup. For each pool, record the `driver` type and its `config` options shown by running:
+
+    lxc storage show <pool_name>
+
+The `config` options vary by driver type. Keep this record in a safe place, and update it if you {ref}`update a storage pool's configuration <howto-storage-pools-configure>`.
+
+### For pools in a cluster
+
+For {ref}`local storage pools <storage-drivers-features-local>` in a cluster, the `source` value is member-specific and must be obtained from each cluster member. For {ref}`non-local storage pools <storage-drivers-features-nonlocal>` with the `source` config option, its value is shared across all cluster members.
+
+(howto-storage-pools-recover)=
 ## Recover a storage pool
 
 You might need to recover a storage pool when setting up a new LXD server or cluster with non-pristine storage disks, or when trying to access remote storage that was previously used by another LXD deployment.
 
 Using recovery, you can restore instances, custom volumes, and buckets that are still located on those storage pools.
 
-`````{tabs}
-````{group-tab} CLI
-To recover a storage pool, use the following command:
-
-    lxc storage create <pool_name> <driver> source.recover=true [original_pool_configuration_options...]
-See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
-The `lxd recover` command output also provides hints about missing storage pools and their original configuration, if such information can be discovered.
-
-````
-`````
-
 ### Get storage pool configuration
 
-Before recovering a storage pool, you need to know its original configuration (driver type, source, and configuration keys).
+Before recovering a storage pool, you need to know its original configuration: the driver type and any `config` options that differ from the default. Ideally, you have access to a record of the configuration as described in {ref}`howto-storage-pools-config-backup`.
 
-See {ref}`cluster-config-storage` to learn how to view and export storage pool configuration (use [`lxc storage show`](lxc_storage_show.md) with `--target` for member-specific settings in clusters).
+If you do not have access to this information, try alternate ways to retrieve it. If the pool is still available in the LXD database, you can use [`lxc storage show`](lxc_storage_show.md):
 
-```{note}
-For {ref}`local storage pools <storage-drivers-features-local>` in a cluster, the `source` value is member-specific and must be obtained from each cluster member. For {ref}`non-local storage pools <storage-drivers-features-nonlocal>`, the `source` is shared across all cluster members.
-```
+    lxc storage show <pool_name>
 
+You can also try this command, which provides hints about missing storage pools and their original configuration, if such information can be discovered:
+
+    lxd recover
+
+See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
+
+### Recover a pool
+
+To recover a storage pool, use the [`lxc storage create`](lxc_storage_create.md) command with the `source.recover=true` flag and the pool's original, non-default configuration options:
+
+    lxc storage create <pool_name> <driver> source.recover=true [original_pool_configuration_options...]
+
+(howto-storage-pools-recover-examples)=
 ### Examples
 
+The following CLI syntax examples show how to recover different types of storage pools.
+
 `````{tabs}
-````{group-tab} CLI
-
-The following examples demonstrate how to recover a storage pool using different types of storage drivers.
-
-#### Recover a directory pool
+````{group-tab} dir
 
 Recover a pool named `pool1`:
 
     lxc storage create pool1 dir source.recover=true source=/data/lxd
 
-#### Recover a Btrfs pool
+````
+````{group-tab} btrfs
 
 Recover a pool named `pool1` on the existing Btrfs filesystem at `/some/path`:
 
@@ -513,7 +565,8 @@ Recover a pool named `pool2` on `/dev/sdX`:
 
     lxc storage create pool2 btrfs source.recover=true source=/dev/sdX
 
-#### Recover a LVM pool
+````
+````{group-tab} lvm
 
 ```{admonition} Existing LVM volume groups
 :class: tip
@@ -537,7 +590,8 @@ Recover a pool named `pool4` on `/dev/sdX` with the LVM volume group name `my-po
 
     lxc storage create pool4 lvm source.recover=true source=/dev/sdX lvm.vg_name=my-pool
 
-#### Recover a ZFS pool
+````
+````{group-tab} zfs
 
 ```{admonition} Existing ZFS pools
 :class: tip
@@ -553,7 +607,12 @@ Recover a pool named `pool2` using the existing ZFS dataset `my-tank/slice`:
 
     lxc storage create pool2 zfs source.recover=true source=my-tank/slice
 
-#### Recover a Ceph RBD pool
+````
+````{group-tab} ceph*
+
+For Ceph-based storage pools, first see the {ref}`howto-storage-pools-ceph-requirements`.
+
+#### Ceph RBD
 
 ```{admonition} Existing OSD pools
 :class: tip
@@ -569,7 +628,7 @@ Recover a pool named `pool2` using the existing OSD storage pool `my-osd` in the
 
     lxc storage create pool2 ceph source.recover=true source=my-osd ceph.cluster_name=my-cluster
 
-#### Recover a CephFS pool
+#### CephFS
 
 ```{admonition} Existing CephFS file systems
 :class: tip
@@ -585,21 +644,22 @@ Recover a pool named `pool2` using the existing sub-directory `my-directory` on 
 
     lxc storage create pool2 cephfs source.recover=true source=my-filesystem/my-directory
 
-#### Recover a Ceph Object pool
+#### Ceph Object
 
 The Ceph Object storage driver doesn't require providing any additional configuration for recovery.
 Use the regular Ceph object pool creation command for recovery.
 
 Ceph Object does not yet support recovery of existing buckets already present on the `radosgw`.
 
-#### Recover a Dell PowerFlex pool
+````
+````{group-tab} powerflex
 
-The PowerFlex storage driver doesn't require providing any additional configuration for recovery as LXD is not creating any entities on
-the storage array when creating a pool. Instead it uses an existing pool inside the respective protection domain.
+You do not need to provide any additional configuration for recovery with the PowerFlex storage driver. Use the regular PowerFlex pool creation command for recovery.
 
-Use the regular PowerFlex pool creation command for recovery.
+This is because when creating a PowerFlex pool, LXD does not create any entities on the storage array. Instead, it uses an existing pool inside the respective protection domain.
 
-#### Recover a Pure Storage pool
+````
+````{group-tab} pure
 
 Recover a pool named `pool1` using the existing pod `pool1`:
 
@@ -613,7 +673,8 @@ Recover a pool named `pool3` using the existing pod `pool3` and NVMe/TCP to conn
 
     lxc storage create pool3 pure source.recover=true pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme pure.target=<target_address_1>,<target_address_2>
 
-#### Recover a HPE Alletra pool
+````
+````{group-tab} alletra
 
 Recover a pool named `pool1` using the existing volume set `pool1`:
 
@@ -626,15 +687,16 @@ Recover a pool named `pool2` using the existing volume set `pool2` and accept a 
 Recover a pool named `pool3` using the existing volume set `pool3` and NVMe/TCP to connect to HPE Alletra array via specific target address:
 
     lxc storage create pool3 alletra source.recover=true alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password> alletra.mode=nvme alletra.target=<target_address_1>,<target_address_2>
+
 ````
 `````
 
-## Configure storage pool settings
+(howto-storage-pools-configure)=
+## Configure a storage pool
 
-See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver.
+See the {ref}`storage-drivers` page for the available configuration options for each storage driver.
 
-General keys for a storage pool (like `source`) are top-level.
-Driver-specific keys are namespaced by the driver name.
+General keys for a storage pool (like `source`) are top-level. Driver-specific keys are namespaced by the driver name.
 
 `````{tabs}
 ````{group-tab} CLI
@@ -652,50 +714,26 @@ You can also edit the storage pool configuration by using the following command:
     lxc storage edit <pool_name>
 
 ````
-```` {group-tab} UI
+````{group-tab} UI
 
-To configure a storage pool, select {guilabel}`Pools` from the {guilabel}`Storage` section of the Main navigation.
+To configure a storage pool, select {guilabel}`Pools` from the {guilabel}`Storage` section of the main navigation.
 
 The resulting screen shows a list of existing storage pools. Click a pool's name to access its details.
 
 Go to the {guilabel}`Configuration` tab. Here, you can configure settings such as the storage pool description.
 
 After making changes, click the {guilabel}`Save changes` button. This button also displays the number of changes you have made.
-`````
-
-## View storage pools
-
-You can display a list of all available storage pools and check their configuration.
-
-`````{tabs}
-````{group-tab} CLI
-
-Use the following command to list all available storage pools:
-
-    lxc storage list
-
-The resulting table contains the storage pool that you created during initialization (usually called `default` or `local`) and any storage pools that you added.
-
-To show detailed information about a specific pool, use the following command:
-
-    lxc storage show <pool_name>
-
-To see usage information for a specific pool, run the following command:
-
-    lxc storage info <pool_name>
-
-````
-```` {group-tab} UI
-
-To view available storage pools in the UI, select {guilabel}`Pools` from the {guilabel}`Storage` section of the main navigation.
-
 ````
 `````
 
-(storage-resize-pool)=
+We recommend that you {ref}`maintain a backup <howto-storage-pools-config-backup>` of the configuration of your storage pools for future recovery. Make sure to update this backup after your edited configuration.
+
+(howto-storage-pools-resize)=
 ## Resize a storage pool
 
 If you need more storage, you can increase the size (quota) of your storage pool. You can only grow the pool (increase its size), not shrink it.
+
+You can only resize loop-backed storage pools that are managed by LXD, meaning they must use the Btrfs, LVM, or ZFS storage drivers.
 
 `````{tabs}
 ````{group-tab} CLI
@@ -704,16 +742,14 @@ In the CLI, resize a storage pool by changing the `size` configuration key:
 
     lxc storage set <pool_name> size=<new_size>
 
-This will only work for loop-backed storage pools that are managed by LXD.
-
 ````
-```` {group-tab} UI
+````{group-tab} UI
 
-To resize a storage pool in the UI, select {guilabel}`Pools` from the {guilabel}`Storage ` section of the main navigation.
+To resize a storage pool in the UI, select {guilabel}`Pools` from the {guilabel}`Storage` section of the main navigation.
 
 Click the name of a storage pool to open its details page, then go to its {guilabel}`Configuration` tab. Edit the {guilabel}`Size` field.
 
-After making changes, click the {guilabel}`Save changes` button. This button also displays the number of changes you have made.
+After making changes, click the {guilabel}`Save changes` button. This button also displays the number of changes you have made before you save.
 
 In clustered environments, the {guilabel}`Size` field appears as a per-member selector, allowing you to configure the size for each cluster member.
 
@@ -725,10 +761,12 @@ In clustered environments, the {guilabel}`Size` field appears as a per-member se
 ````
 `````
 
+If you later need to {ref}`recover a storage pool <howto-storage-pools-recover>` and the pool has a non-default `size` configuration option, that option must be included for recovery. If needed, update the `size` in your {ref}`backup of the storage pool configuration <howto-storage-pools-config-backup>`.
+
 (howto-storage-pools-ceph-requirements)=
 ## Requirements for Ceph-based storage pools
 
-For Ceph-based storage pools, the requirements below must be met before you can {ref}`storage-create-pool` or {ref}`storage-pools-cluster`.
+For Ceph-based storage pools, the requirements below must be met before you can {ref}`howto-storage-pools-create` or {ref}`howto-storage-pools-create-cluster`.
 
 (howto-storage-pools-ceph-requirements-cluster)=
 ### Ceph cluster
@@ -749,15 +787,13 @@ Storage pools that use the {ref}`Ceph Object driver <storage-cephobject>` requir
 
 To check if the RADOS Gateway is already enabled in MicroCeph, run this command from one of its cluster members:
 
-```bash
-microceph status
-```
+    microceph status
 
 In the output, look for a cluster member with `rgw` in its `Services` list.
 
 Example:
 
-```{terminal} 
+```{terminal}
 :user: root
 :host: micro1
 microceph status
@@ -777,9 +813,7 @@ Look for `rgw` in your output. If you do not see it, you must {ref}`howto-storag
 
 If you do see it, you'll need the corresponding port number. On the cluster member with the `rgw` service, run:
 
-```bash
-sudo ss -ltnp | grep radosgw
-```
+    sudo ss -ltnp | grep radosgw
 
 Example:
 
@@ -799,9 +833,7 @@ The output above shows that the `radosgw` port number is `8080`.
 
 If you did not find `rgw` in the `Services` list for any of your cluster members in the output from `microceph status`, then you must enable the RADOS Gateway. On one of the Ceph cluster members, run:
 
-```bash
-sudo microceph enable rgw --port 8080
-```
+    sudo microceph enable rgw --port 8080
 
 We include the `--port 8080` flag because if unspecified, the default port is `80`. This default is a commonly used port number that can often cause conflicts with other services. You are not required to use `8080` — if needed, use a different port number.
 
