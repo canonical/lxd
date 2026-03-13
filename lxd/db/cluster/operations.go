@@ -62,6 +62,7 @@ type Operation struct {
 	Status              int64              `db:"sql=operations.status_code"` // Status code of the operation
 	ConflictReference   string             // All operations which cannot run concurrently share the same conflict reference
 	Error               string             // Error message if the operation failed
+	ErrorCode           int64              `db:"sql=operations.error_code"` // Error code if the operation failed
 	Parent              *int64             // Parent operation ID. This is used for sub-operations of other operations.
 	Stage               int64              // Stage of the operation
 }
