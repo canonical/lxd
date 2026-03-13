@@ -213,3 +213,41 @@ func Test_patchOIDCGroupsClaimScope(t *testing.T) {
 	case1()
 	case2()
 }
+
+func Test_patchClusteringEventHubRoleToControlPlane(t *testing.T) {
+	cluster, cleanup := db.NewTestCluster(t)
+	defer cleanup()
+
+	ctx := cancel.New()
+	err := cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err := tx.CreateNode("buzz", "1.2.3.4:666")
+		require.NoError(t, err)
+
+		_, err = tx.Tx().Exec("INSERT INTO nodes_roles (node_id, role) VALUES (?, ?)", id, 1)
+		require.NoError(t, err)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	daemonDB := &db.DB{Cluster: cluster}
+	daemon := &Daemon{db: daemonDB, shutdownCtx: ctx}
+	err = patchClusteringEventHubRoleToControlPlane("", daemon)
+	require.NoError(t, err)
+
+	err = cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		node, err := tx.GetNodeByName(ctx, "buzz")
+		require.NoError(t, err)
+		assert.Empty(t, node.Roles)
+
+		rows, err := tx.Tx().Query("SELECT role FROM nodes_roles WHERE node_id=?", node.ID)
+		require.NoError(t, err)
+		defer func() { _ = rows.Close() }()
+
+		assert.False(t, rows.Next(), "expected no rows in nodes_roles after patch")
+		require.NoError(t, rows.Err())
+
+		return nil
+	})
+	require.NoError(t, err)
+}

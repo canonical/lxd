@@ -123,6 +123,7 @@ var patches = []patch{
 	{name: "storage_remove_local_buckets", stage: patchPostDaemonStorage, run: patchStorageRemoveLocalBuckets},
 	{name: "config_remove_maas_keys", stage: patchPreLoadClusterConfig, run: patchRemoveMAASConfigKeys},
 	{name: "storage_unset_ceph_source_setting", stage: patchPostDaemonStorage, run: patchUnsetCephSourceSetting},
+	{name: "clustering_event_hub_role_to_control_plane", stage: patchPreLoadClusterConfig, run: patchClusteringEventHubRoleToControlPlane},
 }
 
 type patch struct {
@@ -827,6 +828,19 @@ func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
 				return err
 			}
 		}
+		return nil
+	})
+}
+
+func patchClusteringEventHubRoleToControlPlane(name string, d *Daemon) error {
+	const legacyEventHubRoleID = 1
+
+	return d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err := tx.Tx().Exec("DELETE FROM nodes_roles WHERE role=?", legacyEventHubRoleID)
+		if err != nil {
+			return fmt.Errorf("Failed removing legacy event-hub role: %w", err)
+		}
+
 		return nil
 	})
 }
