@@ -19,7 +19,7 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
-	lxd "github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/daemon"
@@ -1205,6 +1205,12 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	// Create DHCP hosts directory.
 	dnsmasqHostDir := shared.VarPath("networks", n.name, "dnsmasq.hosts")
 	err = os.MkdirAll(dnsmasqHostDir, 0755)
+	if err != nil {
+		return err
+	}
+
+	// Clean up any leftover .removing files from previous incomplete removals.
+	err = dnsmasq.CleanupLeftoverRemovingFiles(n.name)
 	if err != nil {
 		return err
 	}
