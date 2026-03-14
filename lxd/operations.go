@@ -358,7 +358,7 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 		return err
 	}
 
-	client, err := cluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	client, err := cluster.Connect(context.Background(), memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return fmt.Errorf("Failed connecting to %q: %w", memberAddress, err)
 	}
@@ -618,47 +618,15 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // operationsGetByType gets all operations for a project and type.
+// It does not populate operation resources.
 func operationsGetByType(ctx context.Context, s *state.State, projectName string, opType operationtype.Type) ([]*api.Operation, error) {
-	ops := make([]*api.Operation, 0)
-
-	// Get local operations for project.
-	for _, op := range operations.Clone() {
-		if op.Project() != projectName || op.Type() != opType {
-			continue
-		}
-
-		_, apiOp := op.Render()
-		ops = append(ops, apiOp)
-	}
-
-	// Return just local operations if not clustered.
-	if !s.ServerClustered {
-		return ops, nil
-	}
-
 	// Get all operations of the specified type in project.
-	var members []db.NodeInfo
-	memberOps := make(map[string]map[string]dbCluster.Operation)
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	var ops []dbCluster.OperationInfo
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-
-		members, err = tx.GetNodes(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed getting cluster members: %w", err)
-		}
-
-		ops, err := tx.GetOperationsOfType(ctx, projectName, opType)
+		ops, err = dbCluster.GetOperationInfosByProjectAndType(ctx, tx.Tx(), projectName, opType)
 		if err != nil {
 			return fmt.Errorf("Failed getting operations for project %q and type %d: %w", projectName, opType, err)
-		}
-
-		// Group operations by member address and UUID.
-		for _, op := range ops {
-			if memberOps[op.NodeAddress] == nil {
-				memberOps[op.NodeAddress] = make(map[string]dbCluster.Operation)
-			}
-
-			memberOps[op.NodeAddress][op.UUID] = op
 		}
 
 		return nil
@@ -667,60 +635,39 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 		return nil, err
 	}
 
-	// Get local address.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
-	offlineThreshold := s.GlobalConfig.OfflineThreshold()
+	apiOps := make([]*api.Operation, 0, len(ops))
+	for _, op := range ops {
+		var metadata map[string]any
+		err := json.Unmarshal([]byte(op.Metadata), &metadata)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to read operation metadata: %w", err)
+		}
 
-	memberOnline := func(memberAddress string) bool {
-		for _, member := range members {
-			if member.Address == memberAddress {
-				if member.IsOffline(offlineThreshold) {
-					logger.Warn("Excluding offline member from operations by type list", logger.Ctx{"member": member.Name, "address": member.Address, "ID": member.ID, "lastHeartbeat": member.Heartbeat, "opType": opType})
-					return false
-				}
-
-				return true
+		var requestor *api.OperationRequestor
+		if op.RequestorProtocol != nil {
+			requestor = &api.OperationRequestor{
+				Username: op.IdentityIdentifier,
+				Protocol: string(*op.RequestorProtocol),
 			}
 		}
 
-		return false
+		apiOps = append(apiOps, &api.Operation{
+			ID:          op.UUID,
+			Class:       operations.OperationClass(op.Class).String(),
+			Description: op.Type.Description(),
+			CreatedAt:   op.CreatedAt,
+			UpdatedAt:   op.UpdatedAt,
+			Status:      api.StatusCode(op.Status).String(),
+			StatusCode:  api.StatusCode(op.Status),
+			Metadata:    metadata,
+			MayCancel:   true,
+			Err:         op.Error,
+			Location:    op.Location,
+			Requestor:   requestor,
+		})
 	}
 
-	networkCert := s.Endpoints.NetworkCert()
-	serverCert := s.ServerCert()
-	for memberAddress := range memberOps {
-		if memberAddress == localClusterAddress {
-			continue
-		}
-
-		if !memberOnline(memberAddress) {
-			continue
-		}
-
-		// Connect to the remote server. Use notify=true to only get local operations on remote member.
-		client, err := cluster.Connect(ctx, memberAddress, networkCert, serverCert, true)
-		if err != nil {
-			return nil, fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err)
-		}
-
-		// Get all remote operations in project.
-		remoteOps, err := client.UseProject(projectName).GetOperations()
-		if err != nil {
-			logger.Warn("Failed getting operations from member", logger.Ctx{"address": memberAddress, "err": err})
-			continue
-		}
-
-		for _, op := range remoteOps {
-			// Exclude remote operations that don't have the desired type.
-			if memberOps[memberAddress][op.ID].Type != opType {
-				continue
-			}
-
-			ops = append(ops, &op)
-		}
-	}
-
-	return ops, nil
+	return apiOps, nil
 }
 
 // swagger:operation GET /1.0/operations/{id}/wait?public operations operation_wait_get_untrusted
