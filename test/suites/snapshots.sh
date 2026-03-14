@@ -462,7 +462,7 @@ test_snapshot_schedule() {
   [ "$(lxc list --columns S --format csv)" = "2" ]
 
   # Set schedule to be every minute. The daemon will create a snapshot every time the task is run.
-  lxc config set c1 snapshots.schedule='0/1 * * * *'
+  lxc config set c1 snapshots.schedule='* * * * *'
 
   # Check an actual scheduled snapshot run via the internal testing endpoint and check we get a new snapshot.
   lxc query -X POST /internal/testing/snapshot-scheduled-task
