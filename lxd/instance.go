@@ -739,7 +739,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshots(ctx context.Context, s *state.St
 
 		err = op.Wait(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed scheduled instance snapshots: %w", err)
+			return fmt.Errorf("Failed creating scheduled instance snapshots: %w", err)
 		}
 
 		logger.Info("Done creating scheduled instance snapshots")
