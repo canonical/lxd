@@ -68,7 +68,7 @@ var apiInternal = []APIEndpoint{
 	internalIdentityCacheRefreshCmd,
 	internalPruneTokenCmd,
 	internalOperationWaitCmd,
-	internalCreateScheduledSnapshotCmd,
+	internalSnapshotScheduledTaskCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
@@ -172,10 +172,10 @@ var internalIdentityCacheRefreshCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: internalIdentityCacheRefresh, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
-var internalCreateScheduledSnapshotCmd = APIEndpoint{
-	Path: "testing/create-scheduled-snapshots",
+var internalSnapshotScheduledTaskCmd = APIEndpoint{
+	Path: "testing/snapshot-scheduled-task",
 
-	Post: APIEndpointAction{Handler: internalCreateScheduledSnapshot, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalSnapshotScheduledTask, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 type internalImageOptimizePost struct {
@@ -1196,7 +1196,7 @@ func internalIdentityCacheRefresh(d *Daemon, _ *http.Request) response.Response 
 	return response.EmptySyncResponse
 }
 
-func internalCreateScheduledSnapshot(d *Daemon, r *http.Request) response.Response {
+func internalSnapshotScheduledTask(d *Daemon, r *http.Request) response.Response {
 	err := pruneExpiredAndAutoCreateInstanceSnapshots(r.Context(), d.State())
 	if err != nil {
 		return response.SmartError(err)

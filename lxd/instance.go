@@ -554,7 +554,7 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, snapshots []instance.Ins
 }
 
 func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
-	// `f` creates new scheduled instance snapshots and then, prune the expired ones
+	// `f` prunes expired instance snapshots and then creates new scheduled ones.
 	f := func(ctx context.Context) {
 		err := pruneExpiredAndAutoCreateInstanceSnapshots(ctx, stateFunc())
 		if err != nil {
@@ -577,7 +577,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 	return f, schedule
 }
 
-// pruneExpiredAndAutoCreateInstanceSnapshots creates new scheduled instance snapshots and then prunes the expired ones.
+// pruneExpiredAndAutoCreateInstanceSnapshots prunes expired instance snapshots and then creates new scheduled ones.
 func pruneExpiredAndAutoCreateInstanceSnapshots(ctx context.Context, s *state.State) error {
 	var instances, expiredSnapshotInstances []instance.Instance
 
@@ -651,7 +651,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshots(ctx context.Context, s *state.St
 		return fmt.Errorf("Failed getting instance snapshot expiry info: %w", err)
 	}
 
-	// Get list of instances on the local member that are due to have snaphots creating.
+	// Get list of instances on the local member that are due to have snapshots created.
 	filter := dbCluster.InstanceFilter{Node: &s.ServerName}
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -739,7 +739,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshots(ctx context.Context, s *state.St
 
 		err = op.Wait(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed scheduled instance snapshots: %w", err)
+			return fmt.Errorf("Failed creating scheduled instance snapshots: %w", err)
 		}
 
 		logger.Info("Done creating scheduled instance snapshots")
