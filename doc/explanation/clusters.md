@@ -130,7 +130,7 @@ Those settings typically include:
 - External interfaces and BGP next-hop for a bridged network
 - The name of the parent network device for managed `physical` or `macvlan` networks
 
-See {ref}`cluster-config-storage` and {ref}`cluster-config-networks` for more information.
+See {ref}`howto-cluster-storage` and {ref}`cluster-config-networks` for more information.
 
 If you want to look up the questions ahead of time (which can be useful for scripting), query the `/1.0/cluster` API endpoint.
 This can be done through `lxc query /1.0/cluster` or through other API clients.

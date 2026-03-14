@@ -1,4 +1,4 @@
-(cluster-config-storage)=
+(howto-cluster-storage)=
 # How to configure storage for a cluster
 
 All members of a cluster must have identical storage pools.
@@ -33,8 +33,9 @@ Creating additional storage pools is a two-step process:
 
    If you missed a cluster member when defining the storage pool, or if a cluster member is down, you get an error.
 
-Also see {ref}`storage-pools-cluster`.
+Also see {ref}`howto-storage-pools-create-cluster`.
 
+(howto-cluster-storage-view)=
 ## View member-specific pool configuration
 
 Running [`lxc storage show <pool_name>`](lxc_storage_show.md) shows the cluster-wide configuration of the storage pool.
