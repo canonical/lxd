@@ -43,6 +43,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/openfga"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/dns"
+	"github.com/canonical/lxd/lxd/dnsmasq"
 	"github.com/canonical/lxd/lxd/endpoints"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
@@ -2218,6 +2219,21 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 			// Unmount storage pools after instances stopped and images/backup volumes unmounted.
 			storageStop(s)
+		}
+
+		// Kill dnsmasq and forkdns processes for all networks to prevent them from
+		// outliving the daemon. In nested containers using snap-based LXD, systemd sends
+		// SIGTERM to the service cgroup. If these processes are still running when snap
+		// mounts are torn down, they crash with SIGBUS as their library pages become
+		// inaccessible. Specifically, the coreXX base snap (providing libc, libunistring,
+		// etc.) is backed by squashfuse in unprivileged containers; once that mount is
+		// removed, any mapped library pages can no longer be faulted back in.
+		//
+		// Unlike the SIGPWR path, we do not call networkStop() here because SIGTERM does
+		// not shut down instances — tearing down bridge interfaces and firewall rules
+		// would break networking for running instances.
+		if sig == unix.SIGTERM {
+			dnsmasq.KillAll()
 		}
 
 		if d.db.Cluster != nil {
