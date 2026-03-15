@@ -240,14 +240,14 @@ func DHCPStaticAllocation(network string, deviceStaticFileName string) (mac net.
 // for the network is set to "dynamic" and so cannot be trusted, so in this case we do not return
 // any identifying info.
 func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byte]DHCPAllocation, error) {
-	IPv4s := make(map[[4]byte]DHCPAllocation)
-	IPv6s := make(map[[16]byte]DHCPAllocation)
-
 	// First read all statically allocated IPs.
 	files, err := os.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, nil, err
 	}
+
+	IPv4s := make(map[[4]byte]DHCPAllocation)
+	IPv6s := make(map[[16]byte]DHCPAllocation)
 
 	for _, entry := range files {
 		_, IPv4, IPv6, err := DHCPStaticAllocation(network, entry.Name())
