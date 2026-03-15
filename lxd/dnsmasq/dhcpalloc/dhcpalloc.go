@@ -243,7 +243,9 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 // device's MAC address. Finally if stateful custom ranges are enabled, then a free IP is picked
 // from the ranges configured.
 func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation, deviceStaticFileName string, mac net.HardwareAddr) (net.IP, error) {
-	lxdIP, subnet, err := net.ParseCIDR(t.opts.Network.Config()["ipv6.address"])
+	netConfig := t.opts.Network.Config()
+
+	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
 	if err != nil {
 		return nil, err
 	}
@@ -259,8 +261,6 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 			return DHCP.IP, nil
 		}
 	}
-
-	netConfig := t.opts.Network.Config()
 
 	// Try using an EUI64 IP when in either SLAAC or DHCPv6 stateful mode without custom ranges.
 	if shared.IsFalseOrEmpty(netConfig["ipv6.dhcp.stateful"]) || netConfig["ipv6.dhcp.ranges"] == "" {
