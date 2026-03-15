@@ -202,8 +202,8 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 	}
 
 	// If no valid existing allocation found, try and find a free one in the subnet pool/ranges.
+	inc := big.NewInt(1)
 	for _, IPRange := range dhcpRanges {
-		inc := big.NewInt(1)
 		startBig := big.NewInt(0)
 		startBig.SetBytes(IPRange.Start)
 		endBig := big.NewInt(0)
