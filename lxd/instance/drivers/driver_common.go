@@ -42,6 +42,10 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 )
 
+// logFilePermissions defines the permissions for log files created by LXD.
+// Log files are only read by the LXD daemon running as root, so no group or other access is needed.
+const logFilePermissions os.FileMode = 0600
+
 // ErrExecCommandNotFound indicates the command is not found.
 var ErrExecCommandNotFound = api.StatusErrorf(http.StatusBadRequest, "Command not found")
 

@@ -267,7 +267,7 @@ func (p *Process) Save(path string) error {
 		return fmt.Errorf("Cannot serialize process struct to YAML: %w", err)
 	}
 
-	err = os.WriteFile(path, dat, 0644)
+	err = os.WriteFile(path, dat, 0600)
 	if err != nil {
 		return fmt.Errorf("Cannot write to file %q: %w", path, err)
 	}

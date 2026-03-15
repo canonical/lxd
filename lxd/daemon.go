@@ -79,6 +79,10 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// logFilePermissions defines the permissions for log files created by LXD.
+// Log files are only read by the LXD daemon running as root, so no group or other access is needed.
+const logFilePermissions os.FileMode = 0600
+
 // secFetchSiteForbidden defines client Sec-Fetch-Site header values that will be forbidden access.
 var secFetchSiteForbidden = []string{"cross-site", "same-site"}
 

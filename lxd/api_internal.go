@@ -577,7 +577,12 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed starting transaction: %w", err))
 	}
 
-	defer func() { _ = tx.Rollback() }()
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+			logger.Warn("Failed rolling back transaction", logger.Ctx{"err": err})
+		}
+	}()
 
 	dump, err := query.Dump(r.Context(), tx, schemaOnly == 1)
 	if err != nil {
@@ -636,11 +641,17 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 
 		if strings.HasPrefix(strings.ToUpper(query), "SELECT") {
 			err = internalSQLSelect(tx, query, &result)
-			_ = tx.Rollback()
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				logger.Warn("Failed rolling back transaction", logger.Ctx{"err": rollbackErr})
+			}
 		} else {
 			err = internalSQLExec(tx, query, &result)
 			if err != nil {
-				_ = tx.Rollback()
+				rollbackErr := tx.Rollback()
+				if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+					logger.Warn("Failed rolling back transaction", logger.Ctx{"err": rollbackErr})
+				}
 			} else {
 				err = tx.Commit()
 			}
@@ -1081,17 +1092,17 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 	}
 
 	// Next check if expandedDevices from backup.yaml has a root disk.
-	expandedRootName, expandedRootConfig, _ := api.GetRootDiskDevice(expandedDevices)
+	expandedRootName, expandedRootConfig, expandedRootErr := api.GetRootDiskDevice(expandedDevices)
 
 	// Extract root disk from expanded profile devices.
 	profileExpandedDevices := instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(localDevices), profiles)
-	profileExpandedRootName, profileExpandedRootConfig, _ := api.GetRootDiskDevice(profileExpandedDevices.CloneNative())
+	profileExpandedRootName, profileExpandedRootConfig, profileExpandedRootErr := api.GetRootDiskDevice(profileExpandedDevices.CloneNative())
 
 	// Record whether we need to add a new local disk device.
 	addLocalDisk := false
 
 	// We need to add a local root disk if the profiles don't have a root disk.
-	if profileExpandedRootName == "" {
+	if profileExpandedRootErr != nil || profileExpandedRootName == "" {
 		addLocalDisk = true
 	} else {
 		// Check profile expanded root disk is in the correct pool
@@ -1101,7 +1112,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 			// Check profile expanded root disk config matches the old expanded disk in backup.yaml.
 			// Excluding the "pool" property, which we ignore, as we have already checked the new
 			// profile root disk matches the target pool name.
-			if expandedRootName != "" {
+			if expandedRootErr == nil && expandedRootName != "" {
 				for k := range expandedRootConfig {
 					if k == "pool" {
 						continue // Ignore old pool name.
@@ -1136,7 +1147,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 		}
 
 		// Inherit any extra root disk config from the expanded root disk from backup.yaml.
-		if expandedRootName != "" {
+		if expandedRootErr == nil && expandedRootName != "" {
 			for k, v := range expandedRootConfig {
 				_, found := rootDev[k]
 				if !found {
