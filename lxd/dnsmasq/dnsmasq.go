@@ -87,7 +87,7 @@ func RemoveStaticEntry(network, projectName, instanceName, deviceName string) er
 
 	err := os.Rename(filePath, tmpPath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
 
@@ -245,7 +245,7 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 
 	// First read all statically allocated IPs.
 	files, err := os.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
-	if err != nil && os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, nil, err
 	}
 
