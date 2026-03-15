@@ -232,7 +232,7 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 		}
 	}
 
-	return nil, errors.New("No available IP could not be found")
+	return nil, errors.New("No available IP could be found")
 }
 
 // getDHCPFreeIPv6 attempts to find a free IPv6 address for the device.
@@ -318,7 +318,7 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 		}
 	}
 
-	return nil, errors.New("No available IP could not be found")
+	return nil, errors.New("No available IP could be found")
 }
 
 // AllocateTask initialises a new locked Transaction for a specific host and executes the supplied function on it.
