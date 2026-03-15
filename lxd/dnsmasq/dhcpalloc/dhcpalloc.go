@@ -46,7 +46,6 @@ func GetIP(subnet *net.IPNet, host int64) net.IP {
 	bigIP.SetBytes(subnet.IP.To16())
 
 	// Deal with negative offsets.
-	bigHost := big.NewInt(host)
 	bigCount := big.NewInt(host)
 	if host < 0 {
 		mask, size := subnet.Mask.Size()
@@ -55,6 +54,7 @@ func GetIP(subnet *net.IPNet, host int64) net.IP {
 		bigHosts.SetFloat64((math.Pow(2, float64(size-mask))))
 		bigHostsInt, _ := bigHosts.Int(nil)
 
+		bigHost := big.NewInt(host)
 		bigCount.Set(bigHostsInt)
 		bigCount.Add(bigCount, bigHost)
 	}
