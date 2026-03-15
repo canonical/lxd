@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/util"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -57,7 +56,7 @@ func (d *infinibandSRIOV) validateEnvironment() error {
 		return errors.New("Requires name property to start")
 	}
 
-	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
+	if !network.InterfaceExists(d.config["parent"]) {
 		return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 	}
 

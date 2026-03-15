@@ -102,15 +102,16 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *nicPhysical) validateEnvironment() error {
-	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
+	instType := d.inst.Type()
+	if instType == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
 		return errors.New("Network physical devices cannot be used when migration.stateful is enabled")
 	}
 
-	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
+	if instType == instancetype.Container && d.config["name"] == "" {
 		return errors.New("Requires name property to start")
 	}
 
-	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
+	if !network.InterfaceExists(d.config["parent"]) {
 		return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 	}
 
