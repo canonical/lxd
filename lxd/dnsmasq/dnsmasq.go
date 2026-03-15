@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 const staticAllocationDeviceSeparator = "."
@@ -99,6 +100,45 @@ func RemoveStaticEntry(network, projectName, instanceName, deviceName string) er
 	}
 
 	return nil
+}
+
+// KillAll kills dnsmasq and forkdns processes for all networks.
+func KillAll() {
+	networksDir := shared.VarPath("networks")
+	entries, err := os.ReadDir(networksDir)
+	if err != nil {
+		logger.Warn("Failed listing networks directory for killing dnsmasq and forkdns", logger.Ctx{"path": networksDir, "err": err})
+		return
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+
+		err := Kill(name, false)
+		if err != nil {
+			logger.Warn("Failed killing dnsmasq", logger.Ctx{"network": name, "err": err})
+		}
+
+		forkdnsPIDPath := filepath.Join(networksDir, name, "forkdns.pid")
+		p, err := subprocess.ImportProcess(forkdnsPIDPath)
+		if err != nil {
+			// If the pid file does not exist, there is no process to kill.
+			if !errors.Is(err, os.ErrNotExist) {
+				logger.Warn("Failed importing forkdns process", logger.Ctx{"network": name, "err": err})
+			}
+
+			continue
+		}
+
+		err = p.Stop()
+		if err != nil && err != subprocess.ErrNotRunning {
+			logger.Warn("Failed killing forkdns", logger.Ctx{"network": name, "err": err})
+		}
+	}
 }
 
 // Kill kills dnsmasq for a particular network (or optionally reloads it).
