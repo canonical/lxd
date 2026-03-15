@@ -219,13 +219,13 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 
 		if IPv4.IP != nil {
 			var IPKey [4]byte
-			copy(IPKey[:], IPv4.IP.To4())
+			copy(IPKey[:], IPv4.IP)
 			IPv4s[IPKey] = IPv4
 		}
 
 		if IPv6.IP != nil {
 			var IPKey [16]byte
-			copy(IPKey[:], IPv6.IP.To16())
+			copy(IPKey[:], IPv6.IP)
 			IPv6s[IPKey] = IPv6
 		}
 	}
