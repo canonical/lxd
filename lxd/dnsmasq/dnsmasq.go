@@ -339,9 +339,6 @@ func StaticAllocationFileName(projectName string, instanceName string, deviceNam
 // CleanupLeftoverRemovingFiles removes any leftover .removing files in the network directory.
 // These files can be left behind if LXD is stopped after renaming a file in RemoveStaticEntry
 // but before the file is actually deleted.
-// CleanupLeftoverRemovingFiles removes any leftover .removing files in the network directory.
-// These files can be left behind if LXD is stopped after renaming a file in RemoveStaticEntry
-// but before the file is actually deleted.
 func CleanupLeftoverRemovingFiles(network string) error {
 	netPath := shared.VarPath("networks", network, "dnsmasq.hosts")
 	dirPath := filepath.Dir(netPath)
