@@ -157,11 +157,12 @@ func DHCPStaticAllocation(network string, deviceStaticFileName string) (mac net.
 			// Check if field is IPv4 or IPv6 address.
 			if strings.Count(field, ".") == 3 {
 				IP := net.ParseIP(field)
-				if IP.To4() == nil {
+				ip4 := IP.To4()
+				if ip4 == nil {
 					return nil, IPv4, IPv6, fmt.Errorf("Error parsing IP address %q", field)
 				}
 
-				IPv4 = DHCPAllocation{StaticFileName: deviceStaticFileName, IP: IP.To4(), MAC: mac}
+				IPv4 = DHCPAllocation{StaticFileName: deviceStaticFileName, IP: ip4, MAC: mac}
 			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
 				IP := net.ParseIP(field[1 : len(field)-1])
 				if IP == nil {
