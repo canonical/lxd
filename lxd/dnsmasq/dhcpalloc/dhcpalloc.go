@@ -383,13 +383,15 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 			IPv6Str = t.allocatedIPv6.String()
 		}
 
+		hostMACStr := opts.HostMAC.String()
+
 		// Write out new dnsmasq static host allocation config file.
-		err = dnsmasq.UpdateStaticEntry(netName, opts.ProjectName, opts.HostName, opts.DeviceName, opts.Network.Config(), opts.HostMAC.String(), IPv4Str, IPv6Str)
+		err = dnsmasq.UpdateStaticEntry(netName, opts.ProjectName, opts.HostName, opts.DeviceName, opts.Network.Config(), hostMACStr, IPv4Str, IPv6Str)
 		if err != nil {
 			return err
 		}
 
-		l.Debug("Updated static DHCP entry", logger.Ctx{"mac": opts.HostMAC.String(), "IPv4": IPv4Str, "IPv6": IPv6Str})
+		l.Debug("Updated static DHCP entry", logger.Ctx{"mac": hostMACStr, "IPv4": IPv4Str, "IPv6": IPv6Str})
 
 		// Reload dnsmasq.
 		err = dnsmasq.Kill(netName, true)
