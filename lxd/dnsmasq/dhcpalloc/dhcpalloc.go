@@ -336,7 +336,7 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
 	deviceStaticFileName := dnsmasq.StaticAllocationFileName(opts.ProjectName, opts.HostName, opts.DeviceName)
 	t.currentDHCPMAC, t.currentDHCPv4, t.currentDHCPv6, err = dnsmasq.DHCPStaticAllocation(netName, deviceStaticFileName)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
