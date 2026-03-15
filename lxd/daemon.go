@@ -43,6 +43,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/openfga"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/dns"
+	"github.com/canonical/lxd/lxd/dnsmasq"
 	"github.com/canonical/lxd/lxd/endpoints"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
@@ -2126,6 +2127,22 @@ func cancelCancelableOps(ctx context.Context) error {
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	// Cancelling the context will make everyone aware that we're shutting down.
 	d.shutdownCtx.Cancel()
+
+	// Kill dnsmasq and forkdns processes immediately on shutdown signals to prevent
+	// them from crashing with SIGBUS. In nested containers using snap-based LXD, systemd
+	// sends SIGTERM to the entire service cgroup simultaneously, so dnsmasq receives
+	// SIGTERM and enters its exit handler (_dl_fini running shared library destructors).
+	// If snap mount teardown (squashfuse for the coreXX base snap providing libc,
+	// libunistring, libdbus, etc.) races with this exit handler, the library pages become
+	// inaccessible and dnsmasq crashes with SIGBUS. Sending SIGKILL here (before any
+	// other shutdown work) ensures dnsmasq is terminated immediately without running
+	// exit handlers.
+	//
+	// On SIGHUP (daemon reload), dnsmasq is left running because the daemon will
+	// restart and re-adopt the existing processes.
+	if sig != unix.SIGHUP {
+		dnsmasq.KillAll()
+	}
 
 	d.startStopLock.Lock()
 	defer d.startStopLock.Unlock()
