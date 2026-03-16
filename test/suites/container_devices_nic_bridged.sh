@@ -615,7 +615,7 @@ test_container_devices_nic_bridged() {
   # Confirm the name no longer resolves after dnsmasq reloads.
   local dns_gone_attempts=10
   while [ "${dns_gone_attempts}" -gt 0 ]; do
-    if ! [ -n "$(dig +short +retry=0 +timeout=1 @192.0.2.1 A "${ctName}.${dnsDomain}")" ]; then
+    if [ -z "$(dig +short +retry=0 +timeout=1 @192.0.2.1 A "${ctName}.${dnsDomain}" || echo fail)" ]; then
       break
     fi
     sleep 0.2
@@ -627,7 +627,7 @@ test_container_devices_nic_bridged() {
   if [ "${hasIPv6}" = "true" ]; then
     local dns6_gone_attempts=10
     while [ "${dns6_gone_attempts}" -gt 0 ]; do
-      if ! [ -n "$(dig +short +retry=0 +timeout=1 @192.0.2.1 AAAA "${ctName}.${dnsDomain}")" ]; then
+      if [ -z "$(dig +short +retry=0 +timeout=1 @192.0.2.1 AAAA "${ctName}.${dnsDomain}" || echo fail)" ]; then
         break
       fi
       sleep 0.2
