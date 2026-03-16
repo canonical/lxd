@@ -307,7 +307,6 @@ func structHasField(typ reflect.Type, field string) bool {
 	var parent reflect.Type
 
 	for fieldType := range typ.Fields() {
-		fieldType := fieldType
 		yaml := fieldType.Tag.Get("yaml")
 
 		if yaml == ",inline" {
