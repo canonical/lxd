@@ -91,7 +91,7 @@ jobs:
         uses: ./.github/actions/tune-disk-performance
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@05fe4576374b728f0c523d6a13d64c25081e0803 # v4.8.3
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         if: github.event_name == 'pull_request'
 
       # XXX: `make static-analysis` also run shellcheck but this one provides
@@ -944,7 +944,7 @@ jobs:
           cd lxd-ui
           dotrun install
 
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 22
 
