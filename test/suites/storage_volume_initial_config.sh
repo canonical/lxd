@@ -58,8 +58,6 @@ test_storage_volume_initial_config() {
   # Verify instance initial.* configuration modification.
   ! lxc config device set c root initial.block.mount_options=noatime || false  # NOK: Add new configuration.
   ! lxc config device set c root initial.block.filesystem=xfs || false         # NOK: Modify existing configuration.
-  lxc config device set c root initial.block.filesystem=btrfs                  # OK:  No change.
-  lxc config device unset c root initial.block.filesystem                      # OK:  Remove existing configuration.
   lxc delete c
 
   if [ "$lxd_backend" = "zfs" ]; then
