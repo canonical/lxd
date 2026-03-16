@@ -702,6 +702,10 @@ test_basic_usage() {
   lxc image delete testimage --project foo
   lxc project delete foo
 
+  # The `lxd start --all` and `lxc stop --all` tests creation bulk operation with the parent operation of type 72 (InstanceStateUpdateBulk).
+  # Bulk operations are persisted for 24 hours, so we need to clean them up.
+  lxd sql global 'DELETE FROM operations WHERE type=72'
+
   # Ephemeral
   lxc launch testimage foo --ephemeral
   OLD_INIT="$(lxc list -f csv -c p foo)"
