@@ -298,10 +298,6 @@ type OVN struct {
 
 // getNorthboundDB returns connection string to use for northbound database.
 func (o *OVN) getNorthboundDB() string {
-	if o.nbDBAddr == "" {
-		return "unix:/var/run/ovn/ovnnb_db.sock"
-	}
-
 	return o.nbDBAddr
 }
 
