@@ -479,6 +479,7 @@ var APIExtensions = []string{
 	"instance_refresh_config",
 	"clustering_control_plane",
 	"storage_remote_drop_source",
+	"storage_ceph_use_rbd_defaults",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
