@@ -789,13 +789,16 @@ var ConfigSchema = config.Schema{
 		//  shortdesc: OVS integration bridge to use for OVN networks
 		"network.ovn.integration_bridge": {Default: "br-int"},
 		// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovn.northbound_connection)
-		//
+		// Specify a connection string for OVN Northbound database.
+		// If value is not specified, LXD will determine the connection string based on the environment.
+		// LXD snap will use the MicroOVN environment settings if connected to MicroOVN snap.
+		// Otherwise, LXD will use `unix:/var/run/ovn/ovnnb_db.sock` as the connection string.
 		// ---
 		//  type: string
 		//  scope: global
-		//  defaultdesc: `unix:/var/run/ovn/ovnnb_db.sock`
-		//  shortdesc: OVN northbound database connection string
-		"network.ovn.northbound_connection": {Default: "unix:/var/run/ovn/ovnnb_db.sock"},
+		//  defaultdesc: `unix:/var/run/ovn/ovnnb_db.sock` or MicroOVN configuration
+		//  shortdesc: OVN northbound database connection string (default determined by environment)
+		"network.ovn.northbound_connection": {Default: ""},
 
 		// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovn.ca_cert)
 		//
