@@ -33,7 +33,8 @@ func (d *tpm) CanMigrate() bool {
 
 // validateConfig checks the supplied config for correctness.
 func (d *tpm) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
+	instType := instConf.Type()
+	if !instanceSupported(instType, instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -52,7 +53,7 @@ func (d *tpm) validateConfig(instConf instance.ConfigReader) error {
 	//  type: string
 	//  required: for containers
 	//  shortdesc: Resource manager path inside the container
-	if instConf.Type() == instancetype.Container {
+	if instType == instancetype.Container {
 		rules["path"] = validate.IsNotEmpty
 		rules["pathrm"] = validate.IsNotEmpty
 	} else {

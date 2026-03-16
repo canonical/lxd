@@ -127,7 +127,7 @@ func (d *nicMACVLAN) validateEnvironment() error {
 		return errors.New("Requires name property to start")
 	}
 
-	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
+	if !network.InterfaceExists(d.config["parent"]) {
 		return fmt.Errorf("Parent device %q does not exist", d.config["parent"])
 	}
 

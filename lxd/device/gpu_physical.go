@@ -608,8 +608,7 @@ func (d *gpuPhysical) pciDeviceDriverOverrideIOMMU(pciDev pcidev.Device, driverO
 
 	if shared.PathExists(iommuGroupPath) {
 		// Extract parent slot name by removing any virtual function ID.
-		parts := strings.SplitN(pciDev.SlotName, ".", 2)
-		prefix := parts[0]
+		prefix, _, _ := strings.Cut(pciDev.SlotName, ".")
 
 		// Iterate the members of the IOMMU group and override any that match the parent slot name prefix.
 		err := filepath.Walk(iommuGroupPath, func(path string, _ os.FileInfo, err error) error {
