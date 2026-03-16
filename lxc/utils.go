@@ -306,8 +306,8 @@ func instancesExist(resources []remoteResource) error {
 func structHasField(typ reflect.Type, field string) bool {
 	var parent reflect.Type
 
-	for i := range typ.NumField() {
-		fieldType := typ.Field(i)
+	for fieldType := range typ.Fields() {
+		fieldType := fieldType
 		yaml := fieldType.Tag.Get("yaml")
 
 		if yaml == ",inline" {

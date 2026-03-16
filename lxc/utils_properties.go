@@ -243,8 +243,8 @@ func getEditableYAMLFields(v any) []string {
 		return fields
 	}
 
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
+	for field := range typ.Fields() {
+		field := field
 		yamlTag := field.Tag.Get("yaml")
 
 		// Skip fields without yaml tags or with "-"
