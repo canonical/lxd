@@ -32,7 +32,6 @@ import (
 	yaml "go.yaml.in/yaml/v2"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup/config"
@@ -4786,11 +4785,11 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		offerHeader.Idmap = make([]*migration.IDMapType, 0, len(idmapset.Idmap))
 		for _, ctnIdmap := range idmapset.Idmap {
 			idmap := migration.IDMapType{
-				Isuid:    proto.Bool(ctnIdmap.Isuid),
-				Isgid:    proto.Bool(ctnIdmap.Isgid),
-				Hostid:   proto.Int32(int32(ctnIdmap.Hostid)),
-				Nsid:     proto.Int32(int32(ctnIdmap.Nsid)),
-				Maprange: proto.Int32(int32(ctnIdmap.Maprange)),
+				Isuid:    new(ctnIdmap.Isuid),
+				Isgid:    new(ctnIdmap.Isgid),
+				Hostid:   new(int32(ctnIdmap.Hostid)),
+				Nsid:     new(int32(ctnIdmap.Nsid)),
+				Maprange: new(int32(ctnIdmap.Maprange)),
 			}
 
 			offerHeader.Idmap = append(offerHeader.Idmap, &idmap)
@@ -5386,11 +5385,11 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 			// Send failure response to source.
 			msg := migration.MigrationControl{
-				Success: proto.Bool(err == nil),
+				Success: new(err == nil),
 			}
 
 			if err != nil {
-				msg.Message = proto.String(err.Error())
+				msg.Message = new(err.Error())
 			}
 
 			d.logger.Debug("Sending migration failure response to source", logger.Ctx{"err": err})
@@ -5404,7 +5403,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Send success response to source to control as nothing has gone wrong so far.
 		msg := migration.MigrationControl{
-			Success: proto.Bool(true),
+			Success: new(true),
 		}
 
 		d.logger.Debug("Sending migration success response to source", logger.Ctx{"success": msg.GetSuccess()})
