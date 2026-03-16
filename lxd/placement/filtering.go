@@ -23,9 +23,7 @@ func Filter(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeInfo, api
 	// This allows placement decisions to be made based on where instances will be, not where they currently are.
 	if evacuation {
 		sourceMemberID := tx.GetNodeID()
-		// XXX: Use new(expr) when Go 1.26 is minimum supported version.
-		excludeMemberID := int(sourceMemberID)
-		pgFilter.ID = &excludeMemberID
+		pgFilter.ID = new(int(sourceMemberID))
 	}
 
 	memberToInst, err := cluster.GetInstancesInPlacementGroup(ctx, tx.Tx(), pgFilter)
