@@ -36,6 +36,7 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 
 	ch := make(chan os.Signal, len(signals))
 	signal.Notify(ch, signals...)
+	defer signal.Stop(ch)
 
 	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 	defer func() { _ = control.WriteMessage(websocket.CloseMessage, closeMsg) }()
