@@ -72,9 +72,7 @@ func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 	signal.Notify(sigCh, unix.SIGINT)
 	signal.Notify(sigCh, unix.SIGQUIT)
 	signal.Notify(sigCh, unix.SIGTERM)
-
-	chIgnore := make(chan os.Signal, 1)
-	signal.Notify(chIgnore, unix.SIGHUP)
+	signal.Notify(sigCh, unix.SIGHUP)
 
 	go func() {
 		for {
