@@ -1,47 +1,3 @@
-# Helper function that waits until all operations across all projects have completed.
-wait_no_operations() {
-  retries=30
-
-  while [ "${retries}" -gt 0 ]; do
-    echo "Waiting operations to complete (${retries} retries left) ..."
-    count=$(lxc query "/1.0/operations?all-projects=true" | jq '.success | length')
-    if [ -z "${count}" ] || [ "${count}" -eq 0 ]; then
-      return 0
-    fi
-
-    retries=$((retries - 1))
-    sleep 1
-  done
-
-  echo "Exceeded maximum retries waiting for operations to complete."
-  return 1
-}
-
-# Helper function that asserts the number of operations in all projects equals
-# the provided operation count.
-assert_all_operations_count() {
-  opCount="$1"
-
-  result=$(lxc query "/1.0/operations?all-projects=true" | jq '.success | length')
-  test "${result}" -eq "${opCount}"
-
-  result=$(lxc query "/1.0/operations?all-projects=true&recursion=1" | jq '[.success[] | select(.status_code)] | length')
-  test "${result}" -eq "${opCount}"
-}
-
-# Helper function that asserts the number of operations in a specific project
-# equals the provided operation count.
-assert_project_operations_count() {
-  project="$1"
-  opCount="$2"
-
-  result=$(lxc query "/1.0/operations?project=${project}" | jq '.success | length ')
-  test "${result}" -eq "${opCount}"
-
-  result=$(lxc query "/1.0/operations?project=${project}&recursion=1" | jq '[.success[] | select(.status_code)] | length')
-  test "${result}" -eq "${opCount}"
-}
-
 test_get_operations() {
   ensure_import_testimage
 
@@ -60,17 +16,36 @@ test_get_operations() {
     lxc launch testimage c1 --project "${proj1}"
     lxc launch testimage c2 --project "${proj2}"
 
-    wait_no_operations
-
     # For each project, generate a single operation.
     lxc exec -T --project="${proj1}" c1 true
     lxc exec -T --project="${proj2}" c2 true
 
-    # Verify that both individual project operations and the collective set of
-    # operations are queried correctly.
-    assert_project_operations_count "${proj1}" 1
-    assert_project_operations_count "${proj2}" 1
-    assert_all_operations_count 2
+    # Get the operations output json with recursion=1
+    proj1_full_ops_json=$(lxc query "/1.0/operations?project=${proj1}&recursion=1")
+    proj2_full_ops_json=$(lxc query "/1.0/operations?project=${proj2}&recursion=1")
+    all_full_ops_json=$(lxc query "/1.0/operations?all-projects=true&recursion=1")
+
+    # Verify that both individual project operations and the collective set of operations are queried correctly.
+    proj1_count=$(jq --exit-status '[.success[] | select(.description == "Executing command")] | length' <<< "${proj1_full_ops_json}")
+    test "${proj1_count}" -eq 1
+    proj2_count=$(jq --exit-status '[.success[] | select(.description == "Executing command")] | length' <<< "${proj2_full_ops_json}")
+    test "${proj2_count}" -eq 1
+    all_count=$(jq --exit-status '[.success[] | select(.description == "Executing command")] | length' <<< "${all_full_ops_json}")
+    test "${all_count}" -eq 2
+
+    proj1_op_id=$(jq --exit-status -r '.success[] | select(.description == "Executing command") | .id' <<< "${proj1_full_ops_json}")
+    proj2_op_id=$(jq --exit-status -r '.success[] | select(.description == "Executing command") | .id' <<< "${proj2_full_ops_json}")
+
+    proj1_ops_json=$(lxc query "/1.0/operations?project=${proj1}")
+    proj2_ops_json=$(lxc query "/1.0/operations?project=${proj2}")
+    all_ops_json=$(lxc query "/1.0/operations?all-projects=true")
+
+    # Assert that the operations with these IDs exist across all projects.
+    jq --exit-status --arg id "${proj1_op_id}" '.success | contains(["/1.0/operations/\($id)"])' <<< "${all_ops_json}"
+    jq --exit-status --arg id "${proj2_op_id}" '.success | contains(["/1.0/operations/\($id)"])' <<< "${all_ops_json}"
+    # Assert that the operations with these IDs exist within their respective projects.
+    jq --exit-status --arg id "${proj1_op_id}" '.success | contains(["/1.0/operations/\($id)"])' <<< "${proj1_ops_json}"
+    jq --exit-status --arg id "${proj2_op_id}" '.success | contains(["/1.0/operations/\($id)"])' <<< "${proj2_ops_json}"
 
     lxc delete c1 --force --project "${proj1}"
     lxc delete c2 --force --project "${proj2}"
