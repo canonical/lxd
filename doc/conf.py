@@ -180,8 +180,9 @@ linkcheck_ignore = [
     r"https://snapcraft\.io.*",
     r"https://ubuntu\.com.*",
     r"https://.*\.launchpad\.net.*",
-    # Ignore so that we can link change log in release notes before a release is ready
+    # Ignore so that we can refer to an unpublished release when preparing release notes
     r"https://github\.com/canonical/lxd/compare.*",
+    r"https://github\.com/canonical/lxd/releases/tag/lxd-.*",
     r'https://kubernetes\.io/.*',
 ]
 
@@ -249,7 +250,8 @@ myst_enable_extensions = {
 exclude_patterns = [
     'html',
     'README.md',
-    'config_options_cheat_sheet.md'
+    'config_options_cheat_sheet.md',
+    'reference/release-notes/release-notes-template.md',
 ]
 
 # Adds custom CSS files, located under 'html_static_path'
