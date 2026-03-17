@@ -51,10 +51,9 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 				continue
 			}
 
-			logger.Debugf("Received '%s signal', updating window geometry.", sig)
 			err := c.sendTermSize(control)
 			if err != nil {
-				logger.Debugf("error setting term size %s", err)
+				logger.Debugf("Error setting term size: %v", err)
 				return
 			}
 
@@ -68,17 +67,15 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 				sig = unix.SIGTERM
 			}
 
-			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			if err != nil {
-				logger.Debugf("Failed forwarding signal '%s'.", sig)
+				logger.Debugf("Failed forwarding signal %q: %v", sig, err)
 				return
 			}
 
 		default:
-			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, sig.(unix.Signal))
 			if err != nil {
-				logger.Debugf("Failed forwarding signal '%s'.", sig)
+				logger.Debugf("Failed forwarding signal %q: %v", sig, err)
 				return
 			}
 		}
@@ -86,8 +83,6 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 }
 
 func (c *cmdExec) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
-	logger.Debugf("Forwarding signal: %s", sig)
-
 	msg := api.InstanceExecControl{}
 	msg.Command = "signal"
 	msg.Signal = int(sig)
