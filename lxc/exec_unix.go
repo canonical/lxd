@@ -18,8 +18,7 @@ func (c *cmdExec) getTERM() (string, bool) {
 }
 
 func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
-	ch := make(chan os.Signal, 10)
-	signal.Notify(ch,
+	signals := []os.Signal{
 		unix.SIGWINCH,
 		unix.SIGTERM,
 		unix.SIGHUP,
@@ -32,7 +31,11 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 		unix.SIGUSR1,
 		unix.SIGUSR2,
 		unix.SIGSEGV,
-		unix.SIGCONT)
+		unix.SIGCONT,
+	}
+
+	ch := make(chan os.Signal, len(signals))
+	signal.Notify(ch, signals...)
 
 	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 	defer func() { _ = control.WriteMessage(websocket.CloseMessage, closeMsg) }()
