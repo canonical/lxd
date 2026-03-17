@@ -2140,7 +2140,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 
 			// Create forkdns servers.conf file if doesn't exist.
-			f, err := os.OpenFile(forkdnsPath+"/"+ForkdnsServersListFile, os.O_RDONLY|os.O_CREATE, 0666)
+			// forkdns reads servers.conf after dropping privileges to UnprivUser, so group and other read access is needed.
+			f, err := os.OpenFile(forkdnsPath+"/"+ForkdnsServersListFile, os.O_RDONLY|os.O_CREATE, 0644)
 			if err != nil {
 				return err
 			}
@@ -2727,8 +2728,9 @@ func (n *bridge) updateForkdnsServersFile(addresses []string) error {
 	permName := shared.VarPath("networks", n.name, ForkdnsServersListPath+"/"+ForkdnsServersListFile)
 	tmpName := permName + ".tmp"
 
-	// Open tmp file and truncate
-	tmpFile, err := os.Create(tmpName)
+	// Open tmp file and truncate, using explicit permissions so the final servers.conf
+	// always ends up with mode 0644 regardless of the process umask.
+	tmpFile, err := os.OpenFile(tmpName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}

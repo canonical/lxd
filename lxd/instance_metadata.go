@@ -348,7 +348,7 @@ func doInstanceMetadataUpdate(s *state.State, inst instance.Instance, metadata a
 
 	// Update the metadata.
 	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
-	err = os.WriteFile(metadataPath, data, 0644)
+	err = os.WriteFile(metadataPath, data, 0600)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -613,7 +613,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	templatesPath := c.TemplatesPath()
-	err = os.MkdirAll(templatesPath, 0711)
+	err = os.MkdirAll(templatesPath, 0700)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -625,7 +625,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Write the new template
-	template, err := os.OpenFile(templatePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	template, err := os.OpenFile(templatePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return response.SmartError(err)
 	}
