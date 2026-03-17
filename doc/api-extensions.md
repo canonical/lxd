@@ -3026,3 +3026,10 @@ A {config:option}`storage-zfs-volume-conf:zfs.promote` configuration key was int
 It's a Boolean that defaults to `false` and that when set to `true` instructs LXD to ZFS promote the volume being created (or re-created) from a clone.
 
 This is primarily useful when combined with the `initial.` `disk` device configuration options, as it allows controlling ZFS promotion when creating instances from other instances.
+
+(extension-storage-and-network-operations)=
+## `storage_and_network_operations`
+
+Storage pool and network endpoints that were previously synchronous now return background operations. This affects create, update, delete, and rename actions on storage pools, networks, network ACLs, network zones, network zone records, network forwards, network load balancers, network peers, and storage buckets (including bucket keys).
+
+Clients should check for this extension and handle the asynchronous response by waiting on the returned operation. Operation metadata may include additional data, such as storage bucket admin credentials on bucket creation.
