@@ -302,8 +302,6 @@ parts:
       - lib/*/libproto*
 
   dqlite:
-    after:
-      - sqlite
     source: https://github.com/canonical/dqlite
     source-branch: lts-1.17.x
     source-depth: 1
@@ -314,14 +312,20 @@ parts:
       - --enable-build-raft
     stage-packages:
       - liblz4-1
-      - libuv1
+      - libuv1t64
+      - sqlite3
     build-packages:
       - liblz4-dev
+      - libsqlite3-dev
       - libuv1-dev
+      - xfslibs-dev
     organize:
+      usr/bin/: bin/
       usr/lib/: lib/
     prime:
+      - bin/sqlite3
       - lib/libdqlite*so*
+      - lib/*/libsqlite3*so*
       - lib/*/libuv*
       #- lib/*/liblz4.so*  # use liblz4.so from the base snap
 
