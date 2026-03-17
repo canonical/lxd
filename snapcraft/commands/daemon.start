@@ -738,13 +738,6 @@ if [ -x "${SNAP_COMMON}/lxd.debug" ]; then
     echo "==> WARNING: Using a custom debug LXD binary!"
 fi
 
-# Note: Snaps disallow running binaries from certain paths (for example paths under home directories).
-# These will show `permission denied` when trying to run the executable.
-if [ -n "${minio_path:-""}" ] ; then
-  minio_dir="/var/lib/snapd/hostfs${minio_path}"
-  export PATH="${PATH}:${minio_dir}"
-fi
-
 CMD="${LXD} --logfile ${SNAP_COMMON}/lxd/logs/lxd.log"
 
 if getent group "${daemon_group}" >/dev/null 2>&1; then
