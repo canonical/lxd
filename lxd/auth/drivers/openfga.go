@@ -84,6 +84,10 @@ func (e *embeddedOpenFGA) load(ctx context.Context, opts Opts) error {
 		// Do not limit the number of results returned by calls to ListObjects.
 		// This assumes that there are never more than 10000 of any LXD resource.
 		server.WithListObjectsMaxResults(10_000),
+		// The list objects pipeline is an optimisation internal to OpenFGA (see https://auth0.com/blog/openfga-improved-listobjects-algorithm/).
+		// As part of the pipeline implementation, the datastore receives slightly different queries that our datastore
+		// is not yet flexible enough to handle (to be removed when http://github.com/canonical/lxd/issues/17900 is addressed).
+		server.WithListObjectsPipelineEnabled(false),
 	}
 
 	e.server, err = server.NewServerWithOpts(openfgaServerOptions...)
