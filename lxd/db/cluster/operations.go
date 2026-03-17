@@ -236,6 +236,39 @@ func GetOperationResources(ctx context.Context, tx *sql.Tx, opID int64) (map[ent
 	return result, nil
 }
 
+// GetParentOperations returns all parent operation, that is all operations that don't have a parent.
+func GetParentOperations(ctx context.Context, tx *sql.Tx) ([]Operation, error) {
+	stmt := `
+SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.error_code, operations.parent, operations.stage
+  FROM operations
+  JOIN nodes ON operations.node_id = nodes.id
+  WHERE parent IS NULL
+  ORDER BY operations.id, operations.uuid
+`
+
+	// Result slice.
+	objects := make([]Operation, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		o := Operation{}
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.Location, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.ErrorCode, &o.Parent, &o.Stage)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, o)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, stmt, dest)
+	if err != nil {
+		return nil, fmt.Errorf("Failed fetching from \"operations\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // CreateOperationResources registers operation resources in the cluster db.
 func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resources map[entity.Type][]api.URL) error {
 	// No resources to register.
