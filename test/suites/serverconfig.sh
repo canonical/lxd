@@ -64,10 +64,11 @@ _server_config_access() {
   # test authentication type, only tls and bearer are enabled by default
   curl --silent --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq --exit-status '.metadata.auth_methods == ["tls","bearer"]'
 
-  # test fetch metadata validation.
-  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H 'Sec-Fetch-Site: same-origin' "lxd/1.0")" = "200" ]
-  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H 'Sec-Fetch-Site: cross-site' "lxd/1.0")" = "403" ]
-  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H 'Sec-Fetch-Site: same-site' "lxd/1.0")" = "403" ]
+  # test Sec-Fetch-Site header validation.
+  # We use PATCH request here because Go's stdlib CSRF protection only examines unsafe state-changing requests (e.g. PATCH, POST, PUT, DELETE).
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -X PATCH -H 'Sec-Fetch-Site: same-origin' -d '{"config": {"core.shutdown_timeout": "10"}}' "lxd/1.0")" = "200" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -X PATCH -H 'Sec-Fetch-Site: cross-site' -d '{"config": {"core.shutdown_timeout": "10"}}' "lxd/1.0")" = "403" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -X PATCH -H 'Sec-Fetch-Site: same-site' -d '{"config": {"core.shutdown_timeout": "10"}}' "lxd/1.0")" = "403" ]
 
   # test content type validation.
   [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H "User-Agent: Mozilla/5.0" -H "Content-Type: application/json" "lxd/1.0")" = "200" ]
