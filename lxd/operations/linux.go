@@ -19,12 +19,12 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-func registerDBOperation(op *Operation) error {
+func registerDBOperation(ctx context.Context, op *Operation) error {
 	if op.state == nil {
 		return nil
 	}
 
-	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Conflict reference should only be provided for operation types that support conflicts.
 		if op.dbOpType.ConflictAction() == operationtype.ConflictActionNone && op.conflictReference != "" {
 			return fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())

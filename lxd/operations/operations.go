@@ -290,7 +290,12 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		return nil, err
 	}
 
-	err = registerDBOperation(op)
+	shutdownCtx := context.TODO()
+	if op.state != nil {
+		shutdownCtx = op.state.ShutdownCtx
+	}
+
+	err = registerDBOperation(shutdownCtx, op)
 	if err != nil {
 		return nil, err
 	}

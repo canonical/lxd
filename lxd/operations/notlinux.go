@@ -9,7 +9,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-func registerDBOperation(op *Operation) error {
+func registerDBOperation(ctx context.Context, op *Operation) error {
 	if op.state != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
 	}
