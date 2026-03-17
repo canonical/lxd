@@ -2997,3 +2997,13 @@ This ensures the storage pool configuration is done consistently across all remo
 
 For Ceph RBD use the `ceph.osd.pool_name` configuration key.
 For CephFS use the `cephfs.path` configuration key.
+
+(extension-storage-ceph-use-rbd-defaults)=
+## `storage_ceph_use_rbd_defaults`
+
+Starting with this extension, new volumes (and clones) in Ceph RBD (`ceph`) pools are no longer created with only `--image-feature layering`.
+Instead the default RBD features of the respective Ceph cluster are used implicitly.
+This also applies to new volumes in already existing Ceph RBD storage pools.
+
+In case the `ceph.rbd.features` configuration key is already set the pool, new volumes continue using this list of features and won't
+use the defaults set in the Ceph cluster.

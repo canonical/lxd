@@ -113,11 +113,7 @@ func (d *ceph) roundUpTo512(a int64) int64 {
 }
 
 // rbdCreateVolume creates an RBD storage volume.
-// Note that the default set of features is intentionally limited
-// by passing --image-feature explicitly. This is done to ensure that
-// the chances of a conflict between the features supported by the userspace
-// library and the kernel module are minimized. Otherwise random panics might
-// occur.
+// Note that the default set of features can be limited by setting the ceph.rbd.features config key.
 func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -134,8 +130,6 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 		for _, feature := range shared.SplitNTrimSpace(d.config["ceph.rbd.features"], ",", -1, true) {
 			cmd = append(cmd, "--image-feature", feature)
 		}
-	} else {
-		cmd = append(cmd, "--image-feature", "layering")
 	}
 
 	if d.config["ceph.osd.data_pool_name"] != "" {
@@ -388,8 +382,6 @@ func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targe
 		for _, feature := range shared.SplitNTrimSpace(d.config["ceph.rbd.features"], ",", -1, true) {
 			cmd = append(cmd, "--image-feature", feature)
 		}
-	} else {
-		cmd = append(cmd, "--image-feature", "layering")
 	}
 
 	if d.config["ceph.osd.data_pool_name"] != "" {

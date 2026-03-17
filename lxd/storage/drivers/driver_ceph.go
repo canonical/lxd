@@ -376,7 +376,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		//
 		// ---
 		//  type: string
-		//  defaultdesc: `layering`
+		//  defaultdesc: Default features defined in Ceph cluster
 		//  shortdesc: Comma-separated list of RBD features to enable on the volumes
 		//  scope: global
 		"ceph.rbd.features": validate.IsAny,

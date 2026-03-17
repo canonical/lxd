@@ -5406,7 +5406,7 @@ This option specifies whether to use RBD `du` to obtain disk usage data for stop
 ```
 
 ```{config:option} ceph.rbd.features storage-ceph-pool-conf
-:defaultdesc: "`layering`"
+:defaultdesc: "Default features defined in Ceph cluster"
 :scope: "global"
 :shortdesc: "Comma-separated list of RBD features to enable on the volumes"
 :type: "string"
