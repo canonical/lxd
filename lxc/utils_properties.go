@@ -13,7 +13,7 @@ import (
 // stringToTimeHookFunc is a custom decoding hook that converts string values to time.Time using the given layout.
 func stringToTimeHookFunc(layout string) mapstructure.DecodeHookFuncType {
 	return func(from reflect.Type, to reflect.Type, data any) (any, error) {
-		if from.Kind() == reflect.String && to == reflect.TypeOf(time.Time{}) {
+		if from.Kind() == reflect.String && to == reflect.TypeFor[time.Time]() {
 			strValue, ok := data.(string)
 			if !ok {
 				return nil, fmt.Errorf("Expected string, got %T", data)
@@ -101,7 +101,7 @@ func stringToFloatHookFunc() mapstructure.DecodeHookFunc {
 func getFieldByJSONTag(obj any, tag string) (any, error) {
 	var res any
 	v := reflect.ValueOf(obj)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
@@ -134,7 +134,7 @@ func getFromStruct(v reflect.Value, tag string) (bool, any) {
 		}
 
 		if v.Type().Field(i).Anonymous {
-			if field.Kind() == reflect.Ptr {
+			if field.Kind() == reflect.Pointer {
 				field = field.Elem()
 			}
 
@@ -234,7 +234,7 @@ func getEditableYAMLFields(v any) []string {
 	typ := reflect.TypeOf(v)
 
 	// Handle pointer types
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
 
@@ -243,8 +243,7 @@ func getEditableYAMLFields(v any) []string {
 		return fields
 	}
 
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
+	for field := range typ.Fields() {
 		yamlTag := field.Tag.Get("yaml")
 
 		// Skip fields without yaml tags or with "-"

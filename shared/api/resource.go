@@ -797,10 +797,10 @@ type ResourcesMemoryNode struct {
 // API extension: resources.
 type ResourcesStoragePool struct {
 	// Disk space usage
-	Space ResourcesStoragePoolSpace `json:"space,omitempty" yaml:"space,omitempty"`
+	Space ResourcesStoragePoolSpace `json:"space" yaml:"space,omitempty"`
 
 	// DIsk inode usage
-	Inodes ResourcesStoragePoolInodes `json:"inodes,omitempty" yaml:"inodes,omitempty"`
+	Inodes ResourcesStoragePoolInodes `json:"inodes" yaml:"inodes,omitempty"`
 }
 
 // ResourcesStoragePoolSpace represents the space available to a given storage pool

@@ -1,6 +1,6 @@
 module github.com/canonical/lxd/tools
 
-go 1.25.8
+go 1.26.1
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 

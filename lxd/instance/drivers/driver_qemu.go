@@ -36,7 +36,6 @@ import (
 	"go.yaml.in/yaml/v2"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/canonical/lxd/client"
 	agentAPI "github.com/canonical/lxd/lxd-agent/api"
@@ -7803,11 +7802,11 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 			// Send failure response to source.
 			msg := migration.MigrationControl{
-				Success: proto.Bool(err == nil),
+				Success: new(err == nil),
 			}
 
 			if err != nil {
-				msg.Message = proto.String(err.Error())
+				msg.Message = new(err.Error())
 			}
 
 			d.logger.Debug("Sending migration failure response to source", logger.Ctx{"err": err})
@@ -7821,7 +7820,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Send success response to source to control as nothing has gone wrong so far.
 		msg := migration.MigrationControl{
-			Success: proto.Bool(true),
+			Success: new(true),
 		}
 
 		d.logger.Debug("Sending migration success response to source", logger.Ctx{"success": msg.GetSuccess()})
@@ -8533,7 +8532,7 @@ func (d *qemu) getVsockID() (uint32, error) {
 	}
 
 	if d.reservedVsockID(uint32(vsockID)) {
-		return 0, fmt.Errorf("Failed using reserved vsock Context ID: %q", vsockID)
+		return 0, fmt.Errorf("Failed using reserved vsock Context ID: %d", vsockID)
 	}
 
 	return uint32(vsockID), nil

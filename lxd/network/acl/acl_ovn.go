@@ -582,6 +582,7 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 			} else {
 				// If not valid IP subnet, check if subject is ACL name or network peer name.
 				var subjectPortSelector openvswitch.OVNPortGroup
+				peerRef, hasPeerRef := strings.CutPrefix(subjectCriterion, "@")
 				if slices.Contains(ruleSubjectInternalAliases, subjectCriterion) {
 					// Use pseudo port group name for special reserved port selector types.
 					// These will be expanded later for each network specific rule.
@@ -594,9 +595,9 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 					// Convert deprecated #external to non-deprecated @external if needed.
 					subjectPortSelector = openvswitch.OVNPortGroup(ruleSubjectExternal)
 					networkSpecific = true
-				} else if strings.HasPrefix(subjectCriterion, "@") {
+				} else if hasPeerRef {
 					// Subject is a network peer name. Convert to address set criteria.
-					networkName, peerName, found := strings.Cut(strings.TrimPrefix(subjectCriterion, "@"), "/")
+					networkName, peerName, found := strings.Cut(peerRef, "/")
 					if !found {
 						return "", false, nil, fmt.Errorf("Cannot parse subject as peer %q", subjectCriterion)
 					}

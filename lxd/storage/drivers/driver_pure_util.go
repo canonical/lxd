@@ -133,7 +133,7 @@ type pureNetworkInterface struct {
 	Name     string `json:"name"`
 	Ethernet struct {
 		Address string `json:"address,omitempty"`
-	} `json:"eth,omitempty"`
+	} `json:"eth"`
 }
 
 // pureEntity represents a generic entity in Pure Storage.
