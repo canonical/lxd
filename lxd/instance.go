@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -260,6 +261,10 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		// Load the target instance.
 		inst, err = instance.LoadByProjectAndName(s, opts.targetInstance.Project, opts.targetInstance.Name)
 		if err != nil {
+			if !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return nil, err
+			}
+
 			opts.refresh = false // Instance doesn't exist, so switch to copy mode.
 		} else {
 			// Validate and apply refresh target config before the storage refresh.
