@@ -12,8 +12,10 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/zone"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -329,8 +331,8 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkZonesPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -340,7 +342,8 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, request.ProjectParam(r))
+	requestProjectName := request.ProjectParam(r)
+	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -353,26 +356,44 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Create the zone.
+	// Check the zone doesn't already exist.
 	err = zone.Exists(r.Context(), s, req.Name)
 	if err == nil {
 		return response.BadRequest(errors.New("The network zone already exists"))
 	}
 
-	err = zone.Create(r.Context(), s, projectName, &req)
-	if err != nil {
-		return response.SmartError(err)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = zone.Create(ctx, s, projectName, &req)
+		if err != nil {
+			return err
+		}
+
+		netzone, err := zone.LoadByNameAndProject(ctx, s, projectName, req.Name)
+		if err != nil {
+			return err
+		}
+
+		requestor := request.CreateRequestor(ctx)
+		lc := lifecycle.NetworkZoneCreated.Event(netzone, requestor, nil)
+		s.Events.SendLifecycle(projectName, lc)
+
+		return nil
 	}
 
-	netzone, err := zone.LoadByNameAndProject(r.Context(), s, projectName, req.Name)
-	if err != nil {
-		return response.BadRequest(err)
+	args := operations.OperationArgs{
+		ProjectName: requestProjectName,
+		Type:        operationtype.NetworkZoneCreate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.ProjectURL(projectName),
 	}
 
-	lc := lifecycle.NetworkZoneCreated.Event(netzone, request.CreateRequestor(r.Context()), nil)
-	s.Events.SendLifecycle(projectName, lc)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
 
-	return response.SyncResponseLocation(true, nil, lc.Source)
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/network-zones/{zone} network-zones network_zone_delete
