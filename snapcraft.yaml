@@ -1322,32 +1322,35 @@ parts:
     source-depth: 1
     source-type: git
     build-packages:
-      - dpkg-dev
+      - libapparmor-dev
       - libcap-dev
-      - libdbus-1-dev
-      - libgnutls28-dev
       - libseccomp-dev
-      - libselinux1-dev
       - pkg-config
       - meson
       - ninja-build
     plugin: meson
     meson-parameters:
-      - --prefix=/
-      - -Dexamples=false
-      - -Dman=false
-      - -Dtools=false
-      - -Dtests=false
-      - -Dmemfd-rexec=false
+      - "--buildtype=release"
       - -Dapparmor=true
-      - -Dseccomp=true
-      - -Dselinux=true
       - -Dcapabilities=true
+      - -Dcommands=false
+      - -Ddbus=false
+      - -Dexamples=false
+      - -Dinstall-init-files=false
+      - -Dinstall-state-dirs=false
+      - -Dlibdir=lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}
+      - -Dman=false
+      - -Dmemfd-rexec=false
+      - -Dopenssl=false
+      - -Dprefix=/
       - -Drootfs-mount-path=/var/snap/lxd/common/lxc/
-      - -Dlibexecdir=/snap/lxd/current/libexec/
+      - -Dseccomp=true
+      - -Dselinux=false
+      - -Dspecfile=false
+      - -Dtests=false
+      - -Dtools=false
     organize:
       snap/lxd/current/lxc: lxc
-      snap/lxd/current/libexec: libexec
       share/lxc/hooks: lxc/hooks
     prime:
       - bin/lxc-checkconfig
@@ -1362,6 +1365,10 @@ parts:
       cd ../src
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
+
+      # lxc-checkconfig.in does not need any preprocessing
+      mkdir -p "${CRAFT_PART_INSTALL}/bin/"
+      install --mode=0755 src/lxc/cmd/lxc-checkconfig.in "${CRAFT_PART_INSTALL}/bin/lxc-checkconfig"
 
       cd ../build
 
