@@ -207,6 +207,7 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, joinToken *api
 	}
 
 	var foundOp *api.Operation
+	joinTokenSecretBytes := []byte(joinToken.Secret)
 	for _, op := range ops {
 		if op.StatusCode != api.Running {
 			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
@@ -232,7 +233,7 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, joinToken *api
 			continue
 		}
 
-		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(joinToken.Secret)) == 1 {
+		if subtle.ConstantTimeCompare([]byte(opSecretStr), joinTokenSecretBytes) == 1 {
 			foundOp = op
 			break
 		}
