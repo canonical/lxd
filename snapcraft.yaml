@@ -556,28 +556,6 @@ parts:
       - lib/*/liblvm*
       - lib/*/libreadline.so*
 
-  nasm:
-    source: https://github.com/netwide-assembler/nasm
-    source-depth: 1
-    source-tag: nasm-2.16.03
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-    organize:
-      usr/bin/: bin/
-    override-prime:
-      # no need to prime anything as the nasm binary is only used by edk2
-      # and is not needed in the final snap artifact
-      exit 0
-    override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-build: |
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/nasm-0000-disable-manpages.patch"
-      craftctl default
-
   nftables:
     plugin: nil
     stage-packages:
