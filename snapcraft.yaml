@@ -1434,13 +1434,23 @@ parts:
   uefivars:
     after:
       - spice-server
-      - qemu-ovmf-secureboot
+      - edk2
       - nftables
+    # XXX: cannot use python3-pyuefivars (1.0.0-0ubuntu2) from Noble as the Ubuntu patch breaks it
+    #      the version in Ubuntu 24.10 onward should be OK so let's revisit with core26.
     source: https://github.com/awslabs/python-uefivars
     source-commit: ec1eab1717c65ea36ca7160c96fe0e10e071fb66 # v1.2
     source-depth: 1
     source-type: git
     plugin: python
+    stage-packages:
+      - to amd64:
+        - python3-crc32c
+      - to arm64:
+        - python3-crc32c
+    override-stage: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
     override-prime: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -1449,13 +1459,18 @@ parts:
       craftctl default
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+
+      # Apply patches
+      # XXX: taken from: https://git.launchpad.net/ubuntu/+source/python-uefivars/plain/debian/patches/Revert-Use-google-crc32c-instead-of-crc32c.patch?h=ubuntu/plucky
+      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/uefivars-Revert-Use-google-crc32c-instead-of-crc32c.patch"
+
       craftctl default
     organize:
-      lib/python3.10/site-packages/: lib/python3/dist-packages/
+      lib/python3.12/site-packages/: lib/python3/dist-packages/
       bin/uefivars: bin/uefivars.py
     prime:
       - bin/uefivars.py
-      - lib/python3/dist-packages/google_crc32c*
+      - lib/python3/dist-packages/crc32c*
       - lib/python3/dist-packages/pyuefivars*
 
   lxd:
