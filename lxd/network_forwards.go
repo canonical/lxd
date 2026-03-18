@@ -11,8 +11,10 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -282,15 +284,39 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	listenAddress, err := n.ForwardCreate(req, requestor.ClientType())
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed creating forward: %w", err))
+	networkName := details.networkName
+	clientType := requestor.ClientType()
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		listenAddress, err := n.ForwardCreate(req, clientType)
+		if err != nil {
+			return fmt.Errorf("Failed creating forward: %w", err)
+		}
+
+		err = op.UpdateMetadata(map[string]any{"listen_address": listenAddress.String()})
+		if err != nil {
+			return err
+		}
+
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardCreated.Event(n, listenAddress.String(), request.CreateRequestor(ctx), nil))
+
+		return nil
 	}
 
-	lc := lifecycle.NetworkForwardCreated.Event(n, listenAddress.String(), request.CreateRequestor(r.Context()), nil)
-	s.Events.SendLifecycle(effectiveProjectName, lc)
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkForwardCreate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkURL(effectiveProjectName, networkName),
+	}
 
-	return response.SyncResponseLocation(true, nil, lc.Source)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_delete
@@ -355,19 +381,38 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
+	networkName := details.networkName
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		requestor, err := request.GetRequestor(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = n.ForwardDelete(listenAddress, requestor.ClientType())
+		if err != nil {
+			return fmt.Errorf("Failed deleting forward: %w", err)
+		}
+
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardDeleted.Event(n, listenAddress, request.CreateRequestor(ctx), nil))
+
+		return nil
 	}
 
-	err = n.ForwardDelete(listenAddress, requestor.ClientType())
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed deleting forward: %w", err))
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkForwardDelete,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkURL(effectiveProjectName, networkName),
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardDeleted.Event(n, listenAddress, request.CreateRequestor(r.Context()), nil))
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
 
-	return response.EmptySyncResponse
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_get
@@ -612,17 +657,36 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 
 	req.Normalise() // So we handle the request in normalised/canonical form.
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
+	networkName := details.networkName
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		requestor, err := request.GetRequestor(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = n.ForwardUpdate(listenAddress, req, requestor.ClientType())
+		if err != nil {
+			return fmt.Errorf("Failed updating forward: %w", err)
+		}
+
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardUpdated.Event(n, listenAddress, request.CreateRequestor(ctx), nil))
+
+		return nil
 	}
 
-	err = n.ForwardUpdate(listenAddress, req, requestor.ClientType())
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed updating forward: %w", err))
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkForwardUpdate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkURL(effectiveProjectName, networkName),
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardUpdated.Event(n, listenAddress, request.CreateRequestor(r.Context()), nil))
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
 
-	return response.EmptySyncResponse
+	return operations.OperationResponse(op)
 }
