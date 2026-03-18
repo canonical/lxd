@@ -499,14 +499,16 @@ parts:
       usr/lib/: lib/
       usr/sbin/: bin/
     override-build: |-
-      # Patch lvm.conf
-      # lvm.conf changes for lvm2 from 22.04/core22
-      sed -i \
-        -e "s%\(# \)\?obtain_device_list_from_udev = 1%obtain_device_list_from_udev = 0%" \
-        -e "s%\(# \)\?cache_file_prefix = \"\"%cache_file_prefix = \"lxd\"%" \
-        "${CRAFT_PART_INSTALL}/etc/lvm/lvm.conf"
-
-      # Generic lvm.conf changes
+      # Patch lvm.conf to:
+      # 1) Disable bits that don't apply in a snap'ed env. Handle commented
+      #    out variants that represent builtin values.
+      #    * udev_sync
+      #    * udev_rules
+      #    * use_lvmetad
+      #    * monitoring
+      # 2) Uncomment all executable directives to override their builtin
+      #    values. Replace paths in /usr/bin, /usr/sbin, /bin and /sbin
+      #    by /snap/lxd/current/bin to use executables from the snap.
       sed -i \
         -e "s%\(# \)\?udev_sync = 1%udev_sync = 0%" \
         -e "s%\(# \)\?udev_rules = 1%udev_rules = 0%" \
