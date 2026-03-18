@@ -719,15 +719,30 @@ parts:
   ovn:
     after:
       - openvswitch
-    source: https://github.com/ovn-org/ovn
-    source-commit: 41836afafd99d579bb277f638a31bffd5cf3efa3 # v24.03.2
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --enable-ssl
-      - --prefix=
-      - --with-ovs-source=../../openvswitch/build/
+    plugin: nil
+    stage-packages:
+      - to armhf: []
+      - else:
+        - ovn-common
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
     prime:
       - bin/ovn-nbctl
       - bin/ovn-sbctl
