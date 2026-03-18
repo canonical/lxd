@@ -11,8 +11,10 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -227,10 +229,8 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkPeersPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
 //	  "202":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -277,15 +277,33 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support peering", n.Type()))
 	}
 
-	err = n.PeerCreate(req)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed creating peer: %w", err))
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = n.PeerCreate(req)
+		if err != nil {
+			return fmt.Errorf("Failed creating peer: %w", err)
+		}
+
+		requestor := request.CreateRequestor(ctx)
+		lc := lifecycle.NetworkPeerCreated.Event(n, req.Name, requestor, nil)
+		s.Events.SendLifecycle(effectiveProjectName, lc)
+
+		return nil
 	}
 
-	lc := lifecycle.NetworkPeerCreated.Event(n, req.Name, request.CreateRequestor(r.Context()), nil)
-	s.Events.SendLifecycle(effectiveProjectName, lc)
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkPeerCreate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
+	}
 
-	return response.SyncResponseLocation(true, nil, lc.Source)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/peers/{peerName} network-peers network_peer_delete
