@@ -515,28 +515,6 @@ parts:
       - bin/nano
       - etc/nanorc
 
-  nasm:
-    source: https://github.com/netwide-assembler/nasm
-    source-commit: 214f2d4c56925a280c480950bbf71389e2169e1a # nasm-2.15.05
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-    organize:
-      usr/bin/: bin/
-    override-prime:
-      # no need to prime anything as the nasm binary is only used by edk2
-      # and is not needed in the final snap artifact
-      exit 0
-    override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-build: |
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/nasm-0000-disable-manpages.patch"
-      craftctl default
-
   nftables:
     after:
       - libmnl
