@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -108,8 +109,10 @@ func (s *consoleWs) connectConsole(r *http.Request, w http.ResponseWriter) error
 		return errors.New("missing secret")
 	}
 
+	secretBytes := []byte(secret)
+
 	for fd, fdSecret := range s.fds {
-		if secret == fdSecret {
+		if subtle.ConstantTimeCompare(secretBytes, []byte(fdSecret)) == 1 {
 			conn, err := ws.Upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return err
@@ -151,8 +154,10 @@ func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
 		return errors.New("missing secret")
 	}
 
+	secretBytes := []byte(secret)
+
 	for fd, fdSecret := range s.fds {
-		if secret != fdSecret {
+		if subtle.ConstantTimeCompare(secretBytes, []byte(fdSecret)) != 1 {
 			continue
 		}
 
