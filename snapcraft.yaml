@@ -1482,7 +1482,6 @@ parts:
     after:
       - lxc
       - dqlite
-      - sqlite
     build-packages:
       - cmake
       - libacl1-dev
