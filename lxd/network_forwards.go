@@ -11,8 +11,10 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -227,8 +229,8 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkForwardsPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -282,15 +284,53 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	listenAddress, err := n.ForwardCreate(req, requestor.ClientType())
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed creating forward: %w", err))
+	networkName := details.networkName
+	clientType := requestor.ClientType()
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		listenAddress, err := n.ForwardCreate(req, clientType)
+		if err != nil {
+			return fmt.Errorf("Failed creating forward: %w", err)
+		}
+
+		if op != nil {
+			err = op.UpdateMetadata(map[string]any{"listen_address": listenAddress.String()})
+			if err != nil {
+				return err
+			}
+		}
+
+		if !clientType.IsClusterOperationNotification() {
+			s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardCreated.Event(n, listenAddress.String(), request.CreateRequestor(ctx), nil))
+		}
+
+		return nil
 	}
 
-	lc := lifecycle.NetworkForwardCreated.Event(n, listenAddress.String(), request.CreateRequestor(r.Context()), nil)
-	s.Events.SendLifecycle(effectiveProjectName, lc)
+	if clientType.IsClusterOperationNotification() {
+		// Handle cluster operation notification synchronously.
+		err := run(r.Context(), nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
 
-	return response.SyncResponseLocation(true, nil, lc.Source)
+		return response.EmptySyncResponse
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkForwardCreate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkURL(effectiveProjectName, networkName),
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_delete
