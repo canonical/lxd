@@ -1305,40 +1305,13 @@ parts:
       - bin/zstd
 
   apparmor:
-    source: https://gitlab.com/apparmor/apparmor.git
-    source-commit: b4dfdf50f50ed1d64161424d036a2453645f0cfe # v4.0.3
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    build-packages:
-      - g++
-      - bison
-      - flex
-      - autoconf-archive
-      - gettext
-    override-build: |-
-      set -ex
-
-      cd ./libraries/libapparmor
-      sh ./autogen.sh
-      sh ./configure --prefix=/
-      make
-      make install
-
-      cd ../../parser
-      make
-      make install
-
-      mkdir "${CRAFT_PART_INSTALL}/bin"
-      cp /sbin/apparmor_parser "${CRAFT_PART_INSTALL}/bin/"
-      mkdir "${CRAFT_PART_INSTALL}/lib"
-      cp /lib/libapparmor.so* "${CRAFT_PART_INSTALL}/lib/"
-
-      set +ex
+    plugin: nil
+    stage-packages:
+      - apparmor
+    organize:
+      sbin/: bin/
     prime:
       - bin/apparmor_parser
-      - lib/libapparmor.so.1
-      - lib/libapparmor.so.1.*
 
   # Core components
   lxc:
