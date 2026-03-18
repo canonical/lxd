@@ -972,21 +972,6 @@ parts:
       - share/qemu/vgabios-stdvga.bin
       - share/qemu/vgabios-virtio.bin
 
-
-  sqlite:
-    source: https://github.com/sqlite/sqlite
-    source-commit: 189e44dfecdc7868bb860dfb5d98eab371318c37 # version-3.45.1
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-    build-packages:
-      - tcl
-    prime:
-      - bin/sqlite3
-      - lib/libsqlite3*so*
-
   squashfs-tools-ng:
     source: https://github.com/AgentD/squashfs-tools-ng
     source-commit: 8f9966c8ea3ea8a854941d041e7fcb9eb4f772fb # v1.3.1
