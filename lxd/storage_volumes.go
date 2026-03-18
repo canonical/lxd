@@ -1063,6 +1063,34 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Currently not allowed to create storage volumes of type %q", req.Type))
 	}
 
+	if req.Source.Type == api.SourceTypeCopy {
+		if req.Source.Name == "" {
+			return response.BadRequest(errors.New("No source volume name supplied"))
+		}
+
+		if req.Source.Project == "" {
+			req.Source.Project = requestProjectName
+		}
+
+		sourceProjectName, err := project.StorageVolumeProject(s.DB.Cluster, req.Source.Project, cluster.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		var sourceURL *api.URL
+		sourceVolumeName, snapshotName, isSnapshot := api.GetParentAndSnapshotName(req.Source.Name)
+		if isSnapshot {
+			sourceURL = entity.StorageVolumeSnapshotURL(sourceProjectName, req.Source.Location, req.Source.Pool, req.Type, sourceVolumeName, snapshotName)
+		} else {
+			sourceURL = entity.StorageVolumeURL(sourceProjectName, req.Source.Location, req.Source.Pool, req.Type, req.Source.Name)
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), sourceURL, auth.EntitlementCanView)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	var poolID int64
 	var dbVolume *db.StorageVolume
 
