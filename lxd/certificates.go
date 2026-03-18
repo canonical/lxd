@@ -291,6 +291,7 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 	}
 
 	var foundOp *api.Operation
+	addTokenSecretBytes := []byte(addToken.Secret)
 	for _, op := range ops {
 		if op.StatusCode != api.Running {
 			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
@@ -307,7 +308,7 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 			continue
 		}
 
-		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(addToken.Secret)) == 1 {
+		if subtle.ConstantTimeCompare([]byte(opSecretStr), addTokenSecretBytes) == 1 {
 			foundOp = op
 			break
 		}
