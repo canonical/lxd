@@ -717,6 +717,26 @@ fine_grained_authorization() {
   lxc delete user-foo --force # Must clean this up now as subsequent tests assume a clean project.
   lxc auth group permission remove test-group project default can_view
 
+  sub_test "Instance copy requires source visibility"
+  lxc init --empty copy-source
+  lxc snapshot copy-source snap0
+
+  lxc auth group permission add test-group project default can_view
+  lxc auth group permission add test-group project default can_create_instances
+
+  ! lxc_remote query --wait -X POST "${remote}:/1.0/instances?project=default" -d '{"name":"copy-target","source":{"type":"copy","source":"copy-source","project":"default"}}' || false
+  ! lxc_remote query --wait -X POST "${remote}:/1.0/instances?project=default" -d '{"name":"copy-target-snap","source":{"type":"copy","source":"copy-source/snap0","project":"default"}}' || false
+
+  lxc auth group permission add test-group instance copy-source can_view project=default
+
+  lxc_remote query --wait -X POST "${remote}:/1.0/instances?project=default" -d '{"name":"copy-target","source":{"type":"copy","source":"copy-source","project":"default"}}'
+  lxc_remote query --wait -X POST "${remote}:/1.0/instances?project=default" -d '{"name":"copy-target-snap","source":{"type":"copy","source":"copy-source/snap0","project":"default"}}'
+
+  lxc auth group permission remove test-group instance copy-source can_view project=default
+  lxc auth group permission remove test-group project default can_create_instances
+  lxc auth group permission remove test-group project default can_view
+  lxc delete copy-target-snap copy-target copy-source
+
   echo "==> Checking 'can_view_warnings' entitlement..."
   # Delete previous warnings
   lxc query --wait /1.0/warnings\?recursion=1 | jq --exit-status --raw-output '.[].uuid' | xargs -n1 lxc warning delete
