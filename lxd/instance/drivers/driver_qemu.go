@@ -1431,34 +1431,52 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Setup virtiofsd for the config drive mount path.
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
 	// where 9p isn't available in the VM guest OS.
+	// When migration.stateful is enabled, skip virtiofsd and use only 9p for the config drive. QEMU
+	// prevents live migration while the guest has a vhost-user-fs (virtiofsd) share mounted. Since
+	// lxd-agent-setup mounts the config drive transiently at boot, a live migration attempted before
+	// lxd-agent-setup has finished would fail. The 9p transport is handled internally by QEMU and its
+	// state can be serialized during live migration.
+	// Note: guest OSes that lack 9p support (e.g. CentOS 8) will lose lxd-agent functionality when
+	// migration.stateful=true, since the config drive will only be exported via 9p and the guest cannot
+	// mount it. Previously such guests had a working lxd-agent (bootstrapped via virtiofs) but live
+	// migration could fail if triggered during the brief early-boot window while lxd-agent-setup had
+	// the config drive mounted. After this change, live migration is reliable but lxd-agent will not
+	// start on those guests.
 	configSockPath, configPIDPath := d.configVirtiofsdPaths()
-	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d, configSockPath, configPIDPath, "", configMntPath, nil, 0)
-	if err != nil {
-		var errUnsupported device.UnsupportedError
-		if !errors.As(err, &errUnsupported) {
-			// Resolve previous warning.
-			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
-			err = fmt.Errorf("Failed setting up virtiofsd for config drive: %w", err)
-			op.Done(err)
-			return err
-		}
+	if shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+		var revertFuncVirtiofsd func()
+		var unixListener net.Listener
+		revertFuncVirtiofsd, unixListener, err = device.DiskVMVirtiofsdStart(d, configSockPath, configPIDPath, "", configMntPath, nil, 0)
+		if err != nil {
+			var errUnsupported device.UnsupportedError
+			if !errors.As(err, &errUnsupported) {
+				// Resolve previous warning.
+				_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
+				err = fmt.Errorf("Failed setting up virtiofsd for config drive: %w", err)
+				op.Done(err)
+				return err
+			}
 
-		d.logger.Warn("Cannot use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
+			d.logger.Warn("Cannot use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
 
-		if errUnsupported == device.ErrMissingVirtiofsd {
-			_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				// Create a warning if virtiofsd is missing.
-				return tx.UpsertWarning(ctx, d.node, d.project.Name, entity.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
-			})
+			if errUnsupported == device.ErrMissingVirtiofsd {
+				_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+					// Create a warning if virtiofsd is missing.
+					return tx.UpsertWarning(ctx, d.node, d.project.Name, entity.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
+				})
+			} else {
+				// Resolve previous warning.
+				_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
+			}
 		} else {
-			// Resolve previous warning.
-			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
+			revert.Add(revertFuncVirtiofsd)
+
+			// Request the unix listener is closed after QEMU has connected on startup.
+			defer func() { _ = unixListener.Close() }()
 		}
 	} else {
-		revert.Add(revertFunc)
-
-		// Request the unix listener is closed after QEMU has connected on startup.
-		defer func() { _ = unixListener.Close() }()
+		// Resolve any existing virtiofsd warning since we are intentionally using 9p only.
+		_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
 	}
 
 	// Get qemu configuration and check qemu is installed.
