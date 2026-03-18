@@ -564,30 +564,16 @@ parts:
       craftctl default
 
   nftables:
-    after:
-      - libmnl
-      - libnftnl
-    # XXX: Netfilter's git repo is unreliable
-    source: https://www.netfilter.org/projects/nftables/files/nftables-1.0.9.tar.xz
-    source-checksum: sha256/a3c304cd9ba061239ee0474f9afb938a9bb99d89b960246f66f0c3a0a85e14cd
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-      - --with-json
-      - --disable-man-doc
-    build-packages:
-      - libedit-dev
-      - libjansson-dev
-      - libreadline-dev
+    plugin: nil
     stage-packages:
-      - libjansson4
+      - nftables
     organize:
-      sbin/: bin/
       usr/lib/: lib/
+      usr/sbin/: bin/
     prime:
       - bin/nft
       - lib/*/libjansson*so*
-      - lib/libnftables*so*
+      - lib/*/libnftables*so*
 
   nvidia-container:
     source: https://github.com/NVIDIA/libnvidia-container
