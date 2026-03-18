@@ -269,7 +269,6 @@ endif
 	# Static pins
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
 	go get github.com/olekukonko/tablewriter@v0.0.5 # Due to breaking API in later versions
-	go get github.com/openfga/openfga@v1.11.5 # Due to breaking API in later versions
 
 	# Enforce minimum go version
 	$(MAKE) check-gomin
