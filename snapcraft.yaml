@@ -460,92 +460,20 @@ parts:
 
   libatomic:
     plugin: nil
-    stage-packages:
-      - libatomic1
-    organize:
-      usr/lib/: lib/
-    prime:
-      - lib/*/libatomic.so*
-
-  libmnl:
-    # XXX: Netfilter's git repo is unreliable
-    source: https://www.netfilter.org/projects/libmnl/files/libmnl-1.0.5.tar.bz2
-    source-checksum: sha256/274b9b919ef3152bfb3da3a13c950dd60d6e2bcd54230ffeca298d03b40d0525
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-    organize:
-      usr/lib/: lib/
-    prime:
-      - lib/libmnl*so*
-
-  libnftnl:
-    after:
-      - libmnl
-    # XXX: Netfilter's git repo is unreliable
-    source: https://www.netfilter.org/projects/libnftnl/files/libnftnl-1.2.6.tar.xz
-    source-checksum: sha256/ceeaea2cd92147da19f13a35a7f1a4bc2767ff897e838e4b479cf54b59c777f4
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-    organize:
-      usr/lib/: lib/
-    prime:
-      - lib/libnftnl*so*
-    override-build: |
+    override-stage: |-
+      [ "$(uname -m)" != "s390x" ] && exit 0
       craftctl default
-
-      sed -i "s# /lib/libmnl.la# ${CRAFT_STAGE}/lib/libmnl.la#g" "${CRAFT_PART_INSTALL}/lib/libnftnl.la"
-
-  libtpms:
-    source: https://github.com/stefanberger/libtpms
-    source-commit: f8c2dc7e12a730dcca4220d7ac5ad86d13dfd630 # v0.9.6
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-      - --with-tpm2
-      - --with-openssl
-    organize:
-      usr/lib/: lib/
-    prime:
-      - lib/libtpms*so*
-
-  liburing:
-    source: https://github.com/axboe/liburing
-    source-commit: f4e42a515cd78c8c9cac2be14222834be5f8df2b # liburing-2.5
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
     override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" != "s390x" ] && exit 0
       craftctl default
-    override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
-      craftctl default
-    override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
-      craftctl default
+    stage-packages:
+      - to s390x:
+        - libatomic1
     organize:
       usr/lib/: lib/
     prime:
-      - lib/liburing*so*
-
-  libusb:
-    source: https://github.com/libusb/libusb
-    source-commit: d52e355daa09f17ce64819122cb067b8a2ee0d4b # v1.0.27
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-    organize:
-      usr/lib/: lib/
-    prime:
-      - lib/libusb*so*
+      # XXX: libatomic.so is only needed by Ceph/QEMU on s390x and no other arch.
+      - lib/*/libatomic.so*
 
   logrotate:
     plugin: nil
