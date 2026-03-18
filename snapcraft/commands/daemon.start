@@ -401,7 +401,7 @@ if [ "${zfs_external:-"false"}" = "false" ]; then
         VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
     fi
 
-    ZFS_VER="$(echo "${VERSION}" | cut -c 1-3)"
+    ZFS_VER="$(echo "${VERSION}" | cut -d. -f1-2)"
 
     if [ -d "${SNAP_CURRENT}/zfs-${ZFS_VER}/bin" ]; then
         echo "==> Setting up ZFS (${ZFS_VER})"
