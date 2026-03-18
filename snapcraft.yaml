@@ -809,37 +809,16 @@ parts:
       - lib/*/libpixman*so*
 
   swtpm:
-    after:
-      - libtpms
-    source: https://github.com/stefanberger/swtpm
-    source-commit: 507d14219dde88eb3eb2d10d15872d4044aa9d3e # v0.8.2
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-      - --with-seccomp
-      - --with-openssl
-      - --without-cuse
-    build-packages:
-      - expect
-      - gawk
-      - iproute2
-      - libjson-glib-dev
-      - libseccomp-dev
-      - python3-cryptography
-      - python3-setuptools
-      - socat
+    plugin: nil
     stage-packages:
-      - libjson-glib-1.0-0
+      - swtpm
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
-      lib/swtpm/: lib/
     prime:
       - bin/swtpm
-      - lib/libswtpm*so*
-      - lib/*/libjson-glib-1.0.so*
+      - lib/*/swtpm/libswtpm*so*
+      - lib/*/libtpms*so*
 
   qemu:
     after:
