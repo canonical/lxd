@@ -1386,7 +1386,6 @@ parts:
     source-type: git
     build-packages:
       - libfuse3-dev
-      - libpam0g-dev
       - pkg-config
       - python3-jinja2
       - meson
