@@ -1067,18 +1067,24 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - libblkid-dev
-      - libssl-dev
-      - uuid-dev
-      - zlib1g-dev
+      - to armhf: []
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
+        - libtirpc-dev
     override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
       set -ex
 
@@ -1092,6 +1098,10 @@ parts:
       mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
       rm -Rf "${CRAFT_PART_INSTALL}.tmp"
 
+      # unused .so
+      #rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*  # XXX: not present in 0.8
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+
   zfs-2-1:
     source: https://github.com/openzfs/zfs
     source-commit: a7186651d3306debca6b4f72797239eea61db36c # zfs-2.1.16
@@ -1102,18 +1112,24 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - libblkid-dev
-      - libssl-dev
-      - uuid-dev
-      - zlib1g-dev
+      - to armhf: []
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
+        - libtirpc-dev
     override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
       set -ex
 
@@ -1127,6 +1143,10 @@ parts:
       mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
       rm -Rf "${CRAFT_PART_INSTALL}.tmp"
 
+      # unused .so
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+
   zfs-2-2:
     source: https://github.com/openzfs/zfs
     source-commit: 079ba86d71571bf997ff688da061d8c4aa2fd052 # zfs-2.2.9
@@ -1137,18 +1157,28 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - libblkid-dev
-      - libssl-dev
-      - uuid-dev
-      - zlib1g-dev
+      - to armhf: []
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
+        - libtirpc-dev
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
     override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
       set -ex
 
@@ -1162,6 +1192,10 @@ parts:
       mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
       rm -Rf "${CRAFT_PART_INSTALL}.tmp"
 
+      # unused .so
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+
   zfs-2-3:
     source: https://github.com/openzfs/zfs
     source-commit: 1af41fd203639818aa28cc624f144ef604a166d8 # zfs-2.3.3
@@ -1172,18 +1206,28 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - libblkid-dev
-      - libssl-dev
-      - uuid-dev
-      - zlib1g-dev
+      - to armhf: []
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
+        - libtirpc-dev
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
     override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
       set -ex
 
