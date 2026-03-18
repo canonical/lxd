@@ -1294,14 +1294,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		switch req.Source.Type {
 		case api.SourceTypeCopy:
-			if req.Source.Source == "" {
-				return api.StatusErrorf(http.StatusBadRequest, "Must specify a source instance")
-			}
-
-			if req.Source.Project == "" {
-				req.Source.Project = targetProjectName
-			}
-
 			sourceInst, err = instance.LoadInstanceDatabaseObject(ctx, tx, req.Source.Project, req.Source.Source)
 			if err != nil {
 				return err
