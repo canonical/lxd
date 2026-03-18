@@ -14,8 +14,10 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/acl"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -317,20 +319,36 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("The network ACL already exists"))
 	}
 
-	err = acl.Create(r.Context(), s, projectName, &req)
-	if err != nil {
-		return response.SmartError(err)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = acl.Create(ctx, s, projectName, &req)
+		if err != nil {
+			return err
+		}
+
+		netACL, err := acl.LoadByName(ctx, s, projectName, req.Name)
+		if err != nil {
+			return err
+		}
+
+		s.Events.SendLifecycle(projectName, lifecycle.NetworkACLCreated.Event(netACL, request.CreateRequestor(ctx), nil))
+
+		return nil
 	}
 
-	netACL, err := acl.LoadByName(r.Context(), s, projectName, req.Name)
-	if err != nil {
-		return response.BadRequest(err)
+	args := operations.OperationArgs{
+		ProjectName: request.ProjectParam(r),
+		Type:        operationtype.NetworkACLCreate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.ProjectURL(projectName),
 	}
 
-	lc := lifecycle.NetworkACLCreated.Event(netACL, request.CreateRequestor(r.Context()), nil)
-	s.Events.SendLifecycle(projectName, lc)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
 
-	return response.SyncResponseLocation(true, nil, lc.Source)
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/network-acls/{name} network-acls network_acl_delete
@@ -370,12 +388,24 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = doNetworkACLDelete(r.Context(), s, aclName, effectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		return doNetworkACLDelete(ctx, s, aclName, effectiveProjectName)
 	}
 
-	return response.EmptySyncResponse
+	args := operations.OperationArgs{
+		ProjectName: request.ProjectParam(r),
+		Type:        operationtype.NetworkACLDelete,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkACLURL(effectiveProjectName, aclName),
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // doNetworkACLDelete deletes the named network ACL in the given project.
@@ -593,14 +623,34 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = netACL.Update(r.Context(), &req, requestor.ClientType())
-	if err != nil {
-		return response.SmartError(err)
+	clientType := requestor.ClientType()
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = netACL.Update(ctx, &req, clientType)
+		if err != nil {
+			return err
+		}
+
+		requestor := request.CreateRequestor(ctx)
+		s.Events.SendLifecycle(projectName, lifecycle.NetworkACLUpdated.Event(netACL, requestor, nil))
+
+		return nil
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLUpdated.Event(netACL, request.CreateRequestor(r.Context()), nil))
+	args := operations.OperationArgs{
+		ProjectName: request.ProjectParam(r),
+		Type:        operationtype.NetworkACLUpdate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkACLURL(projectName, aclName),
+	}
 
-	return response.EmptySyncResponse
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation POST /1.0/network-acls/{name} network-acls network_acl_post
@@ -662,15 +712,35 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = netACL.Rename(r.Context(), req.Name)
-	if err != nil {
-		return response.SmartError(err)
+	entityURL := entity.NetworkACLURL(projectName, aclName)
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = netACL.Rename(ctx, req.Name)
+		if err != nil {
+			return err
+		}
+
+		requestor := request.CreateRequestor(ctx)
+		lc := lifecycle.NetworkACLRenamed.Event(netACL, requestor, logger.Ctx{"old_name": aclName})
+		s.Events.SendLifecycle(projectName, lc)
+
+		return nil
 	}
 
-	lc := lifecycle.NetworkACLRenamed.Event(netACL, request.CreateRequestor(r.Context()), logger.Ctx{"old_name": aclName})
-	s.Events.SendLifecycle(projectName, lc)
+	args := operations.OperationArgs{
+		ProjectName: request.ProjectParam(r),
+		Type:        operationtype.NetworkACLRename,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entityURL,
+	}
 
-	return response.SyncResponseLocation(true, nil, lc.Source)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/network-acls/{name}/log network-acls network_acl_log_get
