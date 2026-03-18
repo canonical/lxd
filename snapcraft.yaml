@@ -749,12 +749,9 @@ parts:
       - lib/*/libunbound*so*
 
   spice-server:
-    after:
-      - spice-protocol
-    source: https://gitlab.freedesktop.org/spice/spice
-    source-commit: 0c2c1413a8b387ea597a95b6c867470a7c56c8ab # v0.15.2
-    # XXX: source-depth does not work with submodules
-    #source-depth: 1
+    source: https://git.launchpad.net/ubuntu/+source/spice
+    source-commit: 085ca6b2bf58014ad8be571f3b601465c85ae931 # import/0.15.1-1build2
+    source-depth: 1
     source-type: git
     plugin: meson
     meson-parameters:
@@ -767,22 +764,40 @@ parts:
       - -Dsmartcard=disabled
       - -Dtests=false
     build-packages:
-      - libjpeg-turbo8-dev
-      - python3-pyparsing
-      - python3-six
-      - meson
-      - ninja-build
+      - to armhf: []
+      - else:
+        - libspice-protocol-dev
+        - libjpeg-turbo8-dev
+        - python3-pyparsing
+        - python3-six
+        - meson
+        - ninja-build
     stage-packages:
-      - libjpeg-turbo8
-      - libpixman-1-0
+      - to armhf: []
+      - else:
+        - libjpeg-turbo8
+        - libpixman-1-0
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
     override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+
+      # Apply patches from Ubuntu sources.
+      cd ../src
+      QUILT_PATCHES=debian/patches quilt push -a
+      cd ../build
+
       craftctl default
     organize:
       sbin/: bin/
