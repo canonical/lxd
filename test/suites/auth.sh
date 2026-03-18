@@ -737,6 +737,29 @@ fine_grained_authorization() {
   lxc auth group permission remove test-group project default can_view
   lxc delete copy-target-snap copy-target copy-source
 
+  sub_test "Storage volume copy requires source visibility"
+  pool_name="$(lxc storage list -f csv | cut -d, -f1)"
+  lxc storage volume create "${pool_name}" copy-source-vol
+  lxc storage volume snapshot "${pool_name}" copy-source-vol snap0
+
+  lxc auth group permission add test-group project default can_view
+  lxc auth group permission add test-group project default can_create_storage_volumes
+
+  ! lxc_remote query --wait -X POST "${remote}:/1.0/storage-pools/${pool_name}/volumes/custom?project=default" -d '{"name":"copy-target-vol","type":"custom","source":{"name":"copy-source-vol","type":"copy","pool":"'"${pool_name}"'","project":"default"}}' || false
+  ! lxc_remote query --wait -X POST "${remote}:/1.0/storage-pools/${pool_name}/volumes/custom?project=default" -d '{"name":"copy-target-vol-snap","type":"custom","source":{"name":"copy-source-vol/snap0","type":"copy","pool":"'"${pool_name}"'","project":"default"}}' || false
+
+  lxc auth group permission add test-group storage_volume copy-source-vol can_view project=default pool="${pool_name}" type=custom
+
+  lxc_remote query --wait -X POST "${remote}:/1.0/storage-pools/${pool_name}/volumes/custom?project=default" -d '{"name":"copy-target-vol","type":"custom","source":{"name":"copy-source-vol","type":"copy","pool":"'"${pool_name}"'","project":"default"}}'
+  lxc_remote query --wait -X POST "${remote}:/1.0/storage-pools/${pool_name}/volumes/custom?project=default" -d '{"name":"copy-target-vol-snap","type":"custom","source":{"name":"copy-source-vol/snap0","type":"copy","pool":"'"${pool_name}"'","project":"default"}}'
+
+  lxc auth group permission remove test-group storage_volume copy-source-vol can_view project=default pool="${pool_name}" type=custom
+  lxc auth group permission remove test-group project default can_create_storage_volumes
+  lxc auth group permission remove test-group project default can_view
+  lxc storage volume delete "${pool_name}" copy-target-vol-snap
+  lxc storage volume delete "${pool_name}" copy-target-vol
+  lxc storage volume delete "${pool_name}" copy-source-vol
+
   echo "==> Checking 'can_view_warnings' entitlement..."
   # Delete previous warnings
   lxc query --wait /1.0/warnings\?recursion=1 | jq --exit-status --raw-output '.[].uuid' | xargs -n1 lxc warning delete
