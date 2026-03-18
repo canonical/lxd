@@ -1566,7 +1566,7 @@ parts:
 
       # Some python dependencies are not available for armhf/riscv64 or just require a build from source.
       # Not worth the effort for now.
-      if [ "$(uname -m)" != "riscv64" ]; then
+      if [ "$(uname -m)" != "armv7l" ] && [ "$(uname -m)" != "riscv64" ]; then
         # Build the static website
         make doc
 
