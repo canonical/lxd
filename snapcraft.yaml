@@ -985,28 +985,25 @@ parts:
       - lib/*/libsquashfs.so*
 
   virtiofsd:
-    source: https://gitlab.com/virtio-fs/virtiofsd
-    source-commit: 3988b7304ceb2fdb4eed2c8bf8682e6ea19c4ecc # v1.10.1
-    source-depth: 1
-    source-type: git
-    plugin: rust
-    rust-channel: stable
-    build-packages:
-      - cargo
-      - libseccomp-dev
-      - rustc
+    plugin: nil
+    stage-packages:
+      - to amd64:
+        - virtiofsd
     organize:
-      usr/bin: bin/
+      usr/libexec/: bin/
     prime:
       - bin/virtiofsd*
+    override-stage: |-
+      [ "$(uname -m)" != "x86_64" ] && exit 0
+      craftctl default
     override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && exit 0
       craftctl default
     override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && exit 0
       craftctl default
 
   xfs:
