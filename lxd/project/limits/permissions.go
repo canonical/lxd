@@ -923,7 +923,14 @@ func isContainerLowLevelOptionForbidden(key string) bool {
 
 // Return true if a low-level VM option is forbidden.
 func isVMLowLevelOptionForbidden(key string) bool {
-	return slices.Contains([]string{"boot.host_shutdown_timeout", "limits.memory.hugepages", "raw.idmap", "raw.qemu"}, key)
+	return slices.Contains([]string{
+		"boot.host_shutdown_timeout",
+		"limits.memory.hugepages",
+		"raw.apparmor",
+		"raw.idmap",
+		"raw.qemu",
+		"raw.qemu.conf",
+	}, key)
 }
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
