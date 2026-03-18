@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"io"
@@ -111,7 +112,8 @@ func (s *conversionSink) Connect(op *operations.Operation, r *http.Request, w ht
 		return api.StatusErrorf(http.StatusBadRequest, "Missing conversion sink secret")
 	}
 
-	if incomingSecret == s.fsConn.Secret() {
+	expectedSecret := s.fsConn.Secret()
+	if subtle.ConstantTimeCompare([]byte(incomingSecret), []byte(expectedSecret)) == 1 {
 		err := s.fsConn.AcceptIncoming(r, w)
 		if err != nil {
 			return fmt.Errorf("Failed accepting incoming conversion sink %q connection: %w", api.SecretNameFilesystem, err)
