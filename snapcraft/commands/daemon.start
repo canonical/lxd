@@ -58,7 +58,7 @@ fi
 nsenter -t 1 -m systemd-run -u snap."${SNAP_INSTANCE_NAME}".workaround -p Delegate=yes -r /bin/true >/dev/null 2>&1 || true
 
 # Workaround to ensure LXD is stopped before MicroCeph/MicroOVN
-SYSTEMD_OVERRIDE_DIR="/run/systemd/system/snap.lxd.daemon.service.d"
+SYSTEMD_OVERRIDE_DIR="/var/lib/snapd/hostfs/run/systemd/system/snap.lxd.daemon.service.d"
 if [ ! -e "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf" ]; then
     mkdir -p "${SYSTEMD_OVERRIDE_DIR}"
     echo "[Unit]
@@ -172,7 +172,7 @@ if [ -e "/run/.lxd_generated" ]; then
 fi
 mount -t tmpfs tmpfs /run -o mode=0755,nosuid,nodev,size=4M
 touch /run/.lxd_generated
-for entry in NetworkManager resolvconf netconfig snapd snapd.socket snapd-snap.socket systemd udev user; do
+for entry in NetworkManager resolvconf netconfig snapd snapd.socket snapd-snap.socket sysctl.d systemd udev user; do
     [ -e "/var/lib/snapd/hostfs/run/${entry}" ] || [ -L "/var/lib/snapd/hostfs/run/${entry}" ] || continue
     ln -s "/var/lib/snapd/hostfs/run/${entry}" "/run/${entry}"
 done
@@ -447,6 +447,58 @@ else
     fi
 fi
 
+manage_apparmor_restrictions() {
+    # sysctl override snippet
+    SYSCTL_FILE="/var/lib/snapd/hostfs/run/sysctl.d/zz-lxd.conf"
+
+    # Nothing to do if Apparmor is NOT active
+    [ -d /sys/kernel/security/apparmor ] || return 0
+
+    # Check if sysctl settings need to be altered and always write the override snippet
+    if [ "${apparmor_unprivileged_restrictions_disable:-"true"}" = "true" ]; then
+        KEY_USERNS="kernel.apparmor_restrict_unprivileged_userns"
+        KEY_UNCONFINED="kernel.apparmor_restrict_unprivileged_unconfined"
+        mkdir -p /var/lib/snapd/hostfs/run/sysctl.d
+        tmpf="$(mktemp "${SYSCTL_FILE}".XXXXXX)"
+
+        # userns restriction
+        if [ "$(sysctl -n -e "${KEY_USERNS}")" = "1" ]; then
+            echo "==> Disabling Apparmor unprivileged userns mediation"
+            sysctl -w -e "${KEY_USERNS}=0"
+        fi
+        # the "-" prefix avoids any failure or warning if the key is not supported
+        echo "-${KEY_USERNS} = 0" >> "${tmpf}"
+
+        # unconfined restriction
+        if [ "$(sysctl -n -e "${KEY_UNCONFINED}")" = "1" ]; then
+            echo "==> Disabling Apparmor unprivileged unconfined mediation"
+            sysctl -w -e "${KEY_UNCONFINED}=0"
+        fi
+        # the "-" prefix avoids any failure or warning if the key is not supported
+        echo "-${KEY_UNCONFINED} = 0" >> "${tmpf}"
+
+        # Save the overrides in a snippet file if content differs or any file is missing
+        if ! cmp --quiet "${tmpf}" "${SYSCTL_FILE}"; then
+            chmod a+r "${tmpf}"
+            mv "${tmpf}" "${SYSCTL_FILE}"
+        else
+            rm "${tmpf}"
+        fi
+
+        # Done
+        return 0
+    fi
+
+    # Check if an old override snippet needs to be unapplied
+    [ -f "${SYSCTL_FILE}" ] || return 0
+
+    echo "==> Restoring Apparmor unprivileged userns and unconfined mediations"
+
+    # Remove the old override snippet before applying system rules
+    rm "${SYSCTL_FILE}"
+    nsenter -t 1 -m systemctl restart systemd-sysctl.service || true
+}
+
 # Update system limits
 if [ "$(stat -c '%u' /proc)" = 0 ]; then
     ## prlimits
@@ -490,21 +542,7 @@ if [ "$(stat -c '%u' /proc)" = 0 ]; then
         fi
     fi
 
-    if [ "${apparmor_unprivileged_restrictions_disable:-"true"}" = "true" ]; then
-        if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-            if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)" = "1" ]; then
-                echo "==> Disabling Apparmor unprivileged userns mediation"
-                echo 0 > /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
-            fi
-        fi
-
-        if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined ]; then
-            if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined)" = "1" ]; then
-                echo "==> Disabling Apparmor unprivileged unconfined mediation"
-                echo 0 > /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined || true
-            fi
-        fi
-    fi
+    manage_apparmor_restrictions
 fi
 
 # Setup CRIU
