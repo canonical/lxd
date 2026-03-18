@@ -561,8 +561,8 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 //      schema:
 //        $ref: "#/definitions/NetworkForwardPut"
 //  responses:
-//    "200":
-//      $ref: "#/responses/EmptySyncResponse"
+//    "202":
+//      $ref: "#/responses/Operation"
 //    "400":
 //      $ref: "#/responses/BadRequest"
 //    "403":
@@ -596,8 +596,8 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkForwardPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -689,12 +689,44 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = n.ForwardUpdate(listenAddress, req, requestor.ClientType())
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed updating forward: %w", err))
+	clientType := requestor.ClientType()
+	networkName := details.networkName
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err := n.ForwardUpdate(listenAddress, req, clientType)
+		if err != nil {
+			return fmt.Errorf("Failed updating forward: %w", err)
+		}
+
+		if !clientType.IsClusterOperationNotification() {
+			s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardUpdated.Event(n, listenAddress, request.CreateRequestor(ctx), nil))
+		}
+
+		return nil
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardUpdated.Event(n, listenAddress, request.CreateRequestor(r.Context()), nil))
+	if clientType.IsClusterOperationNotification() {
+		// Handle cluster operation notification synchronously.
+		err := run(r.Context(), nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
 
-	return response.EmptySyncResponse
+		return response.EmptySyncResponse
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkForwardUpdate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkURL(effectiveProjectName, networkName),
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
