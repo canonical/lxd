@@ -3,14 +3,18 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/termios"
 )
 
 type cmdImageRegistry struct {
@@ -38,6 +42,10 @@ func (c *cmdImageRegistry) command() *cobra.Command {
 	// Delete
 	imageRegistryDeleteCmd := cmdImageRegistryDelete{global: c.global, imageRegistry: c}
 	cmd.AddCommand(imageRegistryDeleteCmd.command())
+
+	// Edit
+	imageRegistryEditCmd := cmdImageRegistryEdit{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryEditCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -330,6 +338,140 @@ func (c *cmdImageRegistryDelete) run(cmd *cobra.Command, args []string) error {
 
 	if !c.global.flagQuiet {
 		fmt.Printf("Image registry %s deleted\n", resource.name)
+	}
+
+	return nil
+}
+
+// Edit.
+type cmdImageRegistryEdit struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+}
+
+func (c *cmdImageRegistryEdit) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("edit", "[<remote>:]<registry>")
+	cmd.Short = "Edit image registry configuration as YAML"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc image registry edit [<remote>:]<name> < registry.yaml
+	Update an image registry using the content of registry.yaml`)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryEdit) helpTemplate() string {
+	return `### This is a YAML representation of an image registry configuration.
+### Any line starting with a '#' will be ignored.
+###
+### A sample image registry configuration looks like:
+### name: lxd01
+### description: my image registry
+### protocol: lxd
+### config:
+###   cluster: lxd01
+###   public: true
+###   source_project: default
+###   url: https://10.0.0.1
+###   user.key: value
+###
+### Note that the name and protocol are shown but cannot be changed
+`
+}
+
+func (c *cmdImageRegistryEdit) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// If stdin is not a terminal, read text from it.
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newData := api.ImageRegistryPut{}
+		err = yaml.Unmarshal(contents, &newData)
+		if err != nil {
+			return err
+		}
+
+		return resource.server.UpdateImageRegistry(resource.name, newData, "")
+	}
+
+	// Extract the current value.
+	registry, etag, err := resource.server.GetImageRegistry(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&registry)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor.
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor.
+		newData := api.ImageRegistryPut{}
+		err = yaml.Unmarshal(content, &newData)
+		if err == nil {
+			err = resource.server.UpdateImageRegistry(resource.name, newData, etag)
+		}
+
+		// Respawn the editor.
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not image registry: %v\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		break
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Image registry %s updated\n", resource.name)
 	}
 
 	return nil
