@@ -61,6 +61,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	info.Instances = append(info.Instances, api.Instance{
 		Name:        req.Name,
 		Project:     projectName,
+		Type:        string(req.Type),
 		InstancePut: req.InstancePut,
 	})
 
