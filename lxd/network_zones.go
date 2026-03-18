@@ -412,12 +412,14 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 //	    type: string
 //	    example: default
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
@@ -433,12 +435,30 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = doNetworkZoneDelete(r.Context(), s, details.zoneName, effectiveProjectName)
+	// Ensure network zone exists before creating new operation.
+	_, err = zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.EmptySyncResponse
+	run := func(ctx context.Context, op *operations.Operation) error {
+		return doNetworkZoneDelete(ctx, s, details.zoneName, effectiveProjectName)
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkZoneDelete,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkZoneURL(effectiveProjectName, details.zoneName),
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // doNetworkZoneDelete deletes the named network zone in the given project.
