@@ -130,6 +130,9 @@ const (
 	NetworkForwardUpdate
 	NetworkForwardDelete
 	RefreshClusterLinkVolatileAddresses
+	NetworkPeerCreate
+	NetworkPeerUpdate
+	NetworkPeerDelete
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -351,6 +354,12 @@ func (t Type) Description() string {
 		return "Deleting network forward"
 	case RefreshClusterLinkVolatileAddresses:
 		return "Refreshing cluster link volatile addresses"
+	case NetworkPeerCreate:
+		return "Creating network peer"
+	case NetworkPeerUpdate:
+		return "Updating network peer"
+	case NetworkPeerDelete:
+		return "Deleting network peer"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -435,6 +444,10 @@ func (t Type) EntityType() entity.Type {
 
 	// Network forward operations.
 	case NetworkForwardCreate, NetworkForwardUpdate, NetworkForwardDelete:
+		return entity.TypeNetwork
+
+	// Network peer operations.
+	case NetworkPeerCreate, NetworkPeerUpdate, NetworkPeerDelete:
 		return entity.TypeNetwork
 
 	// It should never be possible to reach the default clause.
