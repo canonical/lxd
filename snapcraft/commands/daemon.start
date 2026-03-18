@@ -551,11 +551,8 @@ if [ "${criu_enable:-"false"}" = "true" ]; then
     export PATH="${SNAP_CURRENT}/criu:${PATH}"
 fi
 
-# Setup UI
-if [ "${ui_enable:-"false"}" = "true" ]; then
-    echo "==> Enabling LXD UI"
-    export LXD_UI="${SNAP_CURRENT}/share/lxd-ui/"
-fi
+echo "==> Exposing LXD UI"
+export LXD_UI="${SNAP_CURRENT}/share/lxd-ui/"
 
 # Setup documentation
 echo "==> Exposing LXD documentation"
