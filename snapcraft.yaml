@@ -684,26 +684,37 @@ parts:
       - lib/*/libnvme*
 
   openvswitch:
-    source: https://github.com/openvswitch/ovs
-    source-commit: 2b87b844dbedeb2582920634205b52f1eea7c0b7 # v3.3.1
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --enable-ssl
-      - --prefix=
+    plugin: nil
     stage-packages:
-      - uuid-runtime
+      - to armhf: []
+      - else:
+        - openvswitch-common
+        - openvswitch-switch
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
     organize:
       sbin/: bin/
       usr/bin/: bin/
+      usr/lib/: lib/
+      usr/share/: share/
     prime:
-      - bin/ovs-appctl
       - bin/ovs-vsctl
-      - bin/ovs-vswitchd
-      - bin/ovsdb-*
-      - bin/uuidgen
-      - share/openvswitch/
+      - lib/*/libunbound*so*
+      - share/openvswitch/*.ovsschema
 
   ovn:
     after:
