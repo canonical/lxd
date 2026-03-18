@@ -973,19 +973,16 @@ parts:
       - share/qemu/vgabios-virtio.bin
 
   squashfs-tools-ng:
-    source: https://github.com/AgentD/squashfs-tools-ng
-    source-commit: 8f9966c8ea3ea8a854941d041e7fcb9eb4f772fb # v1.3.1
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-    build-packages:
-      - liblzma-dev
+    plugin: nil
+    stage-packages:
+      - squashfs-tools-ng
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
     prime:
       - bin/sqfs2tar
       - bin/tar2sqfs
-      - lib/libsquashfs.so*
+      - lib/*/libsquashfs.so*
 
   virtiofsd:
     source: https://gitlab.com/virtio-fs/virtiofsd
