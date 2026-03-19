@@ -783,6 +783,7 @@ func (op *Operation) Render() (string, *api.Operation) {
 		MayCancel:   true,
 		Location:    op.location,
 		Err:         op.err,
+		ErrCode:     op.errCode,
 	}
 
 	requestor := op.Requestor()

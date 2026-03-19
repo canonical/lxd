@@ -337,7 +337,7 @@ AND status_code < 200
 AND (parent IS NOT NULL OR id IN (SELECT parent FROM operations WHERE parent IS NOT NULL))
 AND node_id IN ` + query.IntParams(nodeIDs...)
 
-	_, err := tx.ExecContext(ctx, stmt, time.Now(), api.Failure, "Node shut down", http.StatusServiceUnavailable)
+	_, err := tx.ExecContext(ctx, stmt, time.Now(), api.Failure, "Member shut down", http.StatusServiceUnavailable)
 	if err != nil {
 		return fmt.Errorf("Failed marking bulk operations as failed: %w", err)
 	}

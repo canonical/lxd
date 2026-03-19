@@ -139,7 +139,10 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 				return nil
 			}
 
-			inst.SetOperation(op)
+			// Ideally we should call inst.SetOperation() here to the instance to send events and progress updates.
+			// However, the operation is not available on other members handling instance updates. So, we don't set
+			// the operation on instance here to keep the same behavior on all members.
+
 			return doInstanceStatePut(inst, *req.State)
 		}
 
