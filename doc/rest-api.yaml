@@ -4391,6 +4391,12 @@ definitions:
                 example: Some error message
                 type: string
                 x-go-name: Err
+            err_code:
+                description: Operation error code
+                example: 404
+                format: int64
+                type: integer
+                x-go-name: ErrCode
             id:
                 description: UUID of the operation
                 example: 6916c8a6-9b7d-4abd-90b3-aedfec7ec7da
@@ -4483,6 +4489,12 @@ definitions:
                 example: Some error message
                 type: string
                 x-go-name: Err
+            err_code:
+                description: Operation error code
+                example: 404
+                format: int64
+                type: integer
+                x-go-name: ErrCode
             id:
                 description: UUID of the operation
                 example: 6916c8a6-9b7d-4abd-90b3-aedfec7ec7da
