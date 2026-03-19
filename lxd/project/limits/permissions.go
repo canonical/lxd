@@ -101,6 +101,7 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 	instance := api.Instance{
 		Name:    req.Name,
 		Project: projectName,
+		Type:    string(req.Type),
 	}
 
 	instance.SetWritable(req.InstancePut)
