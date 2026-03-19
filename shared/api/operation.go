@@ -63,6 +63,12 @@ type Operation struct {
 	// Example: Some error message
 	Err string `json:"err" yaml:"err"`
 
+	// Operation error code
+	// Example: 404
+	//
+	// API extension: bulk_operations
+	ErrCode int64 `json:"err_code" yaml:"err_code"`
+
 	// Which cluster member this record was found on
 	// Example: lxd01
 	//
