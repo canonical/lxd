@@ -11,7 +11,7 @@ Like storage volumes, storage buckets are part of a storage pool.
 ## Storage pools
 
 During initialization, LXD prompts you to create a first storage pool.
-If required, you can create additional storage pools later (see {ref}`storage-create-pool`).
+If required, you can create additional storage pools later (see {ref}`howto-storage-pools-create`).
 
 Each storage pool uses a storage driver.
 The following storage drivers are supported:
@@ -68,7 +68,7 @@ The loop files reside in `/var/snap/lxd/common/lxd/disks/` if you are using the 
 
 Loop files usually cannot be shrunk.
 They will grow up to the configured limit, but deleting instances or images will not cause the file to shrink.
-You can increase their size (quota) though; see {ref}`storage-resize-pool`.
+You can increase their size (quota) though; see {ref}`howto-storage-pools-resize`.
 
 #### Remote storage
 
