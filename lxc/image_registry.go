@@ -47,6 +47,10 @@ func (c *cmdImageRegistry) command() *cobra.Command {
 	imageRegistryEditCmd := cmdImageRegistryEdit{global: c.global, imageRegistry: c}
 	cmd.AddCommand(imageRegistryEditCmd.command())
 
+	// Show
+	imageRegistryShowCmd := cmdImageRegistryShow{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryShowCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -473,6 +477,68 @@ func (c *cmdImageRegistryEdit) run(cmd *cobra.Command, args []string) error {
 	if !c.global.flagQuiet {
 		fmt.Printf("Image registry %s updated\n", resource.name)
 	}
+
+	return nil
+}
+
+// Show.
+type cmdImageRegistryShow struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+}
+
+func (c *cmdImageRegistryShow) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", "[<remote>:]<registry>")
+	cmd.Short = "Show image registry configuration"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc image registry show lxd01
+	Will show the properties of an image registry called "lxd01".`)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryShow) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// Show the image registry.
+	registry, _, err := resource.server.GetImageRegistry(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&registry)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
 
 	return nil
 }
