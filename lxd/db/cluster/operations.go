@@ -28,6 +28,7 @@ import (
 //go:generate mapper stmt -e operation objects-by-NodeID
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-UUID
+//go:generate mapper stmt -e operation objects-by-Parent
 //go:generate mapper stmt -e operation create
 //go:generate mapper stmt -e operation create-or-replace
 //go:generate mapper stmt -e operation delete-by-UUID
@@ -72,6 +73,7 @@ type OperationFilter struct {
 	ID     *int64
 	NodeID *int64
 	UUID   *string
+	Parent *int64
 }
 
 // RequestorProtocol is the database representation of the Requestor Protocol.
@@ -236,6 +238,39 @@ func GetOperationResources(ctx context.Context, tx *sql.Tx, opID int64) (map[ent
 	return result, nil
 }
 
+// GetParentOperations returns all parent operation, that is all operations that don't have a parent.
+func GetParentOperations(ctx context.Context, tx *sql.Tx) ([]Operation, error) {
+	stmt := `
+SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.error_code, operations.parent, operations.stage
+  FROM operations
+  JOIN nodes ON operations.node_id = nodes.id
+  WHERE parent IS NULL
+  ORDER BY operations.id, operations.uuid
+`
+
+	// Result slice.
+	objects := make([]Operation, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		o := Operation{}
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.Location, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.ErrorCode, &o.Parent, &o.Stage)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, o)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, stmt, dest)
+	if err != nil {
+		return nil, fmt.Errorf("Failed fetching from \"operations\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // CreateOperationResources registers operation resources in the cluster db.
 func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resources map[entity.Type][]api.URL) error {
 	// No resources to register.
@@ -273,11 +308,55 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 	return nil
 }
 
-// DeleteOperationsFromNodes deletes operations from nodes with the given list of IDs.
-func DeleteOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
-	_, err := tx.ExecContext(ctx, "DELETE FROM operations WHERE node_id IN "+query.IntParams(nodeIDs...))
+// deleteEphemeralOperationsFromNodes deletes ephemeral operations from nodes with the given list of IDs.
+// Ephemeral operations are operations which are normally cleared few seconds after they finish. In other words, these are:
+// - Operations with class Task, Websocket or Token (class between 1 and 3), and
+// - Operations which are not bulk operations (parent is NULL and id not in parent column of any operation).
+func deleteEphemeralOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	stmt := `DELETE FROM operations
+WHERE class BETWEEN 1 AND 3
+AND parent IS NULL
+AND id NOT IN (SELECT parent FROM operations WHERE parent IS NOT NULL)
+AND node_id IN ` + query.IntParams(nodeIDs...)
+
+	_, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return fmt.Errorf("Failed deleting operations from nodes: %w", err)
+	}
+
+	return nil
+}
+
+// failRunningBulkOperationsFromNodes marks all running bulk operations on target nodes as failed.
+// Bulk operations are persisted in the database for 24 hours, thus are not ephemeral. Yet, if a node crashes or shuts down,
+// the bulk operations which were not running on the node previously are not going to finish and need to be marked accordingly.
+func failRunningBulkOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, error = ?, error_code = ?
+WHERE class BETWEEN 1 AND 3
+AND status_code < 200
+AND (parent IS NOT NULL OR id IN (SELECT parent FROM operations WHERE parent IS NOT NULL))
+AND node_id IN ` + query.IntParams(nodeIDs...)
+
+	_, err := tx.ExecContext(ctx, stmt, time.Now(), api.Failure, "Node shut down", http.StatusServiceUnavailable)
+	if err != nil {
+		return fmt.Errorf("Failed marking bulk operations as failed: %w", err)
+	}
+
+	return nil
+}
+
+// ClearStaleOperationsFromNodes clears all stale operation records from the database for the given node IDs. This includes:
+// - Deleting ephemeral operations, which are operations that are normally cleared few seconds after they finish.
+// - Marking running bulk operations as failed.
+func ClearStaleOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) error {
+	err := deleteEphemeralOperationsFromNodes(ctx, tx, nodeIDs...)
+	if err != nil {
+		return fmt.Errorf("Failed deleting ephemeral operations from nodes: %w", err)
+	}
+
+	err = failRunningBulkOperationsFromNodes(ctx, tx, nodeIDs...)
+	if err != nil {
+		return fmt.Errorf("Failed failing running bulk operations from nodes: %w", err)
 	}
 
 	return nil

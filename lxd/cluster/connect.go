@@ -18,6 +18,25 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// connect is the common part of Connect and ConnectNotification that does the actual connection to the target cluster member, with the specified user agent.
+func connect(ctx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, userAgent string) (lxd.InstanceServer, error) {
+	args := &lxd.ConnectionArgs{
+		TLSServerCert: string(networkCert.PublicKey()),
+		TLSClientCert: string(serverCert.PublicKey()),
+		TLSClientKey:  string(serverCert.PrivateKey()),
+		SkipGetServer: true,
+		UserAgent:     userAgent,
+	}
+
+	requestor, err := request.GetRequestorAuditor(ctx)
+	if err == nil {
+		args.Proxy = request.RequestorForwardProxy(requestor)
+	}
+
+	url := "https://" + address
+	return lxd.ConnectLXD(url, args)
+}
+
 // Connect is a convenience around lxd.ConnectLXD that configures the client
 // with the correct parameters for node-to-node communication.
 //
@@ -39,25 +58,27 @@ func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 		}
 	}
 
-	args := &lxd.ConnectionArgs{
-		TLSServerCert: string(networkCert.PublicKey()),
-		TLSClientCert: string(serverCert.PublicKey()),
-		TLSClientKey:  string(serverCert.PrivateKey()),
-		SkipGetServer: true,
-		UserAgent:     version.UserAgent,
-	}
-
+	userAgent := version.UserAgent
 	if notify {
-		args.UserAgent = request.UserAgentNotifier
+		userAgent = request.UserAgentNotifier
 	}
 
-	requestor, err := request.GetRequestorAuditor(ctx)
-	if err == nil {
-		args.Proxy = request.RequestorForwardProxy(requestor)
+	return connect(ctx, address, networkCert, serverCert, userAgent)
+}
+
+// ConnectNotification a Connect that sets the user agent to one of the notification agents, based on the createOperation parameter.
+func ConnectNotification(ctx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, clientType request.ClientType) (lxd.InstanceServer, error) {
+	var userAgent string
+	switch clientType {
+	case request.ClientTypeNotifier:
+		userAgent = request.UserAgentNotifier
+	case request.ClientTypeOperationNotifier:
+		userAgent = request.UserAgentOperationNotifier
+	default:
+		return nil, fmt.Errorf("Invalid client type %q for ConnectNotification", clientType)
 	}
 
-	url := "https://" + address
-	return lxd.ConnectLXD(url, args)
+	return connect(ctx, address, networkCert, serverCert, userAgent)
 }
 
 // ConnectIfInstanceIsRemote figures out the address of the cluster member which is running the instance with the

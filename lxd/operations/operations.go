@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -122,6 +123,10 @@ type Operation struct {
 	// Operations which conflict with each other share the same conflict reference.
 	conflictReference string
 
+	// If this operation is part of a bulk operation, parent will point to the parent operation.
+	parent   *Operation
+	children []*Operation
+
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
 	finished cancel.Canceller
@@ -153,6 +158,7 @@ type OperationArgs struct {
 	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
 	// Empty ConflictReference means the operation can be started anytime.
 	ConflictReference string
+	Children          []*OperationArgs
 }
 
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
@@ -202,85 +208,133 @@ func ScheduleServerOperation(s *state.State, args OperationArgs) (*Operation, er
 
 // scheduleOperation schedules a new operation and returns it. If it cannot be created, it returns an error.
 func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
-	// Don't allow new operations when LXD is shutting down.
-	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
-		return nil, errors.New("LXD is shutting down")
-	}
+	// initOperation initializes a single operation structure.
+	initOperation := func(s *state.State, args OperationArgs) (*Operation, error) {
+		// Don't allow new operations when LXD is shutting down.
+		if s != nil && s.ShutdownCtx.Err() == context.Canceled {
+			return nil, errors.New("LXD is shutting down")
+		}
 
-	// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
-	// can be reconstructed from a database record (where it is saved as an entity ID).
-	operationEntityType := args.Type.EntityType()
-	if args.EntityURL != nil {
-		entityType, _, _, _, err := entity.ParseURL(args.EntityURL.URL)
+		// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
+		// can be reconstructed from a database record (where it is saved as an entity ID).
+		operationEntityType := args.Type.EntityType()
+		if args.EntityURL != nil {
+			entityType, _, _, _, err := entity.ParseURL(args.EntityURL.URL)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid operation entity URL: %w", err)
+			}
+
+			if entityType != operationEntityType {
+				return nil, fmt.Errorf("Entity type for URL %q does not match operation entity type %q", args.EntityURL, operationEntityType)
+			}
+		} else if operationEntityType != entity.TypeServer {
+			return nil, errors.New("Operation entity URL required")
+		} else {
+			args.EntityURL = entity.ServerURL()
+		}
+
+		// Use a v7 UUID for the operation ID.
+		uuid, err := uuid.NewV7()
 		if err != nil {
-			return nil, fmt.Errorf("Invalid operation entity URL: %w", err)
+			return nil, fmt.Errorf("Failed generating operation UUID: %w", err)
 		}
 
-		if entityType != operationEntityType {
-			return nil, fmt.Errorf("Entity type for URL %q does not match operation entity type %q", args.EntityURL, operationEntityType)
+		// Main attributes
+		op := Operation{}
+		op.projectName = args.ProjectName
+		op.id = uuid.String()
+		op.description = args.Type.Description()
+		op.dbOpType = args.Type
+		op.class = args.Class
+		op.createdAt = time.Now()
+		op.updatedAt = op.createdAt
+		op.status = api.Running
+		op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
+		op.entityURL = args.EntityURL
+		op.resources = args.Resources
+		op.finished = cancel.New()
+		op.running = cancel.New()
+		op.state = s
+		op.requestor = args.requestor
+		op.metricsCallback = args.metricsCallback
+		op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+		op.inputs = args.Inputs
+		op.conflictReference = args.ConflictReference
+
+		if s != nil {
+			op.SetEventServer(s.Events)
+			op.location = s.ServerName
 		}
-	} else if operationEntityType != entity.TypeServer {
-		return nil, errors.New("Operation entity URL required")
-	} else {
-		args.EntityURL = entity.ServerURL()
+
+		op.metadata, err = validateMetadata(args.Metadata)
+		if err != nil {
+			return nil, fmt.Errorf("Failed validating operation metadata: %w", err)
+		}
+
+		// Callback functions
+		op.onRun = args.RunHook
+		op.onConnect = args.ConnectHook
+
+		// Quick check.
+		if op.class != OperationClassWebsocket && op.onConnect != nil {
+			return nil, errors.New("Only websocket operations can have a Connect hook")
+		}
+
+		if op.class == OperationClassWebsocket && op.onConnect == nil {
+			return nil, errors.New("Websocket operations must have a Connect hook")
+		}
+
+		if op.class == OperationClassToken && op.onRun != nil {
+			return nil, errors.New("Token operations cannot have a Run hook")
+		}
+
+		return &op, nil
 	}
 
-	// Use a v7 UUID for the operation ID.
-	uuid, err := uuid.NewV7()
+	// If this is a bulk operation, don't allow more than one level of nesting.
+	for _, child := range args.Children {
+		if len(child.Children) > 0 {
+			return nil, errors.New("Bulk operations cannot have nested bulk operations")
+		}
+	}
+
+	// If this is a bulk operation, ensure that parent has no run hook.
+	// There's really no strong reason why parent could not have a run hook, but because this is currently unused (thus untested), ensure it doesn't happen.
+	if len(args.Children) > 0 && args.RunHook != nil {
+		return nil, errors.New("Bulk operation parent cannot have a Run hook")
+	}
+
+	// If this is a single task operation without children, it must have a run hook.
+	if !slices.Contains([]OperationClass{OperationClassWebsocket, OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
+		return nil, errors.New("Task operations must have a Run hook")
+	}
+
+	// Create the parent operation
+	op, err := initOperation(s, args)
 	if err != nil {
-		return nil, fmt.Errorf("Failed generating operation UUID: %w", err)
+		return nil, err
 	}
 
-	// Main attributes
-	op := Operation{}
-	op.projectName = args.ProjectName
-	op.id = uuid.String()
-	op.description = args.Type.Description()
-	op.dbOpType = args.Type
-	op.class = args.Class
-	op.createdAt = time.Now()
-	op.updatedAt = op.createdAt
-	op.status = api.Running
-	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
-	op.entityURL = args.EntityURL
-	op.resources = args.Resources
-	op.finished = cancel.New()
-	op.running = cancel.New()
-	op.state = s
-	op.requestor = args.requestor
-	op.metricsCallback = args.metricsCallback
-	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
-	op.inputs = args.Inputs
-	op.conflictReference = args.ConflictReference
+	// Create the child operations, if any.
+	op.children = make([]*Operation, 0, len(args.Children))
+	for _, childArgs := range args.Children {
+		// Child operations inherit the requestor from the parent operation.
+		// metricsCallback is set only on the parent operation, so that it's called only once for the whole bulk operation.
+		childArgs.requestor = args.requestor
+		childOp, err := initOperation(s, *childArgs)
+		if err != nil {
+			return nil, fmt.Errorf("Failed creating child operation: %w", err)
+		}
 
-	if s != nil {
-		op.SetEventServer(s.Events)
-		op.location = s.ServerName
+		op.AddChildren(childOp)
 	}
 
-	op.metadata, err = validateMetadata(args.Metadata)
-	if err != nil {
-		return nil, fmt.Errorf("Failed validating operation metadata: %w", err)
+	shutdownCtx := context.TODO()
+	if op.state != nil {
+		shutdownCtx = op.state.ShutdownCtx
 	}
 
-	// Callback functions
-	op.onRun = args.RunHook
-	op.onConnect = args.ConnectHook
-
-	// Quick check.
-	if op.class != OperationClassWebsocket && op.onConnect != nil {
-		return nil, errors.New("Only websocket operations can have a Connect hook")
-	}
-
-	if op.class == OperationClassWebsocket && op.onConnect == nil {
-		return nil, errors.New("Websocket operations must have a Connect hook")
-	}
-
-	if op.class == OperationClassToken && op.onRun != nil {
-		return nil, errors.New("Token operations cannot have a Run hook")
-	}
-
-	err = registerDBOperation(&op)
+	err = registerDBOperation(shutdownCtx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -288,11 +342,31 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op.logger.Debug("New operation")
 
 	operationsLock.Lock()
-	operations[op.id] = &op
+	operations[op.id] = op
+	for _, childOp := range op.children {
+		operations[childOp.id] = childOp
+	}
+
 	operationsLock.Unlock()
 
 	op.start()
-	return &op, nil
+	return op, nil
+}
+
+// AddChildren adds a child operation to the parent operation. It also sets the parent of the child operation to the parent operation.
+func (op *Operation) AddChildren(children ...*Operation) {
+	if op.children == nil {
+		op.children = make([]*Operation, 0, len(children))
+	}
+
+	op.lock.Lock()
+	op.children = append(op.children, children...)
+	op.lock.Unlock()
+	for _, child := range children {
+		child.lock.Lock()
+		child.parent = op
+		child.lock.Unlock()
+	}
 }
 
 // SetEventServer allows injection of event server.
@@ -359,6 +433,35 @@ func (op *Operation) done() {
 	op.finished.Cancel()
 	op.lock.Unlock()
 
+	// If we are a child operation, we're done. The parent operation will clean all the child entries when it finishes.
+	if op.parent != nil {
+		return
+	}
+
+	// If this is a parent operation of a bulk operation, we clear the entries from the internal map, but leave the database records in place.
+	// The database records will be cleared later by the pruneExpiredOperationsTask().
+	if len(op.children) > 0 {
+		operationsLock.Lock()
+		_, ok := operations[op.id]
+		if !ok {
+			operationsLock.Unlock()
+			return
+		}
+
+		delete(operations, op.id)
+
+		// Clear child operations
+		for _, childOp := range op.children {
+			_, ok := operations[childOp.id]
+			if ok {
+				delete(operations, childOp.id)
+			}
+		}
+
+		operationsLock.Unlock()
+		return
+	}
+
 	go func() {
 		shutdownCtx := context.Background()
 		if op.state != nil {
@@ -412,7 +515,10 @@ func updateStatus(op *Operation, newStatus api.StatusCode) {
 // start a pending operation.
 func (op *Operation) start() {
 	op.lock.Lock()
-	if op.onRun != nil {
+
+	// If there's a run hook, we need to run it and get the final status from it.
+	// If there are child operations, we need to start and wait for them to finish before we can get the final status of the parent operation.
+	if op.onRun != nil || len(op.children) > 0 {
 		// The operation context is the "running" context plus the requestor.
 		// The requestor is available directly on the operation, but we should still put it in the context.
 		// This is so that, if an operation queries another cluster member, the requestor information will be set
@@ -423,7 +529,45 @@ func (op *Operation) start() {
 		}
 
 		go func(ctx context.Context, op *Operation) {
-			err := op.onRun(ctx, op)
+			var err error
+			// Run the run hook.
+			// We don't allow bulk operations with run hook. So there's either run hook, or children, and we can just run the run hook with children serialized.
+			if op.onRun != nil {
+				err = op.onRun(ctx, op)
+			}
+
+			// If we're a parent operation with children, wait until all of our child operations are done.
+			// This is to ensure that the parent operation remains visible in the API until all child operations have completed,
+			// which is important for operations that spawn multiple child operations (eg. bulk operations),
+			// so that the user can see the overall progress of the operation until everything is done.
+			if op.parent == nil && len(op.children) > 0 {
+				// Start child operations
+				for _, childOp := range op.children {
+					childOp.start()
+				}
+
+				var childFailed bool
+				var childCancelled bool
+				for _, childOp := range op.children {
+					err := childOp.Wait(context.Background())
+
+					if err != nil {
+						if errors.Is(err, context.Canceled) {
+							childCancelled = true
+						} else {
+							childFailed = true
+						}
+					}
+				}
+
+				// Parent operation inherits the error from its children if these failed or were cancelled.
+				if childFailed {
+					err = errors.New("One or more child operations failed")
+				} else if childCancelled {
+					err = context.Canceled
+				}
+			}
+
 			if err != nil {
 				op.lock.Lock()
 
@@ -502,17 +646,44 @@ func (op *Operation) Cancel() {
 	// Signal the operation to stop.
 	op.running.Cancel()
 
-	// If the operation has a run hook, then set the status to cancelling.
-	// When the hook returns, the status, error and error code will be set to cancelled because the run context is cancelled.
-	// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
-	//
-	// If the operation does not have a run hook, immediately set the status and error to cancelled because there is nothing to clean up.
-	// We cannot use the operation context here because it has already been cancelled above.
 	if op.onRun != nil {
+		// If the operation has a run hook, then set the status to cancelling.
+		// When the hook returns, the status, error and error code will be set to cancelled because the run context is cancelled.
+		// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
 		updateStatus(op, api.Cancelling)
+
+		// Signal the child operations to stop as well.
+		for _, childOp := range op.children {
+			childOp.Cancel()
+		}
 	} else {
+		// If the operation does not have a run hook, immediately set the status and error to cancelled because there is nothing to clean up.
+		// We cannot use the operation context here because it has already been cancelled above.
 		op.err = context.Canceled.Error()
 		op.errCode = http.StatusInternalServerError
+
+		// If we're a parent operation with children, wait until all of our child operations are done.
+		// This is to ensure that the parent operation remains visible in the API until all child operations have completed,
+		// which is important for operations that spawn multiple child operations (eg. bulk operations),
+		// so that the user can see the overall progress of the operation until everything is done.
+		// Set the status to cancelling while we are waiting for the child operations to finish.
+		if op.parent == nil && len(op.children) > 0 {
+			updateStatus(op, api.Cancelling)
+			op.lock.Unlock()
+
+			// Signal the child operations to stop as well.
+			for _, childOp := range op.children {
+				childOp.Cancel()
+			}
+
+			for _, childOp := range op.children {
+				// Ignore the child error here, the parent operation is cancelled regardless of the child operation result.
+				_ = childOp.Wait(context.Background())
+			}
+
+			op.lock.Lock()
+		}
+
 		updateStatus(op, api.Cancelled)
 	}
 
@@ -633,6 +804,38 @@ func (op *Operation) RenderWithoutProgress() (string, *api.Operation) {
 	for key := range retOp.Metadata {
 		if strings.HasSuffix(key, "progress") {
 			delete(retOp.Metadata, key)
+		}
+	}
+
+	return url, retOp
+}
+
+// RenderFullWithoutProgress renders the operation structure, including child operations, without progress metadata.
+func (op *Operation) RenderFullWithoutProgress() (string, *api.OperationFull) {
+	url, baseOp := op.RenderWithoutProgress()
+
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	retOp := &api.OperationFull{
+		Operation: *baseOp,
+	}
+
+	if len(op.children) > 0 {
+		childAPIOps := make([]*api.Operation, 0, len(op.children))
+		for _, childOp := range op.children {
+			_, child := childOp.RenderWithoutProgress()
+			childAPIOps = append(childAPIOps, child)
+		}
+
+		// Sort operations by UUID. Since we use UUIDv7, this will also sort operations by creation time.
+		slices.SortFunc(childAPIOps, func(a, b *api.Operation) int {
+			return strings.Compare(a.ID, b.ID)
+		})
+
+		retOp.Children = make([]api.Operation, 0, len(op.children))
+		for _, childOp := range childAPIOps {
+			retOp.Children = append(retOp.Children, *childOp)
 		}
 	}
 
@@ -806,6 +1009,16 @@ func (op *Operation) Type() operationtype.Type {
 // Inputs returns the operation inputs from the database.
 func (op *Operation) Inputs() map[string]any {
 	return op.inputs
+}
+
+// Parent returns the parent operation if this operation is a child operation, or nil if this operation is not a child operation.
+func (op *Operation) Parent() *Operation {
+	return op.parent
+}
+
+// Children returns the child operations if this operation is a parent operation, or an empty slice if this operation is not a parent operation.
+func (op *Operation) Children() []*Operation {
+	return op.children
 }
 
 // validateMetadata is used to enforce some consistency in operation metadata.

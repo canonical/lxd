@@ -3007,3 +3007,8 @@ This also applies to new volumes in already existing Ceph RBD storage pools.
 
 In case the `ceph.rbd.features` configuration key is already set the pool, new volumes continue using this list of features and won't
 use the defaults set in the Ceph cluster.
+
+(extension-bulk-operations)=
+## `bulk_operations`
+
+Adds a `recursion=2` mode to `GET /1.0/operations`, enabling retrieval of parent-child relationships between operations. The parent-child operations are now also returned by the `GET /1.0/operations/{id}` endpoint when `recursion=1` is specified.
