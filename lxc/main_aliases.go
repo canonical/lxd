@@ -182,17 +182,21 @@ func execIfAliases() error {
 
 	// Figure out the config directory and config path
 	var configDir string
-	if os.Getenv("LXD_CONF") != "" {
-		configDir = os.Getenv("LXD_CONF")
-	} else if os.Getenv("HOME") != "" {
-		configDir = path.Join(os.Getenv("HOME"), ".config", "lxc")
+	lxdConf := os.Getenv("LXD_CONF")
+	if lxdConf != "" {
+		configDir = lxdConf
 	} else {
-		user, err := user.Current()
-		if err != nil {
-			return nil
+		homeDir := os.Getenv("HOME")
+		if homeDir == "" {
+			user, err := user.Current()
+			if err != nil {
+				return nil
+			}
+
+			homeDir = user.HomeDir
 		}
 
-		configDir = path.Join(user.HomeDir, ".config", "lxc")
+		configDir = path.Join(homeDir, ".config", "lxc")
 	}
 
 	confPath := os.ExpandEnv(path.Join(configDir, "config.yml"))
