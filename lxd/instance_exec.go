@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -86,8 +87,10 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 		return err
 	}
 
+	secretBytes := []byte(secret)
+
 	for fd, fdSecret := range s.fds {
-		if secret == fdSecret {
+		if subtle.ConstantTimeCompare(secretBytes, []byte(fdSecret)) == 1 {
 			conn, err := ws.Upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return err

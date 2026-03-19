@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"sync"
@@ -162,8 +163,11 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 		return api.StatusErrorf(http.StatusBadRequest, "Missing migration source secret")
 	}
 
+	incomingSecretBytes := []byte(incomingSecret)
+
 	for connName, conn := range s.conns {
-		if incomingSecret != conn.Secret() {
+		connSecret := conn.Secret()
+		if subtle.ConstantTimeCompare(incomingSecretBytes, []byte(connSecret)) != 1 {
 			continue
 		}
 
@@ -229,8 +233,11 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 		return api.StatusErrorf(http.StatusBadRequest, "Missing migration sink secret")
 	}
 
+	incomingSecretBytes := []byte(incomingSecret)
+
 	for connName, conn := range s.conns {
-		if incomingSecret != conn.Secret() {
+		connSecret := conn.Secret()
+		if subtle.ConstantTimeCompare(incomingSecretBytes, []byte(connSecret)) != 1 {
 			continue
 		}
 

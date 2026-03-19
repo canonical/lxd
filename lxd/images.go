@@ -3214,6 +3214,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 		return nil, fmt.Errorf("Failed getting image token operations: %w", err)
 	}
 
+	secretBytes := []byte(secret)
 	for _, op := range ops {
 		if op.Metadata == nil {
 			continue
@@ -3234,7 +3235,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 			continue
 		}
 
-		if subtle.ConstantTimeCompare([]byte(opSecretStr), []byte(secret)) == 1 {
+		if subtle.ConstantTimeCompare([]byte(opSecretStr), secretBytes) == 1 {
 			// Token is single-use, so cancel it now.
 			err = operationCancel(r.Context(), s, projectName, op)
 			if err != nil {
