@@ -157,11 +157,12 @@ func DHCPStaticAllocation(network string, deviceStaticFileName string) (mac net.
 			// Check if field is IPv4 or IPv6 address.
 			if strings.Count(field, ".") == 3 {
 				IP := net.ParseIP(field)
-				if IP.To4() == nil {
+				ip4 := IP.To4()
+				if ip4 == nil {
 					return nil, IPv4, IPv6, fmt.Errorf("Error parsing IP address %q", field)
 				}
 
-				IPv4 = DHCPAllocation{StaticFileName: deviceStaticFileName, IP: IP.To4(), MAC: mac}
+				IPv4 = DHCPAllocation{StaticFileName: deviceStaticFileName, IP: ip4, MAC: mac}
 			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
 				IP := net.ParseIP(field[1 : len(field)-1])
 				if IP == nil {
@@ -200,14 +201,16 @@ func DHCPStaticAllocation(network string, deviceStaticFileName string) (mac net.
 // for the network is set to "dynamic" and so cannot be trusted, so in this case we do not return
 // any identifying info.
 func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byte]DHCPAllocation, error) {
-	IPv4s := make(map[[4]byte]DHCPAllocation)
-	IPv6s := make(map[[16]byte]DHCPAllocation)
+	networkPath := shared.VarPath("networks", network)
 
 	// First read all statically allocated IPs.
-	files, err := os.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
+	files, err := os.ReadDir(filepath.Join(networkPath, "dnsmasq.hosts"))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, nil, err
 	}
+
+	IPv4s := make(map[[4]byte]DHCPAllocation)
+	IPv6s := make(map[[16]byte]DHCPAllocation)
 
 	for _, entry := range files {
 		_, IPv4, IPv6, err := DHCPStaticAllocation(network, entry.Name())
@@ -217,19 +220,19 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 
 		if IPv4.IP != nil {
 			var IPKey [4]byte
-			copy(IPKey[:], IPv4.IP.To4())
+			copy(IPKey[:], IPv4.IP)
 			IPv4s[IPKey] = IPv4
 		}
 
 		if IPv6.IP != nil {
 			var IPKey [16]byte
-			copy(IPKey[:], IPv6.IP.To16())
+			copy(IPKey[:], IPv6.IP)
 			IPv6s[IPKey] = IPv6
 		}
 	}
 
 	// Next read all dynamic allocated IPs.
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.leases"))
+	file, err := os.Open(filepath.Join(networkPath, "dnsmasq.leases"))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -245,10 +248,14 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 				return nil, nil, fmt.Errorf("Error parsing IP address: %v", fields[2])
 			}
 
+			ip4 := IP.To4()
+
 			// Handle IPv6 addresses.
-			if IP.To4() == nil {
+			if ip4 == nil {
+				ip16 := IP.To16()
+
 				var IPKey [16]byte
-				copy(IPKey[:], IP.To16())
+				copy(IPKey[:], ip16)
 
 				// Don't replace IPs from static config as more reliable.
 				if IPv6s[IPKey].StaticFileName != "" {
@@ -256,7 +263,7 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 				}
 
 				IPv6s[IPKey] = DHCPAllocation{
-					IP: IP.To16(),
+					IP: ip16,
 				}
 			} else {
 				// MAC only available in IPv4 leases.
@@ -266,7 +273,7 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 				}
 
 				var IPKey [4]byte
-				copy(IPKey[:], IP.To4())
+				copy(IPKey[:], ip4)
 
 				// Don't replace IPs from static config as more reliable.
 				if IPv4s[IPKey].StaticFileName != "" {
@@ -275,7 +282,7 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 
 				IPv4s[IPKey] = DHCPAllocation{
 					MAC: MAC,
-					IP:  IP.To4(),
+					IP:  ip4,
 				}
 			}
 		}
@@ -296,9 +303,6 @@ func StaticAllocationFileName(projectName string, instanceName string, deviceNam
 	return strings.Join([]string{project.Instance(projectName, instanceName), escapedDeviceName}, staticAllocationDeviceSeparator)
 }
 
-// CleanupLeftoverRemovingFiles removes any leftover .removing files in the network directory.
-// These files can be left behind if LXD is stopped after renaming a file in RemoveStaticEntry
-// but before the file is actually deleted.
 // CleanupLeftoverRemovingFiles removes any leftover .removing files in the network directory.
 // These files can be left behind if LXD is stopped after renaming a file in RemoveStaticEntry
 // but before the file is actually deleted.

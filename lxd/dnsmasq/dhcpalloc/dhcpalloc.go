@@ -46,7 +46,6 @@ func GetIP(subnet *net.IPNet, host int64) net.IP {
 	bigIP.SetBytes(subnet.IP.To16())
 
 	// Deal with negative offsets.
-	bigHost := big.NewInt(host)
 	bigCount := big.NewInt(host)
 	if host < 0 {
 		mask, size := subnet.Mask.Size()
@@ -55,6 +54,7 @@ func GetIP(subnet *net.IPNet, host int64) net.IP {
 		bigHosts.SetFloat64((math.Pow(2, float64(size-mask))))
 		bigHostsInt, _ := bigHosts.Int(nil)
 
+		bigHost := big.NewInt(host)
 		bigCount.Set(bigHostsInt)
 		bigCount.Add(bigCount, bigHost)
 	}
@@ -202,8 +202,8 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 	}
 
 	// If no valid existing allocation found, try and find a free one in the subnet pool/ranges.
+	inc := big.NewInt(1)
 	for _, IPRange := range dhcpRanges {
-		inc := big.NewInt(1)
 		startBig := big.NewInt(0)
 		startBig.SetBytes(IPRange.Start)
 		endBig := big.NewInt(0)
@@ -232,7 +232,7 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 		}
 	}
 
-	return nil, errors.New("No available IP could not be found")
+	return nil, errors.New("No available IP could be found")
 }
 
 // getDHCPFreeIPv6 attempts to find a free IPv6 address for the device.
@@ -243,7 +243,9 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 // device's MAC address. Finally if stateful custom ranges are enabled, then a free IP is picked
 // from the ranges configured.
 func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation, deviceStaticFileName string, mac net.HardwareAddr) (net.IP, error) {
-	lxdIP, subnet, err := net.ParseCIDR(t.opts.Network.Config()["ipv6.address"])
+	netConfig := t.opts.Network.Config()
+
+	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
 	if err != nil {
 		return nil, err
 	}
@@ -259,8 +261,6 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 			return DHCP.IP, nil
 		}
 	}
-
-	netConfig := t.opts.Network.Config()
 
 	// Try using an EUI64 IP when in either SLAAC or DHCPv6 stateful mode without custom ranges.
 	if shared.IsFalseOrEmpty(netConfig["ipv6.dhcp.stateful"]) || netConfig["ipv6.dhcp.ranges"] == "" {
@@ -288,8 +288,8 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 
 	// If we get here, then someone already has our SLAAC IP, or we are using custom ranges.
 	// Try and find a free one in the subnet pool/ranges.
+	inc := big.NewInt(1)
 	for _, IPRange := range dhcpRanges {
-		inc := big.NewInt(1)
 		startBig := big.NewInt(0)
 		startBig.SetBytes(IPRange.Start)
 		endBig := big.NewInt(0)
@@ -318,13 +318,14 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 		}
 	}
 
-	return nil, errors.New("No available IP could not be found")
+	return nil, errors.New("No available IP could be found")
 }
 
 // AllocateTask initialises a new locked Transaction for a specific host and executes the supplied function on it.
 // The lock on the dnsmasq config is released when the function returns.
 func AllocateTask(opts *Options, f func(*Transaction) error) error {
-	l := logger.AddContext(logger.Ctx{"driver": opts.Network.Type(), "network": opts.Network.Name(), "project": opts.ProjectName, "host": opts.HostName})
+	netName := opts.Network.Name()
+	l := logger.AddContext(logger.Ctx{"driver": opts.Network.Type(), "network": netName, "project": opts.ProjectName, "host": opts.HostName})
 
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
@@ -334,8 +335,8 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
 	deviceStaticFileName := dnsmasq.StaticAllocationFileName(opts.ProjectName, opts.HostName, opts.DeviceName)
-	t.currentDHCPMAC, t.currentDHCPv4, t.currentDHCPv6, err = dnsmasq.DHCPStaticAllocation(opts.Network.Name(), deviceStaticFileName)
-	if err != nil && !os.IsNotExist(err) {
+	t.currentDHCPMAC, t.currentDHCPv4, t.currentDHCPv6, err = dnsmasq.DHCPStaticAllocation(netName, deviceStaticFileName)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
@@ -346,8 +347,8 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 
 	// Get all existing allocations in network if leases file exists. If not then we will detect this later
 	// due to the existing allocations maps being nil.
-	if shared.PathExists(shared.VarPath("networks", opts.Network.Name(), "dnsmasq.leases")) {
-		t.allocationsDHCPv4, t.allocationsDHCPv6, err = dnsmasq.DHCPAllAllocations(opts.Network.Name())
+	if shared.PathExists(shared.VarPath("networks", netName, "dnsmasq.leases")) {
+		t.allocationsDHCPv4, t.allocationsDHCPv6, err = dnsmasq.DHCPAllAllocations(netName)
 		if err != nil {
 			return err
 		}
@@ -382,13 +383,15 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 			IPv6Str = t.allocatedIPv6.String()
 		}
 
+		hostMACStr := opts.HostMAC.String()
+
 		// Write out new dnsmasq static host allocation config file.
-		err = dnsmasq.UpdateStaticEntry(opts.Network.Name(), opts.ProjectName, opts.HostName, opts.DeviceName, opts.Network.Config(), opts.HostMAC.String(), IPv4Str, IPv6Str)
+		err = dnsmasq.UpdateStaticEntry(netName, opts.ProjectName, opts.HostName, opts.DeviceName, opts.Network.Config(), hostMACStr, IPv4Str, IPv6Str)
 		if err != nil {
 			return err
 		}
 
-		l.Debug("Updated static DHCP entry", logger.Ctx{"mac": opts.HostMAC.String(), "IPv4": IPv4Str, "IPv6": IPv6Str})
+		l.Debug("Updated static DHCP entry", logger.Ctx{"mac": hostMACStr, "IPv4": IPv4Str, "IPv6": IPv6Str})
 	}
 
 	return nil
