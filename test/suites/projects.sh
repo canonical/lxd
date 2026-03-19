@@ -1117,6 +1117,7 @@ run_projects_restrictions() {
   # It's not possible to use forbidden low-level options
   ! lxc profile set default "raw.idmap=both 0 0" || false
   ! lxc init --empty c1 -c "raw.idmap=both 0 0" || false
+  ! lxc init --empty c1 -c raw.apparmor="/some/path rw," || false
   ! lxc init --empty c1 -c volatile.uuid="$(uuidgen)" || false
 
   # It's not possible to create privileged containers.
@@ -1128,6 +1129,7 @@ run_projects_restrictions() {
 
   # It's not possible to change low-level options
   ! lxc config set c1 "raw.idmap=both 0 0" || false
+  ! lxc config set c1 raw.apparmor="/some/path rw," || false
   ! lxc config set c1 volatile.uuid="$(uuidgen)" || false
 
   # It's not possible to attach character devices.
@@ -1165,6 +1167,7 @@ run_projects_restrictions() {
   # low-level keys.
   lxc project set local:p1 restricted.containers.lowlevel=allow
   lxc config set c1 "raw.idmap=both 0 0"
+  lxc config set c1 raw.apparmor="/some/path rw,"
 
   lxc delete c1
 
@@ -1237,6 +1240,36 @@ run_projects_restrictions() {
   ! lxc config set local:c1 security.syscalls.intercept.mount.allow=ext4 || false
 
   lxc delete c1
+
+  # It is not possible to use forbidden VM low-level options (raw.apparmor, raw.qemu.conf)
+  # when restricted.virtual-machines.lowlevel is blocked.
+  ! lxc init --vm --empty v1 -c raw.apparmor="/some/path rw," -d "${SMALL_ROOT_DISK}" || false
+  ! lxc init --vm --empty v1 -c "raw.qemu.conf=[chardev \"test\"]\nbackend = \"socket\"\npath = \"/tmp/test.sock\"" -d "${SMALL_ROOT_DISK}" || false
+  ! lxc init --vm --empty v1 -c raw.qemu="test" -d "${SMALL_ROOT_DISK}" || false
+
+  # It is also not possible to set these on an existing VM.
+  lxc init --vm --empty v1 -d "${SMALL_ROOT_DISK}"
+  ! lxc config set v1 raw.apparmor="/some/path rw," || false
+  ! lxc config set v1 "raw.qemu.conf=[chardev \"test\"]\nbackend = \"socket\"\npath = \"/tmp/test.sock\"" || false
+  ! lxc config set v1 raw.qemu="test" || false
+
+  # Relaxing restricted.virtual-machines.lowlevel to 'allow' makes it possible to set VM low-level keys.
+  lxc project set local:p1 restricted.virtual-machines.lowlevel=allow
+  lxc config set v1 raw.apparmor="/some/path rw,"
+  lxc config set v1 "raw.qemu.conf=[chardev \"test\"]\nbackend = \"socket\"\npath = \"/tmp/test.sock\""
+  lxc config set v1 raw.qemu="test"
+
+  # It is not possible to set restricted.virtual-machines.lowlevel back to 'block',
+  # because there's an instance (v1) with forbidden VM low-level options still set.
+  ! lxc project set local:p1 restricted.virtual-machines.lowlevel=block || false
+
+  # Remove lowlevel VM options from the instance and try blocking again.
+  lxc config unset v1 raw.apparmor
+  lxc config unset v1 raw.qemu.conf
+  lxc config unset v1 raw.qemu
+  lxc project set local:p1 restricted.virtual-machines.lowlevel=block
+
+  lxc delete v1
 
   echo "==> Check that restricted.* options are not checked during project update if restricted=false."
 
