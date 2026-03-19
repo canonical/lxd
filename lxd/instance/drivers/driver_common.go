@@ -2248,6 +2248,11 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 					return fmt.Errorf("New device %q with initial configuration %q cannot be added once the instance is created", devName, k)
 				}
 
+				if k == deviceConfig.ConfigInitialPrefix+"zfs.promote" {
+					// Allow zfs.promote to be added as this is needed for volume promotion.
+					continue
+				}
+
 				oldVal, ok := oldDev[k]
 				if !ok {
 					return fmt.Errorf("Device %q initial configuration %q cannot be added once the instance is created", devName, k)
