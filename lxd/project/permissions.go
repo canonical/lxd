@@ -847,8 +847,10 @@ func isVMLowLevelOptionForbidden(key string) bool {
 	return shared.StringInSlice(key, []string{
 		"boot.host_shutdown_timeout",
 		"limits.memory.hugepages",
+		"raw.apparmor",
 		"raw.idmap",
 		"raw.qemu",
+		"raw.qemu.conf",
 	})
 }
 
