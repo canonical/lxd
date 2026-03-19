@@ -86,6 +86,11 @@ type Operation struct {
 	//
 	// API extension: operation_requestor
 	Requestor *OperationRequestor `json:"requestor,omitempty" yaml:"requestor,omitempty"`
+
+	// If this is a child operation, this is the stage of this child.
+	//
+	// API extension: operation_stages.
+	Stage uint64 `json:"stage" yaml:"stage"`
 }
 
 // OperationFull is an Operation with its child operations.
