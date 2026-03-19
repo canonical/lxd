@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -25,7 +26,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 		return nil
 	}
 
-	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64) (int64, error) {
+	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64, stage int64) (int64, error) {
 		// Conflict reference should only be provided for operation types that support conflicts.
 		if op.dbOpType.ConflictAction() == operationtype.ConflictActionNone && op.conflictReference != "" {
 			return 0, fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())
@@ -40,6 +41,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			UpdatedAt:         op.updatedAt,
 			Status:            int64(op.Status()),
 			Parent:            parentOpID,
+			Stage:             stage,
 			ConflictReference: op.conflictReference,
 		}
 
@@ -117,16 +119,18 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 
 	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Create parent operation record.
-		parentOpID, err := registerSingleOperation(ctx, tx, op, nil)
+		parentOpID, err := registerSingleOperation(ctx, tx, op, nil, 0)
 		if err != nil {
 			return err
 		}
 
 		// Create child operation records, if any.
-		for _, childOp := range op.children {
-			_, err := registerSingleOperation(ctx, tx, childOp, &parentOpID)
-			if err != nil {
-				return err
+		for stage, childrenInStage := range op.children {
+			for _, childOp := range childrenInStage {
+				_, err := registerSingleOperation(ctx, tx, childOp, &parentOpID, int64(stage))
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -466,6 +470,7 @@ func LoadDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID i
 
 	// Now that we have all operations created, we can set the parent-child relationships.
 	var result []*Operation
+	children := map[string]map[int64][]*Operation{} // Map of child operations keyed by stage, keyed by their parent operation ID.
 	for _, opPair := range opsMap {
 		// If the operation has no parent, we'll return it as a top-level operation.
 		if opPair.dbOp.Parent == nil {
@@ -480,12 +485,32 @@ func LoadDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID i
 			continue
 		}
 
-		// And set the parent-child relationship.
-		parentOpPair.op.AddChildren(opPair.op)
+		// And add the operation as a child of its parent.
+		_, ok = children[parentOpPair.op.id]
+		if !ok {
+			children[parentOpPair.op.id] = make(map[int64][]*Operation)
+		}
+
+		children[parentOpPair.op.id][opPair.dbOp.Stage] = append(children[parentOpPair.op.id][opPair.dbOp.Stage], opPair.op)
 	}
 
-	// Clear run hooks for parent operations. These should not be set from the run hook table per operation type.
 	for _, op := range result {
+		// Get a list of stages and sort it
+		stages := make([]int64, 0, len(children[op.id]))
+		for stage := range children[op.id] {
+			stages = append(stages, stage)
+		}
+
+		sort.Slice(stages, func(i, j int) bool {
+			return stages[i] < stages[j]
+		})
+
+		// Add child operations to their parent in the correct stage order.
+		for _, stage := range stages {
+			op.AddStage(children[op.id][stage])
+		}
+
+		// Clear run hooks for parent operations. These should not be set from the run hook table per operation type.
 		if len(op.children) > 0 {
 			op.onRun = nil
 		}
@@ -505,8 +530,10 @@ func RestartDurableOperation(s *state.State, op *Operation) {
 
 	operationsLock.Lock()
 	operations[op.id] = op
-	for _, childOp := range op.children {
-		operations[childOp.id] = childOp
+	for _, childrenInStage := range op.children {
+		for _, childOp := range childrenInStage {
+			operations[childOp.id] = childOp
+		}
 	}
 
 	operationsLock.Unlock()

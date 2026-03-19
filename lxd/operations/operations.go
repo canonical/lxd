@@ -127,8 +127,9 @@ type Operation struct {
 	conflictReference string
 
 	// If this operation is part of a bulk operation, parent will point to the parent operation.
-	parent   *Operation
-	children []*Operation
+	parent *Operation
+	// Slice of children ordered in the slice of stages.
+	children [][]*Operation
 
 	// finished is cancelled when the operation has finished executing all configured hooks.
 	// It is used by Wait, to wait on the operation to be fully completed.
@@ -168,7 +169,7 @@ type OperationArgs struct {
 	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
 	// Empty ConflictReference means the operation can be started anytime.
 	ConflictReference string
-	Children          []*OperationArgs
+	Children          [][]*OperationArgs
 }
 
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
@@ -337,9 +338,11 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	}
 
 	// If this is a bulk operation, don't allow more than one level of nesting.
-	for _, child := range args.Children {
-		if len(child.Children) > 0 {
-			return nil, errors.New("Bulk operations cannot have nested bulk operations")
+	for _, childrenInStage := range args.Children {
+		for _, child := range childrenInStage {
+			if len(child.Children) > 0 {
+				return nil, errors.New("Bulk operations cannot have nested bulk operations")
+			}
 		}
 	}
 
@@ -366,17 +369,22 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	}
 
 	// Create the child operations, if any.
-	op.children = make([]*Operation, 0, len(args.Children))
-	for _, childArgs := range args.Children {
-		// Child operations inherit the requestor from the parent operation.
-		// metricsCallback is set only on the parent operation, so that it's called only once for the whole bulk operation.
-		childArgs.requestor = args.requestor
-		childOp, err := initOperation(s, *childArgs)
-		if err != nil {
-			return nil, fmt.Errorf("Failed creating child operation: %w", err)
+	op.children = make([][]*Operation, 0, len(args.Children))
+	for _, childStageArgs := range args.Children {
+		childrenInStage := make([]*Operation, 0, len(childStageArgs))
+		for _, childArgs := range childStageArgs {
+			// Child operations inherit the requestor from the parent operation.
+			// metricsCallback is set only on the parent operation, so that it's called only once for the whole bulk operation.
+			childArgs.requestor = args.requestor
+			childOp, err := initOperation(s, *childArgs)
+			if err != nil {
+				return nil, fmt.Errorf("Failed creating child operation: %w", err)
+			}
+
+			childrenInStage = append(childrenInStage, childOp)
 		}
 
-		op.AddChildren(childOp)
+		op.AddStage(childrenInStage)
 	}
 
 	shutdownCtx := context.TODO()
@@ -405,14 +413,19 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 			newOp.onRun = nil
 		}
 
-		newOp.children = make([]*Operation, 0, len(op.children))
-		for _, childOp := range op.children {
-			reconstructedChildOp, err := loadDurableOperationFromDB(childOp)
-			if err != nil {
-				return nil, fmt.Errorf("Failed reloading durable child operation from database: %w", err)
+		newOp.children = make([][]*Operation, 0, len(op.children))
+		for _, childStage := range op.children {
+			childrenInStage := make([]*Operation, 0, len(childStage))
+			for _, childOp := range childStage {
+				reconstructedChildOp, err := loadDurableOperationFromDB(childOp)
+				if err != nil {
+					return nil, fmt.Errorf("Failed reloading durable child operation from database: %w", err)
+				}
+
+				childrenInStage = append(childrenInStage, reconstructedChildOp)
 			}
 
-			newOp.AddChildren(reconstructedChildOp)
+			newOp.AddStage(childrenInStage)
 		}
 
 		op = newOp
@@ -422,8 +435,10 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 
 	operationsLock.Lock()
 	operations[op.id] = op
-	for _, childOp := range op.children {
-		operations[childOp.id] = childOp
+	for _, childInStage := range op.children {
+		for _, childOp := range childInStage {
+			operations[childOp.id] = childOp
+		}
 	}
 
 	operationsLock.Unlock()
@@ -432,16 +447,13 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	return op, nil
 }
 
-// AddChildren adds a child operation to the parent operation. It also sets the parent of the child operation to the parent operation.
-func (op *Operation) AddChildren(children ...*Operation) {
-	if op.children == nil {
-		op.children = make([]*Operation, 0, len(children))
-	}
-
+// AddStage adds a stage of child operations to the parent operation. It also sets the parent of the child operations to the parent operation.
+func (op *Operation) AddStage(childrenInStage []*Operation) {
 	op.lock.Lock()
-	op.children = append(op.children, children...)
+	op.children = append(op.children, childrenInStage)
 	op.lock.Unlock()
-	for _, child := range children {
+
+	for _, child := range childrenInStage {
 		child.lock.Lock()
 		child.parent = op
 		child.lock.Unlock()
@@ -530,11 +542,13 @@ func (op *Operation) done() {
 
 		delete(operations, op.id)
 
-		// Clear child operations
-		for _, childOp := range op.children {
-			_, ok := operations[childOp.id]
-			if ok {
-				delete(operations, childOp.id)
+		// Clear the child operations
+		for _, childrenInStage := range op.children {
+			for _, childOp := range childrenInStage {
+				_, ok := operations[childOp.id]
+				if ok {
+					delete(operations, childOp.id)
+				}
 			}
 		}
 
@@ -621,21 +635,23 @@ func (op *Operation) start() {
 			// which is important for operations that spawn multiple child operations (eg. bulk operations),
 			// so that the user can see the overall progress of the operation until everything is done.
 			if op.parent == nil && len(op.children) > 0 {
-				// Start child operations
-				for _, childOp := range op.children {
-					childOp.start()
-				}
-
 				var childFailed bool
 				var childCancelled bool
-				for _, childOp := range op.children {
-					err := childOp.Wait(context.Background())
+				for _, childrenInStage := range op.children {
+					// Start child operations
+					for _, childOp := range childrenInStage {
+						childOp.start()
+					}
 
-					if err != nil {
-						if errors.Is(err, context.Canceled) {
-							childCancelled = true
-						} else {
-							childFailed = true
+					for _, childOp := range childrenInStage {
+						err := childOp.Wait(context.Background())
+
+						if err != nil {
+							if errors.Is(err, context.Canceled) {
+								childCancelled = true
+							} else {
+								childFailed = true
+							}
 						}
 					}
 				}
@@ -756,8 +772,10 @@ func (op *Operation) Cancel() {
 		updateStatus(op, api.Cancelling)
 
 		// Signal the child operations to stop as well.
-		for _, childOp := range op.children {
-			childOp.Cancel()
+		for _, childrenInStages := range op.children {
+			for _, childOp := range childrenInStages {
+				childOp.Cancel()
+			}
 		}
 	} else {
 		// If the operation does not have any children or a run hook, set the status and error to cancelled because there is nothing to clean up.
@@ -938,9 +956,12 @@ func (op *Operation) RenderFullWithoutProgress() (string, *api.OperationFull) {
 
 	if len(op.children) > 0 {
 		childAPIOps := make([]*api.Operation, 0, len(op.children))
-		for _, childOp := range op.children {
-			_, child := childOp.RenderWithoutProgress()
-			childAPIOps = append(childAPIOps, child)
+		for stage, childrenInStage := range op.children {
+			for _, childOp := range childrenInStage {
+				_, child := childOp.RenderWithoutProgress()
+				child.Stage = uint64(stage)
+				childAPIOps = append(childAPIOps, child)
+			}
 		}
 
 		// Sort operations by UUID. Since we use UUIDv7, this will also sort operations by creation time.
@@ -1136,6 +1157,11 @@ func (op *Operation) Inputs() map[string]any {
 // Parent returns the parent operation if this operation is a child operation, or nil if this operation is not a child operation.
 func (op *Operation) Parent() *Operation {
 	return op.parent
+}
+
+// Children returns the child operations if this operation is a parent operation, or nil if this operation is not a parent operation.
+func (op *Operation) Children() [][]*Operation {
+	return op.children
 }
 
 // validateMetadata is used to enforce some consistency in operation metadata.

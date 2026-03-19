@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -241,17 +242,47 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			children := make([]*operations.Operation, 0, len(childDbOps))
+			// Put child operations in a map keyed by the stage.
+			// We'll also make a slice of all stages, which we can sort later.
+			childOpsInStages := make(map[int64][]dbCluster.Operation, len(childDbOps))
 			for _, childDbOp := range childDbOps {
-				childOp, err := constructOperation(&childDbOp)
-				if err != nil {
-					return err
-				}
-
-				children = append(children, childOp)
+				childOpsInStages[childDbOp.Stage] = append(childOpsInStages[childDbOp.Stage], childDbOp)
 			}
 
-			op.AddChildren(children...)
+			// Get the list of all stages and sort it
+			stages := make([]int64, 0, len(childOpsInStages))
+			for stage := range childOpsInStages {
+				stages = append(stages, stage)
+			}
+
+			sort.Slice(stages, func(i, j int) bool {
+				return stages[i] < stages[j]
+			})
+
+			// Now walk all stages in order and add the operations in each stage as children of the parent operation.
+			for _, stage := range stages {
+				children := make([]*operations.Operation, 0, len(childDbOps))
+				childDbOpsInStage, ok := childOpsInStages[stage]
+				if !ok {
+					return fmt.Errorf("Failed finding child operations for stage %d", stage)
+				}
+
+				// Sort the child operations in this stage by their ID. Since we use UUIDv7, this will also sort them by creation time.
+				sort.Slice(childDbOpsInStage, func(i, j int) bool {
+					return childDbOpsInStage[i].ID < childDbOpsInStage[j].ID
+				})
+
+				for _, childDbOp := range childDbOpsInStage {
+					childOp, err := constructOperation(&childDbOp)
+					if err != nil {
+						return err
+					}
+
+					children = append(children, childOp)
+				}
+
+				op.AddStage(children)
+			}
 		}
 
 		return err
@@ -590,8 +621,8 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed getting operations: %w", err)
 		}
 
-		// Map of child operations keyed by their parent operation ID.
-		childOps := make(map[int64][]*operations.Operation)
+		// Map of child operations keyed by stage, keyed by their parent operation ID.
+		childOpsInStages := make(map[int64]map[int64][]*operations.Operation)
 		for _, dbOp := range dbOps {
 			// Omit child operations if not requested.
 			if dbOp.Parent != nil && recursion < 2 {
@@ -631,26 +662,39 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			// If this is a child operations, add it to the list keyed by parent DB ID.
 			// We'll match these to actual parents later.
 			if dbOp.Parent != nil {
-				_, ok := childOps[*dbOp.Parent]
+				_, ok := childOpsInStages[*dbOp.Parent]
 				if !ok {
-					childOps[*dbOp.Parent] = make([]*operations.Operation, 0)
+					childOpsInStages[*dbOp.Parent] = make(map[int64][]*operations.Operation)
 				}
 
-				childOps[*dbOp.Parent] = append(childOps[*dbOp.Parent], op)
+				childOpsInStages[*dbOp.Parent][dbOp.Stage] = append(childOpsInStages[*dbOp.Parent][dbOp.Stage], op)
 			} else {
 				parentOps[dbOp.ID] = op
 			}
 		}
 
 		// Now add the child operations to their parents.
-		for parentID, children := range childOps {
+		for parentID, children := range childOpsInStages {
+			// Get the list of all stages and sort it
+			stages := make([]int64, 0, len(children))
+			for stage := range children {
+				stages = append(stages, stage)
+			}
+
+			sort.Slice(stages, func(i, j int) bool {
+				return stages[i] < stages[j]
+			})
+
 			parentOp, ok := parentOps[parentID]
 			if !ok {
 				logger.Warn("Failed finding parent operation for child operations, skipping children", logger.Ctx{"parentID": parentID})
 				continue
 			}
 
-			parentOp.AddChildren(children...)
+			// Now walk all stages in order and add the operations in each stage as children of the parent operation.
+			for _, stage := range stages {
+				parentOp.AddStage(children[stage])
+			}
 		}
 
 		return nil
@@ -1353,10 +1397,12 @@ func syncDurableOperationsTask(stateFunc func() *state.State) (task.Func, task.S
 				parentID := op.Parent().ID()
 				dbParentOp, ok := dbOpsMap[parentID]
 				if ok {
-					for _, dbChildOp := range dbParentOp.Children() {
-						if dbChildOp.ID() == op.ID() {
-							// Operation is in the DB as a child of its parent, everything is great.
-							continue OPS_LOOP
+					for _, stageChildren := range dbParentOp.Children() {
+						for _, dbChildOp := range stageChildren {
+							if dbChildOp.ID() == op.ID() {
+								// Operation is in the DB as a child of its parent, everything is great.
+								continue OPS_LOOP
+							}
 						}
 					}
 				}
@@ -1379,6 +1425,7 @@ type operationWaitPost struct {
 	EntityURL         string                    `json:"entity_url" yaml:"entity_url"`
 	ConflictReference string                    `json:"conflict_reference" yaml:"conflict_reference"`
 	NumberOfChildren  int                       `json:"number_of_children" yaml:"number_of_children"`
+	SerializeChildren bool                      `json:"serialize_children" yaml:"serialize_children"`
 }
 
 func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
@@ -1485,20 +1532,33 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Create child operations if needed.
-	childrenArgs := make([]*operations.OperationArgs, req.NumberOfChildren)
-	for i := 0; i < req.NumberOfChildren; i++ {
-		// Child operation
-		args := operations.OperationArgs{
-			ProjectName: request.QueryParam(r, "project"),
-			Type:        req.OpType,
-			Class:       req.OpClass,
-			RunHook:     waitHandlerOperationRunHook,
-			ConnectHook: onConnect,
-			EntityURL:   &api.URL{URL: *u},
-			Inputs:      inputs,
-		}
+	// Child operation
+	args := operations.OperationArgs{
+		ProjectName: request.QueryParam(r, "project"),
+		Type:        req.OpType,
+		Class:       req.OpClass,
+		RunHook:     waitHandlerOperationRunHook,
+		ConnectHook: onConnect,
+		EntityURL:   &api.URL{URL: *u},
+		Inputs:      inputs,
+	}
 
-		childrenArgs[i] = &args
+	var childrenArgs [][]*operations.OperationArgs
+	if req.NumberOfChildren > 0 {
+		if req.SerializeChildren {
+			childrenArgs = make([][]*operations.OperationArgs, req.NumberOfChildren)
+			for i := 0; i < req.NumberOfChildren; i++ {
+				childrenArgs[i] = make([]*operations.OperationArgs, 1)
+				childrenArgs[i][0] = &args
+			}
+		} else {
+			childrenArgs = make([][]*operations.OperationArgs, 1)
+			childrenArgs[0] = make([]*operations.OperationArgs, req.NumberOfChildren)
+
+			for i := 0; i < req.NumberOfChildren; i++ {
+				childrenArgs[0][i] = &args
+			}
+		}
 	}
 
 	// Parent operation
@@ -1521,8 +1581,10 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 
 	// Durable operations have their run hook set in the DurableOperations table.
 	if req.OpClass == operations.OperationClassDurable {
-		for _, args := range childrenArgs {
-			args.RunHook = nil
+		for _, stageArgs := range childrenArgs {
+			for _, args := range stageArgs {
+				args.RunHook = nil
+			}
 		}
 
 		parentArgs.RunHook = nil

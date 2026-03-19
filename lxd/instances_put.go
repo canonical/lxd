@@ -204,7 +204,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		EntityURL:   projectURL,
 		Type:        operationtype.InstanceStateUpdateBulk,
 		Class:       operations.OperationClassTask,
-		Children:    childArgs,
+		Children:    [][]*operations.OperationArgs{childArgs},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
