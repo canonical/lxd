@@ -298,6 +298,12 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		}
 	}
 
+	// If this is a bulk operation, ensure that parent has no run hook.
+	// There's really no strong reason why parent could not have a run hook, but because this is currently unused (thus untested), ensure it doesn't happen.
+	if len(args.Children) > 0 && args.RunHook != nil {
+		return nil, errors.New("Bulk operation parent cannot have a Run hook")
+	}
+
 	// If this is a single task operation without children, it must have a run hook.
 	if !slices.Contains([]OperationClass{OperationClassWebsocket, OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
 		return nil, errors.New("Task operations must have a Run hook")
@@ -495,13 +501,8 @@ func updateStatus(op *Operation, newStatus api.StatusCode) {
 func (op *Operation) start() {
 	op.lock.Lock()
 
-	// Start child operations
-	for _, childOp := range op.children {
-		childOp.start()
-	}
-
 	// If there's a run hook, we need to run it and get the final status from it.
-	// If there are child operations, we also need to wait for them to finish before we can get the final status of the parent operation.
+	// If there are child operations, we need to start and wait for them to finish before we can get the final status of the parent operation.
 	if op.onRun != nil || len(op.children) > 0 {
 		// The operation context is the "running" context plus the requestor.
 		// The requestor is available directly on the operation, but we should still put it in the context.
@@ -514,6 +515,8 @@ func (op *Operation) start() {
 
 		go func(ctx context.Context, op *Operation) {
 			var err error
+			// Run the run hook.
+			// We don't allow bulk operations with run hook. So there's either run hook, or children, and we can just run the run hook with children serialized.
 			if op.onRun != nil {
 				err = op.onRun(ctx, op)
 			}
@@ -523,6 +526,11 @@ func (op *Operation) start() {
 			// which is important for operations that spawn multiple child operations (eg. bulk operations),
 			// so that the user can see the overall progress of the operation until everything is done.
 			if op.parent == nil && len(op.children) > 0 {
+				// Start child operations
+				for _, childOp := range op.children {
+					childOp.start()
+				}
+
 				var childFailed bool
 				var childCancelled bool
 				for _, childOp := range op.children {
@@ -537,15 +545,11 @@ func (op *Operation) start() {
 					}
 				}
 
-				// If the parent operation failed or was cancelled it should keep that error.
-				// However, if the parent operation succeeded (potentially before all child operations finished),
-				// it should inherit the error from its children if these failed or were cancelled.
-				if err == nil {
-					if childFailed {
-						err = errors.New("One or more child operations failed")
-					} else if childCancelled {
-						err = context.Canceled
-					}
+				// Parent operation inherits the error from its children if these failed or were cancelled.
+				if childFailed {
+					err = errors.New("One or more child operations failed")
+				} else if childCancelled {
+					err = context.Canceled
 				}
 			}
 
