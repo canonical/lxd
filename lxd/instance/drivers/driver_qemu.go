@@ -6152,6 +6152,10 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			return err
 		}
 
+		// Do not store initial.* device config keys in database.
+		initialDevicesConfig := d.localDevices.CutInitialConfig()
+		defer func() { initialDevicesConfig.Copy(d.localDevices) }() // Restore after DB transaction.
+
 		devices, err := dbCluster.APIToDevices(d.localDevices.CloneNative())
 		if err != nil {
 			return err
