@@ -756,6 +756,13 @@ test_devlxd_vm() {
   waitInstanceReady v1
 
   echo "==> Confirm agent.nic_config applied the NIC configuration"
+  # Wait for lxd-agent to finish renaming the NIC; the agent initializes
+  # asynchronously after the guest kernel starts, so waitInstanceReady is not
+  # sufficient on its own.
+  for _ in $(seq 30); do
+    lxc exec v1 -- ip link show a-nic && break
+    sleep 1
+  done
   lxc exec v1 -- ip link show a-nic | grep -wF "mtu 1400"
 
   echo "==> Remove the NIC"
