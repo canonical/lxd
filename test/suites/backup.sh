@@ -965,3 +965,142 @@ test_backup_export_import_instance_only() {
   rm "${LXD_DIR}/c1.tar.gz"
   lxc delete -f c1
 }
+
+test_backup_inconsistent_config() {
+  local poolName
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
+
+  # Create a restricted project and switch to it.
+  lxc project create restricted \
+    -c restricted=true
+  lxc profile device add default root disk path=/ pool="${poolName}" --project restricted
+
+  # Switch to restricted project to test imports.
+  lxc project switch restricted
+
+  tmpDir=$(mktemp -d -p "${TEST_DIR}" backups-XXX)
+
+  # Create a new empty instance with a clean index and inconsistent backup config.
+  mkdir -p "${tmpDir}/backup/container"
+  cat > "${tmpDir}/backup/index.yaml" <<EOF
+version: 2
+name: inconsistent-instance
+backend: dir
+pool: ${poolName}
+type: container
+optimized: false
+config:
+  container:
+    name: inconsistent-instance
+    architecture: x86_64
+    type: container
+    config: {}
+    devices: {}
+    expanded_config: {}
+    expanded_devices:
+      root:
+        path: /
+        pool: ${poolName}
+        type: disk
+    profiles:
+      - default
+    stateful: false
+  pool:
+    name: ${poolName}
+    driver: dir
+  volume:
+    name: inconsistent-instance
+    type: container
+    pool: ${poolName}
+    content_type: filesystem
+    config:
+      volatile.uuid: "96c0c029-e0f4-4d36-8a2a-49eaa4b1572f"
+EOF
+  cat > "${tmpDir}/backup/container/backup.yaml" <<EOF
+container:
+  name: inconsistent-instance
+  architecture: x86_64
+  type: container
+  config:
+    security.privileged: "true"
+  devices: {}
+  expanded_config:
+    security.privileged: "true"
+  expanded_devices:
+    root:
+      path: /
+      pool: ${poolName}
+      type: disk
+  profiles:
+    - default
+  stateful: false
+pool:
+  name: ${poolName}
+  driver: dir
+volume:
+  name: inconsistent-instance
+  type: container
+  pool: ${poolName}
+  content_type: filesystem
+  config:
+    volatile.uuid: "96c0c029-e0f4-4d36-8a2a-49eaa4b1572f"
+EOF
+
+  # Re-package the inconsistent archive.
+  tar -cf "${tmpDir}/inconsistent-backup.tar" -C "${tmpDir}" "backup/"
+
+  # Importing the instance from tarball succeeds.
+  lxc import "${tmpDir}/inconsistent-backup.tar"
+
+  # Check the inconsistent backup config got overwritten by the index during import
+  [ "$(lxc config get inconsistent-instance security.privileged || echo fail)" = "" ]
+
+  lxc delete -f inconsistent-instance
+
+  # Fix the backup's config by taking the contents from the index.
+  # As we are using yq from the snap, it doesn't have permission to read inside ${tmpDir}.
+  # Instead we have to juggle a bit to read and overwrite the original file as we cannot use yq -i for inplace updates.
+  yq '.container.config = {}' < "${tmpDir}/backup/container/backup.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/container/backup.yaml"
+  yq '.container.expanded_config = {}' < "${tmpDir}/backup/container/backup.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/container/backup.yaml"
+
+  # Re-package the fixed archive.
+  tar -cf "${tmpDir}/fixed-backup.tar" -C "${tmpDir}" "backup/"
+
+  # Importing the instance from tarball succeeds.
+  lxc import "${tmpDir}/fixed-backup.tar"
+
+  lxc delete -f inconsistent-instance
+
+  # Now make the index inconsistent.
+  yq '.config.container.config += {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq '.config.container.expanded_config += {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+
+  # Re-package the inconsistent archive.
+  tar -cf "${tmpDir}/inconsistent-backup.tar" -C "${tmpDir}" "backup/"
+
+  # Importing the instance from tarball fails.
+  ! lxc import "${tmpDir}/inconsistent-backup.tar" || false
+
+  # Fix the index.
+  yq '.config.container.config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq '.config.container.expanded_config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+
+  # Re-package the fixed archive.
+  tar -cf "${tmpDir}/fixed-backup.tar" -C "${tmpDir}" "backup/"
+
+  # Importing the instance from tarball succeeds.
+  lxc import "${tmpDir}/fixed-backup.tar"
+
+  lxc delete -f inconsistent-instance
+  lxc project delete restricted
+  rm -rf "${tmpDir}/backup"
+
+  # Check an exported instance doesn't contain a backup config.
+  lxc init --empty c1
+  lxc export c1 "${tmpDir}/c1.tar.gz"
+  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}"
+  [ ! -f "${tmpDir}/backup/container/backup.yaml" ]
+
+  lxc delete -f c1
+  rm -r "${tmpDir}"
+}
