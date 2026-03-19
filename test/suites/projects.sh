@@ -1075,6 +1075,7 @@ run_projects_restrictions() {
   # It's not possible to use forbidden low-level options
   ! lxc profile set default "raw.idmap=both 0 0" || false
   ! lxc init testimage c1 -c "raw.idmap=both 0 0" || false
+  ! lxc init --empty c1 -c raw.apparmor="/some/path rw," || false
   ! lxc init testimage c1 -c volatile.uuid="foo" || false
 
   # It's not possible to create privileged containers.
@@ -1086,6 +1087,7 @@ run_projects_restrictions() {
 
   # It's not possible to change low-level options
   ! lxc config set c1 "raw.idmap=both 0 0" || false
+  ! lxc config set c1 raw.apparmor="/some/path rw," || false
   ! lxc config set c1 volatile.uuid="foo" || false
 
   # It's not possible to attach character devices.
@@ -1123,6 +1125,7 @@ run_projects_restrictions() {
   # low-level keys.
   lxc project set local:p1 restricted.containers.lowlevel=allow
   lxc config set c1 "raw.idmap=both 0 0"
+  lxc config set c1 raw.apparmor="/some/path rw,"
 
   lxc delete c1
 
