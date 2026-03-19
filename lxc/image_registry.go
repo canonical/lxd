@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -50,6 +51,18 @@ func (c *cmdImageRegistry) command() *cobra.Command {
 	// Show
 	imageRegistryShowCmd := cmdImageRegistryShow{global: c.global, imageRegistry: c}
 	cmd.AddCommand(imageRegistryShowCmd.command())
+
+	// Get
+	imageRegistryGetCmd := cmdImageRegistryGet{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryGetCmd.command())
+
+	// Set
+	imageRegistrySetCmd := cmdImageRegistrySet{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistrySetCmd.command())
+
+	// Unset
+	imageRegistryUnsetCmd := cmdImageRegistryUnset{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryUnsetCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -541,4 +554,213 @@ func (c *cmdImageRegistryShow) run(cmd *cobra.Command, args []string) error {
 	fmt.Printf("%s", data)
 
 	return nil
+}
+
+// Get.
+type cmdImageRegistryGet struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+
+	flagIsProperty bool
+}
+
+func (c *cmdImageRegistryGet) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get", "[<remote>:]<registry> <key>")
+	cmd.Short = "Get values for image registry configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = c.run
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as an image registry property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpImageRegistryConfig(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryGet) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// Get the image registry.
+	registry, _, err := resource.server.GetImageRegistry(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if c.flagIsProperty {
+		w := registry.Writable()
+		res, err := getFieldByJSONTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf("The property %q does not exist on the image registry %q: %v", args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		fmt.Printf("%s\n", registry.Config[args[1]])
+	}
+
+	return nil
+}
+
+// Set.
+type cmdImageRegistrySet struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+
+	flagIsProperty bool
+}
+
+func (c *cmdImageRegistrySet) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("set", "[<remote>:]<registry> <key>=<value>...")
+	cmd.Short = "Set image registry configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
+
+For backward compatibility, a single configuration key may still be set with:
+    lxc image registry set [<remote>:]<registry> <key> <value>`)
+
+	cmd.RunE = c.run
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Set the key as an image registry property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpImageRegistryConfig(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistrySet) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// Get the current image registry configuration.
+	registry, etag, err := resource.server.GetImageRegistry(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Set the configuration key.
+	keys, err := getConfig(args[1:]...)
+	if err != nil {
+		return err
+	}
+
+	writable := registry.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJSONTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf("Error unsetting property: %v", err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf("Error setting properties: %v", err)
+			}
+		}
+	} else {
+		maps.Copy(writable.Config, keys)
+	}
+
+	return resource.server.UpdateImageRegistry(resource.name, writable, etag)
+}
+
+// Unset.
+type cmdImageRegistryUnset struct {
+	global           *cmdGlobal
+	imageRegistry    *cmdImageRegistry
+	imageRegistrySet *cmdImageRegistrySet
+
+	flagIsProperty bool
+}
+
+func (c *cmdImageRegistryUnset) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("unset", "[<remote>:]<registry> <key>")
+	cmd.Short = "Unset image registry configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = c.run
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Unset the key as an image registry property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpImageRegistryConfig(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryUnset) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	c.imageRegistrySet.flagIsProperty = c.flagIsProperty
+
+	args = append(args, "")
+	return c.imageRegistrySet.run(cmd, args)
 }
