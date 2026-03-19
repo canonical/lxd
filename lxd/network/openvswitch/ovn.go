@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/go-envparse"
 
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/shared"
@@ -180,12 +183,50 @@ type OVNRouterPeering struct {
 	TargetRouterRoutes  []net.IPNet
 }
 
-// NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
+// NewOVN initialises a new OVN client wrapper with the provided Northbound DB connection string (usually "network.ovn.northbound_connection" value).
+// If the nbConnection string is empty and MicroOVN is used, the function will read the `ovn.env` file provided by MicroOVN via the snap content interface
+// to determine the connection string for the Northbound DB. If the nbConnection string is empty and MicroOVN is not used, the function will use
+// the `unix:/var/run/ovn/ovnnb_db.sock` value.
 func NewOVN(nbConnection string, sslSettings func() (sslCACert string, sslClientCert string, sslClientKey string)) (*OVN, error) {
 	// Get database connection strings.
 	sbConnection, err := NewOVS().OVNSouthboundDBRemoteAddress()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting OVN southbound connection string: %w", err)
+	}
+
+	// If the connection string is not specified, determine based on the environment.
+	if nbConnection == "" {
+		if shared.IsMicroOVNUsed() {
+			snapDataRoot := os.Getenv("SNAP_DATA")
+			if snapDataRoot == "" {
+				return nil, errors.New("SNAP_DATA environment variable is not set but MicroOVN snap is connected")
+			}
+
+			// If MicroOVN is used, get the candidate DB addresses for Northbound DB from the `$SNAP_DATA/microovn/ovn-env/env/ovn.env` file.
+			envFilePath := filepath.Join(snapDataRoot, "microovn", "ovn-env", "env", "ovn.env")
+			envFile, err := os.Open(envFilePath)
+			if err != nil {
+				return nil, fmt.Errorf("Failed opening MicroOVN env file %s: %w", envFilePath, err)
+			}
+
+			defer envFile.Close()
+
+			ovnEnvVars, err := envparse.Parse(envFile)
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing MicroOVN env file %s: %w", envFilePath, err)
+			}
+
+			nbConn, ok := ovnEnvVars["OVN_NB_CONNECT"]
+			if !ok || nbConn == "" {
+				return nil, errors.New("OVN_NB_CONNECT not found in MicroOVN env file " + envFilePath)
+			}
+
+			// Override the nbConnection value with OVN_NB_CONNECT value.
+			nbConnection = nbConn
+		} else {
+			// Otherwise, fallback to `unix:/var/run/ovn/ovnnb_db.sock`.
+			nbConnection = "unix:/var/run/ovn/ovnnb_db.sock"
+		}
 	}
 
 	// Create the OVN struct.
@@ -257,10 +298,6 @@ type OVN struct {
 
 // getNorthboundDB returns connection string to use for northbound database.
 func (o *OVN) getNorthboundDB() string {
-	if o.nbDBAddr == "" {
-		return "unix:/var/run/ovn/ovnnb_db.sock"
-	}
-
 	return o.nbDBAddr
 }
 

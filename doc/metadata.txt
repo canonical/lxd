@@ -4883,11 +4883,14 @@ If set to `mac`, generate a host name in the form `lxd<mac_address>` (MAC withou
 ```
 
 ```{config:option} network.ovn.northbound_connection server-miscellaneous
-:defaultdesc: "`unix:/var/run/ovn/ovnnb_db.sock`"
+:defaultdesc: "`unix:/var/run/ovn/ovnnb_db.sock` or MicroOVN configuration"
 :scope: "global"
-:shortdesc: "OVN northbound database connection string"
+:shortdesc: "OVN northbound database connection string (default determined by environment)"
 :type: "string"
-
+Specify a connection string for OVN Northbound database.
+If value is not specified, LXD will determine the connection string based on the environment.
+LXD snap will use the MicroOVN environment settings if connected to MicroOVN snap.
+Otherwise, LXD will use `unix:/var/run/ovn/ovnnb_db.sock` as the connection string.
 ```
 
 ```{config:option} storage.backups_volume server-miscellaneous

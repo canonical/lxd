@@ -5445,10 +5445,10 @@
 					},
 					{
 						"network.ovn.northbound_connection": {
-							"defaultdesc": "`unix:/var/run/ovn/ovnnb_db.sock`",
-							"longdesc": "",
+							"defaultdesc": "`unix:/var/run/ovn/ovnnb_db.sock` or MicroOVN configuration",
+							"longdesc": "Specify a connection string for OVN Northbound database.\nIf value is not specified, LXD will determine the connection string based on the environment.\nLXD snap will use the MicroOVN environment settings if connected to MicroOVN snap.\nOtherwise, LXD will use `unix:/var/run/ovn/ovnnb_db.sock` as the connection string.",
 							"scope": "global",
-							"shortdesc": "OVN northbound database connection string",
+							"shortdesc": "OVN northbound database connection string (default determined by environment)",
 							"type": "string"
 						}
 					},
