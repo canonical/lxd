@@ -199,6 +199,7 @@ readonly test_group_standalone_storage=(
     "backup_instance_uuid"
     "backup_volume_expiry"
     "backup_export_import_recover"
+    "backup_inconsistent_config"
     "container_copy_incremental"
     "container_copy_start"
     "container_devices_disk"
