@@ -1138,11 +1138,6 @@ func (op *Operation) Parent() *Operation {
 	return op.parent
 }
 
-// Children returns the child operations if this operation is a parent operation, or an empty slice if this operation is not a parent operation.
-func (op *Operation) Children() []*Operation {
-	return op.children
-}
-
 // validateMetadata is used to enforce some consistency in operation metadata.
 func validateMetadata(metadata map[string]any) (map[string]any, error) {
 	// Ensure metadata is never nil.
