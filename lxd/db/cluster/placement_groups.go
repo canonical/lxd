@@ -96,7 +96,7 @@ func UpdatePlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupI
 }
 
 // GetPlacementGroupConfig returns the config for the placement group with the given ID.
-func GetPlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int) (map[string]string, error) {
+func GetPlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64) (map[string]string, error) {
 	q := `SELECT key, value FROM placement_groups_config WHERE placement_group_id=?`
 
 	config := map[string]string{}
@@ -139,7 +139,7 @@ func GetPlacementGroupUsedBy(ctx context.Context, tx *sql.Tx, filter PlacementGr
 	var b strings.Builder
 	var args []any
 
-	b.WriteString(`SELECT ` + strconv.Itoa(int(entityTypeCodeInstance)) + `, instances.name, projects.name, instances_config.value FROM instances
+	b.WriteString(`SELECT ` + strconv.FormatInt(entityTypeCodeInstance, 10) + `, instances.name, projects.name, instances_config.value FROM instances
 JOIN instances_config ON instances.id = instances_config.instance_id
 JOIN projects ON instances.project_id = projects.id
 WHERE instances_config.key = 'placement.group'`)
@@ -155,7 +155,7 @@ WHERE instances_config.key = 'placement.group'`)
 	}
 
 	b.WriteString(`
-UNION SELECT ` + strconv.Itoa(int(entityTypeCodeProfile)) + `, profiles.name, projects.name, profiles_config.value FROM profiles
+UNION SELECT ` + strconv.FormatInt(entityTypeCodeProfile, 10) + `, profiles.name, projects.name, profiles_config.value FROM profiles
 JOIN profiles_config ON profiles.id = profiles_config.profile_id
 JOIN projects ON profiles.project_id = projects.id
 WHERE profiles_config.key = 'placement.group'`)
@@ -224,10 +224,10 @@ AND COALESCE(
 		args = append(args, *nodeID)
 	}
 
-	result := make(map[int][]int)
+	result := make(map[int64][]int64)
 	err := query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
-		var instID int
-		var nodeID int
+		var instID int64
+		var nodeID int64
 		err := scan(&instID, &nodeID)
 		if err != nil {
 			return err
