@@ -93,37 +93,38 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 }
 
 // isSameServer compares the calling ProtocolLXD object with the provided server object to check if they are the same server.
-// It verifies the equality based on their connection information (Protocol, Certificate, Project, and Target).
-func (r *ProtocolLXD) isSameServer(server Server) bool {
+// It verifies the equality based on their connection information (Protocol, Certificate, and Target).
+func (r *ProtocolLXD) isSameServer(server Server) (bool, error) {
 	// Short path checking if the two structs are identical.
 	if r == server {
-		return true
+		return true, nil
 	}
 
 	// Short path if either of the structs are nil.
 	if r == nil || server == nil {
-		return false
+		return false, nil
 	}
 
 	// When dealing with uninitialized servers, we can't safely compare.
 	if r.server == nil {
-		return false
+		return false, nil
 	}
 
 	// Get the connection info from both servers.
 	srcInfo, err := r.GetConnectionInfo()
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	dstInfo, err := server.GetConnectionInfo()
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	// Check whether we're dealing with the same server.
-	return srcInfo.Protocol == dstInfo.Protocol && srcInfo.Certificate == dstInfo.Certificate &&
-		srcInfo.Project == dstInfo.Project && srcInfo.Target == dstInfo.Target
+	sameServer := srcInfo.Protocol == dstInfo.Protocol && srcInfo.Certificate == dstInfo.Certificate && srcInfo.Target == dstInfo.Target
+
+	return sameServer, nil
 }
 
 // GetHTTPClient returns the http client used for the connection. This can be used to set custom http options.
