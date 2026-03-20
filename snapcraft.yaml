@@ -341,14 +341,19 @@ parts:
         - debhelper
         - dosfstools
         - g++
+        - grub-efi-amd64-signed
         - jq
         - lsb-release
         - mtools
         - nasm
+        - openssl
         - python3
         - python3-pexpect
         - python3-virt-firmware
         - quilt
+        - rsync
+        - sbsigntool
+        - shim-signed
         - uuid-dev
         - xorriso
       - to arm64:
@@ -357,14 +362,19 @@ parts:
         - debhelper
         - dosfstools
         - g++
+        - grub-efi-arm64-signed
         - jq
         - lsb-release
         - mtools
         - nasm
+        - openssl
         - python3
         - python3-pexpect
         - python3-virt-firmware
         - quilt
+        - rsync
+        - sbsigntool
+        - shim-signed
         - uuid-dev
         - xorriso
     override-stage: |-
