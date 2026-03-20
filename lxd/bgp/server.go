@@ -389,8 +389,10 @@ func (s *Server) AddPeer(address net.IP, asn uint32, password string, holdTime u
 }
 
 func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime uint64) error {
+	addrStr := address.String()
+
 	// Look for an existing peer.
-	bgpPeer, bgpPeerExists := s.peers[address.String()]
+	bgpPeer, bgpPeerExists := s.peers[addrStr]
 	if bgpPeerExists {
 		if bgpPeer.asn != asn {
 			return fmt.Errorf("Peer %q already used but with differing ASN (%d vs %d)", address, asn, bgpPeer.asn)
@@ -402,7 +404,7 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 
 		// Re-use the existing entry.
 		bgpPeer.count++
-		s.peers[address.String()] = bgpPeer
+		s.peers[addrStr] = bgpPeer
 		return nil
 	}
 
@@ -410,7 +412,7 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 	n := &bgpAPI.Peer{
 		// Peer information.
 		Conf: &bgpAPI.PeerConf{
-			NeighborAddress: address.String(),
+			NeighborAddress: addrStr,
 			PeerAsn:         uint32(asn),
 			AuthPassword:    password,
 		},
@@ -470,17 +472,12 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 	}
 
 	// Add the peer to the list.
-	if bgpPeerExists {
-		bgpPeer.count++
-		s.peers[address.String()] = bgpPeer
-	} else {
-		s.peers[address.String()] = peer{
-			address:  address,
-			asn:      asn,
-			password: password,
-			holdtime: holdTime,
-			count:    1,
-		}
+	s.peers[addrStr] = peer{
+		address:  address,
+		asn:      asn,
+		password: password,
+		holdtime: holdTime,
+		count:    1,
 	}
 
 	return nil
