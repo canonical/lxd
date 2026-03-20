@@ -1170,6 +1170,15 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
+	// Remove stale edk2 debug log if boot.debug_edk2 is not enabled.
+	if shared.IsFalseOrEmpty(d.expandedConfig["boot.debug_edk2"]) {
+		err = os.Remove(d.EDK2LogFilePath())
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			op.Done(err)
+			return fmt.Errorf("Failed removing edk2 log file: %w", err)
+		}
+	}
+
 	// Remove old pid file if needed.
 	pidFilePath := d.pidFilePath()
 	err = os.Remove(pidFilePath)
