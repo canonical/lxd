@@ -853,6 +853,13 @@ func (op *Operation) Wait(ctx context.Context) error {
 			// To ensure the error returned from the database is the same as error returned
 			// directly from the operation code, we return a new error object consisting
 			// only of the error message and error code.
+
+			// If the operation was cancelled, return fresh context.Cancelled error.
+			if op.status == api.Cancelled {
+				return context.Canceled
+			}
+
+			// For other errors, return a new error with the same message and code.
 			return api.NewStatusError(int(op.errCode), op.err)
 		}
 
