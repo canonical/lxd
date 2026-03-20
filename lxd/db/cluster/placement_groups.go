@@ -43,6 +43,16 @@ type PlacementGroupFilter struct {
 	Name    *string
 }
 
+// GetPlacementGroup gets a [PlacementGroup] by name and project.
+func GetPlacementGroup(ctx context.Context, tx *sql.Tx, name string, projectName string) (*PlacementGroup, error) {
+	group, err := query.SelectOne[PlacementGroup](ctx, tx, "WHERE placement_groups.name = ? AND projects.name = ?", name, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading placement group: %w", err)
+	}
+
+	return group, nil
+}
+
 // CreatePlacementGroupConfig creates config for a new placement group with the given ID.
 func CreatePlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64, config map[string]string) error {
 	q := `INSERT INTO placement_groups_config (placement_group_id, key, value) VALUES(?, ?, ?)`
