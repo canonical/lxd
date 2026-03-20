@@ -53,3 +53,88 @@ func (a AuthGroupsRow) CreateStmt() string {
 func (a AuthGroupsRow) UpdateStmt() string {
 	return "UPDATE auth_groups SET name = ?, description = ? "
 }
+
+// TableName returns the table name for [PlacementGroupsRow] entities.
+func (p PlacementGroupsRow) TableName() string {
+	return "placement_groups"
+}
+
+// SelectColumns returns a slice of column names for [PlacementGroupsRow] entities.
+func (p PlacementGroupsRow) SelectColumns() []string {
+	return []string{
+		"placement_groups.id",
+		"placement_groups.name",
+		"placement_groups.description",
+		"placement_groups.project_id",
+	}
+}
+
+// Joins returns a slice of join expressions for [PlacementGroupsRow].
+func (p PlacementGroupsRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [PlacementGroupsRow].
+// This returns references to struct fields in definition order.
+func (p *PlacementGroupsRow) ScanArgs() []any {
+	return []any{&p.ID, &p.Name, &p.Description, &p.ProjectID}
+}
+
+// CreateValues returns a list of values from [PlacementGroupsRow] entities matching the columns returned from CreateColumns.
+func (p PlacementGroupsRow) CreateValues() []any {
+	return []any{p.Name, p.Description, p.ProjectID}
+}
+
+// PKColumn returns the column name for the primary key of a [PlacementGroupsRow] entity used during an update.
+func (p PlacementGroupsRow) PKColumn() string {
+	return "id"
+}
+
+// PKValue returns the value for the primary key of a [PlacementGroupsRow] entity used during an update.
+func (p PlacementGroupsRow) PKValue() any {
+	return p.ID
+}
+
+// CreateStmt returns a query that creates a [PlacementGroupsRow] entity.
+func (p PlacementGroupsRow) CreateStmt() string {
+	return "INSERT INTO placement_groups (name, description, project_id) VALUES (?, ?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [PlacementGroupsRow] by primary key.
+func (p PlacementGroupsRow) UpdateStmt() string {
+	return "UPDATE placement_groups SET name = ?, description = ?, project_id = ? "
+}
+
+// TableName returns the table name for [PlacementGroup] entities.
+func (p PlacementGroup) TableName() string {
+	return "placement_groups"
+}
+
+// APIName implements [query.APINamer] for API friendly error messages.
+func (p PlacementGroup) APIName() string {
+	return p.Row.APIName()
+}
+
+// SelectColumns returns a slice of column names for [PlacementGroup] entities.
+func (p PlacementGroup) SelectColumns() []string {
+	return []string{
+		"placement_groups.id",
+		"placement_groups.name",
+		"placement_groups.description",
+		"placement_groups.project_id",
+		"projects.name",
+	}
+}
+
+// Joins returns a slice of join expressions for [PlacementGroup].
+func (p PlacementGroup) Joins() []string {
+	return []string{
+		"JOIN projects ON placement_groups.project_id = projects.id",
+	}
+}
+
+// ScanArgs implements [query.ScanArger] for [PlacementGroup].
+// This returns references to struct fields in definition order.
+func (p *PlacementGroup) ScanArgs() []any {
+	return []any{&p.Row.ID, &p.Row.Name, &p.Row.Description, &p.Row.ProjectID, &p.ProjectName}
+}
