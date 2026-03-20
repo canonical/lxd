@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -50,6 +51,9 @@ var instanceExecOutputCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: instanceExecOutputDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 	Get:    APIEndpointAction{Handler: instanceExecOutputGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 }
+
+// instanceProtectedLogFiles is the list of instance log files that may be retrieved but not deleted.
+var instanceProtectedLogFiles = []string{"edk2.log", "lxc.log", "qemu.log", "qemu.early.log"}
 
 var instanceExecOutputsCmd = APIEndpoint{
 	Name:        "instanceExecOutputs",
@@ -676,10 +680,9 @@ func validLogFileName(fname string) bool {
 	/* Let's just require that the paths be relative, so that we don't have
 	 * to deal with any escaping or whatever.
 	 */
-	return fname == "lxc.log" ||
-		fname == "lxc.conf" ||
-		fname == "qemu.log" ||
-		fname == "qemu.conf"
+	return fname == "lxc.conf" ||
+		fname == "qemu.conf" ||
+		slices.Contains(instanceProtectedLogFiles, fname)
 }
 
 func validExecOutputFileName(fName string) bool {
