@@ -1132,7 +1132,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		}
 
 		// boot.debug_edk2 requires UEFI and cannot be used with BIOS mode.
-		if shared.IsTrue(d.localConfig["boot.debug_edk2"]) {
+		if shared.IsTrue(d.expandedConfig["boot.debug_edk2"]) {
 			return errors.New("boot.debug_edk2 cannot be enabled when boot.mode=bios")
 		}
 	}
@@ -1541,7 +1541,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// If user wants to run with debug version of edk2
-	if shared.IsTrue(d.localConfig["boot.debug_edk2"]) {
+	if shared.IsTrue(d.expandedConfig["boot.debug_edk2"]) {
 		// Here we ask the Qemu to redirect debug console output from I/O port to the file.
 		// 0x402 is the default PcdDebugIoPort value in the edk2.
 		// This I/O port is used by DebugLib in the edk2 to print debug messages.
@@ -3530,7 +3530,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 
 		// Use debug version of firmware. (Only works for "preferred" (OVMF 4MB, no CSM) firmware flavor)
-		if shared.IsTrue(d.localConfig["boot.debug_edk2"]) && efiCode == firmwares[0].Code {
+		if shared.IsTrue(d.expandedConfig["boot.debug_edk2"]) && efiCode == firmwares[0].Code {
 			efiCode = filepath.Join(filepath.Dir(efiCode), edk2.OVMFDebugFirmware)
 		}
 
