@@ -2,6 +2,7 @@ package bgp
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"maps"
@@ -394,7 +395,7 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 			return fmt.Errorf("Peer %q already used but with differing ASN (%d vs %d)", address, asn, bgpPeer.asn)
 		}
 
-		if bgpPeer.password != password {
+		if subtle.ConstantTimeCompare([]byte(bgpPeer.password), []byte(password)) != 1 {
 			return fmt.Errorf("Peer %q already used but with a different password", address)
 		}
 
