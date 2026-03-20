@@ -88,3 +88,113 @@ func TestFilterDevices(t *testing.T) {
 	combinedResults := devices.Filter(filters.Or(filters.IsCustomVolumeDisk, filters.IsHostFilesystemShareDisk, filters.IsRootDisk))
 	assert.Equal(t, expectedCombinedResults, combinedResults)
 }
+
+func TestDeviceInitialConfig(t *testing.T) {
+	device := Device{
+		"type":           "disk",
+		"path":           "/",
+		"initial.size":   "10GiB",
+		"initial.source": "custom-volume",
+		"size":           "5GiB",
+	}
+
+	result := device.InitialConfig()
+
+	assert.Equal(t, Device{
+		"initial.size":   "10GiB",
+		"initial.source": "custom-volume",
+	}, result)
+}
+
+func TestDeviceInitialConfigWithoutPrefix(t *testing.T) {
+	device := Device{
+		"type":           "disk",
+		"path":           "/",
+		"initial.size":   "10GiB",
+		"initial.source": "custom-volume",
+		"initial":        "not-prefixed",
+		"size":           "5GiB",
+	}
+
+	result := device.InitialConfigWithoutPrefix()
+
+	assert.Equal(t, Device{
+		"size":   "10GiB",
+		"source": "custom-volume",
+	}, result)
+}
+
+func TestDevicesCutInitialConfig(t *testing.T) {
+	devices := Devices{
+		"root": Device{
+			"type":           "disk",
+			"path":           "/",
+			"initial.size":   "20GiB",
+			"initial.source": "vol1",
+			"pool":           "local",
+		},
+		"eth0": Device{
+			"type": "nic",
+			"name": "eth0",
+		},
+	}
+
+	result := devices.CutInitialConfig()
+
+	assert.Equal(t, Devices{
+		"root": Device{
+			"initial.size":   "20GiB",
+			"initial.source": "vol1",
+		},
+	}, result)
+
+	assert.Equal(t, Device{
+		"type": "disk",
+		"path": "/",
+		"pool": "local",
+	}, devices["root"])
+	assert.Equal(t, Device{
+		"type": "nic",
+		"name": "eth0",
+	}, devices["eth0"])
+}
+
+func TestDevicesCopy(t *testing.T) {
+	src := Devices{
+		"root": Device{
+			"type": "disk",
+			"path": "/",
+			"pool": "src-pool",
+		},
+		"eth0": Device{
+			"type":    "nic",
+			"nictype": "bridged",
+		},
+	}
+
+	target := Devices{
+		"root": Device{
+			"type":   "disk",
+			"path":   "/",
+			"pool":   "target-pool",
+			"limits": "100",
+		},
+	}
+
+	src.Copy(target)
+
+	assert.Equal(t, Device{
+		"type":   "disk",
+		"path":   "/",
+		"pool":   "src-pool",
+		"limits": "100",
+	}, target["root"])
+
+	assert.Equal(t, Device{
+		"type":    "nic",
+		"nictype": "bridged",
+	}, target["eth0"])
+
+	target["eth0"]["nictype"] = "macvlan"
+	assert.Equal(t, "bridged", src["eth0"]["nictype"])
+}

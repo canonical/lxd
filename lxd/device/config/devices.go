@@ -78,6 +78,33 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 	return nil
 }
 
+// InitialConfig returns a copy of all config in the device where the keys start with ConfigInitialPrefix.
+func (device Device) InitialConfig() Device {
+	initialConfig := Device{}
+
+	for devKey := range device {
+		if strings.HasPrefix(devKey, ConfigInitialPrefix) {
+			initialConfig[devKey] = device[devKey]
+		}
+	}
+
+	return initialConfig
+}
+
+// InitialConfigWithoutPrefix returns a copy of all config in the device where the keys start with ConfigInitialPrefix, but with the prefix removed.
+func (device Device) InitialConfigWithoutPrefix() Device {
+	initialConfig := make(Device)
+
+	for devKey := range device {
+		newKey, found := strings.CutPrefix(devKey, ConfigInitialPrefix)
+		if found {
+			initialConfig[newKey] = device[devKey]
+		}
+	}
+
+	return initialConfig
+}
+
 // Devices represents a set of LXD container devices.
 type Devices map[string]Device
 
@@ -268,4 +295,38 @@ func (list Devices) Filter(filters ...func(map[string]string) bool) Devices {
 	}
 
 	return filteredDevices
+}
+
+// CutInitialConfig returns a copy of all config in the devices where the keys start with ConfigInitialPrefix and removes those keys from list Devices.
+func (list Devices) CutInitialConfig() Devices {
+	initialDevices := make(Devices)
+
+	for deviceName, device := range list {
+		initialConfig := device.InitialConfig()
+		if len(initialConfig) == 0 {
+			continue
+		}
+
+		initialDevices[deviceName] = initialConfig
+
+		// Delete found initial config keys from list Devices.
+		for key := range initialDevices[deviceName] {
+			delete(list[deviceName], key)
+		}
+	}
+
+	return initialDevices
+}
+
+// Copy copies all devices and their config from the list to the target.
+// If a device exists in both the list and the target, then the config of the device in the list will be merged
+// into the device in the target, overwriting any existing keys.
+func (list Devices) Copy(target Devices) {
+	for deviceName, device := range list {
+		if target[deviceName] == nil {
+			target[deviceName] = device.Clone() // Copy config into new device.
+		} else {
+			maps.Copy(target[deviceName], device) // Merge config into existing device.
+		}
+	}
 }
