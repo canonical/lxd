@@ -31,8 +31,7 @@ var instanceLogCmd = APIEndpoint{
 	Path:        "instances/{name}/logs/{file}",
 	MetricsType: entity.TypeInstance,
 
-	Delete: APIEndpointAction{Handler: instanceLogDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
-	Get:    APIEndpointAction{Handler: instanceLogGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Get: APIEndpointAction{Handler: instanceLogGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 }
 
 var instanceLogsCmd = APIEndpoint{
@@ -256,89 +255,6 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogRetrieved.Event(file, inst, request.CreateRequestor(r.Context()), nil))
 
 	return response.FileResponse([]response.FileResponseEntry{ent}, nil)
-}
-
-// swagger:operation DELETE /1.0/instances/{name}/logs/{filename} instances instance_log_delete
-//
-//	Delete the log file
-//
-//	Removes the log file.
-//
-//	---
-//	produces:
-//	  - application/json
-//	parameters:
-//	  - in: query
-//	    name: project
-//	    description: Project name
-//	    type: string
-//	    example: default
-//	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
-//	  "400":
-//	    $ref: "#/responses/BadRequest"
-//	  "403":
-//	    $ref: "#/responses/Forbidden"
-//	  "404":
-//	    $ref: "#/responses/NotFound"
-//	  "500":
-//	    $ref: "#/responses/InternalServerError"
-func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
-	s := d.State()
-
-	instanceType, err := urlInstanceTypeDetect(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
-	}
-
-	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if resp != nil {
-		return resp
-	}
-
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	file, err := url.PathUnescape(mux.Vars(r)["file"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if !validLogFileName(file) {
-		return response.BadRequest(fmt.Errorf("Log file name %q not valid", file))
-	}
-
-	if !strings.HasSuffix(file, ".log") || file == "lxc.log" || file == "qemu.log" {
-		return response.BadRequest(errors.New("Only log files excluding qemu.log and lxc.log may be deleted"))
-	}
-
-	err = os.Remove(filepath.Join(inst.LogPath(), file))
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogDeleted.Event(file, inst, request.CreateRequestor(r.Context()), nil))
-
-	return response.EmptySyncResponse
 }
 
 // swagger:operation GET /1.0/instances/{name}/logs/exec-output instances instance_exec-output_get
