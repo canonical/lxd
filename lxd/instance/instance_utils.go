@@ -809,18 +809,13 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 			return err
 		}
 
+		// Do not store initial.* device config keys in database.
+		initialDevicesConfig := args.Devices.CutInitialConfig()
+		defer func() { initialDevicesConfig.Copy(args.Devices) }() // Restore after DB transaction.
+
 		devices, err := cluster.APIToDevices(args.Devices.CloneNative())
 		if err != nil {
 			return err
-		}
-
-		// Ensure that any initial. device config is not applied to the database.
-		for devName, devConfig := range devices {
-			for devKey := range devConfig.Config {
-				if strings.HasPrefix(devKey, deviceConfig.ConfigInitialPrefix) {
-					delete(devices[devName].Config, devKey)
-				}
-			}
 		}
 
 		if args.Snapshot {
@@ -939,16 +934,6 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		// Populate profile info that was already loaded.
 		newInstArgs := newArgs[dbInst.ID]
 		newInstArgs.Profiles = args.Profiles
-
-		// Restore any initial. device config not stored in the database.
-		for devName, devConfig := range args.Devices {
-			for devKey, devVal := range devConfig {
-				if strings.HasPrefix(devKey, deviceConfig.ConfigInitialPrefix) {
-					newInstArgs.Devices[devName][devKey] = devVal
-				}
-			}
-		}
-
 		args = newInstArgs
 
 		return nil
