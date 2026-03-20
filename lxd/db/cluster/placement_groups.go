@@ -134,7 +134,7 @@ func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementG
 	}, nil
 }
 
-// GetPlacementGroupUsedBy returns a list of URLs of all instances and profiles that reference placement groups matching the provided [PlacementGroupFilter].
+// GetPlacementGroupUsedBy returns a list of URLs of all instances and profiles that reference placement groups matching the provider [PlacementGroupFilter].
 func GetPlacementGroupUsedBy(ctx context.Context, tx *sql.Tx, filter PlacementGroupFilter, firstOnly bool) ([]string, error) {
 	var b strings.Builder
 	var args []any
@@ -204,13 +204,9 @@ WHERE profiles_config.key = 'placement.group'`)
 }
 
 // GetInstancesInPlacementGroup returns a map of member (node) ID to a slice of instance IDs for all instances that reference the given placement group either directly or indirectly via a profile.
-// The target placement group is specified using a [PlacementGroupFilter] which must contain both [PlacementGroupFilter.Project] and [PlacementGroupFilter.Name].
-func GetInstancesInPlacementGroup(ctx context.Context, tx *sql.Tx, filter PlacementGroupFilter) (map[int][]int, error) {
-	if filter.Project == nil || filter.Name == nil {
-		return nil, errors.New("Project and placement group name must be provided")
-	}
-
-	args := []any{*filter.Project, *filter.Name}
+// The target placement group is specified with the given name and project name. Instances located on the optional node ID are excluded if the node ID is not nil.
+func GetInstancesInPlacementGroup(ctx context.Context, tx *sql.Tx, name string, projectName string, nodeID *int64) (map[int64][]int64, error) {
+	args := []any{projectName, name}
 
 	// Compute the "placement.group" for each instance using COALESCE(instance-level-config, last-applied-profile-config) so that instance-level config overrides profile-level config.
 	q := `SELECT instances.id, instances.node_id
@@ -223,9 +219,9 @@ AND COALESCE(
 ) = ?`
 
 	// Exclude member ID if specified.
-	if filter.ID != nil {
+	if nodeID != nil {
 		q += " AND instances.node_id != ?"
-		args = append(args, *filter.ID)
+		args = append(args, *nodeID)
 	}
 
 	result := make(map[int][]int)
