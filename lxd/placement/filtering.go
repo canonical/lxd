@@ -17,16 +17,15 @@ func Filter(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeInfo, api
 	policy := apiPlacementGroup.Config["policy"]
 	rigor := apiPlacementGroup.Config["rigor"]
 
-	pgFilter := cluster.PlacementGroupFilter{Project: &apiPlacementGroup.Project, Name: &apiPlacementGroup.Name}
-
 	// If this is an evacuation request, exclude instances on the source cluster member.
 	// This allows placement decisions to be made based on where instances will be, not where they currently are.
+	var memberID *int64
 	if evacuation {
 		sourceMemberID := tx.GetNodeID()
-		pgFilter.ID = new(int(sourceMemberID))
+		memberID = &sourceMemberID
 	}
 
-	memberToInst, err := cluster.GetInstancesInPlacementGroup(ctx, tx.Tx(), pgFilter)
+	memberToInst, err := cluster.GetInstancesInPlacementGroup(ctx, tx.Tx(), apiPlacementGroup.Name, apiPlacementGroup.Project, memberID)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +40,7 @@ func Filter(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeInfo, api
 }
 
 // getCompliantMembers gets compliant cluster members from the provided candidates based on the given placement policy and rigor.
-func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, memberToInst map[int][]int) ([]db.NodeInfo, error) {
+func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, memberToInst map[int64][]int64) ([]db.NodeInfo, error) {
 	var compliantCandidates []db.NodeInfo
 
 	switch {
@@ -49,7 +48,7 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 		// Spread + Strict: Place at most one instance per cluster member.
 		// Filter out candidates that already have instances.
 		for _, c := range candidates {
-			_, hasInst := memberToInst[int(c.ID)]
+			_, hasInst := memberToInst[c.ID]
 			if !hasInst {
 				compliantCandidates = append(compliantCandidates, c)
 			}
@@ -68,7 +67,7 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 		// Find the minimum instance count among candidates.
 		counts := make([]int, 0, len(candidates))
 		for _, c := range candidates {
-			counts = append(counts, len(memberToInst[int(c.ID)]))
+			counts = append(counts, len(memberToInst[c.ID]))
 		}
 
 		minInstances := 0
@@ -79,7 +78,7 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 		// Filter candidates to only those with at most minInstances instances.
 		// This ensures the number of instances per cluster member differs by at most one.
 		for _, c := range candidates {
-			instanceCount := len(memberToInst[int(c.ID)])
+			instanceCount := len(memberToInst[c.ID])
 			if instanceCount <= minInstances {
 				compliantCandidates = append(compliantCandidates, c)
 			}
@@ -101,7 +100,7 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 		}
 
 		// Find which member has the most instances from this placement group.
-		var targetMemberID int
+		var targetMemberID int64
 		maxInstances := -1
 		for memberID, instances := range memberToInst {
 			if len(instances) > maxInstances {
@@ -112,7 +111,7 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 
 		// Filter candidates to only include the node with the most instances.
 		for _, c := range candidates {
-			if int(c.ID) == targetMemberID {
+			if c.ID == targetMemberID {
 				compliantCandidates = append(compliantCandidates, c)
 				break
 			}
@@ -133,7 +132,7 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 		}
 
 		// Find which member has the most instances from this placement group.
-		var preferredMemberID int
+		var preferredMemberID int64
 		maxInstances := -1
 		for memberID, instances := range memberToInst {
 			if len(instances) > maxInstances {
@@ -144,7 +143,7 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 
 		// Check if preferred member is in candidates.
 		for _, c := range candidates {
-			if int(c.ID) == preferredMemberID {
+			if c.ID == preferredMemberID {
 				// Preferred member is available.
 				return []db.NodeInfo{c}, nil
 			}
