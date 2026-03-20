@@ -646,10 +646,12 @@ func (op *Operation) Cancel() {
 	// Signal the operation to stop.
 	op.running.Cancel()
 
-	if op.onRun != nil {
-		// If the operation has a run hook, then set the status to cancelling.
-		// When the hook returns, the status, error and error code will be set to cancelled because the run context is cancelled.
+	if op.onRun != nil || len(op.children) > 0 {
+		// If the operation has a run hook, or this is a parent operation waiting for children, set the status to cancelling.
+		// If there's a run hook, the status, error and error code will be set to cancelled by the start routine because the run context is cancelled.
 		// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
+		// If we're a parent operation with children, the start routine is waiting for the children to finish,
+		// and will set the final status, error and error code to cancelled.
 		updateStatus(op, api.Cancelling)
 
 		// Signal the child operations to stop as well.
@@ -657,33 +659,10 @@ func (op *Operation) Cancel() {
 			childOp.Cancel()
 		}
 	} else {
-		// If the operation does not have a run hook, immediately set the status and error to cancelled because there is nothing to clean up.
+		// If the operation does not have any children or a run hook, set the status and error to cancelled because there is nothing to clean up.
 		// We cannot use the operation context here because it has already been cancelled above.
 		op.err = context.Canceled.Error()
 		op.errCode = http.StatusInternalServerError
-
-		// If we're a parent operation with children, wait until all of our child operations are done.
-		// This is to ensure that the parent operation remains visible in the API until all child operations have completed,
-		// which is important for operations that spawn multiple child operations (eg. bulk operations),
-		// so that the user can see the overall progress of the operation until everything is done.
-		// Set the status to cancelling while we are waiting for the child operations to finish.
-		if op.parent == nil && len(op.children) > 0 {
-			updateStatus(op, api.Cancelling)
-			op.lock.Unlock()
-
-			// Signal the child operations to stop as well.
-			for _, childOp := range op.children {
-				childOp.Cancel()
-			}
-
-			for _, childOp := range op.children {
-				// Ignore the child error here, the parent operation is cancelled regardless of the child operation result.
-				_ = childOp.Wait(context.Background())
-			}
-
-			op.lock.Lock()
-		}
-
 		updateStatus(op, api.Cancelled)
 	}
 
