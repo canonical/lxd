@@ -352,7 +352,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		}
 
 		// Fetch image info from the given remote.
-		imgRemote, imgInfo, err := getImgInfo(d, conf, iremote, remote, image, &req.Source)
+		imgRemote, imgInfo, err := getImgInfo(conf, iremote, image, c.global.flagProject, &req.Source)
 		if err != nil {
 			return nil, "", err
 		}
