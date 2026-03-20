@@ -1,6 +1,7 @@
 package bgp
 
 import (
+	"bytes"
 	"context"
 	"crypto/subtle"
 	"errors"
@@ -343,7 +344,7 @@ func (s *Server) RemovePrefix(subnet net.IPNet, nexthop net.IP) error {
 func (s *Server) removePrefix(subnet net.IPNet, nexthop net.IP) error {
 	found := false
 	for pathUUID, path := range s.paths {
-		if path.prefix.String() != subnet.String() || path.nexthop.String() != nexthop.String() {
+		if !path.prefix.IP.Equal(subnet.IP) || !bytes.Equal(path.prefix.Mask, subnet.Mask) || !path.nexthop.Equal(nexthop) {
 			continue
 		}
 
