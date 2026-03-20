@@ -493,15 +493,17 @@ func (s *Server) RemovePeer(address net.IP) error {
 }
 
 func (s *Server) removePeer(address net.IP) error {
+	addrStr := address.String()
+
 	// Find the peer.
-	bgpPeer, bgpPeerExists := s.peers[address.String()]
+	bgpPeer, bgpPeerExists := s.peers[addrStr]
 	if !bgpPeerExists {
 		return ErrPeerNotFound
 	}
 
 	// Remove the peer from the BGP server.
 	if s.bgp != nil && bgpPeer.count == 1 {
-		err := s.bgp.DeletePeer(context.Background(), &bgpAPI.DeletePeerRequest{Address: address.String()})
+		err := s.bgp.DeletePeer(context.Background(), &bgpAPI.DeletePeerRequest{Address: addrStr})
 		if err != nil {
 			return err
 		}
@@ -510,11 +512,11 @@ func (s *Server) removePeer(address net.IP) error {
 	// Update peer list.
 	if bgpPeer.count == 1 {
 		// Delete the peer.
-		delete(s.peers, address.String())
+		delete(s.peers, addrStr)
 	} else {
 		// Decrease refcount.
 		bgpPeer.count--
-		s.peers[address.String()] = bgpPeer
+		s.peers[addrStr] = bgpPeer
 	}
 
 	return nil
