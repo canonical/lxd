@@ -121,15 +121,15 @@ func GetPlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID i
 // ToAPI converts the [PlacementGroup] to an [api.PlacementGroup], querying for extra data as necessary.
 func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementGroup, error) {
 	// Get config
-	config, err := GetPlacementGroupConfig(ctx, tx, p.ID)
+	config, err := GetPlacementGroupConfig(ctx, tx, p.Row.ID)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting placement group config: %w", err)
 	}
 
 	return &api.PlacementGroup{
-		Name:        p.Name,
-		Description: p.Description,
-		Project:     p.Project,
+		Name:        p.Row.Name,
+		Description: p.Row.Description,
+		Project:     p.ProjectName,
 		Config:      config,
 	}, nil
 }
