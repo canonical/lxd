@@ -609,14 +609,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 			// Extract initial configuration from the profile and validate them against appropriate
 			// storage driver. Currently initial configuration is only applicable to root disk devices.
-			initialConfig := make(map[string]string)
-			for k, v := range d.config {
-				prefix, newKey, found := strings.Cut(k, deviceConfig.ConfigInitialPrefix)
-				if found && prefix == "" {
-					initialConfig[newKey] = v
-				}
-			}
-
+			initialConfig := d.config.InitialConfigWithoutPrefix()
 			if len(initialConfig) > 0 {
 				if !filters.IsRootDisk(d.config) {
 					return errors.New("Non-root disk device cannot contain initial.* configuration")
