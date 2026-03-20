@@ -395,11 +395,11 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 	bgpPeer, bgpPeerExists := s.peers[addrStr]
 	if bgpPeerExists {
 		if bgpPeer.asn != asn {
-			return fmt.Errorf("Peer %q already used but with differing ASN (%d vs %d)", address, asn, bgpPeer.asn)
+			return fmt.Errorf("Peer %q already used but with differing ASN (%d vs %d)", addrStr, asn, bgpPeer.asn)
 		}
 
 		if subtle.ConstantTimeCompare([]byte(bgpPeer.password), []byte(password)) != 1 {
-			return fmt.Errorf("Peer %q already used but with a different password", address)
+			return fmt.Errorf("Peer %q already used but with a different password", addrStr)
 		}
 
 		// Re-use the existing entry.
