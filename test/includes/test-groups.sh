@@ -122,6 +122,7 @@ readonly test_group_network=(
 )
 
 readonly test_group_standalone=(
+    "acme"
     "alias"
     "apparmor"
     "authorization"

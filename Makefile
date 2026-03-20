@@ -100,6 +100,11 @@ fuidshift:
 	CGO_ENABLED=1 go install -v -trimpath -buildvcs=false $(COVER) ./fuidshift
 	@echo "$@ built successfully"
 
+.PHONY: mini-acme
+mini-acme:
+	go install -C test -v -trimpath -buildvcs=false $(COVER) ./mini-acme
+	@echo "$@ built successfully"
+
 .PHONY: mini-loki
 mini-loki:
 	go install -C test -v -trimpath -buildvcs=false $(COVER) ./mini-loki
@@ -116,7 +121,7 @@ sysinfo:
 	@echo "$@ built successfully"
 
 .PHONY: test-binaries
-test-binaries: devlxd-client lxd-client fuidshift mini-loki mini-oidc sysinfo
+test-binaries: devlxd-client lxd-client fuidshift mini-acme mini-loki mini-oidc sysinfo
 	@echo "$@ built successfully"
 
 .PHONY: dqlite
