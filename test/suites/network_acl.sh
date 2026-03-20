@@ -57,7 +57,7 @@ EOF
   jq --exit-status '.config["user.mykey"] == "foo"' <<< "${acl_show_output}"
 
   # ACL Patch. Check for merged config and replaced description, ingress and egress fields.
-  lxc query -X PATCH -d '{"config": {"user.myotherkey": "bah"}}' /1.0/network-acls/testacl
+  lxc query --wait -X PATCH -d '{"config": {"user.myotherkey": "bah"}}' /1.0/network-acls/testacl
   acl_show_output="$(lxc network acl list -f json | jq --exit-status '.[] | select(.name == "testacl")')"
   jq --exit-status '.config["user.mykey"] == "foo"' <<< "${acl_show_output}"
   jq --exit-status '.config["user.myotherkey"] == "bah"' <<< "${acl_show_output}"
