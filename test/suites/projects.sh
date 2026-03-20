@@ -546,6 +546,81 @@ test_projects_images_default() {
   lxc project delete foo
 }
 
+# Test creating and rebuilding an instance from a local image located in a different project.
+test_projects_instance_creation() {
+  # Create projects for images and instances.
+  lxc project create img-proj
+  lxc project create inst-proj
+
+  # Import an image into the image project.
+  ensure_import_testimage img-proj
+
+  # Add a root device to the default profile of the instance project.
+  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")" --project inst-proj
+
+  # Test lxc init.
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}" --project img-proj --target-project inst-proj
+
+  # Verify the container was created in inst-proj.
+  lxc list --project inst-proj -c n -f csv | grep -wF "c1"
+
+  # Test lxc launch.
+  lxc launch testimage c2 -d "${SMALL_ROOT_DISK}" --project img-proj --target-project inst-proj
+
+  # Verify the container was created and is running in inst-proj.
+  lxc list --project inst-proj -c ns -f csv | grep -wF "c2,RUNNING"
+
+  # Test lxc rebuild. Rebuild the stopped container.
+  lxc rebuild testimage c1 --project img-proj --target-project inst-proj
+
+  # Clean up instances from the first phase.
+  lxc delete -f c1 c2 --project inst-proj
+
+  # Test relying only on the "--target-project" flag while being in the image project.
+  lxc project switch img-proj
+
+  # Test lxc init.
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}" --target-project inst-proj
+  lxc list --project inst-proj -c n -f csv | grep -wF "c1"
+
+  # Test lxc launch.
+  lxc launch testimage c2 -d "${SMALL_ROOT_DISK}" --target-project inst-proj
+  lxc list --project inst-proj -c ns -f csv | grep -wF "c2,RUNNING"
+
+  # Test lxc rebuild.
+  lxc rebuild testimage c1 --target-project inst-proj
+
+  # Switch back to default project.
+  lxc project switch default
+
+  # Clean up instances.
+  lxc delete -f c1 c2 --project inst-proj
+
+  # Test relying only on the "--project" flag. In this case, it should specify both the image project and the instance project.
+
+  # Add a root device to the default profile of the image project since we will create an instance there.
+  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")" --project img-proj
+
+  # Test lxc init.
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}" --project img-proj
+  lxc list --project img-proj -c n -f csv | grep -wF "c1"
+
+  # Test lxc launch.
+  lxc launch testimage c2 -d "${SMALL_ROOT_DISK}" --project img-proj
+  lxc list --project img-proj -c ns -f csv | grep -wF "c2,RUNNING"
+
+  # Test lxc rebuild.
+  lxc rebuild testimage c1 --project img-proj
+
+  # Clean up instances from the final phase.
+  lxc delete -f c1 c2 --project img-proj
+
+  # Clean up image and projects.
+  lxc image delete testimage --project img-proj
+  lxc project delete inst-proj
+  lxc project delete img-proj
+}
+
 # Interaction between projects and storage pools.
 test_projects_storage() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
