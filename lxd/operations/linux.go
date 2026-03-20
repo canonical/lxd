@@ -180,21 +180,22 @@ func (op *Operation) sendEvent(eventMessage any) {
 // the caller is expected to set the parent field on the returned Operation object based on other loaded operations, if needed.
 func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *cluster.Operation, projectName string) (*Operation, error) {
 	op := Operation{
-		projectName: projectName,
-		id:          dbOp.UUID,
-		class:       OperationClass(dbOp.Class),
-		createdAt:   dbOp.CreatedAt,
-		updatedAt:   dbOp.UpdatedAt,
-		status:      api.StatusCode(dbOp.Status),
-		url:         api.NewURL().Path(version.APIVersion, "operations", dbOp.UUID).String(),
-		description: dbOp.Type.Description(),
-		dbOpType:    dbOp.Type,
-		finished:    cancel.New(),
-		running:     cancel.New(),
-		state:       s,
-		location:    dbOp.Location,
-		err:         dbOp.Error,
-		errCode:     dbOp.ErrorCode,
+		projectName:       projectName,
+		id:                dbOp.UUID,
+		class:             OperationClass(dbOp.Class),
+		createdAt:         dbOp.CreatedAt,
+		updatedAt:         dbOp.UpdatedAt,
+		status:            api.StatusCode(dbOp.Status),
+		url:               api.NewURL().Path(version.APIVersion, "operations", dbOp.UUID).String(),
+		description:       dbOp.Type.Description(),
+		dbOpType:          dbOp.Type,
+		finished:          cancel.New(),
+		running:           cancel.New(),
+		state:             s,
+		location:          dbOp.Location,
+		err:               dbOp.Error,
+		errCode:           dbOp.ErrorCode,
+		conflictReference: dbOp.ConflictReference,
 	}
 
 	// If server is not clustered, the DB contains 'none' as the node name. In that case we use the server name as the location.
