@@ -11787,31 +11787,6 @@ paths:
             tags:
                 - instances
     /1.0/instances/{name}/logs/{filename}:
-        delete:
-            description: Removes the log file.
-            operationId: instance_log_delete
-            parameters:
-                - description: Project name
-                  example: default
-                  in: query
-                  name: project
-                  type: string
-            produces:
-                - application/json
-            responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
-                "400":
-                    $ref: '#/responses/BadRequest'
-                "403":
-                    $ref: '#/responses/Forbidden'
-                "404":
-                    $ref: '#/responses/NotFound'
-                "500":
-                    $ref: '#/responses/InternalServerError'
-            summary: Delete the log file
-            tags:
-                - instances
         get:
             description: Gets the log file.
             operationId: instance_log_get
