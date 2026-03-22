@@ -63,6 +63,7 @@ var architectureInstallations = map[int][]Installation{
 				{Code: "OVMF_CODE.fd", Vars: "qemu.nvram"},
 			},
 			CSM: {
+				{Code: "bios-256k.bin", Vars: "bios-256k.bin"},
 				{Code: "seabios.bin", Vars: "seabios.bin"},
 				{Code: "OVMF_CODE.4MB.CSM.fd", Vars: "OVMF_VARS.4MB.CSM.fd"},
 				{Code: "OVMF_CODE.csm.4m.fd", Vars: "OVMF_VARS.4m.fd"},
@@ -83,6 +84,7 @@ var architectureInstallations = map[int][]Installation{
 				{Code: "ovmf-x86_64-ms-code.bin", Vars: "ovmf-x86_64-ms-vars.bin"},
 			},
 			CSM: {
+				{Code: "bios-256k.bin", Vars: "bios-256k.bin"},
 				{Code: "seabios.bin", Vars: "seabios.bin"},
 			},
 		},
@@ -119,6 +121,7 @@ var architectureInstallations = map[int][]Installation{
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			CSM: {
 				{Code: "bios-256k.bin", Vars: "bios-256k.bin"},
+				{Code: "seabios.bin", Vars: "seabios.bin"},
 			},
 		},
 	}},
