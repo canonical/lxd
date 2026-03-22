@@ -51,16 +51,16 @@ var architectureInstallations = map[int][]Installation{
 		Paths: GetenvEdk2Paths("/usr/share/OVMF"),
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
-				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.fd"},
 				{Code: "OVMF_CODE_4M.fd", Vars: "OVMF_VARS_4M.fd"},
+				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.fd"},
 				{Code: "OVMF_CODE.4m.fd", Vars: "OVMF_VARS.4m.fd"},
 				{Code: "OVMF_CODE.2MB.fd", Vars: "OVMF_VARS.2MB.fd"},
 				{Code: "OVMF_CODE.fd", Vars: "OVMF_VARS.fd"},
 				{Code: "OVMF_CODE.fd", Vars: "qemu.nvram"},
 			},
 			SECUREBOOT: {
-				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.ms.fd"},
 				{Code: "OVMF_CODE_4M.ms.fd", Vars: "OVMF_VARS_4M.ms.fd"},
+				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.ms.fd"},
 				{Code: "OVMF_CODE_4M.secboot.fd", Vars: "OVMF_VARS_4M.secboot.fd"},
 				{Code: "OVMF_CODE.secboot.4m.fd", Vars: "OVMF_VARS.4m.fd"},
 				{Code: "OVMF_CODE.secboot.fd", Vars: "OVMF_VARS.secboot.fd"},
@@ -128,8 +128,8 @@ var architectureInstallations = map[int][]Installation{
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
 				{Code: "AAVMF_CODE.fd", Vars: "AAVMF_VARS.fd"},
-				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.fd"},
 				{Code: "OVMF_CODE_4M.fd", Vars: "OVMF_VARS_4M.fd"},
+				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.fd"},
 				{Code: "OVMF_CODE.4m.fd", Vars: "OVMF_VARS.4m.fd"},
 				{Code: "OVMF_CODE.2MB.fd", Vars: "OVMF_VARS.2MB.fd"},
 				{Code: "OVMF_CODE.fd", Vars: "OVMF_VARS.fd"},
@@ -137,8 +137,8 @@ var architectureInstallations = map[int][]Installation{
 			},
 			SECUREBOOT: {
 				{Code: "AAVMF_CODE.ms.fd", Vars: "AAVMF_VARS.ms.fd"},
-				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.ms.fd"},
 				{Code: "OVMF_CODE_4M.ms.fd", Vars: "OVMF_VARS_4M.ms.fd"},
+				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.ms.fd"},
 				{Code: "OVMF_CODE_4M.secboot.fd", Vars: "OVMF_VARS_4M.secboot.fd"},
 				{Code: "OVMF_CODE.secboot.4m.fd", Vars: "OVMF_VARS.4m.fd"},
 				{Code: "OVMF_CODE.secboot.fd", Vars: "OVMF_VARS.secboot.fd"},
