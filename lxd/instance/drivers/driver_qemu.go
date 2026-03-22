@@ -3534,9 +3534,16 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			return "", nil, fmt.Errorf("Cannot locate matching VM firmware: %+v", firmwares)
 		}
 
-		// Use debug version of firmware. (Only works for "preferred" (OVMF 4MB, no CSM) firmware flavor)
-		if shared.IsTrue(d.expandedConfig["boot.debug_edk2"]) && efiCode == firmwares[0].Code {
-			efiCode = filepath.Join(filepath.Dir(efiCode), edk2.OVMFDebugFirmware)
+		// Use debug version of firmware when boot.debug_edk2 is set.
+		// The debug firmware path is derived by inserting ".debug" before the ".fd" extension.
+		// An error is returned if the debug firmware file does not exist.
+		if shared.IsTrue(d.expandedConfig["boot.debug_edk2"]) && strings.HasSuffix(efiCode, ".fd") {
+			debugCode := strings.TrimSuffix(efiCode, ".fd") + ".debug.fd"
+			if !shared.PathExists(debugCode) {
+				return "", nil, fmt.Errorf("Cannot find debug firmware %q", debugCode)
+			}
+
+			efiCode = debugCode
 		}
 
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
