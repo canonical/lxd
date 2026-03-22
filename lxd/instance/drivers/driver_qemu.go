@@ -1268,7 +1268,13 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 	// Copy EDK2 settings firmware to nvram file if needed.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
 	if supportsUEFI {
-		// ovmfNeedsUpdate checks if nvram file needs to be regenerated using new template.
+		// ovmfNeedsUpdate checks if the NVRAM file must be regenerated from the
+		// firmware template. This action is destructive in the sense that the
+		// NVRAM state is lost which is not ideal but also not terrible as it is
+		// rarely used (only for custom SB keys, boot order tweaks, etc). This
+		// covers cases where the existing NVRAM content is genuinely
+		// incompatible with the current firmware. The OVMF 4MB -> _4M rename
+		// (content-compatible) is handled separately below.
 		ovmfNeedsUpdate := func(nvramTarget string) bool {
 			if !shared.InSnap() {
 				return false
@@ -1282,8 +1288,10 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 				return true
 			} else if strings.Contains(nvramTarget, "OVMF") {
 				// The 2MB firmware was deprecated in the LXD snap.
-				// Detect this by the absence of "4MB" in the nvram file target.
-				if !strings.Contains(nvramTarget, "4MB") {
+				// Detect this by the absence of both "4MB" and "_4M" in the nvram file target.
+				// Note: "_4M" must also be accepted as valid to handle VMs that were already
+				// migrated to the new naming convention (e.g. by an updated snap).
+				if !strings.Contains(nvramTarget, "4MB") && !strings.Contains(nvramTarget, "_4M") {
 					return true
 				}
 
@@ -1313,6 +1321,18 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		// Decide if nvram file needs to be setup/refreshed.
 		if nvramMissing || shared.IsTrue(d.localConfig["volatile.apply_nvram"]) || ovmfNeedsUpdate(nvramTarget) {
 			err = d.setupNvram()
+			if err != nil {
+				op.Done(err)
+				return err
+			}
+		} else if !nvramMissing {
+			// When the firmware filename convention changed but the content is
+			// identical (e.g. OVMF 4MB -> _4M on x86_64, or OVMF-named arm64 ->
+			// AAVMF), rename the existing file to preserve boot order, custom
+			// Secure Boot keys, and other NVRAM state. renameNvram only proceeds
+			// when the preferred firmware actually exists in the snap, making it
+			// safe to deploy this LXD change before the snap is updated.
+			_, err = d.renameNvram(nvramTarget)
 			if err != nil {
 				op.Done(err)
 				return err
@@ -2044,6 +2064,94 @@ func (d *qemu) effectiveBootMode() string {
 	}
 
 	return bootMode
+}
+
+// renameNvram renames the existing NVRAM vars file when the firmware filename has
+// changed but the content remains compatible, preserving any existing boot settings
+// such as boot order or custom Secure Boot keys. This covers:
+//   - OVMF 4MB -> _4M rename on x86_64 (identical binary content)
+//   - OVMF-named arm64 EDK2 -> AAVMF rename (both are AArch64 EDK2 builds)
+//
+// Returns true if the rename was performed successfully.
+func (d *qemu) renameNvram(nvramTarget string) (bool, error) {
+	if !shared.InSnap() {
+		return false, nil
+	}
+
+	// Only applicable to OVMF 4MB variants: the 4MB size is the content-compatible
+	// baseline used across all renames handled here (x86_64 _4M and arm64 AAVMF).
+	nvramBasename := filepath.Base(nvramTarget)
+	if !strings.Contains(nvramBasename, "OVMF") || !strings.Contains(nvramBasename, "4MB") {
+		return false, nil
+	}
+
+	// Determine the expected firmware for this VM's boot mode.
+	var firmwares []edk2.FirmwarePair
+	switch d.effectiveBootMode() {
+	case instancetype.BootModeUEFISecureBoot:
+		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.SECUREBOOT)
+	default:
+		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.GENERIC)
+	}
+
+	if len(firmwares) == 0 {
+		return false, nil
+	}
+
+	// The preferred (first available) firmware determines the new vars filename.
+	newVarsName := filepath.Base(firmwares[0].Vars)
+
+	// Nothing to rename if the preferred firmware already matches the current one.
+	if newVarsName == nvramBasename {
+		return false, nil
+	}
+
+	newVarsPath := filepath.Join(d.Path(), newVarsName)
+
+	// If the destination already exists the file was previously migrated (e.g. by an earlier
+	// LXD start that failed mid-way). Skip the rename to avoid overwriting current NVRAM state.
+	_, err := os.Stat(newVarsPath)
+	if err == nil {
+		d.logger.Info("Skipping NVRAM vars file rename, destination already exists", logger.Ctx{"source": nvramBasename, "destination": newVarsName})
+		return false, nil
+	}
+
+	if !os.IsNotExist(err) {
+		return false, fmt.Errorf("Failed checking existing NVRAM vars file %q: %w", newVarsPath, err)
+	}
+
+	// Rename the vars file and update the symlink atomically so that a failure mid-way
+	// does not leave the instance in an unbootable state.
+	rev := revert.New()
+	defer rev.Fail()
+
+	err = os.Rename(nvramTarget, newVarsPath)
+	if err != nil {
+		return false, fmt.Errorf("Failed renaming NVRAM vars file %q to %q: %w", nvramTarget, newVarsPath, err)
+	}
+
+	rev.Add(func() { _ = os.Rename(newVarsPath, nvramTarget) })
+
+	// Update the symlink via a temporary name so the replacement is atomic.
+	nvramPath := d.nvramPath()
+	tmpNvramPath := nvramPath + ".tmp"
+	_ = os.Remove(tmpNvramPath)
+
+	err = os.Symlink(newVarsName, tmpNvramPath)
+	if err != nil {
+		return false, fmt.Errorf("Failed creating temporary NVRAM symlink to %q: %w", newVarsName, err)
+	}
+
+	err = os.Rename(tmpNvramPath, nvramPath)
+	if err != nil {
+		_ = os.Remove(tmpNvramPath)
+		return false, fmt.Errorf("Failed updating NVRAM symlink to %q: %w", newVarsName, err)
+	}
+
+	rev.Success()
+
+	d.logger.Info("Renamed NVRAM vars file", logger.Ctx{"old": nvramBasename, "new": newVarsName})
+	return true, nil
 }
 
 func (d *qemu) setupNvram() error {
