@@ -331,7 +331,7 @@ parts:
       - qemu
     source: https://git.launchpad.net/ubuntu/+source/edk2
     source-depth: 1
-    source-commit: 0b1f127464c5e53bea2933e26a37155424974fdf # import/2025.02-8ubuntu3
+    source-commit: ed0d68a37f1ad229ce1939012103dc03e15c6bcc # import/2025.11-3ubuntu6
     source-type: git
     plugin: nil
     build-packages:
@@ -341,14 +341,19 @@ parts:
         - debhelper
         - dosfstools
         - g++
+        - grub-efi-amd64-signed
         - jq
         - lsb-release
         - mtools
         - nasm
+        - openssl
         - python3
         - python3-pexpect
         - python3-virt-firmware
         - quilt
+        - rsync
+        - sbsigntool
+        - shim-signed
         - uuid-dev
         - xorriso
       - to arm64:
@@ -357,14 +362,19 @@ parts:
         - debhelper
         - dosfstools
         - g++
+        - grub-efi-arm64-signed
         - jq
         - lsb-release
         - mtools
         - nasm
+        - openssl
         - python3
         - python3-pexpect
         - python3-virt-firmware
         - quilt
+        - rsync
+        - sbsigntool
+        - shim-signed
         - uuid-dev
         - xorriso
     override-stage: |-
@@ -386,12 +396,21 @@ parts:
       # Apply patches from Ubuntu sources.
       QUILT_PATCHES=debian/patches quilt push -a
 
-      # Enable KVM if available
-      if [ -c /dev/kvm ] && [ -w /dev/kvm ]; then
-          sed -i 's/accel=tcg/accel=kvm:tcg/' debian/python/UEFI/Qemu.py
+      # On arm64, the secboot firmware (SECURE_BOOT_ENABLE=TRUE) enforces strict W^X memory
+      # protection via EFI_MEMORY_ATTRIBUTE_PROTOCOL (new in EDK2 2025.11+). This causes a
+      # Synchronous Exception when BdsDxe hands off to the grub2/shim bootloader.
+      # Fix: add $(NO_STRICTNX_COMMON_FLAGS) (i.e. --pcd PcdUninstallMemAttrProtocol=TRUE)
+      # to AAVMF_SECBOOT_FLAGS so the protocol is uninstalled before the bootloader runs.
+      # Secure Boot signature verification (SECURE_BOOT_ENABLE=TRUE) remains active; only
+      # the W^X enforcement is disabled. This mirrors exactly what the Ubuntu debian/rules
+      # already does for AAVMF_NO_SECBOOT_FLAGS and OVMF_4M_NO_SECBOOT_FLAGS, and is the
+      # fix that should be applied upstream. Note: AAVMF_SECBOOT_STRICTNX_FLAGS intentionally
+      # omits NO_STRICTNX_COMMON_FLAGS (strict W^X for future grub/shim support), so we
+      # only patch AAVMF_SECBOOT_FLAGS.
+      # https://bugs.launchpad.net/ubuntu/+source/edk2/+bug/2145095
+      if [ "$(uname -m)" = "aarch64" ]; then
+          sed -i 's/^\(AAVMF_SECBOOT_FLAGS = .*\)$/\1 $(NO_STRICTNX_COMMON_FLAGS)/' debian/rules
       fi
-      # Ensure fast RNG in the build VM to speed up secure boot vars generation.
-      sed -i "s/'-serial', 'stdio',/'-serial', 'stdio', '-device', 'virtio-rng-pci',/" debian/python/UEFI/Qemu.py
 
       # Apply patches
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
@@ -403,8 +422,8 @@ parts:
 
       if [ "$(uname -m)" = "x86_64" ]; then
           DSC="OvmfPkg/OvmfPkgX64.dsc"
-          BUILD_TARGET="build-ovmf"
-          SRC_DIR="debian/ovmf-install"
+          BUILD_TARGET="install-ovmf"
+          SRC_DIR="debian/tmp/usr/share/OVMF"
           SRC_CODE="OVMF_CODE_4M.secboot.fd"
           SRC_VARS="OVMF_VARS_4M.fd"
           SRC_VARS_MS="OVMF_VARS_4M.ms.fd"
@@ -417,8 +436,8 @@ parts:
           SED_EXPR="s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g"
       elif [ "$(uname -m)" = "aarch64" ]; then
           DSC="ArmVirtPkg/ArmVirt.dsc.inc"
-          BUILD_TARGET="build-qemu-efi-aarch64"
-          SRC_DIR="debian/aavmf-install"
+          BUILD_TARGET="install-qemu-efi-aarch64"
+          SRC_DIR="debian/tmp/usr/share/AAVMF"
           SRC_CODE="AAVMF_CODE.secboot.fd"
           SRC_VARS="AAVMF_VARS.fd"
           SRC_VARS_MS="AAVMF_VARS.ms.fd"
@@ -433,7 +452,7 @@ parts:
 
           # Clean up previous build stamps/artifacts to ensure clean rebuild with new TYPE
           rm -f debian/setup-build-stamp
-          rm -rf debian/*-install
+          rm -rf debian/*-install debian/tmp
           rm -rf Build
 
           if [ "${TYPE}" = "DEBUG" ]; then
@@ -838,7 +857,7 @@ parts:
       - --disable-qed
       - --disable-sdl
       - --disable-slirp
-      - --disable-tcg  # See note about TCG in the override-build section
+      - --disable-tcg  # TCG is not used (nor supported) at runtime
       - --disable-user
       - --disable-vde
       - --disable-vdi
@@ -937,16 +956,6 @@ parts:
 
       sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
-
-      # TCG is not used (nor supported) at runtime however it may be needed at
-      # build time by the `edk2` part if KVM acceleration is not available.
-      # `edk2` is only built for `amd64` and `arm64` and Launchpad `amd64`
-      # builders support KVM acceleration so TCG is only needed on `arm64`.
-      if [ "${QEMUARCH}" = "aarch64" ]; then
-          # `set -- "$@"`: preserve arguments passed to `configure` and append
-          # `--enable-tcg` at the end to override the previous `--disable-tcg`.
-          sed -i '1 a set -- "$@" --enable-tcg' configure
-      fi
 
       # Extract efi-virtio.rom from ipxe-qemu.
       # This doesn't work in the organize section below.
