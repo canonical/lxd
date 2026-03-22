@@ -212,18 +212,14 @@ func GetArchitectureFirmwarePairsForUsage(hostArch int, usage FirmwareUsage) []F
 }
 
 // GetenvEdk2Paths returns a list of paths to search for VM firmwares.
-// If LXD_QEMU_FW_PATH or LXD_OVMF_PATH env vars are set then these values are split on ":" and prefixed to the
-// returned slice of paths.
+// If LXD_QEMU_FW_PATH env variable is set then its value is split on ":" and
+// prefixed to the returned slice of paths.
 // The defaultPath argument is returned as the last element in the slice.
 func GetenvEdk2Paths(defaultPath string) []string {
 	var qemuFwPaths []string
 
-	for _, v := range []string{"LXD_QEMU_FW_PATH", "LXD_OVMF_PATH"} {
-		searchPaths := os.Getenv(v)
-		if searchPaths == "" {
-			continue
-		}
-
+	searchPaths := os.Getenv("LXD_QEMU_FW_PATH")
+	if searchPaths != "" {
 		qemuFwPaths = append(qemuFwPaths, strings.Split(searchPaths, ":")...)
 	}
 
