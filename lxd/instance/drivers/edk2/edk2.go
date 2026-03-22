@@ -36,9 +36,6 @@ const (
 	CSM
 )
 
-// OVMFDebugFirmware is the debug version of the "preferred" firmware.
-const OVMFDebugFirmware = "OVMF_CODE.4MB.debug.fd"
-
 // legacyFirmwareVarsCandidates lists firmware vars file names that were previously used but have since been
 // deprecated. They are still returned by GetAchitectureFirmwareVarsCandidates to allow cleanup of any
 // orphaned files left over on existing VM instances.
