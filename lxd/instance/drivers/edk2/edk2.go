@@ -32,7 +32,7 @@ const (
 	// SECUREBOOT is a UEFI Secure Boot enabled firmware.
 	SECUREBOOT
 
-	// CSM is a firmware with the UEFI Compatibility Support Module enabled to boot BIOS-only operating systems.
+	// CSM is a SeaBIOS firmware used for booting legacy BIOS-only operating systems.
 	CSM
 )
 
