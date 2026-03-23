@@ -1192,7 +1192,11 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, name := range pools {
-			err := client.DeleteStoragePool(name)
+			op, err := client.DeleteStoragePool(name)
+			if err == nil {
+				err = op.Wait()
+			}
+
 			if err != nil {
 				return response.SmartError(err)
 			}

@@ -603,7 +603,11 @@ func storagePoolsPostCluster(ctx context.Context, s *state.State, pool *api.Stor
 		// Merge node specific config items into global config.
 		maps.Copy(nodeReq.Config, configs[member.Name])
 
-		err = client.CreateStoragePool(nodeReq)
+		op, err := client.CreateStoragePool(nodeReq)
+		if err == nil {
+			err = op.Wait()
+		}
+
 		if err != nil {
 			return err
 		}
@@ -1014,7 +1018,11 @@ func doStoragePoolUpdateInner(s *state.State, pool storagePools.Pool, req api.St
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			err := client.UpdateStoragePool(pool.Name(), sendPool, "")
+			op, err := client.UpdateStoragePool(pool.Name(), sendPool, "")
+			if err == nil {
+				err = op.Wait()
+			}
+
 			return err
 		})
 		if err != nil {
@@ -1201,7 +1209,11 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 
 		// If we are clustered, also notify all other nodes.
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			err := client.DeleteStoragePool(pool.Name())
+			op, err := client.DeleteStoragePool(pool.Name())
+			if err == nil {
+				err = op.Wait()
+			}
+
 			return err
 		})
 		if err != nil {
