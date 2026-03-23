@@ -851,7 +851,11 @@ func (c *cmdNetworkLoadBalancerDelete) run(cmd *cobra.Command, args []string) er
 	}
 
 	// Delete the network load balancer.
-	err = client.DeleteNetworkLoadBalancer(resource.name, args[1])
+	op, err := client.DeleteNetworkLoadBalancer(resource.name, args[1])
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -1053,7 +1057,12 @@ func (c *cmdNetworkLoadBalancerBackend) runRemove(cmd *cobra.Command, args []str
 
 	loadBalancer.Normalise()
 
-	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
+	op, err := client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 // Add/Remove Port.
@@ -1269,5 +1278,10 @@ func (c *cmdNetworkLoadBalancerPort) runRemove(cmd *cobra.Command, args []string
 
 	loadBalancer.Normalise()
 
-	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
+	op, err := client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
