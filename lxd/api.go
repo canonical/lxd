@@ -242,8 +242,10 @@ func restServer(d *Daemon) *http.Server {
 	metrics.InitAPIMetrics()
 
 	return &http.Server{
-		Handler:     &lxdHTTPServer{r: mux, d: d},
-		ConnContext: request.SaveConnectionInContext,
+		Handler:           &lxdHTTPServer{r: mux, d: d},
+		ConnContext:       request.SaveConnectionInContext,
+		IdleTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 3 * time.Second,
 	}
 }
 
@@ -278,7 +280,13 @@ func metricsServer(d *Daemon) *http.Server {
 		_ = response.NotFound(nil).Render(w, r)
 	})
 
-	return &http.Server{Handler: &lxdHTTPServer{r: mux, d: d}}
+	return &http.Server{
+		Handler:           &lxdHTTPServer{r: mux, d: d},
+		IdleTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 3 * time.Second,
+		ReadTimeout:       3 * time.Second,
+		WriteTimeout:      30 * time.Second,
+	}
 }
 
 type lxdHTTPServer struct {
