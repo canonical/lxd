@@ -623,7 +623,12 @@ func (c *cmdNetworkForwardSet) run(cmd *cobra.Command, args []string) error {
 
 	writable.Normalise()
 
-	return client.UpdateNetworkForward(resource.name, forward.ListenAddress, writable, etag)
+	op, err := client.UpdateNetworkForward(resource.name, forward.ListenAddress, writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 // Unset.
@@ -775,7 +780,12 @@ func (c *cmdNetworkForwardEdit) run(cmd *cobra.Command, args []string) error {
 
 		newData.Normalise()
 
-		return client.UpdateNetworkForward(resource.name, args[1], newData.Writable(), "")
+		op, err := client.UpdateNetworkForward(resource.name, args[1], newData.Writable(), "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// Get the current config.
@@ -801,7 +811,11 @@ func (c *cmdNetworkForwardEdit) run(cmd *cobra.Command, args []string) error {
 		err = yaml.UnmarshalStrict(content, &newData)
 		if err == nil {
 			newData.Normalise()
-			err = client.UpdateNetworkForward(resource.name, args[1], newData.Writable(), etag)
+			var op lxd.Operation
+			op, err = client.UpdateNetworkForward(resource.name, args[1], newData.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor.
