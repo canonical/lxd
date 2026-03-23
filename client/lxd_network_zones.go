@@ -108,19 +108,32 @@ func (r *ProtocolLXD) CreateNetworkZone(zone api.NetworkZonesPost) (Operation, e
 }
 
 // UpdateNetworkZone updates the network zone to match the provided struct.
-func (r *ProtocolLXD) UpdateNetworkZone(name string, zone api.NetworkZonePut, ETag string) error {
+func (r *ProtocolLXD) UpdateNetworkZone(name string, zone api.NetworkZonePut, ETag string) (Operation, error) {
 	err := r.CheckExtension("network_dns")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-zones", name)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPut, "/network-zones/"+url.PathEscape(name), zone, ETag)
-	if err != nil {
-		return err
+	err = r.CheckExtension("storage_and_network_operations")
+	if err != nil || r.isClusterOperationNotification() {
+		// Use a synchronous request when the server lacks async endpoint support
+		// or when handling a cluster operation notification.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, path.String(), zone, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, path.String(), zone, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteNetworkZone deletes an existing network zone.

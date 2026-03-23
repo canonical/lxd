@@ -244,7 +244,7 @@ type InstanceServer interface {
 	GetNetworkZones() (zones []api.NetworkZone, err error)
 	GetNetworkZone(name string) (zone *api.NetworkZone, ETag string, err error)
 	CreateNetworkZone(zone api.NetworkZonesPost) (op Operation, err error)
-	UpdateNetworkZone(name string, zone api.NetworkZonePut, ETag string) (err error)
+	UpdateNetworkZone(name string, zone api.NetworkZonePut, ETag string) (op Operation, err error)
 	DeleteNetworkZone(name string) (op Operation, err error)
 
 	GetNetworkZoneRecordNames(zone string) (names []string, err error)
