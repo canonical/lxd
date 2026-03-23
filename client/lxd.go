@@ -127,6 +127,40 @@ func (r *ProtocolLXD) isSameServer(server Server) (bool, error) {
 	return sameServer, nil
 }
 
+// isSameProject compares the calling ProtocolLXD object with the provided server object to check if they are both using the same project.
+func (r *ProtocolLXD) isSameProject(server Server) (bool, error) {
+	// Short path checking if the two structs are identical.
+	if r == server {
+		return true, nil
+	}
+
+	// Short path if either of the structs are nil.
+	if r == nil || server == nil {
+		return false, nil
+	}
+
+	// When dealing with uninitialized servers, we can't safely compare.
+	if r.server == nil {
+		return false, nil
+	}
+
+	// Get the connection info from both servers.
+	srcInfo, err := r.GetConnectionInfo()
+	if err != nil {
+		return false, err
+	}
+
+	dstInfo, err := server.GetConnectionInfo()
+	if err != nil {
+		return false, err
+	}
+
+	// Check whether the two servers are using the same project.
+	sameProject := srcInfo.Project == dstInfo.Project
+
+	return sameProject, nil
+}
+
 // GetHTTPClient returns the http client used for the connection. This can be used to set custom http options.
 func (r *ProtocolLXD) GetHTTPClient() (*http.Client, error) {
 	if r.http == nil {
