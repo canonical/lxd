@@ -725,6 +725,10 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, req api.CertificatePu
 			return response.BadRequest(err)
 		}
 
+		if reqDBType != dbInfo.Type {
+			return response.Forbidden(errors.New("The certificate type cannot be changed"))
+		}
+
 		// Convert to the database type.
 		cert := db.Certificate{
 			// Read-only fields.
