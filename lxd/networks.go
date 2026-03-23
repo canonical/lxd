@@ -690,8 +690,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Create the database entry.
-			_, err = tx.CreateNetwork(ctx, projectName, req.Name, req.Description, netType.DBType(), req.Config)
-
+			_, err := tx.CreateNetwork(ctx, projectName, req.Name, req.Description, netType.DBType(), req.Config)
 			return err
 		})
 		if err != nil {
@@ -881,7 +880,11 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 			Type: n.Type(),
 		}
 
-		err = client.UseProject(n.Project()).CreateNetwork(nodeReq)
+		op, err := client.UseProject(n.Project()).CreateNetwork(nodeReq)
+		if err == nil {
+			err = op.Wait()
+		}
+
 		if err != nil {
 			return err
 		}
@@ -1297,7 +1300,11 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			err := client.UseProject(n.Project()).DeleteNetwork(n.Name())
+			op, err := client.UseProject(n.Project()).DeleteNetwork(n.Name())
+			if err == nil {
+				err = op.Wait()
+			}
+
 			return err
 		})
 		if err != nil {

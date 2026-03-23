@@ -1172,7 +1172,11 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, name := range networks {
-				err := client.UseProject(networkProjectName).DeleteNetwork(name)
+				op, err := client.UseProject(networkProjectName).DeleteNetwork(name)
+				if err == nil {
+					err = op.Wait()
+				}
+
 				if err != nil {
 					return response.SmartError(err)
 				}

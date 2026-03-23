@@ -154,13 +154,22 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 		currentNetwork, etag, err := d.UseProject(network.Project).GetNetwork(network.Name)
 		if err != nil {
 			// Create the network if doesn't exist.
-			err := d.UseProject(network.Project).CreateNetwork(network.NetworksPost)
+			op, err := d.UseProject(network.Project).CreateNetwork(network.NetworksPost)
+			if err == nil {
+				err = op.Wait()
+			}
+
 			if err != nil {
 				return fmt.Errorf("Failed creating local member network %q in project %q: %w", network.Name, network.Project, err)
 			}
 
 			// Setup reverter.
-			revert.Add(func() { _ = d.UseProject(network.Project).DeleteNetwork(network.Name) })
+			revert.Add(func() {
+				op, err := d.UseProject(network.Project).DeleteNetwork(network.Name)
+				if err == nil {
+					_ = op.Wait()
+				}
+			})
 		} else {
 			// Prepare the update.
 			newNetwork := api.NetworkPut{}
@@ -178,14 +187,21 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			maps.Copy(newNetwork.Config, network.Config)
 
 			// Apply it.
-			err = d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, newNetwork, etag)
+			op, err := d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, newNetwork, etag)
+			if err == nil {
+				err = op.Wait()
+			}
+
 			if err != nil {
 				return fmt.Errorf("Failed updating local member network %q in project %q: %w", network.Name, network.Project, err)
 			}
 
 			// Setup reverter.
 			revert.Add(func() {
-				_ = d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
+				op, err := d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
+				if err == nil {
+					_ = op.Wait()
+				}
 			})
 		}
 

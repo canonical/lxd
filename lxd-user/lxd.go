@@ -123,7 +123,11 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 		network.Type = "bridge"
 		network.Name = "lxdbr0"
 
-		err := client.CreateNetwork(network)
+		op, err := client.CreateNetwork(network)
+		if err == nil {
+			err = op.Wait()
+		}
+
 		if err != nil {
 			return fmt.Errorf("Failed creating network: %w", err)
 		}
@@ -260,13 +264,17 @@ func lxdSetupUser(uid uint32) error {
 	network.Name = networkName
 	network.Description = fmt.Sprint("Network for user restricted project user-", projectName)
 
-	err = client.CreateNetwork(network)
+	op, err := client.CreateNetwork(network)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return fmt.Errorf("Failed creating network: %w", err)
 	}
 
 	// Setup default profile.
-	op, err := client.UseProject(projectName).UpdateProfile("default", api.ProfilePut{
+	op, err = client.UseProject(projectName).UpdateProfile("default", api.ProfilePut{
 		Description: "Default LXD profile",
 		Config: map[string]string{
 			"raw.idmap": fmt.Sprintf("uid %s %s\ngid %s %s", pw[2], pw[2], pw[3], pw[3]),
