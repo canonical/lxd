@@ -214,7 +214,7 @@ type InstanceServer interface {
 	GetNetworkLoadBalancer(networkName string, listenAddress string) (forward *api.NetworkLoadBalancer, ETag string, err error)
 	CreateNetworkLoadBalancer(networkName string, forward api.NetworkLoadBalancersPost) (op Operation, err error)
 	UpdateNetworkLoadBalancer(networkName string, listenAddress string, forward api.NetworkLoadBalancerPut, ETag string) (err error)
-	DeleteNetworkLoadBalancer(networkName string, listenAddress string) (err error)
+	DeleteNetworkLoadBalancer(networkName string, listenAddress string) (op Operation, err error)
 
 	// Network peer functions ("network_peer" API extension)
 	GetNetworkPeerNames(networkName string) ([]string, error)
