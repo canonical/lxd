@@ -5223,13 +5223,18 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 		}
 
 		// Notify all other members to refresh their BGP prefixes.
-		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		notifier, err := cluster.NewOperationNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
 		if err != nil {
 			return err
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UseProject(n.project).DeleteNetworkForward(n.name, forward.ListenAddress)
+			op, err := client.UseProject(n.project).DeleteNetworkForward(n.name, forward.ListenAddress)
+			if err == nil {
+				err = op.Wait()
+			}
+
+			return err
 		})
 		if err != nil {
 			return err
