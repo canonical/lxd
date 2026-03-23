@@ -124,19 +124,31 @@ func (r *ProtocolLXD) UpdateNetworkZone(name string, zone api.NetworkZonePut, ET
 }
 
 // DeleteNetworkZone deletes an existing network zone.
-func (r *ProtocolLXD) DeleteNetworkZone(name string) error {
+func (r *ProtocolLXD) DeleteNetworkZone(name string) (Operation, error) {
 	err := r.CheckExtension("network_dns")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-zones", name)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodDelete, "/network-zones/"+url.PathEscape(name), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, path.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // GetNetworkZoneRecordNames returns a list of network zone record names.
