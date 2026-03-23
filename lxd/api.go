@@ -92,6 +92,8 @@ func restServer(d *Daemon) *http.Server {
 			// Sets the Content Security Policy (CSP) for the page, which helps mitigate XSS attacks and data injection attacks.
 			// The policy allows loading resources (scripts, styles, images, etc.) only from the same origin ('self'), data URLs, and a restrictive list of domains.
 			w.Header().Set("Content-Security-Policy", "default-src 'self' data: https://assets.ubuntu.com https://cloud-images.ubuntu.com https://images.lxd.canonical.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+			// Prevents the browser from sending referrer information when navigating away from the page.
+			w.Header().Set("Referrer-Policy", "no-referrer")
 
 			uiHandler.ServeHTTP(w, r)
 		})
@@ -127,6 +129,7 @@ func restServer(d *Daemon) *http.Server {
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 			w.Header().Set("X-Xss-Protection", "1; mode=block")
+			w.Header().Set("Referrer-Policy", "no-referrer")
 
 			documentationHandler.ServeHTTP(w, r)
 		})
