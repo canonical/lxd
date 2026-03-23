@@ -3404,18 +3404,6 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 		return err
 	}
 
-	volBackupConf, err := b.GenerateInstanceCustomVolumeBackupConfig(inst, nil, snapshots, op)
-	if err != nil {
-		return fmt.Errorf("Failed generating instance custom volume config: %w", err)
-	}
-
-	// Ensure the backup file reflects current config.
-	// Use the version requested by the caller to write the correct backup file format.
-	err = b.UpdateInstanceBackupFile(inst, snapshots, volBackupConf, version, op)
-	if err != nil {
-		return err
-	}
-
 	var snapNames []string
 	var sourceSnapshots []drivers.Volume
 	if snapshots {
