@@ -304,7 +304,12 @@ func (d *zone) Update(config *api.NetworkZonePut, clientType request.ClientType)
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UseProject(d.projectName).UpdateNetworkZone(d.info.Name, d.info.Writable(), "")
+			op, err := client.UseProject(d.projectName).UpdateNetworkZone(d.info.Name, d.info.Writable(), "")
+			if err == nil {
+				err = op.Wait()
+			}
+
+			return err
 		})
 		if err != nil {
 			return err
