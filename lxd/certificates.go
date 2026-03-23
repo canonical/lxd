@@ -959,9 +959,13 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate, req api.CertificatePut, r *http.Request) response.Response {
 	s := d.State()
 
-	reqDBType, err := certificate.FromAPIType(req.Type)
+	if dbInfo.Type != req.Type {
+		return response.Forbidden(errors.New("The certificate type cannot be changed"))
+	}
+
+	dbInfoType, err := certificate.FromAPIType(dbInfo.Type)
 	if err != nil {
-		return response.BadRequest(err)
+		return response.SmartError(fmt.Errorf("Invalid existing certificate type: %w", err))
 	}
 
 	// Convert to the database type.
@@ -970,7 +974,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 		Fingerprint: dbInfo.Fingerprint,
 		Restricted:  req.Restricted,
 		Name:        req.Name,
-		Type:        reqDBType,
+		Type:        dbInfoType,
 	}
 
 	var userCanEditCertificate bool
@@ -990,8 +994,8 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 			response.Forbidden(errors.New("Cannot update certificate information"))
 		}
 
-		// Ensure the user in not trying to change fields other than the certificate.
-		if dbInfo.Restricted != req.Restricted || dbInfo.Name != req.Name || len(dbInfo.Projects) != len(req.Projects) {
+		// Ensure the user is not trying to change fields other than the certificate.
+		if dbInfo.Restricted != req.Restricted || dbInfo.Name != req.Name || len(dbInfo.Projects) != len(req.Projects) || dbInfo.Type != req.Type {
 			return response.Forbidden(errors.New("Only the certificate can be changed"))
 		}
 
@@ -1007,7 +1011,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 			Fingerprint: dbInfo.Fingerprint,
 			Restricted:  dbInfo.Restricted,
 			Name:        dbInfo.Name,
-			Type:        reqDBType,
+			Type:        dbInfoType,
 		}
 
 		certProjects = dbInfo.Projects
