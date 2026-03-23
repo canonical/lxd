@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -158,7 +160,12 @@ func (c *cmdStorageBucketCreate) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.storageBucket.flagTarget)
 	}
 
-	adminKey, err := client.CreateStoragePoolBucket(resource.name, bucket)
+	op, err := client.CreateStoragePoolBucket(resource.name, bucket)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
 	if err != nil {
 		return err
 	}
@@ -166,9 +173,20 @@ func (c *cmdStorageBucketCreate) run(cmd *cobra.Command, args []string) error {
 	if !c.global.flagQuiet {
 		fmt.Printf("Storage bucket %s created\n", args[1])
 
-		if adminKey != nil {
-			fmt.Printf("Admin access key: %s\n", adminKey.AccessKey)
-			fmt.Printf("Admin secret key: %s\n", adminKey.SecretKey)
+		opMeta := op.Get().Metadata
+		if opMeta != nil {
+			keyMap, ok := opMeta["key"]
+			if ok {
+				keyJSON, err := json.Marshal(keyMap)
+				if err == nil {
+					var adminKey api.StorageBucketKey
+					err = json.Unmarshal(keyJSON, &adminKey)
+					if err == nil {
+						fmt.Printf("Admin access key: %s\n", adminKey.AccessKey)
+						fmt.Printf("Admin secret key: %s\n", adminKey.SecretKey)
+					}
+				}
+			}
 		}
 	}
 
@@ -225,7 +243,11 @@ func (c *cmdStorageBucketDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete the bucket.
-	err = client.DeleteStoragePoolBucket(resource.name, args[1])
+	op, err := client.DeleteStoragePoolBucket(resource.name, args[1])
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -310,7 +332,12 @@ func (c *cmdStorageBucketEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return client.UpdateStoragePoolBucket(resource.name, args[1], newdata, "")
+		op, err := client.UpdateStoragePoolBucket(resource.name, args[1], newdata, "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// If a target was specified, edit the bucket on the given member.
@@ -340,7 +367,11 @@ func (c *cmdStorageBucketEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.StorageBucket{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.UpdateStoragePoolBucket(resource.name, args[1], newdata.Writable(), etag)
+			var op lxd.Operation
+			op, err = client.UpdateStoragePoolBucket(resource.name, args[1], newdata.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor
@@ -624,7 +655,11 @@ func (c *cmdStorageBucketSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	err = client.UpdateStoragePoolBucket(resource.name, args[1], writable, etag)
+	op, err := client.UpdateStoragePoolBucket(resource.name, args[1], writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -946,15 +981,34 @@ func (c *cmdStorageBucketKeyCreate) runAdd(cmd *cobra.Command, args []string) er
 		req.SecretKey = c.flagSecretKey
 	}
 
-	key, err := client.CreateStoragePoolBucketKey(resource.name, args[1], req)
+	op, err := client.CreateStoragePoolBucketKey(resource.name, args[1], req)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
 	if err != nil {
 		return err
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf("Storage bucket key %s added\n", key.Name)
-		fmt.Printf("Access key: %s\n", key.AccessKey)
-		fmt.Printf("Secret key: %s\n", key.SecretKey)
+		fmt.Printf("Storage bucket key %s added\n", args[2])
+
+		opMeta := op.Get().Metadata
+		if opMeta != nil {
+			keyMap, ok := opMeta["key"]
+			if ok {
+				keyJSON, err := json.Marshal(keyMap)
+				if err == nil {
+					var key api.StorageBucketKey
+					err = json.Unmarshal(keyJSON, &key)
+					if err == nil {
+						fmt.Printf("Access key: %s\n", key.AccessKey)
+						fmt.Printf("Secret key: %s\n", key.SecretKey)
+					}
+				}
+			}
+		}
 	}
 
 	return nil
@@ -1012,7 +1066,11 @@ func (c *cmdStorageBucketKeyDelete) runRemove(cmd *cobra.Command, args []string)
 		client = client.UseTarget(c.storageBucketKey.flagTarget)
 	}
 
-	err = client.DeleteStoragePoolBucketKey(resource.name, args[1], args[2])
+	op, err := client.DeleteStoragePoolBucketKey(resource.name, args[1], args[2])
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -1101,7 +1159,12 @@ func (c *cmdStorageBucketKeyEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return client.UpdateStoragePoolBucketKey(resource.name, args[1], args[2], newdata, "")
+		op, err := client.UpdateStoragePoolBucketKey(resource.name, args[1], args[2], newdata, "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// If a target was specified, edit the bucket on the given member.
@@ -1131,7 +1194,11 @@ func (c *cmdStorageBucketKeyEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.StorageBucketKey{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.UpdateStoragePoolBucketKey(resource.name, args[1], args[2], newdata.Writable(), etag)
+			var op lxd.Operation
+			op, err = client.UpdateStoragePoolBucketKey(resource.name, args[1], args[2], newdata.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor
