@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"go.yaml.in/yaml/v2"
 
@@ -201,49 +200,15 @@ func updateRootDevicePool(devices map[string]map[string]string, poolName string)
 	return false
 }
 
-// UpdateInstanceConfig updates the instance's backup.yaml configuration file.
-func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
-	backupFilePath := filepath.Join(mountPath, "backup.yaml")
-
-	// Read in the backup.yaml file.
-	backup, err := ParseConfigYamlFile(backupFilePath)
-	if err != nil {
-		return err
-	}
-
-	// Update volume information in the backup.yaml.
-	if backup.Volumes != nil {
-		rootVol, err := backup.RootVolume()
-		if err != nil {
-			return fmt.Errorf("Failed getting the root volume: %w", err)
-		}
-
-		rootVol.Name = b.Name
-		rootVol.Project = b.Project
-
-		updateRootVol, err := b.Config.RootVolume()
-		if err != nil {
-			return fmt.Errorf("Failed getting the root volume: %w", err)
-		}
-
-		// Ensure the most recent volume UUIDs get updated.
-		rootVol.Config = updateRootVol.Config
-		rootVol.Snapshots = updateRootVol.Snapshots
-	}
-
-	// Update instance information in the backup.yaml.
-	// Perform this after fetching the root vol as it's picked by the instance's name from the list of vols.
-	if backup.Instance != nil {
-		backup.Instance.Name = b.Name
-		backup.Instance.Project = b.Project
-	}
-
+// UpdateInstanceConfigInPlace updates the instance's backup index in place.
+func UpdateInstanceConfigInPlace(c *db.Cluster, b *Info) error {
 	var pool *api.StoragePool
 
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
 		// Load the storage pool.
 		_, pool, _, err = tx.GetStoragePool(ctx, b.Pool)
-
 		return err
 	})
 	if err != nil {
@@ -252,21 +217,21 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 
 	rootDiskDeviceFound := false
 
-	// Change the pool in the backup.yaml.
-	err = backup.UpdateRootVolumePool(pool)
+	// Change the pool in case it doesn't match the one of the original instance.
+	err = b.Config.UpdateRootVolumePool(pool)
 	if err != nil {
 		return fmt.Errorf("Failed to update the root volume's pool: %w", err)
 	}
 
-	if updateRootDevicePool(backup.Instance.Devices, pool.Name) {
+	if updateRootDevicePool(b.Config.Instance.Devices, pool.Name) {
 		rootDiskDeviceFound = true
 	}
 
-	if updateRootDevicePool(backup.Instance.ExpandedDevices, pool.Name) {
+	if updateRootDevicePool(b.Config.Instance.ExpandedDevices, pool.Name) {
 		rootDiskDeviceFound = true
 	}
 
-	for _, snapshot := range backup.Snapshots {
+	for _, snapshot := range b.Config.Snapshots {
 		updateRootDevicePool(snapshot.Devices, pool.Name)
 		updateRootDevicePool(snapshot.ExpandedDevices, pool.Name)
 	}
@@ -275,24 +240,5 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 		return errors.New("No root device could be found")
 	}
 
-	// Write updated backup.yaml file.
-
-	file, err := os.Create(backupFilePath)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = file.Close() }()
-
-	data, err := yaml.Marshal(&backup)
-	if err != nil {
-		return err
-	}
-
-	_, err = file.Write(data)
-	if err != nil {
-		return err
-	}
-
-	return file.Close()
+	return nil
 }
