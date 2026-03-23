@@ -82,19 +82,29 @@ func (r *ProtocolLXD) GetNetworkZone(name string) (*api.NetworkZone, string, err
 }
 
 // CreateNetworkZone defines a new Network zone using the provided struct.
-func (r *ProtocolLXD) CreateNetworkZone(zone api.NetworkZonesPost) error {
+func (r *ProtocolLXD) CreateNetworkZone(zone api.NetworkZonesPost) (Operation, error) {
 	err := r.CheckExtension("network_dns")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPost, "/network-zones", zone, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, "/network-zones", zone, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, "/network-zones", zone, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // UpdateNetworkZone updates the network zone to match the provided struct.
