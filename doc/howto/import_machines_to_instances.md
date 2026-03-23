@@ -8,7 +8,7 @@ discourse: '[Using&#32;lxd-migrate&#32;to&#32;convert&#32;a&#32;physical&#32;hos
 ```{youtube} https://www.youtube.com/watch?v=F9GALjHtnUU
 ```
 
-LXD provides a tool (`lxd-migrate`) to create a LXD instance based on an existing disk or image.
+LXD provides a tool (`lxd-convert`) to create a LXD instance based on an existing disk or image.
 
 You can run the tool on any Linux machine.
 It connects to a LXD server and creates a blank instance, which you can configure during or after the migration.
@@ -48,32 +48,32 @@ The tool can create both containers and virtual machines:
    Now you can use `virt-v2v` to convert images from a foreign hypervisor to `raw` images for LXD and include the required drivers:
 
    ```
-   # Example 1. Convert a vmdk disk image to a raw image suitable for lxd-migrate
+   # Example 1. Convert a vmdk disk image to a raw image suitable for lxd-convert
    sudo virt-v2v --block-driver virtio-scsi -o local -of raw -os ./os -i vmx ./test-vm.vmx
    # Example 2. Convert a QEMU/KVM qcow2 image and integrate virtio-scsi driver
    sudo virt-v2v --block-driver virtio-scsi -o local -of raw -os ./os -if qcow2 -i disk test-vm-disk.qcow2
    ```
 
-   You can find the resulting image in the `os` directory and use it with `lxd-migrate` on the next steps.
+   You can find the resulting image in the `os` directory and use it with `lxd-convert` on the next steps.
    </details>
    ````
 
 Complete the following steps to migrate an existing machine to a LXD instance:
 
-1. Download the `bin.linux.lxd-migrate` tool ([`bin.linux.lxd-migrate.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-migrate.aarch64) or [`bin.linux.lxd-migrate.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-migrate.x86_64)) from the **Assets** section of the latest [LXD release](https://github.com/canonical/lxd/releases).
+1. Download the `bin.linux.lxd-convert` tool ([`bin.linux.lxd-convert.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-convert.aarch64) or [`bin.linux.lxd-convert.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-convert.x86_64)) from the **Assets** section of the latest [LXD release](https://github.com/canonical/lxd/releases).
 1. Place the tool on the machine that you want to use to create the instance.
-   Make it executable (usually by running `chmod u+x bin.linux.lxd-migrate`).
+   Make it executable (usually by running `chmod u+x bin.linux.lxd-convert`).
 1. Make sure that the machine has `rsync` installed.
    If it is missing, install it (for example, with `sudo apt install rsync`).
 1. Run the tool:
 
-       sudo ./bin.linux.lxd-migrate
+       sudo ./bin.linux.lxd-convert
 
    The tool then asks you to provide the information required for the migration.
 
    ```{tip}
    As an alternative to running the tool interactively, you can provide the configuration as parameters to the command.
-   See `./bin.linux.lxd-migrate --help` for more information.
+   See `./bin.linux.lxd-convert --help` for more information.
    ```
 
    1. Specify the LXD server URL, either as an IP address or as a DNS name.
@@ -105,7 +105,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    <summary>Expand to see an example output for importing to a container</summary>
 
    ```{terminal}
-   :input: sudo ./bin.linux.lxd-migrate
+   :input: sudo ./bin.linux.lxd-convert
 
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx
@@ -209,7 +209,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    <summary>Expand to see an example output for importing to a VM</summary>
 
    ```{terminal}
-   :input: sudo ./bin.linux.lxd-migrate
+   :input: sudo ./bin.linux.lxd-convert
 
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx
