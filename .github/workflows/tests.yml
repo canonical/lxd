@@ -356,7 +356,7 @@ jobs:
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: system-test-deps
           merge-multiple: true
@@ -644,7 +644,7 @@ jobs:
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: system-test-deps
           merge-multiple: true
@@ -861,7 +861,7 @@ jobs:
         if: env.GOCOVERAGE == 'true'
 
       - name: Download coverage data
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: coverage-*
           path: ${{env.GOCOVERDIR}}
@@ -872,7 +872,7 @@ jobs:
         uses: ./.github/actions/cache-dqlite-liblxc
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: system-test-deps
           merge-multiple: true
@@ -1098,7 +1098,7 @@ jobs:
         uses: ./.github/actions/cache-dqlite-liblxc
 
       - name: Download system test dependencies
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: system-test-deps
           merge-multiple: true
@@ -1125,7 +1125,7 @@ jobs:
           chmod uog+x /home/runner/go/bin/*
 
       - name: Download docs (for the objects.inv.txt file to be available for the e2e tests)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: documentation
           merge-multiple: true
@@ -1324,7 +1324,7 @@ jobs:
         run: make client
 
       - name: Download built docs
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: documentation
           merge-multiple: true
