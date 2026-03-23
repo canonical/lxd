@@ -670,7 +670,12 @@ func (d *common) Update(ctx context.Context, config *api.NetworkACLPut, clientTy
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UseProject(d.projectName).UpdateNetworkACL(d.info.Name, d.info.Writable(), "")
+			op, err := client.UseProject(d.projectName).UpdateNetworkACL(d.info.Name, d.info.Writable(), "")
+			if err == nil {
+				err = op.Wait()
+			}
+
+			return err
 		})
 		if err != nil {
 			return err
