@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -371,20 +371,32 @@ func (c *cmdNetworkForwardCreate) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.networkForward.flagTarget)
 	}
 
-	err = client.CreateNetworkForward(networkName, forward)
+	op, err := client.CreateNetworkForward(networkName, forward)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
 
-	networkForwardURL, err := url.Parse(transporter.location)
-	if err != nil {
-		return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
-	}
+	// Get the listen address from the operation metadata (for auto-allocated addresses).
+	opMeta := op.Get().Metadata
+	metaAddr, ok := opMeta["listen_address"].(string)
+	if ok {
+		listenAddress = metaAddr
+	} else {
+		// Fallback to Location header for older servers.
+		networkForwardURL, err := url.Parse(transporter.location)
+		if err != nil {
+			return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
+		}
 
-	forwardURLPrefix := api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards").String()
-	_, err = fmt.Sscanf(networkForwardURL.Path, forwardURLPrefix+"/%s", &listenAddress)
-	if err != nil {
-		return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
+		forwardURLPrefix := api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards").String()
+		_, err = fmt.Sscanf(networkForwardURL.Path, forwardURLPrefix+"/%s", &listenAddress)
+		if err != nil {
+			return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
+		}
 	}
 
 	addr := net.ParseIP(listenAddress)
@@ -587,7 +599,12 @@ func (c *cmdNetworkForwardSet) run(cmd *cobra.Command, args []string) error {
 
 	writable.Normalise()
 
-	return client.UpdateNetworkForward(resource.name, forward.ListenAddress, writable, etag)
+	op, err := client.UpdateNetworkForward(resource.name, forward.ListenAddress, writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 // Unset.
@@ -739,7 +756,12 @@ func (c *cmdNetworkForwardEdit) run(cmd *cobra.Command, args []string) error {
 
 		newData.Normalise()
 
-		return client.UpdateNetworkForward(resource.name, args[1], newData.Writable(), "")
+		op, err := client.UpdateNetworkForward(resource.name, args[1], newData.Writable(), "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// Get the current config.
@@ -765,7 +787,11 @@ func (c *cmdNetworkForwardEdit) run(cmd *cobra.Command, args []string) error {
 		err = yaml.UnmarshalStrict(content, &newData)
 		if err == nil {
 			newData.Normalise()
-			err = client.UpdateNetworkForward(resource.name, args[1], newData.Writable(), etag)
+			var op lxd.Operation
+			op, err = client.UpdateNetworkForward(resource.name, args[1], newData.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor.
@@ -854,7 +880,11 @@ func (c *cmdNetworkForwardDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete the network forward.
-	err = client.DeleteNetworkForward(resource.name, args[1])
+	op, err := client.DeleteNetworkForward(resource.name, args[1])
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -970,7 +1000,12 @@ func (c *cmdNetworkForwardPort) runAdd(cmd *cobra.Command, args []string) error 
 
 	forward.Normalise()
 
-	return client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
+	op, err := client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 func (c *cmdNetworkForwardPort) commandRemove() *cobra.Command {
@@ -1096,5 +1131,10 @@ func (c *cmdNetworkForwardPort) runRemove(cmd *cobra.Command, args []string) err
 
 	forward.Normalise()
 
-	return client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
+	op, err := client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
