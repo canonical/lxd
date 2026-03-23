@@ -93,7 +93,8 @@ func NewClient(ctx context.Context, u *url.URL, username string, password string
 		}
 
 		client.client.Transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
+			TLSClientConfig:     tlsConfig,
+			TLSHandshakeTimeout: 10 * time.Second,
 		}
 	} else {
 		client.client = http.DefaultClient
