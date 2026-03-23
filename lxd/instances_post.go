@@ -940,6 +940,13 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return response.InternalError(err)
 	}
 
+	// Ensure the backup's config included in the index reflects the current state.
+	// It is used later to create the actual backup's config.
+	err = backup.UpdateInstanceConfigInPlace(s.DB.Cluster, bInfo)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed updating backup index file in place: %w", err))
+	}
+
 	// Copy reverter so far so we can use it inside run after this function has finished.
 	runRevert := revert.Clone()
 
