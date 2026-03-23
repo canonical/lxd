@@ -24,8 +24,23 @@ test_tls_restrictions() {
   lxc_remote project list localhost: | grep -wF default
   lxc_remote project list localhost: | grep -wF blah
 
+  # Confirm certificates cannot be edited to have "server" type.
+  ! lxc_remote config trust show "localhost:${FINGERPRINT}" | sed -e "s/type: client/type: server/" | lxc_remote config trust edit "localhost:${FINGERPRINT}" || false
+
   # Apply restrictions
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: false/restricted: true/" | lxc config trust edit "${FINGERPRINT}"
+
+  # Confirm restricted client cannot edit certificate type, name, restrictions, or projects.
+  ! lxc_remote config trust show "localhost:${FINGERPRINT}" | sed -e "s/type: client/type: server/" | lxc_remote config trust edit "localhost:${FINGERPRINT}" || false
+  ! lxc_remote config trust show "localhost:${FINGERPRINT}" | sed -e "s/type: client/type: metrics/" | lxc_remote config trust edit "localhost:${FINGERPRINT}" || false
+  ! lxc_remote config trust show "localhost:${FINGERPRINT}" | sed -e "s/name: foo/name: bar/" | lxc_remote config trust edit "localhost:${FINGERPRINT}" || false
+  ! lxc_remote config trust show "localhost:${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc_remote config trust edit "localhost:${FINGERPRINT}" || false
+  ! lxc_remote config trust show "localhost:${FINGERPRINT}" | sed -e "s/projects: \[\]/projects: ['default']/" | lxc_remote config trust edit "localhost:${FINGERPRINT}" || false
+  ! lxc_remote query -X PATCH "localhost:/1.0/certificates/${FINGERPRINT}" -d '{"type": "server"}' || false
+  ! lxc_remote query -X PATCH "localhost:/1.0/certificates/${FINGERPRINT}" -d '{"type": "metrics"}' || false
+  ! lxc_remote query -X PATCH "localhost:/1.0/certificates/${FINGERPRINT}" -d '{"restricted": false, "projects": []}' || false
+  ! lxc_remote query -X PATCH "localhost:/1.0/certificates/${FINGERPRINT}" -d '{"projects": ["default"]}' || false
+  ! lxc_remote query -X PATCH "localhost:/1.0/certificates/${FINGERPRINT}" -d '{"name": "bar"}' || false
 
   # Confirm client with restricted certificate cannot see server configuration.
   lxc config set user.foo bar
