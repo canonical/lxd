@@ -5376,11 +5376,10 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```
 
 ```{config:option} ceph.osd.pool_name storage-ceph-pool-conf
-:defaultdesc: "name of the pool"
+:defaultdesc: "Defaults to the LXD storage pool name if unset."
 :scope: "global"
 :shortdesc: "Name of the OSD storage pool"
 :type: "string"
-This option specifies the name of the OSD storage pool.
 The OSD storage pool gets created if missing.
 ```
 

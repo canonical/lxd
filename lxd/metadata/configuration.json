@@ -5962,8 +5962,8 @@
 					},
 					{
 						"ceph.osd.pool_name": {
-							"defaultdesc": "name of the pool",
-							"longdesc": "This option specifies the name of the OSD storage pool.\nThe OSD storage pool gets created if missing.",
+							"defaultdesc": "Defaults to the LXD storage pool name if unset.",
+							"longdesc": "The OSD storage pool gets created if missing.",
 							"scope": "global",
 							"shortdesc": "Name of the OSD storage pool",
 							"type": "string"
