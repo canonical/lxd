@@ -641,23 +641,9 @@ func internalImportFromBackup(s *state.State, bInfo *backup.Info, allowNameOverr
 		return fmt.Errorf(`The instance %q does not seem to exist on any storage pool`, instName)
 	}
 
-	// User needs to make sure that we can access the directory where backup.yaml lives.
-	instanceMountPoint := instanceMountPoints[0]
-	isEmpty, err := shared.PathIsEmpty(instanceMountPoint)
-	if err != nil {
-		return err
-	}
-
-	if isEmpty {
-		return fmt.Errorf(`The instance's directory %q appears to be empty. Please ensure that the instance's storage volume is mounted`, instanceMountPoint)
-	}
-
-	// Read in the backup.yaml file.
-	backupYamlPath := filepath.Join(instanceMountPoint, "backup.yaml")
-	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
-	if err != nil {
-		return err
-	}
+	// Use the information from the backup index.
+	// The backup config later gets persisted to disk too.
+	backupConf := bInfo.Config
 
 	if backupConf.Container == nil {
 		return fmt.Errorf("Instance definition in backup config is missing")
@@ -797,6 +783,7 @@ func internalImportFromBackup(s *state.State, bInfo *backup.Info, allowNameOverr
 		isPrivileged = true
 	}
 
+	instanceMountPoint := instanceMountPoints[0]
 	err = storagePools.CreateContainerMountpoint(instanceMountPoint, instancePath, isPrivileged)
 	if err != nil {
 		return err
