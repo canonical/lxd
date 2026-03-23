@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -970,10 +971,14 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificatePut, clientType clusterRequest.ClientType, r *http.Request) response.Response {
 	s := d.State()
 
+	if dbInfo.Type != req.Type {
+		return response.Forbidden(errors.New("The certificate type cannot be changed"))
+	}
+
 	if clientType == clusterRequest.ClientTypeNormal {
-		reqDBType, err := certificate.FromAPIType(req.Type)
+		dbInfoType, err := certificate.FromAPIType(dbInfo.Type)
 		if err != nil {
-			return response.BadRequest(err)
+			return response.SmartError(fmt.Errorf("Invalid existing certificate type: %w", err))
 		}
 
 		// Convert to the database type.
@@ -982,7 +987,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 			Fingerprint: dbInfo.Fingerprint,
 			Restricted:  req.Restricted,
 			Name:        req.Name,
-			Type:        reqDBType,
+			Type:        dbInfoType,
 		}
 
 		// Non-admins are able to change their own certificate but no other fields.
@@ -995,7 +1000,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 			}
 
 			// Ensure the user in not trying to change fields other than the certificate.
-			if dbInfo.Restricted != req.Restricted || dbInfo.Name != req.Name || len(dbInfo.Projects) != len(req.Projects) {
+			if dbInfo.Restricted != req.Restricted || dbInfo.Name != req.Name || len(dbInfo.Projects) != len(req.Projects) || dbInfo.Type != req.Type {
 				return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
 			}
 
@@ -1011,7 +1016,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 				Fingerprint: dbInfo.Fingerprint,
 				Restricted:  dbInfo.Restricted,
 				Name:        dbInfo.Name,
-				Type:        reqDBType,
+				Type:        dbInfoType,
 			}
 
 			certProjects = dbInfo.Projects
