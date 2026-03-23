@@ -1166,7 +1166,9 @@ jobs:
           set -eux
           export PATH="/home/runner/go/bin:$PATH"
           sudo chown $USER /var/lib/lxd/unix.socket
+          # Simplify PATH handling when using sudo
           sudo ln -s /home/runner/go/bin/lxc /usr/bin/lxc
+          sudo ln -s /home/runner/go/bin/lxd /usr/bin/lxd
           lxc storage create default zfs
           lxc profile device add default root disk path=/ pool=default
           lxc network create local-network
