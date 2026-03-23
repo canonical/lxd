@@ -106,19 +106,32 @@ func (r *ProtocolLXD) CreateNetworkForward(networkName string, forward api.Netwo
 }
 
 // UpdateNetworkForward updates the network forward to match the provided struct.
-func (r *ProtocolLXD) UpdateNetworkForward(networkName string, listenAddress string, forward api.NetworkForwardPut, ETag string) error {
+func (r *ProtocolLXD) UpdateNetworkForward(networkName string, listenAddress string, forward api.NetworkForwardPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("network_forward")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("networks", networkName, "forwards", listenAddress)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPut, "/networks/"+url.PathEscape(networkName)+"/forwards/"+url.PathEscape(listenAddress), forward, ETag)
-	if err != nil {
-		return err
+	err = r.CheckExtension("storage_and_network_operations")
+	if err != nil || r.isClusterOperationNotification() {
+		// Use a synchronous request when the server lacks async endpoint support
+		// or when handling a cluster operation notification.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, path.String(), forward, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, path.String(), forward, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteNetworkForward deletes an existing network forward.
