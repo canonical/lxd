@@ -984,6 +984,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		// Run the storage post hook to perform any final actions now that the instance has been created
 		// in the database (this normally includes unmounting volumes that were mounted).
+		// This also writes the backup config to disk.
 		if postHook != nil {
 			err = postHook(inst)
 			if err != nil {
