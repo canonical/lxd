@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -337,7 +338,11 @@ func (c *cmdNetworkPeerCreate) run(cmd *cobra.Command, args []string) error {
 
 	client := resource.server
 
-	err = client.CreateNetworkPeer(resource.name, peer)
+	op, err := client.CreateNetworkPeer(resource.name, peer)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
