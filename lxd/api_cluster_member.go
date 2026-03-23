@@ -772,30 +772,30 @@ func updateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Reque
 	return response.EmptySyncResponse
 }
 
-// clusterRolesChanged checks whether manual roles have changed between oldRoles and newRoles.
+// clusterRolesChanged checks whether custom roles have changed between oldRoles and newRoles.
 func clusterRolesChanged(oldRoles []db.ClusterRole, newRoles []db.ClusterRole) bool {
-	// Get manual roles to check against.
-	manualRoles := slices.Collect(maps.Values(db.ClusterRoles[db.ClusterRoleClassManual]))
+	// Get custom roles to check against.
+	customRoles := slices.Collect(maps.Values(db.ClusterRoles[db.ClusterRoleClassCustom]))
 
-	// Filter roles to only manual (user-assignable) roles.
-	newManualRoles := make([]db.ClusterRole, 0, len(newRoles))
-	oldManualRoles := make([]db.ClusterRole, 0, len(oldRoles))
+	// Filter roles to only custom (user-assignable) roles.
+	newCustomRoles := make([]db.ClusterRole, 0, len(newRoles))
+	oldCustomRoles := make([]db.ClusterRole, 0, len(oldRoles))
 
 	for _, role := range newRoles {
-		if slices.Contains(manualRoles, role) {
-			newManualRoles = append(newManualRoles, role)
+		if slices.Contains(customRoles, role) {
+			newCustomRoles = append(newCustomRoles, role)
 		}
 	}
 
 	for _, role := range oldRoles {
-		if slices.Contains(manualRoles, role) {
-			oldManualRoles = append(oldManualRoles, role)
+		if slices.Contains(customRoles, role) {
+			oldCustomRoles = append(oldCustomRoles, role)
 		}
 	}
 
 	// Sort old and new roles for comparison.
-	sortedOld := slices.Sorted(slices.Values(oldManualRoles))
-	sortedNew := slices.Sorted(slices.Values(newManualRoles))
+	sortedOld := slices.Sorted(slices.Values(oldCustomRoles))
+	sortedNew := slices.Sorted(slices.Values(newCustomRoles))
 
 	return !slices.Equal(sortedOld, sortedNew)
 }
@@ -813,7 +813,7 @@ func validateClusterMemberRoles(currentRoles []string, requestedRoles []string) 
 		return slices.Contains(slices.Collect(maps.Values(db.ClusterRoles[db.ClusterRoleClassAutomatic])), db.ClusterRole(role))
 	}
 
-	// Used to check if a role exists in either manual or automatic roles.
+	// Used to check if a role exists in either custom or automatic roles.
 	isValidRole := func(role string) bool {
 		for _, roles := range db.ClusterRoles {
 			if slices.Contains(slices.Collect(maps.Values(roles)), db.ClusterRole(role)) {
@@ -852,7 +852,7 @@ func validateClusterMemberRoles(currentRoles []string, requestedRoles []string) 
 			return nil, fmt.Errorf("Invalid cluster role %q", role)
 		}
 
-		// Manual roles are always allowed.
+		// Custom roles are always allowed.
 		if !isAutomaticRole(role) {
 			continue
 		}

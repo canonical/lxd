@@ -4489,11 +4489,11 @@ test_clustering_roles() {
   # Reject duplicate roles in request
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane,control-plane 2>&1)" = 'Error: Duplicate role "control-plane" in request' ]
 
-  # Accept valid manual role addition
+  # Accept valid custom role addition
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane"
 
-  # Accept adding multiple manual roles
+  # Accept adding multiple custom roles
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 ovn-chassis
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- ovn-chassis"
@@ -4501,7 +4501,7 @@ test_clustering_roles() {
   # Reject adding role member already has
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 control-plane 2>&1)" = 'Error: Member "node1" already has role "control-plane"' ]
 
-  # Accept removing manual role
+  # Accept removing custom role
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 control-plane
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- control-plane" || false
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF -- "- ovn-chassis"
