@@ -731,7 +731,10 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 // internalImportFromBackup creates instance, storage pool and volume DB records from an instance's backup file.
 // It expects the instance volume to be mounted so that the backup.yaml file is readable.
 // Also accepts an optional map of device overrides.
-func internalImportFromBackup(ctx context.Context, s *state.State, projectName string, instName string, allowNameOverride bool, deviceOverrides map[string]map[string]string) error {
+func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup.Info, allowNameOverride bool, deviceOverrides map[string]map[string]string) error {
+	projectName := bInfo.Project
+	instName := bInfo.Name
+
 	if instName == "" {
 		return errors.New("The name of the instance is required")
 	}

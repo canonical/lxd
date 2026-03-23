@@ -969,7 +969,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		runRevert.Add(revertHook)
 
-		err = internalImportFromBackup(ctx, s, bInfo.Project, bInfo.Name, instanceName != "", devices)
+		err = internalImportFromBackup(ctx, s, bInfo, instanceName != "", devices)
 		if err != nil {
 			return fmt.Errorf("Failed importing backup: %w", err)
 		}
