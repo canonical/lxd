@@ -3293,13 +3293,6 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 		return err
 	}
 
-	// Ensure the backup file reflects current config.
-	// Use the version requested by the caller to write the correct backup file format.
-	err = b.UpdateInstanceBackupFile(inst, snapshots, version, op)
-	if err != nil {
-		return err
-	}
-
 	var snapNames []string
 	var sourceSnapshots []drivers.Volume
 	if snapshots {
