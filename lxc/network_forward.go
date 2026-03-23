@@ -395,20 +395,32 @@ func (c *cmdNetworkForwardCreate) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.networkForward.flagTarget)
 	}
 
-	err = client.CreateNetworkForward(networkName, forward)
+	op, err := client.CreateNetworkForward(networkName, forward)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
 
-	networkForwardURL, err := url.Parse(transporter.location)
-	if err != nil {
-		return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
-	}
+	// Get the listen address from the operation metadata (for auto-allocated addresses).
+	opMeta := op.Get().Metadata
+	metaAddr, ok := opMeta["listen_address"].(string)
+	if ok {
+		listenAddress = metaAddr
+	} else {
+		// Fallback to Location header for older servers.
+		networkForwardURL, err := url.Parse(transporter.location)
+		if err != nil {
+			return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
+		}
 
-	forwardURLPrefix := api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards").String()
-	_, err = fmt.Sscanf(networkForwardURL.Path, forwardURLPrefix+"/%s", &listenAddress)
-	if err != nil {
-		return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
+		forwardURLPrefix := api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards").String()
+		_, err = fmt.Sscanf(networkForwardURL.Path, forwardURLPrefix+"/%s", &listenAddress)
+		if err != nil {
+			return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
+		}
 	}
 
 	addr := net.ParseIP(listenAddress)
@@ -994,7 +1006,12 @@ func (c *cmdNetworkForwardPort) runAdd(cmd *cobra.Command, args []string) error 
 
 	forward.Normalise()
 
-	return client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
+	op, err := client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 func (c *cmdNetworkForwardPort) commandRemove() *cobra.Command {
