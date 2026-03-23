@@ -789,7 +789,11 @@ func (c *cmdNetworkPeerDelete) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Delete the network peer.
-	err = client.DeleteNetworkPeer(resource.name, args[1])
+	op, err := client.DeleteNetworkPeer(resource.name, args[1])
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
