@@ -1242,9 +1242,9 @@ test_backup_metadata() {
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
   [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "${highest_version}" ]
-  [ "$(yq '.config.volumes | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq '.config.volumes | length' < "${tmpDir}/backup/index.yaml")" = "2" ]
   [ "$(yq '.config.volumes.[0].snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq '.config.pools | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq '.config.pools | length' < "${tmpDir}/backup/index.yaml")" = "2" ]
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/c1.tar.gz"
 
