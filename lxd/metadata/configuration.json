@@ -7480,6 +7480,15 @@
 						}
 					},
 					{
+						"zfs.promote": {
+							"defaultdesc": "false",
+							"longdesc": "This option controls whether to promote the ZFS dataset at volume create/refresh time.\nWhen enabled, if the source volume is a clone, the new volume will be promoted to be a parent.",
+							"scope": "global",
+							"shortdesc": "Whether to promote the ZFS dataset",
+							"type": "bool"
+						}
+					},
+					{
 						"zfs.remove_snapshots": {
 							"defaultdesc": "same as `volume.zfs.remove_snapshots` or `false`",
 							"longdesc": "",

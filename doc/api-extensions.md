@@ -3018,3 +3018,11 @@ Adds a `recursion=2` mode to `GET /1.0/operations`, enabling retrieval of parent
 
 Starting with this extension, if the {config:option}`server-miscellaneous:network.ovn.northbound_connection` server configuration is not specified, LXD dynamically determines the OVN Northbound database connection string based on the environment.
 If the MicroOVN snap is used, LXD reads the configuration from the MicroOVN `ovn.env` file. Otherwise, it defaults to using the `unix:/var/run/ovn/ovnnb_db.sock` socket.
+
+## `storage_zfs_promote`
+
+A {config:option}`storage-zfs-volume-conf:zfs.promote` configuration key was introduced.
+
+It's a Boolean that defaults to `false` and that when set to `true` instructs LXD to ZFS promote the volume being created (or re-created) from a clone.
+
+This is primarily useful when combined with the `initial.` `disk` device configuration options, as it allows controlling ZFS promotion when creating instances from other instances.

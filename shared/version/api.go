@@ -482,6 +482,7 @@ var APIExtensions = []string{
 	"storage_ceph_use_rbd_defaults",
 	"bulk_operations",
 	"ovn_dynamic_northbound_connection",
+	"storage_zfs_promote",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -6817,6 +6817,15 @@ container or containers that use it. When used in conjunction with
 using the `zfs` command in the container.
 ```
 
+```{config:option} zfs.promote storage-zfs-volume-conf
+:defaultdesc: "false"
+:scope: "global"
+:shortdesc: "Whether to promote the ZFS dataset"
+:type: "bool"
+This option controls whether to promote the ZFS dataset at volume create/refresh time.
+When enabled, if the source volume is a clone, the new volume will be promoted to be a parent.
+```
+
 ```{config:option} zfs.remove_snapshots storage-zfs-volume-conf
 :defaultdesc: "same as `volume.zfs.remove_snapshots` or `false`"
 :scope: "global"
