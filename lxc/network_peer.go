@@ -546,7 +546,12 @@ func (c *cmdNetworkPeerSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	return client.UpdateNetworkPeer(resource.name, peer.Name, writable, etag)
+	op, err := client.UpdateNetworkPeer(resource.name, peer.Name, writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 // Unset.
@@ -682,7 +687,12 @@ func (c *cmdNetworkPeerEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return client.UpdateNetworkPeer(resource.name, args[1], newData.Writable(), "")
+		op, err := client.UpdateNetworkPeer(resource.name, args[1], newData.Writable(), "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// Get the current config.
@@ -707,7 +717,11 @@ func (c *cmdNetworkPeerEdit) run(cmd *cobra.Command, args []string) error {
 		newData := api.NetworkPeer{} // We show the full info, but only send the writable fields.
 		err = yaml.UnmarshalStrict(content, &newData)
 		if err == nil {
-			err = client.UpdateNetworkPeer(resource.name, args[1], newData.Writable(), etag)
+			var op lxd.Operation
+			op, err = client.UpdateNetworkPeer(resource.name, args[1], newData.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor.
