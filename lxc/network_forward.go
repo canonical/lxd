@@ -890,7 +890,11 @@ func (c *cmdNetworkForwardDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete the network forward.
-	err = client.DeleteNetworkForward(resource.name, args[1])
+	op, err := client.DeleteNetworkForward(resource.name, args[1])
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -1137,5 +1141,10 @@ func (c *cmdNetworkForwardPort) runRemove(cmd *cobra.Command, args []string) err
 
 	forward.Normalise()
 
-	return client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
+	op, err := client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
