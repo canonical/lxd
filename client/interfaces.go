@@ -221,7 +221,7 @@ type InstanceServer interface {
 	GetNetworkPeers(networkName string) ([]api.NetworkPeer, error)
 	GetNetworkPeer(networkName string, peerName string) (peer *api.NetworkPeer, ETag string, err error)
 	CreateNetworkPeer(networkName string, peer api.NetworkPeersPost) (op Operation, err error)
-	UpdateNetworkPeer(networkName string, peerName string, peer api.NetworkPeerPut, ETag string) (err error)
+	UpdateNetworkPeer(networkName string, peerName string, peer api.NetworkPeerPut, ETag string) (op Operation, err error)
 	DeleteNetworkPeer(networkName string, peerName string) (op Operation, err error)
 
 	// Network ACL functions ("network_acl" API extension)

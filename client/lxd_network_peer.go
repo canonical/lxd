@@ -91,19 +91,31 @@ func (r *ProtocolLXD) CreateNetworkPeer(networkName string, peer api.NetworkPeer
 }
 
 // UpdateNetworkPeer updates the network peer to match the provided struct.
-func (r *ProtocolLXD) UpdateNetworkPeer(networkName string, peerName string, peer api.NetworkPeerPut, ETag string) error {
+func (r *ProtocolLXD) UpdateNetworkPeer(networkName string, peerName string, peer api.NetworkPeerPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("network_peer")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("networks", networkName, "peers", peerName)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPut, "/networks/"+url.PathEscape(networkName)+"/peers/"+url.PathEscape(peerName), peer, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, path.String(), peer, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, path.String(), peer, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteNetworkPeer deletes an existing network peer.
