@@ -82,9 +82,9 @@ func (r *ProtocolLXD) GetStoragePoolBucket(poolName string, bucketName string) (
 }
 
 // CreateStoragePoolBucket defines a new storage bucket using the provided struct.
-// If the server supports storage_buckets_create_credentials API extension, then this function will return the
-// initial admin credentials. Otherwise it will be nil.
-func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) (*api.StorageBucketKey, error) {
+// If the server supports the storage_buckets_create_credentials API extension, the initial admin credentials
+// are included in the returned operation's metadata under the "key" field.
+func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
 		return nil, err
@@ -92,57 +92,92 @@ func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.Storag
 
 	u := api.NewURL().Path("storage-pools", poolName, "buckets")
 
-	// Send the request and get the resulting key info (including generated keys).
-	if r.CheckExtension("storage_buckets_create_credentials") == nil {
-		var newKey api.StorageBucketKey
-		_, err = r.queryStruct(http.MethodPost, u.String(), bucket, "", &newKey)
-		if err != nil {
-			return nil, err
-		}
+	var op Operation
 
-		return &newKey, nil
+	// Send the request.
+	err = r.CheckExtension("storage_and_network_operations")
+	if err == nil {
+		op, _, err = r.queryOperation(http.MethodPost, u.String(), bucket, "", true)
+	} else {
+		// Fallback to older behavior without operations.
+		// When the server supports storage_buckets_create_credentials, decode the
+		// admin credentials from the response body and attach them to the noop
+		// operation's metadata so callers can retrieve them the same way.
+		if r.CheckExtension("storage_buckets_create_credentials") == nil {
+			var newKey api.StorageBucketKey
+			_, err = r.queryStruct(http.MethodPost, u.String(), bucket, "", &newKey)
+			if err != nil {
+				return nil, err
+			}
+
+			op = noopOperation{metadata: map[string]any{"key": newKey}}
+		} else {
+			op = noopOperation{}
+			_, _, err = r.query(http.MethodPost, u.String(), bucket, "")
+		}
 	}
 
-	_, _, err = r.query(http.MethodPost, u.String(), bucket, "")
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	return op, nil
 }
 
 // UpdateStoragePoolBucket updates the storage bucket to match the provided struct.
-func (r *ProtocolLXD) UpdateStoragePoolBucket(poolName string, bucketName string, bucket api.StorageBucketPut, ETag string) error {
+func (r *ProtocolLXD) UpdateStoragePoolBucket(poolName string, bucketName string, bucket api.StorageBucketPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName)
+
+	var op Operation
 
 	// Send the request.
-	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName)
-	_, _, err = r.query(http.MethodPut, u.String(), bucket, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, u.String(), bucket, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, u.String(), bucket, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteStoragePoolBucket deletes an existing storage bucket.
-func (r *ProtocolLXD) DeleteStoragePoolBucket(poolName string, bucketName string) error {
+func (r *ProtocolLXD) DeleteStoragePoolBucket(poolName string, bucketName string) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName)
+
+	var op Operation
 
 	// Send the request.
-	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName)
-	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, u.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // GetStoragePoolBucketKeyNames returns a list of storage bucket key names.
@@ -203,53 +238,93 @@ func (r *ProtocolLXD) GetStoragePoolBucketKey(poolName string, bucketName string
 }
 
 // CreateStoragePoolBucketKey adds a key to a storage bucket.
-func (r *ProtocolLXD) CreateStoragePoolBucketKey(poolName string, bucketName string, key api.StorageBucketKeysPost) (*api.StorageBucketKey, error) {
+// The generated key credentials are included in the returned operation's metadata under the "key" field.
+func (r *ProtocolLXD) CreateStoragePoolBucketKey(poolName string, bucketName string, key api.StorageBucketKeysPost) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
 		return nil, err
 	}
 
-	// Send the request and get the resulting key info (including generated keys).
-	var newKey api.StorageBucketKey
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys")
-	_, err = r.queryStruct(http.MethodPost, u.String(), key, "", &newKey)
+
+	var op Operation
+
+	// Send the request.
+	err = r.CheckExtension("storage_and_network_operations")
+	if err == nil {
+		op, _, err = r.queryOperation(http.MethodPost, u.String(), key, "", true)
+	} else {
+		// Fallback to older behavior without operations.
+		// Decode the key credentials from the response body and attach them to the
+		// noop operation's metadata so callers can retrieve them consistently.
+		var newKey api.StorageBucketKey
+		_, err = r.queryStruct(http.MethodPost, u.String(), key, "", &newKey)
+		if err != nil {
+			return nil, err
+		}
+
+		op = noopOperation{metadata: map[string]any{"key": newKey}}
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	return &newKey, err
+	return op, nil
 }
 
 // UpdateStoragePoolBucketKey updates an existing storage bucket key.
-func (r *ProtocolLXD) UpdateStoragePoolBucketKey(poolName string, bucketName string, keyName string, key api.StorageBucketKeyPut, ETag string) error {
+func (r *ProtocolLXD) UpdateStoragePoolBucketKey(poolName string, bucketName string, keyName string, key api.StorageBucketKeyPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
+
+	var op Operation
 
 	// Send the request.
-	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
-	_, _, err = r.query(http.MethodPut, u.String(), key, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, u.String(), key, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, u.String(), key, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteStoragePoolBucketKey removes a key from a storage bucket.
-func (r *ProtocolLXD) DeleteStoragePoolBucketKey(poolName string, bucketName string, keyName string) error {
+func (r *ProtocolLXD) DeleteStoragePoolBucketKey(poolName string, bucketName string, keyName string) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
+
+	var op Operation
 
 	// Send the request.
-	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
-	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, u.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
