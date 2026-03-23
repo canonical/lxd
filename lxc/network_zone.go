@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -508,7 +509,12 @@ func (c *cmdNetworkZoneSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	return resource.server.UpdateNetworkZone(resource.name, writable, etag)
+	op, err := resource.server.UpdateNetworkZone(resource.name, writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 // Unset.
@@ -630,7 +636,12 @@ func (c *cmdNetworkZoneEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return resource.server.UpdateNetworkZone(resource.name, newdata.Writable(), "")
+		op, err := resource.server.UpdateNetworkZone(resource.name, newdata.Writable(), "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// Get the current config.
@@ -655,7 +666,11 @@ func (c *cmdNetworkZoneEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.NetworkZone{} // We show the full Zone info, but only send the writable fields.
 		err = yaml.UnmarshalStrict(content, &newdata)
 		if err == nil {
-			err = resource.server.UpdateNetworkZone(resource.name, newdata.Writable(), etag)
+			var op lxd.Operation
+			op, err = resource.server.UpdateNetworkZone(resource.name, newdata.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor.
