@@ -381,7 +381,9 @@ func (op *remoteOperation) Wait() error {
 // noopOperation represents a non-operation LXD response as an operation. This is mainly used for endpoints
 // were initially synchronous but later changed to asynchronous and are still supposed to return an operation
 // but don't actually perform any asynchronous processing.
-type noopOperation struct{}
+type noopOperation struct {
+	metadata map[string]any
+}
 
 // Get returns an empty API operation struct.
 func (op noopOperation) Get() api.Operation {
@@ -390,6 +392,7 @@ func (op noopOperation) Get() api.Operation {
 		Class:      api.OperationClassTask,
 		Status:     "OK",
 		StatusCode: api.Success,
+		Metadata:   op.metadata,
 	}
 }
 
