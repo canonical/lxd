@@ -600,7 +600,12 @@ func (c *cmdNetworkLoadBalancerSet) run(cmd *cobra.Command, args []string) error
 
 	writable.Normalise()
 
-	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, writable, etag)
+	op, err := client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 // Unset.
@@ -736,7 +741,12 @@ func (c *cmdNetworkLoadBalancerEdit) run(cmd *cobra.Command, args []string) erro
 
 		newData.Normalise()
 
-		return client.UpdateNetworkLoadBalancer(resource.name, args[1], newData.Writable(), "")
+		op, err := client.UpdateNetworkLoadBalancer(resource.name, args[1], newData.Writable(), "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// Get the current config.
@@ -762,7 +772,11 @@ func (c *cmdNetworkLoadBalancerEdit) run(cmd *cobra.Command, args []string) erro
 		err = yaml.UnmarshalStrict(content, &newData)
 		if err == nil {
 			newData.Normalise()
-			err = client.UpdateNetworkLoadBalancer(resource.name, args[1], newData.Writable(), etag)
+			var op lxd.Operation
+			op, err = client.UpdateNetworkLoadBalancer(resource.name, args[1], newData.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor.
