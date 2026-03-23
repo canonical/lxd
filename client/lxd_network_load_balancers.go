@@ -107,20 +107,32 @@ func (r *ProtocolLXD) CreateNetworkLoadBalancer(networkName string, loadBalancer
 }
 
 // UpdateNetworkLoadBalancer updates the network load balancer to match the provided struct.
-func (r *ProtocolLXD) UpdateNetworkLoadBalancer(networkName string, listenAddress string, loadBalancer api.NetworkLoadBalancerPut, ETag string) error {
+func (r *ProtocolLXD) UpdateNetworkLoadBalancer(networkName string, listenAddress string, loadBalancer api.NetworkLoadBalancerPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("network_load_balancer")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	u := api.NewURL().Path("networks", networkName, "load-balancers", listenAddress)
+
+	var op Operation
 
 	// Send the request.
-	u := api.NewURL().Path("networks", networkName, "load-balancers", listenAddress)
-	_, _, err = r.query(http.MethodPut, u.String(), loadBalancer, ETag)
-	if err != nil {
-		return err
+	err = r.CheckExtension("storage_and_network_operations")
+	if err != nil || r.isClusterOperationNotification() {
+		// Use a synchronous request when the server lacks async endpoint support
+		// or when handling a cluster operation notification.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, u.String(), loadBalancer, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, u.String(), loadBalancer, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteNetworkLoadBalancer deletes an existing network load balancer.
