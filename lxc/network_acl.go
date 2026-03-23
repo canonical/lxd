@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -453,7 +454,11 @@ func (c *cmdNetworkACLCreate) run(cmd *cobra.Command, args []string) error {
 		acl.Config[entry[0]] = entry[1]
 	}
 
-	err = resource.server.CreateNetworkACL(acl)
+	op, err := resource.server.CreateNetworkACL(acl)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -546,7 +551,12 @@ func (c *cmdNetworkACLSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	return resource.server.UpdateNetworkACL(resource.name, writable, etag)
+	op, err := resource.server.UpdateNetworkACL(resource.name, writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 // Unset.
@@ -680,7 +690,12 @@ func (c *cmdNetworkACLEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return resource.server.UpdateNetworkACL(resource.name, newdata.Writable(), "")
+		op, err := resource.server.UpdateNetworkACL(resource.name, newdata.Writable(), "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// Get the current config.
@@ -705,7 +720,11 @@ func (c *cmdNetworkACLEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.NetworkACL{} // We show the full ACL info, but only send the writable fields.
 		err = yaml.UnmarshalStrict(content, &newdata)
 		if err == nil {
-			err = resource.server.UpdateNetworkACL(resource.name, newdata.Writable(), etag)
+			var op lxd.Operation
+			op, err = resource.server.UpdateNetworkACL(resource.name, newdata.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor.
@@ -777,7 +796,11 @@ func (c *cmdNetworkACLRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Rename the network.
-	err = resource.server.RenameNetworkACL(resource.name, api.NetworkACLPost{Name: args[1]})
+	op, err := resource.server.RenameNetworkACL(resource.name, api.NetworkACLPost{Name: args[1]})
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -834,7 +857,11 @@ func (c *cmdNetworkACLDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete the network ACL.
-	err = resource.server.DeleteNetworkACL(resource.name)
+	op, err := resource.server.DeleteNetworkACL(resource.name)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -1003,7 +1030,12 @@ func (c *cmdNetworkACLRule) runAdd(cmd *cobra.Command, args []string) error {
 		return errors.New("The direction argument must be one of: ingress, egress")
 	}
 
-	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
+	op, err := resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 func (c *cmdNetworkACLRule) commandRemove() *cobra.Command {
@@ -1142,5 +1174,10 @@ func (c *cmdNetworkACLRule) runRemove(cmd *cobra.Command, args []string) error {
 		return errors.New("The direction argument must be one of: ingress, egress")
 	}
 
-	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
+	op, err := resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
