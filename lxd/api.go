@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
-	"os"
 	"slices"
 	"strings"
 	"time"
@@ -17,190 +15,17 @@ import (
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 )
 
-// swagger:operation GET / server api_get
-//
-//	Get the supported API endpoints
-//
-//	Returns a list of supported API versions (URLs).
-//
-//	Internal API endpoints are not reported as those aren't versioned and
-//	should only be used by LXD itself.
-//
-//	---
-//	produces:
-//	  - application/json
-//	responses:
-//	  "200":
-//	    description: API endpoints
-//	    schema:
-//	      type: object
-//	      description: Sync response
-//	      properties:
-//	        type:
-//	          type: string
-//	          description: Response type
-//	          example: sync
-//	        status:
-//	          type: string
-//	          description: Status description
-//	          example: Success
-//	        status_code:
-//	          type: integer
-//	          description: Status code
-//	          example: 200
-//	        metadata:
-//	          type: array
-//	          description: List of endpoints
-//	          items:
-//	            type: string
-//	          example: ["/1.0"]
 func restServer(d *Daemon) *http.Server {
 	/* Setup the web server */
 	mux := mux.NewRouter()
 	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
 	mux.SkipClean(true)
 	mux.UseEncodedPath() // Allow encoded values in path segments.
-
-	const errorMessage = `<html><title>The UI is not enabled</title><body><p>The UI is not enabled. For instructions to enable it check: <a href="https://documentation.ubuntu.com/lxd/latest/howto/access_ui/">How to access the LXD web UI</a></p></body></html>`
-
-	uiPath := os.Getenv("LXD_UI")
-	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
-	if uiEnabled {
-		uiHTTPDir := uiHTTPDir{http.Dir(uiPath)}
-
-		// Serve the LXD user interface.
-		uiHandler := http.StripPrefix("/ui/", http.FileServer(uiHTTPDir))
-
-		// Set security headers
-		uiHandlerWithSecurity := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Disables the FLoC (Federated Learning of Cohorts) feature on the browser,
-			// preventing the current page from being included in the user's FLoC calculation.
-			// FLoC is a proposed replacement for third-party cookies to enable interest-based advertising.
-			w.Header().Set("Permissions-Policy", "interest-cohort=()")
-			// Prevents the browser from trying to guess the MIME type, which can have security implications.
-			// This tells the browser to strictly follow the MIME type provided in the Content-Type header.
-			w.Header().Set("X-Content-Type-Options", "nosniff")
-			// Restricts the page from being displayed in a frame, iframe, or object to avoid click jacking attacks,
-			// but allows it if the site is navigating to the same origin.
-			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
-			// Sets the Content Security Policy (CSP) for the page, which helps mitigate XSS attacks and data injection attacks.
-			// The policy allows loading resources (scripts, styles, images, etc.) only from the same origin ('self'), data URLs, and a restrictive list of domains.
-			w.Header().Set("Content-Security-Policy", "default-src 'self' data: https://assets.ubuntu.com https://cloud-images.ubuntu.com https://images.lxd.canonical.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
-			// Prevents the browser from sending referrer information when navigating away from the page.
-			w.Header().Set("Referrer-Policy", "no-referrer")
-
-			uiHandler.ServeHTTP(w, r)
-		})
-
-		mux.PathPrefix("/ui/").Handler(uiHandlerWithSecurity)
-		mux.HandleFunc("/ui", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
-		})
-	} else {
-		uiHandlerErrorUINotEnabled := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_, err := fmt.Fprint(w, errorMessage)
-			if err != nil {
-				logger.Warn("Failed sending error message to client", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr, "err": err})
-			}
-		})
-		mux.PathPrefix("/ui").Handler(uiHandlerErrorUINotEnabled)
-	}
-
-	// Serving the LXD documentation.
-	documentationPath := os.Getenv("LXD_DOCUMENTATION")
-	docEnabled := documentationPath != "" && shared.PathExists(documentationPath)
-	if docEnabled {
-		documentationHTTPDir := documentationHTTPDir{http.Dir(documentationPath)}
-
-		// Serve the LXD documentation.
-		documentationHandler := http.StripPrefix("/documentation/", http.FileServer(documentationHTTPDir))
-
-		// Set security headers
-		documentationHandlerWithSecurity := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Permissions-Policy", "interest-cohort=()")
-			w.Header().Set("X-Content-Type-Options", "nosniff")
-			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
-			w.Header().Set("Referrer-Policy", "no-referrer")
-
-			documentationHandler.ServeHTTP(w, r)
-		})
-
-		mux.PathPrefix("/documentation/").Handler(documentationHandlerWithSecurity)
-		mux.HandleFunc("/documentation", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/documentation/", http.StatusMovedPermanently)
-		})
-	}
-
-	// OIDC browser login (code flow).
-	mux.HandleFunc("/oidc/login", func(w http.ResponseWriter, r *http.Request) {
-		if d.oidcVerifier == nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		d.oidcVerifier.Login(w, r)
-	})
-
-	mux.HandleFunc("/oidc/callback", func(w http.ResponseWriter, r *http.Request) {
-		if d.oidcVerifier == nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		d.oidcVerifier.Callback(w, r)
-	})
-
-	mux.HandleFunc("/oidc/logout", func(w http.ResponseWriter, r *http.Request) {
-		if d.oidcVerifier == nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		d.oidcVerifier.Logout(w, r)
-	})
-
-	mux.HandleFunc("/bearer/logout", func(w http.ResponseWriter, r *http.Request) {
-		http.SetCookie(w, &http.Cookie{
-			Name:     bearer.CookieNameSession,
-			Value:    "",
-			Path:     "/",
-			Secure:   true,
-			HttpOnly: true,
-			SameSite: http.SameSiteStrictMode,
-
-			// Expire the cookie to instruct the browser to delete it.
-			MaxAge:  -1,
-			Expires: time.Unix(0, 0),
-		})
-
-		w.Header().Set("Cache-Control", "no-store")
-		http.Redirect(w, r, "/ui/login", http.StatusFound)
-	})
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if isBrowserClient(r) {
-			err := handleUIAccessLink(w, r, d.globalConfig.ClusterUUID(), d.identityCache)
-			if err != nil {
-				http.Redirect(w, r, "/ui/?initial-access-link-invalid", http.StatusFound)
-				return
-			}
-
-			http.Redirect(w, r, "/ui/", http.StatusFound)
-			return
-		}
-
-		// Normal client handling.
-		w.Header().Set("Content-Type", "application/json")
-		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
-	})
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
 		mux.HandleFunc(endpoint, f)
@@ -229,7 +54,7 @@ func restServer(d *Daemon) *http.Server {
 		d.createCmd(mux, "internal", c)
 	}
 
-	for _, c := range apiACME {
+	for _, c := range apiRoot {
 		d.createCmd(mux, "", c)
 	}
 
@@ -370,32 +195,4 @@ func handleUIAccessLink(w http.ResponseWriter, r *http.Request, clusterUUID stri
 	w.Header().Set("Referrer-Policy", "no-referrer")
 
 	return nil
-}
-
-type uiHTTPDir struct {
-	http.FileSystem
-}
-
-// Open opens the HTTP server for the user interface files.
-func (fs uiHTTPDir) Open(name string) (http.File, error) {
-	fsFile, err := fs.FileSystem.Open(name)
-	if err != nil && os.IsNotExist(err) {
-		return fs.FileSystem.Open("index.html")
-	}
-
-	return fsFile, err
-}
-
-type documentationHTTPDir struct {
-	http.FileSystem
-}
-
-// Open opens the HTTP server for the documentation files.
-func (fs documentationHTTPDir) Open(name string) (http.File, error) {
-	fsFile, err := fs.FileSystem.Open(name)
-	if err != nil && os.IsNotExist(err) {
-		return fs.FileSystem.Open("index.html")
-	}
-
-	return fsFile, err
 }

@@ -19,16 +19,6 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-var apiACME = []APIEndpoint{
-	acmeChallengeCmd,
-}
-
-var acmeChallengeCmd = APIEndpoint{
-	Path: ".well-known/acme-challenge/{token}",
-
-	Get: APIEndpointAction{Handler: acmeProvideChallenge, AllowUntrusted: true},
-}
-
 func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
