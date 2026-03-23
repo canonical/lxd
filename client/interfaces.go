@@ -206,7 +206,7 @@ type InstanceServer interface {
 	GetNetworkForward(networkName string, listenAddress string) (forward *api.NetworkForward, ETag string, err error)
 	CreateNetworkForward(networkName string, forward api.NetworkForwardsPost) (op Operation, err error)
 	UpdateNetworkForward(networkName string, listenAddress string, forward api.NetworkForwardPut, ETag string) (err error)
-	DeleteNetworkForward(networkName string, listenAddress string) (err error)
+	DeleteNetworkForward(networkName string, listenAddress string) (op Operation, err error)
 
 	// Network load balancer functions ("network_load_balancer" API extension)
 	GetNetworkLoadBalancerAddresses(networkName string) ([]string, error)
