@@ -100,6 +100,7 @@ readonly test_group_image=(
 )
 
 readonly test_group_network=(
+    "bgp"
     "container_devices_infiniband_physical"
     "container_devices_infiniband_sriov"
     "container_devices_nic_bridged"
