@@ -5059,7 +5059,12 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UseProject(n.project).CreateNetworkForward(n.name, forward)
+			op, err := client.UseProject(n.project).CreateNetworkForward(n.name, forward)
+			if err == nil {
+				err = op.Wait()
+			}
+
+			return err
 		})
 		if err != nil {
 			return nil, err
@@ -5164,7 +5169,12 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UseProject(n.project).UpdateNetworkForward(n.name, curForward.ListenAddress, req, "")
+			op, err := client.UseProject(n.project).UpdateNetworkForward(n.name, curForward.ListenAddress, req, "")
+			if err == nil {
+				err = op.Wait()
+			}
+
+			return err
 		})
 		if err != nil {
 			return err
@@ -5224,7 +5234,12 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UseProject(n.project).DeleteNetworkForward(n.name, forward.ListenAddress)
+			op, err := client.UseProject(n.project).DeleteNetworkForward(n.name, forward.ListenAddress)
+			if err == nil {
+				err = op.Wait()
+			}
+
+			return err
 		})
 		if err != nil {
 			return err
