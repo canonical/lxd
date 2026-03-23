@@ -82,51 +82,85 @@ func (r *ProtocolLXD) GetNetworkZone(name string) (*api.NetworkZone, string, err
 }
 
 // CreateNetworkZone defines a new Network zone using the provided struct.
-func (r *ProtocolLXD) CreateNetworkZone(zone api.NetworkZonesPost) error {
+func (r *ProtocolLXD) CreateNetworkZone(zone api.NetworkZonesPost) (Operation, error) {
 	err := r.CheckExtension("network_dns")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPost, "/network-zones", zone, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, "/network-zones", zone, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, "/network-zones", zone, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // UpdateNetworkZone updates the network zone to match the provided struct.
-func (r *ProtocolLXD) UpdateNetworkZone(name string, zone api.NetworkZonePut, ETag string) error {
+func (r *ProtocolLXD) UpdateNetworkZone(name string, zone api.NetworkZonePut, ETag string) (Operation, error) {
 	err := r.CheckExtension("network_dns")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-zones", name)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPut, "/network-zones/"+url.PathEscape(name), zone, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, path.String(), zone, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, path.String(), zone, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteNetworkZone deletes an existing network zone.
-func (r *ProtocolLXD) DeleteNetworkZone(name string) error {
+func (r *ProtocolLXD) DeleteNetworkZone(name string) (Operation, error) {
 	err := r.CheckExtension("network_dns")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-zones", name)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodDelete, "/network-zones/"+url.PathEscape(name), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, path.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // GetNetworkZoneRecordNames returns a list of network zone record names.
@@ -185,49 +219,85 @@ func (r *ProtocolLXD) GetNetworkZoneRecord(zone string, name string) (*api.Netwo
 }
 
 // CreateNetworkZoneRecord defines a new Network zone record using the provided struct.
-func (r *ProtocolLXD) CreateNetworkZoneRecord(zone string, record api.NetworkZoneRecordsPost) error {
+func (r *ProtocolLXD) CreateNetworkZoneRecord(zone string, record api.NetworkZoneRecordsPost) (Operation, error) {
 	err := r.CheckExtension("network_dns_records")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-zones", zone, "records")
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPost, fmt.Sprintf("/network-zones/%s/records", url.PathEscape(zone)), record, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, path.String(), record, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, path.String(), record, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // UpdateNetworkZoneRecord updates the network zone record to match the provided struct.
-func (r *ProtocolLXD) UpdateNetworkZoneRecord(zone string, name string, record api.NetworkZoneRecordPut, ETag string) error {
+func (r *ProtocolLXD) UpdateNetworkZoneRecord(zone string, name string, record api.NetworkZoneRecordPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("network_dns_records")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-zones", zone, "records", name)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPut, fmt.Sprintf("/network-zones/%s/records/%s", url.PathEscape(zone), url.PathEscape(name)), record, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, path.String(), record, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, path.String(), record, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteNetworkZoneRecord deletes an existing network zone record.
-func (r *ProtocolLXD) DeleteNetworkZoneRecord(zone string, name string) error {
+func (r *ProtocolLXD) DeleteNetworkZoneRecord(zone string, name string) (Operation, error) {
 	err := r.CheckExtension("network_dns_records")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-zones", zone, "records", name)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodDelete, fmt.Sprintf("/network-zones/%s/records/%s", url.PathEscape(zone), url.PathEscape(name)), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, path.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
