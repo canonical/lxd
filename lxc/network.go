@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -384,7 +385,11 @@ func (c *cmdNetworkCreate) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.network.flagTarget)
 	}
 
-	err = client.CreateNetwork(network)
+	op, err := client.CreateNetwork(network)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -446,7 +451,11 @@ func (c *cmdNetworkDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete the network
-	err = resource.server.DeleteNetwork(resource.name)
+	op, err := resource.server.DeleteNetwork(resource.name)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -726,7 +735,12 @@ func (c *cmdNetworkEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return resource.server.UpdateNetwork(resource.name, newdata, "")
+		op, err := resource.server.UpdateNetwork(resource.name, newdata, "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// Extract the current value
@@ -755,7 +769,11 @@ func (c *cmdNetworkEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.NetworkPut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = resource.server.UpdateNetwork(resource.name, newdata, etag)
+			var op lxd.Operation
+			op, err = resource.server.UpdateNetwork(resource.name, newdata, etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor
@@ -1242,7 +1260,11 @@ func (c *cmdNetworkRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Rename the network
-	err = resource.server.RenameNetwork(resource.name, api.NetworkPost{Name: args[1]})
+	op, err := resource.server.RenameNetwork(resource.name, api.NetworkPost{Name: args[1]})
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -1346,7 +1368,12 @@ func (c *cmdNetworkSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	return client.UpdateNetwork(resource.name, writable, etag)
+	op, err := client.UpdateNetwork(resource.name, writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 // Show.
