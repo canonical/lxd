@@ -66,64 +66,97 @@ func (r *ProtocolLXD) GetNetworkLoadBalancer(networkName string, listenAddress s
 }
 
 // CreateNetworkLoadBalancer defines a new network load balancer using the provided struct.
-func (r *ProtocolLXD) CreateNetworkLoadBalancer(networkName string, loadBalancer api.NetworkLoadBalancersPost) error {
+func (r *ProtocolLXD) CreateNetworkLoadBalancer(networkName string, loadBalancer api.NetworkLoadBalancersPost) (Operation, error) {
 	err := r.CheckExtension("network_load_balancer")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	listenAddressIP := net.ParseIP(loadBalancer.ListenAddress)
 	if listenAddressIP == nil {
-		return fmt.Errorf("Invalid network load balancer listen address: %s", loadBalancer.ListenAddress)
+		return nil, fmt.Errorf("Invalid network load balancer listen address: %s", loadBalancer.ListenAddress)
 	}
 
 	if listenAddressIP.IsUnspecified() {
 		err := r.CheckExtension("network_allocate_external_ips")
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	// Send the request.
 	u := api.NewURL().Path("networks", networkName, "load-balancers")
-	_, _, err = r.query(http.MethodPost, u.String(), loadBalancer, "")
+
+	var op Operation
+
+	// Send the request.
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, u.String(), loadBalancer, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, u.String(), loadBalancer, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // UpdateNetworkLoadBalancer updates the network load balancer to match the provided struct.
-func (r *ProtocolLXD) UpdateNetworkLoadBalancer(networkName string, listenAddress string, loadBalancer api.NetworkLoadBalancerPut, ETag string) error {
+func (r *ProtocolLXD) UpdateNetworkLoadBalancer(networkName string, listenAddress string, loadBalancer api.NetworkLoadBalancerPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("network_load_balancer")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	u := api.NewURL().Path("networks", networkName, "load-balancers", listenAddress)
+
+	var op Operation
 
 	// Send the request.
-	u := api.NewURL().Path("networks", networkName, "load-balancers", listenAddress)
-	_, _, err = r.query(http.MethodPut, u.String(), loadBalancer, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, u.String(), loadBalancer, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, u.String(), loadBalancer, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteNetworkLoadBalancer deletes an existing network load balancer.
-func (r *ProtocolLXD) DeleteNetworkLoadBalancer(networkName string, listenAddress string) error {
+func (r *ProtocolLXD) DeleteNetworkLoadBalancer(networkName string, listenAddress string) (Operation, error) {
 	err := r.CheckExtension("network_load_balancer")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	u := api.NewURL().Path("networks", networkName, "load-balancers", listenAddress)
+
+	var op Operation
 
 	// Send the request.
-	u := api.NewURL().Path("networks", networkName, "load-balancers", listenAddress)
-	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, u.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
