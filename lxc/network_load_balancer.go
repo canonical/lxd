@@ -389,20 +389,32 @@ func (c *cmdNetworkLoadBalancerCreate) run(cmd *cobra.Command, args []string) er
 		client = client.UseTarget(c.networkLoadBalancer.flagTarget)
 	}
 
-	err = client.CreateNetworkLoadBalancer(networkName, loadBalancer)
+	op, err := client.CreateNetworkLoadBalancer(networkName, loadBalancer)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
 
-	loadBalancerURL, err := url.Parse(transporter.location)
-	if err != nil {
-		return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
-	}
+	// Get the listen address from the operation metadata (for auto-allocated addresses).
+	opMeta := op.Get().Metadata
+	metaAddr, ok := opMeta["listen_address"].(string)
+	if ok {
+		listenAddress = metaAddr
+	} else {
+		// Fallback to Location header for older servers.
+		loadBalancerURL, err := url.Parse(transporter.location)
+		if err != nil {
+			return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
+		}
 
-	loadBalancerURLPrefix := api.NewURL().Path(version.APIVersion, "networks", networkName, "load-balancers").String()
-	_, err = fmt.Sscanf(loadBalancerURL.Path, loadBalancerURLPrefix+"/%s", &listenAddress)
-	if err != nil {
-		return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
+		loadBalancerURLPrefix := api.NewURL().Path(version.APIVersion, "networks", networkName, "load-balancers").String()
+		_, err = fmt.Sscanf(loadBalancerURL.Path, loadBalancerURLPrefix+"/%s", &listenAddress)
+		if err != nil {
+			return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
+		}
 	}
 
 	addr := net.ParseIP(listenAddress)
@@ -945,7 +957,12 @@ func (c *cmdNetworkLoadBalancerBackend) runAdd(cmd *cobra.Command, args []string
 
 	loadBalancer.Normalise()
 
-	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
+	op, err := client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 func (c *cmdNetworkLoadBalancerBackend) commandRemove() *cobra.Command {
@@ -1131,7 +1148,12 @@ func (c *cmdNetworkLoadBalancerPort) runAdd(cmd *cobra.Command, args []string) e
 
 	loadBalancer.Normalise()
 
-	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
+	op, err := client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 func (c *cmdNetworkLoadBalancerPort) commandRemove() *cobra.Command {
