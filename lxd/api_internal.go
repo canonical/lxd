@@ -882,29 +882,6 @@ func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup
 		return errors.New(`No storage volume struct in the backup file found. The storage volume needs to be recovered manually`)
 	}
 
-	if dbVolume != nil {
-		rootVol, err := backupConf.RootVolume()
-		if err != nil {
-			return fmt.Errorf("Failed getting the root volume: %w", err)
-		}
-
-		if dbVolume.Name != rootVol.Name {
-			return fmt.Errorf(`The storage volume name %q does not match the instance's name %q`, dbVolume.Name, backupConf.Instance.Name)
-		}
-
-		if dbVolume.Type != rootVol.Type {
-			return fmt.Errorf(`The storage volume type %q does not match the instance's type %q`, dbVolume.Type, rootVol.Type)
-		}
-
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Remove the storage volume db entry for the instance since force was specified.
-			return tx.RemoveStoragePoolVolume(ctx, projectName, backupConf.Instance.Name, instanceDBVolType, pool.ID())
-		})
-		if err != nil {
-			return err
-		}
-	}
-
 	var profiles []api.Profile
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
