@@ -290,7 +290,7 @@ type InstanceServer interface {
 	GetStoragePool(name string) (pool *api.StoragePool, ETag string, err error)
 	GetStoragePoolResources(name string) (resources *api.ResourcesStoragePool, err error)
 	CreateStoragePool(pool api.StoragePoolsPost) (op Operation, err error)
-	UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) (err error)
+	UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) (op Operation, err error)
 	DeleteStoragePool(name string) (err error)
 
 	// Storage bucket functions ("storage_buckets" API extension)
