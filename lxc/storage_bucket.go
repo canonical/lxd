@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -331,7 +332,12 @@ func (c *cmdStorageBucketEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return client.UpdateStoragePoolBucket(resource.name, args[1], newdata, "")
+		op, err := client.UpdateStoragePoolBucket(resource.name, args[1], newdata, "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// If a target was specified, edit the bucket on the given member.
@@ -361,7 +367,11 @@ func (c *cmdStorageBucketEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.StorageBucket{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.UpdateStoragePoolBucket(resource.name, args[1], newdata.Writable(), etag)
+			var op lxd.Operation
+			op, err = client.UpdateStoragePoolBucket(resource.name, args[1], newdata.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor
@@ -678,7 +688,11 @@ func (c *cmdStorageBucketSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	err = client.UpdateStoragePoolBucket(resource.name, args[1], writable, etag)
+	op, err := client.UpdateStoragePoolBucket(resource.name, args[1], writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
