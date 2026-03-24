@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -184,51 +185,45 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var groups []dbCluster.AuthGroup
+	var groups []dbCluster.AuthGroupsRow
+	var groupURLs []string
 	var authGroupPermissions []dbCluster.Permission
 	groupsIdentities := make(map[int64][]dbCluster.Identity)
 	groupsIdentityProviderGroups := make(map[int64][]dbCluster.IdentityProviderGroup)
 	entityURLs := make(map[entity.Type]map[int]*api.URL)
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		allGroups, err := dbCluster.GetAuthGroups(ctx, tx.Tx())
+		groups, groupURLs, err = dbCluster.GetAuthGroupsAndURLs(ctx, tx.Tx(), func(group dbCluster.AuthGroupsRow) bool {
+			return canViewGroup(entity.AuthGroupURL(group.Name))
+		})
 		if err != nil {
 			return err
 		}
 
-		groups = make([]dbCluster.AuthGroup, 0, len(groups))
-		for _, group := range allGroups {
-			if canViewGroup(entity.AuthGroupURL(group.Name)) {
-				groups = append(groups, group)
-			}
-		}
-
-		if len(groups) == 0 {
+		if recursion == 0 || len(groups) == 0 {
 			return nil
 		}
 
-		if recursion > 0 {
-			// If recursing, we need all identities for all groups, all IDP groups for all groups,
-			// all permissions for all groups, and finally the URLs that those permissions apply to.
-			groupsIdentities, err = dbCluster.GetAllIdentitiesByAuthGroupIDs(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
+		// If recursing, we need all identities for all groups, all IDP groups for all groups,
+		// all permissions for all groups, and finally the URLs that those permissions apply to.
+		groupsIdentities, err = dbCluster.GetAllIdentitiesByAuthGroupIDs(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
 
-			groupsIdentityProviderGroups, err = dbCluster.GetAllIdentityProviderGroupsByGroupIDs(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
+		groupsIdentityProviderGroups, err = dbCluster.GetAllIdentityProviderGroupsByGroupIDs(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
 
-			authGroupPermissions, err = dbCluster.GetPermissions(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
+		authGroupPermissions, err = dbCluster.GetPermissions(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
 
-			// Get the EntityURLs for the permissions.
-			authGroupPermissions, entityURLs, err = dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), authGroupPermissions)
-			if err != nil {
-				return err
-			}
+		// Get the EntityURLs for the permissions.
+		authGroupPermissions, entityURLs, err = dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), authGroupPermissions)
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -237,75 +232,70 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if recursion > 0 {
-		authGroupPermissionsByGroupID := make(map[int64][]dbCluster.Permission, len(groups))
-		for _, permission := range authGroupPermissions {
-			authGroupPermissionsByGroupID[permission.GroupID] = append(authGroupPermissionsByGroupID[permission.GroupID], permission)
-		}
-		// We need to allocate a slice of pointer to api.AuthGroup because
-		// these records will be modified in place by the reportEntitlements function.
-		// We'll then return a slice of api.AuthGroup as an API response.
-		apiGroups := make([]*api.AuthGroup, 0, len(groups))
-		urlToGroup := make(map[*api.URL]auth.EntitlementReporter, len(groups))
-		for _, group := range groups {
-			var apiPermissions []api.Permission
-
-			// The group may not have any permissions.
-			permissions, ok := authGroupPermissionsByGroupID[group.ID]
-			if ok {
-				apiPermissions = make([]api.Permission, 0, len(permissions))
-				for _, permission := range permissions {
-					apiPermissions = append(apiPermissions, api.Permission{
-						EntityType:      string(permission.EntityType),
-						EntityReference: entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String(),
-						Entitlement:     string(permission.Entitlement),
-					})
-				}
-			}
-
-			apiIdentities := make(map[string][]string)
-			for _, identity := range groupsIdentities[group.ID] {
-				authenticationMethod := string(identity.AuthMethod)
-				if canViewIdentity(entity.IdentityURL(authenticationMethod, identity.Identifier)) {
-					apiIdentities[authenticationMethod] = append(apiIdentities[authenticationMethod], identity.Identifier)
-				}
-			}
-
-			idpGroups := make([]string, 0, len(groupsIdentityProviderGroups[group.ID]))
-			for _, idpGroup := range groupsIdentityProviderGroups[group.ID] {
-				if canViewIDPGroup(entity.IdentityProviderGroupURL(idpGroup.Name)) {
-					idpGroups = append(idpGroups, idpGroup.Name)
-				}
-			}
-
-			group := &api.AuthGroup{
-				Name:                   group.Name,
-				Description:            group.Description,
-				Permissions:            apiPermissions,
-				Identities:             apiIdentities,
-				IdentityProviderGroups: idpGroups,
-			}
-
-			apiGroups = append(apiGroups, group)
-			urlToGroup[entity.AuthGroupURL(group.Name)] = group
-		}
-
-		if len(withEntitlements) > 0 {
-			err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeAuthGroup, withEntitlements, urlToGroup)
-			if err != nil {
-				return response.SmartError(err)
-			}
-		}
-
-		return response.SyncResponse(true, apiGroups)
+	if recursion == 0 {
+		return response.SyncResponse(true, groupURLs)
 	}
 
-	groupURLs := make([]string, 0, len(groups))
+	authGroupPermissionsByGroupID := make(map[int64][]dbCluster.Permission, len(groups))
+	for _, permission := range authGroupPermissions {
+		authGroupPermissionsByGroupID[permission.GroupID] = append(authGroupPermissionsByGroupID[permission.GroupID], permission)
+	}
+	// We need to allocate a slice of pointer to api.AuthGroup because
+	// these records will be modified in place by the reportEntitlements function.
+	// We'll then return a slice of api.AuthGroup as an API response.
+	apiGroups := make([]*api.AuthGroup, 0, len(groups))
+	urlToGroup := make(map[*api.URL]auth.EntitlementReporter, len(groups))
 	for _, group := range groups {
-		groupURLs = append(groupURLs, entity.AuthGroupURL(group.Name).String())
+		var apiPermissions []api.Permission
+
+		// The group may not have any permissions.
+		permissions, ok := authGroupPermissionsByGroupID[group.ID]
+		if ok {
+			apiPermissions = make([]api.Permission, 0, len(permissions))
+			for _, permission := range permissions {
+				apiPermissions = append(apiPermissions, api.Permission{
+					EntityType:      string(permission.EntityType),
+					EntityReference: entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String(),
+					Entitlement:     string(permission.Entitlement),
+				})
+			}
+		}
+
+		apiIdentities := make(map[string][]string)
+		for _, identity := range groupsIdentities[group.ID] {
+			authenticationMethod := string(identity.AuthMethod)
+			if canViewIdentity(entity.IdentityURL(authenticationMethod, identity.Identifier)) {
+				apiIdentities[authenticationMethod] = append(apiIdentities[authenticationMethod], identity.Identifier)
+			}
+		}
+
+		idpGroups := make([]string, 0, len(groupsIdentityProviderGroups[group.ID]))
+		for _, idpGroup := range groupsIdentityProviderGroups[group.ID] {
+			if canViewIDPGroup(entity.IdentityProviderGroupURL(idpGroup.Name)) {
+				idpGroups = append(idpGroups, idpGroup.Name)
+			}
+		}
+
+		group := &api.AuthGroup{
+			Name:                   group.Name,
+			Description:            group.Description,
+			Permissions:            apiPermissions,
+			Identities:             apiIdentities,
+			IdentityProviderGroups: idpGroups,
+		}
+
+		apiGroups = append(apiGroups, group)
+		urlToGroup[entity.AuthGroupURL(group.Name)] = group
 	}
 
-	return response.SyncResponse(true, groupURLs)
+	if len(withEntitlements) > 0 {
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeAuthGroup, withEntitlements, urlToGroup)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	return response.SyncResponse(true, apiGroups)
 }
 
 // swagger:operation POST /1.0/auth/groups auth_groups auth_groups_post
@@ -354,7 +344,7 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		groupID, err := dbCluster.CreateAuthGroup(ctx, tx.Tx(), dbCluster.AuthGroup{
+		groupID, err := query.Create(ctx, tx.Tx(), dbCluster.AuthGroupsRow{
 			Name:        group.Name,
 			Description: group.Description,
 		})
@@ -366,7 +356,7 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), int(groupID), validatedPermissions)
+		err = dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), groupID, validatedPermissions)
 		if err != nil {
 			return err
 		}
@@ -541,10 +531,9 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = dbCluster.UpdateAuthGroup(ctx, tx.Tx(), groupName, dbCluster.AuthGroup{
-			Name:        groupName,
-			Description: groupPut.Description,
-		})
+		group.Description = groupPut.Description
+
+		err = query.UpdateByPrimaryKey(ctx, tx.Tx(), group)
 		if err != nil {
 			return err
 		}
@@ -621,14 +610,12 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	newPermissions := make([]api.Permission, 0, len(groupPut.Permissions))
-	var groupID int
+	var group *dbCluster.AuthGroupsRow
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
+		group, err = dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
 		if err != nil {
 			return err
 		}
-
-		groupID = group.ID
 
 		apiGroup, err := group.ToAPI(ctx, tx.Tx(), canViewIdentity, canViewIDPGroup)
 		if err != nil {
@@ -638,16 +625,6 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 		err = util.EtagCheck(r, *apiGroup)
 		if err != nil {
 			return err
-		}
-
-		if groupPut.Description != "" {
-			err = dbCluster.UpdateAuthGroup(ctx, tx.Tx(), groupName, dbCluster.AuthGroup{
-				Name:        groupName,
-				Description: groupPut.Description,
-			})
-			if err != nil {
-				return err
-			}
 		}
 
 		for _, permission := range groupPut.Permissions {
@@ -668,7 +645,15 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), groupID, newDBPermissions)
+		if groupPut.Description != "" {
+			group.Description = groupPut.Description
+			err = query.UpdateByPrimaryKey(ctx, tx.Tx(), group)
+			if err != nil {
+				return err
+			}
+		}
+
+		return dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), group.ID, newDBPermissions)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -730,7 +715,13 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.RenameAuthGroup(ctx, tx.Tx(), groupName, groupPost.Name)
+		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
+		if err != nil {
+			return err
+		}
+
+		group.Name = groupPost.Name
+		return query.UpdateByPrimaryKey(ctx, tx.Tx(), group)
 	})
 	if err != nil {
 		if api.StatusErrorCheck(err, http.StatusConflict) {
@@ -777,7 +768,7 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.DeleteAuthGroup(ctx, tx.Tx(), groupName)
+		return query.DeleteOne[dbCluster.AuthGroupsRow](ctx, tx.Tx(), "WHERE name = ?", groupName)
 	})
 	if err != nil {
 		return response.SmartError(err)
