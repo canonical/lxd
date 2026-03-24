@@ -1114,7 +1114,11 @@ func (c *cmdStorageBucketKeyDelete) runRemove(cmd *cobra.Command, args []string)
 		client = client.UseTarget(c.storageBucketKey.flagTarget)
 	}
 
-	err = client.DeleteStoragePoolBucketKey(resource.name, args[1], args[2])
+	op, err := client.DeleteStoragePoolBucketKey(resource.name, args[1], args[2])
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
