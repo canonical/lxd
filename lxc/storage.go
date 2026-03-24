@@ -237,7 +237,11 @@ func (c *cmdStorageDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete the pool
-	err = resource.server.DeleteStoragePool(resource.name)
+	op, err := resource.server.DeleteStoragePool(resource.name)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
