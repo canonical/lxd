@@ -776,9 +776,10 @@ jobs:
         if: ${{ steps.cache-restore.outputs.cache-hit }}
         continue-on-error: true
         run: |
-          gh cache delete "cache-${{ steps.get-date.outputs.date }}"
+          gh cache delete "cache-${STEPS_GET_DATE_OUTPUTS_DATE}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STEPS_GET_DATE_OUTPUTS_DATE: ${{ steps.get-date.outputs.date }}
 
       - uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         if: ${{ matrix.test == 'qemu-external-vm' }}
