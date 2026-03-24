@@ -242,7 +242,11 @@ func (c *cmdStorageBucketDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete the bucket.
-	err = client.DeleteStoragePoolBucket(resource.name, args[1])
+	op, err := client.DeleteStoragePoolBucket(resource.name, args[1])
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
