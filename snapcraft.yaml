@@ -906,6 +906,16 @@ parts:
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
+
+      set -eux
+
+      # Download meson and tomli Python wheels (normally shipped in upstream tarballs)
+      pip download --dest python/wheels meson==1.2.3 tomli==2.0.1
+
+      # Ensure the wheels were downloaded
+      [ "$(sha256sum python/wheels/meson-1.2.3-py3-none-any.whl | awk '{print $1}')" = "17d9124ffad38f5bbb6b198a8de5ecc55ebcd164d35a1d9dae06b8de0605a252" ] || { echo "Invalid sha256sum for meson"; exit 1; }
+      [ "$(sha256sum python/wheels/tomli-2.0.1-py3-none-any.whl | awk '{print $1}')" = "939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc" ] || { echo "Invalid sha256sum for tomli"; exit 1; }
+
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
@@ -919,9 +929,6 @@ parts:
 
       sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
-
-      # Restore vendored copies of meson and tomli Python wheels
-      git restore --source=4769f7051b0753455b775ab10c9226e149ed6237~ -- python/wheels/
 
       # TCG is not used (nor supported) at runtime however it may be needed at
       # build time by the `edk2` part if KVM acceleration is not available.
