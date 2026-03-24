@@ -751,14 +751,15 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		bInfo.Pool = pool
 	}
 
-	// Override instance name.
-	if instanceName != "" {
-		bInfo.Name = instanceName
-	}
-
 	rootVol, err := bInfo.Config.RootVolume()
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed getting the root volume: %w", err))
+	}
+
+	// Override instance name.
+	if instanceName != "" {
+		bInfo.Name = instanceName
+		rootVol.Name = instanceName
 	}
 
 	// Override the volume's UUID.
