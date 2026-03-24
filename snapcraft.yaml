@@ -832,6 +832,7 @@ parts:
       - --disable-pvrdma
       - --disable-qed
       - --disable-slirp
+      - --disable-tcg  # See note about TCG in the override-build section
       - --disable-user
       - --disable-vdi
       - --disable-vnc
@@ -850,7 +851,6 @@ parts:
       - --enable-seccomp
       - --enable-spice
       - --enable-system
-      - --enable-tcg
       - --enable-tools
       - --enable-vhost-crypto
       - --enable-vhost-kernel
@@ -915,6 +915,16 @@ parts:
 
       # Restore vendored copies of meson and tomli Python wheels
       git restore --source=4769f7051b0753455b775ab10c9226e149ed6237~ -- python/wheels/
+
+      # TCG is not used (nor supported) at runtime however it may be needed at
+      # build time by the `edk2` part if KVM acceleration is not available.
+      # `edk2` is only built for `amd64` and `arm64` and Launchpad `amd64`
+      # builders support KVM acceleration so TCG is only needed on `arm64`.
+      if [ "${QEMUARCH}" = "aarch64" ]; then
+          # `set -- "$@"`: preserve arguments passed to `configure` and append
+          # `--enable-tcg` at the end to override the previous `--disable-tcg`.
+          sed -i '1 a set -- "$@" --enable-tcg' configure
+      fi
 
       # Extract efi-virtio.rom from ipxe-qemu.
       # This doesn't work in the organize section below.
