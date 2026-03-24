@@ -885,16 +885,39 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	response := doStoragePoolUpdate(s, pool, req, targetNode, requestor.ClientType(), r.Method, s.ServerClustered)
+	clientType := requestor.ClientType()
+	httpMethod := r.Method
+	clustered := s.ServerClustered
 
-	ctx := logger.Ctx{}
-	if targetNode != "" {
-		ctx["target"] = targetNode
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err := doStoragePoolUpdate(s, pool, req, targetNode, clientType, httpMethod, clustered)
+		if err != nil {
+			return err
+		}
+
+		logCtx := logger.Ctx{}
+		if targetNode != "" {
+			logCtx["target"] = targetNode
+		}
+
+		s.Events.SendLifecycle("", lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor.EventLifecycleRequestor(), logCtx))
+
+		return nil
 	}
 
-	s.Events.SendLifecycle("", lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor.EventLifecycleRequestor(), ctx))
+	args := operations.OperationArgs{
+		Type:      operationtype.StoragePoolUpdate,
+		Class:     operations.OperationClassTask,
+		RunHook:   run,
+		EntityURL: entity.StoragePoolURL(poolName),
+	}
 
-	return response
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{poolName} storage storage_pool_patch
@@ -942,7 +965,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 
 // doStoragePoolUpdate takes the current local storage pool config, merges with the requested storage pool config,
 // validates and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.StoragePoolPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) response.Response {
+func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.StoragePoolPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) error {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
@@ -972,14 +995,14 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 	// Validate the configuration.
 	err := pool.Validate(req.Config)
 	if err != nil {
-		return response.BadRequest(err)
+		return api.StatusErrorf(http.StatusBadRequest, "Invalid storage pool configuration: %v", err)
 	}
 
 	// Notify the other nodes, unless this is itself a notification.
 	if clustered && clientType != request.ClientTypeNotifier && targetNode == "" {
 		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 
 		sendPool := req
@@ -994,19 +1017,20 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UpdateStoragePool(pool.Name(), sendPool, "")
+			err := client.UpdateStoragePool(pool.Name(), sendPool, "")
+			return err
 		})
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 	}
 
 	err = pool.Update(clientType, req.Description, req.Config, nil)
 	if err != nil {
-		return response.InternalError(err)
+		return err
 	}
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 // swagger:operation DELETE /1.0/storage-pools/{poolName} storage storage_pools_delete
