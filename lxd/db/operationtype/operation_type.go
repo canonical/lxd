@@ -117,6 +117,12 @@ const (
 	NetworkACLUpdate
 	NetworkACLDelete
 	NetworkACLRename
+	StorageBucketCreate
+	StorageBucketUpdate
+	StorageBucketDelete
+	StorageBucketKeyCreate
+	StorageBucketKeyUpdate
+	StorageBucketKeyDelete
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -312,6 +318,18 @@ func (t Type) Description() string {
 		return "Deleting network ACL"
 	case NetworkACLRename:
 		return "Renaming network ACL"
+	case StorageBucketCreate:
+		return "Creating storage bucket"
+	case StorageBucketUpdate:
+		return "Updating storage bucket"
+	case StorageBucketDelete:
+		return "Deleting storage bucket"
+	case StorageBucketKeyCreate:
+		return "Creating storage bucket key"
+	case StorageBucketKeyUpdate:
+		return "Updating storage bucket key"
+	case StorageBucketKeyDelete:
+		return "Deleting storage bucket key"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -335,8 +353,13 @@ func (t Type) EntityType() entity.Type {
 	// If creating a resource, then the parent project is the primary entity
 	// (the entity being created is not yet referenceable).
 	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore,
-		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, StoragePoolCreate, NetworkCreate, NetworkACLCreate:
+		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, StoragePoolCreate, NetworkCreate, NetworkACLCreate,
+		StorageBucketCreate:
 		return entity.TypeProject
+
+	// Storage bucket operations.
+	case StorageBucketUpdate, StorageBucketDelete, StorageBucketKeyCreate, StorageBucketKeyUpdate, StorageBucketKeyDelete:
+		return entity.TypeStorageBucket
 
 	// Volume operations.
 	case VolumeMigrate, VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete:
