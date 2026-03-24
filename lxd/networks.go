@@ -1341,8 +1341,8 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 //	    schema:
 //	      $ref: "#/definitions/NetworkPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1432,17 +1432,36 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Network %q already exists", req.Name))
 	}
 
-	// Rename it.
-	err = n.Rename(req.Name)
-	if err != nil {
-		return response.SmartError(err)
+	networkName := details.networkName
+	entityURL := entity.NetworkURL(effectiveProjectName, networkName)
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = n.Rename(req.Name)
+		if err != nil {
+			return err
+		}
+
+		requestor := request.CreateRequestor(ctx)
+		lc := lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": networkName})
+		s.Events.SendLifecycle(effectiveProjectName, lc)
+
+		return nil
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	lc := lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": details.networkName})
-	s.Events.SendLifecycle(effectiveProjectName, lc)
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkRename,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entityURL,
+	}
 
-	return response.SyncResponseLocation(true, nil, lc.Source)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation PUT /1.0/networks/{name} networks network_put
