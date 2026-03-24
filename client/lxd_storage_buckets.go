@@ -274,20 +274,31 @@ func (r *ProtocolLXD) CreateStoragePoolBucketKey(poolName string, bucketName str
 }
 
 // UpdateStoragePoolBucketKey updates an existing storage bucket key.
-func (r *ProtocolLXD) UpdateStoragePoolBucketKey(poolName string, bucketName string, keyName string, key api.StorageBucketKeyPut, ETag string) error {
+func (r *ProtocolLXD) UpdateStoragePoolBucketKey(poolName string, bucketName string, keyName string, key api.StorageBucketKeyPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
+
+	var op Operation
 
 	// Send the request.
-	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
-	_, _, err = r.query(http.MethodPut, u.String(), key, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, u.String(), key, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, u.String(), key, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteStoragePoolBucketKey removes a key from a storage bucket.
