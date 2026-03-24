@@ -976,8 +976,8 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/StorageBucketKeysPost"
 //	responses:
-//	  "200":
-//	    $ref: '#/definitions/StorageBucketKey'
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1010,15 +1010,43 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	key, err := details.pool.CreateBucketKey(effectiveProjectName, details.bucketName, req, nil)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed creating storage bucket key: %w", err))
+	location := ""
+	if !details.pool.Driver().Info().Remote {
+		location = request.QueryParam(r, "target")
 	}
 
-	lc := lifecycle.StorageBucketKeyCreated.Event(details.pool, effectiveProjectName, details.pool.Name(), req.Name, request.CreateRequestor(r.Context()), nil)
-	s.Events.SendLifecycle(effectiveProjectName, lc)
+	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName)
 
-	return response.SyncResponseLocation(true, key, lc.Source)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		key, err := details.pool.CreateBucketKey(effectiveProjectName, details.bucketName, req, nil)
+		if err != nil {
+			return fmt.Errorf("Failed creating storage bucket key: %w", err)
+		}
+
+		err = op.UpdateMetadata(map[string]any{"key": key})
+		if err != nil {
+			return fmt.Errorf("Failed updating operation metadata: %w", err)
+		}
+
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageBucketKeyCreated.Event(details.pool, effectiveProjectName, details.bucketName, req.Name, request.CreateRequestor(ctx), nil))
+
+		return nil
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: request.ProjectParam(r),
+		Type:        operationtype.StorageBucketKeyCreate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entityURL,
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/storage-pools/{name}/buckets/{bucketName}/keys/{keyName} storage storage_pool_bucket_key_delete
