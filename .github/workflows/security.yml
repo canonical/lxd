@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write # for uploading SARIF results to the security tab
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -20,6 +19,9 @@ jobs:
   trivy-repo:
     name: Trivy - Repository
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write # for uploading SARIF results to the security tab
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
       - name: Checkout
@@ -85,6 +87,9 @@ jobs:
     name: Trivy - Snap
     runs-on: ubuntu-24.04
     needs: trivy-repo
+    permissions:
+      contents: read
+      security-events: write # for uploading SARIF results to the security tab
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     strategy:
       matrix:
