@@ -1233,8 +1233,8 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/StorageBucketKeyPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1274,14 +1274,38 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = details.pool.UpdateBucketKey(effectiveProjectName, details.bucketName, keyName, req, nil)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed updating storage bucket key: %w", err))
+	location := ""
+	if !details.pool.Driver().Info().Remote {
+		location = request.QueryParam(r, "target")
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageBucketKeyUpdated.Event(details.pool, effectiveProjectName, details.pool.Name(), details.bucketName, request.CreateRequestor(r.Context()), nil))
+	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName)
 
-	return response.EmptySyncResponse
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err := details.pool.UpdateBucketKey(effectiveProjectName, details.bucketName, keyName, req, nil)
+		if err != nil {
+			return fmt.Errorf("Failed updating storage bucket key: %w", err)
+		}
+
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageBucketKeyUpdated.Event(details.pool, effectiveProjectName, details.bucketName, keyName, request.CreateRequestor(ctx), nil))
+
+		return nil
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: request.ProjectParam(r),
+		Type:        operationtype.StorageBucketKeyUpdate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entityURL,
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // ctxStorageBucketDetails is the request.CtxKey corresponding to storageBucketDetails, which is added to the request
