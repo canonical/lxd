@@ -82,9 +82,9 @@ func (r *ProtocolLXD) GetStoragePoolBucket(poolName string, bucketName string) (
 }
 
 // CreateStoragePoolBucket defines a new storage bucket using the provided struct.
-// If the server supports storage_buckets_create_credentials API extension, then this function will return the
-// initial admin credentials. Otherwise it will be nil.
-func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) (*api.StorageBucketKey, error) {
+// If the server supports the storage_buckets_create_credentials API extension, the initial admin credentials
+// are included in the returned operation's metadata under the "key" field.
+func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
 		return nil, err
@@ -92,23 +92,36 @@ func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.Storag
 
 	u := api.NewURL().Path("storage-pools", poolName, "buckets")
 
-	// Send the request and get the resulting key info (including generated keys).
-	if r.CheckExtension("storage_buckets_create_credentials") == nil {
-		var newKey api.StorageBucketKey
-		_, err = r.queryStruct(http.MethodPost, u.String(), bucket, "", &newKey)
-		if err != nil {
-			return nil, err
-		}
+	var op Operation
 
-		return &newKey, nil
+	// Send the request.
+	err = r.CheckExtension("storage_and_network_operations")
+	if err == nil {
+		op, _, err = r.queryOperation(http.MethodPost, u.String(), bucket, "", true)
+	} else {
+		// Fallback to older behavior without operations.
+		// When the server supports storage_buckets_create_credentials, decode the
+		// admin credentials from the response body and attach them to the noop
+		// operation's metadata so callers can retrieve them the same way.
+		if r.CheckExtension("storage_buckets_create_credentials") == nil {
+			var newKey api.StorageBucketKey
+			_, err = r.queryStruct(http.MethodPost, u.String(), bucket, "", &newKey)
+			if err != nil {
+				return nil, err
+			}
+
+			op = noopOperation{metadata: map[string]any{"key": newKey}}
+		} else {
+			op = noopOperation{}
+			_, _, err = r.query(http.MethodPost, u.String(), bucket, "")
+		}
 	}
 
-	_, _, err = r.query(http.MethodPost, u.String(), bucket, "")
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	return op, nil
 }
 
 // UpdateStoragePoolBucket updates the storage bucket to match the provided struct.
