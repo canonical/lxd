@@ -19,7 +19,9 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -333,7 +335,6 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	lc := lifecycle.StoragePoolCreated.Event(req.Name, requestor.EventLifecycleRequestor(), ctx)
-	resp := response.SyncResponseLocation(true, nil, lc.Source)
 
 	clientType := requestor.ClientType()
 
@@ -346,25 +347,38 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		var poolID int64
+		run := func(ctx context.Context, op *operations.Operation) error {
+			var poolID int64
 
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
+			err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				var err error
 
-			poolID, err = tx.GetStoragePoolID(ctx, req.Name)
+				poolID, err = tx.GetStoragePoolID(ctx, req.Name)
+
+				return err
+			})
+			if err != nil {
+				return err
+			}
+
+			_, err = storagePoolCreateLocal(ctx, s, poolID, req, clientType)
 
 			return err
-		})
-		if err != nil {
-			return response.SmartError(err)
 		}
 
-		_, err = storagePoolCreateLocal(r.Context(), s, poolID, req, clientType)
-		if err != nil {
-			return response.SmartError(err)
+		args := operations.OperationArgs{
+			Type:      operationtype.StoragePoolCreate,
+			Class:     operations.OperationClassTask,
+			RunHook:   run,
+			EntityURL: entity.ProjectURL(request.ProjectParam(r)),
 		}
 
-		return resp
+		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return operations.OperationResponse(op)
 	}
 
 	if targetNode != "" {
@@ -381,18 +395,34 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.CreatePendingStoragePool(ctx, targetNode, req.Name, req.Driver, req.Config)
-		})
-		if err != nil {
-			if api.StatusErrorCheck(err, http.StatusConflict) {
-				return response.BadRequest(fmt.Errorf("The storage pool already defined on member %q", targetNode))
+		run := func(ctx context.Context, op *operations.Operation) error {
+			err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.CreatePendingStoragePool(ctx, targetNode, req.Name, req.Driver, req.Config)
+			})
+			if err != nil {
+				if api.StatusErrorCheck(err, http.StatusConflict) {
+					return api.StatusErrorf(http.StatusBadRequest, "Storage pool %q already defined on member %q", req.Name, targetNode)
+				}
+
+				return err
 			}
 
-			return response.SmartError(err)
+			return nil
 		}
 
-		return resp
+		args := operations.OperationArgs{
+			Type:      operationtype.StoragePoolCreate,
+			Class:     operations.OperationClassTask,
+			RunHook:   run,
+			EntityURL: entity.ProjectURL(request.ProjectParam(r)),
+		}
+
+		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return operations.OperationResponse(op)
 	}
 
 	var pool *api.StoragePool
@@ -415,24 +445,40 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// No targetNode was specified and we're clustered or there is an existing partially created single node
-	// pool, either way finalize the config in the db and actually create the pool on all nodes in the cluster.
-	if count > 1 || (pool != nil && pool.Status != api.StoragePoolStatusCreated) {
-		err = storagePoolsPostCluster(r.Context(), s, pool, req, clientType)
-		if err != nil {
-			return response.InternalError(err)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		// No targetNode was specified and we're clustered or there is an existing partially created single node
+		// pool, either way finalize the config in the db and actually create the pool on all nodes in the cluster.
+		if count > 1 || (pool != nil && pool.Status != api.StoragePoolStatusCreated) {
+			err := storagePoolsPostCluster(ctx, s, pool, req, clientType)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Create new single node storage pool.
+			err := storagePoolCreateGlobal(ctx, s, req, clientType)
+			if err != nil {
+				return err
+			}
 		}
-	} else {
-		// Create new single node storage pool.
-		err = storagePoolCreateGlobal(r.Context(), s, req, clientType)
-		if err != nil {
-			return response.SmartError(err)
-		}
+
+		s.Events.SendLifecycle("", lc)
+
+		return nil
 	}
 
-	s.Events.SendLifecycle("", lc)
+	args := operations.OperationArgs{
+		Type:      operationtype.StoragePoolCreate,
+		Class:     operations.OperationClassTask,
+		RunHook:   run,
+		EntityURL: entity.ProjectURL(request.ProjectParam(r)),
+	}
 
-	return resp
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // storagePoolPartiallyCreated returns true of supplied storage pool has properties that indicate it has had
