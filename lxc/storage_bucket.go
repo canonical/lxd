@@ -1029,15 +1029,34 @@ func (c *cmdStorageBucketKeyCreate) runAdd(cmd *cobra.Command, args []string) er
 		req.SecretKey = c.flagSecretKey
 	}
 
-	key, err := client.CreateStoragePoolBucketKey(resource.name, args[1], req)
+	op, err := client.CreateStoragePoolBucketKey(resource.name, args[1], req)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
 	if err != nil {
 		return err
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf("Storage bucket key %s added\n", key.Name)
-		fmt.Printf("Access key: %s\n", key.AccessKey)
-		fmt.Printf("Secret key: %s\n", key.SecretKey)
+		fmt.Printf("Storage bucket key %s added\n", args[2])
+
+		opMeta := op.Get().Metadata
+		if opMeta != nil {
+			keyMap, ok := opMeta["key"]
+			if ok {
+				keyJSON, err := json.Marshal(keyMap)
+				if err == nil {
+					var key api.StorageBucketKey
+					err = json.Unmarshal(keyJSON, &key)
+					if err == nil {
+						fmt.Printf("Access key: %s\n", key.AccessKey)
+						fmt.Printf("Secret key: %s\n", key.SecretKey)
+					}
+				}
+			}
+		}
 	}
 
 	return nil
