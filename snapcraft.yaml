@@ -816,9 +816,6 @@ parts:
   qemu:
     after:
       - libatomic
-      - liburing
-      - libusb
-      - spice-protocol
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
     source-commit: ace420d02a94265d09522205a4c396689defd241 # import/1%8.2.2+ds-0ubuntu1.13
