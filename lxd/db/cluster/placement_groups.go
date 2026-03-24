@@ -53,6 +53,43 @@ func GetPlacementGroup(ctx context.Context, tx *sql.Tx, name string, projectName
 	return group, nil
 }
 
+// GetPlacementGroupsAndURLs queries for all placement groups and then applies the given filter to the result.
+// This is useful when filtering by groups the caller is able to view.
+// The filter must return true to include an entry, and false to reject an entry.
+// A slice of (filtered) placement group URLs is also returned for convenience.
+// If the project name argument is non-nil, only placement groups in that project are returned.
+// If the project name is nil, placement groups from all projects are returned.
+func GetPlacementGroupsAndURLs(ctx context.Context, tx *sql.Tx, projectName *string, filter func(group PlacementGroup) bool) ([]PlacementGroup, []string, error) {
+	var args []any
+	var b strings.Builder
+	if projectName == nil {
+		b.WriteString("ORDER BY projects.name, ")
+	} else {
+		b.WriteString("WHERE projects.name = ? ORDER BY ")
+		args = append(args, *projectName)
+	}
+
+	b.WriteString("placement_groups.name")
+	clause := b.String()
+
+	var placementGroups []PlacementGroup
+	var placementGroupURLs []string
+	err := query.SelectFunc[PlacementGroup](ctx, tx, clause, func(group PlacementGroup) error {
+		if filter != nil && !filter(group) {
+			return nil
+		}
+
+		placementGroups = append(placementGroups, group)
+		placementGroupURLs = append(placementGroupURLs, entity.PlacementGroupURL(group.ProjectName, group.Row.Name).String())
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed listing placement groups: %w", err)
+	}
+
+	return placementGroups, placementGroupURLs, nil
+}
+
 // CreatePlacementGroupConfig creates config for a new placement group with the given ID.
 func CreatePlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64, config map[string]string) error {
 	q := `INSERT INTO placement_groups_config (placement_group_id, key, value) VALUES(?, ?, ?)`
