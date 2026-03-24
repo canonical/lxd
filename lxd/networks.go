@@ -880,7 +880,11 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 			Type: n.Type(),
 		}
 
-		err = client.UseProject(n.Project()).CreateNetwork(nodeReq)
+		op, err := client.UseProject(n.Project()).CreateNetwork(nodeReq)
+		if err == nil {
+			err = op.WaitContext(ctx)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -1296,7 +1300,12 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UseProject(n.Project()).DeleteNetwork(n.Name())
+			op, err := client.UseProject(n.Project()).DeleteNetwork(n.Name())
+			if err == nil {
+				err = op.WaitContext(ctx)
+			}
+
+			return err
 		})
 		if err != nil {
 			return err

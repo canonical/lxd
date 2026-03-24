@@ -509,7 +509,12 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 			}
 
 			err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-				return client.UseProject(n.project).UpdateNetwork(n.name, sendNetwork, "")
+				op, err := client.UseProject(n.project).UpdateNetwork(n.name, sendNetwork, "")
+				if err == nil {
+					err = op.Wait()
+				}
+
+				return err
 			})
 			if err != nil {
 				return err
