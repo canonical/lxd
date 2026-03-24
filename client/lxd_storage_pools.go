@@ -127,19 +127,31 @@ func (r *ProtocolLXD) UpdateStoragePool(name string, pool api.StoragePoolPut, ET
 }
 
 // DeleteStoragePool deletes a storage pool.
-func (r *ProtocolLXD) DeleteStoragePool(name string) error {
+func (r *ProtocolLXD) DeleteStoragePool(name string) (Operation, error) {
 	err := r.CheckExtension("storage")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("storage-pools", name)
+
+	var op Operation
 
 	// Send the request
-	_, _, err = r.query(http.MethodDelete, "/storage-pools/"+url.PathEscape(name), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, path.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // GetStoragePoolResources gets the resources available to a given storage pool.
