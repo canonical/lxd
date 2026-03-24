@@ -119,65 +119,111 @@ func (r *ProtocolLXD) GetNetworkACLLogfile(name string) (io.ReadCloser, error) {
 }
 
 // CreateNetworkACL defines a new network ACL using the provided struct.
-func (r *ProtocolLXD) CreateNetworkACL(acl api.NetworkACLsPost) error {
+func (r *ProtocolLXD) CreateNetworkACL(acl api.NetworkACLsPost) (Operation, error) {
 	err := r.CheckExtension("network_acl")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPost, "/network-acls", acl, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, "/network-acls", acl, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, "/network-acls", acl, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // UpdateNetworkACL updates the network ACL to match the provided struct.
-func (r *ProtocolLXD) UpdateNetworkACL(name string, acl api.NetworkACLPut, ETag string) error {
+func (r *ProtocolLXD) UpdateNetworkACL(name string, acl api.NetworkACLPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("network_acl")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-acls", name)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPut, "/network-acls/"+url.PathEscape(name), acl, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, path.String(), acl, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, path.String(), acl, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // RenameNetworkACL renames an existing network ACL entry.
-func (r *ProtocolLXD) RenameNetworkACL(name string, acl api.NetworkACLPost) error {
+func (r *ProtocolLXD) RenameNetworkACL(name string, acl api.NetworkACLPost) (Operation, error) {
 	err := r.CheckExtension("network_acl")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-acls", name)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPost, "/network-acls/"+url.PathEscape(name), acl, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, path.String(), acl, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, path.String(), acl, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteNetworkACL deletes an existing network ACL.
-func (r *ProtocolLXD) DeleteNetworkACL(name string) error {
+func (r *ProtocolLXD) DeleteNetworkACL(name string) (Operation, error) {
 	err := r.CheckExtension("network_acl")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-acls", name)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodDelete, "/network-acls/"+url.PathEscape(name), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, path.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
