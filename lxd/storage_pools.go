@@ -1096,69 +1096,111 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Only perform the deletion of remote image volumes on the server handling the request.
-	// Otherwise delete local image volumes on each server.
-	if !clusterNotification || !pool.Driver().Info().Remote {
-		var removeImgFingerprints []string
+	// deleteStoragePoolLocally deletes image volumes and the pool itself on this member.
+	// When handling a cluster notification, image volume deletion is skipped for remote pools
+	// because the server handling the original request takes care of those.
+	deleteStoragePoolLocally := func(ctx context.Context) error {
+		if !clusterNotification || !pool.Driver().Info().Remote {
+			var removeImgFingerprints []string
 
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Get all the volumes using the storage pool on this server.
-			// Only image volumes should remain now.
-			poolID := pool.ID() // Create local variable to get the pointer.
-			volumes, err := tx.GetStorageVolumes(ctx, true, db.StorageVolumeFilter{PoolID: &poolID})
-			if err != nil {
-				return fmt.Errorf("Failed loading storage volumes: %w", err)
-			}
-
-			for _, vol := range volumes {
-				if vol.Type != dbCluster.StoragePoolVolumeTypeNameImage {
-					return fmt.Errorf("Volume %q of type %q in project %q still exists in storage pool %q", vol.Name, vol.Type, vol.Project, pool.Name())
+			err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				// Get all the volumes using the storage pool on this server.
+				// Only image volumes should remain now.
+				poolID := pool.ID() // Create local variable to get the pointer.
+				volumes, err := tx.GetStorageVolumes(ctx, true, db.StorageVolumeFilter{PoolID: &poolID})
+				if err != nil {
+					return fmt.Errorf("Failed loading storage volumes: %w", err)
 				}
 
-				removeImgFingerprints = append(removeImgFingerprints, vol.Name)
-			}
+				for _, vol := range volumes {
+					if vol.Type != dbCluster.StoragePoolVolumeTypeNameImage {
+						return fmt.Errorf("Volume %q of type %q in project %q still exists in storage pool %q", vol.Name, vol.Type, vol.Project, pool.Name())
+					}
 
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
+					removeImgFingerprints = append(removeImgFingerprints, vol.Name)
+				}
 
-		for _, removeImgFingerprint := range removeImgFingerprints {
-			err = pool.DeleteImage(removeImgFingerprint, nil)
+				return nil
+			})
 			if err != nil {
-				return response.InternalError(fmt.Errorf("Error deleting image %q from storage pool %q: %w", removeImgFingerprint, pool.Name(), err))
+				return err
+			}
+
+			for _, removeImgFingerprint := range removeImgFingerprints {
+				err = pool.DeleteImage(removeImgFingerprint, nil)
+				if err != nil {
+					return fmt.Errorf("Error deleting image %q from storage pool %q: %w", removeImgFingerprint, pool.Name(), err)
+				}
 			}
 		}
+
+		if pool.LocalStatus() != api.StoragePoolStatusPending {
+			err := pool.Delete(clientType, nil)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
-	if pool.LocalStatus() != api.StoragePoolStatusPending {
-		err = pool.Delete(clientType, nil)
+	// If this is a cluster notification, perform the deletion in an operation.
+	if clusterNotification {
+		run := func(ctx context.Context, op *operations.Operation) error {
+			return deleteStoragePoolLocally(ctx)
+		}
+
+		args := operations.OperationArgs{
+			Type:      operationtype.StoragePoolDelete,
+			Class:     operations.OperationClassTask,
+			RunHook:   run,
+			EntityURL: entity.StoragePoolURL(poolName),
+		}
+
+		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
 		if err != nil {
 			return response.InternalError(err)
 		}
+
+		return operations.OperationResponse(op)
 	}
 
-	// If this is a cluster notification, we're done, any database work will be done by the node that is
-	// originally serving the request.
-	if clusterNotification {
-		return response.EmptySyncResponse
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err := deleteStoragePoolLocally(ctx)
+		if err != nil {
+			return err
+		}
+
+		// If we are clustered, also notify all other nodes.
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			err := client.DeleteStoragePool(pool.Name())
+			return err
+		})
+		if err != nil {
+			return err
+		}
+
+		err = dbStoragePoolDeleteAndUpdateCache(ctx, s, pool.Name())
+		if err != nil {
+			return err
+		}
+
+		s.Events.SendLifecycle("", lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor.EventLifecycleRequestor(), nil))
+
+		return nil
 	}
 
-	// If we are clustered, also notify all other nodes.
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		return client.DeleteStoragePool(pool.Name())
-	})
+	args := operations.OperationArgs{
+		Type:      operationtype.StoragePoolDelete,
+		Class:     operations.OperationClassTask,
+		RunHook:   run,
+		EntityURL: entity.StoragePoolURL(poolName),
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
 	if err != nil {
-		return response.SmartError(err)
+		return response.InternalError(err)
 	}
 
-	err = dbStoragePoolDeleteAndUpdateCache(r.Context(), s, pool.Name())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	s.Events.SendLifecycle("", lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor.EventLifecycleRequestor(), nil))
-
-	return response.EmptySyncResponse
+	return operations.OperationResponse(op)
 }
