@@ -238,21 +238,39 @@ func (r *ProtocolLXD) GetStoragePoolBucketKey(poolName string, bucketName string
 }
 
 // CreateStoragePoolBucketKey adds a key to a storage bucket.
-func (r *ProtocolLXD) CreateStoragePoolBucketKey(poolName string, bucketName string, key api.StorageBucketKeysPost) (*api.StorageBucketKey, error) {
+// The generated key credentials are included in the returned operation's metadata under the "key" field.
+func (r *ProtocolLXD) CreateStoragePoolBucketKey(poolName string, bucketName string, key api.StorageBucketKeysPost) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
 		return nil, err
 	}
 
-	// Send the request and get the resulting key info (including generated keys).
-	var newKey api.StorageBucketKey
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys")
-	_, err = r.queryStruct(http.MethodPost, u.String(), key, "", &newKey)
+
+	var op Operation
+
+	// Send the request.
+	err = r.CheckExtension("storage_and_network_operations")
+	if err == nil {
+		op, _, err = r.queryOperation(http.MethodPost, u.String(), key, "", true)
+	} else {
+		// Fallback to older behavior without operations.
+		// Decode the key credentials from the response body and attach them to the
+		// noop operation's metadata so callers can retrieve them consistently.
+		var newKey api.StorageBucketKey
+		_, err = r.queryStruct(http.MethodPost, u.String(), key, "", &newKey)
+		if err != nil {
+			return nil, err
+		}
+
+		op = noopOperation{metadata: map[string]any{"key": newKey}}
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	return &newKey, err
+	return op, nil
 }
 
 // UpdateStoragePoolBucketKey updates an existing storage bucket key.
