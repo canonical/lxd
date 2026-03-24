@@ -947,7 +947,9 @@ parts:
       - lib/*/libmagic*so*
       - lib/*/libnuma*so*
       - lib/*/libpixman*so*
+      - lib/*/liburing.so*
       - lib/*/libusbredir*so*
+      - lib/*/libusb*so*
       - lib/*/libfdt*.so*
       - share/qemu/keymaps/*
       - share/qemu/bios-256k.bin
