@@ -1372,6 +1372,17 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 			return err
 		}
 
+		revert.Add(func() {
+			err := d.deviceStop(dev, false, "")
+			if err != nil {
+				d.logger.Error("Failed cleaning up device", logger.Ctx{"device": dev.Name(), "err": err})
+			}
+		})
+
+		if runConf == nil {
+			continue
+		}
+
 		// Extract the previous bus number from volatile config if set.
 		// Used in generateQemuConfigFile() to ensure that the bus number is consistent across restarts.
 		deviceVolatileKey := "volatile." + dev.Name() + busDeviceVolatileSuffix
@@ -1382,17 +1393,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 			}
 
 			runConf.BusNum = uint8(busNum)
-		}
-
-		revert.Add(func() {
-			err := d.deviceStop(dev, false, "")
-			if err != nil {
-				d.logger.Error("Failed cleaning up device", logger.Ctx{"device": dev.Name(), "err": err})
-			}
-		})
-
-		if runConf == nil {
-			continue
 		}
 
 		if runConf.Revert != nil {
