@@ -677,8 +677,8 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkACLPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -712,15 +712,35 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = netACL.Rename(r.Context(), req.Name)
-	if err != nil {
-		return response.SmartError(err)
+	entityURL := entity.NetworkACLURL(projectName, aclName)
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = netACL.Rename(ctx, req.Name)
+		if err != nil {
+			return err
+		}
+
+		requestor := request.CreateRequestor(ctx)
+		lc := lifecycle.NetworkACLRenamed.Event(netACL, requestor, logger.Ctx{"old_name": aclName})
+		s.Events.SendLifecycle(projectName, lc)
+
+		return nil
 	}
 
-	lc := lifecycle.NetworkACLRenamed.Event(netACL, request.CreateRequestor(r.Context()), logger.Ctx{"old_name": aclName})
-	s.Events.SendLifecycle(projectName, lc)
+	args := operations.OperationArgs{
+		ProjectName: request.ProjectParam(r),
+		Type:        operationtype.NetworkACLRename,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entityURL,
+	}
 
-	return response.SyncResponseLocation(true, nil, lc.Source)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/network-acls/{name}/log network-acls network_acl_log_get
