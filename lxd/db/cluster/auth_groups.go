@@ -49,6 +49,29 @@ func GetAuthGroup(ctx context.Context, tx *sql.Tx, groupName string) (*AuthGroup
 	return group, nil
 }
 
+// GetAuthGroupsAndURLs queries for all authorization groups and then applies the given filter to the result.
+// This is useful when filtering by groups the caller is able to view.
+// The filter must return true to include an entry, and false to reject an entry.
+// A slice of (filtered) authorization group URLs is also returned for convenience.
+func GetAuthGroupsAndURLs(ctx context.Context, tx *sql.Tx, filter func(group AuthGroupsRow) bool) ([]AuthGroupsRow, []string, error) {
+	var groups []AuthGroupsRow
+	var groupURLs []string
+	err := query.SelectFunc[AuthGroupsRow](ctx, tx, "ORDER BY name", func(group AuthGroupsRow) error {
+		if filter != nil && !filter(group) {
+			return nil
+		}
+
+		groups = append(groups, group)
+		groupURLs = append(groupURLs, entity.AuthGroupURL(group.Name).String())
+		return nil
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed listing authorization groups: %w", err)
+	}
+
+	return groups, groupURLs, nil
+}
+
 // ToAPI converts the Group to an api.AuthGroup, making extra database queries as necessary.
 func (g *AuthGroupsRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.PermissionChecker, canViewIDPGroup auth.PermissionChecker) (*api.AuthGroup, error) {
 	group := &api.AuthGroup{
