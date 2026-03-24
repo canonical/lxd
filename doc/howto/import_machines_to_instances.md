@@ -8,7 +8,7 @@ discourse: lxc:[Using&#32;lxd-migrate&#32;to&#32;convert&#32;a&#32;physical&#32;
 ```{youtube} https://www.youtube.com/watch?v=F9GALjHtnUU
 ```
 
-If you have an existing machine, either physical or virtual (VM or container), you can use the `lxd-migrate` tool to create a LXD instance based on your existing disk or image.
+If you have an existing machine, either physical or virtual (VM or container), you can use the `lxd-convert` tool to create a LXD instance based on your existing disk or image.
 
 The tool copies the provided partition, disk or image to the LXD storage pool of the provided LXD server, sets up an instance using that storage and allows you to configure additional settings for the new instance.
 
@@ -36,7 +36,7 @@ The tool can also inject the required VIRTIO drivers into the image:
 
 * To convert the image into raw format and inject the VIRTIO drivers during the conversion, use the following command:
 
-      lxd-migrate --conversion=format,virtio
+      lxd-convert --conversion=format,virtio
 
   ```{note}
   The conversion option `virtio` requires `virt-v2v-in-place` to be installed on the host where the LXD server runs.
@@ -54,14 +54,14 @@ The tool can also inject the required VIRTIO drivers into the image:
      For other OS versions, download [`rhsrvany.exe` and `pnp_wait.exe`](https://github.com/rwmjones/rhsrvany?tab=readme-ov-file#binary-releases).
 
    ````{tip}
-   The `lxd-migrate` command with the `--conversion=format,virtio` option automatically converts the image and injects the VIRTIO drivers during the conversion.
+   The `lxd-convert` command with the `--conversion=format,virtio` option automatically converts the image and injects the VIRTIO drivers during the conversion.
    However, if you want to manually convert a Windows VM from a foreign hypervisor, you must install both the required Windows drivers (as described above) and `virt-v2v` (>= 2.3.4).
 
    <details>
    <summary>Expand to see how to convert your Windows VM using <code>virt-v2v</code></summary>
 
    Use `virt-v2v` to convert Windows image into `raw` format and include the required drivers.
-   The resulting image is suitable for use with `lxd-migrate`.
+   The resulting image is suitable for use with `lxd-convert`.
 
    ```
    # Example 1. Convert a VMDK image to a raw image
@@ -74,8 +74,8 @@ The tool can also inject the required VIRTIO drivers into the image:
    sudo virt-v2v --block-driver virtio-scsi -o local -of raw -os ./os -i vmx ./test-vm.vmx
    ```
 
-   You can find the resulting image in the `os` directory and use it with `lxd-migrate` on the next steps.
-   In addition, when migrating already converted images, `lxd-migrate` conversion options are not necessary.
+   You can find the resulting image in the `os` directory and use it with `lxd-convert` on the next steps.
+   In addition, when migrating already converted images, `lxd-convert` conversion options are not necessary.
    </details>
    ````
 
@@ -83,14 +83,14 @@ The tool can also inject the required VIRTIO drivers into the image:
 
 Complete the following steps to migrate an existing machine to a LXD instance:
 
-1. Download the `bin.linux.lxd-migrate` tool ([`bin.linux.lxd-migrate.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-migrate.aarch64) or [`bin.linux.lxd-migrate.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-migrate.x86_64)) from the **Assets** section of the latest [LXD release](https://github.com/canonical/lxd/releases).
+1. Download the `bin.linux.lxd-convert` tool ([`bin.linux.lxd-convert.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-convert.aarch64) or [`bin.linux.lxd-convert.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxd-convert.x86_64)) from the **Assets** section of the latest [LXD release](https://github.com/canonical/lxd/releases).
 1. Place the tool on the machine that you want to use to create the instance.
-   Make it executable (usually by running `chmod u+x bin.linux.lxd-migrate`).
+   Make it executable (usually by running `chmod u+x bin.linux.lxd-convert`).
 1. Make sure that the machine has `rsync` and `file` installed.
    If they are missing, install them (for example, with `sudo apt install rsync file`).
 1. Run the tool:
 
-       sudo ./bin.linux.lxd-migrate
+       sudo ./bin.linux.lxd-convert
 
    The tool then asks you to provide the information required for the migration.
 
@@ -123,7 +123,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    <summary>Expand to see an example output for importing to a container</summary>
 
    ```{terminal}
-   :input: sudo ./bin.linux.lxd-migrate
+   :input: sudo ./bin.linux.lxd-convert
 
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx
@@ -227,7 +227,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    <summary>Expand to see an example output for importing to a VM</summary>
 
    ```{terminal}
-   :input: sudo ./bin.linux.lxd-migrate
+   :input: sudo ./bin.linux.lxd-convert
 
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx
@@ -337,13 +337,13 @@ Complete the following steps to migrate an existing machine to a LXD instance:
 
 ## Non-interactive instance import
 
-Alternatively, the entire instance import configuration can be provided using `lxd-migrate` flags.
-If any required flag is missing, `lxd-migrate` will interactively prompt for the missing value.
+Alternatively, the entire instance import configuration can be provided using `lxd-convert` flags.
+If any required flag is missing, `lxd-convert` will interactively prompt for the missing value.
 However, when the `--non-interactive` flag is used, an error is returned instead.
 
 Note that if any flag contains an invalid value, an error is returned regardless of the mode (interactive or non-interactive).
 
-The `lxd-migrate` command supports the following flags that can be used in non-interactive migration:
+The `lxd-convert` command supports the following flags that can be used in non-interactive migration:
 
 ```
 Instance configuration:
@@ -374,7 +374,7 @@ Other:
 Example VM import to local LXD server:
 
 ```sh
-lxd-migrate \
+lxd-convert \
   --name v1 \
   --type vm \
   --source "${sourcePath}" \
@@ -385,9 +385,9 @@ Example VM import to remote HTTPS server:
 
 ```sh
 # Token from remote server.
-token=$(lxc config trust add --name lxd-migrate --quiet)
+token=$(lxc config trust add --name lxd-convert --quiet)
 
-lxd-migrate \
+lxd-convert \
   --server https://example.com:8443 \
   --token "$token" \
   --name v1 \
@@ -399,7 +399,7 @@ lxd-migrate \
 Example VM import with secure boot disabled and custom resource limits:
 
 ```sh
-lxd-migrate \
+lxd-convert \
   --name v1 \
   --type vm \
   --source "${sourcePath}" \
