@@ -302,18 +302,29 @@ func (r *ProtocolLXD) UpdateStoragePoolBucketKey(poolName string, bucketName str
 }
 
 // DeleteStoragePoolBucketKey removes a key from a storage bucket.
-func (r *ProtocolLXD) DeleteStoragePoolBucketKey(poolName string, bucketName string, keyName string) error {
+func (r *ProtocolLXD) DeleteStoragePoolBucketKey(poolName string, bucketName string, keyName string) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
+
+	var op Operation
 
 	// Send the request.
-	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
-	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, u.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
