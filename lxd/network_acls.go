@@ -367,8 +367,8 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 //	    type: string
 //	    example: default
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -388,12 +388,24 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = doNetworkACLDelete(r.Context(), s, aclName, effectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		return doNetworkACLDelete(ctx, s, aclName, effectiveProjectName)
 	}
 
-	return response.EmptySyncResponse
+	args := operations.OperationArgs{
+		ProjectName: request.ProjectParam(r),
+		Type:        operationtype.NetworkACLDelete,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkACLURL(effectiveProjectName, aclName),
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // doNetworkACLDelete deletes the named network ACL in the given project.
