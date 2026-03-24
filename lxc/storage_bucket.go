@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -158,7 +159,12 @@ func (c *cmdStorageBucketCreate) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.storageBucket.flagTarget)
 	}
 
-	adminKey, err := client.CreateStoragePoolBucket(resource.name, bucket)
+	op, err := client.CreateStoragePoolBucket(resource.name, bucket)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
 	if err != nil {
 		return err
 	}
@@ -166,9 +172,20 @@ func (c *cmdStorageBucketCreate) run(cmd *cobra.Command, args []string) error {
 	if !c.global.flagQuiet {
 		fmt.Printf("Storage bucket %s created\n", args[1])
 
-		if adminKey != nil {
-			fmt.Printf("Admin access key: %s\n", adminKey.AccessKey)
-			fmt.Printf("Admin secret key: %s\n", adminKey.SecretKey)
+		opMeta := op.Get().Metadata
+		if opMeta != nil {
+			keyMap, ok := opMeta["key"]
+			if ok {
+				keyJSON, err := json.Marshal(keyMap)
+				if err == nil {
+					var adminKey api.StorageBucketKey
+					err = json.Unmarshal(keyJSON, &adminKey)
+					if err == nil {
+						fmt.Printf("Admin access key: %s\n", adminKey.AccessKey)
+						fmt.Printf("Admin secret key: %s\n", adminKey.SecretKey)
+					}
+				}
+			}
 		}
 	}
 
