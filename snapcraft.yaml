@@ -861,38 +861,39 @@ parts:
       - --localstatedir=/var/
       - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
     build-packages:
-      - bison
-      - bzip2
-      - flex
-      - pkg-config
-      - libaio-dev
-      - libcap-ng-dev
-      - libfdt-dev
-      - libglib2.0-dev
-      - libnuma-dev
-      - libpixman-1-dev
-      - libseccomp-dev
-      - libusbredirhost-dev
-      - quilt
-      - on amd64: # workaround for armhf, because it lacks of librbd-dev
-        - librbd-dev
-      - on arm64:
-        - librbd-dev
-      - on ppc64el:
-        - librbd-dev
-      - on s390x:
+      - to armhf: []
+      - else:
+        - bison
+        - bzip2
+        - flex
+        - pkg-config
+        - libaio-dev
+        - libcap-ng-dev
+        - libfdt-dev
+        - libglib2.0-dev
+        - libnuma-dev
+        - libpixman-1-dev
+        - libseccomp-dev
+        - liburing-dev
+        - libusb-1.0-0-dev
+        - libusbredirparser-dev
+        - python3-pip
+        - quilt
         - librbd-dev
     stage-packages:
-      - genisoimage
-      - ipxe-qemu # This is needed due to --disable-install-blobs.
-      - libfdt1
-      - libmagic1
-      - libnuma1
-      - libpixman-1-0
-      - libusbredirhost1
-      - libusbredirparser1
-      - seabios # This is needed due to --disable-install-blobs.
-      - qemu-system-data # This is needed due to --disable-install-blobs.
+      - to armhf: []
+      - else:
+        - genisoimage
+        - ipxe-qemu # This is needed due to --disable-install-blobs.
+        - libfdt1
+        - libmagic1t64
+        - libnuma1
+        - libpixman-1-0
+        - libusb-1.0-0
+        - libusbredirparser1t64
+        - liburing2
+        - seabios # This is needed due to --disable-install-blobs.
+        - qemu-system-data # This is needed due to --disable-install-blobs.
     override-prime: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
       craftctl default
