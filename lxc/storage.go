@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -323,7 +324,12 @@ func (c *cmdStorageEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return resource.server.UpdateStoragePool(resource.name, newdata, "")
+		op, err := resource.server.UpdateStoragePool(resource.name, newdata, "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// Extract the current value
@@ -348,7 +354,11 @@ func (c *cmdStorageEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.StoragePoolPut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = resource.server.UpdateStoragePool(resource.name, newdata, etag)
+			var op lxd.Operation
+			op, err = resource.server.UpdateStoragePool(resource.name, newdata, etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor
@@ -812,7 +822,11 @@ func (c *cmdStorageSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	err = client.UpdateStoragePool(resource.name, writable, etag)
+	op, err := client.UpdateStoragePool(resource.name, writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
