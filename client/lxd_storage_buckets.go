@@ -125,20 +125,31 @@ func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.Storag
 }
 
 // UpdateStoragePoolBucket updates the storage bucket to match the provided struct.
-func (r *ProtocolLXD) UpdateStoragePoolBucket(poolName string, bucketName string, bucket api.StorageBucketPut, ETag string) error {
+func (r *ProtocolLXD) UpdateStoragePoolBucket(poolName string, bucketName string, bucket api.StorageBucketPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName)
+
+	var op Operation
 
 	// Send the request.
-	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName)
-	_, _, err = r.query(http.MethodPut, u.String(), bucket, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, u.String(), bucket, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, u.String(), bucket, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteStoragePoolBucket deletes an existing storage bucket.
