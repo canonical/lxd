@@ -289,7 +289,7 @@ type InstanceServer interface {
 	GetStoragePools() (pools []api.StoragePool, err error)
 	GetStoragePool(name string) (pool *api.StoragePool, ETag string, err error)
 	GetStoragePoolResources(name string) (resources *api.ResourcesStoragePool, err error)
-	CreateStoragePool(pool api.StoragePoolsPost) (err error)
+	CreateStoragePool(pool api.StoragePoolsPost) (op Operation, err error)
 	UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) (err error)
 	DeleteStoragePool(name string) (err error)
 
