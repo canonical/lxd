@@ -71,6 +71,10 @@ func (c *cmdClusterLink) command() *cobra.Command {
 	clusterLinkUnsetCmd := cmdClusterLinkUnset{global: c.global, cluster: c.cluster, clusterLinkSet: &clusterLinkSetCmd}
 	cmd.AddCommand(clusterLinkUnsetCmd.command())
 
+	// Rename
+	clusterLinkRenameCmd := cmdClusterLinkRename{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterLinkRenameCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -872,4 +876,61 @@ func (c *cmdClusterLinkUnset) run(cmd *cobra.Command, args []string) error {
 	// Get the current cluster link.
 	args = append(args, "")
 	return c.clusterLinkSet.run(cmd, args)
+}
+
+// Rename.
+type cmdClusterLinkRename struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterLinkRename) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("rename", "[<remote>:]<link> <new-name>")
+	cmd.Aliases = []string{"mv"}
+	cmd.Short = "Rename a cluster link"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("cluster_link", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkRename) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing cluster link name")
+	}
+
+	err = resource.server.RenameClusterLink(resource.name, api.ClusterLinkPost{Name: args[1]})
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Cluster link %s renamed to %s\n", resource.name, args[1])
+	}
+
+	return nil
 }
