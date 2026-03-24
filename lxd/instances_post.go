@@ -653,6 +653,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	// Override instance name.
 	if instanceName != "" {
 		bInfo.Name = instanceName
+		bInfo.Config.Volume.Name = instanceName
 	}
 
 	logger.Debug("Backup file info loaded", logger.Ctx{
