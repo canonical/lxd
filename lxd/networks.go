@@ -1437,8 +1437,8 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1537,11 +1537,37 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	response := doNetworkUpdate(n, req, targetNode, requestor.ClientType(), r.Method, s.ServerClustered)
+	clientType := requestor.ClientType()
+	httpMethod := r.Method
+	clustered := s.ServerClustered
+	entityURL := entity.NetworkURL(effectiveProjectName, details.networkName)
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor.EventLifecycleRequestor(), nil))
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err := doNetworkUpdate(n, req, targetNode, clientType, httpMethod, clustered)
+		if err != nil {
+			return err
+		}
 
-	return response
+		requestor := request.CreateRequestor(ctx)
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor, nil))
+
+		return nil
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkUpdate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entityURL,
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/networks/{name} networks network_patch
@@ -1573,8 +1599,8 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1589,7 +1615,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(n network.Network, req api.NetworkPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) response.Response {
+func doNetworkUpdate(n network.Network, req api.NetworkPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) error {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
@@ -1619,16 +1645,16 @@ func doNetworkUpdate(n network.Network, req api.NetworkPut, targetNode string, c
 	// Validate the merged configuration.
 	err := n.Validate(req.Config)
 	if err != nil {
-		return response.BadRequest(err)
+		return api.NewStatusError(http.StatusBadRequest, err.Error())
 	}
 
 	// Apply the new configuration (will also notify other cluster nodes if needed).
 	err = n.Update(req, targetNode, clientType)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 // swagger:operation GET /1.0/networks/{name}/leases networks networks_leases_get
