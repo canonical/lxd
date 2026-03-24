@@ -170,7 +170,11 @@ func (c *cmdStorageCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the pool
-	err = client.CreateStoragePool(pool)
+	op, err := client.CreateStoragePool(pool)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
