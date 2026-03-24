@@ -916,8 +916,8 @@ jobs:
           mode: qserver
           project: LXD
           viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=GoProjects
-          branchdir: ${{ github.workspace }}
-          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
+          branchdir: "${{ github.workspace }}"
+          ticsAuthToken: "${{ secrets.TICSAUTHTOKEN }}" # zizmor: ignore[secrets-outside-env]
           installTics: true
           calc: ALL
           tmpdir: /tmp/tics
@@ -1045,12 +1045,12 @@ jobs:
     env:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LXD_DIR: "/var/lib/lxd"
-      LXD_OIDC_CLIENT_ID: ${{ secrets.LXD_UI_OIDC_TEST_CLIENT_ID }}
-      LXD_OIDC_CLIENT_SECRET: ${{ secrets.LXD_UI_OIDC_TEST_CLIENT_SECRET }}
-      LXD_OIDC_ISSUER: ${{ secrets.LXD_UI_OIDC_TEST_ISSUER }}
-      LXD_OIDC_AUDIENCE: ${{ secrets.LXD_UI_OIDC_TEST_AUDIENCE }}
-      LXD_OIDC_USER: ${{ secrets.LXD_UI_OIDC_TEST_USER }}
-      LXD_OIDC_PASSWORD: ${{ secrets.LXD_UI_OIDC_TEST_PASSWORD }}
+      LXD_OIDC_CLIENT_ID: "${{ secrets.LXD_UI_OIDC_TEST_CLIENT_ID }}"         # zizmor: ignore[secrets-outside-env]
+      LXD_OIDC_CLIENT_SECRET: "${{ secrets.LXD_UI_OIDC_TEST_CLIENT_SECRET }}" # zizmor: ignore[secrets-outside-env]
+      LXD_OIDC_ISSUER: "${{ secrets.LXD_UI_OIDC_TEST_ISSUER }}"               # zizmor: ignore[secrets-outside-env]
+      LXD_OIDC_AUDIENCE: "${{ secrets.LXD_UI_OIDC_TEST_AUDIENCE }}"           # zizmor: ignore[secrets-outside-env]
+      LXD_OIDC_USER: "${{ secrets.LXD_UI_OIDC_TEST_USER }}"                   # zizmor: ignore[secrets-outside-env]
+      LXD_OIDC_PASSWORD: "${{ secrets.LXD_UI_OIDC_TEST_PASSWORD }}"           # zizmor: ignore[secrets-outside-env]
       LXD_OIDC_GROUPS_CLAIM: "lxd-idp-groups"
     steps:
       - name: Checkout code
@@ -1360,7 +1360,7 @@ jobs:
 
       - uses: ./.github/actions/lp-snap-build
         with:
-          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}"
+          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]
 
       - name: Trigger Launchpad snap build
         run: |
