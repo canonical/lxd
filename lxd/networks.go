@@ -1173,8 +1173,8 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 //	    type: string
 //	    example: default
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1199,12 +1199,49 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = doNetworkDelete(r.Context(), s, details.networkName, effectiveProjectName, details.requestProject.Config, requestor.ClientType())
-	if err != nil {
-		return response.SmartError(err)
+	clientType := requestor.ClientType()
+
+	if clientType.IsClusterNotification() {
+		run := func(ctx context.Context, op *operations.Operation) error {
+			return doNetworkDelete(ctx, s, details.networkName, effectiveProjectName, details.requestProject.Config, clientType)
+		}
+
+		args := operations.OperationArgs{
+			ProjectName: effectiveProjectName,
+			Type:        operationtype.NetworkDelete,
+			Class:       operations.OperationClassTask,
+			RunHook:     run,
+			EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
+		}
+
+		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return operations.OperationResponse(op)
 	}
 
-	return response.EmptySyncResponse
+	entityURL := entity.NetworkURL(effectiveProjectName, details.networkName)
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		return doNetworkDelete(ctx, s, details.networkName, effectiveProjectName, details.requestProject.Config, clientType)
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkDelete,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entityURL,
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // doNetworkDelete deletes the named network in the given project.
