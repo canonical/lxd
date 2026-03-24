@@ -1207,7 +1207,12 @@ func (c *cmdStorageBucketKeyEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return client.UpdateStoragePoolBucketKey(resource.name, args[1], args[2], newdata, "")
+		op, err := client.UpdateStoragePoolBucketKey(resource.name, args[1], args[2], newdata, "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// If a target was specified, edit the bucket on the given member.
@@ -1237,7 +1242,11 @@ func (c *cmdStorageBucketKeyEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.StorageBucketKey{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.UpdateStoragePoolBucketKey(resource.name, args[1], args[2], newdata.Writable(), etag)
+			var op lxd.Operation
+			op, err = client.UpdateStoragePoolBucketKey(resource.name, args[1], args[2], newdata.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor
