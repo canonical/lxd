@@ -167,7 +167,7 @@ func specHookToLXDCDIHook(hook *specs.Hook, hooks *Hooks) error {
 		// or `--link=<target>::<link> --link=<target>::<link> ...`
 		// and we need to handle both cases as they are both valid.
 		var targetWithLink string
-		for i := 0; i < len(args); i += 1 {
+		for i := range args {
 			if args[i] == "--link" {
 				continue
 			}
@@ -201,7 +201,7 @@ func specHookToLXDCDIHook(hook *specs.Hook, hooks *Hooks) error {
 		// or `--folder=<folder> --folder=<folder> ...`
 		// and we need to handle both cases as they are both valid.
 		var folder string
-		for i := 0; i < len(args); i += 1 {
+		for i := range args {
 			if args[i] == "--folder" {
 				continue
 			}
