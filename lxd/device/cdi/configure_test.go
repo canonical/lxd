@@ -288,3 +288,80 @@ func TestGenerateFromCDI(t *testing.T) {
 		assert.NotContains(t, config.UnixCharDevs[1], "gid")
 	})
 }
+
+func TestSpecMountToInstanceDev_SymlinkHostPath(t *testing.T) {
+	// Scenario 1:
+	// Setup virtual filesystem as follows;
+	//  symlink: /lib -> /usr/lib dir
+	//  file: /usr/lib/mylib
+	//  file: /bar
+	//  symlink: /lib/foo -> /bar file
+
+	configDevices := &ConfigDevices{}
+	mounts := make([]*specs.Mount, 0, 2)
+
+	tmpDir, err := os.MkdirTemp("", "lxd-cdi-mount-symlink-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Setup /usr/lib dir.
+	err = os.MkdirAll(filepath.Join(tmpDir, "usr", "lib"), 0755)
+	require.NoError(t, err)
+
+	// Symlink /lib to /usr/lib.
+	err = os.Symlink(filepath.Join(tmpDir, "usr", "lib"), filepath.Join(tmpDir, "lib"))
+	require.NoError(t, err)
+
+	// Create /usr/lib/mylib1.
+	cdiSpecHostPath1 := filepath.Join(tmpDir, "lib", "mylib") // Host path from CDI spec uses /lib.
+	fd, err := os.Create(cdiSpecHostPath1)
+	require.NoError(t, err)
+	fd.Close()
+
+	expectedHostPath1 := filepath.Join(tmpDir, "usr", "lib", "mylib") // After symlink deref it should use /usr/lib.
+
+	mounts = append(mounts, &specs.Mount{
+		HostPath:      cdiSpecHostPath1,
+		ContainerPath: cdiSpecHostPath1,
+		Options:       []string{"foo", "bar"},
+	})
+
+	// Scenario 2:
+	// Setup virtual filesystem as follows:
+	//  symlink: /lib -> /usr/lib dir
+	//  file: /mylib2
+	//  symlink: /lib/myfoolib2 -> /mylib2 file
+
+	// Create /mylib2.
+	expectedHostPath2 := filepath.Join(tmpDir, "mylib2")
+	cdiSpecHostPath2 := filepath.Join(tmpDir, "lib", "myfoolib2") // Host path from CDI spec uses /lib.
+	expectedContainerSymlinkPath2 := filepath.Join(tmpDir, "usr", "lib", "myfoolib2")
+	fd, err = os.Create(expectedHostPath2)
+	require.NoError(t, err)
+	fd.Close()
+
+	// Symlink /lib/myfoolib2 to /mylib2.
+	err = os.Symlink(expectedHostPath2, cdiSpecHostPath2)
+	require.NoError(t, err)
+
+	mounts = append(mounts, &specs.Mount{
+		HostPath:      cdiSpecHostPath2,
+		ContainerPath: cdiSpecHostPath2,
+		Options:       []string{"foo", "foo", "bar"},
+	})
+
+	indirectSymlinks, err := specMountToInstanceDev(configDevices, ID{Vendor: AMD, Class: GPU, Name: "gpu0"}, mounts)
+	require.NoError(t, err)
+
+	require.Len(t, configDevices.BindMounts, 2)
+	assert.Equal(t, expectedHostPath1, configDevices.BindMounts[0]["source"])
+	assert.Equal(t, expectedHostPath1, configDevices.BindMounts[0]["path"])
+	assert.Equal(t, "foo,bar", configDevices.BindMounts[0]["raw.mount.options"])
+
+	assert.Equal(t, expectedHostPath2, configDevices.BindMounts[1]["source"])
+	assert.Equal(t, expectedHostPath2, configDevices.BindMounts[1]["path"])
+	assert.Equal(t, "foo,bar", configDevices.BindMounts[1]["raw.mount.options"])
+
+	require.Len(t, indirectSymlinks, 1)
+	assert.Equal(t, SymlinkEntry{Target: expectedHostPath2, Link: expectedContainerSymlinkPath2}, indirectSymlinks[0])
+}
