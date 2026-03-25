@@ -250,10 +250,10 @@ func applyHooksWithFS(hooksFilePath string, cfs containerFS) error {
 	return nil
 }
 
-// UpdateLDCache updates the linker cache inside the instance. It ignores
+// updateLDCache updates the linker cache inside the instance. It ignores
 // possible errors and logs them instead since this is a best effort action and
 // failure should not impact the container's start or hotplugging.
-func UpdateLDCache(inst instance.Instance) {
+func updateLDCache(inst instance.Instance, cfs containerFS) {
 	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
 	if inst.IsRunning() {
