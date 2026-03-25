@@ -5,11 +5,9 @@ discourse: lxc:[OVN&#32;network&#32;to&#32;network&#32;routing](12165)
 (network-ovn-peers)=
 # How to create OVN peer routing relationships
 
-````{only} diataxis
 ```{important}
 This guide applies to OVN networks only.
 ```
-````
 
 By default, traffic between two OVN networks goes through the uplink network.
 This path is inefficient, however, because packets must leave the OVN subsystem and transit through the host's networking stack (and, potentially, an external network) and back into the OVN subsystem of the target network.

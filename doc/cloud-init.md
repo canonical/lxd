@@ -7,6 +7,7 @@ relatedlinks: "[Cloud-init&#32;documentation](https://cloudinit.readthedocs.org/
 # How to use `cloud-init`
 
 ```{youtube} https://www.youtube.com/watch?v=8OCG15TAldI
+:title: LXD instance configuration with cloud-init
 ```
 
 [`cloud-init`](https://cloud-init.io/) is a tool for automatically initializing and customizing an instance of a Linux distribution.
@@ -172,9 +173,10 @@ If the result is `status: running`, `cloud-init` is still working. If the result
 Alternatively, use the `--wait` flag to be notified only when `cloud-init` is finished:
 
 ```{terminal}
-:input: cloud-init status --wait
 :user: root
 :host: instance
+
+cloud-init status --wait
 
 .....................................
 status: done

@@ -1,11 +1,9 @@
 (network-bridge-resolved)=
 # How to integrate with `systemd-resolved`
 
-````{only} diataxis
 ```{important}
 This guide applies to managed bridge networks only.
 ```
-````
 
 If the system that runs LXD uses `systemd-resolved` to perform DNS lookups, you should notify `resolved` of the domains that LXD can resolve.
 To do so, add the DNS servers and domains provided by a LXD network bridge to the `resolved` configuration.
@@ -189,7 +187,7 @@ If the respective bridge already exists (because LXD is already running), you ca
 You should see output similar to the following:
 
 ```{terminal}
-:input: sudo systemctl status lxd-dns-lxdbr0.service
+sudo systemctl status lxd-dns-lxdbr0.service
 
 ● lxd-dns-lxdbr0.service - LXD per-link DNS configuration for lxdbr0
      Loaded: loaded (/etc/systemd/system/lxd-dns-lxdbr0.service; enabled; vendor preset: enabled)
@@ -202,7 +200,7 @@ You should see output similar to the following:
 To check that `resolved` has applied the settings, use `resolvectl status <network_bridge>`:
 
 ```{terminal}
-:input: resolvectl status lxdbr0
+resolvectl status lxdbr0
 
 Link 6 (lxdbr0)
       Current Scopes: DNS

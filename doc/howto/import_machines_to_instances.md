@@ -6,6 +6,7 @@ discourse: lxc:[Using&#32;lxd-migrate&#32;to&#32;convert&#32;a&#32;physical&#32;
 # How to import physical or virtual machines to LXD instances
 
 ```{youtube} https://www.youtube.com/watch?v=F9GALjHtnUU
+:title: Importing systems into LXD
 ```
 
 If you have an existing machine, either physical or virtual (VM or container), you can use the `lxd-convert` tool to create a LXD instance based on your existing disk or image.
@@ -123,7 +124,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    <summary>Expand to see an example output for importing to a container</summary>
 
    ```{terminal}
-   :input: sudo ./bin.linux.lxd-convert
+   sudo ./bin.linux.lxd-convert
 
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx
@@ -227,7 +228,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    <summary>Expand to see an example output for importing to a VM</summary>
 
    ```{terminal}
-   :input: sudo ./bin.linux.lxd-convert
+   sudo ./bin.linux.lxd-convert
 
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx

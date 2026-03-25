@@ -41,8 +41,9 @@ Complete the following steps to create a standalone OVN network that is connecte
 1. Run [`lxc list`](lxc_list.md) to show the instance information:
 
    ```{terminal}
-   :input: lxc list
    :scroll:
+   
+   lxc list
 
    +------+---------+---------------------+----------------------------------------------+-----------+-----------+
    | NAME |  STATE  |        IPV4         |                     IPV6                     |   TYPE    | SNAPSHOTS |
@@ -54,6 +55,7 @@ Complete the following steps to create a standalone OVN network that is connecte
 ## Set up a LXD cluster on OVN
 
 ```{youtube} https://www.youtube.com/watch?v=1M__Rm9iZb8
+:title: OVN and a LXD cluster
 ```
 
 Complete the following steps to set up a LXD cluster that uses an OVN network.

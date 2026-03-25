@@ -36,7 +36,7 @@ With your LogCLI utility up and running, first configure it to query the server 
 You can then query the Loki server to validate that your LXD events are getting through. LXD events all have the `app` key set to `lxd` so you can use the following `logcli` command to see LXD logs in Loki.
 
 ```{terminal}
-:input: logcli query -t '{app="lxd"}'
+logcli query -t '{app="lxd"}'
 
 2024-02-14T21:31:20Z {app="lxd", instance="node3", type="logging"} level="info" Updating instance types
 2024-02-14T21:31:20Z {app="lxd", instance="node3", type="logging"} level="info" Expiring log files

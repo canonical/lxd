@@ -54,12 +54,12 @@ Feature releases receive continuous updates via each new release. The newest rel
 (ref-snap)=
 ## The LXD snap
 
-The recommended way to {ref}`install LXD <installing>` is [its snap package](https://snapcraft.io/lxd), if snaps are available for your system. A key benefit of snap packaging is that it includes all required dependencies. This allows LXD to run in a consistent environment on many different Linux distributions. Using the snap also streamlines updates through its [channels](https://snapcraft.io/docs/channels).
+The recommended way to {ref}`install LXD <installing>` is [its snap package](https://snapcraft.io/lxd), if snaps are available for your system. A key benefit of snap packaging is that it includes all required dependencies. This allows LXD to run in a consistent environment on many different Linux distributions. Using the snap also streamlines updates through its channels.
 
 (ref-snap-channels)=
 ### Channels
 
-Each installed LXD snap follows a [channel](https://snapcraft.io/docs/channels). Channels are composed of a {ref}`track <ref-snap-tracks>` and a {ref}`risk level <ref-snap-risk>` (for example, the {{current_feature_track}}/stable channel). Each channel points to one release at a time, and when a new release is published to a channel, it replaces the previous one. {ref}`Updating the snap <ref-snap-updates>` then updates to that release.
+Each installed LXD snap follows a channel. Channels are composed of a {ref}`track <ref-snap-tracks>` and a {ref}`risk level <ref-snap-risk>` (for example, the {{current_feature_track}}/stable channel). Each channel points to one release at a time, and when a new release is published to a channel, it replaces the previous one. {ref}`Updating the snap <ref-snap-updates>` then updates to that release.
 
 To view all available channels, run:
 
@@ -67,10 +67,12 @@ To view all available channels, run:
 snap info lxd
 ```
 
+For more information about channels, see {ref}`snap:explanation-how-snaps-work-channels-and-tracks` in the Snap documentation.
+
 (ref-snap-tracks)=
 ### Tracks
 
-LXD releases are grouped under [snap tracks](https://snapcraft.io/docs/channels#heading--tracks), such as {{current_feature_track}} or {{current_lts_track}}.
+LXD releases are grouped under snap tracks, such as {{current_feature_track}} or {{current_lts_track}}.
 
 (ref-snap-tracks-lts)=
 #### LTS tracks
@@ -103,9 +105,11 @@ Since `latest` is a continuously rolling release track, it might become incompat
 (ref-snap-risk)=
 ### Risk levels
 
-For each LXD track, there are three [risk levels](https://snapcraft.io/docs/channels#heading--risk-levels): `stable`, `candidate`, and `edge`.
+For each LXD track, there are three risk levels: `stable`, `candidate`, and `edge`.
 
 We recommend that you use the `stable` risk level to install fully tested releases; this is the only risk level supported under [Ubuntu Pro](https://ubuntu.com/pro), as well as the default risk level if one is not specified at install. The `candidate` and `edge` levels offer newer but less-tested updates, posing higher risk.
+
+For more information about risk levels, see {ref}`snap:explanation-how-snaps-work-channels-and-tracks` in the Snap documentation.
 
 (ref-snap-updates-upgrades)=
 ### Updates and upgrades
@@ -128,16 +132,17 @@ To upgrade the LXD snap means to change its channel's {ref}`track <ref-snap-trac
 
 We support the following changes _only_ within the same LTS track:
 
-- [Reverting to an earlier snap revision](https://snapcraft.io/docs/managing-updates#p-32248-revert-to-an-earlier-revision)
-- {ref}`Decreasing <howto-snap-change>` the {ref}`risk level <ref-snap-risk>` (such as from `edge` to `stable`).
+- Reverting to an earlier snap revision
+  - For details, see {ref}`snap:how-to-guides-work-with-snaps-manage-updates` in the Snap documentation
+- {ref}`Decreasing <howto-snap-change>` the {ref}`risk level <ref-snap-risk>` (such as from `edge` to `stable`)
 
 Due to potential breaking changes, the following are _not_ supported:
 
-- All downgrades from a higher to a lower track.
+- All downgrades from a higher to a lower track
 - For the {ref}`latest track <ref-snap-tracks-latest>` or the {ref}`current feature track <ref-snap-track-feature>`:
-  - Reverting to an earlier revision.
-  - Decreasing the risk level.
-  - Changing to an {ref}`LTS track <ref-snap-tracks-lts>`.
+  - Reverting to an earlier revision
+  - Decreasing the risk level
+  - Changing to an {ref}`LTS track <ref-snap-tracks-lts>`
 
 (ref-snap-cluster)=
 #### Clusters

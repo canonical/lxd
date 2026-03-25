@@ -223,39 +223,43 @@ some term
 
 ## Custom extensions
 
+### Related links
+
 Related links at the top of the page (surrounded by `---`):
 
-    relatedlinks: https://github.com/canonical/lxd-sphinx-extensions, [RTFM](https://www.google.com)
+    relatedlinks: https://github.com/canonical/sphinx-related-links, [RTFM](https://www.google.com)
     discourse: 12345
 
+For more information, see the [`sphinx-related-links` README](https://github.com/canonical/sphinx-related-links/blob/main/README.md).
+
+### The {spellexception}`spellexception` role
+
 Terms that should not be checked by the spelling checker: {spellexception}`PurposelyWrong`
+
+For more information, see the [`sphinx-roles` README](https://github.com/canonical/sphinx-roles/blob/main/README.md).
+
+### Terminal
 
 A single-line terminal view that separates input from output:
 
 ```{terminal}
-   :input: command
    :user: root
    :host: vampyr
    :dir: /home/user/directory/
+
+the input command
 
 the output
 ```
 
-A multi-line version of the same:
+For more information, see the [`sphinx-terminal` README](https://github.com/canonical/sphinx-terminal/blob/main/README.md).
 
-```{terminal}
-   :user: root
-   :host: vampyr
-   :dir: /home/user/directory/
-
-:input: command 1
-output 1
-:input: command 2
-output 2
-```
+### YouTube links
 
 A link to a YouTube video:
 
 ```{youtube} https://www.youtube.com/watch?v=iMLiK1fX4I0
    :title: Demo
 ```
+
+For more information, see the [`sphinx-youtube-links` README](https://github.com/canonical/sphinx-youtube-links/blob/main/README.md).

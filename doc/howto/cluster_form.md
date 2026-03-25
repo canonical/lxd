@@ -51,7 +51,7 @@ You can accept the default values for most questions, but make sure to answer th
 <summary>Expand to see a full example for <code>lxd init</code> on the bootstrap server</summary>
 
 ```{terminal}
-:input: lxd init
+lxd init
 
 Would you like to use LXD clustering? (yes/no) [default=no]: yes
 What IP address or DNS name should be used to reach this server? [default=192.0.2.101]:
@@ -150,7 +150,7 @@ Basically, the initialization process consists of the following steps:
 ````{group-tab} Authentication tokens (recommended)
 
 ```{terminal}
-:input: sudo lxd init
+sudo lxd init
 
 Would you like to use LXD clustering? (yes/no) [default=no]: yes
 What IP address or DNS name should be used to reach this server? [default=192.0.2.102]:
@@ -168,7 +168,7 @@ Would you like a YAML "lxd init" preseed to be printed? (yes/no) [default=no]:
 ````{group-tab} Trust password
 
 ```{terminal}
-:input: sudo lxd init
+sudo lxd init
 
 Would you like to use LXD clustering? (yes/no) [default=no]: yes
 What IP address or DNS name should be used to reach this server? [default=192.0.2.102]:
@@ -412,6 +412,7 @@ See {ref}`preseed-yaml-file-fields` for the complete fields of the preseed YAML 
 ## Use MicroCloud
 
 ```{youtube} https://www.youtube.com/watch?v=M0y0hQ16YuE
+:title: MicroCloud LTS Demo
 ```
 
 Instead of setting up your LXD cluster manually, you can use [MicroCloud](https://canonical.com/microcloud) to get a fully highly available LXD cluster with OVN and with Ceph storage up and running.

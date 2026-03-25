@@ -2,6 +2,7 @@
 # How to back up a LXD server
 
 ```{youtube} https://www.youtube.com/watch?v=IFOZpAxckPo
+:title: LXD backup and disaster recovery
 ```
 
 In a production setup, you should always back up the contents of your LXD server.
@@ -65,7 +66,7 @@ If you are using the LXD snap, you can also create a full backup by exporting a 
 
        sudo snap export-snapshot <ID> <output_file>
 
-See [Snapshots](https://snapcraft.io/docs/snapshots) in the Snapcraft documentation for details.
+See {ref}`snap:how-to-guides-manage-snaps-create-data-snapshots` in the Snap documentation for details.
 
 ## Partial backup
 

@@ -1,0 +1,87 @@
+{# ru-fu: copied from Furo, with modifications as stated below. Modifications are marked 'mod:'. #}
+
+<div class="related-pages">
+  {# mod: Per-page navigation #}
+  {% if meta %}
+    {% if 'sequential_nav' in meta %}
+      {% set sequential_nav = meta.sequential_nav %}
+    {% endif %}  
+  {% endif %}
+  {# mod: Conditional wrappers to control page navigation buttons #}
+  {% if sequential_nav != "none" -%}
+    {% if next and (sequential_nav == "next" or sequential_nav == "both") -%}
+      <a class="next-page" href="{{ next.link }}">
+        <div class="page-info">
+          <div class="context">
+            <span>{{ _("Next") }}</span>
+          </div>
+          <div class="title">{{ next.title }}</div>
+        </div>
+        <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+      </a>
+    {%- endif %}
+    {% if prev and (sequential_nav == "prev" or sequential_nav == "both") -%}
+      <a class="prev-page" href="{{ prev.link }}">
+        <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+        <div class="page-info">
+          <div class="context">
+            <span>{{ _("Previous") }}</span>
+          </div>
+          {% if prev.link == pathto(root_doc) %}
+            <div class="title">{{ _("Home") }}</div>
+          {% else %}
+            <div class="title">{{ prev.title }}</div>
+          {% endif %}
+        </div>
+      </a>
+    {%- endif %}
+  {%- endif %}
+</div>
+<div class="bottom-of-page">
+  <div class="left-details">
+    {%- if show_copyright %}
+    <div class="copyright">
+      {%- if hasdoc('copyright') %}
+        {% trans path=pathto('copyright'), copyright=copyright|e -%}
+          <a href="{{ path }}">&copy; {{ copyright }} {{ author }}</a>
+        {%- endtrans %}
+      {%- else %}
+        {% trans copyright=copyright|e -%}
+          &copy; {{ copyright }} {{ author }}
+        {%- endtrans %}
+      {%- endif %}
+    </div>
+    {%- endif %}
+    {%- if license and license.name -%}
+      {%- if license.url -%}
+      <div class="license">
+        This page is licensed under <a href="{{ license.url }}">{{ license.name }}</a>
+      </div>
+      {%- else -%}
+      <div class="license">
+        This page is licensed under {{ license.name }}
+      </div>
+      {%- endif -%}
+    {%- endif -%}
+
+    {# mod: removed "Made with" #}
+
+    {%- if last_updated -%}
+    <div class="last-updated">
+      {% trans last_updated=last_updated|e -%}
+        Last updated on {{ last_updated }}
+      {%- endtrans -%}
+    </div>
+    {%- endif %}
+
+    {%- if show_source and has_source and sourcename %}
+    <div class="show-source">
+      <a class="muted-link" href="{{ pathto('_sources/' + sourcename, true)|e }}"
+         rel="nofollow">Show source</a>
+    </div>
+    {%- endif %}
+  </div>
+  <div class="right-details">
+    {# mod: Added link to manage cookie tracker settings #}
+      <a href="" class="js-revoke-cookie-manager muted-link">Manage your tracker settings</a>
+</div>

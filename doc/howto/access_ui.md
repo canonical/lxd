@@ -15,6 +15,7 @@ Graphical console of an instance in the LXD web UI
 ```
 
 ```{youtube} https://www.youtube.com/watch?v=wqEH_d8LC1k
+:title: Early look at the LXD web UI
 ```
 
 The LXD web UI provides you with a graphical interface to manage your LXD server and instances.

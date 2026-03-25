@@ -216,6 +216,7 @@ PDU
 passthrough
 passthroughs
 peerings
+performant
 PFs
 PiB
 Pibit
@@ -280,6 +281,7 @@ SLAAC
 SLES
 SMTP
 Snapcraft
+snapshotter
 SoC
 Solaris
 SPAs

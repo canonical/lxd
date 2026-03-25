@@ -1,5 +1,8 @@
 ---
 discourse: "[Discourse&#x3a&#32;Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loading&#32;into&#32;an&#32;existing&#32;snap&#32;installation](37327)"
+myst:
+  html_meta:
+    description: Install the LXD server and client on Linux using snap or other package managers, build from source, or install the client only on macOS and Windows.
 ---
 
 (installing)=
@@ -22,7 +25,7 @@ The recommended way to install LXD is its [snap package](https://snapcraft.io/lx
 ### Requirements
 
 - The LXD snap must be [available for your Linux distribution](https://snapcraft.io/lxd#distros).
-- The [`snapd` daemon](https://snapcraft.io/docs/installing-snapd) must be installed.
+- The `snapd` daemon must be installed. See {ref}`snap:tutorials-install-the-daemon-index` in the Snap documentation for details.
 
 ### Install
 
@@ -334,7 +337,7 @@ Then proceed to the instructions below to actually build and install LXD.
 
 ### Start the build
 
-The actual building is done by two separate invocations of the Makefile: `make deps` -- which builds libraries required
+The actual building is done by two separate invocations of the {file}`Makefile`: `make deps` -- which builds libraries required
 by LXD -- and `make`, which builds LXD itself. At the end of `make deps`, a message will be displayed which will specify environment variables that should be set prior to invoking `make`. As new versions of LXD are released, these environment
 variable settings may change, so be sure to use the ones displayed at the end of the `make deps` process, as the ones
 below (shown for example purposes) may not exactly match what your version of LXD requires:
@@ -342,7 +345,7 @@ below (shown for example purposes) may not exactly match what your version of LX
 We recommend having at least 2GiB of RAM to allow the build to complete.
 
 ```{terminal}
-:input: make deps
+make deps
 
 ...
 make[1]: Leaving directory '/root/go/deps/dqlite'
@@ -353,7 +356,10 @@ Please set the following in your environment (possibly ~/.bashrc)
 #  export CGO_LDFLAGS="${CGO_LDFLAGS} -L$(go env GOPATH)/deps/dqlite/.libs/"
 #  export LD_LIBRARY_PATH="$(go env GOPATH)/deps/dqlite/.libs/${LD_LIBRARY_PATH}"
 #  export CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-:input: make
+```
+
+```{terminal}
+make
 ```
 
 ### From source: Install
