@@ -128,7 +128,14 @@ func ApplyHooksToContainer(hooksFilePath string, inst instance.Instance) error {
 
 	defer func() { _ = sftpClient.Close() }()
 
-	return applyHooksWithFS(hooksFilePath, &sftpContainerFS{client: sftpClient})
+	err = applyHooksWithFS(hooksFilePath, &sftpContainerFS{client: sftpClient})
+	if err != nil {
+		return err
+	}
+
+	updateLDCache(inst, &sftpContainerFS{client: sftpClient})
+
+	return nil
 }
 
 // applyHooksWithFS is the testable core of ApplyHooksToContainer.
