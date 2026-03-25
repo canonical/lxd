@@ -29,6 +29,14 @@ runs:
           sudo apt-get install --no-install-recommends -y \
             lvm2 \
             zfsutils-linux
+
+          # Prevent udev processing for almost every ZFS dataset manipulation
+          # LXD doesn't depend on these rules that otherwise slow down tests.
+          # Mask the ZVOL/VDEV rules
+          sudo ln -s /dev/null /etc/udev/rules.d/60-zvol.rules
+          sudo ln -s /dev/null /etc/udev/rules.d/69-vdev.rules
+          # Tell udev to reload
+          sudo udevadm control --reload-rules
         fi
 
         # XXX: storage driver tools (lvm2, zfsutils-linux, etc) are installed on-demand by `test/main.sh`.
