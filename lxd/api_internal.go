@@ -893,24 +893,6 @@ func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup
 		return fmt.Errorf("Failed loading profiles for instance: %w", err)
 	}
 
-	// Initialise the devices maps.
-	if backupConf.Instance.Devices == nil {
-		backupConf.Instance.Devices = make(map[string]map[string]string, 0)
-	}
-
-	if backupConf.Instance.ExpandedDevices == nil {
-		backupConf.Instance.ExpandedDevices = make(map[string]map[string]string, 0)
-	}
-
-	// Apply device overrides.
-	// Do this before calling internalImportRootDevicePopulate so that device overrides are taken into account.
-	resultingDevices, err := shared.ApplyDeviceOverrides(backupConf.Instance.Devices, backupConf.Instance.ExpandedDevices, deviceOverrides)
-	if err != nil {
-		return err
-	}
-
-	backupConf.Instance.Devices = resultingDevices
-
 	// Add root device if needed.
 	// And ensure root device is associated with same pool as instance has been imported to.
 	internalImportRootDevicePopulate(instancePoolName, backupConf.Instance.Devices, backupConf.Instance.ExpandedDevices, profiles)
