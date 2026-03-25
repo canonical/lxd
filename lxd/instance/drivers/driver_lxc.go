@@ -40,7 +40,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device"
-	"github.com/canonical/lxd/lxd/device/cdi"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/device/nictype"
@@ -1991,7 +1990,6 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 	// Create the devices
 	nicID := -1
 	nvidiaDevices := []string{}
-	cdiConfigFiles := []string{}
 
 	sortedDevices := d.expandedDevices.Sorted()
 	startDevices := make([]device.Device, 0, len(sortedDevices))
@@ -2142,10 +2140,6 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 				if entry.Key == device.GPUNvidiaDeviceKey {
 					nvidiaDevices = append(nvidiaDevices, entry.Value)
 				}
-
-				if entry.Key == cdi.CDIHookDefinitionKey {
-					cdiConfigFiles = append(cdiConfigFiles, entry.Value)
-				}
 			}
 		}
 	}
@@ -2155,13 +2149,6 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES="+strings.Join(nvidiaDevices, ","))
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("Cannot set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
-		}
-	}
-
-	if len(cdiConfigFiles) > 0 {
-		err = lxcSetConfigItem(cc, "lxc.hook.mount", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+shared.ShellQuote(d.Project().Name)+" "+shared.ShellQuote(d.Name())+" startmountns --devicesRootFolder "+d.DevicesPath()+" "+strings.Join(cdiConfigFiles, " "))
-		if err != nil {
-			return nil, "", nil, fmt.Errorf("Cannot set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
 		}
 	}
 
