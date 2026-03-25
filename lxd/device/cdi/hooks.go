@@ -293,7 +293,7 @@ func updateLDCache(inst instance.Instance, cfs containerFS) {
 		// For stopped containers, add touch /usr mtime. This triggers systemd's
 		// ldconfig.service at boot to pick up the CDI libraries.
 		// See systemctl cat ldconfig.service for details.
-		err := os.Chtimes(filepath.Join(inst.RootfsPath(), "usr"), time.Now(), time.Now())
+		err := cfs.Chtimes("/usr", time.Now(), time.Now())
 		if err != nil {
 			l.Warn("Failed updating mtime of /usr in the container to trigger ldconfig.service", logger.Ctx{"error": err})
 		}
