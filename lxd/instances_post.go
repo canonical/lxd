@@ -728,6 +728,25 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return response.BadRequest(errors.New("Instance definition in backup config is missing"))
 	}
 
+	// Initialise the devices maps.
+	if bInfo.Config.Instance.Devices == nil {
+		bInfo.Config.Instance.Devices = make(map[string]map[string]string, 0)
+	}
+
+	if bInfo.Config.Instance.ExpandedDevices == nil {
+		bInfo.Config.Instance.ExpandedDevices = make(map[string]map[string]string, 0)
+	}
+
+	// Apply device overrides.
+	// Ensure this is performed before checking permissions.
+	// Do this before calling internalImportRootDevicePopulate (later in internalImportFromBackup) so that device overrides are taken into account.
+	resultingDevices, err := shared.ApplyDeviceOverrides(bInfo.Config.Instance.Devices, bInfo.Config.Instance.ExpandedDevices, devices)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	bInfo.Config.Instance.Devices = resultingDevices
+
 	// Check project permissions.
 	var req api.InstancesPost
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
