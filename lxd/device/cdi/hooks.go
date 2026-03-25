@@ -3,7 +3,6 @@ package cdi
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -184,11 +183,9 @@ func applyHooksWithFS(hooksFilePath string, cfs containerFS) error {
 		}
 
 		// Create the symlink
-		err = cfs.Symlink(target, symlink.Link)
+		err = createSymlinkInContainer(cfs, target, symlink.Link)
 		if err != nil {
-			if !errors.Is(err, fs.ErrExist) {
-				return fmt.Errorf("Failed creating the CDI symlink: %w", err)
-			}
+			return err
 		}
 	}
 
@@ -245,6 +242,25 @@ func applyHooksWithFS(hooksFilePath string, cfs containerFS) error {
 				}
 			}
 		}
+	}
+
+	return nil
+}
+
+// createSymlinkInContainer creates a symlink inside the container, removing any existing symlink at the same path if needed.
+func createSymlinkInContainer(cfs containerFS, target string, link string) error {
+	// Remove any existing symlink at the target path.
+	fileInfo, err := cfs.Lstat(link)
+	if err == nil && fileInfo.Mode()&os.ModeSymlink == os.ModeSymlink {
+		err = cfs.Remove(link)
+		if err != nil {
+			return fmt.Errorf("Failed removing existing CDI symlink path %q: %w", link, err)
+		}
+	}
+
+	err = cfs.Symlink(target, link)
+	if err != nil {
+		return fmt.Errorf("Failed creating the CDI symlink %q to %q: %w", link, target, err)
 	}
 
 	return nil
