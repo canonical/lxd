@@ -730,8 +730,7 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 
 // internalImportFromBackup creates instance, storage pool and volume DB records from an instance's backup file.
 // It expects the backup's index file to determine the instance's config.
-// Also accepts an optional map of device overrides.
-func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup.Info, allowNameOverride bool, deviceOverrides map[string]map[string]string) error {
+func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup.Info, allowNameOverride bool) error {
 	projectName := bInfo.Project
 	instName := bInfo.Name
 
@@ -892,24 +891,6 @@ func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup
 	if err != nil {
 		return fmt.Errorf("Failed loading profiles for instance: %w", err)
 	}
-
-	// Initialise the devices maps.
-	if backupConf.Instance.Devices == nil {
-		backupConf.Instance.Devices = make(map[string]map[string]string, 0)
-	}
-
-	if backupConf.Instance.ExpandedDevices == nil {
-		backupConf.Instance.ExpandedDevices = make(map[string]map[string]string, 0)
-	}
-
-	// Apply device overrides.
-	// Do this before calling internalImportRootDevicePopulate so that device overrides are taken into account.
-	resultingDevices, err := shared.ApplyDeviceOverrides(backupConf.Instance.Devices, backupConf.Instance.ExpandedDevices, deviceOverrides)
-	if err != nil {
-		return err
-	}
-
-	backupConf.Instance.Devices = resultingDevices
 
 	// Add root device if needed.
 	// And ensure root device is associated with same pool as instance has been imported to.

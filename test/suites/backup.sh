@@ -1340,6 +1340,9 @@ config:
         path: /
         pool: ${poolName}
         type: disk
+      cloudinit:
+        type: disk
+        source: cloud-init:config
     profiles:
       - default
     stateful: false
@@ -1369,6 +1372,9 @@ instance:
       path: /
       pool: ${poolName}
       type: disk
+    cloudinit:
+      type: disk
+      source: cloud-init:config
   profiles:
     - default
   stateful: false
@@ -1417,7 +1423,8 @@ EOF
   tar -cf "${tmpDir}/inconsistent-backup.tar" -C "${tmpDir}" "backup/"
 
   # Importing the instance from tarball fails.
-  ! lxc import "${tmpDir}/inconsistent-backup.tar" || false
+  ! lxc import "${tmpDir}/inconsistent-backup.tar" >/dev/null 2>error || false
+  [ "$(tail -1 error)" = 'Error: Failed checking if instance creation allowed: Invalid value "true" for config "security.privileged" on container "inconsistent-instance" of project "restricted": Privileged containers are forbidden' ]
 
   # Fix the index.
   yq '.config.instance.config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
@@ -1430,8 +1437,14 @@ EOF
   lxc import "${tmpDir}/fixed-backup.tar"
 
   lxc delete -f inconsistent-instance
+
+  # Apply device overrides different from the backup config which lead to failure during import.
+  ! lxc import "${tmpDir}/fixed-backup.tar" --device "cloudinit,type=unix-block" >/dev/null 2>error || false
+  [ "$(tail -1 error)" = 'Error: Failed checking if instance creation allowed: Invalid device "cloudinit" on container "inconsistent-instance" of project "restricted": Unix block devices are forbidden' ]
+
   lxc project delete restricted
   rm -rf "${tmpDir}/backup"
+  rm error
 
   # Check an exported instance doesn't contain a backup config.
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
