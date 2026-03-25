@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,6 +68,9 @@ type containerFS interface {
 	MkdirAll(path string) error
 	Symlink(oldname, newname string) error
 	OpenFile(path string, flags int) (io.ReadWriteCloser, error)
+	Remove(path string) error
+	Chtimes(path string, atime time.Time, mtime time.Time) error
+	Lstat(path string) (os.FileInfo, error)
 }
 
 type sftpContainerFS struct {
@@ -86,6 +88,22 @@ func (s *sftpContainerFS) Symlink(oldname, newname string) error {
 // OpenFile opens the named file with the specified flags.
 func (s *sftpContainerFS) OpenFile(path string, flags int) (io.ReadWriteCloser, error) {
 	return s.client.OpenFile(path, flags)
+}
+
+// Remove removes the named file.
+func (s *sftpContainerFS) Remove(path string) error {
+	return s.client.Remove(path)
+}
+
+// Chtimes changes the access and modification times of the named file.
+func (s *sftpContainerFS) Chtimes(path string, atime time.Time, mtime time.Time) error {
+	return s.client.Chtimes(path, atime, mtime)
+}
+
+// Lstat returns a FileInfo structure describing the file specified by path 'p'.
+// If 'p' is a symbolic link, the returned FileInfo structure describes the symbolic link.
+func (s *sftpContainerFS) Lstat(path string) (os.FileInfo, error) {
+	return s.client.Lstat(path)
 }
 
 // resolveTargetRelativeToLink converts a link's target into a path relative to the link's path.

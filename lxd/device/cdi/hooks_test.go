@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,6 +29,18 @@ func (l *localFS) Symlink(oldname, newname string) error {
 
 func (l *localFS) OpenFile(path string, flags int) (io.ReadWriteCloser, error) {
 	return os.OpenFile(l.rootFS+filepath.Clean(path), flags, 0644)
+}
+
+func (l *localFS) Remove(path string) error {
+	return os.Remove(l.rootFS + filepath.Clean(path))
+}
+
+func (l *localFS) Chtimes(path string, atime time.Time, mtime time.Time) error {
+	return os.Chtimes(l.rootFS+filepath.Clean(path), atime, mtime)
+}
+
+func (l *localFS) Lstat(path string) (os.FileInfo, error) {
+	return os.Lstat(l.rootFS + filepath.Clean(path))
 }
 
 // TestApplyHooksToContainer tests the ApplyHooksToContainer function.
