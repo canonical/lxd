@@ -24,10 +24,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - uses: canonical/lxd/.github/actions/lp-snap-build@main
         with:
-          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}"
+          persist-credentials: false
+
+      - uses: canonical/lxd/.github/actions/lp-snap-build@main # zizmor: ignore[unpinned-uses]
+        with:
+          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]
 
       - name: Trigger Launchpad snap build
         run: |
