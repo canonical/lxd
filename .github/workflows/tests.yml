@@ -30,7 +30,7 @@ jobs:
           persist-credentials: false
 
       - name: Require GHA pinning
-        uses: canonical/lxd/.github/actions/require-gha-pinning@main
+        uses: canonical/lxd/.github/actions/require-gha-pinning@main # zizmor: ignore[unpinned-uses]
 
       - id: ShellCheck
         name: Differential ShellCheck
