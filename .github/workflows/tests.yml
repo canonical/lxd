@@ -27,6 +27,7 @@ jobs:
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Require GHA pinning
         uses: canonical/lxd/.github/actions/require-gha-pinning@main
