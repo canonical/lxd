@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -17,7 +18,10 @@ import (
 // vSockServer creates an http.Server capable of handling /dev/lxd requests over vsock.
 func vSockServer(d *Daemon) *http.Server {
 	return &http.Server{
-		Handler: devLXDAPI(d, vSockAuthenticator{}),
+		Handler:           devLXDAPI(d, vSockAuthenticator{}),
+		IdleTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 3 * time.Second,
+		ReadTimeout:       3 * time.Second,
 	}
 }
 

@@ -19,7 +19,10 @@ func pprofCreateServer() *http.Server {
 
 	// Setup an http server
 	srv := &http.Server{
-		Handler: pprofMux,
+		Handler:           pprofMux,
+		IdleTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 3 * time.Second,
+		ReadTimeout:       3 * time.Second,
 	}
 
 	return srv

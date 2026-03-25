@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -26,9 +27,12 @@ import (
 // /dev/lxd Unix socket endpoint created inside containers.
 func devLXDServer(d *Daemon) *http.Server {
 	return &http.Server{
-		Handler:     devLXDAPI(d, containerAuthenticator{}),
-		ConnState:   pidMapper.ConnStateHandler,
-		ConnContext: request.SaveConnectionInContext,
+		Handler:           devLXDAPI(d, containerAuthenticator{}),
+		IdleTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 3 * time.Second,
+		ReadTimeout:       3 * time.Second,
+		ConnState:         pidMapper.ConnStateHandler,
+		ConnContext:       request.SaveConnectionInContext,
 	}
 }
 

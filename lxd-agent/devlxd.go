@@ -73,7 +73,10 @@ var devLXDEndpoints = []devLXDAPIEndpoint{
 // /dev/lxd Unix socket endpoint created inside VMs.
 func devLXDServer(d *Daemon) *http.Server {
 	return &http.Server{
-		Handler: devLXDAPI(d),
+		Handler:           devLXDAPI(d),
+		IdleTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 3 * time.Second,
+		ReadTimeout:       3 * time.Second,
 	}
 }
 
