@@ -20,10 +20,6 @@ import (
 )
 
 const (
-	// CDIHookDefinitionKey is used to reference a CDI hook definition in a run config as a file path.
-	// A CDI hook definition is a simple way to represent the symlinks to be created and the folder entries to add to the ld cache.
-	// This resource file is to be read and processed by LXD's `callhook` program.
-	CDIHookDefinitionKey = "cdiHookDefinitionKey"
 	// CDIHooksFileSuffix is the suffix for the file that contains the CDI hooks.
 	CDIHooksFileSuffix = "_cdi_hooks.json"
 	// CDIConfigDevicesFileSuffix is the suffix for the file that contains the CDI config devices.
