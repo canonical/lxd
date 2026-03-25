@@ -23,7 +23,7 @@ To show new log messages (only for containers), pass the `--show-log` flag:
 You can also immediately attach to the console when you start your instance:
 
     lxc start <instance_name> --console
-    lxc start <instance_name> --console=vga
+    lxc start <instance_name> --console=vga # VM only
 
 ```{tip}
 To exit the console, enter {kbd}`Ctrl`+{kbd}`a` {kbd}`q`.
