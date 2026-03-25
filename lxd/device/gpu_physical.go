@@ -393,12 +393,9 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, fmt.Errorf("Could not write to the CDI hooks file: %w", err)
 			}
 
-			err = cdi.ApplyHooksToContainer(hooksFile, d.inst)
-			if err != nil {
-				return nil, err
-			}
-
-			cdi.UpdateLDCache(d.inst)
+			runConf.PostHooks = append(runConf.PostHooks, func() error {
+				return cdi.ApplyHooksToContainer(hooksFile, d.inst)
+			})
 
 			return &runConf, nil
 		}
