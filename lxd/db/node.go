@@ -32,8 +32,8 @@ const (
 	// ClusterRoleClassAutomatic represents roles that are automatically assigned by LXD.
 	ClusterRoleClassAutomatic ClusterRoleClass = iota
 
-	// ClusterRoleClassManual represents roles that can be manually assigned.
-	ClusterRoleClassManual
+	// ClusterRoleClassCustom represents roles that can be custom assigned.
+	ClusterRoleClassCustom
 )
 
 // ClusterRoleDatabaseVoter represents the database voter role in a cluster.
@@ -56,7 +56,7 @@ const ClusterRoleOVNChassis = ClusterRole("ovn-chassis")
 
 // ClusterRoles maps role classes to their respective role definitions.
 // Automatic roles are managed by LXD and cannot be manually modified.
-// Manual roles can be assigned and removed by users via the API.
+// Custom roles can be assigned and removed by users via the API.
 var ClusterRoles = map[ClusterRoleClass]map[int]ClusterRole{
 	// Automatic roles are not stored in the database, so the keys are not IDs.
 	ClusterRoleClassAutomatic: {
@@ -64,8 +64,8 @@ var ClusterRoles = map[ClusterRoleClass]map[int]ClusterRole{
 		2: ClusterRoleDatabaseStandBy,
 		3: ClusterRoleDatabaseLeader,
 	},
-	// Manual cluster roles are stored in the database and are therefore keyed by their respective IDs.
-	ClusterRoleClassManual: {
+	// Custom cluster roles are stored in the database and are therefore keyed by their respective IDs.
+	ClusterRoleClassCustom: {
 		2: ClusterRoleOVNChassis,
 		3: ClusterRoleControlPlane,
 	},
@@ -450,7 +450,7 @@ func (c *ClusterTx) nodes(ctx context.Context, pending bool, where string, args 
 			nodeRoles[nodeID] = []ClusterRole{}
 		}
 
-		roleName := string(ClusterRoles[ClusterRoleClassManual][role])
+		roleName := string(ClusterRoles[ClusterRoleClassCustom][role])
 		nodeRoles[nodeID] = append(nodeRoles[nodeID], ClusterRole(roleName))
 
 		return nil
@@ -631,16 +631,16 @@ func (c *ClusterTx) UpdateNodeConfig(ctx context.Context, id int64, config map[s
 }
 
 // UpdateNodeRoles changes the list of roles on a member.
-// Only manual (user-assignable) roles are stored in the database.
+// Only custom (user-assignable) roles are stored in the database.
 // Automatic roles are managed by Raft and filtered out.
 // Callers are expected to validate roles before calling this function.
 func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	// Translate role names to IDs
 	roleIDs := []int{}
 	for _, role := range roles {
-		// Find the role ID for the given manual role.
-		for id, manualRole := range ClusterRoles[ClusterRoleClassManual] {
-			if role == manualRole {
+		// Find the role ID for the given custom role.
+		for id, customRole := range ClusterRoles[ClusterRoleClassCustom] {
+			if role == customRole {
 				roleIDs = append(roleIDs, id)
 				break
 			}
