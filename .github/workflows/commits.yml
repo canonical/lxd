@@ -2,8 +2,7 @@ name: Commits
 on:
   - pull_request
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   commits:
