@@ -29,6 +29,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   analyze:
     if: ${{ github.repository == 'canonical/lxd' }}

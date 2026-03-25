@@ -1,6 +1,9 @@
 name: Triaging
 on:
-  pull_request_target:
+  # pull_request_target is needed so that actions/labeler can write labels on PRs
+  # from forks (pull_request lacks write access in that case). No PR code is ever
+  # checked out here, so the privileged context is not exposed to untrusted input.
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
   issues:
     types:
       - labeled
