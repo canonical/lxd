@@ -1079,7 +1079,10 @@ EOF
   tar -cf "${tmpDir}/inconsistent-backup.tar" -C "${tmpDir}" "backup/"
 
   # Importing the instance from tarball fails.
-  ! lxc import "${tmpDir}/inconsistent-backup.tar" || false
+  ! lxc import "${tmpDir}/inconsistent-backup.tar" >/dev/null 2>error || false
+  [ "$(tail -1 error)" = 'Error: Failed checking if instance creation allowed: Invalid value "true" for config "security.privileged" on container "inconsistent-instance" of project "restricted": Privileged containers are forbidden' ]
+
+  rm error
 
   # Fix the index.
   yq '.config.container.config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
