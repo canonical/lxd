@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/lxd/auth/bearer"
+	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/entity"
@@ -153,39 +154,37 @@ func rootGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, []string{"/1.0"})
 }
 
-func oidcLoginGet(d *Daemon, r *http.Request) response.Response {
-	if d.oidcVerifier == nil {
+// oidcHandler handles an OIDC-specific request, returning 404 when OIDC is not configured.
+// It snapshots d.oidcVerifier once to avoid a TOCTOU race between the nil check and the method call.
+//
+// fn is typically passed as a method expression such as (*oidc.Verifier).Login.
+// A method expression promotes the receiver to the first explicit argument, allowing
+// oidcHandler to call fn(verifier, w, r) uniformly for any [oidc.Verifier] method.
+func oidcHandler(d *Daemon, r *http.Request, fn func(*oidc.Verifier, http.ResponseWriter, *http.Request)) response.Response {
+	verifier := d.oidcVerifier
+	if verifier == nil {
 		return response.NotFound(nil)
 	}
 
 	return response.ManualResponse(func(w http.ResponseWriter) error {
-		d.oidcVerifier.Login(w, r)
+		fn(verifier, w, r)
 		return nil
 	})
+}
+
+// oidcLoginGet initiates the OIDC browser login (code flow).
+func oidcLoginGet(d *Daemon, r *http.Request) response.Response {
+	return oidcHandler(d, r, (*oidc.Verifier).Login)
 }
 
 // oidcCallbackGet handles the OIDC code exchange callback.
 func oidcCallbackGet(d *Daemon, r *http.Request) response.Response {
-	if d.oidcVerifier == nil {
-		return response.NotFound(nil)
-	}
-
-	return response.ManualResponse(func(w http.ResponseWriter) error {
-		d.oidcVerifier.Callback(w, r)
-		return nil
-	})
+	return oidcHandler(d, r, (*oidc.Verifier).Callback)
 }
 
 // oidcLogoutGet handles the OIDC logout flow.
 func oidcLogoutGet(d *Daemon, r *http.Request) response.Response {
-	if d.oidcVerifier == nil {
-		return response.NotFound(nil)
-	}
-
-	return response.ManualResponse(func(w http.ResponseWriter) error {
-		d.oidcVerifier.Logout(w, r)
-		return nil
-	})
+	return oidcHandler(d, r, (*oidc.Verifier).Logout)
 }
 
 func bearerLogoutGet(d *Daemon, r *http.Request) response.Response {
