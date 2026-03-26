@@ -1188,7 +1188,16 @@ func RenderTemplate(template string, ctx pongo2.Context) (output string, err err
 
 // RenderTemplateFile renders a pongo2 template to a writer.
 // No nesting is supported in this scenario.
-func RenderTemplateFile(w io.Writer, template string, ctx pongo2.Context) error {
+func RenderTemplateFile(w io.Writer, template string, ctx pongo2.Context) (err error) {
+	defer func() {
+		// Capture panics in the pongo2 template rendering.
+		// This is to prevent the server from crashing due to a template error.
+		r := recover()
+		if r != nil {
+			err = fmt.Errorf("Panic while rendering template: %v", r)
+		}
+	}()
+
 	// Create custom TemplateSet.
 	set := pongo2.NewSet("restricted", pongo2.DefaultLoader)
 
