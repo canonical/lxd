@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+# Setup ZFS userspace tools on PATH and LD_LIBRARY_PATH.
+# Must be sourced (. setup-zfs), not executed directly.
+# Requires SNAP_CURRENT to be set by the calling script.
+
+if [ "${zfs_external:-"false"}" = "true" ]; then
+    echo "==> Using ZFS tools from the host system"
+else
+    if [ -e /sys/module/zfs/version ]; then
+        read -r _ZFS_VERSION < /sys/module/zfs/version
+    else
+        _ZFS_VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
+    fi
+
+    _ZFS_VER="$(echo "${_ZFS_VERSION}" | cut -d. -f1-2)"
+
+    if [ -d "${SNAP_CURRENT}/zfs-${_ZFS_VER}/bin" ]; then
+        echo "==> Setting up ZFS (${_ZFS_VER})"
+        export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-${_ZFS_VER}/lib/:${LD_LIBRARY_PATH}"
+        export PATH="${SNAP_CURRENT}/zfs-${_ZFS_VER}/bin:${PATH}"
+    elif [ -n "${_ZFS_VER}" ]; then
+        echo "==> Unsupported ZFS version (${_ZFS_VER})"
+        echo "Consider installing ZFS tools in the host and use zfs.external"
+    else
+        echo "==> No ZFS support"
+        echo "Consider installing ZFS tools in the host and use zfs.external"
+    fi
+
+    # Do not pollute the caller's environment with internal variables
+    unset _ZFS_VERSION _ZFS_VER
+fi
