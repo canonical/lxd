@@ -70,6 +70,7 @@ type Driver interface {
 	ValidateVolume(vol Volume, removeUnknownKeys bool) error
 	CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error
 	CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error
+	CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error
 	RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error
 	DeleteVolume(vol Volume, op *operations.Operation) error
 	RenameVolume(vol Volume, newName string, op *operations.Operation) error
