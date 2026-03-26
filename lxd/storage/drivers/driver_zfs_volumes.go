@@ -1225,6 +1225,11 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 	return nil
 }
 
+// CreateVolumeFromImage creates volume from image by using createVolumeFromImage utility function.
+func (d *zfs) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error {
+	return createVolumeFromImage(vol, imgVol, filler, op)
+}
+
 // RefreshVolume updates an existing volume to match the state of another.
 func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
 	var err error
@@ -3583,7 +3588,11 @@ func (d *zfs) ImageVolumeConfigMatch(vol1, vol2 Volume) bool {
 		return false
 	}
 
-	// Check if block size config has changed.
+	// When zfs.blocksize changes, a new optimized image isn't generated. This ensures we don't use an
+	// optimized image if initial.zfs.blocksize differs from the default pool settings.
+	//
+	// Note: If initial.zfs.blocksize is set to 8KiB and volume.zfs.blocksize is unset (defaults to 8KiB),
+	// they're considered unequal ("" != "8KiB"), preventing the use of a matching optimized image.
 	if vol1.IsBlockBacked() && vol1.Config()["zfs.blocksize"] != vol2.Config()["zfs.blocksize"] {
 		return false
 	}
