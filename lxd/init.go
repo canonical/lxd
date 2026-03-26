@@ -62,13 +62,22 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 		// StoragePool creator
 		createStoragePool := func(storagePool api.StoragePoolsPost) error {
 			// Create the storagePool if doesn't exist.
-			err := d.CreateStoragePool(storagePool)
+			op, err := d.CreateStoragePool(storagePool)
+			if err == nil {
+				err = op.Wait()
+			}
+
 			if err != nil {
 				return fmt.Errorf("Failed creating storage pool %q: %w", storagePool.Name, err)
 			}
 
 			// Setup reverter.
-			revert.Add(func() { _ = d.DeleteStoragePool(storagePool.Name) })
+			revert.Add(func() {
+				op, err := d.DeleteStoragePool(storagePool.Name)
+				if err == nil {
+					_ = op.Wait()
+				}
+			})
 			return nil
 		}
 
@@ -86,7 +95,12 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			// Setup reverter.
-			revert.Add(func() { _ = d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "") })
+			revert.Add(func() {
+				op, err := d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "")
+				if err == nil {
+					_ = op.Wait()
+				}
+			})
 
 			// Prepare the update.
 			newStoragePool := api.StoragePoolPut{}
@@ -104,7 +118,11 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			maps.Copy(newStoragePool.Config, storagePool.Config)
 
 			// Apply it.
-			err = d.UpdateStoragePool(currentStoragePool.Name, newStoragePool, etag)
+			op, err := d.UpdateStoragePool(currentStoragePool.Name, newStoragePool, etag)
+			if err == nil {
+				err = op.Wait()
+			}
+
 			if err != nil {
 				return fmt.Errorf("Failed updating storage pool %q: %w", storagePool.Name, err)
 			}

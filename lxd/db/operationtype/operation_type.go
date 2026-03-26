@@ -106,6 +106,9 @@ const (
 	Wait
 	SnapshotsCreateScheduled
 	PruneExpiredOperations
+	StoragePoolCreate
+	StoragePoolUpdate
+	StoragePoolDelete
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -279,6 +282,12 @@ func (t Type) Description() string {
 		return "Creating scheduled instance snapshots"
 	case PruneExpiredOperations:
 		return "Pruning expired operations"
+	case StoragePoolCreate:
+		return "Creating storage pool"
+	case StoragePoolUpdate:
+		return "Updating storage pool"
+	case StoragePoolDelete:
+		return "Deleting storage pool"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -302,7 +311,7 @@ func (t Type) EntityType() entity.Type {
 	// If creating a resource, then the parent project is the primary entity
 	// (the entity being created is not yet referenceable).
 	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore,
-		InstanceStateUpdateBulk, BackupRestore, ProjectDelete:
+		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, StoragePoolCreate:
 		return entity.TypeProject
 
 	// Volume operations.
@@ -335,6 +344,10 @@ func (t Type) EntityType() entity.Type {
 	// Volume backup operations.
 	case CustomVolumeBackupRemove, CustomVolumeBackupRename:
 		return entity.TypeStorageVolumeBackup
+
+	// Storage pool operations.
+	case StoragePoolUpdate, StoragePoolDelete:
+		return entity.TypeStoragePool
 
 	// Profile operations.
 	case ProfileUpdate:

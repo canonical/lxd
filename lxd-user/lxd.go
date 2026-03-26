@@ -85,7 +85,11 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 		}
 
 		// Create the storage pool.
-		err := client.CreateStoragePool(pool)
+		op, err := client.CreateStoragePool(pool)
+		if err == nil {
+			err = op.Wait()
+		}
+
 		if err != nil {
 			return fmt.Errorf("Failed creating storage pool: %w", err)
 		}

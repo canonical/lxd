@@ -66,58 +66,92 @@ func (r *ProtocolLXD) GetStoragePool(name string) (*api.StoragePool, string, err
 }
 
 // CreateStoragePool defines a new storage pool using the provided StoragePool struct.
-func (r *ProtocolLXD) CreateStoragePool(pool api.StoragePoolsPost) error {
+func (r *ProtocolLXD) CreateStoragePool(pool api.StoragePoolsPost) (Operation, error) {
 	err := r.CheckExtension("storage")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if pool.Driver == "ceph" {
 		err := r.CheckExtension("storage_driver_ceph")
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
+	var op Operation
+
 	// Send the request
-	_, _, err = r.query(http.MethodPost, "/storage-pools", pool, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, "/storage-pools", pool, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, "/storage-pools", pool, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // UpdateStoragePool updates the pool to match the provided StoragePool struct.
-func (r *ProtocolLXD) UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) error {
+func (r *ProtocolLXD) UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("storage")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("storage-pools", name)
+
+	var op Operation
 
 	// Send the request
-	_, _, err = r.query(http.MethodPut, "/storage-pools/"+url.PathEscape(name), pool, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, path.String(), pool, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, path.String(), pool, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteStoragePool deletes a storage pool.
-func (r *ProtocolLXD) DeleteStoragePool(name string) error {
+func (r *ProtocolLXD) DeleteStoragePool(name string) (Operation, error) {
 	err := r.CheckExtension("storage")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("storage-pools", name)
+
+	var op Operation
 
 	// Send the request
-	_, _, err = r.query(http.MethodDelete, "/storage-pools/"+url.PathEscape(name), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, path.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // GetStoragePoolResources gets the resources available to a given storage pool.
