@@ -1212,7 +1212,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 
 	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
 		"creation_date": time.Now(),
-	}, 5)
+	})
 	if err != nil {
 		return "", err
 	}
