@@ -376,6 +376,11 @@ func (d *common) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIn
 	return ErrNotSupported
 }
 
+// CreateVolumeFromImage creates volume from images.
+func (d *common) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
 // CreateVolumeFromMigration creates a new volume (with or without snapshots) from a migration data stream.
 func (d *common) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	return ErrNotSupported
