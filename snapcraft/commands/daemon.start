@@ -24,7 +24,7 @@ export LXD_DIR="${SNAP_COMMON}/lxd/"
 export LXD_LXC_TEMPLATE_CONFIG="${SNAP_CURRENT}/lxc/config/"
 export LXD_LXC_HOOK="${SNAP_CURRENT}/lxc/hooks/"
 export LXD_EXEC_PATH="${SNAP_CURRENT}/sbin/lxd"
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${SNAP_CURRENT}/lib:${SNAP_CURRENT}/lib/${ARCH}:${SNAP_CURRENT}/lib/${ARCH}/ceph"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${SNAP_CURRENT}/lib:${SNAP_CURRENT}/lib/${ARCH}:${SNAP_CURRENT}/lib/${ARCH}/ceph:${SNAP_CURRENT}/lib/${ARCH}/swtpm"
 export PATH="${PATH}:${SNAP_CURRENT}/bin"
 export LXD_CLUSTER_UPDATE="${SNAP_CURRENT}/commands/refresh"
 export LXD_QEMU_FW_PATH="${SNAP_CURRENT}/share/qemu"
@@ -39,6 +39,13 @@ fi
 # Detect base name
 SNAP_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' /meta/snap.yaml)"
 
+# Temporary hack to workaround systemctl reload snap.lxd.daemon
+# problem with core24-based LXD snap
+_LXD_SNAP_DEVCGROUP_CONFIG="/var/lib/snapd/hostfs/var/lib/snapd/cgroup/snap.lxd.device"
+if [ "${SNAP_BASE}" = "core24" ] && [ -e "${_LXD_SNAP_DEVCGROUP_CONFIG}" ]; then
+    grep -qxF 'self-managed=true' "${_LXD_SNAP_DEVCGROUP_CONFIG}" || echo 'self-managed=true' >> "${_LXD_SNAP_DEVCGROUP_CONFIG}"
+fi
+
 # Wait for appliance configuration
 if [ "${LXD_APPLIANCE}" = "true" ]; then
     while :; do
@@ -51,7 +58,7 @@ fi
 nsenter -t 1 -m systemd-run -u snap."${SNAP_INSTANCE_NAME}".workaround -p Delegate=yes -r /bin/true >/dev/null 2>&1 || true
 
 # Workaround to ensure LXD is stopped before MicroCeph/MicroOVN
-SYSTEMD_OVERRIDE_DIR="/run/systemd/system/snap.lxd.daemon.service.d"
+SYSTEMD_OVERRIDE_DIR="/var/lib/snapd/hostfs/run/systemd/system/snap.lxd.daemon.service.d"
 if [ ! -e "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf" ]; then
     mkdir -p "${SYSTEMD_OVERRIDE_DIR}"
     echo "[Unit]
@@ -100,16 +107,9 @@ if [ ! -e "${SNAP_COMMON}/mntns" ] || [ -L "${SNAP_COMMON}/mntns" ]; then
     ln -s /proc/$$/root "${SNAP_COMMON}/mntns"
 fi
 
-# Fix /dev/pts
-if [ "$(grep -F "devpts /dev/pts " /proc/self/mountinfo)" = "2" ]; then
-    echo "==> Setting up /dev/pts"
-    umount -l /dev/ptmx
-    umount -l /dev/pts
-fi
-
 # Setup rshared propagation on mount holding paths
 for path in "${SNAP_COMMON}/lxd/storage-pools" "${SNAP_COMMON}/lxd/devices"; do
-    if ! cut -d' ' -f5 /proc/self/mountinfo | grep -qF "${path}"; then
+    if ! cut -d' ' -f5 /proc/self/mountinfo | grep -qxF "${path}"; then
         echo "==> Setting up mount propagation on ${path}"
         if [ ! -e "${path}" ]; then
             mkdir -p "${path}"
@@ -170,9 +170,9 @@ echo "==> Preparing a clean copy of /run"
 if [ -e "/run/.lxd_generated" ]; then
     umount -l /run
 fi
-mount -t tmpfs tmpfs /run -o mode=0755,nosuid,nodev
+mount -t tmpfs tmpfs /run -o mode=0755,nosuid,nodev,size=4M
 touch /run/.lxd_generated
-for entry in NetworkManager resolvconf netconfig snapd snapd.socket snapd-snap.socket systemd udev user; do
+for entry in NetworkManager resolvconf netconfig snapd snapd.socket snapd-snap.socket sysctl.d systemd udev user; do
     [ -e "/var/lib/snapd/hostfs/run/${entry}" ] || [ -L "/var/lib/snapd/hostfs/run/${entry}" ] || continue
     ln -s "/var/lib/snapd/hostfs/run/${entry}" "/run/${entry}"
 done
@@ -253,7 +253,7 @@ echo "==> Preparing a clean copy of /etc"
 if [ -e "/etc/.lxd_generated" ]; then
     umount -l /etc
 fi
-mount -t tmpfs tmpfs /etc -o mode=0755
+mount -t tmpfs tmpfs /etc -o mode=0755,nosuid,nodev,size=4M
 touch /etc/.lxd_generated
 
 ## Generate a new ld.so.cache
@@ -294,7 +294,7 @@ echo "==> Preparing a clean copy of /usr/share/misc"
 if [ -e "/usr/share/misc/.lxd_generated" ]; then
     umount -l /usr/share/misc
 fi
-mount -t tmpfs tmpfs /usr/share/misc -o mode=0755
+mount -t tmpfs tmpfs /usr/share/misc -o mode=0755,nosuid,nodev,size=4M
 touch /usr/share/misc/.lxd_generated
 ln -s "${SNAP_CURRENT}/share/misc/pci.ids" /usr/share/misc/
 ln -s "${SNAP_CURRENT}/share/misc/usb.ids" /usr/share/misc/
@@ -401,7 +401,7 @@ if [ "${zfs_external:-"false"}" = "false" ]; then
         VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
     fi
 
-    ZFS_VER="$(echo "${VERSION}" | cut -c 1-3)"
+    ZFS_VER="$(echo "${VERSION}" | cut -d. -f1-2)"
 
     if [ -d "${SNAP_CURRENT}/zfs-${ZFS_VER}/bin" ]; then
         echo "==> Setting up ZFS (${ZFS_VER})"
@@ -447,6 +447,58 @@ else
     fi
 fi
 
+manage_apparmor_restrictions() {
+    # sysctl override snippet
+    SYSCTL_FILE="/var/lib/snapd/hostfs/run/sysctl.d/zz-lxd.conf"
+
+    # Nothing to do if Apparmor is NOT active
+    [ -d /sys/kernel/security/apparmor ] || return 0
+
+    # Check if sysctl settings need to be altered and always write the override snippet
+    if [ "${apparmor_unprivileged_restrictions_disable:-"true"}" = "true" ]; then
+        KEY_USERNS="kernel.apparmor_restrict_unprivileged_userns"
+        KEY_UNCONFINED="kernel.apparmor_restrict_unprivileged_unconfined"
+        mkdir -p /var/lib/snapd/hostfs/run/sysctl.d
+        tmpf="$(mktemp "${SYSCTL_FILE}".XXXXXX)"
+
+        # userns restriction
+        if [ "$(sysctl -n -e "${KEY_USERNS}")" = "1" ]; then
+            echo "==> Disabling Apparmor unprivileged userns mediation"
+            sysctl -w -e "${KEY_USERNS}=0"
+        fi
+        # the "-" prefix avoids any failure or warning if the key is not supported
+        echo "-${KEY_USERNS} = 0" >> "${tmpf}"
+
+        # unconfined restriction
+        if [ "$(sysctl -n -e "${KEY_UNCONFINED}")" = "1" ]; then
+            echo "==> Disabling Apparmor unprivileged unconfined mediation"
+            sysctl -w -e "${KEY_UNCONFINED}=0"
+        fi
+        # the "-" prefix avoids any failure or warning if the key is not supported
+        echo "-${KEY_UNCONFINED} = 0" >> "${tmpf}"
+
+        # Save the overrides in a snippet file if content differs or any file is missing
+        if ! cmp --quiet "${tmpf}" "${SYSCTL_FILE}"; then
+            chmod a+r "${tmpf}"
+            mv "${tmpf}" "${SYSCTL_FILE}"
+        else
+            rm "${tmpf}"
+        fi
+
+        # Done
+        return 0
+    fi
+
+    # Check if an old override snippet needs to be unapplied
+    [ -f "${SYSCTL_FILE}" ] || return 0
+
+    echo "==> Restoring Apparmor unprivileged userns and unconfined mediations"
+
+    # Remove the old override snippet before applying system rules
+    rm "${SYSCTL_FILE}"
+    nsenter -t 1 -m systemctl restart systemd-sysctl.service || true
+}
+
 # Update system limits
 if [ "$(stat -c '%u' /proc)" = 0 ]; then
     ## prlimits
@@ -490,21 +542,7 @@ if [ "$(stat -c '%u' /proc)" = 0 ]; then
         fi
     fi
 
-    if [ "${apparmor_unprivileged_restrictions_disable:-"true"}" = "true" ]; then
-        if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-            if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)" = "1" ]; then
-                echo "==> Disabling Apparmor unprivileged userns mediation"
-                echo 0 > /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
-            fi
-        fi
-
-        if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined ]; then
-            if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined)" = "1" ]; then
-                echo "==> Disabling Apparmor unprivileged unconfined mediation"
-                echo 0 > /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined || true
-            fi
-        fi
-    fi
+    manage_apparmor_restrictions
 fi
 
 # Setup CRIU
@@ -513,11 +551,8 @@ if [ "${criu_enable:-"false"}" = "true" ]; then
     export PATH="${SNAP_CURRENT}/criu:${PATH}"
 fi
 
-# Setup UI
-if [ "${ui_enable:-"false"}" = "true" ]; then
-    echo "==> Enabling LXD UI"
-    export LXD_UI="${SNAP_CURRENT}/share/lxd-ui/"
-fi
+echo "==> Exposing LXD UI"
+export LXD_UI="${SNAP_CURRENT}/share/lxd-ui/"
 
 # Setup documentation
 echo "==> Exposing LXD documentation"
@@ -526,7 +561,6 @@ export LXD_DOCUMENTATION="${SNAP_CURRENT}/share/lxd-documentation"
 # LXC
 ## Host specific overrides
 mkdir -p "${SNAP_COMMON}/lxc"
-touch "${SNAP_COMMON}/lxc/local.conf"
 if [ -d /sys/kernel/security/apparmor ] && ! grep -qF -- "-Ubuntu" /proc/version; then
     echo "==> Detected kernel with partial AppArmor support"
     echo "lxc.apparmor.allow_incomplete = 1" > "${SNAP_COMMON}/lxc/local.conf"
@@ -548,6 +582,11 @@ if [ "${openvswitch_builtin:-"false"}" = "true" ]; then
         export OVS_SBINDIR="${SNAP}/bin/"
 
         mkdir -p "${OVS_SYSCONFDIR}/openvswitch"
+        OVS_SYSTEM_ID_FILE="${OVS_SYSCONFDIR}/openvswitch/system-id.conf"
+        if ! [ -s "${OVS_SYSTEM_ID_FILE}" ]; then
+            systemd-id128 new --uuid > "${OVS_SYSTEM_ID_FILE}"
+        fi
+
         (
             # Close socket activation fd
             exec 3<&- || true
@@ -615,7 +654,7 @@ else
         export LD_LIBRARY_PATH="${SNAP_CURRENT}/lib:${SNAP_CURRENT}/lib/${ARCH}"
         lxcfs_args=
         [ "${lxcfs_loadavg:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} --enable-loadavg"
-        [ "${lxcfs_pidfd:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} --enable-pidfd"
+        [ "${lxcfs_pidfd:-"true"}" = "true" ] && lxcfs_args="${lxcfs_args} --enable-pidfd"
         [ "${lxcfs_cfs:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} --enable-cfs"
         [ "${lxcfs_debug:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} -d"
 

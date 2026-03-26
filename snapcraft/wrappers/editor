@@ -16,8 +16,11 @@ run_cmd() {
         fi
     fi
 
+    # Use --propagation slave so unmounts in the parent namespace propagate to
+    # the editor's namespace. This prevents leftover mounts (ZFS/LVM) from
+    # blocking storage delete operations while the editor is open.
     # shellcheck disable=SC2145
-    exec unshare --kill-child -U -m -p -r -f --root="/var/lib/snapd/hostfs/" "/bin/sh" -c "mount -t proc proc /proc 2>/dev/null || true; exec \"${CMD}\" ${IGNORERCFILES} \"$@\""
+    exec unshare --kill-child -U -m --propagation slave -p -r -f --root="/var/lib/snapd/hostfs/" "/bin/sh" -c "mount -t proc proc /proc 2>/dev/null || true; exec \"${CMD}\" ${IGNORERCFILES} \"$@\""
 }
 
 # Detect base name

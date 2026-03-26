@@ -23,7 +23,7 @@ jobs:
       BRANCH: ${{ github.ref_name }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - uses: canonical/lxd/.github/actions/lp-snap-build@main
         with:
@@ -37,7 +37,7 @@ jobs:
           ver=($(lxd-snapcraft -package "${PACKAGE}" -get-version -file ~/"${PACKAGE}-pkg-snap-lp/snapcraft.yaml"))
           rsync -a --exclude .git --delete . ~/"${PACKAGE}-pkg-snap-lp"/
           cd ~/"${PACKAGE}-pkg-snap-lp"
-          lxd-snapcraft -package lxd -set-version "${ver[0]}" -set-source-commit "${ver[1]}"
+          lxd-snapcraft -package "${PACKAGE}" -set-version "${ver[0]}" -set-source-commit "${ver[1]}"
           git add --all
           git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
           git show

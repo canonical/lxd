@@ -22,8 +22,8 @@ export PATH="${PATH}:${SNAP_CURRENT}/bin"
 export LXD_DIR="${LXD_DIR:-"${SNAP_COMMON}/lxd/"}"
 
 # Make sure we have a ZFS binary on the path
-export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-2.1/lib/:${LD_LIBRARY_PATH}"
-export PATH="${SNAP_CURRENT}/zfs-2.1/bin:${PATH}"
+export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-2.2/lib/:${LD_LIBRARY_PATH}"
+export PATH="${SNAP_CURRENT}/zfs-2.2/bin:${PATH}"
 
 LXD="lxd"
 if [ -x "${SNAP_COMMON}/lxd.debug" ]; then
