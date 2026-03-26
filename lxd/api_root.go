@@ -134,8 +134,8 @@ var documentationRedirectCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: documentationRedirectGet, AllowUntrusted: true},
 }
 
-// uiDisabledMessage is the HTML body returned when the LXD web UI is not configured.
-const uiDisabledMessage = `<html><title>The UI is not enabled</title><body><p>The UI is not enabled. For instructions to enable it check: <a href="https://documentation.ubuntu.com/lxd/latest/howto/access_ui/">How to access the LXD web UI</a></p></body></html>`
+// uiUnavailableMessage is the HTML body returned when the LXD web UI is not available.
+const uiUnavailableMessage = `<html><title>The UI is not available</title><body><p>The UI is not available in this installation of LXD. For more information check: <a href="https://documentation.ubuntu.com/lxd/latest/howto/access_ui/">How to access the LXD web UI</a></p></body></html>`
 
 func rootGet(d *Daemon, r *http.Request) response.Response {
 	if isBrowserClient(r) {
@@ -214,7 +214,7 @@ func uiGet(d *Daemon, r *http.Request) response.Response {
 		return response.ManualResponse(func(w http.ResponseWriter) error {
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusServiceUnavailable)
-			_, err := fmt.Fprint(w, uiDisabledMessage)
+			_, err := fmt.Fprint(w, uiUnavailableMessage)
 			if err != nil {
 				logger.Warn("Failed sending error message to client", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr, "err": err})
 			}
@@ -251,7 +251,7 @@ func uiRedirectGet(d *Daemon, r *http.Request) response.Response {
 		return response.ManualResponse(func(w http.ResponseWriter) error {
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusServiceUnavailable)
-			_, err := fmt.Fprint(w, uiDisabledMessage)
+			_, err := fmt.Fprint(w, uiUnavailableMessage)
 			if err != nil {
 				logger.Warn("Failed sending error message to client", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr, "err": err})
 			}
