@@ -39,13 +39,6 @@ fi
 # Detect base name
 SNAP_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' /meta/snap.yaml)"
 
-# Temporary hack to workaround systemctl reload snap.lxd.daemon
-# problem with core24-based LXD snap
-if [ "${SNAP_BASE}" = "core24" ]; then
-    _LXD_SNAP_DEVCGROUP_CONFIG="/var/lib/snapd/hostfs/var/lib/snapd/cgroup/snap.lxd.device"
-    grep -qxF 'self-managed=true' "${_LXD_SNAP_DEVCGROUP_CONFIG}" || echo 'self-managed=true' >> "${_LXD_SNAP_DEVCGROUP_CONFIG}"
-fi
-
 # Wait for appliance configuration
 if [ "${LXD_APPLIANCE}" = "true" ]; then
     while :; do
