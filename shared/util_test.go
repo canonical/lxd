@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/flosch/pongo2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -234,5 +235,26 @@ func TestRenderTemplate(t *testing.T) {
 
 	// Check pongo2 panics are handled.
 	_, err = RenderTemplate(`{{ badsnap%d }}`, nil)
+	assert.Error(t, err)
+}
+
+func TestRenderTemplateFile(t *testing.T) {
+	// Render proper template.
+	var buf bytes.Buffer
+	err := RenderTemplateFile(&buf, `Hello, {{ name }}!`, pongo2.Context{"name": "world"})
+	assert.NoError(t, err)
+	assert.Equal(t, `Hello, world!`, buf.String())
+
+	// Ban dangerous tags.
+	for _, tag := range []string{"extends", "import", "include", "ssi"} {
+		buf.Reset()
+		err = RenderTemplateFile(&buf, fmt.Sprintf(`{%% %s "/etc/hosts" %%}`, tag), nil)
+		assert.Error(t, err)
+		assert.Empty(t, buf.String())
+	}
+
+	// Check pongo2 panics are handled.
+	buf.Reset()
+	err = RenderTemplateFile(&buf, `{{ badsnap%d }}`, nil)
 	assert.Error(t, err)
 }
