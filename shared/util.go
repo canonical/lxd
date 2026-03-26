@@ -1167,7 +1167,7 @@ func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
 		return RenderTemplate(ret, ctx)
 	}
 
-	return ret, err
+	return ret, nil
 }
 
 func GetSnapshotExpiry(refDate time.Time, s string) (time.Time, error) {
