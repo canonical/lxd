@@ -2148,17 +2148,8 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		return err
 	}
 
-	// Determine whether an optimized image should be used.
-	useOptimizedImage, err := b.shouldUseOptimizedImage(fingerprint, contentType, volumeConfig)
-	if err != nil {
-		return err
-	}
-
 	// Generate the effective root device volume for instance.
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
-
-	// Perform this after checking for optimized image as overwriting the volumes UUID
-	// will cause a non matching configuration which will always fall back to non optimized storage.
 	vol := b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
 
 	// Set the parent volume UUID.
@@ -2186,76 +2177,40 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 	// Leave reverting on failure to caller, they are expected to call DeleteInstance().
 
-	// If the driver doesn't support optimized image volumes or the optimized image volume should not be used,
-	// create a new empty volume and populate it with the contents of the image archive.
-	if !useOptimizedImage {
-		volFiller := drivers.VolumeFiller{
-			Fingerprint: fingerprint,
-			Fill:        b.imageFiller(fingerprint, op, inst.Project().Name),
-		}
+	volFiller := drivers.VolumeFiller{
+		Fingerprint: fingerprint,
+		Fill:        b.imageFiller(fingerprint, op, inst.Project().Name),
+	}
 
-		err = b.driver.CreateVolume(vol, &volFiller, op)
-		if err != nil {
-			return err
-		}
-	} else {
-		// If the driver supports optimized images then ensure the optimized image volume has been created
-		// for the images's fingerprint and that it matches the pool's current volume settings, and if not
-		// recreating using the pool's current volume settings.
+	// If the driver supports optimized images and the instance's config is compatible
+	// with pool defaults, ensure the cached image volume exists and pass it to the
+	// driver. Otherwise imgVol is nil and the driver falls back to a direct unpack.
+	var imgVol *drivers.Volume
+	canOptimizedImage, err := drivers.CanUseOptimizedImage(vol)
+	if err != nil {
+		return err
+	}
+
+	if canOptimizedImage {
 		err = b.EnsureImage(fingerprint, op, inst.Project().Name)
 		if err != nil {
 			return err
 		}
 
-		// Try and load existing volume config on this storage pool so we can compare filesystems if needed.
 		imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage)
 		if err != nil {
 			return err
 		}
 
-		imgVol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
+		v := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
+		imgVol = &v
+	}
 
-		// Derive the volume size to use for a new volume when copying from a source volume.
-		// Where possible (if the source volume has a volatile.rootfs.size property), it checks that the
-		// source volume isn't larger than the volume's "size" and the pool's "volume.size" setting.
-		l.Debug("Checking volume size")
-		newVolSize, err := vol.ConfigSizeFromSource(imgVol)
-		if err != nil {
-			return err
-		}
-
-		// Set the derived size directly as the "size" property on the new volume so that it is applied.
-		vol.SetConfigSize(newVolSize)
-		l.Debug("Set new volume size", logger.Ctx{"size": newVolSize})
-
-		volCopy := drivers.NewVolumeCopy(vol)
-		imgVolCopy := drivers.NewVolumeCopy(imgVol)
-
-		// Proceed to create a new volume by copying the optimized image volume.
-		err = b.driver.CreateVolumeFromCopy(volCopy, imgVolCopy, false, op)
-
-		// If the driver returns ErrCannotBeShrunk, this means that the cached volume that the new volume
-		// is to be created from is larger than the requested new volume size, and cannot be shrunk.
-		// So we unpack the image directly into a new volume rather than use the optimized snapsot.
-		// This is slower but allows for individual volumes to be created from an image that are smaller
-		// than the pool's volume settings.
-		if err != nil {
-			if !errors.Is(err, drivers.ErrCannotBeShrunk) {
-				return err
-			}
-
-			l.Debug("Cached image volume is larger than new volume and cannot be shrunk, creating non-optimized volume")
-
-			volFiller := drivers.VolumeFiller{
-				Fingerprint: fingerprint,
-				Fill:        b.imageFiller(fingerprint, op, inst.Project().Name),
-			}
-
-			err = b.driver.CreateVolume(vol, &volFiller, op)
-			if err != nil {
-				return err
-			}
-		}
+	// The driver decides whether to clone from the cached image volume or unpack
+	// directly, based on whether imgVol is set and config/size constraints.
+	err = b.driver.CreateVolumeFromImage(vol, imgVol, &volFiller, op)
+	if err != nil {
+		return err
 	}
 
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name(), vol.MountPath())
@@ -4308,22 +4263,11 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation, p
 		// Add existing image volume's config to imgVol.
 		imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, imgDBVol.Config)
 
-		// Check if the volume's block backed mode differs from the pool's current setting for new volumes.
-		blockModeChanged := tmpImgVol.IsBlockBacked() != imgVol.IsBlockBacked()
-
-		// Check if the volume is block backed and its filesystem is different from the pool's current
-		// setting for new volumes.
-		blockFSChanged := imgVol.IsBlockBacked() && imgVol.Config()["block.filesystem"] != tmpImgVol.Config()["block.filesystem"]
-
+		// Check if the volume's config differs from the pool's current configuration for new volumes.
 		// If the existing image volume no longer matches the pool's settings for new volumes then we need
 		// to delete and re-create it.
-		if blockModeChanged || blockFSChanged {
-			if blockModeChanged {
-				l.Debug("Block mode has changed, regenerating image volume")
-			} else {
-				l.Debug("Block volume filesystem of pool has changed since cached image volume created, regenerating image volume")
-			}
-
+		if !b.driver.ImageVolumeConfigMatch(imgVol, tmpImgVol) {
+			l.Debug("Image volume configuration differs from storage pool configuration, regenerating image volume")
 			err = b.DeleteImage(image.Fingerprint, op)
 			if err != nil {
 				return err
@@ -4434,72 +4378,6 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation, p
 
 	revert.Success()
 	return nil
-}
-
-// shouldUseOptimizedImage determines if an optimized image should be used based on the provided volume config.
-// It returns true if the volume config aligns with the pool's default configuration, and an optimized image does
-// not exist or also matches the pool's default configuration.
-func (b *lxdBackend) shouldUseOptimizedImage(fingerprint string, contentType drivers.ContentType, volConfig map[string]string) (bool, error) {
-	canOptimizeImage := b.driver.Info().OptimizedImages
-
-	// If the volume config is empty, the default pool configuration is used, making the driver's support
-	// for optimized images the determining factor. However, an optimized image cannot be utilized if the
-	// driver lacks support for it.
-	if !canOptimizeImage || len(volConfig) == 0 {
-		return canOptimizeImage, nil
-	}
-
-	// Create the image volume with the provided volume config.
-	newImgVol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, volConfig)
-	err := b.Driver().FillVolumeConfig(newImgVol)
-	if err != nil {
-		return false, err
-	}
-
-	// Create the image volume with pool's default settings.
-	poolDefaultImgVol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
-	err = b.Driver().FillVolumeConfig(poolDefaultImgVol)
-	if err != nil {
-		return false, err
-	}
-
-	// If the new volume's config doesn't match the pool's default configuration, don't use an optimized image.
-	if !volumeConfigsMatch(newImgVol, poolDefaultImgVol) {
-		return false, nil
-	}
-
-	// Load existing optimized image, if it exists.
-	imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage)
-	if err != nil && !response.IsNotFoundError(err) {
-		return false, err
-	}
-
-	if imgDBVol != nil {
-		// Ensure existing optimized image's config matches the pool's default configuration.
-		imgVol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
-		if !volumeConfigsMatch(newImgVol, imgVol) {
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-// volumeConfigsMatch checks if the block-backed modes of two volumes match, and if they are block-backed, ensures
-// their filesystem configurations are also identical.
-func volumeConfigsMatch(vol1, vol2 drivers.Volume) bool {
-	blockModeChanged := vol1.IsBlockBacked() != vol2.IsBlockBacked()
-	blockFSChanged := vol1.IsBlockBacked() && vol1.Config()["block.filesystem"] != vol2.Config()["block.filesystem"]
-
-	// TODO: Temporary workaround for zfs.blocksize issue:
-	// When zfs.blocksize changes, a new optimized image isn't generated. This ensures we don't use an
-	// optimized image if initial.zfs.blocksize differs from the default pool settings.
-	//
-	// Note: If initial.zfs.blocksize is set to 8KiB and volume.zfs.blocksize is unset (defaults to 8KiB),
-	// they're considered unequal ("" != "8KiB"), preventing the use of a matching optimized image.
-	blockSizeChanged := vol1.IsBlockBacked() && vol1.Config()["zfs.blocksize"] != vol2.Config()["zfs.blocksize"]
-
-	return !blockModeChanged && !blockFSChanged && !blockSizeChanged
 }
 
 // DeleteImage removes an image from the database and underlying storage device if needed.
