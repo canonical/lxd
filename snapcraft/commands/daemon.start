@@ -552,11 +552,8 @@ if [ "$(stat -c '%u' /proc)" = 0 ]; then
     manage_apparmor_restrictions
 fi
 
-# Setup UI (missing on riscv64 due to https://github.com/nodejs/snap/issues/77)
-if [ -d "${SNAP_CURRENT}/share/lxd-ui/" ]; then
-    echo "==> Enabling LXD UI"
-    export LXD_UI="${SNAP_CURRENT}/share/lxd-ui/"
-fi
+echo "==> Exposing LXD UI"
+export LXD_UI="${SNAP_CURRENT}/share/lxd-ui/"
 
 # Setup documentation
 echo "==> Exposing LXD documentation"
