@@ -14,45 +14,80 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t placement_groups.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -e placement_group objects table=placement_groups
-//go:generate mapper stmt -e placement_group objects-by-ID table=placement_groups
-//go:generate mapper stmt -e placement_group objects-by-Project table=placement_groups
-//go:generate mapper stmt -e placement_group objects-by-Name-and-Project table=placement_groups
-//go:generate mapper stmt -e placement_group id table=placement_groups
-//go:generate mapper stmt -e placement_group create struct=PlacementGroup table=placement_groups
-//go:generate mapper stmt -e placement_group delete-by-Name-and-Project table=placement_groups
-//go:generate mapper stmt -e placement_group update struct=PlacementGroup table=placement_groups
-//go:generate mapper stmt -e placement_group rename struct=PlacementGroup table=placement_groups
-//
-//go:generate mapper method -i -e placement_group GetMany
-//go:generate mapper method -i -e placement_group GetOne
-//go:generate mapper method -i -e placement_group ID struct=PlacementGroup
-//go:generate mapper method -i -e placement_group Exists struct=PlacementGroup
-//go:generate mapper method -i -e placement_group Create struct=PlacementGroup
-//go:generate mapper method -i -e placement_group DeleteOne-by-Name-and-Project
-//go:generate mapper method -i -e placement_group Update struct=PlacementGroup
-//go:generate mapper method -i -e placement_group Rename struct=PlacementGroup
-//go:generate goimports -w placement_groups.mapper.go
-//go:generate goimports -w placement_groups.interface.mapper.go
+// PlacementGroupsRow represents a single row of the placement_groups table.
+// db:model placement_groups
+type PlacementGroupsRow struct {
+	ID          int64  `db:"id"`
+	Name        string `db:"name"`
+	Description string `db:"description"`
+	ProjectID   int64  `db:"project_id"`
+}
 
-// PlacementGroup is the database representation of an [api.PlacementGroup].
+// APIName implements [query.APINamer] for API friendly error messages.
+func (PlacementGroupsRow) APIName() string {
+	return "Placement group"
+}
+
+// PlacementGroup contains [PlacementGroupsRow] with additional joins.
+// db:model placement_groups
 type PlacementGroup struct {
-	ID          int
-	Name        string `db:"primary=yes"`
-	Project     string `db:"primary=yes&join=projects.name"`
-	Description string `db:"coalesce=''"`
+	Row PlacementGroupsRow
+
+	// db:join JOIN projects ON placement_groups.project_id = projects.id
+	ProjectName string `db:"projects.name"`
 }
 
 // PlacementGroupFilter contains fields that can be used to filter results when getting placement groups.
 type PlacementGroupFilter struct {
-	ID      *int // Used to exclude placement group instances on the source cluster member during evacuation.
 	Project *string
 	Name    *string
+}
+
+// GetPlacementGroup gets a [PlacementGroup] by name and project.
+func GetPlacementGroup(ctx context.Context, tx *sql.Tx, name string, projectName string) (*PlacementGroup, error) {
+	group, err := query.SelectOne[PlacementGroup](ctx, tx, "WHERE placement_groups.name = ? AND projects.name = ?", name, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading placement group: %w", err)
+	}
+
+	return group, nil
+}
+
+// GetPlacementGroupsAndURLs queries for all placement groups and then applies the given filter to the result.
+// This is useful when filtering by groups the caller is able to view.
+// The filter must return true to include an entry, and false to reject an entry.
+// A slice of (filtered) placement group URLs is also returned for convenience.
+// If the project name argument is non-nil, only placement groups in that project are returned.
+// If the project name is nil, placement groups from all projects are returned.
+func GetPlacementGroupsAndURLs(ctx context.Context, tx *sql.Tx, projectName *string, filter func(group PlacementGroup) bool) ([]PlacementGroup, []string, error) {
+	var args []any
+	var b strings.Builder
+	if projectName == nil {
+		b.WriteString("ORDER BY projects.name, ")
+	} else {
+		b.WriteString("WHERE projects.name = ? ORDER BY ")
+		args = append(args, *projectName)
+	}
+
+	b.WriteString("placement_groups.name")
+	clause := b.String()
+
+	var placementGroups []PlacementGroup
+	var placementGroupURLs []string
+	err := query.SelectFunc[PlacementGroup](ctx, tx, clause, func(group PlacementGroup) error {
+		if filter != nil && !filter(group) {
+			return nil
+		}
+
+		placementGroups = append(placementGroups, group)
+		placementGroupURLs = append(placementGroupURLs, entity.PlacementGroupURL(group.ProjectName, group.Row.Name).String())
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed listing placement groups: %w", err)
+	}
+
+	return placementGroups, placementGroupURLs, nil
 }
 
 // CreatePlacementGroupConfig creates config for a new placement group with the given ID.
@@ -98,7 +133,7 @@ func UpdatePlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupI
 }
 
 // GetPlacementGroupConfig returns the config for the placement group with the given ID.
-func GetPlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int) (map[string]string, error) {
+func GetPlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64) (map[string]string, error) {
 	q := `SELECT key, value FROM placement_groups_config WHERE placement_group_id=?`
 
 	config := map[string]string{}
@@ -123,25 +158,25 @@ func GetPlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID i
 // ToAPI converts the [PlacementGroup] to an [api.PlacementGroup], querying for extra data as necessary.
 func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementGroup, error) {
 	// Get config
-	config, err := GetPlacementGroupConfig(ctx, tx, p.ID)
+	config, err := GetPlacementGroupConfig(ctx, tx, p.Row.ID)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting placement group config: %w", err)
 	}
 
 	return &api.PlacementGroup{
-		Name:        p.Name,
-		Description: p.Description,
-		Project:     p.Project,
+		Name:        p.Row.Name,
+		Description: p.Row.Description,
+		Project:     p.ProjectName,
 		Config:      config,
 	}, nil
 }
 
-// GetPlacementGroupUsedBy returns a list of URLs of all instances and profiles that reference placement groups matching the provided [PlacementGroupFilter].
+// GetPlacementGroupUsedBy returns a list of URLs of all instances and profiles that reference placement groups matching the provider [PlacementGroupFilter].
 func GetPlacementGroupUsedBy(ctx context.Context, tx *sql.Tx, filter PlacementGroupFilter, firstOnly bool) ([]string, error) {
 	var b strings.Builder
 	var args []any
 
-	b.WriteString(`SELECT ` + strconv.Itoa(int(entityTypeCodeInstance)) + `, instances.name, projects.name, instances_config.value FROM instances
+	b.WriteString(`SELECT ` + strconv.FormatInt(entityTypeCodeInstance, 10) + `, instances.name, projects.name, instances_config.value FROM instances
 JOIN instances_config ON instances.id = instances_config.instance_id
 JOIN projects ON instances.project_id = projects.id
 WHERE instances_config.key = 'placement.group'`)
@@ -157,7 +192,7 @@ WHERE instances_config.key = 'placement.group'`)
 	}
 
 	b.WriteString(`
-UNION SELECT ` + strconv.Itoa(int(entityTypeCodeProfile)) + `, profiles.name, projects.name, profiles_config.value FROM profiles
+UNION SELECT ` + strconv.FormatInt(entityTypeCodeProfile, 10) + `, profiles.name, projects.name, profiles_config.value FROM profiles
 JOIN profiles_config ON profiles.id = profiles_config.profile_id
 JOIN projects ON profiles.project_id = projects.id
 WHERE profiles_config.key = 'placement.group'`)
@@ -206,13 +241,9 @@ WHERE profiles_config.key = 'placement.group'`)
 }
 
 // GetInstancesInPlacementGroup returns a map of member (node) ID to a slice of instance IDs for all instances that reference the given placement group either directly or indirectly via a profile.
-// The target placement group is specified using a [PlacementGroupFilter] which must contain both [PlacementGroupFilter.Project] and [PlacementGroupFilter.Name].
-func GetInstancesInPlacementGroup(ctx context.Context, tx *sql.Tx, filter PlacementGroupFilter) (map[int][]int, error) {
-	if filter.Project == nil || filter.Name == nil {
-		return nil, errors.New("Project and placement group name must be provided")
-	}
-
-	args := []any{*filter.Project, *filter.Name}
+// The target placement group is specified with the given name and project name. Instances located on the optional node ID are excluded if the node ID is not nil.
+func GetInstancesInPlacementGroup(ctx context.Context, tx *sql.Tx, name string, projectName string, nodeID *int64) (map[int64][]int64, error) {
+	args := []any{projectName, name}
 
 	// Compute the "placement.group" for each instance using COALESCE(instance-level-config, last-applied-profile-config) so that instance-level config overrides profile-level config.
 	q := `SELECT instances.id, instances.node_id
@@ -225,15 +256,15 @@ AND COALESCE(
 ) = ?`
 
 	// Exclude member ID if specified.
-	if filter.ID != nil {
+	if nodeID != nil {
 		q += " AND instances.node_id != ?"
-		args = append(args, *filter.ID)
+		args = append(args, *nodeID)
 	}
 
-	result := make(map[int][]int)
+	result := make(map[int64][]int64)
 	err := query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
-		var instID int
-		var nodeID int
+		var instID int64
+		var nodeID int64
 		err := scan(&instID, &nodeID)
 		if err != nil {
 			return err

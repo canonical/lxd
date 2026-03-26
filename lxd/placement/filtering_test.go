@@ -10,6 +10,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -88,8 +89,8 @@ func (s *filteringSuite) TestFilter() {
 			caseSetup: func() {
 				_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 					// Create placement group with spread/strict policy.
-					pgID, err := cluster.CreatePlacementGroup(ctx, tx.Tx(), cluster.PlacementGroup{
-						Project:     "default",
+					pgID, err := query.Create(ctx, tx.Tx(), cluster.PlacementGroupsRow{
+						ProjectID:   1,
 						Name:        "pg-spread-strict",
 						Description: "Spread strict placement group",
 					})
@@ -108,9 +109,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-spread-strict",
-					Description: "Spread strict placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-spread-strict",
+						Description: "Spread strict placement group",
+					},
 				},
 			},
 			want:    candidates, // All candidates available for first instance.
@@ -141,9 +144,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-spread-strict",
-					Description: "Spread strict placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-spread-strict",
+						Description: "Spread strict placement group",
+					},
 				},
 			},
 			want:    candidatesWithout("member01"), // member01 has instance, exclude it.
@@ -176,9 +181,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-spread-strict",
-					Description: "Spread strict placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-spread-strict",
+						Description: "Spread strict placement group",
+					},
 				},
 			},
 			want:    nil,
@@ -201,8 +208,8 @@ func (s *filteringSuite) TestFilter() {
 			name: "spread/permissive: initial placement",
 			caseSetup: func() {
 				_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-					pgID, err := cluster.CreatePlacementGroup(ctx, tx.Tx(), cluster.PlacementGroup{
-						Project:     "default",
+					pgID, err := query.Create(ctx, tx.Tx(), cluster.PlacementGroupsRow{
+						ProjectID:   1,
 						Name:        "pg-spread-permissive",
 						Description: "Spread permissive placement group",
 					})
@@ -221,9 +228,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-spread-permissive",
-					Description: "Spread permissive placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-spread-permissive",
+						Description: "Spread permissive placement group",
+					},
 				},
 			},
 			want:    candidates, // All candidates have 0 instances.
@@ -267,9 +276,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-spread-permissive",
-					Description: "Spread permissive placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-spread-permissive",
+						Description: "Spread permissive placement group",
+					},
 				},
 			},
 			want:    candidatesOnly("member04", "member05"), // Only nodes with 0 instances (min).
@@ -291,8 +302,8 @@ func (s *filteringSuite) TestFilter() {
 			name: "compact/strict: initial placement",
 			caseSetup: func() {
 				_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-					pgID, err := cluster.CreatePlacementGroup(ctx, tx.Tx(), cluster.PlacementGroup{
-						Project:     "default",
+					pgID, err := query.Create(ctx, tx.Tx(), cluster.PlacementGroupsRow{
+						ProjectID:   1,
 						Name:        "pg-compact-strict",
 						Description: "Compact strict placement group",
 					})
@@ -311,9 +322,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-compact-strict",
-					Description: "Compact strict placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-compact-strict",
+						Description: "Compact strict placement group",
+					},
 				},
 			},
 			want:    candidates, // No instances yet, all candidates valid.
@@ -344,9 +357,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-compact-strict",
-					Description: "Compact strict placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-compact-strict",
+						Description: "Compact strict placement group",
+					},
 				},
 			},
 			want:    candidatesOnly("member03"), // Only member03.
@@ -358,9 +373,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidatesWithout("member03"), // member03 not in candidates.
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-compact-strict",
-					Description: "Compact strict placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-compact-strict",
+						Description: "Compact strict placement group",
+					},
 				},
 			},
 			want:    nil,
@@ -413,9 +430,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-compact-strict",
-					Description: "Compact strict placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-compact-strict",
+						Description: "Compact strict placement group",
+					},
 				},
 			},
 			want:    candidatesOnly("member01"), // member01 has 3 instances vs member02 with 1.
@@ -437,8 +456,8 @@ func (s *filteringSuite) TestFilter() {
 			name: "compact/permissive: initial placement",
 			caseSetup: func() {
 				_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-					pgID, err := cluster.CreatePlacementGroup(ctx, tx.Tx(), cluster.PlacementGroup{
-						Project:     "default",
+					pgID, err := query.Create(ctx, tx.Tx(), cluster.PlacementGroupsRow{
+						ProjectID:   1,
 						Name:        "pg-compact-permissive",
 						Description: "Compact permissive placement group",
 					})
@@ -457,9 +476,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-compact-permissive",
-					Description: "Compact permissive placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-compact-permissive",
+						Description: "Compact permissive placement group",
+					},
 				},
 			},
 			want:    candidates, // No instances yet, all candidates valid.
@@ -490,9 +511,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-compact-permissive",
-					Description: "Compact permissive placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-compact-permissive",
+						Description: "Compact permissive placement group",
+					},
 				},
 			},
 			want:    candidatesOnly("member02"), // Prefer member02.
@@ -504,9 +527,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidatesWithout("member02"), // member02 not in candidates.
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-compact-permissive",
-					Description: "Compact permissive placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-compact-permissive",
+						Description: "Compact permissive placement group",
+					},
 				},
 			},
 			want:    candidatesWithout("member02"), // All other candidates.
@@ -553,9 +578,11 @@ func (s *filteringSuite) TestFilter() {
 				candidates: candidates,
 				project:    "default",
 				placementGroup: cluster.PlacementGroup{
-					Project:     "default",
-					Name:        "pg-compact-permissive",
-					Description: "Compact permissive placement group",
+					ProjectName: "default",
+					Row: cluster.PlacementGroupsRow{
+						Name:        "pg-compact-permissive",
+						Description: "Compact permissive placement group",
+					},
 				},
 			},
 			want:    candidatesOnly("member02"), // member02 has 3 instances vs member04 with 1.
@@ -583,7 +610,7 @@ func (s *filteringSuite) TestFilter() {
 
 		_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Fetch the placement group to get the full object with ID.
-			placementGroup, err := pgCache.Get(ctx, tx, tt.args.placementGroup.Name, tt.args.placementGroup.Project)
+			placementGroup, err := pgCache.Get(ctx, tx, tt.args.placementGroup.Row.Name, tt.args.placementGroup.ProjectName)
 			if err != nil {
 				return err
 			}

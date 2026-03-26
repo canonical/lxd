@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
@@ -171,61 +172,45 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 	var placementGroupURLs []string
 	entitlementReportingMap := make(map[*api.URL]auth.EntitlementReporter)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var projectFilter *string
+		var projectNameFilter *string
 		if !allProjects {
-			projectFilter = &projectName
+			projectNameFilter = &projectName
 		}
 
+		var placementGroups []cluster.PlacementGroup
+		placementGroups, placementGroupURLs, err = cluster.GetPlacementGroupsAndURLs(ctx, tx.Tx(), projectNameFilter, func(group cluster.PlacementGroup) bool {
+			return canViewPlacementGroup(entity.PlacementGroupURL(group.ProjectName, group.Row.Name))
+		})
+
 		if recursion == 0 {
-			placementGroups, err := cluster.GetPlacementGroups(ctx, tx.Tx(), cluster.PlacementGroupFilter{Project: projectFilter})
-			if err != nil {
-				return err
-			}
-
-			for _, placementGroup := range placementGroups {
-				u := entity.PlacementGroupURL(projectName, placementGroup.Name)
-				if !canViewPlacementGroup(u) {
-					continue
-				}
-
-				placementGroupURLs = append(placementGroupURLs, u.String())
-			}
-
 			return nil
 		}
 
-		var filters []cluster.PlacementGroupFilter
-		if !allProjects {
-			filters = append(filters, cluster.PlacementGroupFilter{Project: &projectName})
-		}
-
-		placementGroups, err := cluster.GetPlacementGroups(ctx, tx.Tx(), filters...)
-		if err != nil {
-			return err
-		}
-
-		apiGroups = make([]*api.PlacementGroup, 0, len(placementGroups))
+		// Transaction local variable to prevent appending duplicates in case of transaction retry on sqlite.ErrBusy.
+		apiGroupsTx := make([]*api.PlacementGroup, 0, len(placementGroups))
 		for _, placementGroup := range placementGroups {
-			u := entity.PlacementGroupURL(placementGroup.Project, placementGroup.Name)
-			if !canViewPlacementGroup(u) {
-				continue
-			}
-
+			u := entity.PlacementGroupURL(placementGroup.ProjectName, placementGroup.Row.Name)
 			apiGroup, err := placementGroup.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
 
-			usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), cluster.PlacementGroupFilter{Project: &placementGroup.Project, Name: &placementGroup.Name}, false)
+			filter := cluster.PlacementGroupFilter{
+				Project: &placementGroup.ProjectName,
+				Name:    &placementGroup.Row.Name,
+			}
+
+			usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), filter, false)
 			if err != nil {
 				return err
 			}
 
 			apiGroup.UsedBy = usedBy
-			apiGroups = append(apiGroups, apiGroup)
+			apiGroupsTx = append(apiGroupsTx, apiGroup)
 			entitlementReportingMap[u] = apiGroup
 		}
 
+		apiGroups = apiGroupsTx
 		return nil
 	})
 	if err != nil {
@@ -300,10 +285,9 @@ func placementGroupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	newGroup := cluster.PlacementGroup{
+	newGroup := cluster.PlacementGroupsRow{
 		Name:        req.Name,
 		Description: req.Description,
-		Project:     projectName,
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -312,7 +296,15 @@ func placementGroupsPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		id, err := cluster.CreatePlacementGroup(ctx, tx.Tx(), newGroup)
+		// The project ID should already be in scope or context, because we have already checked if the caller has access to it.
+		// Since it currently isn't available, get it to perform the creation.
+		projectID, err := cluster.GetProjectID(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return fmt.Errorf("Failed getting project ID: %w", err)
+		}
+
+		newGroup.ProjectID = projectID
+		id, err := query.Create(ctx, tx.Tx(), newGroup)
 		if err != nil {
 			return err
 		}
@@ -377,12 +369,17 @@ func placementGroupDelete(d *Daemon, r *http.Request) response.Response {
 
 func doPlacementGroupDelete(ctx context.Context, s *state.State, name string, projectName string) error {
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		_, err := cluster.GetPlacementGroupID(ctx, tx.Tx(), name, projectName)
+		dbGroup, err := cluster.GetPlacementGroup(ctx, tx.Tx(), name, projectName)
 		if err != nil {
 			return err
 		}
 
-		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), cluster.PlacementGroupFilter{Project: &projectName, Name: &name}, true)
+		filter := cluster.PlacementGroupFilter{
+			Project: &dbGroup.ProjectName,
+			Name:    &dbGroup.Row.Name,
+		}
+
+		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), filter, true)
 		if err != nil {
 			return err
 		}
@@ -391,7 +388,7 @@ func doPlacementGroupDelete(ctx context.Context, s *state.State, name string, pr
 			return api.StatusErrorf(http.StatusBadRequest, "Placement group %q is currently in use", name)
 		}
 
-		return cluster.DeletePlacementGroup(ctx, tx.Tx(), name, projectName)
+		return query.DeleteByPrimaryKey(ctx, tx.Tx(), dbGroup.Row)
 	})
 	if err != nil {
 		return err
@@ -468,7 +465,12 @@ func placementGroupGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), cluster.PlacementGroupFilter{Project: &placementGroup.Project, Name: &placementGroup.Name}, false)
+		filter := cluster.PlacementGroupFilter{
+			Project: &dbGroup.ProjectName,
+			Name:    &dbGroup.Row.Name,
+		}
+
+		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), filter, false)
 		if err != nil {
 			return err
 		}
@@ -577,16 +579,17 @@ func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 
-	var existing *api.PlacementGroup
+	var placementGroup *cluster.PlacementGroup
+	var config map[string]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbGroup, err := cluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
+		placementGroup, err = cluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
 		if err != nil {
 			return err
 		}
 
-		existing, err = dbGroup.ToAPI(ctx, tx.Tx())
+		config, err = cluster.GetPlacementGroupConfig(ctx, tx.Tx(), placementGroup.Row.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting placement group config: %w", err)
 		}
 
 		return nil
@@ -595,59 +598,54 @@ func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = util.EtagCheck(r, existing)
+	err = util.EtagCheck(r, placementGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	duplicate := *existing
+	updatedPlacementGroup := *placementGroup
+	updatedConfig := config
+	var descriptionChanged bool
 	switch r.Method {
 	case http.MethodPut:
-		duplicate.Description = req.Description
-		duplicate.Config = req.Config
+		if req.Description != updatedPlacementGroup.Row.Description {
+			updatedPlacementGroup.Row.Description = req.Description
+			descriptionChanged = true
+		}
+
+		updatedConfig = req.Config
 	case http.MethodPatch:
 		if req.Description != "" {
-			duplicate.Description = req.Description
+			descriptionChanged = true
+			updatedPlacementGroup.Row.Description = req.Description
 		}
 
 		// Merge config
-		if req.Config == nil {
-			req.Config = existing.Config
-		} else {
-			for k, v := range existing.Config {
-				_, ok := req.Config[k]
-				if !ok {
-					req.Config[k] = v
-				}
+		for k, v := range req.Config {
+			if v == "" {
+				// PATCH with empty value unsets the key.
+				delete(updatedConfig, k)
+				continue
 			}
-		}
 
-		duplicate.Config = req.Config
+			updatedConfig[k] = v
+		}
 	}
 
-	err = placementGroupValidateConfig(duplicate.Config)
+	err = placementGroupValidateConfig(updatedConfig)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	dbPlacementGroup := cluster.PlacementGroup{
-		Name:        duplicate.Name,
-		Description: duplicate.Description,
-		Project:     duplicate.Project,
-	}
-
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		err = cluster.UpdatePlacementGroup(ctx, tx.Tx(), placementGroupName, projectName, dbPlacementGroup)
-		if err != nil {
-			return err
+		if descriptionChanged {
+			err = query.UpdateByPrimaryKey(ctx, tx.Tx(), updatedPlacementGroup.Row)
+			if err != nil {
+				return err
+			}
 		}
 
-		id, err := cluster.GetPlacementGroupID(ctx, tx.Tx(), placementGroupName, projectName)
-		if err != nil {
-			return err
-		}
-
-		err = cluster.UpdatePlacementGroupConfig(ctx, tx.Tx(), id, duplicate.Config)
+		err = cluster.UpdatePlacementGroupConfig(ctx, tx.Tx(), updatedPlacementGroup.Row.ID, updatedConfig)
 		if err != nil {
 			return err
 		}
@@ -708,12 +706,17 @@ func placementGroupPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, err := cluster.GetPlacementGroupID(ctx, tx.Tx(), placementGroupName, projectName)
+		dbGroup, err := cluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
 		if err != nil {
 			return err
 		}
 
-		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), cluster.PlacementGroupFilter{Project: &projectName, Name: &placementGroupName}, true)
+		filter := cluster.PlacementGroupFilter{
+			Project: &dbGroup.ProjectName,
+			Name:    &dbGroup.Row.Name,
+		}
+
+		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), filter, true)
 		if err != nil {
 			return err
 		}
@@ -722,7 +725,8 @@ func placementGroupPost(d *Daemon, r *http.Request) response.Response {
 			return api.StatusErrorf(http.StatusBadRequest, "Placement group %q is currently in use", placementGroupName)
 		}
 
-		return cluster.RenamePlacementGroup(ctx, tx.Tx(), placementGroupName, projectName, req.Name)
+		dbGroup.Row.Name = req.Name
+		return query.UpdateByPrimaryKey(ctx, tx.Tx(), dbGroup.Row)
 	})
 	if err != nil {
 		return response.SmartError(err)

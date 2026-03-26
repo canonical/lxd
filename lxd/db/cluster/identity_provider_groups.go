@@ -68,32 +68,12 @@ func (i *IdentityProviderGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewGr
 }
 
 // GetAuthGroupsByIdentityProviderGroupID returns a list of a groups that the identity provider group with the given ID.
-func GetAuthGroupsByIdentityProviderGroupID(ctx context.Context, tx *sql.Tx, idpGroupID int) ([]AuthGroup, error) {
-	stmt := `
-SELECT auth_groups.id, auth_groups.name, auth_groups.description
-FROM auth_groups_identity_provider_groups
-JOIN auth_groups ON auth_groups_identity_provider_groups.auth_group_id = auth_groups.id
+func GetAuthGroupsByIdentityProviderGroupID(ctx context.Context, tx *sql.Tx, idpGroupID int) ([]AuthGroupsRow, error) {
+	clause := `
+JOIN auth_groups_identity_provider_groups ON auth_groups.id = auth_groups_identity_provider_groups.auth_group_id
 WHERE auth_groups_identity_provider_groups.identity_provider_group_id = ?`
 
-	var result []AuthGroup
-	dest := func(scan func(dest ...any) error) error {
-		g := AuthGroup{}
-		err := scan(&g.ID, &g.Name, &g.Description)
-		if err != nil {
-			return err
-		}
-
-		result = append(result, g)
-
-		return nil
-	}
-
-	err := query.Scan(ctx, tx, stmt, dest, idpGroupID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed getting group mappings for identity provider group with ID %d: %w", idpGroupID, err)
-	}
-
-	return result, nil
+	return query.Select[AuthGroupsRow](ctx, tx, clause, idpGroupID)
 }
 
 // SetIdentityProviderGroupMapping deletes all auth_group -> identity_provider_group mappings from the `ath_groups_identity_provider_groups` table

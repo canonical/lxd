@@ -1278,7 +1278,7 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 		}
 
 		var identities []dbCluster.Identity
-		var groupsByIdentityID map[int64][]dbCluster.AuthGroup
+		var groupsByIdentityID map[int64][]dbCluster.AuthGroupsRow
 		var apiIdentity *api.Identity
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get all identities, filter by authentication method if present.
