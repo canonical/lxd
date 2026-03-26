@@ -58,7 +58,7 @@ To list all projects (that you have permission to see), expand the {guilabel}`Pr
 ````{tabs}
 ```{group-tab} CLI
 By default, all commands that you issue in LXD affect the project that you are currently using.
-To see which project you are in, use the [`lxc project list`](lxc_project_list.md) command.
+To see which project you are in, use either the [`lxc project list`](lxc_project_list.md) or [`lxc project get-current`](lxc_project_get-current.md) command.
 
 To switch to a different project, enter the following command:
 
