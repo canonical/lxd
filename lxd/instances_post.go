@@ -728,6 +728,25 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return response.BadRequest(errors.New("Instance definition in backup config is missing"))
 	}
 
+	// Initialise the devices maps.
+	if bInfo.Config.Instance.Devices == nil {
+		bInfo.Config.Instance.Devices = make(map[string]map[string]string, 0)
+	}
+
+	if bInfo.Config.Instance.ExpandedDevices == nil {
+		bInfo.Config.Instance.ExpandedDevices = make(map[string]map[string]string, 0)
+	}
+
+	// Apply device overrides.
+	// Ensure this is performed before checking permissions.
+	// Do this before calling internalImportRootDevicePopulate (later in internalImportFromBackup) so that device overrides are taken into account.
+	resultingDevices, err := shared.ApplyDeviceOverrides(bInfo.Config.Instance.Devices, bInfo.Config.Instance.ExpandedDevices, devices)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	bInfo.Config.Instance.Devices = resultingDevices
+
 	// Check project permissions.
 	var req api.InstancesPost
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -751,14 +770,15 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		bInfo.Pool = pool
 	}
 
-	// Override instance name.
-	if instanceName != "" {
-		bInfo.Name = instanceName
-	}
-
 	rootVol, err := bInfo.Config.RootVolume()
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed getting the root volume: %w", err))
+	}
+
+	// Override instance name.
+	if instanceName != "" {
+		bInfo.Name = instanceName
+		rootVol.Name = instanceName
 	}
 
 	// Override the volume's UUID.
@@ -820,6 +840,13 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return response.InternalError(err)
 	}
 
+	// Ensure the backup's config included in the index reflects the current state.
+	// It is used later to create the actual backup's config.
+	err = backup.UpdateInstanceConfigInPlace(s.DB.Cluster, bInfo)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed updating backup index file in place: %w", err))
+	}
+
 	// Copy reverter so far so we can use it inside run after this function has finished.
 	runRevert := revert.Clone()
 
@@ -849,7 +876,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		runRevert.Add(revertHook)
 
-		err = internalImportFromBackup(context.TODO(), s, bInfo.Project, bInfo.Name, instanceName != "", devices)
+		err = internalImportFromBackup(context.TODO(), s, bInfo, instanceName != "")
 		if err != nil {
 			return fmt.Errorf("Failed importing backup: %w", err)
 		}
@@ -864,6 +891,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		// Run the storage post hook to perform any final actions now that the instance has been created
 		// in the database (this normally includes unmounting volumes that were mounted).
+		// This also writes the backup config to disk.
 		if postHook != nil {
 			err = postHook(inst)
 			if err != nil {

@@ -521,6 +521,11 @@ func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.
 			// Reset hard link cache as we are copying a new volume (instance or snapshot).
 			tarWriter.ResetHardLinkMap()
 
+			// Never include the backup config in the tarball.
+			alwaysExcludedPaths := []string{
+				filepath.Join(mountPath, "backup.yaml"),
+			}
+
 			if v.contentType != ContentTypeBlock {
 				logMsg := "Copying container filesystem volume"
 				if vol.volType == VolumeTypeCustom {
@@ -548,6 +553,11 @@ func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.
 						}
 
 						return fmt.Errorf("Error walking file during export: %q: %w", srcPath, err)
+					}
+
+					// Skip any excluded files.
+					if shared.StringHasPrefix(srcPath, alwaysExcludedPaths...) {
+						return nil
 					}
 
 					name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
@@ -590,14 +600,16 @@ func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.
 			if v.IsVMBlock() {
 				logMsg := "Copying virtual machine config volume"
 
+				combinedExcludedPaths := append(exclude, alwaysExcludedPaths...)
+
 				d.Logger().Debug(logMsg, logger.Ctx{"sourcePath": mountPath, "prefix": prefix})
 				err = filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
 					if err != nil {
 						return err
 					}
 
-					// Skip any exluded files.
-					if shared.StringHasPrefix(srcPath, exclude...) {
+					// Skip any excluded files.
+					if shared.StringHasPrefix(srcPath, combinedExcludedPaths...) {
 						return nil
 					}
 

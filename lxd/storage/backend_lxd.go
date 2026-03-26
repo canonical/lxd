@@ -843,14 +843,6 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		})
 	}
 
-	// Update information in the backup.yaml file.
-	err = vol.MountTask(func(mountPath string, _ *operations.Operation) error {
-		return backup.UpdateInstanceConfig(b.state.DB.Cluster, srcBackup, mountPath)
-	}, op)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error updating backup file: %w", err)
-	}
-
 	// Create a post hook function that will use the instance (that will be created) to setup a new volume
 	// containing the instance's root disk device's config so that the driver's post hook function can access
 	// that config to perform any post instance creation setup.
@@ -3297,13 +3289,6 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
 	err = b.applyInstanceRootDiskOverrides(inst, &vol)
-	if err != nil {
-		return err
-	}
-
-	// Ensure the backup file reflects current config.
-	// Use the version requested by the caller to write the correct backup file format.
-	err = b.UpdateInstanceBackupFile(inst, snapshots, version, op)
 	if err != nil {
 		return err
 	}
