@@ -8062,6 +8062,10 @@
 					"description": "Grants permission to get an SFTP client for the instance."
 				},
 				{
+					"name": "can_connect_nbd",
+					"description": "Grants permission to connect to the instance's disks over NBD."
+				},
+				{
 					"name": "can_access_files",
 					"description": "Grants permission to push or pull files into or out of the instance."
 				},
@@ -8643,6 +8647,10 @@
 				{
 					"name": "can_manage_backups",
 					"description": "Grants permission to create and delete backups of the storage volume."
+				},
+				{
+					"name": "can_connect_nbd",
+					"description": "Grants permission to connect to the storage volume over NBD."
 				}
 			]
 		}

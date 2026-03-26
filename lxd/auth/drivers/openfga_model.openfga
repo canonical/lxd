@@ -441,6 +441,9 @@ type instance
     # Grants permission to get an SFTP client for the instance.
     define can_connect_sftp: [identity, service_account, group#member] or user or operator or can_operate_instances from project
 
+    # Grants permission to connect to the instance's disks over NBD.
+    define can_connect_nbd: [identity, service_account, group#member] or user or operator or can_operate_instances from project
+
     # Grants permission to push or pull files into or out of the instance.
     define can_access_files: [identity, service_account, group#member] or user or operator or can_operate_instances from project
 
@@ -530,6 +533,9 @@ type storage_volume
 
     # Grants permission to create and delete backups of the storage volume.
     define can_manage_backups: [identity, service_account, group#member] or can_edit_storage_volumes from project
+
+    # Grants permission to connect to the storage volume over NBD.
+    define can_connect_nbd: [identity, service_account, group#member] or can_edit_storage_volumes from project
 
 type storage_volume_snapshot
   relations
