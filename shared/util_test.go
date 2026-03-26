@@ -190,3 +190,49 @@ func TestGetSnapshotExpiry(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, time.Time{}, expiryDate)
 }
+
+func TestRenderTemplate(t *testing.T) {
+	// Reject invalid templates.
+	out, err := RenderTemplate(`{% include "/etc/hosts" %}`, nil)
+	assert.Error(t, err)
+	assert.Empty(t, out)
+
+	out, err = RenderTemplate(`{{ "{"|escape }}{{ "%"|escape }} include "/etc/hosts" {{ "%"|escape }}{{ "}"|escape }}`, nil)
+	assert.Error(t, err)
+	assert.Empty(t, out)
+
+	// Recursion limit hit.
+	out, err = RenderTemplate(`{{ "{{ '{{ \"{{ 1 }}' }}" }}" }}`, nil)
+	assert.Error(t, err)
+	assert.Empty(t, out)
+
+	// Render proper templates.
+	out, err = RenderTemplate(`Hello, world!`, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, `Hello, world!`, out)
+
+	out, err = RenderTemplate(`{{ "Hello, world!" }}`, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, `Hello, world!`, out)
+
+	out, err = RenderTemplate(`mysnap%d`, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, `mysnap%d`, out)
+
+	out, err = RenderTemplate(`mysnap%`, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, `mysnap%`, out)
+
+	out, err = RenderTemplate(`{{ "h"|capfirst }}`, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, `H`, out)
+
+	// Recursion limit not hit.
+	out, err = RenderTemplate(`{{ "{{ '{{ \"1\" }}' }}" }}`, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, `1`, out)
+
+	// Check pongo2 panics are handled.
+	_, err = RenderTemplate(`{{ badsnap%d }}`, nil)
+	assert.Error(t, err)
+}
