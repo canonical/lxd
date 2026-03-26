@@ -401,29 +401,8 @@ echo "==> Rotating logs"
 logrotate -f "${SNAP}/etc/logrotate.conf" -s "/etc/logrotate.status" || true
 
 # Setup for ZFS
-if [ "${zfs_external:-"false"}" = "false" ]; then
-    if [ -e /sys/module/zfs/version ]; then
-        read -r VERSION < /sys/module/zfs/version
-    else
-        VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
-    fi
-
-    ZFS_VER="$(echo "${VERSION}" | cut -d. -f1-2)"
-
-    if [ -d "${SNAP_CURRENT}/zfs-${ZFS_VER}/bin" ]; then
-        echo "==> Setting up ZFS (${ZFS_VER})"
-        export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/lib/:${LD_LIBRARY_PATH}"
-        export PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/bin:${PATH}"
-    elif [ -n "${ZFS_VER}" ]; then
-        echo "==> Unsupported ZFS version (${ZFS_VER})"
-        echo "Consider installing ZFS tools in the host and use zfs.external"
-    else
-        echo "==> No ZFS support"
-        echo "Consider installing ZFS tools in the host and use zfs.external"
-    fi
-else
-    echo "==> Using ZFS tools from the host system"
-fi
+# shellcheck source=snapcraft/commands/setup-zfs
+. "${SNAP}/commands/setup-zfs"
 
 # Escape resource limits
 echo "==> Escaping the systemd cgroups"
