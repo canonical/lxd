@@ -5,7 +5,16 @@ set -eu
 # Must be sourced (. setup-zfs), not executed directly.
 # Requires SNAP_CURRENT to be set by the calling script.
 
-if [ "${zfs_external:-"false"}" = "true" ]; then
+# Accepts zfs_external pre-set by the caller (e.g. daemon.start sources it
+# from SNAP_COMMON/config before calling this helper); otherwise resolves it
+# via snapctl. The snapctl fallback is needed for commands/lxd (i.e. `snap run
+# lxd`) which does not source SNAP_COMMON/config and therefore always enters
+# this helper with zfs_external unset.
+if [ -z "${zfs_external+x}" ]; then
+    zfs_external="$(snapctl get zfs.external 2>/dev/null || echo false)"
+fi
+
+if [ "${zfs_external}" = "true" ]; then
     echo "==> Using ZFS tools from the host system"
 else
     if [ -e /sys/module/zfs/version ]; then
