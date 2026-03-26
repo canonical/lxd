@@ -49,7 +49,6 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
-	pongoTemplate "github.com/canonical/lxd/lxd/template"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/vsock"
 	"github.com/canonical/lxd/shared"
@@ -2293,13 +2292,6 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 				return errors.Wrap(err, "Failed to read template file")
 			}
 
-			// Restrict filesystem access to within the container's rootfs.
-			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", d.name, tpl.Template), pongoTemplate.ChrootLoader{Path: d.TemplatesPath()})
-			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
-			if err != nil {
-				return errors.Wrap(err, "Failed to render template")
-			}
-
 			configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
 				val, ok := d.expandedConfig[confKey.String()]
 				if !ok {
@@ -2310,14 +2302,19 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			}
 
 			// Render the template.
-			tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
+			err = shared.RenderTemplateFile(w, string(tplString), pongo2.Context{
+				"trigger":    trigger,
 				"path":       tplPath,
 				"instance":   instanceMeta,
 				"container":  instanceMeta, // FIXME: remove once most images have moved away.
 				"config":     d.expandedConfig,
 				"devices":    d.expandedDevices,
 				"properties": tpl.Properties,
-				"config_get": configGet}, w)
+				"config_get": configGet,
+			})
+			if err != nil {
+				return fmt.Errorf("Failed rendering template: %w", err)
+			}
 
 			return nil
 		}(tplPath, tpl)

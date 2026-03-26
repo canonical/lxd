@@ -1186,6 +1186,30 @@ func RenderTemplate(template string, ctx pongo2.Context) (output string, err err
 	return "", fmt.Errorf("Recursion limit reached while rendering template")
 }
 
+// RenderTemplateFile renders a pongo2 template to a writer.
+// No nesting is supported in this scenario.
+func RenderTemplateFile(w io.Writer, template string, ctx pongo2.Context) error {
+	// Create custom TemplateSet.
+	set := pongo2.NewSet("restricted", pongo2.DefaultLoader)
+
+	// Ban tags that could be used to access the host's filesystem.
+	for _, tag := range bannedTemplateTags {
+		err := set.BanTag(tag)
+		if err != nil {
+			return fmt.Errorf("Failed banning tag %q: %w", tag, err)
+		}
+	}
+
+	// Load template from string.
+	tpl, err := set.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
+	if err != nil {
+		return err
+	}
+
+	// Render the template to the writer.
+	return tpl.ExecuteWriter(ctx, w)
+}
+
 func GetSnapshotExpiry(refDate time.Time, s string) (time.Time, error) {
 	expr := strings.TrimSpace(s)
 
