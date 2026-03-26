@@ -14,43 +14,31 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t placement_groups.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -e placement_group objects table=placement_groups
-//go:generate mapper stmt -e placement_group objects-by-ID table=placement_groups
-//go:generate mapper stmt -e placement_group objects-by-Project table=placement_groups
-//go:generate mapper stmt -e placement_group objects-by-Name-and-Project table=placement_groups
-//go:generate mapper stmt -e placement_group id table=placement_groups
-//go:generate mapper stmt -e placement_group create struct=PlacementGroup table=placement_groups
-//go:generate mapper stmt -e placement_group delete-by-Name-and-Project table=placement_groups
-//go:generate mapper stmt -e placement_group update struct=PlacementGroup table=placement_groups
-//go:generate mapper stmt -e placement_group rename struct=PlacementGroup table=placement_groups
-//
-//go:generate mapper method -i -e placement_group GetMany
-//go:generate mapper method -i -e placement_group GetOne
-//go:generate mapper method -i -e placement_group ID struct=PlacementGroup
-//go:generate mapper method -i -e placement_group Exists struct=PlacementGroup
-//go:generate mapper method -i -e placement_group Create struct=PlacementGroup
-//go:generate mapper method -i -e placement_group DeleteOne-by-Name-and-Project
-//go:generate mapper method -i -e placement_group Update struct=PlacementGroup
-//go:generate mapper method -i -e placement_group Rename struct=PlacementGroup
-//go:generate goimports -w placement_groups.mapper.go
-//go:generate goimports -w placement_groups.interface.mapper.go
+// PlacementGroupsRow represents a single row of the placement_groups table.
+// db:model placement_groups
+type PlacementGroupsRow struct {
+	ID          int64  `db:"id"`
+	Name        string `db:"name"`
+	Description string `db:"description"`
+	ProjectID   int64  `db:"project_id"`
+}
 
-// PlacementGroup is the database representation of an [api.PlacementGroup].
+// APIName implements [query.APINamer] for API friendly error messages.
+func (PlacementGroupsRow) APIName() string {
+	return "Placement group"
+}
+
+// PlacementGroup contains [PlacementGroupsRow] with additional joins.
+// db:model placement_groups
 type PlacementGroup struct {
-	ID          int
-	Name        string `db:"primary=yes"`
-	Project     string `db:"primary=yes&join=projects.name"`
-	Description string `db:"coalesce=''"`
+	Row PlacementGroupsRow
+
+	// db:join JOIN projects ON placement_groups.project_id = projects.id
+	ProjectName string `db:"projects.name"`
 }
 
 // PlacementGroupFilter contains fields that can be used to filter results when getting placement groups.
 type PlacementGroupFilter struct {
-	ID      *int // Used to exclude placement group instances on the source cluster member during evacuation.
 	Project *string
 	Name    *string
 }
