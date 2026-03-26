@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"reflect"
 	"strings"
 
 	"github.com/canonical/lxd/shared/api"
@@ -14,6 +13,13 @@ import (
 // APINamer is used by the generic functions below to return API friendly error messages.
 type APINamer interface {
 	APIName() string
+}
+
+// APIPluralNamer can be optionally implemented by types implementing [APINamer] to fully specify the pluralised form.
+// Otherwise, all names will be pluralised with an (s) suffix.
+// This is used for e.g. Identity -> Identities (rather than Identitys).
+type APIPluralNamer interface {
+	APIPluralName() string
 }
 
 // TableNamer is a type that reports the table that it lives in.
@@ -78,23 +84,31 @@ func conflictErr(t APINamer) error {
 	return api.NewStatusError(http.StatusConflict, t.APIName()+" already exists")
 }
 
+// plural returns the pluralised form of the [APINamer].
+func plural(t APINamer) string {
+	pluralNamer, ok := any(t).(APIPluralNamer)
+	if ok {
+		return pluralNamer.APIPluralName()
+	}
+
+	return t.APIName() + "s"
+}
+
 // Create creates a [Creatable]. All columns are set except for the primary key.
 // This is because it is assumed that the primary key is auto-assigned at the database layer.
 func Create(ctx context.Context, tx *sql.Tx, c Creatable) (int64, error) {
-	tableName := c.TableName()
-
 	res, err := tx.ExecContext(ctx, c.CreateStmt(), c.CreateValues()...)
 	if err != nil {
 		if IsConflictErr(err) {
 			return -1, conflictErr(c)
 		}
 
-		return -1, fmt.Errorf("Failed creating %q entry: %w", tableName, err)
+		return -1, fmt.Errorf("Failed creating %s: %w", strings.ToLower(c.APIName()), err)
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Failed getting last inserted ID of new entry in table %q: %w", tableName, err)
+		return -1, fmt.Errorf("Failed getting ID of new %s: %w", strings.ToLower(c.APIName()), err)
 	}
 
 	return id, nil
@@ -119,12 +133,12 @@ func UpdateByPrimaryKey(ctx context.Context, tx *sql.Tx, u Updatable) error {
 			return conflictErr(u)
 		}
 
-		return fmt.Errorf("Failed updating %q entry: %w", tableName, err)
+		return fmt.Errorf("Failed updating %s: %w", strings.ToLower(u.APIName()), err)
 	}
 
 	n, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed verifying update to table %q entry: %w", tableName, err)
+		return fmt.Errorf("Failed verifying %s update: %w", strings.ToLower(u.APIName()), err)
 	}
 
 	if n != 1 {
@@ -138,8 +152,6 @@ func UpdateByPrimaryKey(ctx context.Context, tx *sql.Tx, u Updatable) error {
 // The args variadic should contain only the bind arguments for the given clause.
 // Remaining bind arguments are defined by the [Updatable] type.
 func UpdateOne(ctx context.Context, tx *sql.Tx, u Updatable, clause string, args ...any) error {
-	tableName := u.TableName()
-
 	var b strings.Builder
 	b.WriteString(u.UpdateStmt())
 	b.WriteString(" ")
@@ -151,18 +163,18 @@ func UpdateOne(ctx context.Context, tx *sql.Tx, u Updatable, clause string, args
 			return conflictErr(u)
 		}
 
-		return fmt.Errorf("Failed updating %q entry: %w", tableName, err)
+		return fmt.Errorf("Failed updating %s: %w", strings.ToLower(u.APIName()), err)
 	}
 
 	n, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed verifying update to table %q entry: %w", tableName, err)
+		return fmt.Errorf("Failed verifying %s update: %w", strings.ToLower(u.APIName()), err)
 	}
 
 	if n < 1 {
 		return notFoundErr(u)
 	} else if n > 1 {
-		return fmt.Errorf("Expected to update a single row in %q but updated %d", tableName, n)
+		return fmt.Errorf("Expected to update one %s but updated %d", strings.ToLower(u.APIName()), n)
 	}
 
 	return nil
@@ -224,7 +236,7 @@ func SelectFunc[T Selectable, PT interface {
 
 	rows, err := tx.QueryContext(ctx, b.String(), args...)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed loading %s: %w", strings.ToLower(plural(t)), err)
 	}
 
 	defer func() { _ = rows.Close() }()
@@ -232,7 +244,7 @@ func SelectFunc[T Selectable, PT interface {
 		pt := PT(new(T))
 		err := rows.Scan(pt.ScanArgs()...)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed reading %s: %w", strings.ToLower(t.APIName()), err)
 		}
 
 		err = rowFunc(*pt)
@@ -241,7 +253,12 @@ func SelectFunc[T Selectable, PT interface {
 		}
 	}
 
-	return rows.Err()
+	err = rows.Err()
+	if err != nil {
+		return fmt.Errorf("Failed loading %s: %w", strings.ToLower(plural(t)), rows.Err())
+	}
+
+	return nil
 }
 
 // SelectOne selects a single row and errors if more than one row is found.
@@ -255,7 +272,7 @@ func SelectOne[T Selectable, PT interface {
 	var pt PT
 	f := func(t T) error {
 		if pt != nil {
-			return fmt.Errorf("More than one %q found", reflect.TypeOf(t).Name())
+			return fmt.Errorf("More than one %s found", strings.ToLower(t.APIName()))
 		}
 
 		pt = &t
