@@ -581,8 +581,12 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 }
 
 // internalImportFromBackup creates instance, storage pool and volume DB records from an instance's backup file.
-// It expects the instance volume to be mounted so that the backup.yaml file is readable.
-func internalImportFromBackup(s *state.State, projectName string, instName string, allowNameOverride bool) error {
+// It expects the backup's index file to determine the instance's config.
+// Also accepts an optional map of device overrides.
+func internalImportFromBackup(s *state.State, bInfo *backup.Info, allowNameOverride bool) error {
+	projectName := bInfo.Project
+	instName := bInfo.Name
+
 	if instName == "" {
 		return fmt.Errorf("The name of the instance is required")
 	}
@@ -637,23 +641,9 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		return fmt.Errorf(`The instance %q does not seem to exist on any storage pool`, instName)
 	}
 
-	// User needs to make sure that we can access the directory where backup.yaml lives.
-	instanceMountPoint := instanceMountPoints[0]
-	isEmpty, err := shared.PathIsEmpty(instanceMountPoint)
-	if err != nil {
-		return err
-	}
-
-	if isEmpty {
-		return fmt.Errorf(`The instance's directory %q appears to be empty. Please ensure that the instance's storage volume is mounted`, instanceMountPoint)
-	}
-
-	// Read in the backup.yaml file.
-	backupYamlPath := filepath.Join(instanceMountPoint, "backup.yaml")
-	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
-	if err != nil {
-		return err
-	}
+	// Use the information from the backup index.
+	// The backup config later gets persisted to disk too.
+	backupConf := bInfo.Config
 
 	if backupConf.Container == nil {
 		return fmt.Errorf("Instance definition in backup config is missing")
@@ -793,6 +783,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		isPrivileged = true
 	}
 
+	instanceMountPoint := instanceMountPoints[0]
 	err = storagePools.CreateContainerMountpoint(instanceMountPoint, instancePath, isPrivileged)
 	if err != nil {
 		return err

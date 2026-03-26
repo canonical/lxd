@@ -653,6 +653,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	// Override instance name.
 	if instanceName != "" {
 		bInfo.Name = instanceName
+		bInfo.Config.Volume.Name = instanceName
 	}
 
 	logger.Debug("Backup file info loaded", logger.Ctx{
@@ -692,6 +693,13 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return response.InternalError(err)
 	}
 
+	// Ensure the backup's config included in the index reflects the current state.
+	// It is used later to create the actual backup's config.
+	err = backup.UpdateInstanceConfigInPlace(s.DB.Cluster, bInfo)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed updating backup index file in place: %w", err))
+	}
+
 	// Copy reverter so far so we can use it inside run after this function has finished.
 	runRevert := revert.Clone()
 
@@ -721,7 +729,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		runRevert.Add(revertHook)
 
-		err = internalImportFromBackup(s, bInfo.Project, bInfo.Name, instanceName != "")
+		err = internalImportFromBackup(s, bInfo, instanceName != "")
 		if err != nil {
 			return fmt.Errorf("Failed importing backup: %w", err)
 		}
@@ -736,6 +744,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		// Run the storage post hook to perform any final actions now that the instance has been created
 		// in the database (this normally includes unmounting volumes that were mounted).
+		// This also writes the backup config to disk.
 		if postHook != nil {
 			err = postHook(inst)
 			if err != nil {

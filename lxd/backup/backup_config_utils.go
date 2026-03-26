@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"gopkg.in/yaml.v2"
 
@@ -104,32 +103,8 @@ func updateRootDevicePool(devices map[string]map[string]string, poolName string)
 	return false
 }
 
-// UpdateInstanceConfig updates the instance's backup.yaml configuration file.
-func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
-	backupFilePath := filepath.Join(mountPath, "backup.yaml")
-
-	// Read in the backup.yaml file.
-	backup, err := ParseConfigYamlFile(backupFilePath)
-	if err != nil {
-		return err
-	}
-
-	// Update instance information in the backup.yaml.
-	if backup.Container != nil {
-		backup.Container.Name = b.Name
-		backup.Container.Project = b.Project
-	}
-
-	// Update volume information in the backup.yaml.
-	if backup.Volume != nil {
-		backup.Volume.Name = b.Name
-		backup.Volume.Project = b.Project
-
-		// Ensure the most recent volume UUIDs get updated.
-		backup.Volume.Config = b.Config.Volume.Config
-		backup.VolumeSnapshots = b.Config.VolumeSnapshots
-	}
-
+// UpdateInstanceConfigInPlace updates the instance's backup index in place.
+func UpdateInstanceConfigInPlace(c *db.Cluster, b *Info) error {
 	// Load the storage pool.
 	_, pool, _, err := c.GetStoragePool(b.Pool)
 	if err != nil {
@@ -138,18 +113,18 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 
 	rootDiskDeviceFound := false
 
-	// Change the pool in the backup.yaml.
-	backup.Pool = pool
+	// Change the pool in case it doesn't match the one of the original instance.
+	b.Config.Pool = pool
 
-	if updateRootDevicePool(backup.Container.Devices, pool.Name) {
+	if updateRootDevicePool(b.Config.Container.Devices, pool.Name) {
 		rootDiskDeviceFound = true
 	}
 
-	if updateRootDevicePool(backup.Container.ExpandedDevices, pool.Name) {
+	if updateRootDevicePool(b.Config.Container.ExpandedDevices, pool.Name) {
 		rootDiskDeviceFound = true
 	}
 
-	for _, snapshot := range backup.Snapshots {
+	for _, snapshot := range b.Config.Snapshots {
 		updateRootDevicePool(snapshot.Devices, pool.Name)
 		updateRootDevicePool(snapshot.ExpandedDevices, pool.Name)
 	}
@@ -158,24 +133,5 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 		return fmt.Errorf("No root device could be found")
 	}
 
-	// Write updated backup.yaml file.
-
-	file, err := os.Create(backupFilePath)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = file.Close() }()
-
-	data, err := yaml.Marshal(&backup)
-	if err != nil {
-		return err
-	}
-
-	_, err = file.Write(data)
-	if err != nil {
-		return err
-	}
-
-	return file.Close()
+	return nil
 }
