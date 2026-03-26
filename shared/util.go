@@ -1133,10 +1133,25 @@ func (r *ReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	return r.Seeker.Seek(offset, whence)
 }
 
+// bannedTemplateTags is the list of pongo2 tags that are banned from use in templates
+// to prevent filesystem access from the host.
+var bannedTemplateTags = []string{"extends", "import", "include", "ssi"}
+
 // RenderTemplate renders a pongo2 template.
 func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
+	// Create custom TemplateSet
+	set := pongo2.NewSet("restricted", pongo2.DefaultLoader)
+
+	// Ban tags that could be used to access the host's filesystem.
+	for _, tag := range bannedTemplateTags {
+		err := set.BanTag(tag)
+		if err != nil {
+			return "", fmt.Errorf("Failed to ban tag %q: %w", tag, err)
+		}
+	}
+
 	// Load template from string
-	tpl, err := pongo2.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
+	tpl, err := set.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
 	if err != nil {
 		return "", err
 	}
