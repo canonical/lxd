@@ -372,6 +372,38 @@ func DeleteIdentityByAuthenticationMethodAndIdentifier(ctx context.Context, tx *
 	return query.DeleteOne[IdentitiesRow](ctx, tx, "WHERE auth_method = ? AND identifier = ?", AuthMethod(authenticationMethod), identifier)
 }
 
+// GetIdentitiesAndURLs returns a list of identities and their URLs, filtered by optional authentication method and filter function.
+// The filter function should return true to include the identity and false to omit it.
+func GetIdentitiesAndURLs(ctx context.Context, tx *sql.Tx, authMethod *string, filter func(row IdentitiesRow) bool) ([]IdentitiesRow, []string, error) {
+	var b strings.Builder
+	var args []any
+	if authMethod != nil {
+		b.WriteString("WHERE identities.auth_method = ? ORDER BY ")
+		args = []any{AuthMethod(*authMethod)}
+	} else {
+		b.WriteString("ORDER BY identities.auth_method, ")
+	}
+
+	b.WriteString("identities.identifier")
+
+	var identities []IdentitiesRow
+	var identityURLs []string
+	err := query.SelectFunc[IdentitiesRow](ctx, tx, b.String(), func(id IdentitiesRow) error {
+		if filter != nil && !filter(id) {
+			return nil
+		}
+
+		identities = append(identities, id)
+		identityURLs = append(identityURLs, entity.IdentityURL(string(id.AuthMethod), id.Identifier).String())
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed listing identities: %w", err)
+	}
+
+	return identities, identityURLs, nil
+}
+
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
 // the type.
 func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
