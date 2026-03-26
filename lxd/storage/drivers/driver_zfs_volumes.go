@@ -3576,3 +3576,17 @@ func (d *zfs) FillVolumeConfig(vol Volume) error {
 func (d *zfs) isBlockBacked(vol Volume) bool {
 	return shared.IsTrue(vol.Config()["zfs.block_mode"])
 }
+
+// ImageVolumeConfigMatch extends the common check with a ZFS-specific block size comparison.
+func (d *zfs) ImageVolumeConfigMatch(vol1, vol2 Volume) bool {
+	if !d.common.ImageVolumeConfigMatch(vol1, vol2) {
+		return false
+	}
+
+	// Check if block size config has changed.
+	if vol1.IsBlockBacked() && vol1.Config()["zfs.blocksize"] != vol2.Config()["zfs.blocksize"] {
+		return false
+	}
+
+	return true
+}
