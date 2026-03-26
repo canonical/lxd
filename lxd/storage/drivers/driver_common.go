@@ -636,3 +636,18 @@ func (d *common) filesystemFreeze(path string) (func() error, error) {
 
 	return unfreezeFS, nil
 }
+
+// ImageVolumeConfigMatch returns whether two image volumes have compatible
+// block-backing mode and filesystem configuration.
+func (d *common) ImageVolumeConfigMatch(vol1, vol2 Volume) bool {
+	isFirstVolumeBlockBacked := vol1.IsBlockBacked()
+	if isFirstVolumeBlockBacked != vol2.IsBlockBacked() {
+		return false
+	}
+
+	if isFirstVolumeBlockBacked && vol1.Config()["block.filesystem"] != vol2.Config()["block.filesystem"] {
+		return false
+	}
+
+	return true
+}
