@@ -75,6 +75,10 @@ func (c *cmdProject) command() *cobra.Command {
 	projectSwitchCmd := cmdProjectSwitch{global: c.global, project: c}
 	cmd.AddCommand(projectSwitchCmd.command())
 
+	// Get the current project
+	projectGetCurrentCmd := cmdProjectGetCurrent{global: c.global, project: c}
+	cmd.AddCommand(projectGetCurrentCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -902,6 +906,63 @@ func (c *cmdProjectSwitch) run(cmd *cobra.Command, args []string) error {
 	conf.Remotes[remote] = rc
 
 	return conf.SaveConfig(c.global.confPath)
+}
+
+// Get the current project.
+type cmdProjectGetCurrent struct {
+	global  *cmdGlobal
+	project *cmdProject
+}
+
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
+func (c *cmdProjectGetCurrent) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get-current", "[<remote>:]")
+	cmd.Short = "Show the current project"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+// Run is used in the RunE field of the cobra.Command returned by Command.
+func (c *cmdProjectGetCurrent) run(cmd *cobra.Command, args []string) error {
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := c.global.conf.DefaultRemote
+	if len(args) > 0 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Get the current project.
+	info, err := resource.server.GetConnectionInfo()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(info.Project)
+
+	return nil
 }
 
 // Info.

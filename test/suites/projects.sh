@@ -66,6 +66,7 @@ test_projects_crud() {
 
   lxc project switch foo
   lxc project list -f csv | grep -F "foo (current),"
+  [ "$(lxc project get-current)" = "foo" ]
 
   # Turning off the profiles feature makes the project see the default profile
   # from the default project.
@@ -88,6 +89,7 @@ test_projects_crud() {
 
   # We're back to the default project
   lxc project list -f csv | grep -F "default (current),"
+  [ "$(lxc project get-current local:)" = "default" ]
 }
 
 # Use containers in a project.
