@@ -1593,6 +1593,37 @@ func (d *zfs) HasVolume(vol Volume) (bool, error) {
 	return d.datasetExists(d.dataset(vol, false))
 }
 
+// ValidateImageVolume verifies that the image volume was fully unpacked by checking for
+// the "readonly" ZFS snapshot. This snapshot is taken only after a successful unpack,
+// so its absence means the unpack was interrupted and the volume is incomplete.
+func (d *zfs) ValidateImageVolume(vol Volume, op *operations.Operation) error {
+	// Check that the main dataset's @readonly snapshot exists.
+	mainDataset := d.dataset(vol, false)
+	exists, err := d.datasetExists(mainDataset + "@readonly")
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return fmt.Errorf("Missing readonly snapshot for image volume %q: %w", mainDataset, ErrBrokenImageVolume)
+	}
+
+	// For block content (VM images), also check the filesystem config volume's @readonly snapshot.
+	if vol.contentType == ContentTypeBlock {
+		fsVolDataset := d.dataset(vol.NewVMBlockFilesystemVolume(), false)
+		exists, err := d.datasetExists(fsVolDataset + "@readonly")
+		if err != nil {
+			return err
+		}
+
+		if !exists {
+			return fmt.Errorf("Missing readonly snapshot for image filesystem volume %q %w", fsVolDataset, ErrBrokenImageVolume)
+		}
+	}
+
+	return nil
+}
+
 // commonVolumeRules returns validation rules which are common for pool and volume.
 func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 	return map[string]func(value string) error{
