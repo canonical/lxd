@@ -29,6 +29,7 @@ type Driver interface {
 	// Internal.
 	Info() Info
 	HasVolume(vol Volume) (bool, error)
+	ValidateImageVolume(vol Volume, op *operations.Operation) error
 	roundVolumeBlockSizeBytes(vol Volume, sizeBytes int64) int64
 	isBlockBacked(vol Volume) bool
 
