@@ -929,9 +929,9 @@ test_duplicate_detection() {
   test_image_fingerprint="$(lxc query /1.0/images/aliases/testimage | jq --exit-status --raw-output '.target')"
 
   lxc auth group create foo
-  [ "$(! "${_LXC}" auth group create foo 2>&1 1>/dev/null)" = 'Error: Authorization group "foo" already exists' ]
+  [ "$(! "${_LXC}" auth group create foo 2>&1 1>/dev/null)" = 'Error: Authorization group already exists' ]
   lxc auth group create bar
-  [ "$(! "${_LXC}" auth group rename bar foo 2>&1 1>/dev/null)" = 'Error: Authorization group "foo" already exists' ]
+  [ "$(! "${_LXC}" auth group rename bar foo 2>&1 1>/dev/null)" = 'Error: Authorization group already exists' ]
   lxc auth group delete foo
   lxc auth group delete bar
 
