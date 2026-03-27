@@ -396,6 +396,13 @@ func (d *common) HasVolume(vol Volume) (bool, error) {
 	return false, ErrNotSupported
 }
 
+// ValidateImageVolume checks that an image volume is complete and usable for creating instances.
+// Drivers that use snapshots for optimized image cloning should override this to verify the
+// required snapshot exists.
+func (d *common) ValidateImageVolume(vol Volume, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
 // ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.
 func (d *common) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	return ErrNotSupported
