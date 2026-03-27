@@ -160,6 +160,7 @@ jobs:
       - name: Unit tests (all)
         run: |
           set -eux
+          sudo apt-get install -y xdelta3 # Required for SimpleStreams client tests.
           sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" go test -v ./...
 
   system-tests:
@@ -377,7 +378,13 @@ jobs:
       - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
-        run: go test -v ./client/...
+        run: |
+          set -eux
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            # Required for SimpleStreams client tests.
+            sudo apt-get install -y xdelta3
+          fi
+          go test -v ./client/...
 
       - name: Unit tests (lxc)
         env:

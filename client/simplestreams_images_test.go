@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -302,6 +303,11 @@ func newTestSimpleStreamsServerWithDelta(t *testing.T, newMeta []byte, srcRootfs
 }
 
 func TestGetImageFile_DeltaCombinedFingerprintValid(t *testing.T) {
+	_, err := exec.LookPath("xdelta3")
+	if err != nil && runtime.GOOS != "linux" {
+		t.Skip("Missing xdelta3")
+	}
+
 	srcRootfs := []byte("source-rootfs-content-for-delta-test")
 	newRootfs := []byte("new-rootfs-content-for-delta-test")
 	newMeta := []byte("new-metadata-content")
@@ -360,6 +366,11 @@ func TestGetImageFile_DeltaCombinedFingerprintValid(t *testing.T) {
 }
 
 func TestGetImageFile_DeltaPerFileHashMismatch(t *testing.T) {
+	_, err := exec.LookPath("xdelta3")
+	if err != nil && runtime.GOOS != "linux" {
+		t.Skip("Missing xdelta3")
+	}
+
 	srcRootfs := []byte("source-rootfs-content-for-delta-test")
 	newRootfs := []byte("new-rootfs-content-for-delta-test")
 	newMeta := []byte("new-metadata-content")
@@ -429,6 +440,11 @@ func TestGetImageFile_DeltaPerFileHashMismatch(t *testing.T) {
 // validation still catches a mismatch. This is done by advertising a wrong combined fingerprint
 // in the simplestreams index while keeping all per-file hashes correct.
 func TestGetImageFile_DeltaCombinedFingerprintMismatch(t *testing.T) {
+	_, err := exec.LookPath("xdelta3")
+	if err != nil && runtime.GOOS != "linux" {
+		t.Skip("Missing xdelta3")
+	}
+
 	srcRootfs := []byte("source-rootfs-for-valid-hash-test")
 	newRootfs := []byte("new-rootfs-for-valid-hash-test")
 	newMeta := []byte("new-metadata-for-valid-hash-test")
