@@ -179,7 +179,7 @@ test_clustering_move() {
 
   echo "c4 can be migrated from local cluster to remote cluster"
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c4
-  LXD_DIR="${LXD_ONE_DIR}" lxc move c4 cluster:c5 --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc move c4 cluster:c5 --target node1 --mode=push
 
   echo "Clean up."
   LXD_DIR="${LXD_ONE_DIR}" lxc remote remove cluster
