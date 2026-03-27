@@ -277,8 +277,8 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/StoragePoolsPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -798,8 +798,8 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/StoragePoolPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -953,8 +953,8 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/StoragePoolPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1057,8 +1057,8 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 //	    type: string
 //	    example: default
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
