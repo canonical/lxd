@@ -618,6 +618,56 @@ migration() {
   lxc_remote project switch l1:default
   lxc_remote project delete l1:proj
 
+  sub_test "Restricted project prevents pull mode migration"
+  # Create a restricted project
+  lxc_remote project create l1:restricted -c restricted=true -c restricted.devices.nic=allow
+  lxc_remote profile show l1:default --project default | lxc_remote profile edit l1:default --project restricted
+
+  # Create a test instance on l2 to migrate from
+  lxc_remote init testimage l2:pull-source
+
+  # Try to copy the instance from l2 to l1 restricted project with pull mode
+  # This should fail because restricted projects don't allow pull mode migration
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc_remote copy l2:pull-source l1:pull-target --target-project restricted --mode=pull 2>&1 1>/dev/null || false)" = 'Error: Failed instance creation: Restricted projects are not allowed to use pull mode migration' ]
+
+  # Try to move the instance from l2 to l1 restricted project with pull mode
+  # This should also fail
+ [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc_remote move l2:pull-source l1:pull-target --target-project restricted --mode=pull 2>&1 1>/dev/null || false)" = 'Error: Failed instance creation: Restricted projects are not allowed to use pull mode migration' ]
+
+  # Verify that push mode and relay mode are allowed (they should work)
+  lxc_remote copy l2:pull-source l1:pull-target-push --target-project restricted --mode=push
+  lxc_remote delete l1:pull-target-push --project restricted
+
+  lxc_remote copy l2:pull-source l1:pull-target-relay --target-project restricted --mode=relay
+  lxc_remote delete l1:pull-target-relay --project restricted
+
+  # Clean up instance
+  lxc_remote delete l2:pull-source
+
+  sub_test "Restricted project prevents pull mode volume migration"
+
+  # Create a test volume on l2 to migrate from
+  lxc_remote storage volume create l2:"$remote_pool2" pull-vol-source size="${minimal_size}"
+
+  # Try to copy the volume from l2 to l1 restricted project with pull mode
+  # This should fail because restricted projects don't allow pull mode migration
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc_remote storage volume copy l2:"$remote_pool2"/pull-vol-source l1:"$remote_pool1"/pull-vol-target --target-project restricted --mode=pull 2>&1 1>/dev/null || false)" = 'Error: Failed storage volume creation: Restricted projects are not allowed to use pull mode migration' ]
+
+  # Try to move the volume from l2 to l1 restricted project with pull mode
+  # This should also fail
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc_remote storage volume move l2:"$remote_pool2"/pull-vol-source l1:"$remote_pool1"/pull-vol-target --target-project restricted --mode=pull 2>&1 1>/dev/null || false)" = 'Error: Failed storage volume creation: Restricted projects are not allowed to use pull mode migration' ]
+
+  # Verify that push mode and relay mode are allowed (they should work)
+  lxc_remote storage volume copy l2:"$remote_pool2"/pull-vol-source l1:"$remote_pool1"/pull-vol-push --target-project restricted --mode=push
+  lxc_remote storage volume delete l1:"$remote_pool1" pull-vol-push --project restricted
+
+  lxc_remote storage volume copy l2:"$remote_pool2"/pull-vol-source l1:"$remote_pool1"/pull-vol-relay --target-project restricted --mode=relay
+  lxc_remote storage volume delete l1:"$remote_pool1" pull-vol-relay --project restricted
+
+  # Clean up volume and restricted project
+  lxc_remote storage volume delete l2:"$remote_pool2" pull-vol-source
+  lxc_remote project delete l1:restricted
+
   # Check snapshot creation dates after migration.
   lxc_remote init testimage l1:c1
   lxc_remote snapshot l1:c1
