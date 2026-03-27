@@ -3,8 +3,11 @@ package lxd
 import (
 	"context"
 	"crypto/sha256"
+	"encoding"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,6 +19,41 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
+
+// combinedHash is the interface that the combined hash must implement.
+// It includes [hash.Hash] for writing data to it, and [encoding.BinaryMarshaler] and
+// [encoding.BinaryUnmarshaler] for snapshotting and restoring its internal state across retries.
+type combinedHash interface {
+	hash.Hash
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
+}
+
+// combinedHashWriter wraps a WriteSeeker and also writes all data to a hash for
+// combined fingerprint validation. Compared to using [io.MultiWriter] directly,
+// it preserves the [io.WriteSeeker] interface for the target file.
+type combinedHashWriter struct {
+	io.WriteSeeker
+	hash io.Writer
+}
+
+func (w *combinedHashWriter) Write(p []byte) (int, error) {
+	n, err := w.WriteSeeker.Write(p)
+	if err != nil {
+		return n, err
+	}
+
+	hashN, err := w.hash.Write(p[:n])
+	if err != nil {
+		return n, err
+	}
+
+	if hashN != n {
+		return n, fmt.Errorf("Failed writing to hash: wrote %d of %d bytes", hashN, n)
+	}
+
+	return n, nil
+}
 
 // Image handling functions
 
@@ -84,6 +122,14 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 	httpTransport.ResponseHeaderTimeout = 30 * time.Second
 	httpClient.Transport = httpTransport
 
+	// Get the image and expand the fingerprint.
+	image, err := r.ssClient.GetImage(fingerprint)
+	if err != nil {
+		return nil, err
+	}
+
+	fingerprint = image.Fingerprint
+
 	// Get the file list
 	files, err := r.ssClient.GetFiles(fingerprint)
 	if err != nil {
@@ -93,18 +139,43 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 	// Prepare the response
 	resp := ImageFileResponse{}
 
-	// Download function
+	hash := sha256.New()
+	combinedHash, ok := hash.(combinedHash)
+	if !ok {
+		return nil, fmt.Errorf("The %T does not implement required binary marshal/unmarshal interfaces required for snapshotting a hash", hash)
+	}
+
+	// Download function. Writes to combinedHash during download for fingerprint
+	// validation. On HTTP-to-HTTPS retry, restores the hash to its pre-download
+	// state so that partial data from the failed attempt doesn't corrupt it.
 	download := func(path string, filename string, hash string, target io.WriteSeeker) (int64, error) {
+		// Snapshot the combined hash state before this file so we can restore on retry.
+		hashState, err := combinedHash.MarshalBinary()
+		if err != nil {
+			return -1, err
+		}
+
+		multiTarget := combinedHashWriter{
+			WriteSeeker: target,
+			hash:        combinedHash,
+		}
+
 		// Try over http
 		url, err := shared.JoinUrls("http://"+strings.TrimPrefix(r.httpHost, "https://"), path)
 		if err != nil {
 			return -1, err
 		}
 
-		size, err := shared.DownloadFileHash(context.TODO(), &httpClient, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
+		size, err := shared.DownloadFileHash(context.TODO(), &httpClient, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), &multiTarget)
 		if err != nil {
 			// Handle cancelation
 			if err.Error() == "net/http: request canceled" {
+				return -1, err
+			}
+
+			// Restore the combined hash to its pre-download state for retry.
+			err = combinedHash.UnmarshalBinary(hashState)
+			if err != nil {
 				return -1, err
 			}
 
@@ -114,7 +185,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				return -1, err
 			}
 
-			size, err = shared.DownloadFileHash(context.TODO(), &httpClient, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
+			size, err = shared.DownloadFileHash(context.TODO(), &httpClient, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), &multiTarget)
 			if err != nil {
 				return -1, err
 			}
@@ -165,8 +236,22 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 
 				defer func() { _ = os.Remove(deltaFile.Name()) }()
 
+				// Snapshot the combined hash before downloading the delta.
+				// The delta's raw bytes must not contribute to the combined
+				// fingerprint — only the final patched rootfs should.
+				preDownloadState, err := combinedHash.MarshalBinary()
+				if err != nil {
+					return nil, err
+				}
+
 				// Download the delta
 				_, err = download(file.Path, "rootfs delta", file.Sha256, deltaFile)
+				if err != nil {
+					return nil, err
+				}
+
+				// Restore the combined hash to exclude the delta bytes.
+				err = combinedHash.UnmarshalBinary(preDownloadState)
 				if err != nil {
 					return nil, err
 				}
@@ -178,7 +263,6 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				}
 
 				defer func() { _ = patchedFile.Close() }()
-
 				defer func() { _ = os.Remove(patchedFile.Name()) }()
 
 				// Apply it
@@ -187,8 +271,31 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 					return nil, err
 				}
 
-				// Copy to the target
-				size, err := io.Copy(req.RootfsFile, patchedFile)
+				// Verify the patched rootfs matches the expected per-file hash.
+				patchedHash := sha256.New()
+				_, err = io.Copy(patchedHash, patchedFile)
+				if err != nil {
+					return nil, err
+				}
+
+				patchedFingerprint := hex.EncodeToString(patchedHash.Sum(nil))
+				if patchedFingerprint != rootfs.Sha256 {
+					return nil, fmt.Errorf("Patched rootfs hash mismatch after applying delta. Got %s expected %s", patchedFingerprint, rootfs.Sha256)
+				}
+
+				// Rewind and copy to the target and combinedHash.
+				_, err = patchedFile.Seek(0, io.SeekStart)
+				if err != nil {
+					return nil, err
+				}
+
+				// Make sure we write to target file at the start.
+				_, err = req.RootfsFile.Seek(0, io.SeekStart)
+				if err != nil {
+					return nil, err
+				}
+
+				size, err := io.Copy(io.MultiWriter(req.RootfsFile, combinedHash), patchedFile)
 				if err != nil {
 					return nil, err
 				}
@@ -197,6 +304,9 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				resp.RootfsName = parts[len(parts)-1]
 				resp.RootfsSize = size
 				downloaded = true
+
+				// Rootfs found, so we can stop searching for it.
+				break
 			}
 		}
 
@@ -210,6 +320,16 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 			parts := strings.Split(rootfs.Path, "/")
 			resp.RootfsName = parts[len(parts)-1]
 			resp.RootfsSize = size
+		}
+	}
+
+	// Validate that the combined hash of all downloaded files matches the expected fingerprint.
+	// Only perform this check when both the metadata and rootfs files were requested, as the
+	// combined hash only includes the data that was actually written through the hasher.
+	if req.MetaFile != nil && req.RootfsFile != nil {
+		combinedFingerprint := hex.EncodeToString(combinedHash.Sum(nil))
+		if combinedFingerprint != fingerprint {
+			return nil, fmt.Errorf("Image fingerprint mismatch. Got %s expected %s", combinedFingerprint, fingerprint)
 		}
 	}
 
