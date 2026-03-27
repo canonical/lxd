@@ -1133,26 +1133,90 @@ func (r *ReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	return r.Seeker.Seek(offset, whence)
 }
 
+// bannedTemplateTags is the list of pongo2 tags that are banned from use in templates
+// to prevent filesystem access from the host.
+var bannedTemplateTags = []string{"extends", "import", "include", "ssi"}
+
 // RenderTemplate renders a pongo2 template.
-func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
-	// Load template from string
-	tpl, err := pongo2.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
+func RenderTemplate(template string, ctx pongo2.Context) (output string, err error) {
+	defer func() {
+		// Capture panics in the pongo2 template rendering.
+		// This is to prevent the server from crashing due to a template error.
+		r := recover()
+		if r != nil {
+			err = fmt.Errorf("Panic while rendering template: %v", r)
+		}
+	}()
+
+	// Create custom TemplateSet
+	set := pongo2.NewSet("restricted", pongo2.DefaultLoader)
+
+	// Ban tags that could be used to access the host's filesystem.
+	for _, tag := range bannedTemplateTags {
+		err := set.BanTag(tag)
+		if err != nil {
+			return "", fmt.Errorf("Failed to ban tag %q: %w", tag, err)
+		}
+	}
+
+	// Prevent unbounded recursion while rendering templates. Normal use should not
+	// require more than 1 or 2 levels of recursion.
+	for i := 0; i < 3; i++ {
+		// Load template from string
+		tpl, err := set.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
+		if err != nil {
+			return "", err
+		}
+
+		// Get rendered template
+		ret, err := tpl.Execute(ctx)
+		if err != nil {
+			return "", err
+		}
+
+		// Check if another pass is needed.
+		if !strings.Contains(ret, "{{") && !strings.Contains(ret, "{%") {
+			return ret, nil
+		}
+
+		// Prepare for another pass.
+		template = ret
+	}
+
+	return "", fmt.Errorf("Recursion limit reached while rendering template")
+}
+
+// RenderTemplateFile renders a pongo2 template to a writer.
+// No nesting is supported in this scenario.
+func RenderTemplateFile(w io.Writer, template string, ctx pongo2.Context) (err error) {
+	defer func() {
+		// Capture panics in the pongo2 template rendering.
+		// This is to prevent the server from crashing due to a template error.
+		r := recover()
+		if r != nil {
+			err = fmt.Errorf("Panic while rendering template: %v", r)
+		}
+	}()
+
+	// Create custom TemplateSet.
+	set := pongo2.NewSet("restricted", pongo2.DefaultLoader)
+
+	// Ban tags that could be used to access the host's filesystem.
+	for _, tag := range bannedTemplateTags {
+		err := set.BanTag(tag)
+		if err != nil {
+			return fmt.Errorf("Failed banning tag %q: %w", tag, err)
+		}
+	}
+
+	// Load template from string.
+	tpl, err := set.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	// Get rendered template
-	ret, err := tpl.Execute(ctx)
-	if err != nil {
-		return ret, err
-	}
-
-	// Looks like we're nesting templates so run pongo again
-	if strings.Contains(ret, "{{") || strings.Contains(ret, "{%") {
-		return RenderTemplate(ret, ctx)
-	}
-
-	return ret, err
+	// Render the template to the writer.
+	return tpl.ExecuteWriter(ctx, w)
 }
 
 func GetSnapshotExpiry(refDate time.Time, s string) (time.Time, error) {
