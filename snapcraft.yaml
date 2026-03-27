@@ -1,7 +1,7 @@
 name: lxd
 base: core24
 assumes:
-  - snapd2.39
+  - snapd2.64
 version: git
 grade: devel
 summary: LXD - container and VM manager
