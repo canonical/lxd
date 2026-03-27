@@ -18,6 +18,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/archive"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -1226,6 +1227,29 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Config = map[string]string{}
 	}
 
+	if req.Source.Type == api.SourceTypeCopy {
+		if req.Source.Source == "" {
+			return response.BadRequest(errors.New("Must specify a source instance"))
+		}
+
+		if req.Source.Project == "" {
+			req.Source.Project = targetProjectName
+		}
+
+		var sourceURL *api.URL
+		instanceName, snapshotName, isSnapshot := api.GetParentAndSnapshotName(req.Source.Source)
+		if isSnapshot {
+			sourceURL = entity.InstanceSnapshotURL(req.Source.Project, instanceName, snapshotName)
+		} else {
+			sourceURL = entity.InstanceURL(req.Source.Project, req.Source.Source)
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), sourceURL, auth.EntitlementCanView)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	if req.InstanceType != "" {
 		conf, err := instanceParseType(req.InstanceType)
 		if err != nil {
@@ -1298,14 +1322,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		switch req.Source.Type {
 		case api.SourceTypeCopy:
-			if req.Source.Source == "" {
-				return api.StatusErrorf(http.StatusBadRequest, "Must specify a source instance")
-			}
-
-			if req.Source.Project == "" {
-				req.Source.Project = targetProjectName
-			}
-
 			sourceInst, err = instance.LoadInstanceDatabaseObject(ctx, tx, req.Source.Project, req.Source.Source)
 			if err != nil {
 				return err
