@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -454,8 +455,10 @@ func (g *Gateway) Kill() {
 	g.cancel()
 }
 
-// TransferLeadership attempts to transfer leadership to another node.
-func (g *Gateway) TransferLeadership() error {
+// TransferLeadership attempts to transfer leadership to another online voter.
+// When memberRoles is provided and control-plane mode is active, only control-plane
+// voters are eligible targets.
+func (g *Gateway) TransferLeadership(memberRoles map[string][]db.ClusterRole) error {
 	client, err := g.getClient()
 	if err != nil {
 		return err
@@ -463,7 +466,10 @@ func (g *Gateway) TransferLeadership() error {
 
 	defer func() { _ = client.Close() }()
 
-	// Try to find a voter that is also online.
+	// When control-plane mode is active, only control-plane voters are eligible so the
+	// new leader is always a control-plane member.
+	cpActive := IsControlPlaneActive(memberRoles)
+
 	servers, err := client.Cluster(context.Background())
 	if err != nil {
 		return err
@@ -478,6 +484,10 @@ func (g *Gateway) TransferLeadership() error {
 		address, err := g.nodeAddress(server.Address)
 		if err != nil {
 			return err
+		}
+
+		if cpActive && !slices.Contains(memberRoles[address], db.ClusterRoleControlPlane) {
+			continue
 		}
 
 		if !HasConnectivity(g.networkCert, g.state().ServerCert(), address) {
