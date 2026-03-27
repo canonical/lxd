@@ -87,9 +87,9 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 		req.Profiles = []string{"default"}
 	}
 
-	// Restricted projects aren't allowed to use pull migration.
-	if shared.IsTrue(info.Project.Config["restricted"]) && req.Source.Type == "migration" && req.Source.Mode == "pull" {
-		return errors.New("Restricted projects are not allowed to use pull mode migration")
+	err = checkSourceAllowed(info.Project.Config, req.Source.Type, req.Source.Mode)
+	if err != nil {
+		return err
 	}
 
 	err = checkInstanceCountLimit(info, instanceType)
@@ -267,6 +267,16 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 	return nil
 }
 
+// checkSourceAllowed checks that the source type and mode are allowed based on the project restrictions.
+// Restricted projects are not allowed to use pull migration.
+func checkSourceAllowed(projectConfig map[string]string, sourceType api.SourceType, sourceMode string) error {
+	if shared.IsTrue(projectConfig["restricted"]) && sourceType == api.SourceTypeMigration && sourceMode == "pull" {
+		return errors.New("Restricted projects are not allowed to use pull mode migration")
+	}
+
+	return nil
+}
+
 // AllowVolumeCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new custom volume in a project.
 func AllowVolumeCreation(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, poolName string, req api.StorageVolumesPost) error {
@@ -279,9 +289,9 @@ func AllowVolumeCreation(ctx context.Context, globalConfig *clusterConfig.Config
 		return nil
 	}
 
-	// Restricted projects aren't allowed to use pull migration.
-	if shared.IsTrue(info.Project.Config["restricted"]) && req.Source.Type == "migration" && req.Source.Mode == "pull" {
-		return errors.New("Restricted projects are not allowed to use pull mode migration")
+	err = checkSourceAllowed(info.Project.Config, req.Source.Type, req.Source.Mode)
+	if err != nil {
+		return err
 	}
 
 	// If "limits.disk" is not set, there's nothing to do.
