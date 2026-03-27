@@ -1120,6 +1120,36 @@ func (d *ceph) HasVolume(vol Volume) (bool, error) {
 	return d.hasVolume(d.getRBDVolumeName(vol, "", false, false))
 }
 
+// ValidateImageVolume verifies that the image volume was fully unpacked by checking for
+// the "readonly" RBD snapshot. This snapshot is taken only after a successful unpack,
+// so its absence means the unpack was interrupted and the volume is incomplete.
+func (d *ceph) ValidateImageVolume(vol Volume, op *operations.Operation) error {
+	// Check that the main volume's readonly snapshot exists.
+	hasReadonly, err := d.hasVolume(d.getRBDVolumeName(vol, "readonly", false, false))
+	if err != nil {
+		return err
+	}
+
+	if !hasReadonly {
+		return fmt.Errorf("Missing readonly snapshot for image volume %q: %w", vol.name, ErrBrokenImageVolume)
+	}
+
+	// For block content (VM images), also check the filesystem config volume's readonly snapshot.
+	if vol.contentType == ContentTypeBlock {
+		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+		hasFSReadonly, err := d.hasVolume(d.getRBDVolumeName(fsVol, "readonly", false, false))
+		if err != nil {
+			return err
+		}
+
+		if !hasFSReadonly {
+			return fmt.Errorf("Missing readonly snapshot for image filesystem volume %q %w", fsVol.name, ErrBrokenImageVolume)
+		}
+	}
+
+	return nil
+}
+
 // FillVolumeConfig populate volume with default config.
 func (d *ceph) FillVolumeConfig(vol Volume) error {
 	// Copy volume.* configuration options from pool.
