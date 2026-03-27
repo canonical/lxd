@@ -349,10 +349,6 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 			Description: group.Description,
 		})
 		if err != nil {
-			if api.StatusErrorCheck(err, http.StatusConflict) {
-				return api.StatusErrorf(http.StatusConflict, "Authorization group %q already exists", group.Name)
-			}
-
 			return err
 		}
 
@@ -724,10 +720,6 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return query.UpdateByPrimaryKey(ctx, tx.Tx(), group)
 	})
 	if err != nil {
-		if api.StatusErrorCheck(err, http.StatusConflict) {
-			return response.Conflict(fmt.Errorf("Authorization group %q already exists", groupPost.Name))
-		}
-
 		return response.SmartError(err)
 	}
 

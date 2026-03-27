@@ -47,7 +47,7 @@ type PlacementGroupFilter struct {
 func GetPlacementGroup(ctx context.Context, tx *sql.Tx, name string, projectName string) (*PlacementGroup, error) {
 	group, err := query.SelectOne[PlacementGroup](ctx, tx, "WHERE placement_groups.name = ? AND projects.name = ?", name, projectName)
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading placement group: %w", err)
+		return nil, err
 	}
 
 	return group, nil
@@ -84,7 +84,7 @@ func GetPlacementGroupsAndURLs(ctx context.Context, tx *sql.Tx, projectName *str
 		return nil
 	}, args...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed listing placement groups: %w", err)
+		return nil, nil, err
 	}
 
 	return placementGroups, placementGroupURLs, nil

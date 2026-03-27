@@ -43,7 +43,7 @@ func AuthGroupExists(ctx context.Context, tx *sql.Tx, groupName string) (bool, e
 func GetAuthGroup(ctx context.Context, tx *sql.Tx, groupName string) (*AuthGroupsRow, error) {
 	group, err := query.SelectOne[AuthGroupsRow](ctx, tx, "WHERE name = ?", groupName)
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading authorization group: %w", err)
+		return nil, err
 	}
 
 	return group, nil
@@ -66,7 +66,7 @@ func GetAuthGroupsAndURLs(ctx context.Context, tx *sql.Tx, filter func(group Aut
 		return nil
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed listing authorization groups: %w", err)
+		return nil, nil, err
 	}
 
 	return groups, groupURLs, nil
