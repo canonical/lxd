@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -20,11 +21,13 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -751,6 +754,44 @@ func pruneExpiredAndAutoCreateInstanceSnapshots(ctx context.Context, s *state.St
 	}
 
 	return nil
+}
+
+// resolveSourceImageFromCache searches the image to use for an instance source in the local cache and performs authorization checks.
+// This can be used to find either a cached copy of a remote image when a remote image is specified, or to find a local image when a local source image is specified.
+// If an image is not found locally, this function returns `nil` instead of an image and no error.
+func resolveSourceImageFromCache(r *http.Request, s *state.State, tx *db.ClusterTx, targetProjectName string, source api.InstanceSource, imageRef *string, instType string) (*api.Image, error) {
+	// Resolve the project used for local cache lookup to find the image.
+	localLookupProject := targetProjectName
+	if source.Server == "" && source.Project != "" {
+		// For local images, if a source project is explicitly provided, use it to locate the image.
+		localLookupProject = source.Project
+	}
+
+	// Check if the image has an entry in the database but fail only if the error
+	// is different than the image not being found.
+	sourceImage, err := getSourceImageFromInstanceSource(r.Context(), s, tx, localLookupProject, source, imageRef, instType)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return nil, err
+	}
+
+	// If the image is locally available, private, and from a different project, check if the caller can view it.
+	if sourceImage != nil && localLookupProject != targetProjectName && !sourceImage.Public {
+		// Get the effective image project based on the "features.images" value.
+		effectiveImageProject, err := project.ImageProject(r.Context(), tx.Tx(), localLookupProject)
+		if err != nil {
+			return nil, err
+		}
+
+		// Create a child context and set effective project name to check the access permission.
+		ctx := context.WithValue(r.Context(), request.CtxEffectiveProjectName, effectiveImageProject)
+
+		err = s.Authorizer.CheckPermission(ctx, entity.ImageURL(localLookupProject, sourceImage.Fingerprint), auth.EntitlementCanView)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return sourceImage, nil
 }
 
 // getSourceImageFromInstanceSource returns the image to use for an instance source.
