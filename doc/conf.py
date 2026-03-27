@@ -446,3 +446,14 @@ with open(".sphinx/latex_elements_template.txt", "rt") as file:
     latex_config = file.read()
 
 latex_elements = ast.literal_eval(latex_config.replace("$PROJECT", project))
+
+
+###########################################
+### Prevent indexing of older docs versions
+###########################################
+
+# Add RTD docs version slugs for versions that should not be indexed by search engines
+noindex_versions = {"stable-5.0", "stable-4.0"}
+
+rtd_version = os.environ.get("READTHEDOCS_VERSION", "")
+html_context["seo_noindex"] = rtd_version in noindex_versions
