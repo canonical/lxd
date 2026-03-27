@@ -1,0 +1,9 @@
+{% extends "!base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  {% if seo_noindex %}
+  {# Prevent indexing for older RTD versions defined in conf.py (noindex_versions). #}
+  <meta name="robots" content="noindex">
+  {% endif %}
+{% endblock %}
