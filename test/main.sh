@@ -493,6 +493,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_waitready "clustering waitready"
     run_test test_clustering_heal_networks_stop "clustering heal networks stop"
     run_test test_clustering_force_removal "clustering force removal"
+    run_test test_clustering_project_limits "clustering project limits"
 fi
 
 if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
