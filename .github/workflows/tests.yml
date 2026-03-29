@@ -201,6 +201,7 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests == 'true' }}
         run: |
           set -eux
+          sudo apt-get install -y xdelta3 # Required for SimpleStreams client tests.
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,PKG_CONFIG_PATH,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
@@ -865,6 +866,10 @@ jobs:
           COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            # Required for SimpleStreams client tests.
+            sudo apt-get install -y xdelta3
+          fi
           [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
           go test -mod=readonly -v ./client/... ${COVER}
 
