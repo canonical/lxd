@@ -100,6 +100,9 @@ var topLevelInstanceServerResourceNameFuncs = map[string]func(server lxd.Instanc
 	"cluster_link": func(server lxd.InstanceServer) ([]string, error) {
 		return server.GetClusterLinkNames()
 	},
+	"replicator": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetReplicatorNames()
+	},
 }
 
 var topLevelImageServerResourceNameFuncs = map[string]func(server lxd.ImageServer) ([]string, error){
@@ -320,6 +323,29 @@ func (g *cmdGlobal) cmpClusterLinkConfig(linkName string) ([]string, cobra.Shell
 
 	results := make([]string, 0, len(link.Config))
 	for k := range link.Config {
+		results = append(results, k)
+	}
+
+	return results, cobra.ShellCompDirectiveNoFileComp
+}
+
+// cmpReplicatorConfig provides shell completion for replicator configs.
+// It takes a replicator name and returns a list of replicator config keys along with a shell completion directive.
+func (g *cmdGlobal) cmpReplicatorConfig(replicatorName string) ([]string, cobra.ShellCompDirective) {
+	// Parse remote.
+	resources, err := g.ParseServers(replicatorName)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	replicator, _, err := resource.server.GetReplicator(g.flagProject, resource.name)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	results := make([]string, 0, len(replicator.Config))
+	for k := range replicator.Config {
 		results = append(results, k)
 	}
 
