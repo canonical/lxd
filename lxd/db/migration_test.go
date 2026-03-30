@@ -25,7 +25,7 @@ import (
 func TestLoadPreClusteringData(t *testing.T) {
 	tx := newPreClusteringTx(t)
 
-	dump, err := db.LoadPreClusteringData(context.Background(), tx)
+	dump, err := db.LoadPreClusteringData(t.Context(), tx)
 	require.NoError(t, err)
 
 	// config
@@ -47,7 +47,7 @@ func TestLoadPreClusteringData(t *testing.T) {
 func TestImportPreClusteringData(t *testing.T) {
 	tx := newPreClusteringTx(t)
 
-	dump, err := db.LoadPreClusteringData(context.Background(), tx)
+	dump, err := db.LoadPreClusteringData(t.Context(), tx)
 	require.NoError(t, err)
 
 	dir, store, cleanup := db.NewTestDqliteServer(t)
@@ -59,13 +59,13 @@ func TestImportPreClusteringData(t *testing.T) {
 
 	serverUUID, err := uuid.NewV7()
 	require.NoError(t, err)
-	c, err := db.OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, dump, serverUUID.String(), driver.WithDialFunc(dial))
+	c, err := db.OpenCluster(t.Context(), "test.db", store, "1", dir, 5*time.Second, dump, serverUUID.String(), driver.WithDialFunc(dial))
 	require.NoError(t, err)
 	defer func() { _ = c.Close() }()
 
 	// certificates
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		certs, err := cluster.GetCertificates(context.Background(), tx.Tx())
+	err = c.Transaction(t.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		certs, _, err := cluster.GetCertificatesAndURLs(ctx, tx.Tx(), nil)
 		require.NoError(t, err)
 		assert.Len(t, certs, 1)
 		cert := certs[0]
@@ -79,7 +79,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// config
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = c.Transaction(t.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := tx.Config(ctx)
 		require.NoError(t, err)
 		values := map[string]string{"user.foo": "bar"}
@@ -90,7 +90,7 @@ func TestImportPreClusteringData(t *testing.T) {
 
 	// networks
 	var networks []string
-	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+	err = c.Transaction(t.Context(), func(ctx context.Context, ct *db.ClusterTx) error {
 		var err error
 		networks, err = ct.GetNetworks(ctx, api.ProjectDefaultName)
 
@@ -101,7 +101,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, []string{"lxcbr0"}, networks)
 	var id int64
 	var network *api.Network
-	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+	err = c.Transaction(t.Context(), func(ctx context.Context, ct *db.ClusterTx) error {
 		var err error
 		id, network, _, err = ct.GetNetworkInAnyState(ctx, api.ProjectDefaultName, "lxcbr0")
 
@@ -116,7 +116,7 @@ func TestImportPreClusteringData(t *testing.T) {
 
 	// storage
 	var pools []string
-	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+	err = c.Transaction(t.Context(), func(ctx context.Context, ct *db.ClusterTx) error {
 		var err error
 		pools, err = ct.GetStoragePoolNames(ctx)
 
@@ -126,7 +126,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default"}, pools)
 	var pool *api.StoragePool
-	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+	err = c.Transaction(t.Context(), func(ctx context.Context, ct *db.ClusterTx) error {
 		var err error
 		id, pool, _, err = ct.GetStoragePool(ctx, api.ProjectDefaultName)
 
@@ -144,14 +144,14 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, []string{"none"}, pool.Locations)
 
 	var dbVolumes []*db.StorageVolume
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = c.Transaction(t.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		volumeType := cluster.StoragePoolVolumeTypeImage
 		filters := []db.StorageVolumeFilter{{
 			Type:   &volumeType,
 			PoolID: &id,
 		}}
 
-		dbVolumes, err = tx.GetStorageVolumes(context.Background(), true, filters...)
+		dbVolumes, err = tx.GetStorageVolumes(ctx, true, filters...)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage volumes: %w", err)
 		}
@@ -163,7 +163,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Len(t, dbVolumes, 1)
 	assert.Equal(t, "/foo/bar", dbVolumes[0].Config["source"])
 
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = c.Transaction(t.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// The zfs.clone_copy config got a NULL node_id, since it's cluster global.
 		config, err := query.SelectConfig(ctx, tx.Tx(), "storage_pools_config", "node_id IS NULL")
 		require.NoError(t, err)
@@ -186,7 +186,7 @@ func TestImportPreClusteringData(t *testing.T) {
 
 	// profiles
 	var profiles []string
-	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+	err = c.Transaction(t.Context(), func(ctx context.Context, ct *db.ClusterTx) error {
 		var err error
 		profiles, err = ct.GetProfileNames(ctx, api.ProjectDefaultName)
 
@@ -196,7 +196,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default", "users"}, profiles)
 	var profile *api.Profile
-	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+	err = c.Transaction(t.Context(), func(ctx context.Context, ct *db.ClusterTx) error {
 		var err error
 		_, profile, err = ct.GetProfile(ctx, api.ProjectDefaultName, "default")
 
@@ -216,7 +216,7 @@ func TestImportPreClusteringData(t *testing.T) {
 				"nictype": "bridged",
 				"parent":  "lxdbr0"}},
 		profile.Devices)
-	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+	err = c.Transaction(t.Context(), func(ctx context.Context, ct *db.ClusterTx) error {
 		var err error
 		_, profile, err = ct.GetProfile(ctx, api.ProjectDefaultName, "users")
 
