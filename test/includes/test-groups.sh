@@ -97,6 +97,7 @@ readonly test_group_image=(
     "images_public"
     "projects_images"
     "projects_images_default"
+    "projects_instance_creation"
 )
 
 readonly test_group_network=(

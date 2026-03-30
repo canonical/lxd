@@ -115,8 +115,11 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if req.Source.Type != api.SourceTypeNone {
-			sourceImage, err = getSourceImageFromInstanceSource(ctx, s, tx, targetProject.Name, req.Source, &sourceImageRef, dbInst.Type.String())
-			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Try to resolve the source image from cache and perform authorization checks.
+			// This is needed to verify the caller has access to the image if it's from a different project,
+			// and to retrieve the image's metadata.
+			sourceImage, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, dbInst.Type.String())
+			if err != nil {
 				return err
 			}
 		}

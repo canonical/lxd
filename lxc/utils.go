@@ -378,45 +378,57 @@ func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, im
 	return fields[0], fields[1]
 }
 
-// getImgInfo returns an image server and image info for the given image name (given by a user)
-// an image remote and an instance remote.
-func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, instRemote string, imageRef string, source *api.InstanceSource) (lxd.ImageServer, *api.Image, error) {
-	var imgRemoteServer lxd.ImageServer
-	var imgInfo *api.Image
+// getImgInfo returns an image server and image info for the given image name, image remote, and image project.
+// It also populates the passed in InstanceSource struct with the information about the image.
+// If imageProject is provided and the remote is a LXD server, it will be used to locate the image.
+func getImgInfo(conf *config.Config, imageRemote string, imageRef string, imageProject string, source *api.InstanceSource) (lxd.ImageServer, *api.Image, error) {
+	var imageRemoteServer lxd.ImageServer
+	var imageInfo *api.Image
 	var err error
 
-	// Connect to the image server
-	if imgRemote == instRemote {
-		imgRemoteServer = d
-	} else {
-		imgRemoteServer, err = conf.GetImageServer(imgRemote)
-		if err != nil {
-			return nil, nil, err
-		}
+	// Connect to the image server.
+	imageRemoteServer, err = conf.GetImageServer(imageRemote)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// Optimisation for simplestreams
-	if conf.Remotes[imgRemote].Protocol == "simplestreams" {
-		imgInfo = &api.Image{}
-		imgInfo.Fingerprint = imageRef
-		imgInfo.Public = true
+	if conf.Remotes[imageRemote].Protocol == "simplestreams" {
+		imageInfo = &api.Image{}
+		imageInfo.Fingerprint = imageRef
+		imageInfo.Public = true
 		source.Alias = imageRef
 	} else {
+		server, ok := imageRemoteServer.(lxd.InstanceServer)
+		if ok && imageProject != "" {
+			// Use the given project for the image source.
+			imageRemoteServer = server.UseProject(imageProject)
+		}
+
+		// Get the connection info to fetch the currently used project.
+		connInfo, err := imageRemoteServer.GetConnectionInfo()
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed getting connection information for remote %q: %w", imageRemote, err)
+		}
+
+		// Set the currently used project for the instance source struct.
+		source.Project = connInfo.Project
+
 		// Attempt to resolve an image alias
-		alias, _, err := imgRemoteServer.GetImageAlias(imageRef)
+		alias, _, err := imageRemoteServer.GetImageAlias(imageRef)
 		if err == nil {
 			source.Alias = imageRef
 			imageRef = alias.Target
 		}
 
 		// Get the image info
-		imgInfo, _, err = imgRemoteServer.GetImage(imageRef)
+		imageInfo, _, err = imageRemoteServer.GetImage(imageRef)
 		if err != nil {
-			return nil, nil, fmt.Errorf("Failed finding image %q on remote %q", imageRef, imgRemote)
+			return nil, nil, fmt.Errorf("Failed finding image %q on remote %q", imageRef, imageRemote)
 		}
 	}
 
-	return imgRemoteServer, imgInfo, nil
+	return imageRemoteServer, imageInfo, nil
 }
 
 // getExportVersion returns the version sent to the server when exporting instances and custom storage volumes.
