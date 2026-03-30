@@ -81,12 +81,23 @@ func (c *cmdNetworkACL) command() *cobra.Command {
 }
 
 // List.
+// cmdNetworkACLList handles listing network ACLs.
 type cmdNetworkACLList struct {
 	global     *cmdGlobal
 	networkACL *cmdNetworkACL
 
 	flagFormat      string
+	flagColumns     string
 	flagAllProjects bool
+}
+
+// columns returns the ordered column definitions for network ACL list.
+func (c *cmdNetworkACLList) columns() []cli.ShorthandColumn[api.NetworkACL] {
+	return []cli.ShorthandColumn[api.NetworkACL]{
+		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
+		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
+		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+	}
 }
 
 func (c *cmdNetworkACLList) command() *cobra.Command {
@@ -98,6 +109,7 @@ func (c *cmdNetworkACLList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display network ACLs from all projects")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -149,35 +161,45 @@ func (c *cmdNetworkACLList) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	data := [][]string{}
-	for _, acl := range acls {
-		strUsedBy := strconv.Itoa(len(acl.UsedBy))
-		details := []string{
-			acl.Name,
-			acl.Description,
-			strUsedBy,
-		}
+	// Parse column flags.
+	cols := c.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
 
-		if c.flagAllProjects {
-			details = append([]string{acl.Project}, details...)
-		}
-
-		data = append(data, details)
-	}
-
-	sort.Sort(cli.SortColumnsNaturally(data))
-
-	header := []string{
-		"NAME",
-		"DESCRIPTION",
-		"USED BY",
-	}
+	// Add project column so shorthand 'e' is always valid.
+	cols = append(cols, cli.ShorthandColumn[api.NetworkACL]{Shorthand: 'e', Name: "PROJECT", Data: c.projectColumnData})
 
 	if c.flagAllProjects {
-		header = append([]string{"PROJECT"}, header...)
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = "e" + defaultColumns
+		}
 	}
 
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
+	if err != nil {
+		return err
+	}
+
+	data := cli.ColumnData(columns, acls)
+	sort.Sort(cli.SortColumnsNaturally(data))
+	header := cli.ColumnHeaders(columns)
+
 	return cli.RenderTable(c.flagFormat, header, data, acls)
+}
+
+func (c *cmdNetworkACLList) projectColumnData(acl api.NetworkACL) string {
+	return acl.Project
+}
+
+func (c *cmdNetworkACLList) nameColumnData(acl api.NetworkACL) string {
+	return acl.Name
+}
+
+func (c *cmdNetworkACLList) descriptionColumnData(acl api.NetworkACL) string {
+	return acl.Description
+}
+
+func (c *cmdNetworkACLList) usedByColumnData(acl api.NetworkACL) string {
+	return strconv.Itoa(len(acl.UsedBy))
 }
 
 // Show.
