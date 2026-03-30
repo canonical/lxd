@@ -881,6 +881,35 @@ func (d *btrfs) HasVolume(vol Volume) (bool, error) {
 	return genericVFSHasVolume(vol)
 }
 
+// ValidateImageVolume verifies that the image volume was fully unpacked by checking that
+// the subvolume is read-only. The subvolume is made read-only only after a successful
+// unpack, so a writable subvolume means the unpack was interrupted and the volume is
+// incomplete.
+func (d *btrfs) ValidateImageVolume(vol Volume, op *operations.Operation) error {
+	// Cannot reliably check the readonly marker in a user namespace because
+	// setSubvolumeReadonlyProperty is a no-op there, so image volumes will
+	// always appear writable even after a successful unpack.
+	if d.state.OS.RunningInUserNS {
+		return nil
+	}
+
+	volPath := vol.MountPath()
+	if !btrfsSubVolumeIsRo(volPath) {
+		return fmt.Errorf("Image volume %q is not readonly: %w", volPath, ErrBrokenImageVolume)
+	}
+
+	// For VM images, also check the companion filesystem config volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		fsPath := fsVol.MountPath()
+		if !btrfsSubVolumeIsRo(fsPath) {
+			return fmt.Errorf("Image filesystem volume %q is not readonly: %w", fsPath, ErrBrokenImageVolume)
+		}
+	}
+
+	return nil
+}
+
 // ValidateVolume validates the supplied volume config.
 func (d *btrfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	return d.validateVolume(vol, nil, removeUnknownKeys)
