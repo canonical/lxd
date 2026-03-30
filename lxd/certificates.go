@@ -35,7 +35,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/version"
 )
 
 var certificatesCmd = APIEndpoint{
@@ -150,32 +149,24 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var certResponses []*api.Certificate
+	var certificates []dbCluster.Certificate
+	var certificateIDToProjects map[int64][]string
 	var certURLs []string
-	urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		baseCerts, err := dbCluster.GetCertificates(ctx, tx.Tx())
+		certificates, certURLs, err = dbCluster.GetCertificatesAndURLs(ctx, tx.Tx(), func(c dbCluster.Certificate) bool {
+			return userHasPermission(entity.CertificateURL(c.Fingerprint))
+		})
 		if err != nil {
 			return err
 		}
 
-		certResponses = make([]*api.Certificate, 0, len(baseCerts))
-		for _, baseCert := range baseCerts {
-			if !userHasPermission(entity.CertificateURL(baseCert.Fingerprint)) {
-				continue
-			}
+		if recursion == 0 || len(certificates) == 0 {
+			return nil
+		}
 
-			if recursion > 0 {
-				apiCert, err := baseCert.ToAPI(ctx, tx.Tx())
-				if err != nil {
-					return err
-				}
-
-				certResponses = append(certResponses, apiCert)
-				urlToCertificate[entity.CertificateURL(apiCert.Fingerprint)] = apiCert
-			} else {
-				certURLs = append(certURLs, api.NewURL().Path(version.APIVersion, "certificates", baseCert.Fingerprint).String())
-			}
+		certificateIDToProjects, err = dbCluster.GetCertificateProjects(ctx, tx.Tx(), nil)
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -186,6 +177,18 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 	if recursion == 0 {
 		return response.SyncResponse(true, certURLs)
+	}
+
+	urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
+	certResponses := make([]*api.Certificate, 0, len(certificates))
+	for _, cert := range certificates {
+		certResponse, err := cert.ToAPI(certificateIDToProjects)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		certResponses = append(certResponses, certResponse)
+		urlToCertificate[entity.CertificateURL(cert.Fingerprint)] = certResponse
 	}
 
 	if len(withEntitlements) > 0 {
@@ -794,16 +797,22 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var cert *api.Certificate
+	var cert *dbCluster.Certificate
+	var projects map[int64][]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbCertInfo, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
+		cert, err = dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
 		}
 
-		cert, err = dbCertInfo.ToAPI(ctx, tx.Tx())
+		projects, err = dbCluster.GetCertificateProjects(ctx, tx.Tx(), &cert.ID)
 		return err
 	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	apiCert, err := cert.ToAPI(projects)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -814,13 +823,13 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeCertificate, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.CertificateURL(cert.Fingerprint): cert})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeCertificate, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.CertificateURL(cert.Fingerprint): apiCert})
 		if err != nil {
 			return response.SmartError(err)
 		}
 	}
 
-	return response.SyncResponseETag(true, cert, cert)
+	return response.SyncResponseETag(true, apiCert, apiCert)
 }
 
 // swagger:operation PUT /1.0/certificates/{fingerprint} certificates certificate_put
