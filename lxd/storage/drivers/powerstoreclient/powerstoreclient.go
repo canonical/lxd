@@ -179,6 +179,7 @@ type Client struct {
 	Password             string
 	TokenCache           *tokencache.TokenCache[LoginSession]
 	VolumeNamePrefix     string
+	HostNamePrefix       string
 }
 
 func (c *Client) startNewLoginSession(ctx context.Context) (*LoginSession, error) {
@@ -496,6 +497,263 @@ func (c *Client) getLoginSessionInfoWithBasicAuthorization(ctx context.Context) 
 	}
 
 	return resp, body, nil
+}
+
+// HostResource describes a host resource in PowerStore API.
+type HostResource struct {
+	ID               string                       `json:"id,omitempty"`
+	Name             string                       `json:"name,omitempty"`
+	Description      string                       `json:"description,omitempty"`
+	Initiators       []*HostInitiatorResource     `json:"initiators,omitempty"`
+	OsType           OSTypeEnum                   `json:"os_type,omitempty"`
+	HostConnectivity string                       `json:"host_connectivity,omitempty"`
+	MappedHosts      []*HostVolumeMappingResource `json:"mapped_hosts,omitempty"`
+}
+
+// OSTypeEnum is an enumeration of operating system type in PowerStore API.
+type OSTypeEnum string
+
+const (
+	// OSTypeEnumLinux is an enumeration value indicating Linux operating system.
+	OSTypeEnumLinux OSTypeEnum = "Linux"
+)
+
+// HostInitiatorResource describes an initiator resource of some host in
+// PowerStore API.
+type HostInitiatorResource struct {
+	ID       string                `json:"id,omitempty"`
+	PortName string                `json:"port_name,omitempty"`
+	PortType InitiatorPortTypeEnum `json:"port_type,omitempty"`
+}
+
+// InitiatorPortTypeEnum is an enumeration of initiator port type in
+// PowerStore API.
+type InitiatorPortTypeEnum string
+
+const (
+	// InitiatorPortTypeEnumISCSI is an enumeration value indicating iSCSI
+	// initiator port type.
+	InitiatorPortTypeEnumISCSI InitiatorPortTypeEnum = "iSCSI"
+
+	// InitiatorPortTypeEnumFC is an enumeration value indicating fibre channel
+	// initiator port type.
+	InitiatorPortTypeEnumFC InitiatorPortTypeEnum = "FC"
+
+	// InitiatorPortTypeEnumNVMe is an enumeration value indicating NVMe
+	// initiator port type.
+	InitiatorPortTypeEnumNVMe InitiatorPortTypeEnum = "NVMe"
+)
+
+func (c *Client) getHostsByQuery(ctx context.Context, query query, filterOwnedByLxd bool) ([]*HostResource, bool, error) {
+	query = query.Set("select", "id,name,description,initiators(id,port_name,port_type),os_type,host_connectivity,mapped_hosts(id,host_id,volume_id)")
+
+	body := []*HostResource{}
+	resp, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodGet, "/api/rest/host", nil, &body,
+		c.withQuery(query),
+	)
+	if err != nil {
+		return nil, false, fmt.Errorf("Retrieving information about PowerStore hosts: %w", err)
+	}
+
+	hasMore, err := queryResponseHasMoreItems(resp)
+	if err != nil {
+		return nil, false, fmt.Errorf("Retrieving information about PowerStore hosts: %w", err)
+	}
+
+	if !filterOwnedByLxd {
+		return body, hasMore, nil
+	}
+
+	// In most cases all items in the returned body will be managed by LXD and no
+	// item will be filtered out.
+	filtered := make([]*HostResource, 0, len(body))
+	for _, h := range body {
+		if !strings.HasPrefix(h.Name, c.HostNamePrefix) {
+			continue
+		}
+
+		filtered = append(filtered, h)
+	}
+
+	return filtered, hasMore, nil
+}
+
+func (c *Client) getHostByQuery(ctx context.Context, query query, filterOwnedByLxd bool) (*HostResource, error) {
+	hosts, _, err := c.getHostsByQuery(ctx, query.Paginate(pagination{ItemsPerPage: 1}), filterOwnedByLxd)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(hosts) == 0 {
+		return nil, nil
+	}
+
+	return hosts[0], nil
+}
+
+// GetHostByID retrieves host using its ID.
+func (c *Client) GetHostByID(ctx context.Context, id string) (*HostResource, error) {
+	return c.getHostByQuery(ctx, query{"id": "eq." + id}, true)
+}
+
+// getUnfilteredHostByID retrieves host using its ID without filtration
+// (returns host even if it is not managed by lxd).
+func (c *Client) getUnfilteredHostByID(ctx context.Context, id string) (*HostResource, error) {
+	return c.getHostByQuery(ctx, query{"id": "eq." + id}, false)
+}
+
+// GetHostByName retrieves host using its name.
+func (c *Client) GetHostByName(ctx context.Context, name string) (*HostResource, error) {
+	return c.getHostByQuery(ctx, query{"name": "eq." + name}, true)
+}
+
+// CreateHost creates new host.
+func (c *Client) CreateHost(ctx context.Context, host *HostResource) error {
+	body := &IDResource{}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPost, "/api/rest/host", host, body)
+	if err != nil {
+		return fmt.Errorf("Creating PowerStore host: %w", err)
+	}
+
+	// Fetch host to populate all fields.
+	created, err := c.GetHostByID(ctx, body.ID)
+	if err != nil {
+		return fmt.Errorf("Creating PowerStore host: %w", err)
+	}
+
+	if created == nil {
+		return errors.New("Creating PowerStore host: No data of new host found")
+	}
+
+	*host = *created
+	return nil
+}
+
+// DeleteHostByID deletes host using its ID.
+func (c *Client) DeleteHostByID(ctx context.Context, id string) error {
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodDelete, "/api/rest/host/"+id, nil, nil)
+	if err != nil {
+		return fmt.Errorf("Deleting PowerStore host: %w", err)
+	}
+
+	return nil
+}
+
+type addInitiatorToHostResource struct {
+	AddInitiators []*HostInitiatorResource `json:"add_initiators,omitempty"`
+}
+
+// AddInitiatorToHostByID adds initiator to host using its ID.
+func (c *Client) AddInitiatorToHostByID(ctx context.Context, hostID string, initiator *HostInitiatorResource) error {
+	reqBody := &addInitiatorToHostResource{AddInitiators: []*HostInitiatorResource{initiator}}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPatch, "/api/rest/host/"+hostID, reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("Adding initiator to PowerStore host: %w", err)
+	}
+
+	return nil
+}
+
+type removeInitiatorFromHostResource struct {
+	RemoveInitiators []string `json:"remove_initiators,omitempty"`
+}
+
+// RemoveInitiatorFromHostByID removes initiator matching port name from host using its ID.
+func (c *Client) RemoveInitiatorFromHostByID(ctx context.Context, hostID string, initiator *HostInitiatorResource) error {
+	reqBody := &removeInitiatorFromHostResource{RemoveInitiators: []string{initiator.PortName}}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPatch, "/api/rest/host/"+hostID, reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("Removing initiator from PowerStore host: %w", err)
+	}
+
+	return nil
+}
+
+type hostAttachResource struct {
+	VolumeGroupID string `json:"volume_group_id,omitempty"`
+	VolumeID      string `json:"volume_id,omitempty"`
+}
+
+// AttachHostToVolume attaches (maps) host to volume.
+func (c *Client) AttachHostToVolume(ctx context.Context, hostID, volID string) error {
+	reqBody := &hostAttachResource{VolumeID: volID}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPost, "/api/rest/host/"+hostID+"/attach", reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("Attaching PowerStore host to a volume: %w", err)
+	}
+
+	return nil
+}
+
+type hostDetachResource struct {
+	VolumeGroupID string `json:"volume_group_id,omitempty"`
+	VolumeID      string `json:"volume_id,omitempty"`
+}
+
+// DetachHostFromVolume detaches (unmaps) host from volume.
+func (c *Client) DetachHostFromVolume(ctx context.Context, hostID, volID string) error {
+	reqBody := &hostDetachResource{VolumeID: volID}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPost, "/api/rest/host/"+hostID+"/detach", reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("Detaching PowerStore host from a volume: %w", err)
+	}
+
+	return nil
+}
+
+// InitiatorResource describes an initiator resource in PowerStore API.
+type InitiatorResource struct {
+	ID       string `json:"id,omitempty"`
+	HostID   string `json:"host_id,omitempty"`
+	PortName string `json:"port_name,omitempty"`
+	PortType string `json:"port_type,omitempty"`
+}
+
+func (c *Client) getInitiatorsByQuery(ctx context.Context, query query) ([]*InitiatorResource, bool, error) {
+	query = query.Set("select", "id,host_id,port_name,port_type")
+
+	body := []*InitiatorResource{}
+	resp, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodGet, "/api/rest/initiator", nil, &body,
+		c.withQuery(query),
+	)
+	if err != nil {
+		return nil, false, fmt.Errorf("Retrieving information about PowerStore initiators: %w", err)
+	}
+
+	hasMore, err := queryResponseHasMoreItems(resp)
+	if err != nil {
+		return nil, false, fmt.Errorf("Retrieving information about PowerStore initiators: %w", err)
+	}
+
+	return body, hasMore, nil
+}
+
+func (c *Client) getInitiatorByQuery(ctx context.Context, query query) (*InitiatorResource, error) {
+	initiators, _, err := c.getInitiatorsByQuery(ctx, query.Paginate(pagination{ItemsPerPage: 1}))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(initiators) == 0 {
+		return nil, nil
+	}
+
+	return initiators[0], nil
+}
+
+// GetHostByInitiator retrieves host that have initiator matching port name and
+// type.
+func (c *Client) GetHostByInitiator(ctx context.Context, initiator *HostInitiatorResource) (*HostResource, error) {
+	hostInitiator, err := c.getInitiatorByQuery(ctx, query{"port_name": "eq." + initiator.PortName, "port_type": "eq." + string(initiator.PortType)})
+	if err != nil {
+		return nil, err
+	}
+
+	if hostInitiator == nil {
+		return nil, nil
+	}
+
+	return c.getUnfilteredHostByID(ctx, hostInitiator.HostID)
 }
 
 // VolumeResource describes a volume resource in PowerStore API.
