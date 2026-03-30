@@ -339,3 +339,8 @@ func PlacementGroupURL(projectName string, placementGroupName string) *api.URL {
 func ClusterLinkURL(clusterLinkName string) *api.URL {
 	return TypeClusterLink.urlMust("", "", clusterLinkName)
 }
+
+// ReplicatorURL returns an [*api.URL] to a replicator.
+func ReplicatorURL(projectName string, replicatorName string) *api.URL {
+	return TypeReplicator.urlMust(projectName, "", replicatorName)
+}
