@@ -30,11 +30,11 @@ else
         export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-${_ZFS_VER}/lib/:${LD_LIBRARY_PATH}"
         export PATH="${SNAP_CURRENT}/zfs-${_ZFS_VER}/bin:${PATH}"
     elif [ -n "${_ZFS_VER}" ]; then
-        echo "==> Unsupported ZFS version (${_ZFS_VER})"
-        echo "Consider installing ZFS tools in the host and use zfs.external"
+        echo "==> Unsupported ZFS version (${_ZFS_VER})" >&2
+        echo "Consider installing ZFS tools in the host and use zfs.external" >&2
     else
-        echo "==> No ZFS support"
-        echo "Consider installing ZFS tools in the host and use zfs.external"
+        echo "==> No ZFS support" >&2
+        echo "Consider installing ZFS tools in the host and use zfs.external" >&2
     fi
 
     # Do not pollute the caller's environment with internal variables
