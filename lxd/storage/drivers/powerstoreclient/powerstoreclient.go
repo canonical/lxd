@@ -499,6 +499,56 @@ func (c *Client) getLoginSessionInfoWithBasicAuthorization(ctx context.Context) 
 	return resp, body, nil
 }
 
+// ApplianceMetricsResource describes an appliance metric resource in
+// PowerStore API.
+type ApplianceMetricsResource struct {
+	ID                     string  `json:"id,omitempty"`
+	Name                   string  `json:"name,omitempty"`
+	AvgLatency             float64 `json:"avg_latency,omitempty"`
+	TotalIops              float64 `json:"total_iops,omitempty"`
+	TotalBandwidth         float64 `json:"total_bandwidth,omitempty"`
+	LastLogicalTotalSpace  int64   `json:"last_logical_total_space,omitempty"`
+	LastLogicalUsedSpace   int64   `json:"last_logical_used_space,omitempty"`
+	LastPhysicalTotalSpace int64   `json:"last_physical_total_space,omitempty"`
+	LastPhysicalUsedSpace  int64   `json:"last_physical_used_space,omitempty"`
+}
+
+func (c *Client) getApplianceMetricsByQuery(ctx context.Context, query query) ([]*ApplianceMetricsResource, bool, error) {
+	query = query.Set("select", "id,name,avg_latency,total_iops,total_bandwidth,last_logical_total_space,last_logical_used_space,last_physical_total_space,last_physical_used_space")
+
+	body := []*ApplianceMetricsResource{}
+	resp, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodGet, "/api/rest/appliance_list_cma_view", nil, &body,
+		c.withQuery(query),
+	)
+	if err != nil {
+		return nil, false, fmt.Errorf("Retrieving metrics of PowerStore appliances: %w", err)
+	}
+
+	hasMore, err := queryResponseHasMoreItems(resp)
+	if err != nil {
+		return nil, false, fmt.Errorf("Retrieving metrics of PowerStore appliances: %w", err)
+	}
+
+	return body, hasMore, nil
+}
+
+// GetApplianceMetrics retrieves appliance metrics.
+func (c *Client) GetApplianceMetrics(ctx context.Context) ([]*ApplianceMetricsResource, error) {
+	query := query{}
+	var metrics []*ApplianceMetricsResource
+	for page := 0; ; page++ {
+		metricsPage, hasMore, err := c.getApplianceMetricsByQuery(ctx, query.Paginate(pagination{Page: page}))
+		if err != nil {
+			return nil, err
+		}
+
+		metrics = append(metrics, metricsPage...)
+		if !hasMore {
+			return metrics, nil
+		}
+	}
+}
+
 // HostResource describes a host resource in PowerStore API.
 type HostResource struct {
 	ID               string                       `json:"id,omitempty"`
