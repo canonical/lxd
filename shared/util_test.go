@@ -515,3 +515,57 @@ func TestResolveSnapPath(t *testing.T) {
 		})
 	}
 }
+
+func TestEnsurePort(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		addr string
+		port string
+		want string
+	}{
+		{name: "empty", addr: "", port: "", want: ":"},
+		{name: "empty-address", addr: "", port: "1234", want: ":1234"},
+		{name: "empty-port", addr: "host", port: "", want: "host:"},
+		{name: "host-without-port", addr: "host", port: "1234", want: "host:1234"},
+		{name: "host-with-port", addr: "host:9876", port: "1234", want: "host:9876"},
+		{name: "host-in-brackets", addr: "[host]", port: "1234", want: "host:1234"},
+		{name: "host-in-brackets-with-port", addr: "[host]:9876", port: "1234", want: "host:9876"},
+		{name: "ipv4-without-port", addr: "123.123.123.123", port: "1234", want: "123.123.123.123:1234"},
+		{name: "ipv4-with-port", addr: "123.123.123.123:9876", port: "1234", want: "123.123.123.123:9876"},
+		{name: "ipv4-in-brackets", addr: "[123.123.123.123]", port: "1234", want: "123.123.123.123:1234"},
+		{name: "ipv4-in-brackets-with-port", addr: "[123.123.123.123]:9876", port: "1234", want: "123.123.123.123:9876"},
+		{name: "ipv6-without-port", addr: "1234:567::89ab:cd:ef01", port: "1234", want: "[1234:567::89ab:cd:ef01]:1234"},
+		{name: "ipv6-with-port", addr: "1234:567::89ab:cd:ef01:9876", port: "1234", want: "[1234:567::89ab:cd:ef01:9876]:1234"},
+		{name: "ipv6-in-brackets", addr: "[1234:567::89ab:cd:ef01]", port: "1234", want: "[1234:567::89ab:cd:ef01]:1234"},
+		{name: "ipv6-in-brackets-with-port", addr: "[1234:567::89ab:cd:ef01]:9876", port: "1234", want: "[1234:567::89ab:cd:ef01]:9876"},
+		{name: "ipv6-full-without-port", addr: "1234:5678:9abc:def0:1234:5678:9abc:def0", port: "1234", want: "[1234:5678:9abc:def0:1234:5678:9abc:def0]:1234"},
+		{name: "ipv6-full-with-port", addr: "1234:5678:9abc:def0:1234:5678:9abc:def0:9876", port: "1234", want: "[1234:5678:9abc:def0:1234:5678:9abc:def0:9876]:1234"},
+		{name: "ipv6-full-in-brackets", addr: "[1234:5678:9abc:def0:1234:5678:9abc:def0]", port: "1234", want: "[1234:5678:9abc:def0:1234:5678:9abc:def0]:1234"},
+		{name: "ipv6-full-in-brackets-with-port", addr: "[1234:5678:9abc:def0:1234:5678:9abc:def0]:9876", port: "1234", want: "[1234:5678:9abc:def0:1234:5678:9abc:def0]:9876"},
+		{name: "ipv6-min-without-port", addr: "1234::5678", port: "1234", want: "[1234::5678]:1234"},
+		{name: "ipv6-min-with-port", addr: "1234::5678:9876", port: "1234", want: "[1234::5678:9876]:1234"},
+		{name: "ipv6-min-in-brackets", addr: "[1234::5678]", port: "1234", want: "[1234::5678]:1234"},
+		{name: "ipv6-min-in-brackets-with-port", addr: "[1234::5678]:9876", port: "1234", want: "[1234::5678]:9876"},
+		{name: "ipv6-loopback-without-port", addr: "::1", port: "1234", want: "[::1]:1234"},
+		{name: "ipv6-loopback-with-port", addr: "::1:9876", port: "1234", want: "[::1:9876]:1234"},
+		{name: "ipv6-loopback-in-brackets", addr: "[::1]", port: "1234", want: "[::1]:1234"},
+		{name: "ipv6-loopback-in-brackets-with-port", addr: "[::1]:9876", port: "1234", want: "[::1]:9876"},
+		{name: "colon-without-port", addr: ":", port: "1234", want: ":1234"},
+		{name: "colon-with-port", addr: "::9876", port: "1234", want: "[::9876]:1234"},
+		{name: "colon-in-brackets", addr: "[:]", port: "1234", want: "[:]:1234"},
+		{name: "colon-in-brackets-with-port", addr: "[:]:9876", port: "1234", want: "[:]:9876"},
+		{name: "colons-without-port", addr: "::", port: "1234", want: "[::]:1234"},
+		{name: "colons-with-port", addr: ":::9876", port: "1234", want: "[:::9876]:1234"},
+		{name: "colons-in-brackets", addr: "[::]", port: "1234", want: "[::]:1234"},
+		{name: "colons-in-brackets-with-port", addr: "[::]:9876", port: "1234", want: "[::]:9876"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			got := EnsurePort(test.addr, test.port)
+			require.Equal(t, test.want, got, "unexpected EnsurePort function result")
+		})
+	}
+}
