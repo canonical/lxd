@@ -19,6 +19,8 @@ func newPowerStoreClient(driver *powerstore) *powerstoreclient.Client {
 		Username:             driver.config["powerstore.user.name"],
 		Password:             driver.config["powerstore.user.password"],
 		TokenCache:           powerStoreTokenCache,
+		VolumeNamePrefix:     powerStoreResourceNamePrefix,
+		HostNamePrefix:       powerStoreResourceNamePrefix,
 	}
 }
 
@@ -51,3 +53,6 @@ func (d *powerstore) connector() (connectors.Connector, error) {
 
 	return d.storageConnector, nil
 }
+
+// powerStoreResourceNamePrefix common prefix for all resource names in PowerStore.
+const powerStoreResourceNamePrefix = "lxd:"
