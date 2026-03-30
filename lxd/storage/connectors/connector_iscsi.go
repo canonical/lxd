@@ -466,6 +466,27 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 	return nil
 }
 
+// WaitDiskDeviceResize waits until the disk device reflects the new size.
+// For iSCSI multipath device, the device-mapper is refreshed before waiting for the new size.
+func (c *connectorISCSI) WaitDiskDeviceResize(ctx context.Context, diskPath string, newSizeBytes int64) error {
+	_, ok := ctx.Deadline()
+	if !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
+
+	if isMultipathDevice(diskPath) {
+		// Ask multipathd to refresh multipath device size.
+		_, err := shared.RunCommand(ctx, "multipath", "-r", diskPath)
+		if err != nil {
+			return fmt.Errorf("Failed updating multipath device %q size: %w", diskPath, err)
+		}
+	}
+
+	return block.WaitDiskDeviceResize(ctx, diskPath, newSizeBytes)
+}
+
 func isMultipathDevice(devicePath string) bool {
 	return strings.HasPrefix(filepath.Base(devicePath), "dm-")
 }

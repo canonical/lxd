@@ -310,3 +310,8 @@ func (c *connectorNVMe) GetDiskDevicePath(diskPathFilter block.DevicePathFilterF
 func (c *connectorNVMe) RemoveDiskDevice(ctx context.Context, devicePath string) error {
 	return nil
 }
+
+// WaitDiskDeviceResize waits until the disk device reflects the new size.
+func (c *connectorNVMe) WaitDiskDeviceResize(ctx context.Context, diskPath string, newSizeBytes int64) error {
+	return block.WaitDiskDeviceResize(ctx, diskPath, newSizeBytes)
+}

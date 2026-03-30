@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -573,6 +572,11 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		return errors.New("Volume capacity can only be increased")
 	}
 
+	connector, err := d.connector()
+	if err != nil {
+		return err
+	}
+
 	// Resize filesystem if needed.
 	if vol.contentType == ContentTypeFS {
 		fsType := vol.ConfigBlockFilesystem()
@@ -595,7 +599,7 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 			// In case SetVolumeQuota is called on an already mapped volume,
 			// it might take some time until the actual size of the device is reflected on the host.
 			// This is for example the case when creating a volume and the filler performs a resize in case the image exceeds the volume's size.
-			err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+			err = connector.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
 			if err != nil {
 				return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
 			}
@@ -629,7 +633,7 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 
 		defer cleanup()
 
-		err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+		err = connector.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
 		if err != nil {
 			return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
 		}
