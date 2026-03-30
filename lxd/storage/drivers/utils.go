@@ -992,6 +992,11 @@ func ValidVolumeName(volumeName string) error {
 	return nil
 }
 
+// limitString trims the provided string to the specified number of characters.
+func limitString(s string, limit int) string {
+	return s[:min(len(s), limit)]
+}
+
 type driverModesAndTransports []driverModeAndTransport
 
 // driverModeAndTransport describes given mode and transport of a storage driver.

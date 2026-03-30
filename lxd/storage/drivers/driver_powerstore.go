@@ -74,6 +74,14 @@ type powerstore struct {
 	// Holds the low level connector for the PowerStore driver.
 	// Use powerstore.connector() to retrieve the initialized connector.
 	storageConnector connectors.Connector
+
+	// Derived initiator resource associated with current host, mode and transport
+	// Use powerstore.initiator() to retrieve the initialized initiator resource.
+	initiatorResource *powerstoreclient.HostInitiatorResource
+
+	// List of discovered targets ant theirs QNs (qualified names)
+	// Use powerstore.targets() to retrieve the discovered PowerStore targets.
+	discoveredTargets []powerStoreTarget
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
