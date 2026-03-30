@@ -43,6 +43,7 @@ Configuration option index </config-options>
 /reference/networks
 /reference/placement_groups
 /reference/clusters
+/reference/replicator_config
 ```
 
 (reference-production)=
