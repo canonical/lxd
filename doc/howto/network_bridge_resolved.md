@@ -164,7 +164,7 @@ After=sys-subsystem-net-devices-<network_bridge>.device
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/resolvectl dns <network_bridge> <dns_address>
-ExecStart=/usr/bin/resolvectl domain <network_bridge> <dns_domain>
+ExecStart=/usr/bin/resolvectl domain <network_bridge> '~<dns_domain>'
 ExecStopPost=/usr/bin/resolvectl revert <network_bridge>
 RemainAfterExit=yes
 
@@ -174,6 +174,24 @@ WantedBy=sys-subsystem-net-devices-<network_bridge>.device
 
 Replace `<network_bridge>` in the file name and content with the name of your bridge (for example, `lxdbr0`).
 Also replace `<dns_address>` and `<dns_domain>` as described in {ref}`network-bridge-resolved-configure`.
+
+Example file content for `/etc/systemd/system/lxd-dns-lxdbr0.service` (insert your own DNS value):
+
+```
+Description=LXD per-link DNS configuration for lxdbr0
+BindsTo=sys-subsystem-net-devices-lxdbr0.device
+After=sys-subsystem-net-devices-lxdbr0.device
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/resolvectl dns lxdbr0 192.0.2.1  # FIXME: replace with your LXD DNS address
+ExecStart=/usr/bin/resolvectl domain lxdbr0 '~lxd'
+ExecStopPost=/usr/bin/resolvectl revert lxdbr0
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sys-subsystem-net-devices-lxdbr0.device
+```
 
 Then enable and start the service with the following commands:
 
