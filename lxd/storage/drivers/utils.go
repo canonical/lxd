@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/block"
+	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -989,4 +990,93 @@ func ValidVolumeName(volumeName string) error {
 	}
 
 	return nil
+}
+
+type driverModesAndTransports []driverModeAndTransport
+
+// driverModeAndTransport describes given mode and transport of a storage driver.
+type driverModeAndTransport struct {
+	Mode          string
+	Transport     string
+	ConnectorType string
+}
+
+// discoverModeAndTransport attempts to discover operation mode and transport
+// of a storage driver.
+func discoverModeAndTransport(supportedModesAndTransports driverModesAndTransports, currentMode, currentTransport string) (driverModeAndTransport, error) {
+	for _, toCheck := range supportedModesAndTransports {
+		if currentMode != "" && toCheck.Mode != currentMode {
+			continue
+		}
+
+		if currentTransport != "" && toCheck.Transport != currentTransport {
+			continue
+		}
+
+		connector, err := connectors.NewConnector(toCheck.ConnectorType, "")
+		if err != nil {
+			return driverModeAndTransport{}, err
+		}
+
+		if connector.LoadModules() != nil {
+			continue
+		}
+
+		return toCheck, nil
+	}
+
+	return driverModeAndTransport{}, errors.New("Failed discovering mode and transport")
+}
+
+// Find locates entity matching the provided mode and transport. If no matching
+// entity exists function returns error.
+func (list driverModesAndTransports) Find(mode, transport string) (driverModeAndTransport, error) {
+	for _, mt := range list {
+		if mt.Mode != mode || mt.Transport != transport {
+			continue
+		}
+
+		return mt, nil
+	}
+
+	return driverModeAndTransport{}, fmt.Errorf("Unsupported mode %q with transport %q", mode, transport)
+}
+
+// ConnectorTypes returns all unique connector types from the list.
+func (list driverModesAndTransports) ConnectorTypes() (res []string) {
+	for _, mt := range list {
+		if slices.Contains(res, mt.ConnectorType) {
+			continue
+		}
+
+		res = append(res, mt.ConnectorType)
+	}
+
+	return res
+}
+
+// Modes returns all unique modes from the list.
+func (list driverModesAndTransports) Modes() (res []string) {
+	for _, mt := range list {
+		if slices.Contains(res, mt.Mode) {
+			continue
+		}
+
+		res = append(res, mt.Mode)
+	}
+
+	return res
+}
+
+// Transports returns all unique transports from the list.
+func (list driverModesAndTransports) Transports() (res []string) {
+	for _, mt := range list {
+		if slices.Contains(res, mt.Transport) {
+			continue
+		}
+
+		res = append(res, mt.Transport)
+	}
+
+	return res
 }
