@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -84,16 +85,45 @@ func (cert *Certificate) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Certificat
 	return &resp, nil
 }
 
-// GetCertificateProjects returns a slice of [Project] that the [Certificate] with the given ID is related to.
-// This is only valid for restricted legacy certificates.
-func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int64) ([]Project, error) {
-	q := `
-SELECT projects.id, projects.description, projects.name FROM projects 
+// GetCertificateProjects returns a map of certificate (identity) ID to list of (alphabetically sorted) project names.
+// The output map should only contain IDs of restricted legacy certificates.
+// If the optional certificate ID is passed, the result will only contain the given ID.
+func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID *int64) (map[int64][]string, error) {
+	var b strings.Builder
+	var args []any
+	b.WriteString(`SELECT identities_projects.identity_id, projects.name FROM projects 
     JOIN identities_projects ON projects.id = identities_projects.project_id 
-	WHERE identities_projects.identity_id = ? 
-	ORDER BY projects.name
-`
-	return getProjectsRaw(ctx, tx, q, certificateID)
+	`)
+
+	if certificateID != nil {
+		args = []any{*certificateID}
+		b.WriteString(`WHERE identities_projects.identity_id = ? `)
+	}
+
+	// It is important to always return the list of project names in the same order.
+	// This is for two reasons:
+	// 1. The Etag for a certificate contains this field. A random ordering would lead to inconsistent hashing (and precondition failed errors for clients).
+	// 2. When a restricted client certificate updates their own certificate, the API handler checks that the caller has not attempted to change their
+	//    accessible projects. It does this with an ordered equality check on the project list.
+	b.WriteString(`ORDER BY identities_projects.identity_id, projects.name`)
+
+	out := make(map[int64][]string)
+	err := query.Scan(ctx, tx, b.String(), func(scan func(dest ...any) error) error {
+		var identityID int64
+		var projectName string
+		err := scan(&identityID, &projectName)
+		if err != nil {
+			return err
+		}
+
+		out[identityID] = append(out[identityID], projectName)
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading certificate projects: %w", err)
+	}
+
+	return out, nil
 }
 
 // ToIdentity converts a Certificate to an [IdentitiesRow].
