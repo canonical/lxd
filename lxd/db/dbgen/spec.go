@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"text/template"
 	"unicode"
@@ -17,6 +18,8 @@ type Spec struct {
 	Fields             []FieldSpec
 	PrimaryKey         FieldSpec
 	Joins              []string
+	ConfigTableName    string
+	ConfigForeignKey   string
 }
 
 // FieldSpec is a simple mapping of struct field name to database column name.
@@ -28,20 +31,22 @@ type FieldSpec struct {
 // templateContext returns the values used for rendering the template.
 func (s *Spec) templateContext() map[string]any {
 	return map[string]any{
-		"receiver":     string(s.receiver()),
-		"structName":   s.StructName,
-		"tableName":    s.TableName,
-		"backtick":     "`",
-		"scanColumns":  s.scanColumns(),
-		"joins":        s.joins(),
-		"scanArgs":     s.scanArgs(),
-		"createValues": s.createValues(),
-		"pkColumn":     s.pkColumn(),
-		"pkValue":      s.pkValue(),
-		"createStmt":   s.createStmt(),
-		"updateStmt":   s.updateStmt(),
-		"genAPIName":   s.Reference != nil,
-		"apiName":      s.apiName(),
+		"receiver":        string(s.receiver()),
+		"structName":      s.StructName,
+		"tableName":       s.TableName,
+		"backtick":        "`",
+		"scanColumns":     s.scanColumns(),
+		"joins":           s.joins(),
+		"scanArgs":        s.scanArgs(),
+		"createValues":    s.createValues(),
+		"pkColumn":        s.pkColumn(),
+		"pkValue":         s.pkValue(),
+		"createStmt":      s.createStmt(),
+		"updateStmt":      s.updateStmt(),
+		"genAPIName":      s.Reference != nil,
+		"apiName":         s.apiName(),
+		"genConfig":       s.ConfigTableName != "",
+		"configTableName": s.configTableName(),
 	}
 }
 
@@ -71,6 +76,12 @@ func ({{ .receiver }} {{ .structName }}) Joins() []string {
 func ({{ .receiver }} *{{ .structName }}) ScanArgs() []any {
 	return {{ .scanArgs }}
 }
+{{ if .genConfig }}
+// APIName implements [query.APINamer] for API friendly error messages.
+func ({{ .receiver }} {{ .structName }}) ConfigTable() (configTable string, foreignKey string) {
+	return {{ .configTableName }}
+}
+{{ end }}
 `))
 
 var specExecTemplate = template.Must(template.New("exec").Parse(`
@@ -85,7 +96,7 @@ func ({{ .receiver }} {{ .structName }}) PKColumn() string {
 }
 
 // PKValue returns the value for the primary key of a [{{ .structName }}] entity used during an update.
-func ({{ .receiver }} {{ .structName }}) PKValue() any {
+func ({{ .receiver }} {{ .structName }}) PKValue() int64 {
 	return {{ .pkValue }}
 }
 
@@ -208,4 +219,8 @@ func (s *Spec) scanArgs() string {
 	}
 
 	return "[]any{" + strings.Join(scanArgs, ", ") + "}"
+}
+
+func (s *Spec) configTableName() string {
+	return fmt.Sprintf("%q, %q", s.ConfigTableName, s.ConfigForeignKey)
 }

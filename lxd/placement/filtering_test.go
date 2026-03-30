@@ -96,7 +96,7 @@ func (s *filteringSuite) TestFilter() {
 					})
 					s.Require().NoError(err)
 
-					err = cluster.CreatePlacementGroupConfig(ctx, tx.Tx(), pgID, map[string]string{
+					err = query.SetConfiguration(ctx, tx.Tx(), cluster.PlacementGroupsRow{ID: pgID}, map[string]string{
 						"policy": api.PlacementPolicySpread,
 						"rigor":  api.PlacementRigorStrict,
 					})
@@ -215,7 +215,7 @@ func (s *filteringSuite) TestFilter() {
 					})
 					s.Require().NoError(err)
 
-					err = cluster.CreatePlacementGroupConfig(ctx, tx.Tx(), pgID, map[string]string{
+					err = query.SetConfiguration(ctx, tx.Tx(), cluster.PlacementGroupsRow{ID: pgID}, map[string]string{
 						"policy": api.PlacementPolicySpread,
 						"rigor":  api.PlacementRigorPermissive,
 					})
@@ -309,7 +309,7 @@ func (s *filteringSuite) TestFilter() {
 					})
 					s.Require().NoError(err)
 
-					err = cluster.CreatePlacementGroupConfig(ctx, tx.Tx(), pgID, map[string]string{
+					err = query.SetConfiguration(ctx, tx.Tx(), cluster.PlacementGroupsRow{ID: pgID}, map[string]string{
 						"policy": api.PlacementPolicyCompact,
 						"rigor":  api.PlacementRigorStrict,
 					})
@@ -463,7 +463,7 @@ func (s *filteringSuite) TestFilter() {
 					})
 					s.Require().NoError(err)
 
-					err = cluster.CreatePlacementGroupConfig(ctx, tx.Tx(), pgID, map[string]string{
+					err = query.SetConfiguration(ctx, tx.Tx(), cluster.PlacementGroupsRow{ID: pgID}, map[string]string{
 						"policy": api.PlacementPolicyCompact,
 						"rigor":  api.PlacementRigorPermissive,
 					})
@@ -615,12 +615,7 @@ func (s *filteringSuite) TestFilter() {
 				return err
 			}
 
-			apiPlacementGroup, err := placementGroup.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-
-			got, err := Filter(ctx, tx, tt.args.candidates, *apiPlacementGroup, false)
+			got, err := Filter(ctx, tx, tt.args.candidates, *placementGroup, false)
 			if tt.wantErr {
 				s.Error(err)
 				return nil

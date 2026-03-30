@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/query"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -1659,7 +1660,12 @@ func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, pla
 		return nil, err
 	}
 
-	apiPlacementGroup, err := placementGroup.ToAPI(ctx, tx.Tx())
+	placementGroupConfig, err := query.GetConfigurationByEntityIDs[dbCluster.PlacementGroupsRow](ctx, tx.Tx(), placementGroup.Row.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	apiPlacementGroup, err := placementGroup.ToAPI(placementGroupConfig)
 	if err != nil {
 		return nil, err
 	}

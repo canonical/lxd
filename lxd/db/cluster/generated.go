@@ -29,6 +29,7 @@ func (a *AuthGroupsRow) ScanArgs() []any {
 	return []any{&a.ID, &a.Name, &a.Description}
 }
 
+
 // CreateValues returns a list of values from [AuthGroupsRow] entities matching the columns returned from CreateColumns.
 func (a AuthGroupsRow) CreateValues() []any {
 	return []any{a.Name, a.Description}
@@ -40,7 +41,7 @@ func (a AuthGroupsRow) PKColumn() string {
 }
 
 // PKValue returns the value for the primary key of a [AuthGroupsRow] entity used during an update.
-func (a AuthGroupsRow) PKValue() any {
+func (a AuthGroupsRow) PKValue() int64 {
 	return a.ID
 }
 
@@ -80,6 +81,12 @@ func (p *PlacementGroupsRow) ScanArgs() []any {
 	return []any{&p.ID, &p.Name, &p.Description, &p.ProjectID}
 }
 
+// APIName implements [query.APINamer] for API friendly error messages.
+func (p PlacementGroupsRow) ConfigTable() (configTable string, foreignKey string) {
+	return "placement_groups_config", "placement_group_id"
+}
+
+
 // CreateValues returns a list of values from [PlacementGroupsRow] entities matching the columns returned from CreateColumns.
 func (p PlacementGroupsRow) CreateValues() []any {
 	return []any{p.Name, p.Description, p.ProjectID}
@@ -91,7 +98,7 @@ func (p PlacementGroupsRow) PKColumn() string {
 }
 
 // PKValue returns the value for the primary key of a [PlacementGroupsRow] entity used during an update.
-func (p PlacementGroupsRow) PKValue() any {
+func (p PlacementGroupsRow) PKValue() int64 {
 	return p.ID
 }
 
@@ -138,3 +145,4 @@ func (p PlacementGroup) Joins() []string {
 func (p *PlacementGroup) ScanArgs() []any {
 	return []any{&p.Row.ID, &p.Row.Name, &p.Row.Description, &p.Row.ProjectID, &p.ProjectName}
 }
+

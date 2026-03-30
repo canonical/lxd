@@ -3,12 +3,27 @@ package query
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/canonical/lxd/shared/api"
 )
+
+// Configurable is a type whose configuration can be managed generically.
+type Configurable interface {
+	Referenceable
+	ConfigTabler
+}
+
+// ConfigTabler reports how a types configuration is stored in the database.
+type ConfigTabler interface {
+	ConfigTable() (configTableName string, configTableForeignKey string)
+}
 
 // APINamer is used by the generic functions below to return API friendly error messages.
 type APINamer interface {
@@ -48,7 +63,7 @@ type Referenceable interface {
 	APINamer
 	TableNamer
 	PKColumn() string
-	PKValue() any
+	PKValue() int64
 }
 
 // Updatable defines a type that knows how to update itself.
@@ -369,6 +384,171 @@ func DeleteOne[T Referenceable, PT interface {
 		return notFoundErr(t)
 	} else if n > 1 {
 		return fmt.Errorf("Expected to delete a single row from %q but deleted %d", tableName, n)
+	}
+
+	return nil
+}
+
+// GetConfigurationByEntityID gets the configuration for a single entity.
+func GetConfigurationByEntityID[C Configurable, PC interface {
+	Configurable
+	*C
+}](ctx context.Context, tx *sql.Tx, c C) (map[string]string, error) {
+	pkValue := c.PKValue()
+	configs, err := GetConfigurationByEntityIDs[C, PC](ctx, tx, pkValue)
+	if err != nil {
+		return nil, err
+	}
+
+	config, ok := configs[pkValue]
+	if !ok {
+		return nil, errors.New("Failed loading configuration: No such entity")
+	}
+
+	return config, nil
+}
+
+// GetConfigurationByEntityIDs returns configuration for a list of entity IDs.
+func GetConfigurationByEntityIDs[C Configurable, PC interface {
+	Configurable
+	*C
+}](ctx context.Context, tx *sql.Tx, entityIDs ...int64) (map[int64]map[string]string, error) {
+	c := *(new(C))
+	var b strings.Builder
+	b.WriteString("WHERE ")
+	b.WriteString(c.PKColumn())
+	b.WriteString(" IN ")
+	b.WriteString(IntParams(entityIDs...))
+	return GetConfiguration[C, PC](ctx, tx, b.String())
+}
+
+// GetAllConfiguration gets all configuration for all [Configurable] entities of the given type.
+func GetAllConfiguration[C Configurable, PC interface {
+	Configurable
+	*C
+}](ctx context.Context, tx *sql.Tx) (map[int64]map[string]string, error) {
+	return GetConfiguration[C, PC](ctx, tx, "")
+}
+
+// GetConfiguration gets configuration for each [Configurable] that matches the given clause.
+// The query used to get configuration is left-joined from [Configurable.TableName].
+// This is so that entities with no configuration are distinguished from entities that do not exist.
+// The given clause can perform additional joins or filtering on the primary entity table.
+// For example, the clause "JOIN projects ON placement_groups.project_id = projects.id WHERE projects.name = ?"
+// can be used to select all placement group configuration for a given project.
+func GetConfiguration[C Configurable, _ interface {
+	Configurable
+	*C
+}](ctx context.Context, tx *sql.Tx, clause string, args ...any) (map[int64]map[string]string, error) {
+	c := *(new(C))
+	configTable, foreignKey := c.ConfigTable()
+	entityTable := c.TableName()
+
+	var b strings.Builder
+	b.WriteString("SELECT ")
+	b.WriteString(configTable)
+	b.WriteString(".id, coalesce(")
+	b.WriteString(configTable)
+	b.WriteString(".key, ''), coalesce(")
+	b.WriteString(configTable)
+	b.WriteString(".value, '') FROM ")
+	b.WriteString(entityTable)
+	b.WriteString(" LEFT JOIN ")
+	b.WriteString(configTable)
+	b.WriteString(" ON ")
+	b.WriteString(entityTable)
+	b.WriteString(".id = ")
+	b.WriteString(configTable)
+	b.WriteString(".")
+	b.WriteString(foreignKey)
+	b.WriteString(" ")
+	b.WriteString(clause)
+
+	configs := make(map[int64]map[string]string)
+	err := Scan(ctx, tx, b.String(), func(scan func(dest ...any) error) error {
+		var entityID int64
+		var key, value string
+		err := scan(&entityID, &key, &value)
+		if err != nil {
+			return fmt.Errorf("Failed reading configuration: %w", err)
+		}
+
+		_, ok := configs[entityID]
+		if !ok {
+			configs[entityID] = make(map[string]string)
+			if key != "" {
+				configs[entityID][key] = value
+			}
+
+			return nil
+		}
+
+		configs[entityID][key] = value
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading configuration: %w", err)
+	}
+
+	return configs, nil
+}
+
+// SetConfiguration sets the given configuration on the given [Configurable].
+// To do this, it deletes all configuration keys in the configuration table with the primary key of the [Configurable],
+// Then it inserts a row for each key value pair in the given configuration.
+// It performs the insert with one query, and does not perform any inserts if the config is empty.
+func SetConfiguration(ctx context.Context, tx *sql.Tx, c Configurable, config map[string]string) error {
+	configTable, foreignKey := c.ConfigTable()
+	entityIDStr := strconv.FormatInt(c.PKValue(), 10)
+
+	var b strings.Builder
+	b.WriteString("DELETE FROM ")
+	b.WriteString(configTable)
+	b.WriteString(" WHERE ")
+	b.WriteString(foreignKey)
+	b.WriteString(" = ")
+	b.WriteString(entityIDStr)
+	_, err := tx.ExecContext(ctx, b.String())
+	if err != nil {
+		return fmt.Errorf("Failed resetting entity configuration: %w", err)
+	}
+
+	if len(config) == 0 {
+		return nil
+	}
+
+	b.Reset()
+	b.WriteString("INSERT INTO ")
+	b.WriteString(configTable)
+	b.WriteString(" (")
+	b.WriteString(foreignKey)
+	b.WriteString(", key, value) VALUES ")
+
+	args := make([]any, 0, len(config)*2)
+	keys := slices.Collect(maps.Keys(config))
+	b.WriteString("(")
+	b.WriteString(entityIDStr)
+	b.WriteString(", ?, ?)")
+	args = append(args, keys[0], config[keys[0]])
+	for _, key := range keys[1:] {
+		b.WriteString(", (")
+		b.WriteString(entityIDStr)
+		b.WriteString(", ?, ?)")
+		args = append(args, key, config[key])
+	}
+
+	res, err := tx.ExecContext(ctx, b.String(), args...)
+	if err != nil {
+		return fmt.Errorf("Failed writing entity configuration: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed verifying entity configuration: %w", err)
+	}
+
+	if int(n) != len(config) {
+		return fmt.Errorf("Expected to write %d configuration entries but wrote %d", len(config), n)
 	}
 
 	return nil
