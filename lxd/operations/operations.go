@@ -513,9 +513,10 @@ func (op *Operation) done() {
 		return
 	}
 
-	// If this is a parent operation of a bulk operation, we clear the entries from the internal map, but leave the database records in place.
+	// If this is a durable operation, or a parent operation of a bulk operation,
+	// we clear the entries from the internal map, but leave the database records in place.
 	// The database records will be cleared later by the pruneExpiredOperationsTask().
-	if len(op.children) > 0 {
+	if len(op.children) > 0 || op.class == OperationClassDurable {
 		operationsLock.Lock()
 		_, ok := operations[op.id]
 		if !ok {
