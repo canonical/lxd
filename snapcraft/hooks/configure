@@ -90,16 +90,12 @@ zfs_external=${zfs_external:-"false"}
 EOC
 
 # Set socket ownership in case it changed
-if getent group "${daemon_group}" >/dev/null 2>&1; then
-    if [ -e "${SNAP_COMMON}/lxd/unix.socket" ]; then
-        chgrp "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
-    fi
+if [ -e "${SNAP_COMMON}/lxd/unix.socket" ] && getent group "${daemon_group}" >/dev/null 2>&1; then
+    chgrp "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
 fi
 
-if getent group "${daemon_user_group}" >/dev/null 2>&1; then
-    if [ -e "${SNAP_COMMON}/lxd-user/unix.socket" ]; then
-        chgrp "${daemon_user_group}" "${SNAP_COMMON}/lxd-user/unix.socket"
-    fi
+if [ -e "${SNAP_COMMON}/lxd-user/unix.socket" ] && getent group "${daemon_user_group}" >/dev/null 2>&1; then
+    chgrp "${daemon_user_group}" "${SNAP_COMMON}/lxd-user/unix.socket"
 fi
 
 exit 0
