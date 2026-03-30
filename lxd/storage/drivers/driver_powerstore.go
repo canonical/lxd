@@ -196,7 +196,19 @@ func (d *powerstore) Delete(op *operations.Operation) error {
 
 // GetResources returns the pool resource usage information.
 func (d *powerstore) GetResources() (*api.ResourcesStoragePool, error) {
-	return nil, ErrNotSupported
+	metrics, err := d.client().GetApplianceMetrics(d.state.ShutdownCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &api.ResourcesStoragePool{}
+
+	for _, m := range metrics {
+		res.Space.Total += uint64(m.LastPhysicalTotalSpace)
+		res.Space.Used += uint64(m.LastPhysicalUsedSpace)
+	}
+
+	return res, nil
 }
 
 // commonVolumeRules returns validation rules which are common for pool and
