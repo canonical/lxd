@@ -1,11 +1,13 @@
 package connectors
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"slices"
@@ -24,21 +26,79 @@ var _ Connector = &connectorNVMe{}
 // nvmeDiskDevicePrefix is the prefix of the NVMe disk device name in /dev/disk/by-id/.
 const nvmeDiskDevicePrefix = "nvme-eui."
 
-// SubtypeNVMESubsys defines an NVMe subsystem type (from https://github.com/linux-nvme/libnvme/blob/97886cb68d238ccbbed804a275851f63e490b22f/src/nvme/fabrics.c#L99).
-const SubtypeNVMESubsys = "nvme subsystem"
-
 type connectorNVMe struct {
 	common
 }
 
 // NVMeDiscoveryLogRecord represents an NVMe discovery entry.
 type NVMeDiscoveryLogRecord struct {
-	SubType string `json:"subtype"`
-	SubNQN  string `json:"subnqn"`
+	TransportType              string `json:"trtype"`
+	AddressFamily              string `json:"adrfam"`
+	TransportAddress           string `json:"traddr"`
+	TransportServiceIdentifier string `json:"trsvcid"`
+	SubType                    string `json:"subtype"`
+	SubNQN                     string `json:"subnqn"`
 }
+
+const (
+	// NVMeDefaultDiscoveryPort is the default port number for NVMe/TCP discovery
+	// controller.
+	NVMeDefaultDiscoveryPort = "8009"
+
+	// NVMeDefaultTransportPort is the default port number for NVMe/TCP I/O
+	// controller.
+	NVMeDefaultTransportPort = "4420"
+)
+
+// Transport type definitions (from https://github.com/linux-nvme/libnvme/blob/97886cb68d238ccbbed804a275851f63e490b22f/src/nvme/fabrics.c#L73).
+const (
+	nvmeTransportTypeTCP = "tcp"
+)
+
+// SubtypeNVMESubsys defines an NVMe subsystem type (from https://github.com/linux-nvme/libnvme/blob/97886cb68d238ccbbed804a275851f63e490b22f/src/nvme/fabrics.c#L99).
+const SubtypeNVMESubsys = "nvme subsystem"
 
 type nvmeDiscoveryLog struct {
 	Records []NVMeDiscoveryLogRecord `json:"records"`
+}
+
+// nvmeFilterDiscoveryLog filters out entries from the provided discovery log
+// that do not describe NVMe targets with specified transport type.
+func nvmeFilterDiscoveryLog(log *nvmeDiscoveryLog, transportType string) {
+	if len(log.Records) == 0 {
+		return
+	}
+
+	filteredRecords := make([]NVMeDiscoveryLogRecord, 0, len(log.Records))
+	for _, record := range log.Records {
+		if record.SubType != SubtypeNVMESubsys {
+			continue
+		}
+
+		if record.TransportType != transportType {
+			continue
+		}
+
+		filteredRecords = append(filteredRecords, record)
+	}
+
+	log.Records = filteredRecords
+}
+
+// nvmeNormalizeDiscoveryLog normalizes NVMe discovery log:
+//   - For entries with TCP transport type ensure all port numbers (transport
+//     service identifiers) are set. For non specified ports function uses
+//     the default transport port number.
+func nvmeNormalizeDiscoveryLog(log *nvmeDiscoveryLog) {
+	if len(log.Records) == 0 {
+		return
+	}
+
+	for i := range log.Records {
+		if log.Records[i].TransportType == nvmeTransportTypeTCP && log.Records[i].TransportServiceIdentifier == "" {
+			log.Records[i].TransportServiceIdentifier = NVMeDefaultTransportPort
+		}
+	}
 }
 
 // Type returns the type of the connector.
@@ -84,6 +144,7 @@ func (c *connectorNVMe) QualifiedName() (string, error) {
 func (c *connectorNVMe) Connect(ctx context.Context, targetQN string, targetAddresses ...string) (revert.Hook, error) {
 	// Connects to the provided target address, if the connection is not yet established.
 	connectFunc := func(ctx context.Context, session *session, targetAddr string) error {
+		targetAddr = shared.EnsurePort(targetAddr, NVMeDefaultTransportPort)
 		if session != nil && slices.Contains(session.addresses, targetAddr) {
 			// Already connected.
 			return nil
@@ -94,7 +155,12 @@ func (c *connectorNVMe) Connect(ctx context.Context, targetQN string, targetAddr
 			return err
 		}
 
-		_, err = shared.RunCommand(ctx, "nvme", "connect", "--transport", "tcp", "--traddr", targetAddr, "--nqn", targetQN, "--hostnqn", hostNQN, "--hostid", c.serverUUID)
+		transportAddr, transportServiceID, err := net.SplitHostPort(targetAddr)
+		if err != nil {
+			return fmt.Errorf("Bad transport address %q: %w", targetAddr, err)
+		}
+
+		_, err = shared.RunCommand(ctx, "nvme", "connect", "--transport", "tcp", "--traddr", transportAddr, "--trsvcid", transportServiceID, "--nqn", targetQN, "--hostnqn", hostNQN, "--hostid", c.serverUUID)
 		if err != nil {
 			return fmt.Errorf("Failed connecting to target %q on %q via NVMe: %w", targetQN, targetAddr, err)
 		}
@@ -226,15 +292,28 @@ func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
 		// Extract the addresses from the file.
 		// The "address" file contains one line per connection,
 		// each in format "traddr=<ip>,trsvcid=<port>,...".
-		for line := range strings.SplitSeq(string(fileBytes), "\n") {
-			parts := strings.SplitSeq(strings.TrimSpace(line), ",")
-			for part := range parts {
+		for line := range bytes.SplitSeq(bytes.TrimSpace(fileBytes), []byte{'\n'}) {
+			parts := strings.Split(string(bytes.TrimSpace(line)), ",")
+
+			transportAddr := ""
+			for _, part := range parts {
 				addr, ok := strings.CutPrefix(part, "traddr=")
 				if ok {
-					session.addresses = append(session.addresses, addr)
+					transportAddr = addr
 					break
 				}
 			}
+
+			transportServiceID := NVMeDefaultTransportPort
+			for _, part := range parts {
+				port, ok := strings.CutPrefix(part, "trsvcid=")
+				if ok {
+					transportServiceID = port
+					break
+				}
+			}
+
+			session.addresses = append(session.addresses, net.JoinHostPort(transportAddr, transportServiceID))
 		}
 	}
 
@@ -258,7 +337,13 @@ func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string)
 
 	var discoveryLog nvmeDiscoveryLog
 	for _, targetAddr := range targetAddresses {
-		stdout, err := shared.RunCommand(ctx, "nvme", "discover", "--transport", "tcp", "--traddr", targetAddr, "--hostnqn", hostNQN, "--hostid", c.serverUUID, "--output-format", "json")
+		discoveryAddr, discoveryServiceID, err := net.SplitHostPort(shared.EnsurePort(targetAddr, NVMeDefaultDiscoveryPort))
+		if err != nil {
+			logger.Warn("Bad discovery address", logger.Ctx{"target_address": targetAddr, "err": err})
+			continue
+		}
+
+		stdout, err := shared.RunCommand(ctx, "nvme", "discover", "--transport", "tcp", "--traddr", discoveryAddr, "--trsvcid", discoveryServiceID, "--hostnqn", hostNQN, "--hostid", c.serverUUID, "--output-format", "json")
 		if err != nil {
 			// Exit code 110 is returned if the target address cannot be reached.
 			logger.Warn("Failed connecting to discovery target", logger.Ctx{"target_address": targetAddr, "err": err})
@@ -279,7 +364,10 @@ func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string)
 			return nil, fmt.Errorf("Failed unmarshaling the returned discovery log entries from %q: %w", targetAddr, err)
 		}
 
-		// Unmarshalling the response from the discovery succeeded, break the loop.
+		nvmeFilterDiscoveryLog(&discoveryLog, nvmeTransportTypeTCP)
+		nvmeNormalizeDiscoveryLog(&discoveryLog)
+
+		// Unmarshaling the response from the discovery succeeded, break the loop.
 		break
 	}
 
