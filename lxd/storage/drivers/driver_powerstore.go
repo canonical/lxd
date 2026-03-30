@@ -7,6 +7,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/connectors"
+	"github.com/canonical/lxd/lxd/storage/drivers/powerstoreclient"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -64,6 +65,10 @@ var powerStoreVersion string
 
 type powerstore struct {
 	common
+
+	// Holds the low level client for the PowerStore API.
+	// Use powerstore.client() to retrieve the initialized client struct.
+	apiClient *powerstoreclient.Client
 
 	// Holds the low level connector for the PowerStore driver.
 	// Use powerstore.connector() to retrieve the initialized connector.
