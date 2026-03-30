@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // Certificate is here to pass the certificates content from the database around.
@@ -223,24 +224,30 @@ func UpdateCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID in
 	return nil
 }
 
-// GetCertificates returns all available certificates.
-func GetCertificates(ctx context.Context, tx *sql.Tx) ([]Certificate, error) {
-	certificateIdentities, err := query.Select[IdentitiesRow](ctx, tx, getCertificateIdentitiesClause)
-	if err != nil {
-		return nil, err
-	}
-
-	certificates := make([]Certificate, 0, len(certificateIdentities))
-	for _, certificateIdentity := range certificateIdentities {
-		cert, err := certificateIdentity.ToCertificate()
+// GetCertificatesAndURLs returns all available certificates and their URLs.
+// An optional filter function can be passed to filter the output. It should return true to include a certificate and false to omit it.
+func GetCertificatesAndURLs(ctx context.Context, tx *sql.Tx, filter func(Certificate) bool) ([]Certificate, []string, error) {
+	var certificates []Certificate
+	var urls []string
+	err := query.SelectFunc[IdentitiesRow](ctx, tx, getCertificateIdentitiesClause, func(identity IdentitiesRow) error {
+		cert, err := identity.ToCertificate()
 		if err != nil {
-			return nil, err
+			return err
+		}
+
+		if filter != nil && !filter(*cert) {
+			return nil
 		}
 
 		certificates = append(certificates, *cert)
+		urls = append(urls, entity.CertificateURL(cert.Fingerprint).String())
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return certificates, nil
+	return certificates, urls, nil
 }
 
 // GetCertificate returns the certificate with the given fingerprint.
