@@ -109,16 +109,24 @@ If you prefer to use the LXD UI, expand and follow the steps below.
 
 ### Expose the LXD server to the local network
 
-By default, LXD is exposed through a Unix socket only and is not accessible over HTTPS. To access and manage LXD through a web browser using HTTPS, we must set the {config:option}`server-core:core.https_address` server configuration option. We will use the local network by configuring this to the IPv6 loopback address `[::1]` and port 8443. Run:
+By default, LXD is exposed through a Unix socket only and is not accessible over HTTPS. To access and manage LXD through a web browser using HTTPS, we must set the {config:option}`server-core:core.https_address` server configuration option. We will use the local network by configuring this to the IPv4 loopback address `127.0.0.1` and port 8443. Run:
 
 ```bash
 lxc config set core.https_address 127.0.0.1:8443
 ```
 
-Confirm that the `core.https_address` is set to `127.0.0.1:8443`:
+Confirm that the `core.https_address` option has been set:
 
-```bash
+```{terminal}
 lxc config get core.https_address
+
+127.0.0.1:8443
+```
+
+```{admonition} core.https_address
+:class: tip
+
+For simplicity, the tutorial asks you to set the `core.https_address` to the IPv4 loopback address. If you prefer, you can set this later to the IPv6 loopback address (`[::1]:8443`), or to an address that is reachable over a network for remote access.
 ```
 
 ### Set up UI access
