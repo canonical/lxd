@@ -13,6 +13,8 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -176,6 +178,7 @@ type Client struct {
 	Username             string
 	Password             string
 	TokenCache           *tokencache.TokenCache[LoginSession]
+	VolumeNamePrefix     string
 }
 
 func (c *Client) startNewLoginSession(ctx context.Context) (*LoginSession, error) {
@@ -361,6 +364,28 @@ func (c *Client) withQuery(query query) func(req *http.Request) error {
 	}
 }
 
+// QueryResponseLimit is the maximum number of items PowerStore can return in
+// a single query response.
+const QueryResponseLimit = 2000
+
+// pagination encapsulates query request pagination data.
+type pagination struct {
+	Page         int
+	ItemsPerPage int
+}
+
+// Offset computes offset value for the provided pagination state.
+func (p pagination) Offset() int {
+	page := max(0, p.Page)
+	limit := p.Limit()
+	return page * limit
+}
+
+// Limit computes limit value for the provided pagination state.
+func (p pagination) Limit() int {
+	return min(max(0, p.ItemsPerPage), QueryResponseLimit)
+}
+
 // query is a container for PowerStore query request parameters.
 type query map[string]string
 
@@ -381,6 +406,14 @@ func (q query) Set(key, val string) query {
 	return q
 }
 
+// Paginate adds pagination parameters returning a new query.
+func (q query) Paginate(pagination pagination) query {
+	q = q.Clone()
+	q["offset"] = strconv.Itoa(pagination.Offset())
+	q["limit"] = strconv.Itoa(pagination.Limit())
+	return q
+}
+
 // URLParameters transforms query into URL parameters.
 func (q query) URLParameters() url.Values {
 	params := url.Values{}
@@ -389,6 +422,58 @@ func (q query) URLParameters() url.Values {
 	}
 
 	return params
+}
+
+// queryResponseHasMoreItems informs if there are more items available for the HTTP PowerStore query response.
+func queryResponseHasMoreItems(resp *http.Response) (bool, error) {
+	if resp == nil || resp.StatusCode != http.StatusPartialContent {
+		return false, nil
+	}
+
+	// valid Content-Range HTTP headers returned by PowerStore have a form:
+	// - firstOffset '-' lastOffset '/' totalItems
+	// - '*' '/' totalItems
+	header := resp.Header.Get("Content-Range")
+	if header == "" {
+		return false, nil
+	}
+
+	rangeStr, totalItemsStr, ok := strings.Cut(header, "/")
+	if !ok {
+		return false, fmt.Errorf("Invalid format of Content-Range header: %q", header)
+	}
+
+	if rangeStr == "*" {
+		return false, nil
+	}
+
+	fistOffsetStr, lastOffsetStr, ok := strings.Cut(rangeStr, "-")
+	if !ok {
+		return false, fmt.Errorf("Invalid format of Content-Range header: %q", header)
+	}
+
+	_, err := strconv.ParseUint(fistOffsetStr, 10, 64)
+	if err != nil {
+		return false, fmt.Errorf("Invalid format of Content-Range header: %q", header)
+	}
+
+	lastOffset, err := strconv.ParseUint(lastOffsetStr, 10, 64)
+	if err != nil {
+		return false, fmt.Errorf("Invalid format of Content-Range header: %q", header)
+	}
+
+	totalItems, err := strconv.ParseUint(totalItemsStr, 10, 64)
+	if err != nil {
+		return false, fmt.Errorf("Invalid format of Content-Range header: %q", header)
+	}
+
+	return totalItems > lastOffset+1, nil
+}
+
+// IDResource is any resource that just contains ID. This type is often used
+// a substitute when only ID of some resource should be retrieved or used.
+type IDResource struct {
+	ID string `json:"id"`
 }
 
 type loginSessionResource struct {
@@ -411,4 +496,164 @@ func (c *Client) getLoginSessionInfoWithBasicAuthorization(ctx context.Context) 
 	}
 
 	return resp, body, nil
+}
+
+// VolumeResource describes a volume resource in PowerStore API.
+type VolumeResource struct {
+	ID            string                       `json:"id,omitempty"`
+	Name          string                       `json:"name,omitempty"`
+	Description   string                       `json:"description,omitempty"`
+	Type          string                       `json:"type,omitempty"`
+	State         string                       `json:"state,omitempty"`
+	Size          int64                        `json:"size,omitempty"`
+	LogicalUsed   int64                        `json:"logical_used,omitempty"`
+	WWN           string                       `json:"wwn,omitempty"`
+	AppType       string                       `json:"app_type,omitempty"`
+	AppTypeOther  string                       `json:"app_type_other,omitempty"`
+	VolumeGroups  []*IDResource                `json:"volume_groups,omitempty"`
+	MappedVolumes []*HostVolumeMappingResource `json:"mapped_volumes,omitempty"`
+}
+
+// HostVolumeMappingResource describes a mapping between host and volume in
+// PowerStore API.
+type HostVolumeMappingResource struct {
+	ID       string `json:"id,omitempty"`
+	HostID   string `json:"host_id,omitempty"`
+	VolumeID string `json:"volume_id,omitempty"`
+}
+
+func (c *Client) getVolumesByQuery(ctx context.Context, query query, filterOwnedByLxd bool) ([]*VolumeResource, bool, error) {
+	query = query.Set("select", "id,name,description,type,state,size,logical_used,wwn,app_type,app_type_other,volume_groups(id),mapped_volumes(id,host_id,volume_id)")
+
+	body := []*VolumeResource{}
+	resp, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodGet, "/api/rest/volume", nil, &body,
+		c.withQuery(query),
+	)
+	if err != nil {
+		return nil, false, fmt.Errorf("Retrieving information about PowerStore volumes: %w", err)
+	}
+
+	hasMore, err := queryResponseHasMoreItems(resp)
+	if err != nil {
+		return nil, false, fmt.Errorf("Retrieving information about PowerStore volumes: %w", err)
+	}
+
+	if !filterOwnedByLxd {
+		return body, hasMore, nil
+	}
+
+	// in most cases all items in the returned body will belong to the current storage pool and no item will be filtered out
+	filtered := make([]*VolumeResource, 0, len(body))
+	for _, v := range body {
+		if !strings.HasPrefix(v.Name, c.VolumeNamePrefix) {
+			continue
+		}
+
+		filtered = append(filtered, v)
+	}
+
+	return filtered, hasMore, nil
+}
+
+func (c *Client) getVolumeByQuery(ctx context.Context, query query, filterOwnedByLxd bool) (*VolumeResource, error) {
+	vols, _, err := c.getVolumesByQuery(ctx, query.Paginate(pagination{ItemsPerPage: 1}), filterOwnedByLxd)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(vols) == 0 {
+		return nil, nil
+	}
+
+	return vols[0], nil
+}
+
+// GetVolumes retrieves list of volume associated with the storage pool.
+func (c *Client) GetVolumes(ctx context.Context) ([]*VolumeResource, error) {
+	query := query{"name": fmt.Sprintf("ilike.%s*", c.VolumeNamePrefix)}
+
+	var vols []*VolumeResource
+	for page := 0; ; page++ {
+		volsPage, hasMore, err := c.getVolumesByQuery(ctx, query.Paginate(pagination{Page: page}), true)
+		if err != nil {
+			return nil, err
+		}
+
+		vols = append(vols, volsPage...)
+		if !hasMore {
+			return vols, nil
+		}
+	}
+}
+
+// GetVolumeByID retrieves volume using its ID.
+func (c *Client) GetVolumeByID(ctx context.Context, id string) (*VolumeResource, error) {
+	return c.getVolumeByQuery(ctx, query{"id": "eq." + id}, true)
+}
+
+// GetVolumeByName retrieves volume using its name.
+func (c *Client) GetVolumeByName(ctx context.Context, name string) (*VolumeResource, error) {
+	return c.getVolumeByQuery(ctx, query{"name": "eq." + name}, true)
+}
+
+// CreateVolume creates a new volume.
+func (c *Client) CreateVolume(ctx context.Context, vol *VolumeResource) error {
+	body := &IDResource{}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPost, "/api/rest/volume", vol, body)
+	if err != nil {
+		return fmt.Errorf("Creating PowerStore volume: %w", err)
+	}
+
+	// Fetch volume to populate all fields.
+	created, err := c.GetVolumeByID(ctx, body.ID)
+	if err != nil {
+		return fmt.Errorf("Creating PowerStore volume: %w", err)
+	}
+
+	if created == nil {
+		return errors.New("Creating PowerStore volume: No data of new volume found")
+	}
+
+	*vol = *created
+	return nil
+}
+
+// DeleteVolumeByID deletes volume using its ID.
+func (c *Client) DeleteVolumeByID(ctx context.Context, id string) error {
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodDelete, "/api/rest/volume/"+id, nil, nil)
+	if err != nil {
+		return fmt.Errorf("Deleting PowerStore volume: %w", err)
+	}
+
+	return nil
+}
+
+type volumeModifyResource struct {
+	Size int64 `json:"size,omitempty"`
+}
+
+// ResizeVolumeByID creates a new volume.
+func (c *Client) ResizeVolumeByID(ctx context.Context, id string, newSize int64) error {
+	reqBody := &volumeModifyResource{Size: newSize}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPatch, "/api/rest/volume/"+id, reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("Resizing PowerStore volume: %w", err)
+	}
+
+	return nil
+}
+
+type volumeGroupRemoveMembersResource struct {
+	VolumeIDs []string `json:"volume_ids,omitempty"`
+}
+
+// RemoveMembersFromVolumeGroup removes volumes from the volume group.
+func (c *Client) RemoveMembersFromVolumeGroup(ctx context.Context, id string, volumeIDs []string) error {
+	reqBody := &volumeGroupRemoveMembersResource{VolumeIDs: volumeIDs}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPost, "/api/rest/volume_group/"+id+"/remove_members", reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("Removing members from PowerStore volume group: %w", err)
+	}
+
+	return nil
 }
