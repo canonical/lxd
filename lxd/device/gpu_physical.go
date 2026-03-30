@@ -148,7 +148,11 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 	// Check if there are any remaining CDI devices in the instance devices directory.
 	// If there are, we need to remove them. These can be present in the case where the device stop hook was not called
 	// (e.g. due to an abrupt host shutdown).
-	err := filepath.WalkDir(devicesPath, func(path string, e fs.DirEntry, _ error) error {
+	err := filepath.WalkDir(devicesPath, func(path string, e fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
 		if e.IsDir() {
 			return nil
 		}
@@ -157,7 +161,7 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		if strings.HasPrefix(e.Name(), filesystem.PathNameEncode(cdi.CDIUnixPrefix+"."+d.name+".")) ||
 			strings.HasPrefix(e.Name(), filesystem.PathNameEncode(cdi.CDIDiskPrefix+"."+d.name+".")) ||
 			path == hooksFilePath || path == deviceConfigFilePath {
-			err := os.Remove(path)
+			err = os.Remove(path)
 			if err != nil {
 				return err
 			}
