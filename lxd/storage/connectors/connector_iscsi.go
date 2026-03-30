@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"slices"
@@ -33,6 +34,11 @@ const (
 // iscsiDiskDevicePrefix is the prefix of the iSCSI disk device name in /dev/disk/by-id/.
 const iscsiDiskDevicePrefix = "scsi-"
 
+const (
+	// ISCSIDefaultPort is the default port number for iSCSI targets.
+	ISCSIDefaultPort = "3260"
+)
+
 var _ Connector = &connectorISCSI{}
 
 type connectorISCSI struct {
@@ -43,7 +49,9 @@ type connectorISCSI struct {
 
 // ISCSIDiscoveryLogRecord represents an ISCSI discovery entry.
 type ISCSIDiscoveryLogRecord struct {
-	IQN string
+	Address        string
+	PortalGroupTag string
+	IQN            string
 }
 
 // Type returns the type of the connector.
@@ -112,6 +120,7 @@ func (c *connectorISCSI) Connect(ctx context.Context, targetQN string, targetAdd
 	// Connects to the provided target address. If the connection is already established,
 	// the session is rescanned to detect new volumes.
 	connectFunc := func(ctx context.Context, s *session, targetAddr string) error {
+		targetAddr = shared.EnsurePort(targetAddr, ISCSIDefaultPort)
 		if s != nil && slices.Contains(s.addresses, targetAddr) {
 			// If connection with the target address is already established,
 			// rescan the session to ensure new volumes are detected.
@@ -261,7 +270,15 @@ func (c *connectorISCSI) findSession(targetQN string) (*session, error) {
 			continue
 		}
 
-		addr := strings.TrimSpace(string(addrBytes))
+		// Get port of an active iSCSI connection.
+		portPath := filepath.Join(connBasePath, conn.Name(), "port")
+		portBytes, err := os.ReadFile(portPath)
+		if err != nil {
+			// In case of an error when reading the port, use default port.
+			portBytes = []byte(ISCSIDefaultPort)
+		}
+
+		addr := net.JoinHostPort(strings.TrimSpace(string(addrBytes)), strings.TrimSpace(string(portBytes)))
 		session.addresses = append(session.addresses, addr)
 	}
 
@@ -280,6 +297,7 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 
 	result := make([]any, 0)
 	for _, targetAddr := range targetAddresses {
+		targetAddr = shared.EnsurePort(targetAddr, ISCSIDefaultPort)
 		stdout, err := shared.RunCommand(ctx, "iscsiadm", "--mode", "discovery", "--type", "sendtargets", "--portal", targetAddr)
 		if err != nil {
 			logger.Warn("Failed connecting to discovery target", logger.Ctx{"target_address": targetAddr, "err": err})
@@ -290,18 +308,30 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 
 		for scanner.Scan() {
 			// each string looks like "192.168.168.1:3260,41 iqn.2023-24.com.org:cz2e123asd"
-			fields := strings.Fields(scanner.Text())
 
-			if len(fields) != 2 {
+			// Skip invalid entrees.
+			addrAndTag, iqn, ok := strings.Cut(scanner.Text(), " ")
+			if !ok {
 				continue
 			}
 
-			if !strings.HasPrefix(fields[0], targetAddr) {
+			// Skip invalid entrees.
+			addr, tag, ok := strings.Cut(addrAndTag, ",")
+			if !ok {
+				continue
+			}
+
+			// Make sure addr have a port number for stable output.
+			addr = shared.EnsurePort(addr, ISCSIDefaultPort)
+
+			if addr != targetAddr {
 				continue
 			}
 
 			result = append(result, ISCSIDiscoveryLogRecord{
-				IQN: fields[1],
+				Address:        addr,
+				PortalGroupTag: tag,
+				IQN:            iqn,
 			})
 		}
 
