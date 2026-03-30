@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -63,25 +64,26 @@ func (cert *Certificate) ToIdentityType() (IdentityType, error) {
 }
 
 // ToAPI converts the database Certificate struct to an api.Certificate
-// entry filling fields from the database as necessary.
-func (cert *Certificate) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Certificate, error) {
+// The certificateIDToProjects map must be provided and can be loaded via [GetCertificateProjects].
+func (cert *Certificate) ToAPI(certificateIDToProjects map[int64][]string) (*api.Certificate, error) {
+	if certificateIDToProjects == nil {
+		return nil, errors.New("Missing required certificate project details")
+	}
+
+	// If there are no projects, set to an empty slice instead of null to maintain API behaviour.
+	// It also makes clear that the field expects an array e.g. when performing `lxc config trust edit`.
+	projects, ok := certificateIDToProjects[cert.ID]
+	if !ok {
+		projects = []string{}
+	}
+
 	resp := api.Certificate{}
 	resp.Fingerprint = cert.Fingerprint
 	resp.Certificate = cert.Certificate
 	resp.Name = cert.Name
 	resp.Restricted = cert.Restricted
 	resp.Type = cert.ToAPIType()
-
-	projects, err := GetCertificateProjects(ctx, tx, cert.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	resp.Projects = make([]string, len(projects))
-	for i, p := range projects {
-		resp.Projects[i] = p.Name
-	}
-
+	resp.Projects = projects
 	return &resp, nil
 }
 
