@@ -118,6 +118,30 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		return err
 	}
 
+	// Create a readonly snapshot to indicate the image volume was fully unpacked.
+	// Without this, an interrupted image unpack leaves a volume that appears valid
+	// but contains incomplete data.
+	// Only do this when a filler was provided, because for VM machines the FS config
+	// volume is created via a recursive CreateVolume call with a nil filler,
+	// the parent call handles its readonly snapshot after the filler has run.
+	if vol.volType == VolumeTypeImage && d.usesThinpool() && filler != nil && filler.Fill != nil {
+		readonlySnapVol := NewVolume(d, d.name, vol.volType, vol.contentType, GetSnapshotVolumeName(vol.name, "readonly"), vol.config, vol.poolConfig)
+		_, err := d.createLogicalVolumeSnapshot(d.config["lvm.vg_name"], vol, readonlySnapVol, true, d.usesThinpool())
+		if err != nil {
+			return err
+		}
+
+		// For VMs, also snapshot the filesystem config volume.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			readonlyFSSnapVol := NewVolume(d, d.name, fsVol.volType, fsVol.contentType, GetSnapshotVolumeName(fsVol.name, "readonly"), fsVol.config, fsVol.poolConfig)
+			_, err := d.createLogicalVolumeSnapshot(d.config["lvm.vg_name"], fsVol, readonlyFSSnapVol, true, d.usesThinpool())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	revert.Success()
 	return nil
 }
@@ -185,9 +209,59 @@ func (d *lvm) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 	return err
 }
 
+// deleteImageReadonlySnapshot removes the readonly marker snapshot from an image volume.
+// This is needed because LVM refuses to delete a volume that has snapshots.
+func (d *lvm) deleteImageReadonlySnapshot(vol Volume) error {
+	vgName := d.config["lvm.vg_name"]
+	readonlySnapName := GetSnapshotVolumeName(vol.name, "readonly")
+	readonlyDevPath := d.lvmDevPath(vgName, vol.volType, vol.contentType, readonlySnapName)
+
+	exists, err := d.logicalVolumeExists(readonlyDevPath)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		err = d.removeLogicalVolume(readonlyDevPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// For VMs, also remove the filesystem config volume's readonly snapshot.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		readonlyFSSnapName := GetSnapshotVolumeName(fsVol.name, "readonly")
+		readonlyFSDevPath := d.lvmDevPath(vgName, fsVol.volType, fsVol.contentType, readonlyFSSnapName)
+
+		fsExists, err := d.logicalVolumeExists(readonlyFSDevPath)
+		if err != nil {
+			return err
+		}
+
+		if fsExists {
+			err = d.removeLogicalVolume(readonlyFSDevPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then this function
 // will return an error.
 func (d *lvm) DeleteVolume(vol Volume, op *operations.Operation) error {
+	// Image volumes carry a readonly marker snapshot that must be removed
+	// before the parent volume can be deleted.
+	if vol.volType == VolumeTypeImage && d.usesThinpool() {
+		err := d.deleteImageReadonlySnapshot(vol)
+		if err != nil {
+			return err
+		}
+	}
+
 	snapshots, err := d.VolumeSnapshots(vol, op)
 	if err != nil {
 		return err
@@ -250,6 +324,44 @@ func (d *lvm) DeleteVolume(vol Volume, op *operations.Operation) error {
 func (d *lvm) HasVolume(vol Volume) (bool, error) {
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	return d.logicalVolumeExists(volDevPath)
+}
+
+// ValidateImageVolume verifies that the image volume was fully unpacked by checking for
+// the "readonly" LVM thin snapshot. This snapshot is taken only after a successful unpack,
+// so its absence means the unpack was interrupted and the volume is incomplete.
+// Only applicable to thinpool-backed pools; non-thin pools return ErrNotSupported.
+func (d *lvm) ValidateImageVolume(vol Volume, op *operations.Operation) error {
+	if !d.usesThinpool() {
+		return ErrNotSupported
+	}
+
+	readonlySnapName := GetSnapshotVolumeName(vol.name, "readonly")
+	readonlyDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, readonlySnapName)
+	exists, err := d.logicalVolumeExists(readonlyDevPath)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return fmt.Errorf("Missing readonly snapshot for image volume %q: %w", vol.name, ErrBrokenImageVolume)
+	}
+
+	// For VMs, also check the filesystem config volume's readonly snapshot.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		readonlyFSSnapName := GetSnapshotVolumeName(fsVol.name, "readonly")
+		readonlyFSDevPath := d.lvmDevPath(d.config["lvm.vg_name"], fsVol.volType, fsVol.contentType, readonlyFSSnapName)
+		exists, err := d.logicalVolumeExists(readonlyFSDevPath)
+		if err != nil {
+			return err
+		}
+
+		if !exists {
+			return fmt.Errorf("Missing readonly snapshot for image filesystem volume %q %w", fsVol.name, ErrBrokenImageVolume)
+		}
+	}
+
+	return nil
 }
 
 // FillVolumeConfig populate volume with default config.
