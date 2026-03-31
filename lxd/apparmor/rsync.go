@@ -15,7 +15,8 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 )
 
-var rsyncProfileTpl = template.Must(template.New("rsyncProfile").Parse(`#include <tunables/global>
+var rsyncProfileTpl = template.Must(template.New("rsyncProfile").Parse(`abi <abi/4.0>,
+#include <tunables/global>
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
