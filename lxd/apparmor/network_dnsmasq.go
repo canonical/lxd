@@ -7,7 +7,8 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
-var dnsmasqProfileTpl = template.Must(template.New("dnsmasqProfile").Parse(`#include <tunables/global>
+var dnsmasqProfileTpl = template.Must(template.New("dnsmasqProfile").Parse(`abi <abi/4.0>,
+#include <tunables/global>
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
   #include <abstractions/dbus>
