@@ -608,3 +608,77 @@ WHERE auth_groups.name IN %s
 func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*IdentitiesRow, error) {
 	return query.SelectOne[IdentitiesRow](ctx, tx, "WHERE id = ?", id)
 }
+
+// CreateTLSIdentity creates an Identity and a Certificate, and then adds a row to their association table.
+func CreateTLSIdentity(ctx context.Context, tx *sql.Tx, name string, idType string, fingerprint string, pemCert string) (int64, error) {
+	// Create the identity.
+	id := IdentitiesRow{
+		AuthMethod: AuthMethod(api.AuthenticationMethodTLS),
+		Type:       IdentityType(idType),
+		Identifier: fingerprint,
+		Name:       name,
+	}
+
+	identityID, err := query.Create(ctx, tx, id)
+	if err != nil {
+		return -1, err
+	}
+
+	err = setIdentityCertificate(ctx, tx, true, identityID, fingerprint, pemCert)
+	if err != nil {
+		return -1, err
+	}
+
+	return identityID, nil
+}
+
+// UpdateTLSIdentity updates the given [IdentitiesRow] (applying any prior modifications) by primary key.
+// If the fingerprint and certificate are provided, the [IdentitiesRow.Identifier] is set to the fingerprint value, and
+// a new [CertificatesRow] is added with any previous [CertificatesRow] entries associated with the identity deleted.
+func UpdateTLSIdentity(ctx context.Context, tx *sql.Tx, identity IdentitiesRow, fingerprint string, pemCert string) error {
+	if fingerprint != "" {
+		if pemCert == "" {
+			return errors.New("Missing required PEM encoded certificate")
+		}
+
+		err := setIdentityCertificate(ctx, tx, false, identity.ID, fingerprint, pemCert)
+		if err != nil {
+			return err
+		}
+
+		identity.Identifier = fingerprint
+	}
+
+	return query.UpdateByPrimaryKey(ctx, tx, identity)
+}
+
+// setIdentityCertificate replaces an identities certificate with the given one.
+func setIdentityCertificate(ctx context.Context, tx *sql.Tx, create bool, identityID int64, fingerprint string, pemCert string) error {
+	// For now, delete all existing certificates for the identity so that we have at most one.
+	// Trigger on identities_certificates will delete entries from certificates table.
+	if !create {
+		_, err := tx.ExecContext(ctx, "DELETE FROM identities_certificates WHERE identity_id = ?", identityID)
+		if err != nil {
+			return fmt.Errorf("Failed deleting existing certificate: %w", err)
+		}
+	}
+
+	cert := CertificatesRow{
+		Fingerprint: fingerprint,
+		Certificate: pemCert,
+	}
+
+	// Create the certificate
+	certificateID, err := query.Create(ctx, tx, cert)
+	if err != nil {
+		return fmt.Errorf("Failed creating certificate: %w", err)
+	}
+
+	// Associate identity with certificate.
+	_, err = tx.ExecContext(ctx, "INSERT INTO identities_certificates (identity_id, certificate_id) VALUES (?, ?)", identityID, certificateID)
+	if err != nil {
+		return fmt.Errorf("Failed associating identity with certificate: %w", err)
+	}
+
+	return nil
+}
