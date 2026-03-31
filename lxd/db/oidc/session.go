@@ -120,14 +120,14 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 		}
 
 		// If we're creating or updating the identity, create the db representation.
-		var newOrUpdatedIdentity cluster.Identity
+		var newOrUpdatedIdentity cluster.IdentitiesRow
 		if firstTimeLogin || doUpdateIdentity {
 			metadataJSON, err := json.Marshal(newMetadata)
 			if err != nil {
 				return fmt.Errorf("Failed encoding OIDC metadata: %w", err)
 			}
 
-			newOrUpdatedIdentity = cluster.Identity{
+			newOrUpdatedIdentity = cluster.IdentitiesRow{
 				AuthMethod: api.AuthenticationMethodOIDC,
 				Type:       api.IdentityTypeOIDCClient,
 				Identifier: res.Email,
@@ -192,9 +192,9 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 
 // GetIdentityBySessionID gets an [oidc.AuthenticationResult], a set of [zitadelOIDC.Tokens], and an expiry [time.Time]
 // for session based from the given [uuid.UUID] by joining the identities table and extracting the current [cluster.OIDCMetadata] for
-// the [cluster.Identity] that holds the session.
+// the [cluster.IdentitiesRow] that holds the session.
 func (s *sessionHandler) GetIdentityBySessionID(ctx context.Context, sessionID uuid.UUID) (res *oidc.AuthenticationResult, tokens *zitadelOIDC.Tokens[*zitadelOIDC.IDTokenClaims], sessionExpiry *time.Time, err error) {
-	var identity *cluster.Identity
+	var identity *cluster.IdentitiesRow
 	var session *cluster.OIDCSession
 	err = s.db.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		identity, session, err = cluster.GetIdentityAndSessionDetailsFromSessionID(ctx, tx.Tx(), sessionID)
