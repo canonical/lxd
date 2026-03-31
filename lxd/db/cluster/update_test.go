@@ -804,10 +804,10 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	identity := getTLSIdentityByFingerprint("eeef45f0570ce713864c86ec60c8d88f60b4844d3a8849b262c77cb18e88394d")
 	assert.Equal(t, api.IdentityTypeCertificateClientRestricted, string(identity.Type))
 	assert.Equal(t, "restricted-client", identity.Name)
-	var metadata CertificateMetadata
+	var metadata map[string]string
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
-	assert.Equal(t, c1, metadata.Certificate)
+	assert.Equal(t, c1, metadata["cert"])
 
 	rows, err := db.Query(`SELECT projects.name FROM identities_projects JOIN projects ON identities_projects.project_id = projects.id WHERE identity_id = ?`, identity.ID)
 	require.NoError(t, err)
@@ -826,26 +826,26 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	assert.Equal(t, "unrestricted-client", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
-	assert.Equal(t, c2, metadata.Certificate)
+	assert.Equal(t, c2, metadata["cert"])
 
 	identity = getTLSIdentityByFingerprint("49b262c77cb18e88394d8e6ec60c8d8eef45f0570ce713864c8f60b4844d3a88")
 	assert.Equal(t, api.IdentityTypeCertificateServer, string(identity.Type))
 	assert.Equal(t, "server", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
-	assert.Equal(t, c1, metadata.Certificate)
+	assert.Equal(t, c1, metadata["cert"])
 
 	identity = getTLSIdentityByFingerprint("60c8d8eef45f0570ce713864c8f60b4844d3a8849b262c77cb18e88394d8e6ec")
 	assert.Equal(t, api.IdentityTypeCertificateMetricsRestricted, string(identity.Type))
 	assert.Equal(t, "metrics", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
-	assert.Equal(t, c2, metadata.Certificate)
+	assert.Equal(t, c2, metadata["cert"])
 
 	identity = getTLSIdentityByFingerprint("47c88da8fd0cb9a8d44768a445e6c27aee44e078ce74cbaec0726de427bac056")
 	assert.Equal(t, api.IdentityTypeCertificateMetricsUnrestricted, string(identity.Type))
 	assert.Equal(t, "metrics", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
-	assert.Equal(t, c2, metadata.Certificate)
+	assert.Equal(t, c2, metadata["cert"])
 }
