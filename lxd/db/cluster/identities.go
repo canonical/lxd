@@ -18,7 +18,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/identity"
@@ -318,17 +317,9 @@ func (i IdentitiesRow) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 }
 
 // ToAPI converts an [IdentitiesRow] to an [api.Identity], executing database queries as necessary.
-func (i *IdentitiesRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
-	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	groupNames := make([]string, 0, len(groups))
-	for _, group := range groups {
-		if canViewGroup(entity.AuthGroupURL(group.Name)) {
-			groupNames = append(groupNames, group.Name)
-		}
+func (i *IdentitiesRow) ToAPI(idToGroups map[int64][]string, idToCertificates map[int64][]string) (*api.Identity, error) {
+	if idToGroups == nil {
+		return nil, errors.New("Missing required authorization group data")
 	}
 
 	identityType, err := identity.New(string(i.Type))
@@ -338,12 +329,22 @@ func (i *IdentitiesRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth
 
 	var tlsCertificate string
 	if i.AuthMethod == api.AuthenticationMethodTLS && !identityType.IsPending() {
-		metadata, err := i.CertificateMetadata()
-		if err != nil {
-			return nil, err
+		if idToCertificates == nil {
+			return nil, errors.New("Missing required certificate data")
 		}
 
-		tlsCertificate = metadata.Certificate
+		certs, ok := idToCertificates[i.ID]
+		if !ok || len(certs) == 0 {
+			return nil, errors.New("No certificate data")
+		}
+
+		// Expect that the zeroth entry is the most recent.
+		tlsCertificate = certs[0]
+	}
+
+	groups, ok := idToGroups[i.ID]
+	if !ok || groups == nil {
+		groups = []string{}
 	}
 
 	return &api.Identity{
@@ -351,7 +352,7 @@ func (i *IdentitiesRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth
 		Type:                 string(i.Type),
 		Identifier:           i.Identifier,
 		Name:                 i.Name,
-		Groups:               groupNames,
+		Groups:               groups,
 		TLSCertificate:       tlsCertificate,
 	}, nil
 }
