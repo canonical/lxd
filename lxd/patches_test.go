@@ -59,7 +59,7 @@ func Test_patchSplitIdentityCertificateEntityTypes(t *testing.T) {
 		// Create an OIDC identity
 		oidcMetadata, err := json.Marshal(dbCluster.OIDCMetadata{Subject: "test-subject"})
 		require.NoError(t, err)
-		identityIDint64, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+		identityIDint64, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.IdentitiesRow{
 			AuthMethod: api.AuthenticationMethodOIDC,
 			Type:       api.IdentityTypeOIDCClient,
 			Identifier: "jane.doe@example.com",

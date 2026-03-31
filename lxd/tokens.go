@@ -44,7 +44,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 		logger.Warn("Failed getting database leader details", logger.Ctx{"err": err})
 	}
 
-	var expiredPendingTLSIdentities []cluster.Identity
+	var expiredPendingTLSIdentities []cluster.IdentitiesRow
 	if leaderInfo != nil && leaderInfo.Leader {
 		expiredPendingTLSIdentities, err = getExpiredPendingIdentities(ctx, s)
 		if err != nil {
@@ -103,8 +103,8 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 	logger.Debug("Done removing expired tokens")
 }
 
-func getExpiredPendingIdentities(ctx context.Context, s *state.State) ([]cluster.Identity, error) {
-	var pendingTLSIdentities []cluster.Identity
+func getExpiredPendingIdentities(ctx context.Context, s *state.State) ([]cluster.IdentitiesRow, error) {
+	var pendingTLSIdentities []cluster.IdentitiesRow
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		dbPendingClientIdentityType := cluster.IdentityType(api.IdentityTypeCertificateClientPending)
@@ -120,7 +120,7 @@ func getExpiredPendingIdentities(ctx context.Context, s *state.State) ([]cluster
 		return nil, err
 	}
 
-	expiredPendingTLSIdentities := make([]cluster.Identity, 0, len(pendingTLSIdentities))
+	expiredPendingTLSIdentities := make([]cluster.IdentitiesRow, 0, len(pendingTLSIdentities))
 	for _, pendingTLSIdentity := range pendingTLSIdentities {
 		metadata, err := pendingTLSIdentity.PendingTLSMetadata()
 		if err == nil && (metadata.Expiry.IsZero() || metadata.Expiry.After(time.Now())) {
