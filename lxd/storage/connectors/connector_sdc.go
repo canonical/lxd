@@ -4,27 +4,34 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared/revert"
 )
 
-const (
-	// SDCDevicePath represents the SDC device once the respective kernel module is loaded.
-	SDCDevicePath = "/dev/scini"
-
-	// sdcDiskDevicePrefix is the prefix of the SDC disk device name in /dev/disk/by-id/.
-	sdcDiskDevicePrefix = "emc-vol-"
-)
-
-var _ Connector = &connectorSDC{}
-
 type connectorSDC struct {
 	common
 }
 
+func newConnectorSDC(serverUUID string) (Connector, error) {
+	c := &connectorSDC{
+		common: common{
+			serverUUID: serverUUID,
+		},
+	}
+
+	return c, nil
+}
+
+// SDCDevicePath represents the SDC device once the respective kernel module is loaded.
+const SDCDevicePath = "/dev/scini"
+
+// sdcDiskDevicePrefix is the prefix of the SDC disk device name in /dev/disk/by-id/.
+const sdcDiskDevicePrefix = "emc-vol-"
+
 // Type returns the type of the connector.
-func (c *connectorSDC) Type() string {
+func (c *connectorSDC) Type() ConnectorType {
 	return TypeSDC
 }
 
@@ -60,42 +67,31 @@ func (c *connectorSDC) QualifiedName() (string, error) {
 	return "", nil
 }
 
+// Discover returns the targets found on the first reachable targetAddr.
+func (c *connectorSDC) Discover(ctx context.Context, discoveryAddresses ...string) ([]Target, error) {
+	return nil, ErrNotSupported
+}
+
 // Connect does nothing. Connections are fully handled by SDC.
-func (c *connectorSDC) Connect(ctx context.Context, targetQN string, targetAddresses ...string) (revert.Hook, error) {
+func (c *connectorSDC) Connect(ctx context.Context, targets ...Target) (revert.Hook, error) {
 	// Nothing to do. Connection is handled by Dell SDC.
 	return revert.New().Fail, nil
 }
 
 // Disconnect does nothing. Connections are fully handled by SDC.
-func (c *connectorSDC) Disconnect(targetQN string) error {
+func (c *connectorSDC) Disconnect(ctx context.Context, targets ...Target) error {
 	return nil
 }
 
-func (c *connectorSDC) findSession(targetQN string) (*session, error) {
-	return nil, nil
-}
+// GetDiskDevicePath returns the path of the mapped SDC device. If the wait
+// parameter is true additionally waits for the mapped device to appear and
+// returns its path.
+func (c *connectorSDC) GetDiskDevicePath(ctx context.Context, wait bool, diskNameFilter block.DeviceNameFilterFunc) (string, error) {
+	if diskNameFilter == nil {
+		diskNameFilter = func(diskPath string) bool { return true }
+	}
 
-// Discover returns the targets found on the first reachable targetAddr.
-func (c *connectorSDC) Discover(ctx context.Context, targetAddresses ...string) ([]any, error) {
-	return nil, ErrNotSupported
-}
-
-// WaitDiskDevicePath waits for the mapped device to appear and returns its path.
-func (c *connectorSDC) WaitDiskDevicePath(ctx context.Context, diskPathFilter block.DevicePathFilterFunc) (string, error) {
-	return block.WaitDiskDevicePath(ctx, sdcDiskDevicePrefix, diskPathFilter)
-}
-
-// GetDiskDevicePath returns the path of the mapped SDC device.
-func (c *connectorSDC) GetDiskDevicePath(diskPathFilter block.DevicePathFilterFunc) (string, error) {
-	return block.GetDiskDevicePath(sdcDiskDevicePrefix, diskPathFilter)
-}
-
-// RemoveDiskDevice does nothing. Device is removed when volume is unmapped on the storage array.
-func (c *connectorSDC) RemoveDiskDevice(ctx context.Context, devicePath string) error {
-	return nil
-}
-
-// WaitDiskDeviceResize waits until the disk device reflects the new size.
-func (c *connectorSDC) WaitDiskDeviceResize(ctx context.Context, diskPath string, newSizeBytes int64) error {
-	return block.WaitDiskDeviceResize(ctx, diskPath, newSizeBytes)
+	return c.common.GetDiskDevicePath(ctx, wait, func(diskPath string) bool {
+		return strings.HasPrefix(diskPath, sdcDiskDevicePrefix) && diskNameFilter(diskPath)
+	})
 }

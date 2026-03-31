@@ -8,76 +8,57 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 )
 
+// ConnectorType represents connector type.
+type ConnectorType string
+
 const (
 	// TypeUnknown represents an unknown storage connector.
-	TypeUnknown string = "unknown"
+	TypeUnknown ConnectorType = "unknown"
 
 	// TypeNVME represents an NVMe/TCP storage connector.
-	TypeNVME string = "nvme"
+	TypeNVME ConnectorType = "nvme"
 
 	// TypeSDC represents Dell SDC storage connector.
-	TypeSDC string = "sdc"
+	TypeSDC ConnectorType = "sdc"
 
 	// TypeISCSI represents an iSCSI storage connector.
-	TypeISCSI string = "iscsi"
+	TypeISCSI ConnectorType = "iscsi"
 )
-
-// session represents a connector session that is established with a target.
-type session struct {
-	// id is a unique identifier of the session.
-	id string
-
-	// targetQN is the qualified name of the target.
-	targetQN string
-
-	// addresses is a list of active addresses associated with the session.
-	addresses []string
-}
 
 // Connector represents a storage connector that handles connections through
 // appropriate storage subsystem.
 type Connector interface {
-	Type() string
+	Type() ConnectorType
 	Version() (string, error)
 	QualifiedName() (string, error)
 	LoadModules() error
-	Connect(ctx context.Context, targetQN string, targetAddrs ...string) (revert.Hook, error)
-	Disconnect(targetQN string) error
-	Discover(ctx context.Context, targetAddresses ...string) ([]any, error)
-	GetDiskDevicePath(diskPathFilter block.DevicePathFilterFunc) (string, error)
-	WaitDiskDevicePath(ctx context.Context, diskPathFilter block.DevicePathFilterFunc) (string, error)
-	WaitDiskDeviceResize(ctx context.Context, diskPath string, newSizeBytes int64) error
+
+	Discover(ctx context.Context, discoveryAddresses ...string) ([]Target, error)
+	Connect(ctx context.Context, targets ...Target) (revert.Hook, error)
+	Disconnect(ctx context.Context, targets ...Target) error
+
+	GetDiskDevicePath(ctx context.Context, wait bool, diskNameFilter block.DeviceNameFilterFunc) (string, error)
+	WaitDiskDeviceResize(ctx context.Context, devicePath string, newSizeBytes int64) error
 	RemoveDiskDevice(ctx context.Context, devicePath string) error
-	findSession(targetQN string) (*session, error)
+
+	doNotImplement()
 }
 
 // NewConnector instantiates a new connector of the given type.
 // The caller needs to ensure connector type is validated before calling this
 // function, as common (empty) connector is returned for unknown type.
-func NewConnector(connectorType string, serverUUID string) (Connector, error) {
-	common := common{
-		serverUUID: serverUUID,
-	}
-
+func NewConnector(connectorType ConnectorType, serverUUID string) (Connector, error) {
 	switch connectorType {
 	case TypeNVME:
-		return &connectorNVMe{
-			common: common,
-		}, nil
+		return newConnectorNVMe(serverUUID)
 
 	case TypeSDC:
-		return &connectorSDC{
-			common: common,
-		}, nil
+		return newConnectorSDC(serverUUID)
 
 	case TypeISCSI:
-		return &connectorISCSI{
-			common: common,
-		}, nil
+		return newConnectorISCSI(serverUUID)
 
 	default:
-		// Return common connector if the type is unknown. This removes
-		// the need to check for nil or handle the error in the caller.
 		return nil, fmt.Errorf("Unknown storage connector type %q", connectorType)
 	}
 }
@@ -85,7 +66,7 @@ func NewConnector(connectorType string, serverUUID string) (Connector, error) {
 // GetSupportedVersions returns the versions for the given connector types
 // ignoring those that produce an error when version is being retrieved
 // (e.g. due to a missing required tools).
-func GetSupportedVersions(connectorTypes []string) []string {
+func GetSupportedVersions(connectorTypes []ConnectorType) []string {
 	versions := make([]string, 0, len(connectorTypes))
 
 	// Iterate over the provided connector types, and extract
