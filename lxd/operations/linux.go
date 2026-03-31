@@ -146,7 +146,16 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 			return fmt.Errorf("Failed marshalling operation metadata: %w", err)
 		}
 
-		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, op.updatedAt, op.status, string(metadataJSON), op.err, op.errCode)
+		n, err := cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, string(metadataJSON), op.err, op.errCode)
+		if err != nil {
+			return err
+		}
+
+		if n != 1 {
+			return fmt.Errorf("Query updated %d rows instead of 1", n)
+		}
+
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("Failed updating operation %q record: %w", op.id, err)

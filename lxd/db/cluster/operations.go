@@ -160,24 +160,21 @@ func (r *RequestorProtocol) Value() (driver.Value, error) {
 // UpdateOperation updates operation status, metadata and error (if set) in the cluster db.
 // This is used to keep DB in sync with the current status of the operation when the operation changes
 // its status, or when calls to commit metadata explicitly.
-func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, updatedAt time.Time, newStatus api.StatusCode, metadata string, opErr string, opErrCode int64) error {
-	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, metadata = ?, error = ?, error_code = ? WHERE uuid = ?`
+// Returns number of rows updated in the DB, or an error.
+func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, nodeID int64, updatedAt time.Time, newStatus api.StatusCode, metadata string, opErr string, opErrCode int64) (int64, error) {
+	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, metadata = ?, error = ?, error_code = ? WHERE uuid = ? AND node_id = ?`
 
-	result, err := tx.ExecContext(ctx, stmt, updatedAt, newStatus, metadata, opErr, opErrCode, opUUID)
+	result, err := tx.ExecContext(ctx, stmt, updatedAt, newStatus, metadata, opErr, opErrCode, opUUID, nodeID)
 	if err != nil {
-		return fmt.Errorf("Failed updating operation status: %w", err)
+		return 0, fmt.Errorf("Failed updating operation status: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Fetch affected rows: %w", err)
+		return 0, fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
-	if n != 1 {
-		return fmt.Errorf("Query updated %d rows instead of 1", n)
-	}
-
-	return nil
+	return n, nil
 }
 
 // GetOperationResources loads operation resources from the cluster db.
