@@ -24,8 +24,8 @@ const powerFlexDefaultSize = "8GiB"
 const powerFlexMinVolumeSizeBytes = 8589934592
 
 var powerflexSupportedConnectors = []string{
-	connectors.TypeNVME,
-	connectors.TypeSDC,
+	string(connectors.TypeNVME),
+	string(connectors.TypeSDC),
 }
 
 var powerFlexLoaded bool
@@ -46,8 +46,8 @@ type powerflex struct {
 	// Use powerflex.getHostGUID() to retrieve the actual value.
 	sdcGUID string
 
-	// Holds the targetQN used by the SDTs.
-	nvmeTargetQN string
+	// Holdsconnection targets used by the SDTs.
+	nvmeTargets []connectors.Target
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
@@ -57,7 +57,12 @@ func (d *powerflex) load() error {
 		return nil
 	}
 
-	versions := connectors.GetSupportedVersions(powerflexSupportedConnectors)
+	connnectorTypes := make([]connectors.ConnectorType, len(powerflexSupportedConnectors))
+	for i := range powerflexSupportedConnectors {
+		connnectorTypes[i] = connectors.ConnectorType(powerflexSupportedConnectors[i])
+	}
+
+	versions := connectors.GetSupportedVersions(connnectorTypes)
 	powerFlexVersion = strings.Join(versions, " / ")
 	powerFlexLoaded = true
 
@@ -77,7 +82,7 @@ func (d *powerflex) load() error {
 // PowerFlex mode. The connector is cached in the driver struct.
 func (d *powerflex) connector() (connectors.Connector, error) {
 	if d.storageConnector == nil {
-		connector, err := connectors.NewConnector(d.config["powerflex.mode"], d.state.OS.ServerUUID)
+		connector, err := connectors.NewConnector(connectors.ConnectorType(d.config["powerflex.mode"]), d.state.OS.ServerUUID)
 		if err != nil {
 			return nil, err
 		}
@@ -137,9 +142,9 @@ func (d *powerflex) FillConfig() error {
 		}
 
 		if nvmeConnector.LoadModules() == nil {
-			d.config["powerflex.mode"] = connectors.TypeNVME
+			d.config["powerflex.mode"] = string(connectors.TypeNVME)
 		} else if sdcConnector.LoadModules() == nil {
-			d.config["powerflex.mode"] = connectors.TypeSDC
+			d.config["powerflex.mode"] = string(connectors.TypeSDC)
 		} else {
 			// Fail if no PowerFlex mode can be discovered.
 			return errors.New("Failed discovering PowerFlex mode")
@@ -192,7 +197,7 @@ func (d *powerflex) ValidateSource() error {
 		return errors.New("The powerflex.gateway cannot be empty")
 	}
 
-	if d.config["powerflex.mode"] == connectors.TypeSDC {
+	if d.config["powerflex.mode"] == string(connectors.TypeSDC) {
 		// In case the SDC mode is used the SDTs cannot be set.
 		if d.config["powerflex.sdt"] != "" {
 			return fmt.Errorf("The %q config key is specific to the %q mode", "powerflex.sdt", connectors.TypeNVME)
@@ -318,7 +323,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 	// gets executed on every cluster member when receiving the cluster
 	// notification to finally create the pool.
 	if newMode != "" {
-		connector, err := connectors.NewConnector(newMode, "")
+		connector, err := connectors.NewConnector(connectors.ConnectorType(newMode), "")
 		if err != nil {
 			return fmt.Errorf("PowerFlex mode %q is not supported: %w", newMode, err)
 		}
