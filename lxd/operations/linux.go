@@ -141,6 +141,10 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
 	})
 	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusConflict) && op.Class() == OperationClassDurable {
+			CancelLocalDurableOperation(op)
+		}
+
 		return fmt.Errorf("Failed updating operation %q record: %w", op.id, err)
 	}
 
