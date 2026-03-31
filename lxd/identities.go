@@ -2345,10 +2345,16 @@ func updateIdentityCache(d *Daemon) {
 
 	var identities []dbCluster.IdentitiesRow
 	bearerIdentitySecrets := make(map[int64]dbCluster.AuthSecretValue)
+	certificates := make(map[int64][]string)
 	var err error
 	err = s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all cacheable identities.
 		identities, err = query.Select[dbCluster.IdentitiesRow](ctx, tx.Tx(), "WHERE identities.type IN "+query.IntParams(cacheableIdentityTypeCodes...))
+		if err != nil {
+			return err
+		}
+
+		certificates, err = dbCluster.GetIdentitiesPEMCertificates(ctx, tx.Tx(), nil)
 		if err != nil {
 			return err
 		}
@@ -2379,9 +2385,28 @@ func updateIdentityCache(d *Daemon) {
 		}
 
 		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS {
-			cert, err := id.X509()
+			certs, ok := certificates[id.ID]
+			if !ok || len(certs) == 0 {
+				logger.Warn("Missing certificate for TLS identity", logger.Ctx{"identity_identifier": id.Identifier})
+				continue
+			}
+
+			// Always take first (most recent) certificate for now.
+			certBlock, _ := pem.Decode([]byte(certs[0]))
+			if certBlock == nil {
+				logger.Warn("Failed PEM decoding certificate for TLS identity", logger.Ctx{"identity_identifier": id.Identifier})
+				continue
+			}
+
+			cert, err := x509.ParseCertificate(certBlock.Bytes)
 			if err != nil {
-				logger.Warn("Failed extracting x509 certificate from TLS identity metadata", logger.Ctx{"err": err})
+				logger.Warn("Failed x509 parsing certificate for TLS identity", logger.Ctx{"identity_identifier": id.Identifier, "err": err})
+				continue
+			}
+
+			fingerprint := shared.CertFingerprint(cert)
+			if fingerprint != id.Identifier {
+				logger.Warn("TLS identity certificate does not match identifier", logger.Ctx{"identity_identifier": id.Identifier, "certificate_fingerprint": fingerprint})
 				continue
 			}
 
@@ -2390,7 +2415,7 @@ func updateIdentityCache(d *Daemon) {
 			case certificate.TypeMetrics:
 				metricsCerts[id.Identifier] = cert
 			case certificate.TypeServer:
-				dbCert, err := id.ToCertificate()
+				dbCert, err := id.ToCertificate(certificates)
 				if err != nil {
 					logger.Warn("Failed converting TLS identity to server certificate", logger.Ctx{"err": err})
 					continue
