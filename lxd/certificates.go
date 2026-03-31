@@ -695,12 +695,6 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	req = api.CertificatesPost{
-		Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
-		Name:        name,
-		Type:        api.CertificateTypeClient,
-	}
-
 	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
 		return err
