@@ -152,6 +152,12 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 		}
 
 		if n != 1 {
+			if op.class == OperationClassDurable {
+				// If the operation is durable, it could have been migrated to a different node.
+				// If we fail to update the operation in the DB, we cancel the operation to on this node.
+				CancelLocalDurableOperation(op)
+			}
+
 			return fmt.Errorf("Query updated %d rows instead of 1", n)
 		}
 

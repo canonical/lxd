@@ -787,6 +787,7 @@ func (op *Operation) Cancel() {
 // This operation is only removed from the local operations map, the database record is left intact.
 // The cluster leader will restart this operation.
 func CancelLocalDurableOperation(op *Operation) {
+	logger.Warn("Cancelling local durable operation", logger.Ctx{"operation": op.id})
 	// Note that on purpose we don't lock the operation lock here. Both setting the heartbeatMissed flag and cancelling the operation are atomic operations,
 	// so we don't need to lock the operation for that.
 	// If we'd lock the operation here, we might end up waiting on the lock while the operation is trying to update its status, which would delay concelling the operation context.
