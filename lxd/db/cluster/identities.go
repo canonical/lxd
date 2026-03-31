@@ -163,26 +163,6 @@ func (IdentitiesRow) APIPluralName() string {
 	return "Identities"
 }
 
-// CertificateMetadata contains metadata for certificate identities. Currently this is only the certificate itself.
-type CertificateMetadata struct {
-	Certificate string `json:"cert"`
-}
-
-// X509 returns an [x509.Certificate] from the [CertificateMetadata].
-func (c CertificateMetadata) X509() (*x509.Certificate, error) {
-	certBlock, _ := pem.Decode([]byte(c.Certificate))
-	if certBlock == nil {
-		return nil, errors.New("Failed decoding certificate")
-	}
-
-	cert, err := x509.ParseCertificate(certBlock.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing certificate: %w", err)
-	}
-
-	return cert, nil
-}
-
 // ToCertificate converts an [IdentitiesRow] to a [CertificateLegacy].
 func (i IdentitiesRow) ToCertificate(idToCert map[int64][]string) (*CertificateLegacy, error) {
 	if idToCert == nil {
@@ -224,42 +204,6 @@ func (i IdentitiesRow) ToCertificate(idToCert map[int64][]string) (*CertificateL
 	}
 
 	return c, nil
-}
-
-// CertificateMetadata returns the metadata associated with the identity as [CertificateMetadata]. It fails if the
-// authentication method is not [api.AuthentictionMethodTLS] or if the type is [api.IdentityTypeClientCertificatePending],
-// as they do not have metadata of this type.
-func (i IdentitiesRow) CertificateMetadata() (*CertificateMetadata, error) {
-	if i.AuthMethod != api.AuthenticationMethodTLS {
-		return nil, fmt.Errorf("Cannot get certificate metadata: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
-	}
-
-	identityType, err := identity.New(string(i.Type))
-	if err != nil {
-		return nil, err
-	}
-
-	if identityType.IsPending() {
-		return nil, errors.New("Cannot get certificate metadata: Identity is pending")
-	}
-
-	var metadata CertificateMetadata
-	err = json.Unmarshal([]byte(i.Metadata), &metadata)
-	if err != nil {
-		return nil, fmt.Errorf("Failed unmarshaling certificate identity metadata: %w", err)
-	}
-
-	return &metadata, nil
-}
-
-// X509 returns an [x509.Certificate] from the identity metadata. The [AuthMethod] of the [IdentitiesRow] must be [api.AuthenticationMethodTLS].
-func (i IdentitiesRow) X509() (*x509.Certificate, error) {
-	metadata, err := i.CertificateMetadata()
-	if err != nil {
-		return nil, err
-	}
-
-	return metadata.X509()
 }
 
 // OIDCMetadata contains metadata for OIDC identities.
