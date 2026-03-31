@@ -20,6 +20,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/units"
 )
@@ -267,6 +268,33 @@ func IsNetworkAddress(value string) error {
 	ip := net.ParseIP(value)
 	if ip == nil {
 		return fmt.Errorf("Not an IP address %q", value)
+	}
+
+	return nil
+}
+
+// IsNetworkAddressWithOptionalPort validates if the provided string is
+// an IP (v4 or v6) address or an IP (v4 or v6) address with a port number.
+func IsNetworkAddressWithOptionalPort(value string) error {
+	addr, port, err := net.SplitHostPort(value)
+	if err != nil {
+		addr, port, err = net.SplitHostPort(shared.EnsurePort(value, "0"))
+
+		// If splitting host and port fails again after EnsurePort the provided
+		// value is invalid.
+		if err != nil {
+			return fmt.Errorf("Neither an IP address nor an IP address with port number %q", value)
+		}
+	}
+
+	err = IsNetworkAddress(addr)
+	if err != nil {
+		return fmt.Errorf("Not an IP address with port number %q: %w", value, err)
+	}
+
+	err = IsNetworkPort(port)
+	if err != nil {
+		return fmt.Errorf("Not an IP address with port number %q: %w", value, err)
 	}
 
 	return nil
@@ -909,6 +937,48 @@ func IsValidCPUSet(value string) error {
 	}
 
 	return nil
+}
+
+// IsNoLessThanUnit checks if value is greater or equal to the provided unit.
+func IsNoLessThanUnit(unit string) func(value string) error {
+	return func(value string) error {
+		bytes, err := units.ParseByteSizeString(value)
+		if err != nil {
+			return fmt.Errorf("Invalid value: %s", value)
+		}
+
+		minBytes, err := units.ParseByteSizeString(unit)
+		if err != nil {
+			return fmt.Errorf("Invalid unit value: %s", unit)
+		}
+
+		if bytes < minBytes {
+			return fmt.Errorf("Value %s is smaller than minimum %s", value, unit)
+		}
+
+		return nil
+	}
+}
+
+// IsNoGreaterThanUnit checks if value is less or equal to the provided unit.
+func IsNoGreaterThanUnit(unit string) func(value string) error {
+	return func(value string) error {
+		bytes, err := units.ParseByteSizeString(value)
+		if err != nil {
+			return fmt.Errorf("Invalid value: %s", value)
+		}
+
+		maxBytes, err := units.ParseByteSizeString(unit)
+		if err != nil {
+			return fmt.Errorf("Invalid unit value: %s", unit)
+		}
+
+		if bytes > maxBytes {
+			return fmt.Errorf("Value %s is larger than maximum %s", value, unit)
+		}
+
+		return nil
+	}
 }
 
 // IsMultipleOfUnit checks if value is in multiples of unit.

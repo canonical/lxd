@@ -660,6 +660,39 @@ func Test_IsNetworkAddress(t *testing.T) {
 	}
 }
 
+func Test_IsNetworkAddressWithOptionalPort(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{"192.0.2.1", true},
+		{"192.0.2.1:1234", true},
+		{"2001:db8::1", true},
+		{"[2001:db8::1]", true},
+		{"[2001:db8::1]:1234", true},
+		{"192.0.2.0/32", false},
+		{"192.0.2.256", false},
+		{"192.0.2.256:1234", false},
+		{"2001:db8::1/128", false},
+		{"[2001:db8::1]/128", false},
+		{"[2001:db8::1/128]", false},
+		{"2001:db8::1/128:1234", false},
+		{"[2001:db8::1]/128:1234", false},
+		{"[2001:db8::1/128]:1234", false},
+		{"2001:db8::g", false},
+		{"[2001:db8::g]", false},
+		{"2001:db8::g:1234", false},
+		{"[2001:db8::g]:1234", false},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkAddressWithOptionalPort(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkAddressWithOptionalPort(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
 func Test_IsNetwork(t *testing.T) {
 	tests := []struct {
 		value    string
@@ -962,5 +995,68 @@ func TestIsHTTPSURL(t *testing.T) {
 				t.Errorf("IsHTTPSURL(%q) error = %v, wantErr %v", tt.value, err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestIsNoLessThanUnit(t *testing.T) {
+	tests := []struct {
+		unit     string
+		value    string
+		expected bool
+	}{
+		{"1MiB", "1MiB", true},
+		{"1MiB", "1GiB", true},
+		{"1MiB", "1KiB", false},
+		{"non-unit", "1MiB", false},
+		{"1MiB", "non-unit", false},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNoLessThanUnit(test.unit)(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNoLessThanUnit(%q)(%q) = %v, want %v; err=%v", test.unit, test.value, err == nil, test.expected, err)
+		}
+	}
+}
+
+func TestIsNoGreaterThanUnit(t *testing.T) {
+	tests := []struct {
+		unit     string
+		value    string
+		expected bool
+	}{
+		{"1MiB", "1MiB", true},
+		{"1GiB", "1MiB", true},
+		{"1KiB", "1MiB", false},
+		{"non-unit", "1MiB", false},
+		{"1MiB", "non-unit", false},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNoGreaterThanUnit(test.unit)(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNoGreaterThanUnit(%q)(%q) = %v, want %v; err=%v", test.unit, test.value, err == nil, test.expected, err)
+		}
+	}
+}
+
+func TestIsMultipleOfUnit(t *testing.T) {
+	tests := []struct {
+		unit     string
+		value    string
+		expected bool
+	}{
+		{"1MiB", "1MiB", true},
+		{"1MiB", "1GiB", true},
+		{"3KiB", "1MiB", false},
+		{"non-unit", "1MiB", false},
+		{"1MiB", "non-unit", false},
+	}
+
+	for _, test := range tests {
+		err := validate.IsMultipleOfUnit(test.unit)(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsMultipleOfUnit(%q)(%q) = %v, want %v; err=%v", test.unit, test.value, err == nil, test.expected, err)
+		}
 	}
 }
