@@ -4,7 +4,8 @@ import (
 	"text/template"
 )
 
-var lxcProfileTpl = template.Must(template.New("lxcProfile").Parse(`#include <tunables/global>
+var lxcProfileTpl = template.Must(template.New("lxcProfile").Parse(`abi <abi/4.0>,
+#include <tunables/global>
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   ### Base profile
   capability,
