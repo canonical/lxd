@@ -15,6 +15,7 @@ import (
 	"io"
 	"io/fs"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -954,6 +955,134 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 	}
 
 	return s
+}
+
+// Unique removes all duplicated values from the provided slice (in place) while
+// preserving order of unique elements.
+func Unique[S ~[]E, E comparable](s S) S {
+	seen := make(map[E]struct{})
+	end := 0
+	for _, v := range s {
+		_, exists := seen[v]
+		if exists {
+			continue
+		}
+
+		seen[v] = struct{}{}
+		s[end] = v
+		end++
+	}
+
+	// Clear the rest of elements.
+	var zero E
+	for i := end; i < len(s); i++ {
+		s[i] = zero
+	}
+
+	return s[:end]
+}
+
+// EnsurePort adds the provided port ot the given address unless it already
+// have a non zero port number.
+func EnsurePort(addr string, defaultPort string) string {
+	// Check for IP address to properly handle IPv6 addresses.
+	if net.ParseIP(addr) != nil {
+		// For valid IP address just add port number.
+		return net.JoinHostPort(addr, defaultPort)
+	}
+
+	host, port, err := net.SplitHostPort(addr)
+	if err == nil {
+		if port == "" || port == "0" {
+			port = defaultPort
+		}
+
+		// Rejoin host and port to ensure addresses are formatted uniformly.
+		return net.JoinHostPort(host, port)
+	}
+
+	// Attempt to naively add port to handel partially formatted IPv6 addresses.
+	host, port, err = net.SplitHostPort(fmt.Sprintf("%s:%s", addr, defaultPort))
+	if err == nil {
+		// Rejoin host and port to ensure addresses are formatted uniformly.
+		return net.JoinHostPort(host, port)
+	}
+
+	return net.JoinHostPort(addr, defaultPort)
+}
+
+// WithDefaultDeadline returns a derived context with the deadline just like
+// context.WithDeadline, but only if parent context do not already have
+// a deadline or timeout set.
+func WithDefaultDeadline(parent context.Context, d time.Time) (context.Context, context.CancelFunc) {
+	_, ok := parent.Deadline()
+	if ok {
+		return context.WithCancel(parent)
+	}
+
+	return context.WithDeadline(parent, d)
+}
+
+// WithDefaultTimeout returns a derived context with the timeout just like
+// context.WithTimeout, but only if parent context do not already have
+// a deadline or timeout set.
+func WithDefaultTimeout(parent context.Context, t time.Duration) (context.Context, context.CancelFunc) {
+	_, ok := parent.Deadline()
+	if ok {
+		return context.WithCancel(parent)
+	}
+
+	return context.WithTimeout(parent, t)
+}
+
+// WaitFunc waits for the provided callback to return true, while sleeping
+// the given time duration in between the successive calls, or the given
+// context to expire (or be cancelled), whichever happens first. Function
+// returns error returned by the context or nil if the callback returned true.
+func WaitFunc(ctx context.Context, interval time.Duration, fn func() bool) error {
+	for {
+		success := fn()
+		if success {
+			break
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+
+		case <-time.After(interval):
+			// Note, that since 1.23, the garbage collector can recover unreferenced,
+			// unstopped timers.
+		}
+	}
+
+	return nil
+}
+
+// WaitFuncErr behaves just like WaitFunc except it will return early if
+// the provided callback returns non nil error.
+func WaitFuncErr(ctx context.Context, interval time.Duration, fn func() (bool, error)) error {
+	for {
+		success, err := fn()
+		if err != nil {
+			return err
+		}
+
+		if success {
+			break
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+
+		case <-time.After(interval):
+			// Note, that since 1.23, the garbage collector can recover unreferenced,
+			// unstopped timers.
+		}
+	}
+
+	return nil
 }
 
 // RunError is the error from the RunCommand family of functions.

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -33,8 +34,8 @@ const pureAPIVersion = "2.21"
 // pureServiceNameMapping maps Pure Storage mode in LXD to the corresponding Pure Storage
 // service name.
 var pureServiceNameMapping = map[string]string{
-	connectors.TypeISCSI: "iscsi",
-	connectors.TypeNVME:  "nvme-tcp",
+	string(connectors.TypeISCSI): "iscsi",
+	string(connectors.TypeNVME):  "nvme-tcp",
 }
 
 // pureVolTypePrefixes maps volume type to storage volume name prefix.
@@ -1099,52 +1100,48 @@ func (p *pureClient) disconnectHostFromVolume(poolName string, volName string, h
 	return nil
 }
 
-// getTarget retrieves the qualified name and addresses of Pure Storage target for the configured mode.
-func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err error) {
+// getTargets retrieves the qualified name and addresses of Pure Storage target for the configured mode.
+func (p *pureClient) getTargets() ([]connectors.Target, error) {
 	connector, err := p.driver.connector()
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
 	mode := connector.Type()
 
 	// Get Pure Storage service name based on the configured mode.
-	service, ok := pureServiceNameMapping[mode]
+	service, ok := pureServiceNameMapping[string(mode)]
 	if !ok {
-		return "", nil, fmt.Errorf("Failed determining service name for Pure Storage mode %q", mode)
+		return nil, fmt.Errorf("Failed determining service name for Pure Storage mode %q", mode)
 	}
 
 	// Retrieve the list of Pure Storage network interfaces.
 	interfaces, err := p.getNetworkInterfaces(service)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
 	if len(interfaces) == 0 {
-		return "", nil, api.StatusErrorf(http.StatusNotFound, "Enabled network interface with %q service not found", service)
+		return nil, api.StatusErrorf(http.StatusNotFound, "Enabled network interface with %q service not found", service)
 	}
 
-	// First check if target addresses are configured, otherwise, use the discovered ones.
-	targetAddrs = shared.SplitNTrimSpace(p.driver.config["pure.target"], ",", -1, true)
-	if len(targetAddrs) == 0 {
-		targetAddrs = make([]string, 0, len(interfaces))
-		for _, iface := range interfaces {
-			targetAddrs = append(targetAddrs, iface.Ethernet.Address)
-		}
-	}
-
-	// Get the qualified name of the target by iterating over the available
-	// ports until the one with the qualified name is found. All ports have
-	// the same IQN, but it may happen that IQN is not reported for a
-	// specific port, for example, if the port is misconfigured.
-	var nq string
+	targets := make([]connectors.Target, 0, len(interfaces))
 	for _, iface := range interfaces {
+		// TODO: Derive port from the API response.
+		addr := iface.Ethernet.Address
+		switch mode {
+		case connectors.TypeISCSI:
+			addr = net.JoinHostPort(addr, "3260")
+		case connectors.TypeNVME:
+			addr = net.JoinHostPort(addr, "4420")
+		}
+
 		var resp pureResponse[purePort]
 
 		url := api.NewURL().Path("ports").WithQuery("filter", "name='"+iface.Name+"'")
 		err = p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed retrieving Pure Storage targets: %w", err)
+			return nil, fmt.Errorf("Failed retrieving Pure Storage qualified name for interface %q: %w", iface.Name, err)
 		}
 
 		if len(resp.Items) == 0 {
@@ -1152,25 +1149,29 @@ func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err err
 		}
 
 		port := resp.Items[0]
+		nq := ""
 
-		if mode == connectors.TypeISCSI {
+		switch mode {
+		case connectors.TypeISCSI:
 			nq = port.IQN
-		}
-
-		if mode == connectors.TypeNVME {
+		case connectors.TypeNVME:
 			nq = port.NQN
 		}
 
-		if nq != "" {
-			break
+		if nq == "" {
+			continue
 		}
+
+		targets = append(targets, connectors.Target{QualifiedName: nq, Address: addr})
 	}
 
-	if nq == "" {
-		return "", nil, api.StatusErrorf(http.StatusNotFound, "Qualified name for %q target not found", mode)
+	targetAddrs := shared.SplitNTrimSpace(p.driver.config["pure.target"], ",", -1, true)
+	// First check if target addresses are configured, otherwise, use the discovered ones.
+	if len(targetAddrs) > 0 {
+		targets = connectors.MatchTargetAddresses(mode, targets, targetAddrs...)
 	}
 
-	return nq, targetAddrs, nil
+	return targets, nil
 }
 
 // ensureHost returns a name of the host that is configured with a given IQN. If such host
@@ -1210,7 +1211,7 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 
 		// Append the mode to the server name because Pure Storage does not allow mixing
 		// NQNs, IQNs, and WWNs for a single host.
-		hostname = serverName + "-" + connector.Type()
+		hostname = serverName + "-" + string(connector.Type())
 
 		err = d.client().createHost(hostname, []string{qn})
 		if err != nil {
@@ -1251,7 +1252,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		return nil, err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	unlock, err := remoteVolumeMapLock(string(connector.Type()), d.Info().Name)
 	if err != nil {
 		return nil, err
 	}
@@ -1277,13 +1278,13 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	}
 
 	// Find the array's qualified name for the configured mode.
-	targetQN, targetAddrs, err := d.client().getTarget()
+	targets, err := d.client().getTargets()
 	if err != nil {
 		return nil, err
 	}
 
 	// Connect to the array.
-	connReverter, err := connector.Connect(d.state.ShutdownCtx, targetQN, targetAddrs...)
+	connReverter, err := connector.Connect(d.state.ShutdownCtx, targets...)
 	if err != nil {
 		return nil, err
 	}
@@ -1321,7 +1322,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 		return err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	unlock, err := remoteVolumeMapLock(string(connector.Type()), d.Info().Name)
 	if err != nil {
 		return err
 	}
@@ -1359,13 +1360,13 @@ func (d *pure) unmapVolume(vol Volume) error {
 	// If this was the last volume being unmapped from this system, disconnect the active session
 	// and remove the host from Pure Storage.
 	if host.ConnectionCount <= 1 {
-		targetQN, _, err := d.client().getTarget()
+		targets, err := d.client().getTargets()
 		if err != nil {
 			return err
 		}
 
 		// Disconnect from the target.
-		err = connector.Disconnect(targetQN)
+		err = connector.Disconnect(d.state.ShutdownCtx, targets...)
 		if err != nil {
 			return err
 		}
@@ -1440,15 +1441,7 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 		return strings.HasSuffix(devPath, strings.ToLower(diskSuffix))
 	}
 
-	var devicePath string
-	if mapVolume {
-		// Wait until the disk device is mapped to the host.
-		devicePath, err = connector.WaitDiskDevicePath(d.state.ShutdownCtx, diskPathFilter)
-	} else {
-		// Expect device to be already mapped.
-		devicePath, err = connector.GetDiskDevicePath(diskPathFilter)
-	}
-
+	devicePath, err := connector.GetDiskDevicePath(d.state.ShutdownCtx, mapVolume, diskPathFilter)
 	if err != nil {
 		return "", nil, fmt.Errorf("Failed locating device for volume %q: %w", vol.name, err)
 	}

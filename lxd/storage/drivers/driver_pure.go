@@ -24,8 +24,8 @@ var pureVersion = ""
 
 // pureSupportedConnectors represents a list of storage connectors that can be used with Pure Storage.
 var pureSupportedConnectors = []string{
-	connectors.TypeISCSI,
-	connectors.TypeNVME,
+	string(connectors.TypeISCSI),
+	string(connectors.TypeNVME),
 }
 
 // pureMinVolumeSizeBytes defines the minimum size of a Pure Storage volume, which is 1MiB.
@@ -53,7 +53,12 @@ func (d *pure) load() error {
 		return nil
 	}
 
-	versions := connectors.GetSupportedVersions(pureSupportedConnectors)
+	connnectorTypes := make([]connectors.ConnectorType, len(pureSupportedConnectors))
+	for i := range pureSupportedConnectors {
+		connnectorTypes[i] = connectors.ConnectorType(pureSupportedConnectors[i])
+	}
+
+	versions := connectors.GetSupportedVersions(connnectorTypes)
 	pureVersion = strings.Join(versions, " / ")
 	pureLoaded = true
 
@@ -72,7 +77,7 @@ func (d *pure) load() error {
 // Pure Storage mode. The connector is cached in the driver struct.
 func (d *pure) connector() (connectors.Connector, error) {
 	if d.storageConnector == nil {
-		connector, err := connectors.NewConnector(d.config["pure.mode"], d.state.OS.ServerUUID)
+		connector, err := connectors.NewConnector(connectors.ConnectorType(d.config["pure.mode"]), d.state.OS.ServerUUID)
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +127,7 @@ func (d *pure) Info() Info {
 func (d *pure) FillConfig() error {
 	// Use NVMe by default.
 	if d.config["pure.mode"] == "" {
-		d.config["pure.mode"] = connectors.TypeNVME
+		d.config["pure.mode"] = string(connectors.TypeNVME)
 	}
 
 	return nil
@@ -196,7 +201,7 @@ func (d *pure) Validate(config map[string]string) error {
 	// gets executed on every cluster member when receiving the cluster
 	// notification to finally create the pool.
 	if newMode != "" {
-		connector, err := connectors.NewConnector(newMode, "")
+		connector, err := connectors.NewConnector(connectors.ConnectorType(newMode), "")
 		if err != nil {
 			return fmt.Errorf("Pure Storage mode %q is not supported: %w", newMode, err)
 		}

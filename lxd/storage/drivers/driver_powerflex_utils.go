@@ -830,39 +830,27 @@ func (d *powerflex) getHostGUID() (string, error) {
 	return d.sdcGUID, nil
 }
 
-// getNVMeTargetQN discovers the targetQN used for the given addresses.
+// getNVMeTargets discovers the targetQN used for the given addresses.
 // The targetQN is unqiue per PowerFlex storage pool.
 // Cache the targetQN as it doesn't change throughout the lifetime of the storage pool.
-func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
-	if d.nvmeTargetQN == "" {
-		connector, err := d.connector()
-		if err != nil {
-			return "", err
-		}
-
-		// The discovery log from the first reachable target address is returned.
-		discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
-		if err != nil {
-			return "", fmt.Errorf("Failed discovering SDT NQN: %w", err)
-		}
-
-		for _, recordAny := range discoveryLogRecords {
-			record, ok := recordAny.(connectors.NVMeDiscoveryLogRecord)
-			if !ok {
-				return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
-			}
-
-			if record.SubType != connectors.SubtypeNVMESubsys {
-				continue
-			}
-
-			// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
-			d.nvmeTargetQN = record.SubNQN
-			break
-		}
+func (d *powerflex) getNVMeTargets(targetAddresses ...string) ([]connectors.Target, error) {
+	if len(d.nvmeTargets) != 0 {
+		return d.nvmeTargets, nil
 	}
 
-	return d.nvmeTargetQN, nil
+	connector, err := d.connector()
+	if err != nil {
+		return nil, err
+	}
+
+	targets, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed discovering SDT targets: %w", err)
+	}
+
+	d.nvmeTargets = connectors.MatchTargetAddresses(connector.Type(), targets, targetAddresses...)
+
+	return d.nvmeTargets, nil
 }
 
 // getNVMeTargetAddresses discovers all SDTs (targets) from PowerFlex for the respective storage pool.
@@ -998,9 +986,9 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 		return nil, err
 	}
 
-	switch d.config["powerflex.mode"] {
+	switch connectors.ConnectorType(d.config["powerflex.mode"]) {
 	case connectors.TypeNVME:
-		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+		unlock, err := remoteVolumeMapLock(string(connector.Type()), d.Info().Name)
 		if err != nil {
 			return nil, err
 		}
@@ -1062,15 +1050,15 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 	}
 
 	var cleanup revert.Hook
-	if d.config["powerflex.mode"] == connectors.TypeNVME {
+	if d.config["powerflex.mode"] == string(connectors.TypeNVME) {
 		// Discover all SDTs from PowerFlex for the respective storage pool.
 		targetAddresses, err := d.getNVMeTargetAddresses()
 		if err != nil {
 			return nil, err
 		}
 
-		// Discover the SDT's targetQN from any of the addresses.
-		targetQN, err := d.getNVMeTargetQN(targetAddresses...)
+		// Discover the SDT's targets from any of the addresses.
+		targets, err := d.getNVMeTargets(targetAddresses...)
 		if err != nil {
 			return nil, err
 		}
@@ -1079,7 +1067,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 		// In case of NVMe/TCP, we have to connect after the first mapping was established,
 		// as PowerFlex does not offer any discovery log entries until a volume gets mapped
 		// to the host.
-		cleanup, err = connector.Connect(d.state.ShutdownCtx, targetQN, targetAddresses...)
+		cleanup, err = connector.Connect(d.state.ShutdownCtx, targets...)
 		if err != nil {
 			return nil, err
 		}
@@ -1100,7 +1088,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 	// This ensures that ongoing connection attempts that haven't yet finished are cancelled
 	// before potentially running unmap volume.
 	// As the revert hooks are called in reverse order add the connection cleanup after unmap.
-	if d.config["powerflex.mode"] == connectors.TypeNVME {
+	if d.config["powerflex.mode"] == string(connectors.TypeNVME) {
 		outerReverter.Add(cleanup)
 	}
 
@@ -1142,15 +1130,7 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 		return strings.Contains(path, powerFlexVolumeID)
 	}
 
-	var devicePath string
-	if mapVolume {
-		// Wait for the device path to appear as the volume has been just mapped to the host.
-		devicePath, err = connector.WaitDiskDevicePath(d.state.ShutdownCtx, devicePathFilter)
-	} else {
-		// Get the the device path without waiting.
-		devicePath, err = connector.GetDiskDevicePath(devicePathFilter)
-	}
-
+	devicePath, err := connector.GetDiskDevicePath(d.state.ShutdownCtx, mapVolume, devicePathFilter)
 	if err != nil {
 		return "", nil, fmt.Errorf("Failed locating device for volume %q: %w", vol.name, err)
 	}
@@ -1179,7 +1159,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 	}
 
 	var host *powerFlexSDC
-	switch d.config["powerflex.mode"] {
+	switch connectors.ConnectorType(d.config["powerflex.mode"]) {
 	case connectors.TypeNVME:
 		hostNQN, err := connector.QualifiedName()
 		if err != nil {
@@ -1191,7 +1171,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 			return err
 		}
 
-		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+		unlock, err := remoteVolumeMapLock(string(connector.Type()), d.Info().Name)
 		if err != nil {
 			return err
 		}
@@ -1226,7 +1206,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 	// In case of SDC the driver doesn't manage the underlying connection to PowerFlex.
 	// Therefore if this was the last volume being unmapped from this system
 	// LXD will not try to cleanup the connection.
-	if d.config["powerflex.mode"] == connectors.TypeNVME {
+	if d.config["powerflex.mode"] == string(connectors.TypeNVME) {
 		mappings, err := client.getHostVolumeMappings(host.ID)
 		if err != nil {
 			return err
@@ -1238,14 +1218,14 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 				return err
 			}
 
-			targetQN, err := d.getNVMeTargetQN(targetAddresses...)
+			targets, err := d.getNVMeTargets(targetAddresses...)
 			if err != nil {
 				return err
 			}
 
 			// Disconnect from the NVMe subsystem.
 			// Do this first before removing the host from PowerFlex.
-			err = connector.Disconnect(targetQN)
+			err = connector.Disconnect(d.state.ShutdownCtx, targets...)
 			if err != nil {
 				return err
 			}

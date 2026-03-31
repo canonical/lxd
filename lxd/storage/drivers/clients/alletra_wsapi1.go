@@ -503,7 +503,7 @@ func (p *AlletraClient) getHosts() ([]hpeHost, error) {
 // GetCurrentHost retrieves the HPE Alletra Storage host linked to the current LXD host.
 // The Alletra Storage host is considered a match if it includes the fully qualified
 // name of the LXD host that is determined by the configured mode.
-func (p *AlletraClient) GetCurrentHost(connectorType string, qn string) (*hpeHost, error) {
+func (p *AlletraClient) GetCurrentHost(connectorType connectors.ConnectorType, qn string) (*hpeHost, error) {
 	hosts, err := p.getHosts()
 	if err != nil {
 		return nil, err
@@ -532,7 +532,7 @@ func (p *AlletraClient) GetCurrentHost(connectorType string, qn string) (*hpeHos
 
 // CreateHost creates a new host with provided initiator qualified names that can be associated
 // with specific volumes.
-func (p *AlletraClient) CreateHost(connectorType string, hostName string, qns []string) error {
+func (p *AlletraClient) CreateHost(connectorType connectors.ConnectorType, hostName string, qns []string) error {
 	req := map[string]any{
 		"descriptors": map[string]any{
 			"comment": "Created and managed by LXD",
@@ -677,7 +677,7 @@ func (p *AlletraClient) DeleteVolume(poolName string, volName string) error {
 }
 
 // GetTargetAddrs gets an information about IP addresses of storage array targets.
-func (p *AlletraClient) GetTargetAddrs(connectorType string) (targetAddrs []string, err error) {
+func (p *AlletraClient) GetTargetAddrs(connectorType connectors.ConnectorType) (targetAddrs []string, err error) {
 	var portData hpeRespMembers[hpePort]
 
 	apiPorts := api.NewURL().Path("api", "v1", "ports")
