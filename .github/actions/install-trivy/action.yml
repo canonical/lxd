@@ -1,6 +1,12 @@
 name: Install Trivy
 description: Installs Trivy from deb package
 
+inputs:
+  trivy-version:
+    description: "Trivy version to install (e.g. 0.69.3). If empty, installs the latest available version."
+    required: false
+    default: ""
+
 runs:
   using: composite
   steps:
@@ -15,4 +21,8 @@ runs:
         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
         echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
         sudo apt-get update
-        sudo apt-get install trivy
+        if [ -n "${{ inputs.trivy-version }}" ]; then
+          sudo apt-get install -y "trivy=${{ inputs.trivy-version }}"
+        else
+          sudo apt-get install -y trivy
+        fi
