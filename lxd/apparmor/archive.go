@@ -13,7 +13,8 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
-var archiveProfileTpl = template.Must(template.New("archiveProfile").Parse(`#include <tunables/global>
+var archiveProfileTpl = template.Must(template.New("archiveProfile").Parse(`abi <abi/4.0>,
+#include <tunables/global>
 profile "{{.name}}" {
   #include <abstractions/base>
   #include <abstractions/nameservice>
