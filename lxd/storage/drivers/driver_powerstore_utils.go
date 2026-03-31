@@ -250,6 +250,9 @@ var powerStoreVolContentTypeSuffixesRev = map[string]ContentType{
 // powerStorePoolAndVolSep separates pool name and volume data in encoded volume names.
 const powerStorePoolAndVolSep = "-"
 
+// powerStoreVolSnapSuffix volume snapshot name suffix
+const powerStoreVolSnapSuffix = "-snap"
+
 // volumeResourceNamePrefix returns the prefix used by all volume resource
 // names in PowerStore associated with the current storage pool.
 func (d *powerstore) volumeResourceNamePrefix() string {
@@ -328,6 +331,16 @@ func (d *powerstore) extractDataFromVolumeResourceName(name string) (poolHash st
 func (d *powerstore) volumeWWN(volResource *powerstoreclient.VolumeResource) string {
 	_, wwn, _ := strings.Cut(volResource.WWN, ".")
 	return wwn
+}
+
+// volumeSnapshotResourceName derives the name of a volume snapshot resource
+// in PowerStore from the provided volume snapshot.
+func (d *powerstore) volumeSnapshotResourceName(snapVol Volume) (string, error) {
+	name, err := d.volumeResourceName(snapVol)
+	if err != nil {
+		return "", err
+	}
+	return name + powerStoreVolSnapSuffix, nil
 }
 
 // hostResourceName derives the name of a host resource in PowerStore
@@ -783,4 +796,103 @@ func (d *powerstore) deleteHostAndInitiatorResource(hostResource *powerstoreclie
 	}
 
 	return d.client().DeleteHostByID(d.state.ShutdownCtx, hostResource.ID)
+}
+
+// getVolumeResourceSnapshotByVolumeSnapshot retrieves volume resource associated with
+// the provided volume.
+func (d *powerstore) getVolumeResourceSnapshotByVolumeSnapshot(snapVol Volume) (*powerstoreclient.VolumeResource, error) {
+	volSnapResourceName, err := d.volumeSnapshotResourceName(snapVol)
+	if err != nil {
+		return nil, err
+	}
+
+	volSnapResource, err := d.client().GetVolumeSnapshotByName(d.state.ShutdownCtx, volSnapResourceName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed retrieving PowerStore volume resource snapshot %q associated with volume snapshot %q: %w", volSnapResourceName, snapVol.name, err)
+	}
+
+	return volSnapResource, nil
+}
+
+// getExistingVolumeResourceSnapshotByVolumeSnapshot retrieves volume resource
+// snapshot associated with the provided volume snapshot, just like
+// getVolumeResourceSnapshotByVolumeSnapshot function, but returns error if
+// the volume resource snapshot does not exists.
+func (d *powerstore) getExistingVolumeResourceSnapshotByVolumeSnapshot(snapVol Volume) (*powerstoreclient.VolumeResource, error) {
+	volSnapResourceName, err := d.volumeSnapshotResourceName(snapVol)
+	if err != nil {
+		return nil, err
+	}
+
+	volSnapResource, err := d.client().GetVolumeSnapshotByName(d.state.ShutdownCtx, volSnapResourceName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed retrieving PowerStore volume resource snapshot %q associated with volume snapshot %q: %w", volSnapResourceName, snapVol.name, err)
+	}
+
+	if volSnapResource == nil {
+		return nil, fmt.Errorf("Failed retrieving PowerStore volume resource snapshot %q associated with volume snapshot %q: resource not found", volSnapResourceName, snapVol.name)
+	}
+
+	return volSnapResource, nil
+}
+
+// createVolumeResourceSnapshot creates a new snapshot of volume resources in
+// PowerStore.
+func (d *powerstore) createVolumeResourceSnapshot(snapVol Volume) (*powerstoreclient.VolumeResource, error) {
+	parentVolResource, err := d.getExistingVolumeResourceByVolume(snapVol.GetParent())
+	if err != nil {
+		return nil, err
+	}
+
+	volSnapResourceName, err := d.volumeSnapshotResourceName(snapVol)
+	if err != nil {
+		return nil, err
+	}
+
+	desc := limitString("LXD Name: "+snapVol.name, 128) // maximum allowed value length for volume snapshot description field is 128
+
+	return d.client().CreateVolumeSnapshot(d.state.ShutdownCtx, parentVolResource.ID, volSnapResourceName, desc)
+}
+
+// deleteVolumeResourceSnapshot deletes snapshot of volume resources in
+// PowerStore.
+func (d *powerstore) deleteVolumeResourceSnapshot(volSnapResource *powerstoreclient.VolumeResource) error {
+	return d.deleteVolumeResource(volSnapResource)
+}
+
+// copyVolumeResourceSnapshotToVolume clones the provided volume resource
+// snapshot, if the volume resource associated with the target volume do not
+// exists. Otherwise it restores the volume resource associated with the target
+// volume from the provided volume resource snapshot.
+func (d *powerstore) copyVolumeResourceSnapshotToVolume(srcVolSnapResource *powerstoreclient.VolumeResource, dstVol Volume) (*powerstoreclient.VolumeResource, error) {
+	dstVolResourceName, err := d.volumeResourceName(dstVol)
+	if err != nil {
+		return nil, err
+	}
+
+	dstVolResource, err := d.getVolumeResourceByVolume(dstVol)
+	if err != nil {
+		return nil, err
+	}
+
+	if dstVolResource == nil {
+		// Destination volume do not exists yet - use clone to create it.
+		dstDesc := limitString("LXD Name: "+dstVol.name, 128) // maximum allowed value length for volume description field is 128
+
+		dstVolResource, err := d.client().CloneVolume(d.state.ShutdownCtx, srcVolSnapResource.ID, dstVolResourceName, dstDesc)
+		if err != nil {
+			return nil, err
+		}
+
+		return dstVolResource, nil
+	}
+
+	// Destination volume already exists - use refresh to update it.
+	// TODO: Use restore when available instead.
+	err = d.client().RefreshVolume(d.state.ShutdownCtx, srcVolSnapResource.ID, dstVolResource.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return dstVolResource, nil
 }
