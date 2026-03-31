@@ -184,16 +184,19 @@ func (c CertificateMetadata) X509() (*x509.Certificate, error) {
 }
 
 // ToCertificate converts an [IdentitiesRow] to a [CertificateLegacy].
-func (i IdentitiesRow) ToCertificate() (*CertificateLegacy, error) {
+func (i IdentitiesRow) ToCertificate(idToCert map[int64][]string) (*CertificateLegacy, error) {
+	if idToCert == nil {
+		return nil, errors.New("Missing required certificate data")
+	}
+
+	certs, ok := idToCert[i.ID]
+	if !ok || len(certs) == 0 {
+		return nil, errors.New("No certificate data")
+	}
+
 	certificateType, err := i.Type.toCertificateType()
 	if err != nil {
 		return nil, fmt.Errorf("Failed converting identity type to certificate type: %w", err)
-	}
-
-	var metadata CertificateMetadata
-	err = json.Unmarshal([]byte(i.Metadata), &metadata)
-	if err != nil {
-		return nil, fmt.Errorf("Failed unmarshaling certificate identity metadata: %w", err)
 	}
 
 	identityType, err := identity.New(string(i.Type))
@@ -215,7 +218,8 @@ func (i IdentitiesRow) ToCertificate() (*CertificateLegacy, error) {
 		Fingerprint: i.Identifier,
 		Type:        certificateType,
 		Name:        i.Name,
-		Certificate: metadata.Certificate,
+		// Expect that the zeroth entry is the most recent.
+		Certificate: certs[0],
 		Restricted:  isRestricted,
 	}
 
