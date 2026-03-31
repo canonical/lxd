@@ -2298,29 +2298,23 @@ func newIdentityNotificationFunc(s *state.State, r *http.Request, networkCert *s
 	}
 }
 
-// validateIdentityCert validates the certificate and returns the fingerprint and dbCluster.CertificateMetadata for the
-// identity encoded as JSON.
-func validateIdentityCert(networkCert *shared.CertInfo, cert string) (fingerprint string, metadataJSON string, err error) {
+// validateIdentityCert validates the certificate and returns its fingerprint.
+func validateIdentityCert(networkCert *shared.CertInfo, cert string) (fingerprint string, err error) {
 	if cert == "" {
-		return "", "", api.NewStatusError(http.StatusBadRequest, "Must provide a certificate")
+		return "", api.NewStatusError(http.StatusBadRequest, "Must provide a certificate")
 	}
 
 	x509Cert, err := shared.ParseCert([]byte(cert))
 	if err != nil {
-		return "", "", api.StatusErrorf(http.StatusBadRequest, "Failed parsing certificate: %w", err)
+		return "", api.StatusErrorf(http.StatusBadRequest, "Failed parsing certificate: %w", err)
 	}
 
 	err = certificateValidate(networkCert, x509Cert)
 	if err != nil {
-		return "", "", fmt.Errorf("Invalid certificate: %w", err)
+		return "", fmt.Errorf("Invalid certificate: %w", err)
 	}
 
-	b, err := json.Marshal(dbCluster.CertificateMetadata{Certificate: cert})
-	if err != nil {
-		return "", "", fmt.Errorf("Failed encoding certificate metadata: %w", err)
-	}
-
-	return shared.CertFingerprint(x509Cert), string(b), nil
+	return shared.CertFingerprint(x509Cert), nil
 }
 
 // updateIdentityCache reads all identities from the database and sets them in the identity.Cache.
