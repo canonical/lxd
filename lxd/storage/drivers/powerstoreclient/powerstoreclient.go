@@ -830,7 +830,7 @@ type HostVolumeMappingResource struct {
 	VolumeID string `json:"volume_id,omitempty"`
 }
 
-func (c *Client) getVolumesByQuery(ctx context.Context, query query, filterOwnedByLxd bool) ([]*VolumeResource, bool, error) {
+func (c *Client) getVolumeInstancesByQuery(ctx context.Context, query query, filterOwnedByLxd bool) ([]*VolumeResource, bool, error) {
 	query = query.Set("select", "id,name,description,type,state,size,logical_used,wwn,app_type,app_type_other,volume_groups(id),mapped_volumes(id,host_id,volume_id)")
 
 	body := []*VolumeResource{}
@@ -861,6 +861,10 @@ func (c *Client) getVolumesByQuery(ctx context.Context, query query, filterOwned
 	}
 
 	return filtered, hasMore, nil
+}
+
+func (c *Client) getVolumesByQuery(ctx context.Context, query query, filterOwnedByLxd bool) ([]*VolumeResource, bool, error) {
+	return c.getVolumeInstancesByQuery(ctx, query.Set("or", "(type.eq.Primary,type.eq.Clone)"), filterOwnedByLxd)
 }
 
 func (c *Client) getVolumeByQuery(ctx context.Context, query query, filterOwnedByLxd bool) (*VolumeResource, error) {
@@ -961,6 +965,137 @@ func (c *Client) RemoveMembersFromVolumeGroup(ctx context.Context, id string, vo
 	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPost, "/api/rest/volume_group/"+id+"/remove_members", reqBody, nil)
 	if err != nil {
 		return fmt.Errorf("Removing members from PowerStore volume group: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) getVolumeSnapshotsByQuery(ctx context.Context, query query) ([]*VolumeResource, bool, error) {
+	return c.getVolumeInstancesByQuery(ctx, query.Set("type", "eq.Snapshot"), true)
+}
+
+func (c *Client) getVolumeSnapshotByQuery(ctx context.Context, query query) (*VolumeResource, error) {
+	volSnaps, _, err := c.getVolumeSnapshotsByQuery(ctx, query.Paginate(pagination{ItemsPerPage: 1}))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(volSnaps) == 0 {
+		return nil, nil
+	}
+
+	return volSnaps[0], nil
+}
+
+// GetVolumeSnapshots retrieves list of volume snapshots associated with the provided volume.
+func (c *Client) GetVolumeSnapshots(ctx context.Context, parentID string) ([]*VolumeResource, error) {
+	query := query{"protection_data->>parent_id": "eq." + parentID}
+
+	var vols []*VolumeResource
+	for page := 0; ; page++ {
+		volsPage, hasMore, err := c.getVolumeSnapshotsByQuery(ctx, query.Paginate(pagination{Page: page}))
+		if err != nil {
+			return nil, err
+		}
+
+		vols = append(vols, volsPage...)
+		if !hasMore {
+			return vols, nil
+		}
+	}
+}
+
+// GetVolumeSnapshotByID retrieves volume snapshot using its ID.
+func (c *Client) GetVolumeSnapshotByID(ctx context.Context, id string) (*VolumeResource, error) {
+	return c.getVolumeSnapshotByQuery(ctx, query{"id": "eq." + id})
+}
+
+// GetVolumeSnapshotByName retrieves volume snapshot using its name.
+func (c *Client) GetVolumeSnapshotByName(ctx context.Context, name string) (*VolumeResource, error) {
+	return c.getVolumeSnapshotByQuery(ctx, query{"name": "eq." + name})
+}
+
+type createVolumeSnapshotResource struct {
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// CreateVolumeSnapshot creates a new snapshot of a volume.
+func (c *Client) CreateVolumeSnapshot(ctx context.Context, parentID, name, description string) (*VolumeResource, error) {
+	body := &IDResource{}
+	reqBody := &createVolumeSnapshotResource{Name: name, Description: description}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPost, "/api/rest/volume/"+parentID+"/snapshot", reqBody, body)
+	if err != nil {
+		return nil, fmt.Errorf("Creating PowerStore volume snapshot: %w", err)
+	}
+
+	// Fetch volume snapshot to populate all fields.
+	created, err := c.GetVolumeSnapshotByID(ctx, body.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Creating PowerStore volume snapshot: %w", err)
+	}
+
+	if created == nil {
+		return nil, errors.New("Creating PowerStore volume snapshot: No data of new volume snapshot found")
+	}
+
+	return created, nil
+}
+
+type cloneVolumeResource struct {
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// CloneVolume clones the volume or the volume snapshot with the provided ID to a new volume.
+func (c *Client) CloneVolume(ctx context.Context, srcVolID, dstVolName, dstVolDescription string) (*VolumeResource, error) {
+	body := &IDResource{}
+	reqBody := &createVolumeSnapshotResource{Name: dstVolName, Description: dstVolDescription}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPost, "/api/rest/volume/"+srcVolID+"/clone", reqBody, body)
+	if err != nil {
+		return nil, fmt.Errorf("Creating PowerStore volume clone: %w", err)
+	}
+
+	// Fetch volume to populate all fields.
+	created, err := c.GetVolumeByID(ctx, body.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Creating PowerStore volume clone: %w", err)
+	}
+
+	if created == nil {
+		return nil, errors.New("Creating PowerStore volume clone: No data of new volume found")
+	}
+
+	return created, nil
+}
+
+type restoreVolumeResource struct {
+	FromSnapID           string `json:"from_snap_id"`
+	CreateBackupSnapshot bool   `json:"create_backup_snap"`
+}
+
+// RestoreVolume restores the volume form the volume snapshot.
+func (c *Client) RestoreVolume(ctx context.Context, srcVolSnapID, dstVolID string) error {
+	reqBody := &restoreVolumeResource{FromSnapID: srcVolSnapID}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPost, "/api/rest/volume/"+dstVolID+"/restore", reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("Restoring PowerStore volume from snapshot: %w", err)
+	}
+
+	return nil
+}
+
+type refreshVolumeResource struct {
+	FromObjectID         string `json:"from_object_id"`
+	CreateBackupSnapshot bool   `json:"create_backup_snap"`
+}
+
+// RefreshVolume refreshes the volume form the volume or the volume snapshot.
+func (c *Client) RefreshVolume(ctx context.Context, srcVolID, dstVolID string) error {
+	reqBody := &refreshVolumeResource{FromObjectID: srcVolID}
+	_, err := c.doAuthenticatedHTTPRequest(ctx, http.MethodPost, "/api/rest/volume/"+dstVolID+"/refresh", reqBody, nil)
+	if err != nil {
+		return fmt.Errorf("Refreshing PowerStore volume: %w", err)
 	}
 
 	return nil
