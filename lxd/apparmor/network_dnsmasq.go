@@ -30,6 +30,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # Network access
   network inet raw,
   network inet6 raw,
+  unix (send, receive, accept) type=stream addr=auto peer=(label=unconfined),
 
   # Network-specific paths
   {{ .varPath }}/networks/{{ .networkName }}/dnsmasq.hosts/{,*} r,
