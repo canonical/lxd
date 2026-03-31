@@ -140,6 +140,12 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
 	})
 	if err != nil {
+		// cluster.UpdateOperation returns a conflict error if the operation exists but is not present on the given node ID (this node).
+		// This means the operation has been relocated. Cancel the operation if it is durable so that it is not running in two places at once.
+		if api.StatusErrorCheck(err, http.StatusConflict) && op.Class() == operationtype.OperationClassDurable {
+			cancelInternal(op)
+		}
+
 		return fmt.Errorf("Failed updating operation %q record: %w", op.id, err)
 	}
 
