@@ -48,7 +48,7 @@ type Operation struct {
 	StatusCode StatusCode `json:"status_code" yaml:"status_code"`
 
 	// Affected resources
-	// Example: {"containers": ["/1.0/containers/foo"], "instances": ["/1.0/instances/foo"]}
+	// Example: {"instances": ["/1.0/instances/foo", "/1.0/instances/bar"]}
 	Resources map[string][]string `json:"resources" yaml:"resources"`
 
 	// Operation specific metadata
