@@ -29,8 +29,13 @@ func (a *AuthGroupsRow) ScanArgs() []any {
 	return []any{&a.ID, &a.Name, &a.Description}
 }
 
-// CreateValues returns a list of values from [AuthGroupsRow] entities matching the columns returned from CreateColumns.
+// CreateValues returns a list of values from [AuthGroupsRow] entities matching the bind arguments in [CreateStmt].
 func (a AuthGroupsRow) CreateValues() []any {
+	return []any{a.Name, a.Description}
+}
+
+// UpdateValues returns a list of values from [AuthGroupsRow] entities matching the columns in [UpdateStmt].
+func (a AuthGroupsRow) UpdateValues() []any {
 	return []any{a.Name, a.Description}
 }
 
@@ -52,6 +57,62 @@ func (a AuthGroupsRow) CreateStmt() string {
 // UpdateStmt returns a query that updates a [AuthGroupsRow] by primary key.
 func (a AuthGroupsRow) UpdateStmt() string {
 	return "UPDATE auth_groups SET name = ?, description = ? "
+}
+
+// TableName returns the table name for [CertificatesRow] entities.
+func (c CertificatesRow) TableName() string {
+	return "certificates"
+}
+
+// SelectColumns returns a slice of column names for [CertificatesRow] entities.
+func (c CertificatesRow) SelectColumns() []string {
+	return []string{
+		"certificates.id",
+		"certificates.fingerprint",
+		"certificates.certificate",
+		"certificates.creation_date",
+	}
+}
+
+// Joins returns a slice of join expressions for [CertificatesRow].
+func (c CertificatesRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [CertificatesRow].
+// This returns references to struct fields in definition order.
+func (c *CertificatesRow) ScanArgs() []any {
+	return []any{&c.ID, &c.Fingerprint, &c.Certificate, &c.CreationDate}
+}
+
+// CreateValues returns a list of values from [CertificatesRow] entities matching the bind arguments in [CreateStmt].
+func (c CertificatesRow) CreateValues() []any {
+	return []any{c.Fingerprint, c.Certificate}
+}
+
+// UpdateValues returns a list of values from [CertificatesRow] entities matching the columns in [UpdateStmt].
+func (c CertificatesRow) UpdateValues() []any {
+	return []any{c.Fingerprint, c.Certificate}
+}
+
+// PKColumn returns the column name for the primary key of a [CertificatesRow] entity used during an update.
+func (c CertificatesRow) PKColumn() string {
+	return "id"
+}
+
+// PKValue returns the value for the primary key of a [CertificatesRow] entity used during an update.
+func (c CertificatesRow) PKValue() any {
+	return c.ID
+}
+
+// CreateStmt returns a query that creates a [CertificatesRow] entity.
+func (c CertificatesRow) CreateStmt() string {
+	return "INSERT INTO certificates (fingerprint, certificate) VALUES (?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [CertificatesRow] by primary key.
+func (c CertificatesRow) UpdateStmt() string {
+	return "UPDATE certificates SET fingerprint = ?, certificate = ? "
 }
 
 // TableName returns the table name for [IdentitiesRow] entities.
@@ -82,8 +143,13 @@ func (i *IdentitiesRow) ScanArgs() []any {
 	return []any{&i.ID, &i.AuthMethod, &i.Type, &i.Identifier, &i.Name, &i.Metadata}
 }
 
-// CreateValues returns a list of values from [IdentitiesRow] entities matching the columns returned from CreateColumns.
+// CreateValues returns a list of values from [IdentitiesRow] entities matching the bind arguments in [CreateStmt].
 func (i IdentitiesRow) CreateValues() []any {
+	return []any{i.AuthMethod, i.Type, i.Identifier, i.Name, i.Metadata}
+}
+
+// UpdateValues returns a list of values from [IdentitiesRow] entities matching the columns in [UpdateStmt].
+func (i IdentitiesRow) UpdateValues() []any {
 	return []any{i.AuthMethod, i.Type, i.Identifier, i.Name, i.Metadata}
 }
 
@@ -107,55 +173,38 @@ func (i IdentitiesRow) UpdateStmt() string {
 	return "UPDATE identities SET auth_method = ?, type = ?, identifier = ?, name = ?, metadata = ? "
 }
 
-// TableName returns the table name for [PlacementGroupsRow] entities.
-func (p PlacementGroupsRow) TableName() string {
-	return "placement_groups"
+// TableName returns the table name for [IdentityCertificate] entities.
+func (i IdentityCertificate) TableName() string {
+	return "certificates"
 }
 
-// SelectColumns returns a slice of column names for [PlacementGroupsRow] entities.
-func (p PlacementGroupsRow) SelectColumns() []string {
+// APIName implements [query.APINamer] for API friendly error messages.
+func (i IdentityCertificate) APIName() string {
+	return i.Row.APIName()
+}
+
+// SelectColumns returns a slice of column names for [IdentityCertificate] entities.
+func (i IdentityCertificate) SelectColumns() []string {
 	return []string{
-		"placement_groups.id",
-		"placement_groups.name",
-		"placement_groups.description",
-		"placement_groups.project_id",
+		"certificates.id",
+		"certificates.fingerprint",
+		"certificates.certificate",
+		"certificates.creation_date",
+		"identities_certificates.identity_id",
 	}
 }
 
-// Joins returns a slice of join expressions for [PlacementGroupsRow].
-func (p PlacementGroupsRow) Joins() []string {
-	return []string{}
+// Joins returns a slice of join expressions for [IdentityCertificate].
+func (i IdentityCertificate) Joins() []string {
+	return []string{
+		"JOIN identities_certificates ON certificates.id = identities_certificates.certificate_id",
+	}
 }
 
-// ScanArgs implements [query.ScanArger] for [PlacementGroupsRow].
+// ScanArgs implements [query.ScanArger] for [IdentityCertificate].
 // This returns references to struct fields in definition order.
-func (p *PlacementGroupsRow) ScanArgs() []any {
-	return []any{&p.ID, &p.Name, &p.Description, &p.ProjectID}
-}
-
-// CreateValues returns a list of values from [PlacementGroupsRow] entities matching the columns returned from CreateColumns.
-func (p PlacementGroupsRow) CreateValues() []any {
-	return []any{p.Name, p.Description, p.ProjectID}
-}
-
-// PKColumn returns the column name for the primary key of a [PlacementGroupsRow] entity used during an update.
-func (p PlacementGroupsRow) PKColumn() string {
-	return "id"
-}
-
-// PKValue returns the value for the primary key of a [PlacementGroupsRow] entity used during an update.
-func (p PlacementGroupsRow) PKValue() any {
-	return p.ID
-}
-
-// CreateStmt returns a query that creates a [PlacementGroupsRow] entity.
-func (p PlacementGroupsRow) CreateStmt() string {
-	return "INSERT INTO placement_groups (name, description, project_id) VALUES (?, ?, ?)"
-}
-
-// UpdateStmt returns a query that updates a [PlacementGroupsRow] by primary key.
-func (p PlacementGroupsRow) UpdateStmt() string {
-	return "UPDATE placement_groups SET name = ?, description = ?, project_id = ? "
+func (i *IdentityCertificate) ScanArgs() []any {
+	return []any{&i.Row.ID, &i.Row.Fingerprint, &i.Row.Certificate, &i.Row.CreationDate, &i.IdentityID}
 }
 
 // TableName returns the table name for [PlacementGroup] entities.
@@ -190,4 +239,60 @@ func (p PlacementGroup) Joins() []string {
 // This returns references to struct fields in definition order.
 func (p *PlacementGroup) ScanArgs() []any {
 	return []any{&p.Row.ID, &p.Row.Name, &p.Row.Description, &p.Row.ProjectID, &p.ProjectName}
+}
+
+// TableName returns the table name for [PlacementGroupsRow] entities.
+func (p PlacementGroupsRow) TableName() string {
+	return "placement_groups"
+}
+
+// SelectColumns returns a slice of column names for [PlacementGroupsRow] entities.
+func (p PlacementGroupsRow) SelectColumns() []string {
+	return []string{
+		"placement_groups.id",
+		"placement_groups.name",
+		"placement_groups.description",
+		"placement_groups.project_id",
+	}
+}
+
+// Joins returns a slice of join expressions for [PlacementGroupsRow].
+func (p PlacementGroupsRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [PlacementGroupsRow].
+// This returns references to struct fields in definition order.
+func (p *PlacementGroupsRow) ScanArgs() []any {
+	return []any{&p.ID, &p.Name, &p.Description, &p.ProjectID}
+}
+
+// CreateValues returns a list of values from [PlacementGroupsRow] entities matching the bind arguments in [CreateStmt].
+func (p PlacementGroupsRow) CreateValues() []any {
+	return []any{p.Name, p.Description, p.ProjectID}
+}
+
+// UpdateValues returns a list of values from [PlacementGroupsRow] entities matching the columns in [UpdateStmt].
+func (p PlacementGroupsRow) UpdateValues() []any {
+	return []any{p.Name, p.Description, p.ProjectID}
+}
+
+// PKColumn returns the column name for the primary key of a [PlacementGroupsRow] entity used during an update.
+func (p PlacementGroupsRow) PKColumn() string {
+	return "id"
+}
+
+// PKValue returns the value for the primary key of a [PlacementGroupsRow] entity used during an update.
+func (p PlacementGroupsRow) PKValue() any {
+	return p.ID
+}
+
+// CreateStmt returns a query that creates a [PlacementGroupsRow] entity.
+func (p PlacementGroupsRow) CreateStmt() string {
+	return "INSERT INTO placement_groups (name, description, project_id) VALUES (?, ?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [PlacementGroupsRow] by primary key.
+func (p PlacementGroupsRow) UpdateStmt() string {
+	return "UPDATE placement_groups SET name = ?, description = ?, project_id = ? "
 }
