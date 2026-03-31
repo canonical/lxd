@@ -21,7 +21,8 @@ type device interface {
 	Name() string
 }
 
-var forkproxyProfileTpl = template.Must(template.New("forkproxyProfile").Parse(`#include <tunables/global>
+var forkproxyProfileTpl = template.Must(template.New("forkproxyProfile").Parse(`abi <abi/4.0>,
+#include <tunables/global>
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
