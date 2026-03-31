@@ -128,7 +128,7 @@ func (d *alletra) ensureHost() (hostName string, cleanup revert.Hook, err error)
 
 		// Append the mode to the server name because storage array does not allow mixing
 		// NQNs, IQNs, and WWNs for a single host.
-		hostname = serverName + "-" + connector.Type()
+		hostname = serverName + "-" + string(connector.Type())
 
 		err = d.client().CreateHost(connector.Type(), hostname, []string{qn})
 		if err != nil {
@@ -166,7 +166,7 @@ func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		return nil, err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	unlock, err := remoteVolumeMapLock(string(connector.Type()), d.Info().Name)
 	if err != nil {
 		return nil, err
 	}
@@ -197,13 +197,13 @@ func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	}
 
 	// Find the array's qualified name for the configured mode.
-	targetQN, targetAddrs, err := d.getTarget()
+	targets, err := d.getTargets()
 	if err != nil {
 		return nil, err
 	}
 
 	// Connect to the array or do a rescan to get a new volumes mapped.
-	connReverter, err := connector.Connect(d.state.ShutdownCtx, targetQN, targetAddrs...)
+	connReverter, err := connector.Connect(d.state.ShutdownCtx, targets...)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 		return err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	unlock, err := remoteVolumeMapLock(string(connector.Type()), d.Info().Name)
 	if err != nil {
 		return err
 	}
@@ -294,14 +294,14 @@ func (d *alletra) unmapVolume(vol Volume) error {
 	// and remove the host from HPE storage.
 	if len(mappings) == 0 {
 		// Find the array's qualified name for the configured mode.
-		targetQN, _, err := d.getTarget()
+		targets, err := d.getTargets()
 		if err != nil {
 			return err
 		}
 
 		// Disconnect from the array.
 		// Do this first before removing the host from HPE Alletra.
-		err = connector.Disconnect(targetQN)
+		err = connector.Disconnect(d.state.ShutdownCtx, targets...)
 		if err != nil {
 			return err
 		}
@@ -315,8 +315,8 @@ func (d *alletra) unmapVolume(vol Volume) error {
 
 		// We have to invalidate a cached value of target qualified name as we've
 		// disconnected from the array and removed the host. Experiment shows, that
-		// after this, previous QN becomes invalid and we have to discovery again.
-		d.targetQN = ""
+		// after this, previous QNs becomes invalid and we have to discovery again.
+		d.targets = nil
 	}
 
 	return nil
@@ -377,15 +377,7 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 		return strings.HasSuffix(devPath, strings.ToLower(diskSuffix))
 	}
 
-	var devicePath string
-	if mapVolume {
-		// Wait until the disk device is mapped to the host.
-		devicePath, err = connector.WaitDiskDevicePath(d.state.ShutdownCtx, diskPathFilter)
-	} else {
-		// Expect device to be already mapped.
-		devicePath, err = connector.GetDiskDevicePath(diskPathFilter)
-	}
-
+	devicePath, err := connector.GetDiskDevicePath(d.state.ShutdownCtx, mapVolume, diskPathFilter)
 	if err != nil {
 		return "", nil, fmt.Errorf("Failed locating device for volume %q: %w", vol.name, err)
 	}
