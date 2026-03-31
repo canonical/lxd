@@ -4,7 +4,8 @@ import (
 	"text/template"
 )
 
-var qemuProfileTpl = template.Must(template.New("qemuProfile").Parse(`#include <tunables/global>
+var qemuProfileTpl = template.Must(template.New("qemuProfile").Parse(`abi <abi/4.0>,
+#include <tunables/global>
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
   #include <abstractions/consoles>
