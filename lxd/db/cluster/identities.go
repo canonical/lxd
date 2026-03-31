@@ -407,21 +407,9 @@ func GetIdentitiesAndURLs(ctx context.Context, tx *sql.Tx, authMethod *string, f
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
 // the type.
 func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
-	fingerprint := shared.CertFingerprint(cert)
-	_, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
-	if err == nil {
-		return api.StatusErrorf(http.StatusConflict, "Identity already exists")
-	}
-
 	ident, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
 	if err != nil {
 		return fmt.Errorf("Failed getting pending TLS identity: %w", err)
-	}
-
-	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
-	b, err := json.Marshal(metadata)
-	if err != nil {
-		return fmt.Errorf("Failed encoding certificate metadata: %w", err)
 	}
 
 	identityTypeActive, err := ident.Type.ActiveType()
@@ -429,9 +417,14 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 		return err
 	}
 
+	ident.Identifier = shared.CertFingerprint(cert)
 	ident.Type = identityTypeActive
-	ident.Identifier = fingerprint
-	ident.Metadata = string(b)
+	pemCert := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+	err = setIdentityCertificate(ctx, tx, true, ident.ID, ident.Identifier, pemCert)
+	if err != nil {
+		return err
+	}
+
 	return query.UpdateByPrimaryKey(ctx, tx, ident)
 }
 
