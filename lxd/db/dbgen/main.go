@@ -238,7 +238,18 @@ func getFileSpecs(f *ast.File) ([]Spec, map[*ast.StructType]*Spec, error) {
 						}
 
 						newSpec.Joins = append(newSpec.Joins, join)
-						break
+					}
+
+					omit, ok := strings.CutPrefix(l.Text, "// db:omit ")
+					if ok {
+						omits := strings.Fields(omit)
+						if slices.Contains(omits, "create") {
+							newFieldSpec.SkipCreate = true
+						}
+
+						if slices.Contains(omits, "update") {
+							newFieldSpec.SkipUpdate = true
+						}
 					}
 				}
 			}
