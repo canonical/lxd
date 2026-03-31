@@ -1049,6 +1049,7 @@ type cmdImageList struct {
 
 	flagFormat      string
 	flagColumns     string
+	flagRegistry    string
 	flagAllProjects bool
 }
 
@@ -1084,6 +1085,7 @@ Column shorthand chars:
 
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVar(&c.flagRegistry, "registry", "", "Display images provided by image registry")
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display images from all projects")
 	cmd.RunE = c.run
 
@@ -1258,6 +1260,31 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 	return true
 }
 
+// renderImages applies the given filters and renders the table with images using given columns.
+func (c *cmdImageList) renderImages(filters []string, allImages []api.Image, columns []cli.TypedColumn[api.Image]) error {
+	images := make([]api.Image, 0, len(allImages))
+	for _, image := range allImages {
+		if !c.imageShouldShow(filters, &image) {
+			continue
+		}
+
+		images = append(images, image)
+	}
+
+	data := cli.ColumnData(columns, images)
+	sort.Sort(cli.StringList(data))
+
+	rawData := make([]*api.Image, len(images))
+	for i := range images {
+		rawData[i] = &images[i]
+	}
+
+	headers := cli.ColumnHeaders(columns)
+
+	// Render the table.
+	return cli.RenderTable(c.flagFormat, headers, data, rawData)
+}
+
 func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
@@ -1316,6 +1343,28 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 	serverFilters, clientFilters := getServerSupportedFilters(filters, api.Image{})
 
 	var allImages []api.Image
+
+	// Handle listing images provided by the image registry.
+	if c.flagRegistry != "" {
+		instanceServer, ok := remoteServer.(lxd.InstanceServer)
+		if !ok {
+			return errors.New("--registry flag is not supported for this server")
+		}
+
+		if !instanceServer.HasExtension("image_registries") {
+			return errors.New("This server does not support image registries")
+		}
+
+		// Get the images provided by image registry.
+		allImages, err = instanceServer.GetImageRegistryImages(c.flagRegistry)
+		if err != nil {
+			return err
+		}
+
+		// Render the table with images.
+		return c.renderImages(clientFilters, allImages, columns)
+	}
+
 	if c.flagAllProjects {
 		instanceServer, ok := remoteServer.(lxd.InstanceServer)
 		if !ok {
@@ -1343,27 +1392,8 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	images := make([]api.Image, 0, len(allImages))
-	for _, image := range allImages {
-		if !c.imageShouldShow(clientFilters, &image) {
-			continue
-		}
-
-		images = append(images, image)
-	}
-
-	// Render the table
-	data := cli.ColumnData(columns, images)
-	sort.Sort(cli.StringList(data))
-
-	rawData := make([]*api.Image, len(images))
-	for i := range images {
-		rawData[i] = &images[i]
-	}
-
-	headers := cli.ColumnHeaders(columns)
-
-	return cli.RenderTable(c.flagFormat, headers, data, rawData)
+	// Render the table with images.
+	return c.renderImages(clientFilters, allImages, columns)
 }
 
 // Refresh.
