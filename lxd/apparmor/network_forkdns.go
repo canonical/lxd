@@ -11,7 +11,8 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
-var forkdnsProfileTpl = template.Must(template.New("forkdnsProfile").Parse(`#include <tunables/global>
+var forkdnsProfileTpl = template.Must(template.New("forkdnsProfile").Parse(`abi <abi/4.0>,
+#include <tunables/global>
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
