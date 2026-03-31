@@ -5,7 +5,6 @@ package cluster
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -138,18 +137,12 @@ func (cert CertificateLegacy) ToIdentity() (*IdentitiesRow, error) {
 		return nil, fmt.Errorf("Failed converting certificate to identity: %w", err)
 	}
 
-	b, err := json.Marshal(CertificateMetadata{Certificate: cert.Certificate})
-	if err != nil {
-		return nil, fmt.Errorf("Failed converting certificate to identity: %w", err)
-	}
-
 	identity := &IdentitiesRow{
 		ID:         cert.ID,
 		AuthMethod: AuthMethod(api.AuthenticationMethodTLS),
 		Type:       identityType,
 		Identifier: cert.Fingerprint,
 		Name:       cert.Name,
-		Metadata:   string(b),
 	}
 
 	return identity, nil
@@ -180,7 +173,12 @@ func GetCertificateLegacyByFingerprintPrefix(ctx context.Context, tx *sql.Tx, fi
 		return nil, err
 	}
 
-	return id.ToCertificate()
+	certs, err := GetIdentitiesPEMCertificates(ctx, tx, &id.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return id.ToCertificate(certs)
 }
 
 // CreateCertificateLegacyWithProjects stores a [CertificateLegacy] object in the db, and associates it to a list of project names.
@@ -239,10 +237,15 @@ func UpdateCertificateLegacyProjects(ctx context.Context, tx *sql.Tx, certificat
 // GetCertificatesAndURLsLegacy returns all available certificates and their URLs.
 // An optional filter function can be passed to filter the output. It should return true to include a certificate and false to omit it.
 func GetCertificatesAndURLsLegacy(ctx context.Context, tx *sql.Tx, filter func(legacy CertificateLegacy) bool) ([]CertificateLegacy, []string, error) {
+	certs, err := GetIdentitiesPEMCertificates(ctx, tx, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	var certificates []CertificateLegacy
 	var urls []string
-	err := query.SelectFunc[IdentitiesRow](ctx, tx, getCertificateLegacyIdentitiesClause, func(identity IdentitiesRow) error {
-		cert, err := identity.ToCertificate()
+	err = query.SelectFunc[IdentitiesRow](ctx, tx, getCertificateLegacyIdentitiesClause, func(identity IdentitiesRow) error {
+		cert, err := identity.ToCertificate(certs)
 		if err != nil {
 			return err
 		}
@@ -276,7 +279,12 @@ func GetCertificateLegacy(ctx context.Context, tx *sql.Tx, fingerprint string) (
 		return nil, err
 	}
 
-	return id.ToCertificate()
+	certs, err := GetIdentitiesPEMCertificates(ctx, tx, &id.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return id.ToCertificate(certs)
 }
 
 // GetCertificateLegacyID returns the ID of the certificate with the given fingerprint.
@@ -296,7 +304,7 @@ func CreateCertificateLegacy(ctx context.Context, tx *sql.Tx, object Certificate
 		return 0, err
 	}
 
-	id, err := query.Create(ctx, tx, *identity)
+	identityID, err := query.Create(ctx, tx, *identity)
 	if err != nil {
 		if api.StatusErrorCheck(err, http.StatusConflict) {
 			// Overwrite error message sent via API to use "Certificate" instead of "Identity".
@@ -306,7 +314,12 @@ func CreateCertificateLegacy(ctx context.Context, tx *sql.Tx, object Certificate
 		return 0, err
 	}
 
-	return id, nil
+	err = setIdentityCertificate(ctx, tx, true, identityID, object.Fingerprint, object.Certificate)
+	if err != nil {
+		return 0, err
+	}
+
+	return identityID, nil
 }
 
 // DeleteCertificateLegacy deletes the certificate matching the given key parameters.
@@ -333,5 +346,5 @@ func UpdateCertificateLegacy(ctx context.Context, tx *sql.Tx, object Certificate
 		return err
 	}
 
-	return query.UpdateByPrimaryKey(ctx, tx, identity)
+	return UpdateTLSIdentity(ctx, tx, *identity, identity.Identifier, object.Certificate)
 }
