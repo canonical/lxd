@@ -4439,10 +4439,9 @@ definitions:
                     type: array
                 description: Affected resources
                 example:
-                    containers:
-                        - /1.0/containers/foo
                     instances:
                         - /1.0/instances/foo
+                        - /1.0/instances/bar
                 type: object
                 x-go-name: Resources
             status:
@@ -4537,10 +4536,9 @@ definitions:
                     type: array
                 description: Affected resources
                 example:
-                    containers:
-                        - /1.0/containers/foo
                     instances:
                         - /1.0/instances/foo
+                        - /1.0/instances/bar
                 type: object
                 x-go-name: Resources
             status:
