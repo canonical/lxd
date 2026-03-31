@@ -18,7 +18,8 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 )
 
-var qemuImgProfileTpl = template.Must(template.New("qemuImgProfile").Parse(`#include <tunables/global>
+var qemuImgProfileTpl = template.Must(template.New("qemuImgProfile").Parse(`abi <abi/4.0>,
+#include <tunables/global>
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
