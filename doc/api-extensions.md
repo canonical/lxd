@@ -61,11 +61,11 @@ See {ref}`security` for details.
 
 ## `container_last_used_at`
 
-A `last_used_at` field was added to the `GET /1.0/containers/<name>` endpoint.
+A `last_used_at` field was added to the `GET /1.0/instances/<name>` endpoint.
 
-It is a timestamp of the last time the container was started.
+It is a timestamp of the last time the instance was started.
 
-If a container has been created but not started yet, `last_used_at` field
+If an instance has been created but not started yet, `last_used_at` field
 will be `1970-01-01T00:00:00Z`
 
 ## `etag`
@@ -155,11 +155,11 @@ This includes:
 
 ## `profile_usedby`
 
-Adds a new `used_by` field to profile entries listing the containers that are using it.
+Adds a new `used_by` field to profile entries listing the instances that are using it.
 
 ## `container_push`
 
-When a container is created in push mode, the client serves as a proxy between
+When an instance is created in push mode, the client serves as a proxy between
 the source and target server. This is useful in cases where the target server
 is behind a NAT or firewall and cannot directly communicate with the source
 server and operate in pull mode.
@@ -167,7 +167,7 @@ server and operate in pull mode.
 ## `container_exec_recording`
 
 Introduces a new Boolean `record-output`, parameter to
-`/1.0/containers/<name>/exec` which when set to `true` and combined with
+`/1.0/instances/<name>/exec` which when set to `true` and combined with
 with `wait-for-websocket` set to `false`, will record stdout and stderr to
 disk and make them available through the logs interface.
 
@@ -186,8 +186,8 @@ Adds the following to the REST API:
 
 ## `container_exec_signal_handling`
 
-Adds support `/1.0/containers/<name>/exec` for forwarding signals sent to the
-client to the processes executing in the container. Currently SIGTERM and
+Adds support `/1.0/instances/<name>/exec` for forwarding signals sent to the
+client to the processes executing in the instance. Currently SIGTERM and
 SIGHUP are forwarded. Further signals that can be forwarded might be added
 later.
 
@@ -253,7 +253,7 @@ This includes:
 
 ## `file_delete`
 
-Implements `DELETE` in `/1.0/containers/<name>/files`
+Implements `DELETE` in `/1.0/instances/<name>/files`
 
 ## `file_append`
 
@@ -287,20 +287,20 @@ be set at image creation/import time.
 
 ## `container_stateless_copy`
 
-This introduces a new `live` attribute in `POST /1.0/containers/<name>`.
+This introduces a new `live` attribute in `POST /1.0/instances/<name>`.
 Setting it to `false` tells LXD not to attempt running state transfer.
 
 ## `container_only_migration`
 
 Introduces a new Boolean `container_only` attribute. When set to `true` only the
-container will be copied or moved.
+instance will be copied or moved.
 
 ## `storage_zfs_clone_copy`
 
 Introduces a new Boolean {config:option}`storage-zfs-pool-conf:zfs.clone_copy` property for ZFS storage
-pools. When set to `false` copying a container will be done through `zfs send` and
-receive. This will make the target container independent of its source
-container thus avoiding the need to keep dependent snapshots in the ZFS pool
+pools. When set to `false` copying an instance will be done through `zfs send` and
+receive. This will make the target instance independent of its source
+instance thus avoiding the need to keep dependent snapshots in the ZFS pool
 around. However, this also entails less efficient storage usage for the
 affected pool.
 The default value for this property is `true`, i.e. space-efficient snapshots
@@ -334,7 +334,7 @@ This key controls what mount options will be used for the Btrfs storage pool.
 
 ## `entity_description`
 
-This adds descriptions to entities like containers, snapshots, networks, storage pools and volumes.
+This adds descriptions to entities like instances, snapshots, networks, storage pools and volumes.
 
 ## `image_force_refresh`
 
@@ -343,7 +343,7 @@ This allows forcing a refresh for an existing image.
 ## `storage_lvm_lv_resizing`
 
 This introduces the ability to resize logical volumes by setting the `size`
-property in the containers root disk device.
+property in the instance root disk device.
 
 ## `id_map_base`
 
@@ -358,7 +358,7 @@ X-LXD-type can now be `symlink` with the request content being the target path.
 
 ## `container_push_target`
 
-This adds the `target` field to `POST /1.0/containers/<name>` which can be
+This adds the `target` field to `POST /1.0/instances/<name>` which can be
 used to have the source LXD host connect to the target during migration.
 
 ## `network_vlan_physical`
@@ -377,9 +377,9 @@ a specific storage pool.
 
 ## `container_edit_metadata`
 
-This adds support for editing a container `metadata.yaml` and related templates
-via API, by accessing URLs under `/1.0/containers/<name>/metadata`. It can be used
-to edit a container before publishing an image from it.
+This adds support for editing an instance `metadata.yaml` and related templates
+via API, by accessing URLs under `/1.0/instances/<name>/metadata`. It can be used
+to edit an instance before publishing an image from it.
 
 ## `container_snapshot_stateful_migration`
 
@@ -504,7 +504,7 @@ This includes the following new endpoints (see [RESTful API](rest-api.md) for de
 
 The following existing endpoints have been modified:
 
-* `POST /1.0/containers` accepts a new `target` query parameter
+* `POST /1.0/instances` accepts a new `target` query parameter
 * `POST /1.0/storage-pools` accepts a new `target` query parameter
 * `GET /1.0/storage-pool/<name>` accepts a new `target` query parameter
 * `POST /1.0/storage-pool/<pool>/volumes/<type>` accepts a new `target` query parameter
@@ -541,18 +541,18 @@ Add container backup support.
 
 This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
 
-* `GET /1.0/containers/<name>/backups`
-* `POST /1.0/containers/<name>/backups`
+* `GET /1.0/instances/<name>/backups`
+* `POST /1.0/instances/<name>/backups`
 
-* `GET /1.0/containers/<name>/backups/<name>`
-* `POST /1.0/containers/<name>/backups/<name>`
-* `DELETE /1.0/containers/<name>/backups/<name>`
+* `GET /1.0/instances/<name>/backups/<name>`
+* `POST /1.0/instances/<name>/backups/<name>`
+* `DELETE /1.0/instances/<name>/backups/<name>`
 
-* `GET /1.0/containers/<name>/backups/<name>/export`
+* `GET /1.0/instances/<name>/backups/<name>/export`
 
 The following existing endpoint has been modified:
 
-* `POST /1.0/containers` accepts the new source type `backup`
+* `POST /1.0/instances` accepts the new source type `backup`
 
 ## `devlxd_images`
 
@@ -660,8 +660,8 @@ Those keys control whether to put the LXD rules before or after any pre-existing
 
 ## `container_full`
 
-This introduces a new `recursion=2` mode for `GET /1.0/containers` which allows for the retrieval of
-all container structs, including the state, snapshots and backup structs.
+This introduces a new `recursion=2` mode for `GET /1.0/instances` which allows for the retrieval of
+all instance structs, including the state, snapshots and backup structs.
 
 This effectively allows for [`lxc list`](lxc_list.md) to get all it needs in one query.
 
@@ -786,7 +786,7 @@ an empty string or `0001-01-01T00:00:00Z` (zero time). This is the default if
 
 This adds the following new endpoint (see [RESTful API](rest-api.md) for details):
 
-* `PUT /1.0/containers/<name>/snapshots/<name>`
+* `PUT /1.0/instances/<name>/snapshots/<name>`
 
 ## `snapshot_expiry_creation`
 
@@ -849,8 +849,8 @@ This allows adding static routes on host to container's NIC.
 
 ## `cluster_internal_copy`
 
-This makes it possible to do a normal `POST /1.0/containers` to copy a
-container between cluster nodes with LXD internally detecting whether a
+This makes it possible to do a normal `POST /1.0/instances` to copy an
+instance between cluster nodes with LXD internally detecting whether a
 migration is required.
 
 ## `seccomp_notify`
@@ -906,7 +906,7 @@ Rework the resources API at `/1.0/resources`, especially:
 
 ## `container_exec_user_group_cwd`
 
-Adds support for specifying `User`, `Group` and `Cwd` during `POST /1.0/containers/NAME/exec`.
+Adds support for specifying `User`, `Group` and `Cwd` during `POST /1.0/instances/NAME/exec`.
 
 ## `container_syscall_intercept`
 
@@ -972,7 +972,7 @@ Adds a `FirmwareVersion` field to network card entries.
 
 ## `backup_compression_algorithm`
 
-This adds support for a `compression_algorithm` property when creating a backup (`POST /1.0/containers/<name>/backups`).
+This adds support for a `compression_algorithm` property when creating a backup (`POST /1.0/instances/<name>/backups`).
 
 Setting this property overrides the server default value ({config:option}`server-miscellaneous:backups.compression_algorithm`).
 
