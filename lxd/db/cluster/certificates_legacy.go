@@ -22,7 +22,7 @@ import (
 // `certificates` tables.
 type CertificateLegacy struct {
 	ID          int64
-	Fingerprint string `db:"primary=yes"`
+	Fingerprint string
 	Type        certificate.Type
 	Name        string
 	Certificate string
