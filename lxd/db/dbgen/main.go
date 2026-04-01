@@ -233,6 +233,10 @@ func getFileSpecs(f *ast.File) ([]Spec, map[*ast.StructType]*Spec, error) {
 				for _, l := range field.Doc.List {
 					join, ok := strings.CutPrefix(l.Text, "// db:join ")
 					if ok {
+						if strings.HasSuffix(newSpec.StructName, "Row") {
+							return nil, nil, fmt.Errorf("Invalid spec for struct %q: Structs with a `Row` suffix may not include joins", newSpec.StructName)
+						}
+
 						newSpec.Joins = append(newSpec.Joins, join)
 						break
 					}
