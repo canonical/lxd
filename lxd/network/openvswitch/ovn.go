@@ -1902,6 +1902,34 @@ func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) (map[string][]
 	return lbUUIDs, nil
 }
 
+// loadBalancerVIPs returns a slice of VIPs currently configured on the given load balancer.
+func (o *OVN) loadBalancerVIPs(loadBalancerName OVNLoadBalancer, protocol string) ([]string, error) {
+	lbName := string(loadBalancerName) + "-" + protocol
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=vips", "list", "load_balancer", lbName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed listing the VIPs of load balancer %q: %w", lbName, err)
+	}
+
+	output, err = unquote(strings.TrimSpace(output))
+	if err != nil {
+		return nil, fmt.Errorf("Failed unquoting VIPs output %q of load balancer %q: %w", output, lbName, err)
+	}
+
+	vipTargets := strings.Fields(output)
+	vips := make([]string, 0, len(vipTargets))
+
+	for _, vipTarget := range vipTargets {
+		before, _, found := strings.Cut(vipTarget, "=")
+		if !found {
+			return nil, fmt.Errorf("Invalid line %q in VIPs output of load balancer %q", vipTarget, lbName)
+		}
+
+		vips = append(vips, before)
+	}
+
+	return vips, nil
+}
+
 // LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
 // Providing an empty set of vips will delete the load balancer.
 func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, switches []OVNSwitch, vips ...OVNLoadBalancerVIP) error {
