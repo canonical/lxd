@@ -133,8 +133,9 @@ func resolveTargetRelativeToLink(link string, target string) (string, error) {
 
 // ApplyHooksToContainer applies CDI hooks to a container by creating symlinks
 // and updating the linker configuration using SFTP.
-func ApplyHooksToContainer(hooksFilePath string, inst instance.Instance) error {
-	sftpClient, err := inst.FileSFTP()
+func ApplyHooksToContainer(hooksFilePath string, c instance.Container) error {
+	// Use FileSFTPNoLock so we can use the SFTP client during instance start operations.
+	sftpClient, err := c.FileSFTPNoLock()
 	if err != nil {
 		return fmt.Errorf("Failed getting SFTP client: %w", err)
 	}
@@ -146,7 +147,7 @@ func ApplyHooksToContainer(hooksFilePath string, inst instance.Instance) error {
 		return err
 	}
 
-	updateLDCache(inst, &sftpContainerFS{client: sftpClient})
+	updateLDCache(c, &sftpContainerFS{client: sftpClient})
 
 	return nil
 }
