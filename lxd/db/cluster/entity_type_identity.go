@@ -10,7 +10,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-// entityTypeIdentity implements entityTypeDBInfo for an Identity.
+// entityTypeIdentity implements entityTypeDBInfo for an [IdentitiesRow].
 type entityTypeIdentity struct {
 	entityTypeCommon
 }

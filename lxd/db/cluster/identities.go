@@ -27,34 +27,6 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t identities.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -e identity objects table=identities
-//go:generate mapper stmt -e identity objects-by-ID table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod-and-Type table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod-and-Identifier table=identities
-//go:generate mapper stmt -e identity objects-by-AuthMethod-and-Name table=identities
-//go:generate mapper stmt -e identity objects-by-Type table=identities
-//go:generate mapper stmt -e identity id table=identities
-//go:generate mapper stmt -e identity create struct=Identity table=identities
-//go:generate mapper stmt -e identity delete-by-AuthMethod-and-Identifier table=identities
-//go:generate mapper stmt -e identity delete-by-Name-and-Type table=identities
-//go:generate mapper stmt -e identity update struct=Identity table=identities
-//
-//go:generate mapper method -i -e identity GetMany
-//go:generate mapper method -i -e identity GetOne
-//go:generate mapper method -i -e identity ID struct=Identity
-//go:generate mapper method -i -e identity Create struct=Identity
-//go:generate mapper method -i -e identity DeleteOne-by-AuthMethod-and-Identifier
-//go:generate mapper method -i -e identity DeleteMany-by-Name-and-Type
-//go:generate mapper method -i -e identity Update struct=Identity
-//go:generate goimports -w identities.mapper.go
-//go:generate goimports -w identities.interface.mapper.go
-
 // AuthMethod is a database representation of an authentication method.
 //
 // AuthMethod is defined on string so that API constants can be converted by casting. The [sql.Scanner] and
@@ -170,23 +142,26 @@ func (i IdentityType) toCertificateType() (certificate.Type, error) {
 	return certType, nil
 }
 
-// Identity is a database representation of any authenticated party.
-type Identity struct {
-	ID         int64
-	AuthMethod AuthMethod `db:"primary=yes"`
-	Type       IdentityType
-	Identifier string `db:"primary=yes"`
-	Name       string
-	Metadata   string
+// IdentitiesRow is a database representation of any authenticated party.
+// db:model identities
+type IdentitiesRow struct {
+	ID         int64        `db:"id"`
+	AuthMethod AuthMethod   `db:"auth_method"`
+	Type       IdentityType `db:"type"`
+	Identifier string       `db:"identifier"`
+	Name       string       `db:"name"`
+	Metadata   string       `db:"metadata"`
 }
 
-// IdentityFilter contains fields upon which identities can be filtered.
-type IdentityFilter struct {
-	ID         *int64
-	AuthMethod *AuthMethod
-	Type       *IdentityType
-	Identifier *string
-	Name       *string
+// APIName implements [query.APINamer] for API friendly error messages.
+func (IdentitiesRow) APIName() string {
+	return "Identity"
+}
+
+// APIPluralName implements [query.APIPluralNamer] for [IdentitiesRow] to override default pluralisation behaviour for
+// error messages (which simply appends an "s").
+func (IdentitiesRow) APIPluralName() string {
+	return "Identities"
 }
 
 // CertificateMetadata contains metadata for certificate identities. Currently this is only the certificate itself.
@@ -209,8 +184,8 @@ func (c CertificateMetadata) X509() (*x509.Certificate, error) {
 	return cert, nil
 }
 
-// ToCertificate converts an [Identity] to a [Certificate].
-func (i Identity) ToCertificate() (*Certificate, error) {
+// ToCertificate converts an [IdentitiesRow] to a [Certificate].
+func (i IdentitiesRow) ToCertificate() (*Certificate, error) {
 	certificateType, err := i.Type.toCertificateType()
 	if err != nil {
 		return nil, fmt.Errorf("Failed converting identity type to certificate type: %w", err)
@@ -251,7 +226,7 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 // CertificateMetadata returns the metadata associated with the identity as [CertificateMetadata]. It fails if the
 // authentication method is not [api.AuthentictionMethodTLS] or if the type is [api.IdentityTypeClientCertificatePending],
 // as they do not have metadata of this type.
-func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
+func (i IdentitiesRow) CertificateMetadata() (*CertificateMetadata, error) {
 	if i.AuthMethod != api.AuthenticationMethodTLS {
 		return nil, fmt.Errorf("Cannot get certificate metadata: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
 	}
@@ -274,8 +249,8 @@ func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
 	return &metadata, nil
 }
 
-// X509 returns an [x509.Certificate] from the identity metadata. The [AuthMethod] of the [Identity] must be [api.AuthenticationMethodTLS].
-func (i Identity) X509() (*x509.Certificate, error) {
+// X509 returns an [x509.Certificate] from the identity metadata. The [AuthMethod] of the [IdentitiesRow] must be [api.AuthenticationMethodTLS].
+func (i IdentitiesRow) X509() (*x509.Certificate, error) {
 	metadata, err := i.CertificateMetadata()
 	if err != nil {
 		return nil, err
@@ -301,8 +276,8 @@ func (o OIDCMetadata) Equals(m OIDCMetadata) bool {
 	return slices.Equal(o.IdentityProviderGroups, m.IdentityProviderGroups)
 }
 
-// OIDCMetadata returns the identity metadata as [OIDCMetadata]. The [AuthMethod] of the [Identity] must be [api.AuthenticationMethodOIDC].
-func (i Identity) OIDCMetadata() (*OIDCMetadata, error) {
+// OIDCMetadata returns the identity metadata as [OIDCMetadata]. The [AuthMethod] of the [IdentitiesRow] must be [api.AuthenticationMethodOIDC].
+func (i IdentitiesRow) OIDCMetadata() (*OIDCMetadata, error) {
 	if i.AuthMethod != api.AuthenticationMethodOIDC {
 		return nil, fmt.Errorf("Cannot extract OIDC metadata from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodOIDC)
 	}
@@ -323,7 +298,7 @@ type PendingTLSMetadata struct {
 }
 
 // PendingTLSMetadata returns the pending TLS identity metadata.
-func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
+func (i IdentitiesRow) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 	identityType, err := identity.New(string(i.Type))
 	if err != nil {
 		return nil, err
@@ -342,8 +317,8 @@ func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 	return &metadata, nil
 }
 
-// ToAPI converts an [Identity] to an [api.Identity], executing database queries as necessary.
-func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
+// ToAPI converts an [IdentitiesRow] to an [api.Identity], executing database queries as necessary.
+func (i *IdentitiesRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
 	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
 	if err != nil {
 		return nil, err
@@ -381,18 +356,66 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 	}, nil
 }
 
+// GetIdentityByAuthenticationMethodAndIdentifier gets a single identity by authentication method and identifier.
+func GetIdentityByAuthenticationMethodAndIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, identifier string) (*IdentitiesRow, error) {
+	return query.SelectOne[IdentitiesRow](ctx, tx, "WHERE auth_method = ? AND identifier = ?", AuthMethod(authenticationMethod), identifier)
+}
+
+// DeleteIdentityByNameAndType deletes a single identity with the given name and type.
+// Note that the name of an identity is not guaranteed to be unique for OIDC identities.
+func DeleteIdentityByNameAndType(ctx context.Context, tx *sql.Tx, name string, identityType string) error {
+	return query.DeleteOne[IdentitiesRow](ctx, tx, "WHERE name = ? AND type = ?", name, IdentityType(identityType))
+}
+
+// DeleteIdentityByAuthenticationMethodAndIdentifier deletes a single identity with the given authentication method and identifier.
+func DeleteIdentityByAuthenticationMethodAndIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, identifier string) error {
+	return query.DeleteOne[IdentitiesRow](ctx, tx, "WHERE auth_method = ? AND identifier = ?", AuthMethod(authenticationMethod), identifier)
+}
+
+// GetIdentitiesAndURLs returns a list of identities and their URLs, filtered by optional authentication method and filter function.
+// The filter function should return true to include the identity and false to omit it.
+func GetIdentitiesAndURLs(ctx context.Context, tx *sql.Tx, authMethod *string, filter func(row IdentitiesRow) bool) ([]IdentitiesRow, []string, error) {
+	var b strings.Builder
+	var args []any
+	if authMethod != nil {
+		b.WriteString("WHERE identities.auth_method = ? ORDER BY ")
+		args = []any{AuthMethod(*authMethod)}
+	} else {
+		b.WriteString("ORDER BY identities.auth_method, ")
+	}
+
+	b.WriteString("identities.identifier")
+
+	var identities []IdentitiesRow
+	var identityURLs []string
+	err := query.SelectFunc[IdentitiesRow](ctx, tx, b.String(), func(id IdentitiesRow) error {
+		if filter != nil && !filter(id) {
+			return nil
+		}
+
+		identities = append(identities, id)
+		identityURLs = append(identityURLs, entity.IdentityURL(string(id.AuthMethod), id.Identifier).String())
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed listing identities: %w", err)
+	}
+
+	return identities, identityURLs, nil
+}
+
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
 // the type.
 func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
 	fingerprint := shared.CertFingerprint(cert)
-	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	_, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 	if err == nil {
 		return api.StatusErrorf(http.StatusConflict, "Identity already exists")
 	}
 
-	identity, err := GetIdentity(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
+	ident, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
 	if err != nil {
-		return fmt.Errorf("Failed getting pending %q TLS identity: %w", identity.Type, err)
+		return fmt.Errorf("Failed getting pending TLS identity: %w", err)
 	}
 
 	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
@@ -401,29 +424,15 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 		return fmt.Errorf("Failed encoding certificate metadata: %w", err)
 	}
 
-	identityTypeActive, err := identity.Type.ActiveType()
+	identityTypeActive, err := ident.Type.ActiveType()
 	if err != nil {
 		return err
 	}
 
-	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
-	res, err := tx.ExecContext(ctx, stmt, identityTypeActive, fingerprint, string(b), identifier.String(), authMethodTLS)
-	if err != nil {
-		return fmt.Errorf("Failed activating %q TLS identity: %w", identity.Type, err)
-	}
-
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Failed checking for activated %q TLS identity: %w", identity.Type, err)
-	}
-
-	if n == 0 {
-		return api.StatusErrorf(http.StatusNotFound, "No pending %q TLS identity found with identifier %q", identity.Type, identifier)
-	} else if n > 1 {
-		return fmt.Errorf("Unknown error occurred when activating %q TLS identity: %w", identity.Type, err)
-	}
-
-	return nil
+	ident.Type = identityTypeActive
+	ident.Identifier = fingerprint
+	ident.Metadata = string(b)
+	return query.UpdateByPrimaryKey(ctx, tx, ident)
 }
 
 var pendingIdentityTypes = func() (result []int64) {
@@ -437,25 +446,22 @@ var pendingIdentityTypes = func() (result []int64) {
 }
 
 // GetPendingTLSIdentityByTokenSecret gets a single identity of type [identityTypeCertificateClientPending] or [identityTypeCertificateClusterLinkPending] with the given secret in its metadata. If no pending identity is found, an [api.StatusError] is returned with [http.StatusNotFound].
-func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
-	stmt := fmt.Sprintf(`
-	SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
-	FROM identities
+func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*IdentitiesRow, error) {
+	clause := fmt.Sprintf(`
 	WHERE identities.type IN %s
 	AND json_extract(identities.metadata, '$.secret') = ?`, query.IntParams(pendingIdentityTypes()...))
 
-	identities, err := getIdentitysRaw(ctx, tx, stmt, secret)
+	ident, err := query.SelectOne[IdentitiesRow](ctx, tx, clause, secret)
 	if err != nil {
-		return nil, err
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Maintain error message for clarity.
+			return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
+		}
+
+		return nil, fmt.Errorf("Failed getting identity by token secret: %w", err)
 	}
 
-	if len(identities) == 0 {
-		return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
-	} else if len(identities) > 1 {
-		return nil, errors.New("Multiple pending identities found with given secret")
-	}
-
-	return &identities[0], nil
+	return ident, nil
 }
 
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
@@ -497,32 +503,17 @@ JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_grou
 }
 
 // GetIdentityByNameOrIdentifier attempts to get an identity by the authentication method and identifier. If that fails
-// it will try to use the nameOrID argument as a name and will return the result only if the query matches a single Identity.
+// it will try to use the nameOrID argument as a name and will return the result only if the query matches a single [IdentitiesRow].
 // It will return an [api.StatusError] with [http.StatusNotFound] if none are found or [http.StatusBadRequest] if multiple are found.
-func GetIdentityByNameOrIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, nameOrID string) (*Identity, error) {
-	id, err := GetIdentity(ctx, tx, AuthMethod(authenticationMethod), nameOrID)
+func GetIdentityByNameOrIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, nameOrID string) (*IdentitiesRow, error) {
+	ident, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, authenticationMethod, nameOrID)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return nil, err
 	} else if err != nil {
-		dbAuthMethod := AuthMethod(authenticationMethod)
-		identities, err := GetIdentitys(ctx, tx, IdentityFilter{
-			AuthMethod: &dbAuthMethod,
-			Name:       &nameOrID,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		if len(identities) == 0 {
-			return nil, api.StatusErrorf(http.StatusNotFound, "No identity found with name or identifier %q", nameOrID)
-		} else if len(identities) > 1 {
-			return nil, api.StatusErrorf(http.StatusBadRequest, "More than one identity found with name %q", nameOrID)
-		}
-
-		id = &identities[0]
+		return query.SelectOne[IdentitiesRow](ctx, tx, "WHERE auth_method = ? AND name = ?", AuthMethod(authenticationMethod), nameOrID)
 	}
 
-	return id, nil
+	return ident, nil
 }
 
 // SetIdentityAuthGroups deletes all auth_group -> identity mappings from the `identities_auth_groups` table
@@ -586,19 +577,6 @@ WHERE auth_groups.name IN %s
 }
 
 // GetIdentityByID gets a single identity with the given ID.
-func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*Identity, error) {
-	identityFilter := IdentityFilter{ID: &id}
-	clusterIdentities, err := GetIdentitys(ctx, tx, identityFilter)
-	if err != nil {
-		return nil, fmt.Errorf("Failed getting identity with ID %d: %w", id, err)
-	}
-
-	switch len(clusterIdentities) {
-	case 0:
-		return nil, api.NewStatusError(http.StatusNotFound, "No identity found with given ID")
-	case 1:
-		return &clusterIdentities[0], nil
-	default:
-		return nil, fmt.Errorf("Multiple identities found with ID %d", id)
-	}
+func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*IdentitiesRow, error) {
+	return query.SelectOne[IdentitiesRow](ctx, tx, "WHERE id = ?", id)
 }

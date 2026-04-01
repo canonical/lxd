@@ -10,10 +10,12 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // Certificate is here to pass the certificates content from the database around.
@@ -63,42 +65,72 @@ func (cert *Certificate) ToIdentityType() (IdentityType, error) {
 }
 
 // ToAPI converts the database Certificate struct to an api.Certificate
-// entry filling fields from the database as necessary.
-func (cert *Certificate) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Certificate, error) {
+// The certificateIDToProjects map must be provided and can be loaded via [GetCertificateProjects].
+func (cert *Certificate) ToAPI(certificateIDToProjects map[int64][]string) (*api.Certificate, error) {
+	if certificateIDToProjects == nil {
+		return nil, errors.New("Missing required certificate project details")
+	}
+
+	// If there are no projects, set to an empty slice instead of null to maintain API behaviour.
+	// It also makes clear that the field expects an array e.g. when performing `lxc config trust edit`.
+	projects, ok := certificateIDToProjects[cert.ID]
+	if !ok {
+		projects = []string{}
+	}
+
 	resp := api.Certificate{}
 	resp.Fingerprint = cert.Fingerprint
 	resp.Certificate = cert.Certificate
 	resp.Name = cert.Name
 	resp.Restricted = cert.Restricted
 	resp.Type = cert.ToAPIType()
-
-	projects, err := GetCertificateProjects(ctx, tx, cert.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	resp.Projects = make([]string, len(projects))
-	for i, p := range projects {
-		resp.Projects[i] = p.Name
-	}
-
+	resp.Projects = projects
 	return &resp, nil
 }
 
-// GetCertificateProjects returns a slice of [Project] that the [Certificate] with the given ID is related to.
-// This is only valid for restricted legacy certificates.
-func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int64) ([]Project, error) {
-	q := `
-SELECT projects.id, projects.description, projects.name FROM projects 
+// GetCertificateProjects returns a map of certificate (identity) ID to list of (alphabetically sorted) project names.
+// The output map should only contain IDs of restricted legacy certificates.
+// If the optional certificate ID is passed, the result will only contain the given ID.
+func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID *int64) (map[int64][]string, error) {
+	var b strings.Builder
+	var args []any
+	b.WriteString(`SELECT identities_projects.identity_id, projects.name FROM projects 
     JOIN identities_projects ON projects.id = identities_projects.project_id 
-	WHERE identities_projects.identity_id = ? 
-	ORDER BY projects.name
-`
-	return getProjectsRaw(ctx, tx, q, certificateID)
+	`)
+
+	if certificateID != nil {
+		args = []any{*certificateID}
+		b.WriteString(`WHERE identities_projects.identity_id = ? `)
+	}
+
+	// It is important to always return the list of project names in the same order.
+	// This is for two reasons:
+	// 1. The Etag for a certificate contains this field. A random ordering would lead to inconsistent hashing (and precondition failed errors for clients).
+	// 2. When a restricted client certificate updates their own certificate, the API handler checks that the caller has not attempted to change their
+	//    accessible projects. It does this with an ordered equality check on the project list.
+	b.WriteString(`ORDER BY identities_projects.identity_id, projects.name`)
+
+	out := make(map[int64][]string)
+	err := query.Scan(ctx, tx, b.String(), func(scan func(dest ...any) error) error {
+		var identityID int64
+		var projectName string
+		err := scan(&identityID, &projectName)
+		if err != nil {
+			return err
+		}
+
+		out[identityID] = append(out[identityID], projectName)
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading certificate projects: %w", err)
+	}
+
+	return out, nil
 }
 
-// ToIdentity converts a Certificate to an Identity.
-func (cert Certificate) ToIdentity() (*Identity, error) {
+// ToIdentity converts a Certificate to an [IdentitiesRow].
+func (cert Certificate) ToIdentity() (*IdentitiesRow, error) {
 	identityType, err := cert.ToIdentityType()
 	if err != nil {
 		return nil, fmt.Errorf("Failed converting certificate to identity: %w", err)
@@ -109,7 +141,7 @@ func (cert Certificate) ToIdentity() (*Identity, error) {
 		return nil, fmt.Errorf("Failed converting certificate to identity: %w", err)
 	}
 
-	identity := &Identity{
+	identity := &IdentitiesRow{
 		ID:         cert.ID,
 		AuthMethod: AuthMethod(api.AuthenticationMethodTLS),
 		Type:       identityType,
@@ -121,9 +153,7 @@ func (cert Certificate) ToIdentity() (*Identity, error) {
 	return identity, nil
 }
 
-var getCertificateIdentitiesStmt = `
-SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
-	FROM identities
+var getCertificateIdentitiesClause = `
 	WHERE auth_method = ` + strconv.Itoa(int(authMethodTLS)) + `
 	AND type in ` + query.IntParams(certIdentityTypes()...)
 
@@ -133,20 +163,12 @@ SELECT identities.id, identities.auth_method, identities.type, identities.identi
 // There can never be more than one certificate with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
 func GetCertificateByFingerprintPrefix(ctx context.Context, tx *sql.Tx, fingerprintPrefix string) (*Certificate, error) {
-	dbCertificateIdentities, err := getIdentitysRaw(ctx, tx, getCertificateIdentitiesStmt+" AND identities.identifier LIKE ?", fingerprintPrefix+"%")
+	id, err := query.SelectOne[IdentitiesRow](ctx, tx, getCertificateIdentitiesClause+" AND identities.identifier LIKE ?", fingerprintPrefix+"%")
 	if err != nil {
 		return nil, err
 	}
 
-	if len(dbCertificateIdentities) > 1 {
-		return nil, errors.New("More than one certificate matches")
-	}
-
-	if len(dbCertificateIdentities) == 0 {
-		return nil, api.StatusErrorf(http.StatusNotFound, "Certificate not found")
-	}
-
-	return dbCertificateIdentities[0].ToCertificate()
+	return id.ToCertificate()
 }
 
 // CreateCertificateWithProjects stores a Certificate object in the db, and associates it to a list of project names.
@@ -202,40 +224,40 @@ func UpdateCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID in
 	return nil
 }
 
-// GetCertificates returns all available certificates.
-func GetCertificates(ctx context.Context, tx *sql.Tx) ([]Certificate, error) {
-	certificateIdentities, err := getIdentitysRaw(ctx, tx, getCertificateIdentitiesStmt)
-	if err != nil {
-		return nil, err
-	}
-
-	certificates := make([]Certificate, 0, len(certificateIdentities))
-	for _, certificateIdentity := range certificateIdentities {
-		cert, err := certificateIdentity.ToCertificate()
+// GetCertificatesAndURLs returns all available certificates and their URLs.
+// An optional filter function can be passed to filter the output. It should return true to include a certificate and false to omit it.
+func GetCertificatesAndURLs(ctx context.Context, tx *sql.Tx, filter func(Certificate) bool) ([]Certificate, []string, error) {
+	var certificates []Certificate
+	var urls []string
+	err := query.SelectFunc[IdentitiesRow](ctx, tx, getCertificateIdentitiesClause, func(identity IdentitiesRow) error {
+		cert, err := identity.ToCertificate()
 		if err != nil {
-			return nil, err
+			return err
+		}
+
+		if filter != nil && !filter(*cert) {
+			return nil
 		}
 
 		certificates = append(certificates, *cert)
+		urls = append(urls, entity.CertificateURL(cert.Fingerprint).String())
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return certificates, nil
+	return certificates, urls, nil
 }
 
 // GetCertificate returns the certificate with the given fingerprint.
 func GetCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*Certificate, error) {
-	dbCertificateIdentities, err := getIdentitysRaw(ctx, tx, getCertificateIdentitiesStmt+" AND identities.identifier = ?", fingerprint)
+	id, err := query.SelectOne[IdentitiesRow](ctx, tx, getCertificateIdentitiesClause+" AND identities.identifier = ?", fingerprint)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(dbCertificateIdentities) == 0 {
-		return nil, api.NewStatusError(http.StatusNotFound, "Certificate not found")
-	} else if len(dbCertificateIdentities) > 1 {
-		return nil, fmt.Errorf("More than one certificate with fingerprint %q", fingerprint)
-	}
-
-	return dbCertificateIdentities[0].ToCertificate()
+	return id.ToCertificate()
 }
 
 // GetCertificateID returns the ID of the certificate with the given fingerprint.
@@ -245,7 +267,7 @@ func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int6
 		return 0, err
 	}
 
-	return int64(cert.ID), nil
+	return cert.ID, nil
 }
 
 // CreateCertificate adds a new certificate to the database.
@@ -255,20 +277,20 @@ func CreateCertificate(ctx context.Context, tx *sql.Tx, object Certificate) (int
 		return 0, err
 	}
 
-	return CreateIdentity(ctx, tx, *identity)
+	return query.Create(ctx, tx, *identity)
 }
 
 // DeleteCertificate deletes the certificate matching the given key parameters.
 func DeleteCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) error {
-	return DeleteIdentity(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	return DeleteIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 }
 
 // UpdateCertificate updates the certificate matching the given key parameters.
-func UpdateCertificate(ctx context.Context, tx *sql.Tx, fingerprint string, object Certificate) error {
+func UpdateCertificate(ctx context.Context, tx *sql.Tx, object Certificate) error {
 	identity, err := object.ToIdentity()
 	if err != nil {
 		return err
 	}
 
-	return UpdateIdentity(ctx, tx, api.AuthenticationMethodTLS, fingerprint, *identity)
+	return query.UpdateByPrimaryKey(ctx, tx, identity)
 }

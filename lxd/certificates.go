@@ -35,7 +35,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/version"
 )
 
 var certificatesCmd = APIEndpoint{
@@ -150,32 +149,24 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var certResponses []*api.Certificate
+	var certificates []dbCluster.Certificate
+	var certificateIDToProjects map[int64][]string
 	var certURLs []string
-	urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		baseCerts, err := dbCluster.GetCertificates(ctx, tx.Tx())
+		certificates, certURLs, err = dbCluster.GetCertificatesAndURLs(ctx, tx.Tx(), func(c dbCluster.Certificate) bool {
+			return userHasPermission(entity.CertificateURL(c.Fingerprint))
+		})
 		if err != nil {
 			return err
 		}
 
-		certResponses = make([]*api.Certificate, 0, len(baseCerts))
-		for _, baseCert := range baseCerts {
-			if !userHasPermission(entity.CertificateURL(baseCert.Fingerprint)) {
-				continue
-			}
+		if recursion == 0 || len(certificates) == 0 {
+			return nil
+		}
 
-			if recursion > 0 {
-				apiCert, err := baseCert.ToAPI(ctx, tx.Tx())
-				if err != nil {
-					return err
-				}
-
-				certResponses = append(certResponses, apiCert)
-				urlToCertificate[entity.CertificateURL(apiCert.Fingerprint)] = apiCert
-			} else {
-				certURLs = append(certURLs, api.NewURL().Path(version.APIVersion, "certificates", baseCert.Fingerprint).String())
-			}
+		certificateIDToProjects, err = dbCluster.GetCertificateProjects(ctx, tx.Tx(), nil)
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -186,6 +177,18 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 	if recursion == 0 {
 		return response.SyncResponse(true, certURLs)
+	}
+
+	urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
+	certResponses := make([]*api.Certificate, 0, len(certificates))
+	for _, cert := range certificates {
+		certResponse, err := cert.ToAPI(certificateIDToProjects)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		certResponses = append(certResponses, certResponse)
+		urlToCertificate[entity.CertificateURL(cert.Fingerprint)] = certResponse
 	}
 
 	if len(withEntitlements) > 0 {
@@ -794,16 +797,22 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var cert *api.Certificate
+	var cert *dbCluster.Certificate
+	var projects map[int64][]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbCertInfo, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
+		cert, err = dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
 		}
 
-		cert, err = dbCertInfo.ToAPI(ctx, tx.Tx())
+		projects, err = dbCluster.GetCertificateProjects(ctx, tx.Tx(), &cert.ID)
 		return err
 	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	apiCert, err := cert.ToAPI(projects)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -814,13 +823,13 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeCertificate, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.CertificateURL(cert.Fingerprint): cert})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeCertificate, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.CertificateURL(cert.Fingerprint): apiCert})
 		if err != nil {
 			return response.SmartError(err)
 		}
 	}
 
-	return response.SyncResponseETag(true, cert, cert)
+	return response.SyncResponseETag(true, apiCert, apiCert)
 }
 
 // swagger:operation PUT /1.0/certificates/{fingerprint} certificates certificate_put
@@ -859,16 +868,22 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get current database record.
-	var apiEntry *api.Certificate
+	var cert *dbCluster.Certificate
+	var projectMap map[int64][]string
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
+		cert, err = dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
 		}
 
-		apiEntry, err = oldEntry.ToAPI(ctx, tx.Tx())
+		projectMap, err = dbCluster.GetCertificateProjects(ctx, tx.Tx(), &cert.ID)
 		return err
 	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	apiEntry, err := cert.ToAPI(projectMap)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -887,7 +902,7 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Apply the update.
-	return doCertificateUpdate(r.Context(), d, *apiEntry, req, r)
+	return doCertificateUpdate(r.Context(), d, *cert, apiEntry.Projects, req, r)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -926,16 +941,22 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get current database record.
-	var apiEntry *api.Certificate
+	var cert *dbCluster.Certificate
+	var projectMap map[int64][]string
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
+		cert, err = dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
 		}
 
-		apiEntry, err = oldEntry.ToAPI(ctx, tx.Tx())
+		projectMap, err = dbCluster.GetCertificateProjects(ctx, tx.Tx(), &cert.ID)
 		return err
 	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	apiEntry, err := cert.ToAPI(projectMap)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -953,112 +974,51 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return doCertificateUpdate(r.Context(), d, *apiEntry, req.Writable(), r)
+	return doCertificateUpdate(r.Context(), d, *cert, apiEntry.Projects, req.Writable(), r)
 }
 
-func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate, req api.CertificatePut, r *http.Request) response.Response {
+func doCertificateUpdate(ctx context.Context, d *Daemon, cert dbCluster.Certificate, certProjects []string, req api.CertificatePut, r *http.Request) response.Response {
 	s := d.State()
 
-	if dbInfo.Type != req.Type {
+	reqCertType, err := certificate.FromAPIType(req.Type)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Invalid certificate type: %w", err))
+	}
+
+	if reqCertType != cert.Type {
 		return response.Forbidden(errors.New("The certificate type cannot be changed"))
 	}
 
-	dbInfoType, err := certificate.FromAPIType(dbInfo.Type)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(cert.Fingerprint), auth.EntitlementCanEdit)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Invalid existing certificate type: %w", err))
-	}
-
-	// Convert to the database type.
-	dbCert := dbCluster.Certificate{
-		Certificate: dbInfo.Certificate,
-		Fingerprint: dbInfo.Fingerprint,
-		Restricted:  req.Restricted,
-		Name:        req.Name,
-		Type:        dbInfoType,
-	}
-
-	var userCanEditCertificate bool
-	err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(dbInfo.Fingerprint), auth.EntitlementCanEdit)
-	if err != nil && !auth.IsDeniedError(err) {
-		return response.SmartError(err)
-	} else if err == nil {
-		userCanEditCertificate = true
-	}
-
-	// Non-admins are able to change their own certificate but no other fields.
-	// In order to prevent possible future security issues, the certificate information is
-	// reset in case a non-admin user is performing the update.
-	certProjects := req.Projects
-	if !userCanEditCertificate {
-		if r.TLS == nil {
-			response.Forbidden(errors.New("Cannot update certificate information"))
+		if !auth.IsDeniedError(err) {
+			return response.SmartError(err)
 		}
 
-		// Ensure the user is not trying to change fields other than the certificate.
-		if dbInfo.Restricted != req.Restricted || dbInfo.Name != req.Name || len(dbInfo.Projects) != len(req.Projects) || dbInfo.Type != req.Type {
-			return response.Forbidden(errors.New("Only the certificate can be changed"))
-		}
-
-		for i := range dbInfo.Projects {
-			if dbInfo.Projects[i] != req.Projects[i] {
-				return response.Forbidden(errors.New("Only the certificate can be changed"))
-			}
-		}
-
-		// Reset dbCert in order to prevent possible future security issues.
-		dbCert = dbCluster.Certificate{
-			Certificate: dbInfo.Certificate,
-			Fingerprint: dbInfo.Fingerprint,
-			Restricted:  dbInfo.Restricted,
-			Name:        dbInfo.Name,
-			Type:        dbInfoType,
-		}
-
-		certProjects = dbInfo.Projects
-
-		if req.Certificate != "" && dbInfo.Certificate != req.Certificate {
-			certBlock, _ := pem.Decode([]byte(dbInfo.Certificate))
-
-			oldCert, err := x509.ParseCertificate(certBlock.Bytes)
-			if err != nil {
-				// This should not happen
-				return response.InternalError(err)
-			}
-
-			trustedCerts := map[string]x509.Certificate{
-				dbInfo.Name: *oldCert,
-			}
-
-			trusted := false
-			for _, i := range r.TLS.PeerCertificates {
-				trusted, _ = util.CheckMutualTLS(*i, trustedCerts)
-
-				if trusted {
-					break
-				}
-			}
-
-			if !trusted {
-				return response.Forbidden(errors.New("Certificate cannot be changed"))
-			}
-		}
+		// If the caller does not have permission to edit the certificate, they may be trying to edit their own certificate.
+		// We allow all TLS identities to update their own certificates. This is useful if their client certificate is about to expire.
+		// They are prevented from modifying any other fields.
+		return doCertificateUpdateUnprivileged(ctx, s, cert, certProjects, req)
 	}
 
 	networkCert := d.endpoints.NetworkCert()
-	if req.Certificate != "" && dbInfo.Certificate != req.Certificate {
+	if req.Certificate != "" && cert.Certificate != req.Certificate {
 		// Add supplied certificate.
 		block, _ := pem.Decode([]byte(req.Certificate))
+		if block == nil {
+			return response.BadRequest(errors.New("Invalid certificate material"))
+		}
 
-		cert, err := x509.ParseCertificate(block.Bytes)
+		x509Cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
 			return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
 		}
 
-		dbCert.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
-		dbCert.Fingerprint = shared.CertFingerprint(cert)
+		cert.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: x509Cert.Raw}))
+		cert.Fingerprint = shared.CertFingerprint(x509Cert)
 
 		// Check validity.
-		err = certificateValidate(networkCert, cert)
+		err = certificateValidate(networkCert, x509Cert)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -1069,19 +1029,17 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 		return response.BadRequest(errors.New("Projects can only be specified for restricted certificates"))
 	}
 
+	cert.Name = req.Name
+	cert.Restricted = req.Restricted
+
 	// Update the database record.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.GetCertificateID(ctx, tx.Tx(), dbInfo.Fingerprint)
+		err = dbCluster.UpdateCertificate(ctx, tx.Tx(), cert)
 		if err != nil {
 			return err
 		}
 
-		err = dbCluster.UpdateCertificate(ctx, tx.Tx(), dbInfo.Fingerprint, dbCert)
-		if err != nil {
-			return err
-		}
-
-		return dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), id, certProjects)
+		return dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), cert.ID, req.Projects)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1104,7 +1062,80 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 	// Reload the identity cache.
 	s.UpdateIdentityCache()
 
-	s.Events.SendLifecycle("", lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r.Context()), nil))
+	s.Events.SendLifecycle("", lifecycle.CertificateUpdated.Event(cert.Fingerprint, request.CreateRequestor(r.Context()), nil))
+
+	return response.EmptySyncResponse
+}
+
+func doCertificateUpdateUnprivileged(ctx context.Context, s *state.State, cert dbCluster.Certificate, certProjects []string, req api.CertificatePut) response.Response {
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// The caller may only update their own certificate.
+	if requestor.CallerUsername() != cert.Fingerprint {
+		return response.Forbidden(nil)
+	}
+
+	// Ensure the user is not trying to change fields other than the certificate.
+	// The certificate type has already been checked in doCertificateUpdate
+	if cert.Restricted != req.Restricted || cert.Name != req.Name || len(certProjects) != len(req.Projects) {
+		return response.Forbidden(errors.New("Only the certificate can be changed"))
+	}
+
+	for i := range certProjects {
+		if certProjects[i] != req.Projects[i] {
+			return response.Forbidden(errors.New("Only the certificate can be changed"))
+		}
+	}
+
+	// Add supplied certificate.
+	block, _ := pem.Decode([]byte(req.Certificate))
+	if block == nil {
+		return response.BadRequest(errors.New("Invalid certificate material"))
+	}
+
+	x509Cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
+	}
+
+	// Check validity.
+	networkCert := s.Endpoints.NetworkCert()
+	err = certificateValidate(networkCert, x509Cert)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	cert.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: x509Cert.Raw}))
+	cert.Fingerprint = shared.CertFingerprint(x509Cert)
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.UpdateCertificate(ctx, tx.Tx(), cert)
+	})
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed updating certificate: %w", err))
+	}
+
+	// Notify other cluster members to update their identity cache.
+	notifier, err := cluster.NewNotifier(s, networkCert, s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Reload the identity cache.
+	s.UpdateIdentityCache()
+
+	s.Events.SendLifecycle("", lifecycle.CertificateUpdated.Event(cert.Fingerprint, request.CreateRequestor(ctx), nil))
 
 	return response.EmptySyncResponse
 }

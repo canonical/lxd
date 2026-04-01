@@ -792,8 +792,8 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	})
 	require.NoError(t, err)
 
-	getTLSIdentityByFingerprint := func(fingerprint string) Identity {
-		identity := Identity{}
+	getTLSIdentityByFingerprint := func(fingerprint string) IdentitiesRow {
+		identity := IdentitiesRow{}
 		row := db.QueryRow(`SELECT id, auth_method, type, identifier, name, metadata FROM identities WHERE auth_method = ? AND identifier = ?`, AuthMethod(api.AuthenticationMethodTLS), fingerprint)
 		require.NoError(t, row.Err())
 		err = row.Scan(&identity.ID, &identity.AuthMethod, &identity.Type, &identity.Identifier, &identity.Name, &identity.Metadata)

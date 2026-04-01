@@ -188,7 +188,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	var groups []dbCluster.AuthGroupsRow
 	var groupURLs []string
 	var authGroupPermissions []dbCluster.Permission
-	groupsIdentities := make(map[int64][]dbCluster.Identity)
+	groupsIdentities := make(map[int64][]dbCluster.IdentitiesRow)
 	groupsIdentityProviderGroups := make(map[int64][]dbCluster.IdentityProviderGroup)
 	entityURLs := make(map[entity.Type]map[int]*api.URL)
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {

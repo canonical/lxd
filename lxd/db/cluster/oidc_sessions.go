@@ -128,14 +128,14 @@ FROM oidc_sessions
 WHERE oidc_sessions.uuid = ?
 `)
 
-// GetIdentityAndSessionDetailsFromSessionID gets both the [Identity] and the [OIDCSession] from the given session ID.
-func GetIdentityAndSessionDetailsFromSessionID(ctx context.Context, tx *sql.Tx, sessionID uuid.UUID) (*Identity, *OIDCSession, error) {
+// GetIdentityAndSessionDetailsFromSessionID gets both the [IdentitiesRow] and the [OIDCSession] from the given session ID.
+func GetIdentityAndSessionDetailsFromSessionID(ctx context.Context, tx *sql.Tx, sessionID uuid.UUID) (*IdentitiesRow, *OIDCSession, error) {
 	stmt, err := Stmt(tx, getIdentityAndSessionDetailsFromSessionID)
 	if err != nil {
 		return nil, nil, fmt.Errorf(`Failed getting "getIdentityAndSessionDetailsFromSessionID" prepared statement: %w`, err)
 	}
 
-	var identity Identity
+	var identity IdentitiesRow
 	var session OIDCSession
 	row := stmt.QueryRowContext(ctx, sessionID.String())
 	err = row.Scan(&identity.ID, &identity.AuthMethod, &identity.Type, &identity.Identifier, &identity.Name, &identity.Metadata, &session.ID, &session.IDToken, &session.AccessToken, &session.RefreshToken, &session.IP, &session.UserAgent, &session.ExpiryDate)

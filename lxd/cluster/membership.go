@@ -193,35 +193,35 @@ func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertIn
 
 	fingerprint := shared.CertFingerprint(serverCertx509)
 
-	dbCert := cluster.Certificate{
-		Fingerprint: fingerprint,
-		Type:        certificate.TypeServer, // Server type for intra-member communication.
-		Name:        serverName,
-		Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverCertx509.Raw})),
-	}
-
 	// Add our server cert to the DB trust store (so when other members join this cluster they will be
 	// able to trust intra-cluster requests from this member).
 	ctx := context.Background()
-	existingCert, _ := cluster.GetCertificate(ctx, tx.Tx(), dbCert.Fingerprint)
+	existingCert, _ := cluster.GetCertificate(ctx, tx.Tx(), fingerprint)
 	if existingCert != nil {
-		if existingCert.Name != dbCert.Name && existingCert.Type == certificate.TypeServer {
+		if existingCert.Name != serverName && existingCert.Type == certificate.TypeServer {
 			// Don't alter an existing server certificate that has our fingerprint but not our name.
 			// Something is wrong as this shouldn't happen.
 			return fmt.Errorf("Existing server certificate with different name %q already in trust store", existingCert.Name)
-		} else if existingCert.Name != dbCert.Name && existingCert.Type != certificate.TypeServer {
+		} else if existingCert.Name != serverName && existingCert.Type != certificate.TypeServer {
 			// Ensure that if a client certificate already exists that matches our fingerprint, that it
 			// has the correct name and type for cluster operation, to allow us to associate member
 			// server names to certificate names.
-			err = cluster.UpdateCertificate(ctx, tx.Tx(), dbCert.Fingerprint, dbCert)
+			existingCert.Type = certificate.TypeServer
+			existingCert.Name = serverName
+			err = cluster.UpdateCertificate(ctx, tx.Tx(), *existingCert)
 			if err != nil {
 				return fmt.Errorf("Failed updating certificate name and type in trust store: %w", err)
 			}
 		}
 	} else {
-		_, err = cluster.CreateCertificate(ctx, tx.Tx(), dbCert)
+		_, err = cluster.CreateCertificate(ctx, tx.Tx(), cluster.Certificate{
+			Fingerprint: fingerprint,
+			Type:        certificate.TypeServer,
+			Name:        serverName,
+			Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverCertx509.Raw})),
+		})
 		if err != nil {
-			return fmt.Errorf("Failed adding server certifcate to trust store: %w", err)
+			return fmt.Errorf("Failed adding server certificate to trust store: %w", err)
 		}
 	}
 
@@ -1496,7 +1496,7 @@ func Purge(c *db.Cluster, name string) error {
 			return fmt.Errorf("Failed removing member %q: %w", name, err)
 		}
 
-		err = cluster.DeleteIdentitys(ctx, tx.Tx(), name, api.IdentityTypeCertificateServer)
+		err = cluster.DeleteIdentityByNameAndType(ctx, tx.Tx(), name, api.IdentityTypeCertificateServer)
 		if err != nil {
 			return fmt.Errorf("Failed removing member %q certificate from trust store: %w", name, err)
 		}

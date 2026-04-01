@@ -54,6 +54,59 @@ func (a AuthGroupsRow) UpdateStmt() string {
 	return "UPDATE auth_groups SET name = ?, description = ? "
 }
 
+// TableName returns the table name for [IdentitiesRow] entities.
+func (i IdentitiesRow) TableName() string {
+	return "identities"
+}
+
+// SelectColumns returns a slice of column names for [IdentitiesRow] entities.
+func (i IdentitiesRow) SelectColumns() []string {
+	return []string{
+		"identities.id",
+		"identities.auth_method",
+		"identities.type",
+		"identities.identifier",
+		"identities.name",
+		"identities.metadata",
+	}
+}
+
+// Joins returns a slice of join expressions for [IdentitiesRow].
+func (i IdentitiesRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [IdentitiesRow].
+// This returns references to struct fields in definition order.
+func (i *IdentitiesRow) ScanArgs() []any {
+	return []any{&i.ID, &i.AuthMethod, &i.Type, &i.Identifier, &i.Name, &i.Metadata}
+}
+
+// CreateValues returns a list of values from [IdentitiesRow] entities matching the columns returned from CreateColumns.
+func (i IdentitiesRow) CreateValues() []any {
+	return []any{i.AuthMethod, i.Type, i.Identifier, i.Name, i.Metadata}
+}
+
+// PKColumn returns the column name for the primary key of a [IdentitiesRow] entity used during an update.
+func (i IdentitiesRow) PKColumn() string {
+	return "id"
+}
+
+// PKValue returns the value for the primary key of a [IdentitiesRow] entity used during an update.
+func (i IdentitiesRow) PKValue() any {
+	return i.ID
+}
+
+// CreateStmt returns a query that creates a [IdentitiesRow] entity.
+func (i IdentitiesRow) CreateStmt() string {
+	return "INSERT INTO identities (auth_method, type, identifier, name, metadata) VALUES (?, ?, ?, ?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [IdentitiesRow] by primary key.
+func (i IdentitiesRow) UpdateStmt() string {
+	return "UPDATE identities SET auth_method = ?, type = ?, identifier = ?, name = ?, metadata = ? "
+}
+
 // TableName returns the table name for [PlacementGroupsRow] entities.
 func (p PlacementGroupsRow) TableName() string {
 	return "placement_groups"
