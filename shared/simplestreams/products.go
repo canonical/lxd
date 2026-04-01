@@ -200,6 +200,9 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 
 				image.Type = "container"
 
+				image.ReleaseCodename = product.ReleaseCodename
+				image.ReleaseTitle = product.ReleaseTitle
+
 				if root != nil {
 					image.Properties["type"] = root.FileType
 					if root.FileType == "disk1.img" || root.FileType == "disk-kvm.img" || root.FileType == "uefi1.img" {
