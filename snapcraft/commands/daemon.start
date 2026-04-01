@@ -652,15 +652,15 @@ PID=""
 if [ -n "${PID}" ] && [ "$(readlink "/proc/self/ns/mnt")" != "$(readlink "/proc/${PID}/ns/mnt")" ]; then
     echo "==> Cleaning up existing LXCFS namespace"
 
-    cut -d' ' -f5 "/proc/${PID}/mountinfo" | while read -r line; do
-        if echo "${line}" | grep -q "^${SNAP_COMMON}/shmounts/storage-pools/"; then
-            nsenter -t "${PID}" -m umount -l "${line}" || true
-        fi
-
-        if echo "${line}" | grep -q "^${SNAP_COMMON}/lxd/storage-pools/"; then
-            nsenter -t "${PID}" -m umount -l "${line}" || true
-        fi
-    done
+    # Read mountinfo directly, extracting the mount point (5th column)
+    while read -r _ _ _ _ mp _; do
+        # Prefix match using case and glob
+        case "${mp}" in
+            "${SNAP_COMMON}/shmounts/storage-pools/"* | "${SNAP_COMMON}/lxd/storage-pools/"*)
+                nsenter -t "${PID}" -m umount -l "${mp}" || true
+                ;;
+        esac
+    done < "/proc/${PID}/mountinfo"
 fi
 
 # LXD
