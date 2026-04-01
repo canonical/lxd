@@ -369,6 +369,11 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, errors.New(`MIG GPU notation detected for a "physical" gputype device. Choose a "mig" gputype device instead.`)
 			}
 
+			c, ok := d.inst.(instance.Container)
+			if !ok {
+				return nil, fmt.Errorf("Failed casting instance %q to container", d.inst.Name())
+			}
+
 			configDevices, hooks, err := cdi.GenerateFromCDI(d.state.OS.InUbuntuCore(), d.inst, *cdiID)
 			if err != nil {
 				return nil, err
@@ -394,7 +399,7 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 			}
 
 			runConf.PostHooks = append(runConf.PostHooks, func() error {
-				return cdi.ApplyHooksToContainer(hooksFile, d.inst)
+				return cdi.ApplyHooksToContainer(hooksFile, c)
 			})
 
 			return &runConf, nil
