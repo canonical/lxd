@@ -100,18 +100,28 @@ if [ ! -e "${SNAP_COMMON}/mntns" ] || [ -L "${SNAP_COMMON}/mntns" ]; then
     ln -s /proc/$$/root "${SNAP_COMMON}/mntns"
 fi
 
+# Helper to check if a path is exactly the 5th column in mountinfo
+is_mounted() {
+    # _ acts as a placeholder variable to absorb unwanted columns and the final
+    # _ absorbs the rest of the line. We only care about the mount point (5th column).
+    while read -r _ _ _ _ mp _; do
+        [ "${mp}" = "$1" ] && return 0
+    done < /proc/self/mountinfo
+    return 1
+}
+
 # Setup rshared propagation on mount holding paths
 for path in "${SNAP_COMMON}/lxd/storage-pools" "${SNAP_COMMON}/lxd/devices"; do
-    if ! cut -d' ' -f5 /proc/self/mountinfo | grep -qxF "${path}"; then
-        echo "==> Setting up mount propagation on ${path}"
-        if [ ! -e "${path}" ]; then
-            mkdir -p "${path}"
-            chmod 0711 "${path}"
-        fi
+    is_mounted "${path}" && continue
 
-        mount -o bind "${path}" "${path}"
-        mount --make-rshared "${path}"
+    echo "==> Setting up mount propagation on ${path}"
+    if [ ! -e "${path}" ]; then
+        mkdir -p "${path}"
+        chmod 0711 "${path}"
     fi
+
+    mount -o bind "${path}" "${path}"
+    mount --make-rshared "${path}"
 done
 
 # Setup shmounts
