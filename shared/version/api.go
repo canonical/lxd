@@ -484,6 +484,7 @@ var APIExtensions = []string{
 	"ovn_dynamic_northbound_connection",
 	"storage_zfs_promote",
 	"storage_and_network_operations",
+	"storage_driver_powerstore",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
