@@ -2332,12 +2332,22 @@ func updateIdentityCache(d *Daemon) {
 
 	logger.Debug("Refreshing identity cache")
 
+	identityTypes := identity.Types()
+	cacheableIdentityTypeCodes := make([]int64, 0, len(identityTypes))
+	for _, t := range identityTypes {
+		if !t.IsCacheable() {
+			continue
+		}
+
+		cacheableIdentityTypeCodes = append(cacheableIdentityTypeCodes, t.Code())
+	}
+
 	var identities []dbCluster.IdentitiesRow
 	bearerIdentitySecrets := make(map[int64]dbCluster.AuthSecretValue)
 	var err error
 	err = s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get all non-oidc identities (no cache entries for OIDC - this is handled via sessions).
-		identities, err = query.Select[dbCluster.IdentitiesRow](ctx, tx.Tx(), "WHERE identities.auth_method != ?", dbCluster.AuthMethod(api.AuthenticationMethodOIDC))
+		// Get all cacheable identities.
+		identities, err = query.Select[dbCluster.IdentitiesRow](ctx, tx.Tx(), "WHERE identities.type IN "+query.IntParams(cacheableIdentityTypeCodes...))
 		if err != nil {
 			return err
 		}
@@ -2364,10 +2374,6 @@ func updateIdentityCache(d *Daemon) {
 		identityType, err := identity.New(string(id.Type))
 		if err != nil {
 			logger.Warn("Failed creating identity type", logger.Ctx{"type": string(id.Type), "err": err})
-			continue
-		}
-
-		if identityType.IsPending() {
 			continue
 		}
 
