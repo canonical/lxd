@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
@@ -848,4 +849,54 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
 	assert.Equal(t, c2, metadata["cert"])
+}
+
+func TestUpdateFromV81(t *testing.T) {
+	cert1 := shared.TestingKeyPair()
+	cert1PEM := string(cert1.PublicKey())
+	cert1Fingerprint := cert1.Fingerprint()
+	cert1Metadata, err := json.Marshal(map[string]string{
+		"cert": cert1PEM,
+	})
+	require.NoError(t, err)
+
+	cert2 := shared.TestingAltKeyPair()
+	cert2PEM := string(cert2.PublicKey())
+	cert2Fingerprint := cert2.Fingerprint()
+	cert2Metadata, err := json.Marshal(map[string]string{
+		"cert": cert2PEM,
+	})
+	require.NoError(t, err)
+
+	schema := Schema()
+	db, err := schema.ExerciseUpdate(82, func(db *sql.DB) {
+		_, err := db.Exec(`
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES (?, ?, ?, ?, ?);
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES (?, ?, ?, ?, ?);
+`,
+			cert1Fingerprint, authMethodTLS, identity.CertificateClientUnrestricted{}.Code(), "unrestricted", string(cert1Metadata),
+			cert2Fingerprint, authMethodTLS, identity.CertificateClient{}.Code(), "fine-grained", string(cert2Metadata),
+		)
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	baseQ := `SELECT certificates.fingerprint, certificates.certificate, identities.identifier, identities.metadata
+FROM identities 
+    JOIN identities_certificates ON identities.id = identities_certificates.identity_id
+	JOIN certificates ON identities_certificates.certificate_id = certificates.id `
+	row := db.QueryRowContext(t.Context(), baseQ+"WHERE identities.name = ?", "unrestricted")
+	var fingerprint, certificate, identifier, metadata string
+	require.NoError(t, row.Scan(&fingerprint, &certificate, &identifier, &metadata))
+	require.Equal(t, fingerprint, identifier)
+	require.Equal(t, cert1Fingerprint, fingerprint)
+	require.Equal(t, cert1PEM, certificate)
+	require.Empty(t, metadata)
+
+	row = db.QueryRowContext(t.Context(), baseQ+"WHERE identities.name = ?", "fine-grained")
+	require.NoError(t, row.Scan(&fingerprint, &certificate, &identifier, &metadata))
+	require.Equal(t, fingerprint, identifier)
+	require.Equal(t, cert2Fingerprint, fingerprint)
+	require.Equal(t, cert2PEM, certificate)
+	require.Empty(t, metadata)
 }
