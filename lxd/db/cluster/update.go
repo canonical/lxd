@@ -134,6 +134,35 @@ var updates = map[int]schema.Update{
 	88: updateFromV87,
 	89: updateFromV88,
 	90: updateFromV89,
+	91: updateFromV90,
+}
+
+func updateFromV90(ctx context.Context, tx *sql.Tx) error {
+	// Create the new tables.
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE image_registries (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	protocol INTEGER NOT NULL,
+	builtin INTEGER NOT NULL DEFAULT 0,
+	UNIQUE (name)
+);
+
+CREATE TABLE image_registries_config (
+	image_registry_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (image_registry_id) REFERENCES image_registries (id) ON DELETE CASCADE,
+	PRIMARY KEY (image_registry_id, key)
+) WITHOUT ROWID;
+`)
+	if err != nil {
+		return err
+	}
+
+	// Populate the tables with the built-in image registries.
+	return createBuiltinImageRegistries(ctx, tx)
 }
 
 // updateFromV89 converts bearer identities that have no signing key to their pending type.
