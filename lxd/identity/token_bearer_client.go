@@ -30,3 +30,9 @@ func (TokenBearerClient) AuthenticationMethod() string {
 func (TokenBearerClient) IsFineGrained() bool {
 	return true
 }
+
+// IsCacheable returns true to indicate that this identity type requires some data to be stored in the cache.
+// In this case, the cache needs the identities' token secret.
+func (TokenBearerClient) IsCacheable() bool {
+	return true
+}
