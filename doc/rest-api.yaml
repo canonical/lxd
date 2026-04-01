@@ -1141,6 +1141,16 @@ definitions:
                 example: false
                 type: boolean
                 x-go-name: Public
+            release_codename:
+                description: OS release codename
+                example: jammy
+                type: string
+                x-go-name: ReleaseCodename
+            release_title:
+                description: OS release title
+                example: 22.04 LTS
+                type: string
+                x-go-name: ReleaseTitle
             size:
                 description: Size of the image in bytes
                 example: 272237676
