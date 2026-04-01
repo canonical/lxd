@@ -15,6 +15,7 @@ import (
 	"io"
 	"io/fs"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -954,6 +955,35 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 	}
 
 	return s
+}
+
+// EnsurePort adds the provided port to the given address unless it already has
+// a non-zero port number.
+func EnsurePort(addr string, defaultPort string) string {
+	// Check for IP address to properly handle IPv6 addresses.
+	if net.ParseIP(addr) != nil {
+		// For valid IP address just add port number.
+		return net.JoinHostPort(addr, defaultPort)
+	}
+
+	host, port, err := net.SplitHostPort(addr)
+	if err == nil {
+		if port == "" || port == "0" {
+			port = defaultPort
+		}
+
+		// Rejoin host and port to ensure addresses are formatted uniformly.
+		return net.JoinHostPort(host, port)
+	}
+
+	// Attempt to naively add port to handle partially formatted IPv6 addresses.
+	host, port, err = net.SplitHostPort(fmt.Sprintf("%s:%s", addr, defaultPort))
+	if err == nil {
+		// Rejoin host and port to ensure addresses are formatted uniformly.
+		return net.JoinHostPort(host, port)
+	}
+
+	return net.JoinHostPort(addr, defaultPort)
 }
 
 // RunError is the error from the RunCommand family of functions.
