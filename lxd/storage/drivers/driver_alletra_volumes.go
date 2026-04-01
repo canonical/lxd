@@ -537,6 +537,33 @@ func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.
 		return err
 	}
 
+	// Create a "<volName>.readonly" snapshot as a completion marker. The HPE Alletra WSAPI
+	// has no atomic write-commit, so image volume validation uses this snapshot to confirm
+	// the unpack finished. The filler guard avoids double-marking: a VM's filesystem
+	// companion volume is created with filler == nil, so the outer call marks both volumes.
+	if vol.volType == VolumeTypeImage && filler != nil && filler.Fill != nil {
+		err := d.client().CreateVolumeSnapshot(vol.pool, volName, volName+".readonly")
+		if err != nil {
+			return err
+		}
+
+		// VM images have two volumes; mark both so image validation can
+		// confirm neither half was left incomplete.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+
+			fsVolName, err := d.getVolumeName(fsVol)
+			if err != nil {
+				return err
+			}
+
+			err = d.client().CreateVolumeSnapshot(vol.pool, fsVolName, fsVolName+".readonly")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	revert.Success()
 	return nil
 }
@@ -1002,6 +1029,17 @@ func (d *alletra) DeleteVolume(vol Volume, op *operations.Operation) error {
 		}
 	}
 
+	// As a best-effort optimisation, explicitly delete the completion-marker snapshot before
+	// deleting the volume so it is not left as an orphan. A "not found" response is acceptable
+	// (the snapshot is absent on an incomplete image). Any other error is returned because it
+	// indicates an API or permission problem that would affect the volume deletion too.
+	if vol.volType == VolumeTypeImage {
+		err := d.client().DeleteVolumeSnapshot(vol.pool, volName, volName+".readonly")
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+	}
+
 	err = d.client().DeleteVolume(vol.pool, volName)
 	if err != nil {
 		return err
@@ -1028,6 +1066,49 @@ func (d *alletra) DeleteVolume(vol Volume, op *operations.Operation) error {
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
+		}
+	}
+
+	return nil
+}
+
+// ValidateImageVolume verifies that the image volume was fully unpacked by checking for a
+// "<volName>.readonly" completion-marker snapshot. Because the HPE Alletra WSAPI has no
+// atomic write-commit, CreateVolume creates this snapshot only after a successful unpack,
+// so its absence indicates an interrupted download and a corrupt volume.
+func (d *alletra) ValidateImageVolume(vol Volume, op *operations.Operation) error {
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.client().GetVolumeSnapshot(vol.pool, volName, volName+".readonly")
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Missing readonly snapshot for image volume %q: %w", vol.name, ErrBrokenImageVolume)
+		}
+
+		return err
+	}
+
+	// VM images are split across a block volume and a companion filesystem volume.
+	// Both halves must have their marker snapshots present, because either one
+	// could be absent if the unpack was interrupted partway through the second write.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		fsVolName, err := d.getVolumeName(fsVol)
+		if err != nil {
+			return err
+		}
+
+		_, err = d.client().GetVolumeSnapshot(vol.pool, fsVolName, fsVolName+".readonly")
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return fmt.Errorf("Missing readonly snapshot for image filesystem volume %q %w", fsVol.name, ErrBrokenImageVolume)
+			}
+
+			return err
 		}
 	}
 
