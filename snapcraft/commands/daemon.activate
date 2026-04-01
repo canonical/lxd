@@ -42,17 +42,6 @@ echo "==> Loading snap configuration"
 daemon_group="${daemon_group:-"lxd"}"
 daemon_user_group="${daemon_user_group:-"lxd"}"
 
-# Detect missing socket activation support
-echo "==> Checking for socket activation support"
-if ! nsenter -t 1 -m systemctl is-active -q snap."${SNAP_INSTANCE_NAME}".daemon.unix.socket; then
-    sleep 3s
-    if ! nsenter -t 1 -m systemctl is-active -q snap."${SNAP_INSTANCE_NAME}".daemon.unix.socket; then
-        echo "===> System doesn't support socket activation, starting LXD now"
-        nsenter -t 1 -m systemctl start snap."${SNAP_INSTANCE_NAME}".daemon
-        exit 0
-    fi
-fi
-
 # Start LXD if running as an appliance
 if nsenter -t 1 -m snap model --assertion | grep -q "^model: lxd-core"; then
     echo "==> LXD appliance detected, starting LXD"
