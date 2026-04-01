@@ -132,6 +132,36 @@ var updates = map[int]schema.Update{
 	86: updateFromV85,
 	87: updateFromV86,
 	88: updateFromV87,
+	89: updateFromV88,
+}
+
+func updateFromV88(ctx context.Context, tx *sql.Tx) error {
+	// Create the new tables.
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE image_registries (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	protocol INTEGER NOT NULL,
+	public INTEGER NOT NULL,
+	builtin INTEGER NOT NULL DEFAULT 0,
+	UNIQUE (name)
+);
+
+CREATE TABLE image_registries_config (
+	image_registry_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (image_registry_id) REFERENCES image_registries (id) ON DELETE CASCADE,
+	PRIMARY KEY (image_registry_id, key)
+) WITHOUT ROWID;
+`)
+	if err != nil {
+		return err
+	}
+
+	// Populate the tables with the built-in image registries.
+	return createBuiltinImageRegistries(ctx, tx)
 }
 
 func updateFromV87(ctx context.Context, tx *sql.Tx) error {
