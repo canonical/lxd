@@ -26,19 +26,19 @@ import (
 //
 //go:generate mapper stmt -e operation objects
 //go:generate mapper stmt -e operation objects-by-NodeID
+//go:generate mapper stmt -e operation objects-by-NodeID-and-Class
+//go:generate mapper stmt -e operation objects-by-Class
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-UUID
 //go:generate mapper stmt -e operation objects-by-Parent
 //go:generate mapper stmt -e operation create
 //go:generate mapper stmt -e operation create-or-replace
 //go:generate mapper stmt -e operation delete-by-UUID
-//go:generate mapper stmt -e operation delete-by-NodeID
 //
 //go:generate mapper method -i -e operation GetMany
 //go:generate mapper method -i -e operation Create
 //go:generate mapper method -i -e operation CreateOrReplace
 //go:generate mapper method -i -e operation DeleteOne-by-UUID
-//go:generate mapper method -i -e operation DeleteMany-by-NodeID
 //go:generate goimports -w operations.mapper.go
 //go:generate goimports -w operations.interface.mapper.go
 
@@ -74,6 +74,7 @@ type OperationFilter struct {
 	NodeID *int64
 	UUID   *string
 	Parent *int64
+	Class  *int64
 }
 
 // RequestorProtocol is the database representation of the Requestor Protocol.
@@ -159,24 +160,21 @@ func (r *RequestorProtocol) Value() (driver.Value, error) {
 // UpdateOperation updates operation status, metadata and error (if set) in the cluster db.
 // This is used to keep DB in sync with the current status of the operation when the operation changes
 // its status, or when calls to commit metadata explicitly.
-func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, updatedAt time.Time, newStatus api.StatusCode, metadata string, opErr string, opErrCode int64) error {
-	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, metadata = ?, error = ?, error_code = ? WHERE uuid = ?`
+// Returns number of rows updated in the DB, or an error.
+func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, nodeID int64, updatedAt time.Time, newStatus api.StatusCode, metadata string, opErr string, opErrCode int64) (int64, error) {
+	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, metadata = ?, error = ?, error_code = ? WHERE uuid = ? AND node_id = ?`
 
-	result, err := tx.ExecContext(ctx, stmt, updatedAt, newStatus, metadata, opErr, opErrCode, opUUID)
+	result, err := tx.ExecContext(ctx, stmt, updatedAt, newStatus, metadata, opErr, opErrCode, opUUID, nodeID)
 	if err != nil {
-		return fmt.Errorf("Failed updating operation status: %w", err)
+		return 0, fmt.Errorf("Failed updating operation status: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Fetch affected rows: %w", err)
+		return 0, fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
-	if n != 1 {
-		return fmt.Errorf("Query updated %d rows instead of 1", n)
-	}
-
-	return nil
+	return n, nil
 }
 
 // GetOperationResources loads operation resources from the cluster db.
@@ -357,6 +355,27 @@ func ClearStaleOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...i
 	err = failRunningBulkOperationsFromNodes(ctx, tx, nodeIDs...)
 	if err != nil {
 		return fmt.Errorf("Failed failing running bulk operations from nodes: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateOperationNodeID updates the node_id field of an existing operation in the cluster db.
+func UpdateOperationNodeID(ctx context.Context, tx *sql.Tx, opUUID string, newNodeID int64, updatedAt time.Time) error {
+	stmt := `UPDATE operations SET node_id = ?, updated_at = ? WHERE uuid = ?`
+
+	result, err := tx.ExecContext(ctx, stmt, newNodeID, updatedAt, opUUID)
+	if err != nil {
+		return fmt.Errorf("Failed updating operation node ID: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
 
 	return nil

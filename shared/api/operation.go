@@ -7,13 +7,20 @@ import (
 )
 
 // OperationClassTask represents the Task OperationClass.
+// These are various asynchronous tasks that run in the background.
 const OperationClassTask = "task"
 
 // OperationClassWebsocket represents the Websocket OperationClass.
+// These are used for various bi-directional connections such as console.
 const OperationClassWebsocket = "websocket"
 
 // OperationClassToken represents the Token OperationClass.
+// These are used to track the tokens used by new cluster members joining the cluster.
 const OperationClassToken = "token"
+
+// OperationClassDurable represents the Durable OperationClass.
+// These are like task operations, but are restarted in case of the node running the operation going offline.
+const OperationClassDurable = "durable"
 
 // Operation represents a LXD background operation
 //
@@ -79,6 +86,11 @@ type Operation struct {
 	//
 	// API extension: operation_requestor
 	Requestor *OperationRequestor `json:"requestor,omitempty" yaml:"requestor,omitempty"`
+
+	// If this is a child operation, this is the stage of this child.
+	//
+	// API extension: operation_stages.
+	Stage uint64 `json:"stage" yaml:"stage"`
 }
 
 // OperationFull is an Operation with its child operations.
