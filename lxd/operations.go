@@ -62,6 +62,13 @@ var operationWebsocket = APIEndpoint{
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }
 
+// DurableOperations is the table of durable operations handlers.
+// This is needed so that we can always find the right handlers based on the operation type.
+// We want this in the main package so the table can contain handlers from various other packages.
+var DurableOperations = operations.DurableOperationTable{
+	operationtype.Wait: waitHandlerOperationRunHook,
+}
+
 // runningInstanceOperations returns a map of project name to map of instance name to list of running operations.
 // This is used to determine if an instance is busy and should not be shut down immediately.
 func runningInstanceOperations() map[string]map[string][]*operations.Operation {
@@ -1275,6 +1282,95 @@ func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.
 	return f, task.Hourly()
 }
 
+// With durable operations, there's a chance that heartbeat replies are lost before reaching the leader node.
+// In such case the node will continue running the durable operations (because it's receiving the heartbeats),
+// but the leader will also restart those operations (because it's not receiving the heartbeats).
+// To avoid this, we have a periodic task on each node checking that the node is doing what the database says.
+// In other words, we cancel local tasks if these are not written in the database, and we start tasks which
+// are in the database but are not running locally.
+func syncDurableOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		s := stateFunc()
+
+		dbOps, err := operations.LoadDurableOperationsFromNode(ctx, s, s.DB.Cluster.GetNodeID())
+		if err != nil {
+			logger.Warnf("Failed loading durable operations on node: %v", err)
+			return
+		}
+
+		// Get the list of local durable operations.
+		localOps := operations.Clone()
+		// Convert it to a map for easier lookup.
+		localOpsMap := make(map[string]*operations.Operation)
+		for _, op := range localOps {
+			if op.Class() != operations.OperationClassDurable {
+				continue
+			}
+
+			localOpsMap[op.ID()] = op
+		}
+
+		// Ensure that all durable operations in the database are running locally.
+		for _, op := range dbOps {
+			if !op.IsRunning() {
+				// Operation is in a final state, no need to create it.
+				continue
+			}
+
+			// If the operation is already running locally, everything is great.
+			_, ok := localOpsMap[op.ID()]
+			if ok {
+				continue
+			}
+
+			// Operation is not running locally, we need to restart it.
+			logger.Warnf("Restarting durable operation %q", op.ID())
+			operations.RestartDurableOperation(s, op)
+		}
+
+		// Now we put the database operations in a map, and ensure that all local
+		// durable operations are present in the database.
+		dbOpsMap := make(map[string]*operations.Operation)
+		for _, dbOp := range dbOps {
+			dbOpsMap[dbOp.ID()] = dbOp
+		}
+
+	OPS_LOOP:
+		for _, op := range localOpsMap {
+			if !op.IsRunning() {
+				// Operation is in a final state, no need to cancel it.
+				continue OPS_LOOP
+			}
+
+			// If the local operation is written in the DB, everything is great.
+			_, ok := dbOpsMap[op.ID()]
+			if ok {
+				continue OPS_LOOP
+			}
+
+			// If it's a child operation, look for its parent in the DB and look for the child under its parent.
+			if op.Parent() != nil {
+				parentID := op.Parent().ID()
+				dbParentOp, ok := dbOpsMap[parentID]
+				if ok {
+					for _, dbChildOp := range dbParentOp.Children() {
+						if dbChildOp.ID() == op.ID() {
+							// Operation is in the DB as a child of its parent, everything is great.
+							continue OPS_LOOP
+						}
+					}
+				}
+			}
+
+			// Operation is not in the DB, we need to cancel it.
+			logger.Warnf("Cancelling local durable operation %q as it's not running on this node per the database", op.ID())
+			operations.CancelLocalDurableOperation(op)
+		}
+	}
+
+	return f, task.Every(time.Minute)
+}
+
 // operationWaitPost represents the fields of a request to register a dummy operation.
 type operationWaitPost struct {
 	Duration          string                    `json:"duration" yaml:"duration"`
@@ -1282,6 +1378,69 @@ type operationWaitPost struct {
 	OpType            operationtype.Type        `json:"op_type" yaml:"op_type"`
 	EntityURL         string                    `json:"entity_url" yaml:"entity_url"`
 	ConflictReference string                    `json:"conflict_reference" yaml:"conflict_reference"`
+	NumberOfChildren  int                       `json:"number_of_children" yaml:"number_of_children"`
+}
+
+func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
+	inputDuration, ok := op.Inputs()["duration"].(string)
+	if !ok {
+		return errors.New("Missing duration input")
+	}
+
+	duration, err := time.ParseDuration(inputDuration)
+	if err != nil {
+		return fmt.Errorf("Invalid duration: %w", err)
+	}
+
+	logger.Warnf("Starting wait handler operation for %s", duration.String())
+
+	// Initialize metadata map if needed.
+	metadata := op.Metadata()
+	if metadata == nil {
+		metadata = make(map[string]any)
+		err = op.UpdateMetadata(metadata)
+		if err != nil {
+			return fmt.Errorf("Failed initializing operation metadata: %w", err)
+		}
+	}
+
+	// See if some waiting was already done.
+	elapsed := time.Duration(0)
+	elapsedMetadata, ok := metadata["elapsed"]
+	if ok {
+		elapsed, err = time.ParseDuration(elapsedMetadata.(string))
+		if err != nil {
+			return fmt.Errorf("Failed parsing elapsed metadata: %w", err)
+		}
+
+		logger.Warnf("Resuming wait handler operation, already waited for %s", elapsed.String())
+	}
+
+	for duration > elapsed {
+		// Sleep for one second, or until the run context is cancelled.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
+
+		elapsed = elapsed + time.Second
+		logger.Warnf("Wait handler operation running for %d seconds...", elapsed/time.Second)
+		metadata["elapsed"] = elapsed.String()
+		err = op.UpdateMetadata(metadata)
+		if err != nil {
+			return fmt.Errorf("Failed updating operation metadata: %w", err)
+		}
+
+		err = op.CommitMetadata()
+		if err != nil {
+			return fmt.Errorf("Failed committing operation metadata: %w", err)
+		}
+	}
+
+	logger.Warn("Wait handler operation completed")
+
+	return nil
 }
 
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
@@ -1304,20 +1463,17 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid operation type code %d", req.OpType))
 	}
 
-	run := func(ctx context.Context, op *operations.Operation) error {
-		// Sleep for the duration, or until the run context is cancelled.
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.Tick(duration):
-		}
-
-		return nil
+	inputs := map[string]any{
+		"duration": duration.String(),
 	}
 
 	u, err := url.Parse(req.EntityURL)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Failed parsing operation entity URL: %w", err))
+	}
+
+	if req.NumberOfChildren > 10 {
+		return response.BadRequest(errors.New("Number of child operations cannot be greater than 10"))
 	}
 
 	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
@@ -1328,17 +1484,52 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	args := operations.OperationArgs{
+	// Create child operations if needed.
+	childrenArgs := make([]*operations.OperationArgs, req.NumberOfChildren)
+	for i := 0; i < req.NumberOfChildren; i++ {
+		// Child operation
+		args := operations.OperationArgs{
+			ProjectName: request.QueryParam(r, "project"),
+			Type:        req.OpType,
+			Class:       req.OpClass,
+			RunHook:     waitHandlerOperationRunHook,
+			ConnectHook: onConnect,
+			EntityURL:   &api.URL{URL: *u},
+			Inputs:      inputs,
+		}
+
+		childrenArgs[i] = &args
+	}
+
+	// Parent operation
+	parentArgs := operations.OperationArgs{
 		ProjectName:       request.QueryParam(r, "project"),
 		Type:              req.OpType,
 		Class:             req.OpClass,
-		RunHook:           run,
+		RunHook:           waitHandlerOperationRunHook,
 		ConnectHook:       onConnect,
 		EntityURL:         &api.URL{URL: *u},
+		Inputs:            inputs,
 		ConflictReference: req.ConflictReference,
+		Children:          childrenArgs,
 	}
 
-	op, err := operations.ScheduleServerOperation(d.State(), args)
+	// If there are child operations, parent doesn't need any run hook.
+	if req.NumberOfChildren > 0 {
+		parentArgs.RunHook = nil
+	}
+
+	// Durable operations have their run hook set in the DurableOperations table.
+	if req.OpClass == operations.OperationClassDurable {
+		for _, args := range childrenArgs {
+			args.RunHook = nil
+		}
+
+		parentArgs.RunHook = nil
+	}
+
+	// Internal APIs don't record metrics, so start a server operation which doesn't use metrics callback.
+	op, err := operations.ScheduleServerOperation(d.State(), parentArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
