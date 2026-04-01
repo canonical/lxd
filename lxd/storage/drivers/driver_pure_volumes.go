@@ -166,6 +166,33 @@ func (d *pure) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 		return err
 	}
 
+	// Create a "readonly" snapshot as a completion marker. Pure Storage has no atomic
+	// write-commit, so image volume validation uses this snapshot to confirm the unpack
+	// finished. The filler guard avoids double-marking: a VM's filesystem companion
+	// volume is created with filler == nil, so the outer call marks both volumes.
+	if vol.volType == VolumeTypeImage && filler != nil && filler.Fill != nil {
+		err := d.client().createVolumeSnapshot(vol.pool, volName, "readonly")
+		if err != nil {
+			return err
+		}
+
+		// VM images have two volumes; mark both so image volume validation can
+		// confirm neither half was left incomplete.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+
+			fsVolName, err := d.getVolumeName(fsVol)
+			if err != nil {
+				return err
+			}
+
+			err = d.client().createVolumeSnapshot(vol.pool, fsVolName, "readonly")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	revert.Success()
 	return nil
 }
@@ -598,6 +625,18 @@ func (d *pure) DeleteVolume(vol Volume, op *operations.Operation) error {
 		}
 	}
 
+	// Pure Storage refuses to eradicate (permanently delete) a volume while it still has snapshots.
+	// Image volumes carry a "readonly" completion-marker snapshot created by CreateVolume, so it
+	// must be explicitly deleted first. A "not found" response is acceptable (the snapshot is absent
+	// on an incomplete image that never reached the marker step), but any other error is propagated
+	// because it means the snapshot still exists and the subsequent deleteVolume will also fail.
+	if vol.volType == VolumeTypeImage {
+		err := d.client().deleteVolumeSnapshot(vol.pool, volName, "readonly")
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+	}
+
 	err = d.client().deleteVolume(vol.pool, volName)
 	if err != nil {
 		return err
@@ -624,6 +663,49 @@ func (d *pure) DeleteVolume(vol Volume, op *operations.Operation) error {
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
+		}
+	}
+
+	return nil
+}
+
+// ValidateImageVolume verifies that the image volume was fully unpacked by checking for
+// the "readonly" completion-marker snapshot. Pure Storage has no atomic write-commit
+// primitive, so CreateVolume records a successful unpack by creating this snapshot after
+// the filler runs. Its absence means the download was interrupted and the volume is corrupt.
+func (d *pure) ValidateImageVolume(vol Volume, op *operations.Operation) error {
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.client().getVolumeSnapshot(vol.pool, volName, "readonly")
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Missing readonly snapshot for image volume %q: %w", vol.name, ErrBrokenImageVolume)
+		}
+
+		return err
+	}
+
+	// VM images are split across a block volume and a companion filesystem volume.
+	// Both halves must have their marker snapshots present, because either one
+	// could be absent if the unpack was interrupted partway through the second write.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		fsVolName, err := d.getVolumeName(fsVol)
+		if err != nil {
+			return err
+		}
+
+		_, err = d.client().getVolumeSnapshot(vol.pool, fsVolName, "readonly")
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return fmt.Errorf("Missing readonly snapshot for image filesystem volume %q %w", fsVol.name, ErrBrokenImageVolume)
+			}
+
+			return err
 		}
 	}
 
