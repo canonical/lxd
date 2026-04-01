@@ -624,6 +624,12 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 	isBearerRequest, tokenLocation, token, subject := bearer.IsAPIRequest(r, d.globalConfig.ClusterUUID())
 	if isBearerRequest {
 		if tokenLocation == auth.TokenLocationQuery {
+			// Query token parameters are only valid for browser requests to the root URL.
+			// The root URL handler validates the token and sets it as a session cookie.
+			if r.URL.Path == "/" && isBrowserClient(r) {
+				return &request.RequestorArgs{Trusted: false}, nil
+			}
+
 			return nil, api.StatusErrorf(http.StatusForbidden, "Token query parameter usage is not allowed for the /1.0 API")
 		}
 
