@@ -1876,21 +1876,27 @@ func (o *OVN) PortGroupPortClearACLRules(portGroupName OVNPortGroup, portName OV
 	return nil
 }
 
-// loadBalancerUUIDs returns list of UUID records for named load balancer.
-func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) ([]string, error) {
-	lbTCPName := string(loadBalancerName) + "-tcp"
-	lbUDPName := string(loadBalancerName) + "-udp"
-
-	var lbUUIDs []string //nolint:prealloc
+// loadBalancerUUIDs returns a map of UUID records for the named load balancer.
+// All load balancers for all protocols matching the given name are returned.
+// The returned map is keyed by protocol which helps differentiating the UUIDs.
+func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) (map[string][]string, error) {
+	protocols := []string{"tcp", "udp"}
+	lbUUIDs := make(map[string][]string, len(protocols))
 
 	// Use find command in order to workaround OVN bug where duplicate records of same name can exist.
-	for _, lbName := range []string{lbTCPName, lbUDPName} {
-		output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid", "find", "load_balancer", `name="`+lbName+`"`)
+	for _, protocol := range protocols {
+		output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid", "find", "load_balancer", `name="`+string(loadBalancerName)+"-"+protocol+`"`)
 		if err != nil {
 			return nil, err
 		}
 
-		lbUUIDs = append(lbUUIDs, shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)...)
+		uuids := shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+
+		if lbUUIDs[protocol] == nil {
+			lbUUIDs[protocol] = make([]string, 0, len(uuids))
+		}
+
+		lbUUIDs[protocol] = append(lbUUIDs[protocol], uuids...)
 	}
 
 	return lbUUIDs, nil
