@@ -449,9 +449,6 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		Type:        operationtype.CustomVolumeBackupCreate,
 		Class:       operations.OperationClassTask,
 		RunHook:     backup,
-		Resources: map[entity.Type][]api.URL{
-			entity.TypeStorageVolume: {*volumeURL},
-		},
 		Metadata: map[string]any{
 			operations.EntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName).String(),
 		},
@@ -667,9 +664,6 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		Type:        operationtype.CustomVolumeBackupRename,
 		Class:       operations.OperationClassTask,
 		RunHook:     rename,
-		Resources: map[entity.Type][]api.URL{
-			entity.TypeStorageVolumeBackup: {*backupURL},
-		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -772,9 +766,6 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		Type:        operationtype.CustomVolumeBackupRemove,
 		Class:       operations.OperationClassTask,
 		RunHook:     remove,
-		Resources: map[entity.Type][]api.URL{
-			entity.TypeStorageVolumeBackup: {*backupURL},
-		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)

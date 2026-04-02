@@ -350,16 +350,11 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	instanceURL := api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)
-	resources := map[entity.Type][]api.URL{
-		entity.TypeInstance: {*instanceURL},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: projectName,
 		EntityURL:   instanceURL,
 		Type:        operationtype.SnapshotCreate,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     snapshot,
 		Metadata: map[string]any{
 			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", name, "snapshots", req.Name).Project(projectName).String(),
@@ -712,10 +707,6 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			return response.SmartError(err)
 		}
 
-		resources := map[entity.Type][]api.URL{
-			entity.TypeInstanceSnapshot: {*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name)},
-		}
-
 		run := func(ctx context.Context, op *operations.Operation) error {
 			return ws.Do(s, op)
 		}
@@ -727,7 +718,6 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 				EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 				Type:        operationtype.SnapshotTransfer,
 				Class:       operations.OperationClassTask,
-				Resources:   resources,
 				RunHook:     run,
 			}
 
@@ -745,7 +735,6 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 			Type:        operationtype.SnapshotTransfer,
 			Class:       operations.OperationClassWebsocket,
-			Resources:   resources,
 			Metadata:    ws.Metadata(),
 			RunHook:     run,
 			ConnectHook: ws.Connect,
@@ -789,16 +778,11 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		return snapInst.Rename(fullName, false)
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeInstanceSnapshot: {*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name)},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: snapInst.Project().Name,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 		Type:        operationtype.SnapshotRename,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     rename,
 	}
 
