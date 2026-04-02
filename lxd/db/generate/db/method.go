@@ -171,7 +171,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	buf.L("var err error")
 	buf.N()
 	buf.L("// Result slice.")
-	buf.L("objects := make(%s, 0)", lex.Slice(typ))
+	buf.L("var objects %s", lex.Slice(typ))
 	buf.N()
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "objects")
