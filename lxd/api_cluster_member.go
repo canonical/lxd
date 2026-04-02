@@ -360,7 +360,7 @@ func clusterMembersPost(d *Daemon, r *http.Request) response.Response {
 		if opServerName == req.ServerName {
 			// Join token operation matches requested server name, so lets cancel it.
 			logger.Warn("Cancelling duplicate join token operation", logger.Ctx{"operation": op.ID, "serverName": opServerName})
-			err = operationCancel(r.Context(), s, "", op)
+			err = operationCancelToken(r.Context(), s, "", op)
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Failed cancelling operation %q: %w", op.ID, err))
 			}

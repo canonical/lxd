@@ -926,9 +926,14 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 
 	expiresAt, ok := metadata["expires_at"]
 	if ok {
-		info.ExpiresAt, ok = expiresAt.(time.Time)
+		expiryStr, ok := expiresAt.(string)
 		if !ok {
-			return nil, errors.New("Invalid type for field \"expires_at\"")
+			return nil, errors.New("Invalid type for field `expires_at`")
+		}
+
+		info.ExpiresAt, err = time.Parse(time.RFC3339Nano, expiryStr)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid expiry format for field `expires_at`: %w", err)
 		}
 	} else {
 		info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
@@ -936,10 +941,22 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 
 	properties, ok := metadata["properties"]
 	if ok {
-		info.Properties, ok = properties.(map[string]string)
+		propertiesMap, ok := properties.(map[string]any)
 		if !ok {
 			return nil, errors.New("Invalid type for field \"properties\"")
 		}
+
+		properties := make(map[string]string, len(propertiesMap))
+		for k, v := range propertiesMap {
+			value, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("Invalid type %T for image properties field %q", v, k)
+			}
+
+			properties[k] = value
+		}
+
+		info.Properties = properties
 	} else {
 		info.Properties = imageMeta.Properties
 	}
@@ -1410,9 +1427,14 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		// Apply any provided alias
 		aliases, ok := imageMetadata["aliases"]
 		if ok {
-			req.Aliases, ok = aliases.([]api.ImageAlias)
-			if !ok {
-				return errors.New("Invalid type for field \"aliases\"")
+			b, err := json.Marshal(aliases)
+			if err != nil {
+				return fmt.Errorf("Invalid image alias metadata: %w", err)
+			}
+
+			err = json.Unmarshal(b, &req.Aliases)
+			if err != nil {
+				return fmt.Errorf("Invalid image alias metadata: %w", err)
 			}
 		}
 
@@ -3237,7 +3259,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 
 		if subtle.ConstantTimeCompare([]byte(opSecretStr), secretBytes) == 1 {
 			// Token is single-use, so cancel it now.
-			err = operationCancel(r.Context(), s, projectName, op)
+			err = operationCancelToken(r.Context(), s, projectName, op)
 			if err != nil {
 				return nil, fmt.Errorf("Failed canceling operation %q: %w", op.ID, err)
 			}

@@ -244,31 +244,21 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, joinToken *api
 
 	if foundOp != nil {
 		// Token is single-use, so cancel it now.
-		err = operationCancel(r.Context(), s, "", foundOp)
+		err = operationCancelToken(r.Context(), s, "", foundOp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed canceling operation %q: %w", foundOp.ID, err)
 		}
 
 		expiresAt, ok := foundOp.Metadata["expiresAt"]
 		if ok {
-			var expiry time.Time
+			expiryStr, ok := expiresAt.(string)
+			if !ok {
+				return nil, fmt.Errorf("Unexpected expiry type in cluster join token operation: %T (%v)", expiresAt, expiresAt)
+			}
 
-			// Depending on whether it's a local operation or not, expiry will either be a time.Time or a string.
-			if s.ServerName == foundOp.Location {
-				expiry, ok = expiresAt.(time.Time)
-				if !ok {
-					return nil, fmt.Errorf("Unexpected expiry type in cluster join token operation: %T (%v)", expiresAt, expiresAt)
-				}
-			} else {
-				expiryStr, ok := expiresAt.(string)
-				if !ok {
-					return nil, fmt.Errorf("Unexpected expiry type in cluster join token operation: %T (%v)", expiresAt, expiresAt)
-				}
-
-				expiry, err = time.Parse(time.RFC3339Nano, expiryStr)
-				if err != nil {
-					return nil, fmt.Errorf("Invalid expiry format in cluster join token operation: %w (%q)", err, expiryStr)
-				}
+			expiry, err := time.Parse(time.RFC3339Nano, expiryStr)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid expiry format in cluster join token operation: %w (%q)", err, expiryStr)
 			}
 
 			// Check if token has expired.
@@ -332,31 +322,21 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 	}
 
 	// Token is single-use, so cancel it now.
-	err = operationCancel(r.Context(), s, api.ProjectDefaultName, foundOp)
+	err = operationCancelToken(r.Context(), s, api.ProjectDefaultName, foundOp)
 	if err != nil {
 		return nil, fmt.Errorf("Failed canceling operation %q: %w", foundOp.ID, err)
 	}
 
 	expiresAt, ok := foundOp.Metadata["expiresAt"]
 	if ok {
-		var expiry time.Time
+		expiryStr, ok := expiresAt.(string)
+		if !ok {
+			return nil, fmt.Errorf("Unexpected expiry type in certificate add operation: %T (%v)", expiresAt, expiresAt)
+		}
 
-		// Depending on whether it's a local operation or not, expiry will either be a time.Time or a string.
-		if s.ServerName == foundOp.Location {
-			expiry, ok = expiresAt.(time.Time)
-			if !ok {
-				return nil, fmt.Errorf("Unexpected expiry type in certificate add operation: %T (%v)", expiresAt, expiresAt)
-			}
-		} else {
-			expiryStr, ok := expiresAt.(string)
-			if !ok {
-				return nil, fmt.Errorf("Unexpected expiry type in certificate add operation: %T (%v)", expiresAt, expiresAt)
-			}
-
-			expiry, err = time.Parse(time.RFC3339Nano, expiryStr)
-			if err != nil {
-				return nil, fmt.Errorf("Invalid expiry format in certificate add operation: %w (%q)", err, expiryStr)
-			}
+		expiry, err := time.Parse(time.RFC3339Nano, expiryStr)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid expiry format in certificate add operation: %w (%q)", err, expiryStr)
 		}
 
 		// Check if token has expired.
@@ -372,28 +352,15 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 	}
 
 	var tokenReq api.CertificatesPost
+	buf := bytes.NewBuffer(nil)
+	err = json.NewEncoder(buf).Encode(tokenReqAny)
+	if err != nil {
+		return nil, fmt.Errorf("Bad certificate add operation data: %w", err)
+	}
 
-	// Depending on whether it's a local operation or not, request field will either be a api.CertificatesPost
-	// or a JSON string of api.CertificatesPost.
-	if s.ServerName == foundOp.Location {
-		tokenReq, ok = tokenReqAny.(api.CertificatesPost)
-		if !ok {
-			return nil, fmt.Errorf("Unexpected request type in certificate add operation: %T", tokenReqAny)
-		}
-	} else {
-		// If the operation is running on another member, the returned metadata will have been unmarshalled
-		// into a map[string]any. Rather than wrangling type assertions, just marshal and unmarshal the
-		// data into the correct type.
-		buf := bytes.NewBuffer(nil)
-		err = json.NewEncoder(buf).Encode(tokenReqAny)
-		if err != nil {
-			return nil, fmt.Errorf("Bad certificate add operation data: %w", err)
-		}
-
-		err = json.NewDecoder(buf).Decode(&tokenReq)
-		if err != nil {
-			return nil, fmt.Errorf("Bad certificate add operation data: %w", err)
-		}
+	err = json.NewDecoder(buf).Decode(&tokenReq)
+	if err != nil {
+		return nil, fmt.Errorf("Bad certificate add operation data: %w", err)
 	}
 
 	return &tokenReq, nil

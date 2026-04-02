@@ -115,7 +115,7 @@ func (r *Requestor) ExpiresAt() *time.Time {
 
 // OriginAddress returns the original address of the caller.
 func (r *Requestor) OriginAddress() string {
-	if r.forwardedOriginAddress != "" {
+	if r.IsForwarded() {
 		return r.forwardedOriginAddress
 	}
 
@@ -124,7 +124,8 @@ func (r *Requestor) OriginAddress() string {
 
 // CallerUsername returns the original caller Username.
 func (r *Requestor) CallerUsername() string {
-	if r.forwardedUsername != "" {
+	if r.IsForwarded() {
+		// Always return forwarded username if the request was forwarded.
 		return r.forwardedUsername
 	}
 
@@ -133,7 +134,8 @@ func (r *Requestor) CallerUsername() string {
 
 // CallerProtocol returns the original caller protocol.
 func (r *Requestor) CallerProtocol() string {
-	if r.forwardedProtocol != "" {
+	if r.IsForwarded() {
+		// Always return forwarded protocol if the request was forwarded.
 		return r.forwardedProtocol
 	}
 
@@ -268,9 +270,32 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 		return nil
 	}
 
+	// If the forwarded address is not set, then the request was not forwarded and no forwarding fields need to be
+	// set on the requestor.
+	if forwardedAddress == "" {
+		return nil
+	}
+
+	// If the forwarded address is set, the forwarded protocol and username must be both be set or both be unset
+	// (see RequestorForwardProxy).
+	if (forwardedUsername == "" && forwardedProtocol != "") || (forwardedUsername != "" && forwardedProtocol == "") {
+		return errors.New("Received forwarded request with missing username or protocol")
+	}
+
+	// If this request was forwarded, then [RequestorArgs.Trusted] will have been set to true because we've
+	// authenticated the certificate of the forwarding cluster member. However, if the forwarding member did not
+	// include a username or protocol header, this can only be because the original request was not authenticated!!
+	//
+	// In this case, set trusted to false. This means that an untrusted request will remain untrusted throughout
+	// the cluster (provided the request context is used appropriately).
+	if forwardedUsername == "" && forwardedProtocol == "" {
+		r.trusted = false
+	}
+
 	r.forwardedOriginAddress = forwardedAddress
 	r.forwardedUsername = forwardedUsername
 	r.forwardedProtocol = forwardedProtocol
+
 	return nil
 }
 
