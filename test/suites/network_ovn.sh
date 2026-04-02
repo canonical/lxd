@@ -577,6 +577,24 @@ test_network_ovn() {
   # 7. Enable the ipv4.address back.
   lxc network set "${ovn_network}" ipv4.address=10.24.140.1/24 ipv4.nat=true
 
+  sub_test "Check that editing a load balancer doesn't replace it with a new one."
+  # 1. Create a load balancer.
+  lxc network load-balancer create "${ovn_network}" 2001:db8:1:2::1
+  # 2. Create a dummy backend.
+  lxc network load-balancer backend add "${ovn_network}" 2001:db8:1:2::1 c1 fd42:bd85:5f89:5293::10
+  # 3. Setup a port pointing to the backend.
+  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 c1
+  # 4. Get the load balancer's internal UUID.
+  load_balancer_name="${chassis_group_name}-lb-2001:db8:1:2::1-tcp"
+  load_balancer_uuid="$(ovn-nbctl get load_balancer "${load_balancer_name}" _uuid)"
+  # 5. Edit the load balancer by setting another listen port.
+  lxc network load-balancer show "${ovn_network}" 2001:db8:1:2::1 | yq '.ports.[].listen_port = "8080"' | lxc network load-balancer edit "${ovn_network}" 2001:db8:1:2::1
+  # 6. Check the load balancer's UUID is still identical.
+  [ "$(lxc network load-balancer show "${ovn_network}" 2001:db8:1:2::1 | yq -r '.ports.[].listen_port')" = "8080" ]
+  [ "$(ovn-nbctl get load_balancer "${load_balancer_name}" _uuid)" = "${load_balancer_uuid}" ]
+  # 7. Cleanup load balancer.
+  lxc network load-balancer delete "${ovn_network}" 2001:db8:1:2::1
+
   echo "Check that instance NIC passthrough with ipv4.routes.external does not allow using volatile.network.ipv4.address."
   ! lxc launch testimage c1 -n "${ovn_network}" -d eth0,ipv4.routes.external="${volatile_ip4}/32" || false
 
