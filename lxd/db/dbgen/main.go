@@ -163,28 +163,49 @@ func getFileSpecs(f *ast.File) ([]Spec, map[*ast.StructType]*Spec, error) {
 			continue
 		}
 
-		// The table name is defined by the db:model tag (a bit like swagger).
-		tableName, ok := strings.CutPrefix(genDecl.Doc.List[len(genDecl.Doc.List)-1].Text, "// db:model ")
+		// Skip any types that are not structs.
+		typeSpec, ok := genDecl.Specs[0].(*ast.TypeSpec)
 		if !ok {
 			continue
 		}
 
-		newSpec := &Spec{
-			TableName: tableName,
-		}
-
-		// At this point we've found a "db:model" comment, so we expect to find a struct type definition.
-		typeSpec, ok := genDecl.Specs[0].(*ast.TypeSpec)
-		if !ok {
-			return nil, nil, fmt.Errorf("Encountered unexpected type spec %q", genDecl.Specs[0])
-		}
-
-		// Set the struct name. This is used in the receiver of the generated methods.
-		newSpec.StructName = typeSpec.Name.Name
-
 		structTypeSpec, ok := typeSpec.Type.(*ast.StructType)
 		if !ok {
-			return nil, nil, fmt.Errorf("Encountered unexpected struct type spec %q", genDecl.Specs[0])
+			continue
+		}
+
+		// The table name is defined by the db:model tag (a bit like swagger).
+		var tableName, configTableName, configTableForeignKey string
+		for _, comment := range genDecl.Doc.List {
+			if !strings.HasPrefix(comment.Text, "// db:") {
+				continue
+			}
+
+			table, ok := strings.CutPrefix(comment.Text, "// db:model ")
+			if ok {
+				tableName = table
+				continue
+			}
+
+			configFields, ok := strings.CutPrefix(comment.Text, "// db:config ")
+			if ok {
+				configTableName, configTableForeignKey, ok = strings.Cut(configFields, " ")
+				if !ok {
+					return nil, nil, fmt.Errorf("Malformed config table spec for struct %q", typeSpec.Name.Name)
+				}
+			}
+		}
+
+		// Skip if no db:model tag is found.
+		if tableName == "" {
+			continue
+		}
+
+		newSpec := &Spec{
+			TableName:        tableName,
+			StructName:       typeSpec.Name.Name,
+			ConfigTableName:  configTableName,
+			ConfigForeignKey: configTableForeignKey,
 		}
 
 		// Iterate over the struct fields.

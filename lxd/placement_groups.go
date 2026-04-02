@@ -171,6 +171,7 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 	var apiGroups []*api.PlacementGroup
 	var placementGroupURLs []string
 	entitlementReportingMap := make(map[*api.URL]auth.EntitlementReporter)
+	var configs map[int64]map[string]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var projectNameFilter *string
 		if !allProjects {
@@ -186,11 +187,16 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
+		configs, err = cluster.GetPlacementGroupConfigs(ctx, tx.Tx(), projectNameFilter)
+		if err != nil {
+			return fmt.Errorf("Failed getting placement group configuration: %w", err)
+		}
+
 		// Transaction local variable to prevent appending duplicates in case of transaction retry on sqlite.ErrBusy.
 		apiGroupsTx := make([]*api.PlacementGroup, 0, len(placementGroups))
 		for _, placementGroup := range placementGroups {
 			u := entity.PlacementGroupURL(placementGroup.ProjectName, placementGroup.Row.Name)
-			apiGroup, err := placementGroup.ToAPI(ctx, tx.Tx())
+			apiGroup, err := placementGroup.ToAPI(configs)
 			if err != nil {
 				return err
 			}
@@ -309,7 +315,7 @@ func placementGroupsPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = cluster.CreatePlacementGroupConfig(ctx, tx.Tx(), id, req.Config)
+		err = query.SetConfiguration(ctx, tx.Tx(), cluster.PlacementGroupsRow{ID: id}, req.Config)
 		if err != nil {
 			return err
 		}
@@ -460,7 +466,12 @@ func placementGroupGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		placementGroup, err = dbGroup.ToAPI(ctx, tx.Tx())
+		configs, err := query.GetConfigurationByEntityIDs[cluster.PlacementGroupsRow](ctx, tx.Tx(), dbGroup.Row.ID)
+		if err != nil {
+			return fmt.Errorf("Failed getting placement group config: %w", err)
+		}
+
+		placementGroup, err = dbGroup.ToAPI(configs)
 		if err != nil {
 			return err
 		}
@@ -587,7 +598,7 @@ func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		config, err = cluster.GetPlacementGroupConfig(ctx, tx.Tx(), placementGroup.Row.ID)
+		config, err = query.GetConfigurationByEntityID(ctx, tx.Tx(), placementGroup.Row)
 		if err != nil {
 			return fmt.Errorf("Failed getting placement group config: %w", err)
 		}
@@ -645,7 +656,7 @@ func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err = cluster.UpdatePlacementGroupConfig(ctx, tx.Tx(), updatedPlacementGroup.Row.ID, updatedConfig)
+		err = query.SetConfiguration(ctx, tx.Tx(), updatedPlacementGroup.Row, updatedConfig)
 		if err != nil {
 			return err
 		}

@@ -11,11 +11,11 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 )
 
 // PlacementGroupsRow represents a single row of the placement_groups table.
 // db:model placement_groups
+// db:config placement_groups_config placement_group_id
 type PlacementGroupsRow struct {
 	ID          int64  `db:"id"`
 	Name        string `db:"name"`
@@ -90,77 +90,23 @@ func GetPlacementGroupsAndURLs(ctx context.Context, tx *sql.Tx, projectName *str
 	return placementGroups, placementGroupURLs, nil
 }
 
-// CreatePlacementGroupConfig creates config for a new placement group with the given ID.
-func CreatePlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64, config map[string]string) error {
-	q := `INSERT INTO placement_groups_config (placement_group_id, key, value) VALUES(?, ?, ?)`
-
-	stmt, err := tx.Prepare(q)
-	if err != nil {
-		return err
+// GetPlacementGroupConfigs returns configuration for all placement groups, filtering by project if specified.
+func GetPlacementGroupConfigs(ctx context.Context, tx *sql.Tx, projectName *string) (map[int64]map[string]string, error) {
+	clause := ""
+	var args []any
+	if projectName != nil {
+		clause = "JOIN projects ON placement_groups.project_id = projects.id WHERE projects.name = ?"
+		args = []any{*projectName}
 	}
 
-	defer func() {
-		err := stmt.Close()
-		if err != nil {
-			logger.Warn("Failed closing statement", logger.Ctx{"query": q, "err": err})
-		}
-	}()
-
-	for k, v := range config {
-		if v == "" {
-			continue
-		}
-
-		_, err = stmt.Exec(placementGroupID, k, v)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// UpdatePlacementGroupConfig updates the placement group config with the given ID.
-func UpdatePlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64, config map[string]string) error {
-	// Delete current entries.
-	_, err := tx.Exec("DELETE FROM placement_groups_config WHERE placement_group_id=?", placementGroupID)
-	if err != nil {
-		return err
-	}
-
-	// Insert new entries.
-	return CreatePlacementGroupConfig(ctx, tx, placementGroupID, config)
-}
-
-// GetPlacementGroupConfig returns the config for the placement group with the given ID.
-func GetPlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64) (map[string]string, error) {
-	q := `SELECT key, value FROM placement_groups_config WHERE placement_group_id=?`
-
-	config := map[string]string{}
-	return config, query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
-		var key, value string
-
-		err := scan(&key, &value)
-		if err != nil {
-			return err
-		}
-
-		_, found := config[key]
-		if found {
-			return fmt.Errorf("Duplicate config row found for key %q for placement group ID %d", key, placementGroupID)
-		}
-
-		config[key] = value
-		return nil
-	}, placementGroupID)
+	return query.GetConfiguration[PlacementGroupsRow](ctx, tx, clause, args...)
 }
 
 // ToAPI converts the [PlacementGroup] to an [api.PlacementGroup], querying for extra data as necessary.
-func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementGroup, error) {
-	// Get config
-	config, err := GetPlacementGroupConfig(ctx, tx, p.Row.ID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed getting placement group config: %w", err)
+func (p *PlacementGroup) ToAPI(configs map[int64]map[string]string) (*api.PlacementGroup, error) {
+	config, ok := configs[p.Row.ID]
+	if !ok {
+		return nil, errors.New("Placement group config not found")
 	}
 
 	return &api.PlacementGroup{

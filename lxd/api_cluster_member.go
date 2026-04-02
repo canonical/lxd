@@ -1707,16 +1707,11 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 				return err
 			}
 
-			apiPlacementGroup, err := placementGroup.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-
-			filteredCandidates, err := placement.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, true)
+			filteredCandidates, err := placement.Filter(ctx, tx, candidateMembers, *placementGroup, true)
 			if err != nil {
 				// If no candidates remain due to placement constraints, signal not found so caller can skip instance during evacuation.
 				if api.StatusErrorCheck(err, http.StatusConflict) {
-					return api.StatusErrorf(http.StatusNotFound, "No eligible target cluster members after applying placement group %q", placementGroup.Row.Name)
+					return api.StatusErrorf(http.StatusNotFound, "No eligible target cluster members after applying placement group %q", placementGroup.Name)
 				}
 
 				return err
