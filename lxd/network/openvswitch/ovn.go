@@ -1933,25 +1933,6 @@ func (o *OVN) loadBalancerVIPs(loadBalancerName OVNLoadBalancer, protocol string
 // LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
 // Providing an empty set of vips will delete the load balancer.
 func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, switches []OVNSwitch, vips ...OVNLoadBalancerVIP) error {
-	lbTCPName := string(loadBalancerName) + "-tcp"
-	lbUDPName := string(loadBalancerName) + "-udp"
-
-	// Remove load balancers if they exist.
-	lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
-	if err != nil {
-		return fmt.Errorf("Failed getting UUIDs: %w", err)
-	}
-
-	args := make([]string, 0, 5*len(lbUUIDs))
-
-	for _, lbUUID := range lbUUIDs {
-		if len(args) > 0 {
-			args = append(args, "--")
-		}
-
-		args = append(args, "--if-exists", "destroy", "load_balancer", lbUUID)
-	}
-
 	// ipToString wraps IPv6 addresses in square brackets.
 	ipToString := func(ip net.IP) string {
 		if ip.To4() == nil {
