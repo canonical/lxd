@@ -335,7 +335,7 @@ func (t Type) EntityType() entity.Type {
 	// If creating a resource, then the parent project is the primary entity
 	// (the entity being created is not yet referenceable).
 	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore,
-		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, StoragePoolCreate, NetworkCreate, NetworkACLCreate:
+		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, StoragePoolCreate, NetworkCreate:
 		return entity.TypeProject
 
 	// Volume operations.
@@ -378,7 +378,7 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeProfile
 
 	// Network operations.
-	case NetworkUpdate, NetworkDelete, NetworkRename:
+	case NetworkUpdate, NetworkDelete, NetworkRename, NetworkACLCreate:
 		return entity.TypeNetwork
 
 	// Network ACL operations.
