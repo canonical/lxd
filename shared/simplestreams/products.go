@@ -164,6 +164,11 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					description += " (" + version.Label + ")"
 				}
 
+				// If variant is specified, append it to the image description.
+				if product.Variant != "" {
+					description += " (" + product.Variant + ")"
+				}
+
 				image := api.Image{}
 				image.Architecture = architectureName
 				image.Public = true
