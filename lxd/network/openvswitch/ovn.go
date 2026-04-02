@@ -2040,12 +2040,14 @@ func (o *OVN) LoadBalancerDelete(loadBalancerNames ...OVNLoadBalancer) error {
 		}
 
 		// Remove load balancers if they exist.
-		for _, lbUUID := range lbUUIDs {
-			if len(args) > 0 {
-				args = append(args, "--")
-			}
+		for _, lbUUIDsForProtocol := range lbUUIDs {
+			for _, lbUUID := range lbUUIDsForProtocol {
+				if len(args) > 0 {
+					args = append(args, "--")
+				}
 
-			args = append(args, "--if-exists", "destroy", "load_balancer", lbUUID)
+				args = append(args, "--if-exists", "destroy", "load_balancer", lbUUID)
+			}
 		}
 	}
 
