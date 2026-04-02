@@ -458,6 +458,11 @@ func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret 
 			return nil, api.NewStatusError(http.StatusNotFound, "No pending identities found with given secret")
 		}
 
+		if query.IsMultipleMatchErr(err) {
+			// Maintain error message for clarity.
+			return nil, errors.New("Multiple pending identities found with given secret")
+		}
+
 		return nil, fmt.Errorf("Failed getting identity by token secret: %w", err)
 	}
 
