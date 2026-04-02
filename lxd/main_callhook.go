@@ -50,8 +50,8 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 
 	// Handle startmountns hook.
 	if hook == "startmountns" {
-		// CDI device setup for stopped containers is now handled via PostHooks in gpu_physical.go.
-		// The /usr mtime is touched when the device is added to ensure systemd's ldconfig.service
+		// CDI device setup for containers is now handled via PostHooks in gpu_physical.go.
+		// The /usr mtime is touched when the device is started to ensure systemd's ldconfig.service
 		// is triggered at boot. No action needed here.
 		return nil
 	}
