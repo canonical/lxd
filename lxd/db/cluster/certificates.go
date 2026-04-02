@@ -165,6 +165,16 @@ var getCertificateIdentitiesClause = `
 func GetCertificateByFingerprintPrefix(ctx context.Context, tx *sql.Tx, fingerprintPrefix string) (*Certificate, error) {
 	id, err := query.SelectOne[IdentitiesRow](ctx, tx, getCertificateIdentitiesClause+" AND identities.identifier LIKE ?", fingerprintPrefix+"%")
 	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Overwrite error message sent via API to use "Certificate" instead of "Identity".
+			return nil, api.NewStatusError(http.StatusNotFound, "Certificate not found")
+		}
+
+		if query.IsMultipleMatchErr(err) {
+			// Maintain "certificate" in error message.
+			return nil, api.NewStatusError(http.StatusBadRequest, "More than one certificate matches")
+		}
+
 		return nil, err
 	}
 
@@ -254,6 +264,13 @@ func GetCertificatesAndURLs(ctx context.Context, tx *sql.Tx, filter func(Certifi
 func GetCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*Certificate, error) {
 	id, err := query.SelectOne[IdentitiesRow](ctx, tx, getCertificateIdentitiesClause+" AND identities.identifier = ?", fingerprint)
 	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Overwrite error message sent via API to use "Certificate" instead of "Identity".
+			return nil, api.NewStatusError(http.StatusNotFound, "Certificate not found")
+		}
+
+		// No need to check for multiple matches because of the unique constraint on the identities table which
+		// disallows more than one identity with the same authentication method and identifier.
 		return nil, err
 	}
 
@@ -277,12 +294,34 @@ func CreateCertificate(ctx context.Context, tx *sql.Tx, object Certificate) (int
 		return 0, err
 	}
 
-	return query.Create(ctx, tx, *identity)
+	id, err := query.Create(ctx, tx, *identity)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusConflict) {
+			// Overwrite error message sent via API to use "Certificate" instead of "Identity".
+			return 0, api.NewStatusError(http.StatusConflict, "Certificate already exists")
+		}
+
+		return 0, err
+	}
+
+	return id, nil
 }
 
 // DeleteCertificate deletes the certificate matching the given key parameters.
 func DeleteCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) error {
-	return DeleteIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	err := DeleteIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Overwrite error message sent via API to use "Certificate" instead of "Identity".
+			return api.NewStatusError(http.StatusNotFound, "Certificate not found")
+		}
+
+		// No need to check for multiple matches because of the unique constraint on the identities table which
+		// disallows more than one identity with the same authentication method and identifier.
+		return err
+	}
+
+	return nil
 }
 
 // UpdateCertificate updates the certificate matching the given key parameters.
