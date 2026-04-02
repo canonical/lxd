@@ -67,7 +67,7 @@ Otherwise, if the number shown is lower, an older version is installed. In this 
 For more information, see {ref}`security-daemon-access`.
 ````
 
-Installing LXD through its snap should automatically create an `lxd` group on your system. The user you are logged in as must be in this group to interact with LXD.
+Installing LXD through its snap should automatically create a `lxd` group on your system. The user you are logged in as must be in this group to interact with LXD.
 
 Enter the following commands. The first command adds your user to the `lxd` group.
 The second command starts a new shell where the group membership takes effect immediately.
