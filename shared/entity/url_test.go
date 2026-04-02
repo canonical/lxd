@@ -15,10 +15,12 @@ import (
 // The test will fail if any entity type present in [entityTypes] is not covered by the test cases.
 func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 	tests := []struct {
-		Name     string
-		URL      string
-		WantType Type
-		WantArgs map[string]string
+		Name         string
+		URL          string
+		WantType     Type
+		WantArgs     map[string]string
+		WantProject  string
+		WantLocation string
 	}{
 		{
 			Name:     "Auth group",
@@ -55,17 +57,19 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 		{
 			// TypeContainer is retained for internal database compatibility. The /1.0/containers route
 			// was removed in LXD 6.7; instances are now accessed via /1.0/instances.
-			Name:     "Container",
-			URL:      "/1.0/containers/c1",
-			WantType: TypeContainer,
+			Name:        "Container",
+			URL:         "/1.0/containers/c1",
+			WantType:    TypeContainer,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"name": "c1",
 			},
 		},
 		{
-			Name:     "Instance",
-			URL:      "/1.0/instances/foo",
-			WantType: TypeInstance,
+			Name:        "Instance",
+			URL:         "/1.0/instances/foo",
+			WantType:    TypeInstance,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"name": "foo",
 			},
@@ -88,27 +92,21 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
-			Name:     "Image",
-			URL:      "/1.0/images/000000000000",
-			WantType: TypeImage,
+			Name:        "Image",
+			URL:         "/1.0/images/000000000000",
+			WantType:    TypeImage,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"fingerprint": "000000000000",
 			},
 		},
 		{
-			Name:     "Image alias",
-			URL:      "/1.0/images/aliases/ubuntu",
-			WantType: TypeImageAlias,
+			Name:        "Image alias",
+			URL:         "/1.0/images/aliases/ubuntu",
+			WantType:    TypeImageAlias,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"name": "ubuntu",
-			},
-		},
-		{
-			Name:     "Instance",
-			URL:      "/1.0/instances/c1",
-			WantType: TypeInstance,
-			WantArgs: map[string]string{
-				"name": "c1",
 			},
 		},
 		{
@@ -118,69 +116,78 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			WantArgs: map[string]string{
 				"name": "c1",
 			},
+			WantProject: "foo",
 		},
 		{
-			Name:     "Instance backup",
-			URL:      "/1.0/instances/myvm/backups/mybackup",
-			WantType: TypeInstanceBackup,
+			Name:        "Instance backup",
+			URL:         "/1.0/instances/myvm/backups/mybackup",
+			WantType:    TypeInstanceBackup,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"instance": "myvm",
 				"name":     "mybackup",
 			},
 		},
 		{
-			Name:     "Instance snapshot",
-			URL:      "/1.0/instances/my-vm/snapshots/snap-0",
-			WantType: TypeInstanceSnapshot,
+			Name:        "Instance snapshot",
+			URL:         "/1.0/instances/my-vm/snapshots/snap-0",
+			WantType:    TypeInstanceSnapshot,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"instance": "my-vm",
 				"name":     "snap-0",
 			},
 		},
 		{
-			Name:     "Network",
-			URL:      "/1.0/networks/lxdbr0",
-			WantType: TypeNetwork,
+			Name:        "Network",
+			URL:         "/1.0/networks/lxdbr0",
+			WantType:    TypeNetwork,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"name": "lxdbr0",
 			},
 		},
 		{
-			Name:     "Network ACL",
-			URL:      "/1.0/network-acls/1.2.3.4",
-			WantType: TypeNetworkACL,
+			Name:        "Network ACL",
+			URL:         "/1.0/network-acls/1.2.3.4",
+			WantType:    TypeNetworkACL,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"name": "1.2.3.4",
 			},
 		},
 		{
-			Name:     "Network zone",
-			URL:      "/1.0/network-zones/1.2.3.4",
-			WantType: TypeNetworkZone,
+			Name:        "Network zone",
+			URL:         "/1.0/network-zones/1.2.3.4",
+			WantType:    TypeNetworkZone,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"name": "1.2.3.4",
 			},
 		},
 		{
-			Name:     "Placement group",
-			URL:      "/1.0/placement-groups/default",
-			WantType: TypePlacementGroup,
+			Name:        "Placement group",
+			URL:         "/1.0/placement-groups/default",
+			WantType:    TypePlacementGroup,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"name": "default",
 			},
 		},
 		{
-			Name:     "Profile",
-			URL:      "/1.0/profiles/default",
-			WantType: TypeProfile,
+			Name:        "Profile",
+			URL:         "/1.0/profiles/default",
+			WantType:    TypeProfile,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"name": "default",
 			},
 		},
 		{
-			Name:     "Project",
-			URL:      "/1.0/projects/foo",
-			WantType: TypeProject,
+			Name:        "Project",
+			URL:         "/1.0/projects/foo",
+			WantType:    TypeProject,
+			WantProject: "foo",
 			WantArgs: map[string]string{
 				"name": "foo",
 			},
@@ -200,9 +207,10 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
-			Name:     "Storage volume",
-			URL:      "/1.0/storage-pools/p1/volumes/custom/v1",
-			WantType: TypeStorageVolume,
+			Name:        "Storage volume",
+			URL:         "/1.0/storage-pools/p1/volumes/custom/v1",
+			WantType:    TypeStorageVolume,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"pool": "p1",
 				"type": "custom",
@@ -210,9 +218,10 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
-			Name:     "Storage volume backup",
-			URL:      "/1.0/storage-pools/p1/volumes/custom/v1/backups/b1",
-			WantType: TypeStorageVolumeBackup,
+			Name:        "Storage volume backup",
+			URL:         "/1.0/storage-pools/p1/volumes/custom/v1/backups/b1",
+			WantType:    TypeStorageVolumeBackup,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"pool":   "p1",
 				"type":   "custom",
@@ -221,9 +230,10 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
-			Name:     "Storage volume snapshot",
-			URL:      "/1.0/storage-pools/p1/volumes/custom/v1/snapshots/s1",
-			WantType: TypeStorageVolumeSnapshot,
+			Name:        "Storage volume snapshot",
+			URL:         "/1.0/storage-pools/p1/volumes/custom/v1/snapshots/s1",
+			WantType:    TypeStorageVolumeSnapshot,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"pool":   "p1",
 				"type":   "custom",
@@ -232,9 +242,10 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
-			Name:     "Storage bucket",
-			URL:      "/1.0/storage-pools/test/buckets/pail",
-			WantType: TypeStorageBucket,
+			Name:        "Storage bucket",
+			URL:         "/1.0/storage-pools/test/buckets/pail",
+			WantType:    TypeStorageBucket,
+			WantProject: "default",
 			WantArgs: map[string]string{
 				"pool": "test",
 				"name": "pail",
@@ -249,6 +260,8 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 				"type": "custom",
 				"name": "v1",
 			},
+			WantProject:  "foo",
+			WantLocation: "bar",
 		},
 	}
 
@@ -261,7 +274,9 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, test.WantType, entityType)
 
-			// Check that the parsed type and arguments match the expected values.
+			// Check that the parsed project, location, type and arguments match the expected values.
+			require.Equal(t, test.WantProject, project)
+			require.Equal(t, test.WantLocation, location)
 			require.Equal(t, test.WantArgs, args)
 
 			// Construct a new URL from the parsed type and arguments.
