@@ -40,12 +40,12 @@ func TestURL(t *testing.T) {
 			expectedEntityType:    TypeServer,
 		},
 		{
-			name:                  "containers",
-			rawURL:                "/1.0/containers/my-container?project=my-project",
-			expectedNormalisedURL: "/1.0/containers/my-container?project=my-project",
-			expectedEntityType:    TypeContainer,
+			name:                  "instances",
+			rawURL:                "/1.0/instances/my-instance?project=my-project",
+			expectedNormalisedURL: "/1.0/instances/my-instance?project=my-project",
+			expectedEntityType:    TypeInstance,
 			expectedProject:       "my-project",
-			expectedPathArgs:      []string{"my-container"},
+			expectedPathArgs:      []string{"my-instance"},
 			expectedErr:           nil,
 		},
 		{

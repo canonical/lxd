@@ -53,9 +53,19 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
+			// TypeContainer is retained for internal database compatibility. The /1.0/containers route
+			// was removed in LXD 6.7; instances are now accessed via /1.0/instances.
 			Name:     "Container",
-			URL:      "/1.0/containers/foo",
+			URL:      "/1.0/containers/c1",
 			WantType: TypeContainer,
+			WantArgs: map[string]string{
+				"name": "c1",
+			},
+		},
+		{
+			Name:     "Instance",
+			URL:      "/1.0/instances/foo",
+			WantType: TypeInstance,
 			WantArgs: map[string]string{
 				"name": "foo",
 			},
