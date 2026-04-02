@@ -16194,8 +16194,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -16230,8 +16230,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -16268,8 +16268,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -16299,8 +16299,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -16335,8 +16335,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -16609,8 +16609,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/definitions/StorageBucketKey'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -16728,8 +16728,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/definitions/StorageBucketKey'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
