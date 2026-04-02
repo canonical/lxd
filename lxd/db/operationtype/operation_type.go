@@ -367,15 +367,16 @@ func (t Type) EntityType() entity.Type {
 		ImagesSynchronize, RemoveExpiredOIDCSessions, RemoveExpiredTokens, RemoveOrphanedOperations,
 		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
-		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled, SnapshotsCreateScheduled, PruneExpiredOperations, RefreshClusterLinkVolatileAddresses:
+		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled, SnapshotsCreateScheduled,
+		PruneExpiredOperations, RefreshClusterLinkVolatileAddresses,
+		StoragePoolCreate:
 		return entity.TypeServer
 
 	// Project level operations.
 	// If creating a resource, then the parent project is the primary entity
 	// (the entity being created is not yet referenceable).
 	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore,
-		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, StoragePoolCreate, NetworkCreate, NetworkACLCreate,
-		StorageBucketCreate:
+		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, NetworkCreate, NetworkACLCreate, StorageBucketCreate:
 		return entity.TypeProject
 
 	// Storage bucket operations.
