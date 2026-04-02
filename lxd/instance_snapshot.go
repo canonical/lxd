@@ -778,12 +778,19 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		return snapInst.Rename(fullName, false)
 	}
 
+	originalEntityURL := api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name)
+	metadata := map[string]any{
+		api.MetadataOriginalEntityURL: originalEntityURL.String(),
+		api.MetadataEntityURL:         api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", newName).Project(snapInst.Project().Name).String(),
+	}
+
 	args := operations.OperationArgs{
 		ProjectName: snapInst.Project().Name,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
+		EntityURL:   originalEntityURL,
 		Type:        operationtype.SnapshotRename,
 		Class:       operations.OperationClassTask,
 		RunHook:     rename,
+		Metadata:    metadata,
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
