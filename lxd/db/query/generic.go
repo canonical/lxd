@@ -141,8 +141,16 @@ func UpdateByPrimaryKey(ctx context.Context, tx *sql.Tx, u Updatable) error {
 		return fmt.Errorf("Failed verifying %s update: %w", strings.ToLower(u.APIName()), err)
 	}
 
-	if n != 1 {
-		return fmt.Errorf("Update by primary key where `%s.%s = %v` affected %d rows", tableName, u.PKColumn(), u.PKValue(), n)
+	if n == 0 || n > 1 {
+		err = fmt.Errorf("Update by primary key where `%s.%s = %v` affected %d rows", tableName, u.PKColumn(), u.PKValue(), n)
+		if n == 0 {
+			// Don't return a not found error here. If we try to update something by primary key and it is not present,
+			// there is an error in our business logic (e.g. we may need to prevent deletion of the resource until an
+			// operation/handler is finished).
+			return err
+		}
+
+		return NewMultipleMatchErr(err)
 	}
 
 	return nil
@@ -174,7 +182,7 @@ func UpdateOne(ctx context.Context, tx *sql.Tx, u Updatable, clause string, args
 	if n < 1 {
 		return notFoundErr(u)
 	} else if n > 1 {
-		return fmt.Errorf("Expected to update one %s but updated %d", strings.ToLower(u.APIName()), n)
+		return NewMultipleMatchErr(fmt.Errorf("Expected to update one %s but updated %d", strings.ToLower(u.APIName()), n))
 	}
 
 	return nil
@@ -272,7 +280,7 @@ func SelectOne[T Selectable, PT interface {
 	var pt PT
 	f := func(t T) error {
 		if pt != nil {
-			return fmt.Errorf("More than one %s found", strings.ToLower(t.APIName()))
+			return NewMultipleMatchErr(fmt.Errorf("More than one %s found", strings.ToLower(t.APIName())))
 		}
 
 		pt = &t
@@ -315,8 +323,15 @@ func DeleteByPrimaryKey[T Referenceable](ctx context.Context, tx *sql.Tx, t T) e
 		return fmt.Errorf("Failed getting number of deleted rows: %w", err)
 	}
 
-	if deleted != 1 {
-		return fmt.Errorf("Deletion by primary key where `%s.%s = %v` affected %d rows", t.TableName(), t.PKColumn(), t.PKValue(), deleted)
+	if deleted == 0 || deleted > 1 {
+		err = fmt.Errorf("Deletion by primary key where `%s.%s = %v` affected %d rows", tableName, t.PKColumn(), t.PKValue(), deleted)
+		if deleted == 0 {
+			// Don't return a not found error here. If we try to delete something by primary key and it is not present,
+			// there is an error in our business logic (e.g. we may need a lock).
+			return err
+		}
+
+		return NewMultipleMatchErr(err)
 	}
 
 	return nil
@@ -368,7 +383,7 @@ func DeleteOne[T Referenceable, PT interface {
 	if n < 1 {
 		return notFoundErr(t)
 	} else if n > 1 {
-		return fmt.Errorf("Expected to delete a single row from %q but deleted %d", tableName, n)
+		return NewMultipleMatchErr(fmt.Errorf("Expected to delete a single row from %q but deleted %d", tableName, n))
 	}
 
 	return nil
