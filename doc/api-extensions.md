@@ -3033,3 +3033,8 @@ This is primarily useful when combined with the `initial.` `disk` device configu
 Storage pool and network endpoints that were previously synchronous now return background operations. This affects create, update, delete, and rename actions on storage pools, networks, network ACLs, network zones, network zone records, network forwards, network load balancers, network peers, and storage buckets (including bucket keys).
 
 Clients should check for this extension and handle the asynchronous response by waiting on the returned operation. Operation metadata may include additional data, such as storage bucket admin credentials on bucket creation.
+
+(extension-gpu-cdi-hotplug)=
+## `gpu_cdi_hotplug`
+
+Adds support for hotplugging GPU devices into containers when using {ref}`gpu-physical-cdi`.
