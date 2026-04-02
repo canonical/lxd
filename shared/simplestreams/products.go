@@ -164,8 +164,6 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					description += " (" + version.Label + ")"
 				}
 
-				description += " (" + name + ")"
-
 				image := api.Image{}
 				image.Architecture = architectureName
 				image.Public = true
