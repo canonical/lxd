@@ -85,6 +85,10 @@ func (r *Requestor) IsTrusted() bool {
 
 // IsAdmin returns true if the caller is an administrator and false otherwise.
 func (r *Requestor) IsAdmin() bool {
+	if r == nil {
+		return false
+	}
+
 	if slices.Contains([]string{ProtocolUnix, ProtocolCluster, ProtocolPKI}, r.Protocol) {
 		return true
 	}
