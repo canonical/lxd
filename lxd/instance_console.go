@@ -31,7 +31,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
-	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
@@ -555,9 +554,6 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 		Metadata:    ws.Metadata(),
 		RunHook:     ws.Do,
 		ConnectHook: ws.Connect,
-		Resources: map[entity.Type][]api.URL{
-			entity.TypeInstance: {*instanceURL},
-		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)

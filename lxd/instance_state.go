@@ -20,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -205,10 +204,6 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		return doInstanceStatePut(inst, req)
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
-	}
-
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.BadRequest(err)
@@ -235,7 +230,6 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        opType,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     do,
 	}
 

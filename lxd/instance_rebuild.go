@@ -19,7 +19,6 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -158,16 +157,11 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		return instanceRebuildFromImage(ctx, s, inst, sourceImage, op)
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(inst.Project().Name)},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: targetProject.Name,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(inst.Project().Name),
 		Type:        operationtype.InstanceRebuild,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     run,
 	}
 

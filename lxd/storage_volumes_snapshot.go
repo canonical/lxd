@@ -232,16 +232,11 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		volumeURL = volumeURL.Target(s.ServerName)
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeStorageVolume: {*volumeURL},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		EntityURL:   volumeURL,
 		Type:        operationtype.VolumeSnapshotCreate,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     snapshot,
 		Metadata: map[string]any{
 			operations.EntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", req.Name).Project(effectiveProjectName).String(),
@@ -571,16 +566,11 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		volumeURL = volumeURL.Target(s.ServerName)
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeStorageVolumeSnapshot: {*volumeURL},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		EntityURL:   volumeURL,
 		Type:        operationtype.VolumeSnapshotRename,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     snapshotRename,
 	}
 
@@ -814,17 +804,11 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	snapshotURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName)
-	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)
 
 	// In a clustered environment with a non-remote pool, volumes are pinned to a specific node.
 	// Include the target so that the entity lookup can match by node name.
 	if s.ServerClustered && !details.pool.Driver().Info().Remote {
 		snapshotURL = snapshotURL.Target(s.ServerName)
-		volumeURL = volumeURL.Target(s.ServerName)
-	}
-
-	resources := map[entity.Type][]api.URL{
-		entity.TypeStorageVolume: {*volumeURL},
 	}
 
 	args := operations.OperationArgs{
@@ -832,7 +816,6 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		EntityURL:   snapshotURL,
 		Type:        operationtype.VolumeSnapshotUpdate,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     run,
 	}
 
@@ -959,17 +942,11 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	snapshotURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName)
-	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)
 
 	// In a clustered environment with a non-remote pool, volumes are pinned to a specific node.
 	// Include the target so that the entity lookup can match by node name.
 	if s.ServerClustered && !details.pool.Driver().Info().Remote {
 		snapshotURL = snapshotURL.Target(s.ServerName)
-		volumeURL = volumeURL.Target(s.ServerName)
-	}
-
-	resources := map[entity.Type][]api.URL{
-		entity.TypeStorageVolume: {*volumeURL},
 	}
 
 	args := operations.OperationArgs{
@@ -977,7 +954,6 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 		EntityURL:   snapshotURL,
 		Type:        operationtype.VolumeSnapshotUpdate,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     run,
 	}
 
@@ -1091,17 +1067,11 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	snapshotURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName)
-	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)
 
 	// In a clustered environment with a non-remote pool, volumes are pinned to a specific node.
 	// Include the target so that the entity lookup can match by node name.
 	if s.ServerClustered && !details.pool.Driver().Info().Remote {
 		snapshotURL = snapshotURL.Target(s.ServerName)
-		volumeURL = volumeURL.Target(s.ServerName)
-	}
-
-	resources := map[entity.Type][]api.URL{
-		entity.TypeStorageVolume: {*volumeURL},
 	}
 
 	args := operations.OperationArgs{
@@ -1109,7 +1079,6 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		EntityURL:   snapshotURL,
 		Type:        operationtype.VolumeSnapshotDelete,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     snapshotDelete,
 	}
 

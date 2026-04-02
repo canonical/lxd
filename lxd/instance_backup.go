@@ -374,10 +374,6 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
-	}
-
 	metadata := map[string]any{
 		operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(inst.Project().Name).String(),
 	}
@@ -387,7 +383,6 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.BackupCreate,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     backup,
 		Metadata:    metadata,
 	}
@@ -579,17 +574,11 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeInstance:       {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
-		entity.TypeInstanceBackup: {*api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(projectName)},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: projectName,
 		Type:        operationtype.BackupRename,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(projectName),
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     rename,
 	}
 
@@ -675,16 +664,11 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(projectName),
 		Type:        operationtype.BackupRemove,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     remove,
 	}
 

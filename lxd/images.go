@@ -5206,12 +5206,10 @@ func createImageTokenResponse(s *state.State, r *http.Request, projectName strin
 
 	// If downloading an image, the image is the primary entity.
 	// If uploading an image, the project is the primary entity.
-	resources := make(map[entity.Type][]api.URL)
 	var entityURL *api.URL
 	switch tokenType {
 	case operationtype.ImageUploadToken:
 		entityURL = api.NewURL().Path(version.APIVersion, "projects", projectName)
-		resources[entity.TypeProject] = []api.URL{*entityURL}
 	case operationtype.ImageDownloadToken:
 		effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 		if err != nil {
@@ -5219,7 +5217,6 @@ func createImageTokenResponse(s *state.State, r *http.Request, projectName strin
 		}
 
 		entityURL = api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(effectiveProjectName)
-		resources[entity.TypeImage] = []api.URL{*entityURL}
 	default:
 		return response.SmartError(errors.New("Not an image token operation type"))
 	}
@@ -5229,7 +5226,6 @@ func createImageTokenResponse(s *state.State, r *http.Request, projectName strin
 		EntityURL:   entityURL,
 		Type:        tokenType,
 		Class:       operations.OperationClassToken,
-		Resources:   resources,
 		Metadata:    meta,
 	}
 

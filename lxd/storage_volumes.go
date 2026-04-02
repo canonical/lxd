@@ -1262,9 +1262,6 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   volumeURL,
-		Resources: map[entity.Type][]api.URL{
-			entity.TypeStorageVolume: {*volumeURL},
-		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -1300,10 +1297,8 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 	var run func(ctx context.Context, op *operations.Operation) error
 	var opType operationtype.Type
 	var entityURL *api.URL
-	resources := make(map[entity.Type][]api.URL)
 	if req.Source.Name == "" {
 		opType = operationtype.VolumeCreate
-		resources[entity.TypeProject] = []api.URL{*projectURL}
 		entityURL = projectURL
 		run = func(ctx context.Context, op *operations.Operation) error {
 			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
@@ -1326,8 +1321,6 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 			entityURL = entity.StorageVolumeURL(srcProjectName, location, req.Source.Pool, req.Type, req.Source.Name)
 		}
 
-		resources[entity.TypeStorageVolume] = []api.URL{*entityURL}
-		resources[entity.TypeProject] = []api.URL{*projectURL}
 		run = func(ctx context.Context, op *operations.Operation) error {
 			return pool.CreateCustomVolumeFromCopy(projectName, srcProjectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
 		}
@@ -1340,7 +1333,6 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entityURL,
-		Resources:   resources,
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -2046,17 +2038,12 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 	}
 
 	volumeURL := entity.StorageVolumeURL(requestProjectName, vol.Location, vol.Pool, vol.Type, vol.Name)
-	resources := map[entity.Type][]api.URL{
-		entity.TypeStorageVolume: {*volumeURL},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		EntityURL:   volumeURL,
 		Type:        operationtype.VolumeMove,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
-		Resources:   resources,
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -2335,9 +2322,6 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   volumeURL,
-		Resources: map[entity.Type][]api.URL{
-			entity.TypeStorageVolume: {*volumeURL},
-		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -2469,9 +2453,6 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   volumeURL,
-		Resources: map[entity.Type][]api.URL{
-			entity.TypeStorageVolume: {*volumeURL},
-		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -2685,16 +2666,11 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 		return nil
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.VolumeCreate,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     run,
 	}
 
@@ -2747,15 +2723,10 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 	}
 
 	projectURL := api.NewURL().Path(version.APIVersion, "projects", projectName)
-	resources := map[entity.Type][]api.URL{
-		entity.TypeProject: {*projectURL},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		Type:        operationtype.VolumeCreate,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     run,
 		EntityURL:   projectURL,
 	}
@@ -2923,16 +2894,11 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		return nil
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeProject: {*api.NewURL().Path(version.APIVersion, "projects", projectName)},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.CustomVolumeBackupRestore,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     run,
 	}
 

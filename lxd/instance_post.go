@@ -433,16 +433,11 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			instanceURL := api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)
-			resources := map[entity.Type][]api.URL{
-				entity.TypeInstance: {*instanceURL},
-			}
-
 			args := operations.OperationArgs{
 				ProjectName: projectName,
 				EntityURL:   instanceURL,
 				Type:        operationtype.InstanceMigrate,
 				Class:       operations.OperationClassTask,
-				Resources:   resources,
 				RunHook:     run,
 			}
 
@@ -459,10 +454,6 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		ws, err := newMigrationSource(inst, req.Live, instanceOnly, req.AllowInconsistent, "", req.Target)
 		if err != nil {
 			return response.InternalError(err)
-		}
-
-		resources := map[entity.Type][]api.URL{
-			entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
 		}
 
 		run := func(ctx context.Context, op *operations.Operation) error {
@@ -490,7 +481,6 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 				Type:        operationtype.InstanceMigrate,
 				Class:       operations.OperationClassTask,
-				Resources:   resources,
 				RunHook:     run,
 			}
 
@@ -508,7 +498,6 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 			Type:        operationtype.InstanceMigrate,
 			Class:       operations.OperationClassWebsocket,
-			Resources:   resources,
 			Metadata:    ws.Metadata(),
 			RunHook:     run,
 			ConnectHook: ws.Connect,
@@ -538,16 +527,11 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return inst.Rename(req.Name, true)
 	}
 
-	resources := map[entity.Type][]api.URL{
-		entity.TypeInstance: {*api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)},
-	}
-
 	args := operations.OperationArgs{
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.InstanceRename,
 		Class:       operations.OperationClassTask,
-		Resources:   resources,
 		RunHook:     run,
 	}
 
@@ -908,16 +892,11 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 		}
 
 		instanceURL := api.NewURL().Path(version.APIVersion, "instances", srcInstName).Project(srcInst.Project().Name)
-		resources := map[entity.Type][]api.URL{
-			entity.TypeInstance: {*instanceURL},
-		}
-
 		args := operations.OperationArgs{
 			ProjectName: targetProject,
 			EntityURL:   instanceURL,
 			Type:        operationtype.InstanceMigrate,
 			Class:       operations.OperationClassWebsocket,
-			Resources:   resources,
 			Metadata:    srcMigration.Metadata(),
 			RunHook:     run,
 			ConnectHook: srcMigration.Connect,
