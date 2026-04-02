@@ -258,7 +258,20 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 			op.location = s.ServerName
 		}
 
-		op.metadata, err = validateMetadata(args.Metadata)
+		metadata := args.Metadata
+		if metadata == nil {
+			metadata = make(map[string]any)
+		}
+
+		// If the entity_url field is not already populated, populate it with the entity url of the operation.
+		// This allows the caller to override the entity URL if e.g. creating a new entity but ensures the field is populated.
+		// Skip if the entity type is "server". This doesn't give any useful information to the requestor (since the url will just be "/1.0").
+		_, ok := metadata[api.MetadataEntityURL]
+		if !ok && operationEntityType != entity.TypeServer {
+			metadata[api.MetadataEntityURL] = op.entityURL.String()
+		}
+
+		op.metadata, err = validateMetadata(metadata)
 		if err != nil {
 			return nil, fmt.Errorf("Failed validating operation metadata: %w", err)
 		}
