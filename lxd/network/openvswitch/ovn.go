@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/dnsutil"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // OVNRouter OVN router name.
@@ -1942,55 +1944,150 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		return ip.String()
 	}
 
-	// Build up the commands to add VIPs to the load balancer.
-	for _, r := range vips {
-		if r.ListenAddress == nil {
-			return errors.New("Missing VIP listen address")
-		}
-
-		if len(r.Targets) == 0 {
-			return errors.New("Missing VIP target(s)")
-		}
-
+	// deleteLBArgs returns the args for load balancer deletion.
+	deleteLBArgs := func(args []string, lbUUID string) []string {
 		if len(args) > 0 {
 			args = append(args, "--")
 		}
 
-		if r.Protocol == "udp" {
-			args = append(args, "lb-add", lbUDPName)
-		} else {
-			args = append(args, "lb-add", lbTCPName)
+		return append(args, "--if-exists", "destroy", "load_balancer", lbUUID)
+	}
+
+	allVIPsForProtocol := map[string][]string{}
+
+	// Get a view of all load balancers matching the given name.
+	lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
+	if err != nil {
+		return fmt.Errorf("Failed getting UUIDs for load balancer %q: %w", loadBalancerName, err)
+	}
+
+	// When initializing the size assume there are no duplicates (which should be the normal case).
+	args := make([]string, 0)
+
+	// Account for https://github.com/canonical/lxd/issues/13462.
+	// If there is more than one load balancer with the same name, drop it.
+	// This ensures consistency and allows all of the following operations to operate on a single load balancer.
+	for _, protocol := range []string{"tcp", "udp"} {
+		if len(lbUUIDs[protocol]) > 1 {
+			// Delete all duplicate load balancers except the first one.
+			for _, lbUUID := range lbUUIDs[protocol][1:] {
+				logger.Warn("Cleaning up duplicate load balancer", logger.Ctx{"name": loadBalancerName, "protocol": protocol, "uuid": lbUUID})
+
+				args = deleteLBArgs(args, lbUUID)
+			}
+		}
+	}
+
+	// Remove the duplicates right away to have a clean set of load balancers to continue.
+	if len(args) > 0 {
+		_, err := o.nbctl(args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	// When initializing the size assume the best case without any VIP or load balancer removal.
+	args = make([]string, 0, len(vips)*7)
+
+	// Build up the commands for the load balancer changes.
+	for _, vip := range vips {
+		// Validate the VIP.
+		if vip.ListenAddress == nil {
+			return errors.New("Missing VIP listen address")
 		}
 
-		targetArgs := make([]string, 0, len(r.Targets))
+		if len(vip.Targets) == 0 {
+			return errors.New("Missing VIP target(s)")
+		}
 
-		for _, target := range r.Targets {
-			if (r.ListenPort > 0 && target.Port <= 0) || (target.Port > 0 && r.ListenPort <= 0) {
+		targetArgs := make([]string, 0, len(vip.Targets))
+
+		// Generate a list of load balancer targets.
+		for _, target := range vip.Targets {
+			if (vip.ListenPort > 0 && target.Port <= 0) || (target.Port > 0 && vip.ListenPort <= 0) {
 				return errors.New("The listen and target ports must be specified together")
 			}
 
-			if r.ListenPort > 0 {
+			if vip.ListenPort > 0 {
 				targetArgs = append(targetArgs, ipToString(target.Address)+":"+strconv.FormatUint(target.Port, 10))
 			} else {
 				targetArgs = append(targetArgs, ipToString(target.Address))
 			}
 		}
 
-		if r.ListenPort > 0 {
-			args = append(args,
-				ipToString(r.ListenAddress)+":"+strconv.FormatUint(r.ListenPort, 10),
-				strings.Join(targetArgs, ","),
-				r.Protocol,
-			)
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		// In case no protocol is set, default to TCP as OVN does.
+		if vip.Protocol == "" {
+			vip.Protocol = "tcp"
+		}
+
+		// Append all requested targets to the load balancer VIP.
+		lbName := string(loadBalancerName) + "-" + vip.Protocol
+		args = append(args, "--may-exist", "lb-add", lbName)
+
+		vipStr := ipToString(vip.ListenAddress)
+		joinedTargets := strings.Join(targetArgs, ",")
+
+		if vip.ListenPort > 0 {
+			vipStr = ipToString(vip.ListenAddress) + ":" + strconv.FormatUint(vip.ListenPort, 10)
+			args = append(args, vipStr, joinedTargets, vip.Protocol)
 		} else {
-			args = append(args,
-				ipToString(r.ListenAddress),
-				strings.Join(targetArgs, ","),
-			)
+			args = append(args, vipStr, joinedTargets)
+		}
+
+		// Record the VIP for this protocol.
+		if allVIPsForProtocol[vip.Protocol] == nil {
+			allVIPsForProtocol[vip.Protocol] = []string{}
+		}
+
+		allVIPsForProtocol[vip.Protocol] = append(allVIPsForProtocol[vip.Protocol], vipStr)
+	}
+
+	// Check if the current load balancer has any obsolete VIPs that require removal.
+	// We can only retrieve the VIPs in case the load balancer already exists.
+	for _, protocol := range []string{"tcp", "udp"} {
+		// If there are no VIPs for the current protocol there is no need to remove VIPs
+		// as the parent load balancer will be removed anyway if it exists.
+		if allVIPsForProtocol[protocol] == nil {
+			continue
+		}
+
+		lbName := string(loadBalancerName) + "-" + protocol
+
+		currentVIPs, err := o.loadBalancerVIPs(loadBalancerName, protocol)
+		if err == nil {
+			for _, currentVIP := range currentVIPs {
+				if !slices.Contains(allVIPsForProtocol[protocol], currentVIP) {
+					if len(args) > 0 {
+						args = append(args, "--")
+					}
+
+					args = append(args, "--if-exists", "lb-del", lbName, currentVIP)
+				}
+			}
 		}
 	}
 
+	// When initializing the size account for all load balancers.
+	toBeDeletedLBs := make([]string, 0, len(lbUUIDs["tcp"])+len(lbUUIDs["udp"]))
+
+	// If there are no VIPs for an existing TCP or UDP load balancer, mark it for deletion.
+	for _, protocol := range []string{"tcp", "udp"} {
+		if allVIPsForProtocol[protocol] == nil && len(lbUUIDs[protocol]) > 0 {
+			// If there is more than one load balancer matching the name, it already got removed.
+			toBeDeletedLBs = append(toBeDeletedLBs, lbUUIDs[protocol][:1]...)
+		}
+	}
+
+	for _, lbUUID := range toBeDeletedLBs {
+		args = deleteLBArgs(args, lbUUID)
+	}
+
 	// Apply the load balancer changes.
+	// This will add new and remove obsolete load balancers together with their VIPs and targets.
 	if len(args) > 0 {
 		_, err := o.nbctl(args...)
 		if err != nil {
