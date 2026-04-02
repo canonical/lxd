@@ -184,9 +184,9 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
-			Name:     "Project",
-			URL:      "/1.0/projects/foo",
-			WantType: TypeProject,
+			Name:        "Project",
+			URL:         "/1.0/projects/foo",
+			WantType:    TypeProject,
 			WantProject: "foo",
 			WantArgs: map[string]string{
 				"name": "foo",
