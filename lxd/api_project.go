@@ -1051,11 +1051,16 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 
 	// This operation does not happen "inside" a project and
 	// therefore does not have a project set.
+	originalEntityURL := api.NewURL().Path(version.APIVersion, "projects", name)
 	args := operations.OperationArgs{
-		EntityURL: api.NewURL().Path(version.APIVersion, "projects", name),
+		EntityURL: originalEntityURL,
 		Type:      operationtype.ProjectRename,
 		Class:     operations.OperationClassTask,
 		RunHook:   run,
+		Metadata: map[string]any{
+			api.MetadataOriginalEntityURL: originalEntityURL.String(),
+			api.MetadataEntityURL:         api.NewURL().Path(version.APIVersion, "projects", req.Name).String(),
+		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
