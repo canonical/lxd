@@ -18,7 +18,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/identity"
@@ -164,37 +163,20 @@ func (IdentitiesRow) APIPluralName() string {
 	return "Identities"
 }
 
-// CertificateMetadata contains metadata for certificate identities. Currently this is only the certificate itself.
-type CertificateMetadata struct {
-	Certificate string `json:"cert"`
-}
-
-// X509 returns an [x509.Certificate] from the [CertificateMetadata].
-func (c CertificateMetadata) X509() (*x509.Certificate, error) {
-	certBlock, _ := pem.Decode([]byte(c.Certificate))
-	if certBlock == nil {
-		return nil, errors.New("Failed decoding certificate")
+// ToCertificate converts an [IdentitiesRow] to a [CertificateLegacy].
+func (i IdentitiesRow) ToCertificate(idToCert map[int64][]string) (*CertificateLegacy, error) {
+	if idToCert == nil {
+		return nil, errors.New("Missing required certificate data")
 	}
 
-	cert, err := x509.ParseCertificate(certBlock.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing certificate: %w", err)
+	certs, ok := idToCert[i.ID]
+	if !ok || len(certs) == 0 {
+		return nil, errors.New("No certificate data")
 	}
 
-	return cert, nil
-}
-
-// ToCertificate converts an [IdentitiesRow] to a [Certificate].
-func (i IdentitiesRow) ToCertificate() (*Certificate, error) {
 	certificateType, err := i.Type.toCertificateType()
 	if err != nil {
 		return nil, fmt.Errorf("Failed converting identity type to certificate type: %w", err)
-	}
-
-	var metadata CertificateMetadata
-	err = json.Unmarshal([]byte(i.Metadata), &metadata)
-	if err != nil {
-		return nil, fmt.Errorf("Failed unmarshaling certificate identity metadata: %w", err)
 	}
 
 	identityType, err := identity.New(string(i.Type))
@@ -211,52 +193,17 @@ func (i IdentitiesRow) ToCertificate() (*Certificate, error) {
 		isRestricted = false
 	}
 
-	c := &Certificate{
+	c := &CertificateLegacy{
 		ID:          i.ID,
 		Fingerprint: i.Identifier,
 		Type:        certificateType,
 		Name:        i.Name,
-		Certificate: metadata.Certificate,
+		// Expect that the zeroth entry is the most recent.
+		Certificate: certs[0],
 		Restricted:  isRestricted,
 	}
 
 	return c, nil
-}
-
-// CertificateMetadata returns the metadata associated with the identity as [CertificateMetadata]. It fails if the
-// authentication method is not [api.AuthentictionMethodTLS] or if the type is [api.IdentityTypeClientCertificatePending],
-// as they do not have metadata of this type.
-func (i IdentitiesRow) CertificateMetadata() (*CertificateMetadata, error) {
-	if i.AuthMethod != api.AuthenticationMethodTLS {
-		return nil, fmt.Errorf("Cannot get certificate metadata: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
-	}
-
-	identityType, err := identity.New(string(i.Type))
-	if err != nil {
-		return nil, err
-	}
-
-	if identityType.IsPending() {
-		return nil, errors.New("Cannot get certificate metadata: Identity is pending")
-	}
-
-	var metadata CertificateMetadata
-	err = json.Unmarshal([]byte(i.Metadata), &metadata)
-	if err != nil {
-		return nil, fmt.Errorf("Failed unmarshaling certificate identity metadata: %w", err)
-	}
-
-	return &metadata, nil
-}
-
-// X509 returns an [x509.Certificate] from the identity metadata. The [AuthMethod] of the [IdentitiesRow] must be [api.AuthenticationMethodTLS].
-func (i IdentitiesRow) X509() (*x509.Certificate, error) {
-	metadata, err := i.CertificateMetadata()
-	if err != nil {
-		return nil, err
-	}
-
-	return metadata.X509()
 }
 
 // OIDCMetadata contains metadata for OIDC identities.
@@ -318,17 +265,9 @@ func (i IdentitiesRow) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 }
 
 // ToAPI converts an [IdentitiesRow] to an [api.Identity], executing database queries as necessary.
-func (i *IdentitiesRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
-	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	groupNames := make([]string, 0, len(groups))
-	for _, group := range groups {
-		if canViewGroup(entity.AuthGroupURL(group.Name)) {
-			groupNames = append(groupNames, group.Name)
-		}
+func (i *IdentitiesRow) ToAPI(idToGroups map[int64][]string, idToCertificates map[int64][]string) (*api.Identity, error) {
+	if idToGroups == nil {
+		return nil, errors.New("Missing required authorization group data")
 	}
 
 	identityType, err := identity.New(string(i.Type))
@@ -338,12 +277,22 @@ func (i *IdentitiesRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth
 
 	var tlsCertificate string
 	if i.AuthMethod == api.AuthenticationMethodTLS && !identityType.IsPending() {
-		metadata, err := i.CertificateMetadata()
-		if err != nil {
-			return nil, err
+		if idToCertificates == nil {
+			return nil, errors.New("Missing required certificate data")
 		}
 
-		tlsCertificate = metadata.Certificate
+		certs, ok := idToCertificates[i.ID]
+		if !ok || len(certs) == 0 {
+			return nil, errors.New("No certificate data")
+		}
+
+		// Expect that the zeroth entry is the most recent.
+		tlsCertificate = certs[0]
+	}
+
+	groups, ok := idToGroups[i.ID]
+	if !ok || groups == nil {
+		groups = []string{}
 	}
 
 	return &api.Identity{
@@ -351,7 +300,7 @@ func (i *IdentitiesRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth
 		Type:                 string(i.Type),
 		Identifier:           i.Identifier,
 		Name:                 i.Name,
-		Groups:               groupNames,
+		Groups:               groups,
 		TLSCertificate:       tlsCertificate,
 	}, nil
 }
@@ -407,21 +356,9 @@ func GetIdentitiesAndURLs(ctx context.Context, tx *sql.Tx, authMethod *string, f
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
 // the type.
 func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
-	fingerprint := shared.CertFingerprint(cert)
-	_, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
-	if err == nil {
-		return api.StatusErrorf(http.StatusConflict, "Identity already exists")
-	}
-
 	ident, err := GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
 	if err != nil {
 		return fmt.Errorf("Failed getting pending TLS identity: %w", err)
-	}
-
-	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
-	b, err := json.Marshal(metadata)
-	if err != nil {
-		return fmt.Errorf("Failed encoding certificate metadata: %w", err)
 	}
 
 	identityTypeActive, err := ident.Type.ActiveType()
@@ -429,9 +366,14 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 		return err
 	}
 
+	ident.Identifier = shared.CertFingerprint(cert)
 	ident.Type = identityTypeActive
-	ident.Identifier = fingerprint
-	ident.Metadata = string(b)
+	pemCert := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+	err = setIdentityCertificate(ctx, tx, true, ident.ID, ident.Identifier, pemCert)
+	if err != nil {
+		return err
+	}
+
 	return query.UpdateByPrimaryKey(ctx, tx, ident)
 }
 
@@ -478,30 +420,53 @@ WHERE identities_auth_groups.identity_id = ?
 	return query.Select[AuthGroupsRow](ctx, tx, clause, identityID)
 }
 
-// GetAllAuthGroupsByIdentityIDs returns a map of identity ID to slice of groups the identity with that ID is a member of.
-func GetAllAuthGroupsByIdentityIDs(ctx context.Context, tx *sql.Tx) (map[int64][]AuthGroupsRow, error) {
-	stmt := `
-SELECT identities_auth_groups.identity_id, auth_groups.id, auth_groups.name, auth_groups.description
-FROM auth_groups
-JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id`
+// GetIdentityAuthGroupNames returns a map of identity ID to slice of (alphabetically sorted) group names that the
+// identity with that ID is a member of. A filter can be passed in, which should return false to omit entries and true
+// to include them. This is useful for filtering out groups that the caller cannot view.
+// The optional identity ID field can be used to get authorization group names for only one identity, in which case the
+// output map contains only one key.
+func GetIdentityAuthGroupNames(ctx context.Context, tx *sql.Tx, identityID *int64, filter func(AuthGroupsRow) bool) (map[int64][]string, error) {
+	g := AuthGroupsRow{}
+	var b strings.Builder
+	b.WriteString(`SELECT identities_auth_groups.identity_id, `)
+	authGroupSelectColumns := g.SelectColumns()
+	b.WriteString(authGroupSelectColumns[0])
+	for _, col := range authGroupSelectColumns[1:] {
+		b.WriteString(", ")
+		b.WriteString(col)
+	}
 
-	result := make(map[int64][]AuthGroupsRow)
+	b.WriteString(` FROM auth_groups
+JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id
+`)
+	var args []any
+	if identityID != nil {
+		args = []any{*identityID}
+		b.WriteString(`WHERE identities_auth_groups.identity_id = ?`)
+	}
+
+	b.WriteString(`ORDER BY identities_auth_groups.identity_id, auth_groups.name`)
+
+	result := make(map[int64][]string)
 	dest := func(scan func(dest ...any) error) error {
 		var identityID int64
 		g := AuthGroupsRow{}
-		err := scan(&identityID, &g.ID, &g.Name, &g.Description)
+		err := scan(append([]any{&identityID}, g.ScanArgs()...)...)
 		if err != nil {
 			return err
 		}
 
-		result[identityID] = append(result[identityID], g)
+		if filter != nil && !filter(g) {
+			return nil
+		}
 
+		result[identityID] = append(result[identityID], g.Name)
 		return nil
 	}
 
-	err := query.Scan(ctx, tx, stmt, dest)
+	err := query.Scan(ctx, tx, b.String(), dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed getting identities for all groups: %w", err)
+		return nil, fmt.Errorf("Failed getting identities group membership: %w", err)
 	}
 
 	return result, nil
@@ -584,4 +549,78 @@ WHERE auth_groups.name IN %s
 // GetIdentityByID gets a single identity with the given ID.
 func GetIdentityByID(ctx context.Context, tx *sql.Tx, id int64) (*IdentitiesRow, error) {
 	return query.SelectOne[IdentitiesRow](ctx, tx, "WHERE id = ?", id)
+}
+
+// CreateTLSIdentity creates an Identity and a Certificate, and then adds a row to their association table.
+func CreateTLSIdentity(ctx context.Context, tx *sql.Tx, name string, idType string, fingerprint string, pemCert string) (int64, error) {
+	// Create the identity.
+	id := IdentitiesRow{
+		AuthMethod: AuthMethod(api.AuthenticationMethodTLS),
+		Type:       IdentityType(idType),
+		Identifier: fingerprint,
+		Name:       name,
+	}
+
+	identityID, err := query.Create(ctx, tx, id)
+	if err != nil {
+		return -1, err
+	}
+
+	err = setIdentityCertificate(ctx, tx, true, identityID, fingerprint, pemCert)
+	if err != nil {
+		return -1, err
+	}
+
+	return identityID, nil
+}
+
+// UpdateTLSIdentity updates the given [IdentitiesRow] (applying any prior modifications) by primary key.
+// If the fingerprint and certificate are provided, the [IdentitiesRow.Identifier] is set to the fingerprint value, and
+// a new [CertificatesRow] is added with any previous [CertificatesRow] entries associated with the identity deleted.
+func UpdateTLSIdentity(ctx context.Context, tx *sql.Tx, identity IdentitiesRow, fingerprint string, pemCert string) error {
+	if fingerprint != "" {
+		if pemCert == "" {
+			return errors.New("Missing required PEM encoded certificate")
+		}
+
+		err := setIdentityCertificate(ctx, tx, false, identity.ID, fingerprint, pemCert)
+		if err != nil {
+			return err
+		}
+
+		identity.Identifier = fingerprint
+	}
+
+	return query.UpdateByPrimaryKey(ctx, tx, identity)
+}
+
+// setIdentityCertificate replaces an identities certificate with the given one.
+func setIdentityCertificate(ctx context.Context, tx *sql.Tx, create bool, identityID int64, fingerprint string, pemCert string) error {
+	// For now, delete all existing certificates for the identity so that we have at most one.
+	// Trigger on identities_certificates will delete entries from certificates table.
+	if !create {
+		_, err := tx.ExecContext(ctx, "DELETE FROM identities_certificates WHERE identity_id = ?", identityID)
+		if err != nil {
+			return fmt.Errorf("Failed deleting existing certificate: %w", err)
+		}
+	}
+
+	cert := CertificatesRow{
+		Fingerprint: fingerprint,
+		Certificate: pemCert,
+	}
+
+	// Create the certificate
+	certificateID, err := query.Create(ctx, tx, cert)
+	if err != nil {
+		return fmt.Errorf("Failed creating certificate: %w", err)
+	}
+
+	// Associate identity with certificate.
+	_, err = tx.ExecContext(ctx, "INSERT INTO identities_certificates (identity_id, certificate_id) VALUES (?, ?)", identityID, certificateID)
+	if err != nil {
+		return fmt.Errorf("Failed associating identity with certificate: %w", err)
+	}
+
+	return nil
 }

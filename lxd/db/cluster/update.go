@@ -7,6 +7,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -124,6 +125,121 @@ var updates = map[int]schema.Update{
 	79: updateFromV78,
 	80: updateFromV79,
 	81: updateFromV80,
+	82: updateFromV81,
+}
+
+func updateFromV81(ctx context.Context, tx *sql.Tx) error {
+	q := `SELECT identities.id, identities.name, identities.identifier, identities.type, json_extract(identities.metadata, '$.cert') FROM identities WHERE json_extract(identities.metadata, '$.cert') IS NOT NULL`
+
+	type certIdentity struct {
+		name       string
+		identifier string
+		idType     IdentityType
+		cert       string
+	}
+
+	certIdentities := make(map[int64]certIdentity)
+	err := query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
+		var id int64
+		var idType IdentityType
+		var name, identifier, cert string
+		err := scan(&id, &name, &identifier, &idType, &cert)
+		if err != nil {
+			return err
+		}
+
+		certIdentities[id] = certIdentity{
+			name:       name,
+			identifier: identifier,
+			idType:     idType,
+			cert:       cert,
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed getting existing certificates: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, `
+CREATE TABLE certificates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    certificate TEXT NOT NULL,
+    creation_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (fingerprint)
+);
+-- Associate identities to certificates. The certificate ID is unique because each identity
+-- may only reference the same certificate once, and no identities may share certificates.
+-- This enforces a 1:n association, rather than an m:n association.
+CREATE TABLE identities_certificates (
+    identity_id INTEGER NOT NULL,
+    certificate_id INTEGER NOT NULL,
+    FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE,
+    FOREIGN KEY (certificate_id) REFERENCES certificates (id) ON DELETE CASCADE,
+    UNIQUE (certificate_id),
+    PRIMARY KEY (identity_id, certificate_id)
+) WITHOUT ROWID;
+-- We can't cascade deletion from the identities tables to the certificates table.
+-- This trigger ensures that certificates are deleted when an identity is deleted via foreign key cascade deletion
+-- in the association table. 
+CREATE TRIGGER identities_certificates_after_delete 
+    AFTER DELETE ON identities_certificates
+	BEGIN
+	DELETE FROM certificates
+		WHERE certificates.id = OLD.certificate_id;
+	END;
+`)
+	if err != nil {
+		return fmt.Errorf("Failed writing certificates tables: %w", err)
+	}
+
+	for identityID, certIdentity := range certIdentities {
+		res, err := tx.ExecContext(ctx, `INSERT INTO certificates (fingerprint, certificate) VALUES (?, ?)`, certIdentity.identifier, certIdentity.cert)
+		if err != nil {
+			return fmt.Errorf("Failed writing certificate: %w", err)
+		}
+
+		certID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		res, err = tx.ExecContext(ctx, `INSERT INTO identities_certificates (identity_id, certificate_id) VALUES (?, ?)`, identityID, certID)
+		if err != nil {
+			return fmt.Errorf("Failed writing identity certificate association: %w", err)
+		}
+
+		nInserts, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+
+		if nInserts != 1 {
+			return errors.New("Failed validating write of identity certificate association")
+		}
+	}
+
+	// Certificate metadata has only ever contained a JSON object with a single "cert" key containing the PEM encoded certificate.
+	// There are no other identities that authenticate via TLS whose certificate is stored anywhere else, and all of these
+	// certificates have now been moved into the certificates table. It is safe for us to remove the certificates from identity
+	// metadata now.
+	stmt := `UPDATE identities SET metadata = '' WHERE json_extract(identities.metadata, '$.cert') IS NOT NULL`
+	res, err := tx.ExecContext(ctx, stmt)
+	if err != nil {
+		return fmt.Errorf("Failed unsetting identity metadata: %w", err)
+	}
+
+	nRowsUpdated, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if int(nRowsUpdated) != len(certIdentities) {
+		return fmt.Errorf("Expected to update %d rows but updated %d", len(certIdentities), nRowsUpdated)
+	}
+
+	return nil
 }
 
 func updateFromV80(ctx context.Context, tx *sql.Tx) error {

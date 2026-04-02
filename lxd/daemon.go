@@ -2021,7 +2021,7 @@ func (d *Daemon) requestorHook(ctx context.Context, authenticationMethod string,
 
 		// If not fine-grained, get the project list.
 		if !idType.IsFineGrained() {
-			dbProjects, err := dbCluster.GetCertificateProjects(ctx, tx.Tx(), &id.ID)
+			dbProjects, err := dbCluster.GetCertificateLegacyProjects(ctx, tx.Tx(), &id.ID)
 			if err != nil {
 				return fmt.Errorf("Failed getting projects for identity: %w", err)
 			}

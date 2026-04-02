@@ -54,7 +54,7 @@ type Referenceable interface {
 // Updatable defines a type that knows how to update itself.
 type Updatable interface {
 	Referenceable
-	CreateValuer
+	UpdateValues() []any
 	UpdateStmt() string
 }
 
@@ -127,7 +127,7 @@ func UpdateByPrimaryKey(ctx context.Context, tx *sql.Tx, u Updatable) error {
 	b.WriteString(u.PKColumn())
 	b.WriteString(" = ?")
 
-	res, err := tx.ExecContext(ctx, b.String(), append(u.CreateValues(), u.PKValue())...)
+	res, err := tx.ExecContext(ctx, b.String(), append(u.UpdateValues(), u.PKValue())...)
 	if err != nil {
 		if IsConflictErr(err) {
 			return conflictErr(u)
@@ -165,7 +165,7 @@ func UpdateOne(ctx context.Context, tx *sql.Tx, u Updatable, clause string, args
 	b.WriteString(" ")
 	b.WriteString(clause)
 
-	res, err := tx.ExecContext(ctx, b.String(), append(u.CreateValues(), args...)...)
+	res, err := tx.ExecContext(ctx, b.String(), append(u.UpdateValues(), args...)...)
 	if err != nil {
 		if IsConflictErr(err) {
 			return conflictErr(u)

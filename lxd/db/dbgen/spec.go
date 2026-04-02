@@ -23,6 +23,8 @@ type Spec struct {
 type FieldSpec struct {
 	FieldName  string
 	ColumnName string
+	SkipCreate bool
+	SkipUpdate bool
 }
 
 // templateContext returns the values used for rendering the template.
@@ -36,6 +38,7 @@ func (s *Spec) templateContext() map[string]any {
 		"joins":        s.joins(),
 		"scanArgs":     s.scanArgs(),
 		"createValues": s.createValues(),
+		"updateValues": s.updateValues(),
 		"pkColumn":     s.pkColumn(),
 		"pkValue":      s.pkValue(),
 		"createStmt":   s.createStmt(),
@@ -74,9 +77,14 @@ func ({{ .receiver }} *{{ .structName }}) ScanArgs() []any {
 `))
 
 var specExecTemplate = template.Must(template.New("exec").Parse(`
-// CreateValues returns a list of values from [{{ .structName }}] entities matching the columns returned from CreateColumns.
+// CreateValues returns a list of values from [{{ .structName }}] entities matching the bind arguments in [CreateStmt].
 func ({{ .receiver }} {{ .structName }}) CreateValues() []any {
 	return {{ .createValues }}
+}
+
+// UpdateValues returns a list of values from [{{ .structName }}] entities matching the columns in [UpdateStmt].
+func ({{ .receiver }} {{ .structName }}) UpdateValues() []any {
+	return {{ .updateValues }}
 }
 
 // PKColumn returns the column name for the primary key of a [{{ .structName }}] entity used during an update.
@@ -113,14 +121,32 @@ func (s *Spec) receiver() rune {
 }
 
 func (s *Spec) createStmt() string {
-	cols := s.createColumns()
+	cols := make([]string, 0, len(s.Fields))
+	for _, f := range s.Fields {
+		unqualifiedColName, ok := strings.CutPrefix(f.ColumnName, s.TableName+".")
+		if !ok || f == s.PrimaryKey || f.SkipCreate {
+			continue
+		}
+
+		cols = append(cols, unqualifiedColName)
+	}
+
 	return "INSERT INTO " + s.TableName + " (" + strings.Join(cols, ", ") + ") VALUES " + query.Params(len(cols))
 }
 
 func (s *Spec) updateStmt() string {
-	updateColumns := s.createColumns()
-	updates := make([]string, 0, len(updateColumns))
-	for _, col := range updateColumns {
+	cols := make([]string, 0, len(s.Fields))
+	for _, f := range s.Fields {
+		unqualifiedColName, ok := strings.CutPrefix(f.ColumnName, s.TableName+".")
+		if !ok || f == s.PrimaryKey || f.SkipUpdate {
+			continue
+		}
+
+		cols = append(cols, unqualifiedColName)
+	}
+
+	updates := make([]string, 0, len(cols))
+	for _, col := range cols {
 		updates = append(updates, col+" = ?")
 	}
 
@@ -151,24 +177,6 @@ func (s *Spec) scanColumns() string {
 	return "[]string{\n\t\t\"" + strings.Join(cols, "\",\n\t\t\"") + "\",\n\t}"
 }
 
-func (s *Spec) createColumns() []string {
-	cols := make([]string, 0, len(s.Fields))
-	for _, f := range s.Fields {
-		unqualifiedColName, ok := strings.CutPrefix(f.ColumnName, s.TableName+".")
-		if !ok {
-			continue
-		}
-
-		if f == s.PrimaryKey {
-			continue
-		}
-
-		cols = append(cols, unqualifiedColName)
-	}
-
-	return cols
-}
-
 func (s *Spec) createValues() string {
 	values := make([]string, 0, len(s.Fields))
 	for _, f := range s.Fields {
@@ -176,7 +184,24 @@ func (s *Spec) createValues() string {
 			continue
 		}
 
-		if f == s.PrimaryKey {
+		if f == s.PrimaryKey || f.SkipCreate {
+			continue
+		}
+
+		values = append(values, string(s.receiver())+"."+f.FieldName)
+	}
+
+	return "[]any{" + strings.Join(values, ", ") + "}"
+}
+
+func (s *Spec) updateValues() string {
+	values := make([]string, 0, len(s.Fields))
+	for _, f := range s.Fields {
+		if !strings.HasPrefix(f.ColumnName, s.TableName+".") {
+			continue
+		}
+
+		if f == s.PrimaryKey || f.SkipUpdate {
 			continue
 		}
 

@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
@@ -804,10 +805,10 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	identity := getTLSIdentityByFingerprint("eeef45f0570ce713864c86ec60c8d88f60b4844d3a8849b262c77cb18e88394d")
 	assert.Equal(t, api.IdentityTypeCertificateClientRestricted, string(identity.Type))
 	assert.Equal(t, "restricted-client", identity.Name)
-	var metadata CertificateMetadata
+	var metadata map[string]string
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
-	assert.Equal(t, c1, metadata.Certificate)
+	assert.Equal(t, c1, metadata["cert"])
 
 	rows, err := db.Query(`SELECT projects.name FROM identities_projects JOIN projects ON identities_projects.project_id = projects.id WHERE identity_id = ?`, identity.ID)
 	require.NoError(t, err)
@@ -826,26 +827,76 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	assert.Equal(t, "unrestricted-client", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
-	assert.Equal(t, c2, metadata.Certificate)
+	assert.Equal(t, c2, metadata["cert"])
 
 	identity = getTLSIdentityByFingerprint("49b262c77cb18e88394d8e6ec60c8d8eef45f0570ce713864c8f60b4844d3a88")
 	assert.Equal(t, api.IdentityTypeCertificateServer, string(identity.Type))
 	assert.Equal(t, "server", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
-	assert.Equal(t, c1, metadata.Certificate)
+	assert.Equal(t, c1, metadata["cert"])
 
 	identity = getTLSIdentityByFingerprint("60c8d8eef45f0570ce713864c8f60b4844d3a8849b262c77cb18e88394d8e6ec")
 	assert.Equal(t, api.IdentityTypeCertificateMetricsRestricted, string(identity.Type))
 	assert.Equal(t, "metrics", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
-	assert.Equal(t, c2, metadata.Certificate)
+	assert.Equal(t, c2, metadata["cert"])
 
 	identity = getTLSIdentityByFingerprint("47c88da8fd0cb9a8d44768a445e6c27aee44e078ce74cbaec0726de427bac056")
 	assert.Equal(t, api.IdentityTypeCertificateMetricsUnrestricted, string(identity.Type))
 	assert.Equal(t, "metrics", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
-	assert.Equal(t, c2, metadata.Certificate)
+	assert.Equal(t, c2, metadata["cert"])
+}
+
+func TestUpdateFromV81(t *testing.T) {
+	cert1 := shared.TestingKeyPair()
+	cert1PEM := string(cert1.PublicKey())
+	cert1Fingerprint := cert1.Fingerprint()
+	cert1Metadata, err := json.Marshal(map[string]string{
+		"cert": cert1PEM,
+	})
+	require.NoError(t, err)
+
+	cert2 := shared.TestingAltKeyPair()
+	cert2PEM := string(cert2.PublicKey())
+	cert2Fingerprint := cert2.Fingerprint()
+	cert2Metadata, err := json.Marshal(map[string]string{
+		"cert": cert2PEM,
+	})
+	require.NoError(t, err)
+
+	schema := Schema()
+	db, err := schema.ExerciseUpdate(82, func(db *sql.DB) {
+		_, err := db.Exec(`
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES (?, ?, ?, ?, ?);
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES (?, ?, ?, ?, ?);
+`,
+			cert1Fingerprint, authMethodTLS, identity.CertificateClientUnrestricted{}.Code(), "unrestricted", string(cert1Metadata),
+			cert2Fingerprint, authMethodTLS, identity.CertificateClient{}.Code(), "fine-grained", string(cert2Metadata),
+		)
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	baseQ := `SELECT certificates.fingerprint, certificates.certificate, identities.identifier, identities.metadata
+FROM identities 
+    JOIN identities_certificates ON identities.id = identities_certificates.identity_id
+	JOIN certificates ON identities_certificates.certificate_id = certificates.id `
+	row := db.QueryRowContext(t.Context(), baseQ+"WHERE identities.name = ?", "unrestricted")
+	var fingerprint, certificate, identifier, metadata string
+	require.NoError(t, row.Scan(&fingerprint, &certificate, &identifier, &metadata))
+	require.Equal(t, fingerprint, identifier)
+	require.Equal(t, cert1Fingerprint, fingerprint)
+	require.Equal(t, cert1PEM, certificate)
+	require.Empty(t, metadata)
+
+	row = db.QueryRowContext(t.Context(), baseQ+"WHERE identities.name = ?", "fine-grained")
+	require.NoError(t, row.Scan(&fingerprint, &certificate, &identifier, &metadata))
+	require.Equal(t, fingerprint, identifier)
+	require.Equal(t, cert2Fingerprint, fingerprint)
+	require.Equal(t, cert2PEM, certificate)
+	require.Empty(t, metadata)
 }

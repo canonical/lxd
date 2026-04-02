@@ -155,7 +155,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		}
 
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			cert, err := cluster.GetCertificateByFingerprintPrefix(context.Background(), tx.Tx(), fingerprint)
+			cert, err := cluster.GetCertificateLegacyByFingerprintPrefix(context.Background(), tx.Tx(), fingerprint)
 			if err != nil {
 				return fmt.Errorf("Failed matching client certificate to cluster member: %w", err)
 			}
