@@ -32,6 +32,12 @@ func (CertificateClient) Name() string {
 	return api.IdentityTypeCertificateClient
 }
 
+// IsCacheable returns true to indicate that this identity type requires some data to be stored in the cache.
+// In this case, the cache needs the identities' certificate.
+func (CertificateClient) IsCacheable() bool {
+	return true
+}
+
 // CertificateClientPending represents an identity for which a token has been issued but who has not yet authenticated with LXD.
 // It supports fine-grained permission management (e.g. the identity can be added to groups while in a pending state,
 // allowing the token holder to assume the correct permissions when they eventually use the token to gain trust).
@@ -91,6 +97,12 @@ func (CertificateClientRestricted) Name() string {
 	return api.IdentityTypeCertificateClientRestricted
 }
 
+// IsCacheable returns true to indicate that this identity type requires some data to be stored in the cache.
+// In this case, the cache needs the identities' certificate.
+func (CertificateClientRestricted) IsCacheable() bool {
+	return true
+}
+
 // CertificateClientUnrestricted represents an identity that authenticates using TLS certificates
 // and is privileged with administrator access. It supports caching, has admin privileges,
 // but does not support fine-grained permissions.
@@ -121,4 +133,10 @@ func (CertificateClientUnrestricted) LegacyCertificateType() (certificate.Type, 
 // Name returns the API name of this identity type.
 func (CertificateClientUnrestricted) Name() string {
 	return api.IdentityTypeCertificateClientUnrestricted
+}
+
+// IsCacheable returns true to indicate that this identity type requires some data to be stored in the cache.
+// In this case, the cache needs the identities' certificate.
+func (CertificateClientUnrestricted) IsCacheable() bool {
+	return true
 }

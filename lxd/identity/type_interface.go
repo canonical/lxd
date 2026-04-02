@@ -39,6 +39,9 @@ type Type interface {
 
 	// Name returns the API name of this identity type.
 	Name() string
+
+	// IsCacheable returns true if identities of this type require any details to be stored in the [Cache].
+	IsCacheable() bool
 }
 
 const (

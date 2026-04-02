@@ -29,3 +29,8 @@ func (typeInfoCommon) IsPending() bool {
 func (typeInfoCommon) LegacyCertificateType() (certificate.Type, error) {
 	return -1, errors.New("Identity type is not a certificate")
 }
+
+// IsCacheable returns true if identities of this type require any details to be stored in the [Cache].
+func (typeInfoCommon) IsCacheable() bool {
+	return false
+}

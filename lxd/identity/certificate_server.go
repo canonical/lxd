@@ -35,3 +35,9 @@ func (CertificateServer) LegacyCertificateType() (certificate.Type, error) {
 func (CertificateServer) Name() string {
 	return api.IdentityTypeCertificateServer
 }
+
+// IsCacheable returns true to indicate that this identity type requires some data to be stored in the cache.
+// In this case, the cache needs the identities' certificate.
+func (CertificateServer) IsCacheable() bool {
+	return true
+}

@@ -34,3 +34,9 @@ func (TokenBearerInitialUI) AuthenticationMethod() string {
 func (TokenBearerInitialUI) IsAdmin() bool {
 	return true
 }
+
+// IsCacheable returns true to indicate that this identity type requires some data to be stored in the cache.
+// In this case, the cache needs the identities' token secret.
+func (TokenBearerInitialUI) IsCacheable() bool {
+	return true
+}
