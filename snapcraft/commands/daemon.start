@@ -627,7 +627,6 @@ else
         export LD_LIBRARY_PATH="${SNAP_CURRENT}/lib:${SNAP_CURRENT}/lib/${ARCH}"
         lxcfs_args=
         [ "${lxcfs_loadavg:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} --enable-loadavg"
-        [ "${lxcfs_pidfd:-"true"}" = "true" ] && lxcfs_args="${lxcfs_args} --enable-pidfd"
         [ "${lxcfs_cfs:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} --enable-cfs"
         [ "${lxcfs_debug:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} -d"
 
