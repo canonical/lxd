@@ -84,6 +84,9 @@ linters:
         - name: duplicated-imports
         # https://github.com/mgechev/revive/blob/2a1701aadbedfcc175cb92836a51407bec382652/RULES_DESCRIPTIONS.md#error-return
         - name: error-return
+    perfsprint:
+      # Since Go 1.26, fmt.Errorf is as performant as errors.New.
+      errorf: false
     testifylint:
       disable:
         - float-compare
