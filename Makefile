@@ -341,7 +341,7 @@ check-api: update-api
 update-metadata: lxd-metadata
 	@echo "Generating golang documentation metadata"
 	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
-	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml
+	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml --exclude .git
 
 .PHONY: check-metadata
 check-metadata: update-metadata
