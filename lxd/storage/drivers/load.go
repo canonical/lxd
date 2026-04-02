@@ -76,6 +76,7 @@ func SupportedDrivers(s *state.State) []Info {
 	for driverName := range drivers {
 		driver, err := Load(s, driverName, "", nil, nil, nil, nil)
 		if err != nil {
+			logger.Debug("Storage driver not available", logger.Ctx{"driver": driverName, "err": err})
 			continue
 		}
 
