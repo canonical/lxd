@@ -115,6 +115,63 @@ func (c CertificatesRow) UpdateStmt() string {
 	return "UPDATE certificates SET fingerprint = ?, certificate = ? "
 }
 
+// TableName returns the table name for [ClusterLinkRow] entities.
+func (c ClusterLinkRow) TableName() string {
+	return "cluster_links"
+}
+
+// SelectColumns returns a slice of column names for [ClusterLinkRow] entities.
+func (c ClusterLinkRow) SelectColumns() []string {
+	return []string{
+		"cluster_links.id",
+		"cluster_links.identity_id",
+		"cluster_links.name",
+		"cluster_links.description",
+		"cluster_links.type",
+	}
+}
+
+// Joins returns a slice of join expressions for [ClusterLinkRow].
+func (c ClusterLinkRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [ClusterLinkRow].
+// This returns references to struct fields in definition order.
+func (c *ClusterLinkRow) ScanArgs() []any {
+	return []any{&c.ID, &c.IdentityID, &c.Name, &c.Description, &c.Type}
+}
+
+// CreateValues returns a list of values from [ClusterLinkRow] entities matching the bind arguments in [CreateStmt].
+func (c ClusterLinkRow) CreateValues() []any {
+	return []any{c.IdentityID, c.Name, c.Description, c.Type}
+}
+
+// UpdateValues returns a list of values from [ClusterLinkRow] entities matching the columns in [UpdateStmt].
+func (c ClusterLinkRow) UpdateValues() []any {
+	return []any{c.IdentityID, c.Name, c.Description, c.Type}
+}
+
+// PKColumn returns the column name for the primary key of a [ClusterLinkRow] entity used during an update.
+func (c ClusterLinkRow) PKColumn() string {
+	return "id"
+}
+
+// PKValue returns the value for the primary key of a [ClusterLinkRow] entity used during an update.
+func (c ClusterLinkRow) PKValue() any {
+	return c.ID
+}
+
+// CreateStmt returns a query that creates a [ClusterLinkRow] entity.
+func (c ClusterLinkRow) CreateStmt() string {
+	return "INSERT INTO cluster_links (identity_id, name, description, type) VALUES (?, ?, ?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [ClusterLinkRow] by primary key.
+func (c ClusterLinkRow) UpdateStmt() string {
+	return "UPDATE cluster_links SET identity_id = ?, name = ?, description = ?, type = ? "
+}
+
 // TableName returns the table name for [IdentitiesRow] entities.
 func (i IdentitiesRow) TableName() string {
 	return "identities"
