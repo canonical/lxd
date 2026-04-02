@@ -2095,40 +2095,41 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		}
 	}
 
-	// If there are some VIP rules then associate the load balancer to the requested routers and switches.
-	if len(vips) > 0 {
-		args := make([]string, 0, 6*len(lbUUIDs))
+	// If there are new load balancers, associate them to the requested routers and switches.
+	// It's a noop in case the load balancer is already associated to the router/switch.
+	// Start by getting a fresh list of load balancer UUIDs.
+	lbUUIDs, err = o.loadBalancerUUIDs(loadBalancerName)
+	if err != nil {
+		return fmt.Errorf("Failed getting UUIDs: %w", err)
+	}
 
-		// Get fresh list of load balancer UUIDs.
-		lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
-		if err != nil {
-			return fmt.Errorf("Failed getting UUIDs: %w", err)
-		}
+	args = make([]string, 0, (len(lbUUIDs["tcp"])+len(lbUUIDs["udp"]))*(len(routers)+len(switches))*5)
 
-		for _, lbUUID := range lbUUIDs {
-			if len(args) > 0 {
-				args = append(args, "--")
-			}
-
+	for _, lbUUIDsForProtocol := range lbUUIDs {
+		for _, lbUUID := range lbUUIDsForProtocol {
 			for _, r := range routers {
-				args = append(args, "add", "logical_router", string(r), "load_balancer", lbUUID)
-			}
-		}
-
-		if len(args) > 0 {
-			_, err = o.nbctl(args...)
-			if err != nil {
-				return err
-			}
-		}
-
-		for _, lbUUID := range lbUUIDs {
-			for _, s := range switches {
-				_, err = o.nbctl("ls-lb-add", string(s), lbUUID)
-				if err != nil {
-					return err
+				if len(args) > 0 {
+					args = append(args, "--")
 				}
+
+				args = append(args, "--may-exist", "lr-lb-add", string(r), lbUUID)
 			}
+
+			for _, s := range switches {
+				if len(args) > 0 {
+					args = append(args, "--")
+				}
+
+				args = append(args, "--may-exist", "ls-lb-add", string(s), lbUUID)
+			}
+		}
+	}
+
+	// Apply both router and switch associations together.
+	if len(args) > 0 {
+		_, err = o.nbctl(args...)
+		if err != nil {
+			return err
 		}
 	}
 
