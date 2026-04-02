@@ -1020,17 +1020,20 @@ func validateMetadata(metadata map[string]any) (map[string]any, error) {
 		metadata = make(map[string]any)
 	}
 
-	// If the entity_url field is used, it must always be a string and must always be a valid URL.
-	entityURLAny, ok := metadata[api.MetadataEntityURL]
-	if ok {
-		entityURL, ok := entityURLAny.(string)
-		if !ok {
-			return nil, fmt.Errorf("Operation metadata entity_url must be a string (got %T)", entityURLAny)
-		}
+	// If any url fields are used, they must always be a string and must always be a valid URL.
+	urlFields := []string{api.MetadataEntityURL, api.MetadataOriginalEntityURL}
+	for _, urlField := range urlFields {
+		urlAny, ok := metadata[urlField]
+		if ok {
+			urlString, ok := urlAny.(string)
+			if !ok {
+				return nil, fmt.Errorf("Operation metadata field %q must be a string (got %T)", urlField, urlAny)
+			}
 
-		err := validate.IsRequestURL(entityURL)
-		if err != nil {
-			return nil, fmt.Errorf("Operation metadata entity_url must be a valid request URL: %w", err)
+			err := validate.IsRequestURL(urlString)
+			if err != nil {
+				return nil, fmt.Errorf("Operation metadata field %q must be a valid request URL: %w", urlField, err)
+			}
 		}
 	}
 
