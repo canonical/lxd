@@ -18,7 +18,7 @@ var drivers = map[string]func() driver{
 	"zfs":        func() driver { return &zfs{} },
 }
 
-// Validators contains functions used for validating a drivers's config.
+// Validators contains functions used for validating a driver's config.
 type Validators struct {
 	// Regular list of rules valid for all pools.
 	PoolRules func() map[string]func(string) error
