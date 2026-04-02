@@ -1082,7 +1082,7 @@ test_clustering_network() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo || false
 
   # Since the lxc create command cannot create a network with a description, create a network with a description using the API.
-  LXD_DIR="${LXD_ONE_DIR}" lxc query -X POST /1.0/networks --data "{
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST /1.0/networks --data "{
     \"name\": \"${net}\",
     \"type\": \"bridge\",
     \"description\": \"bar\",

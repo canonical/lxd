@@ -22,12 +22,14 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/resources"
@@ -436,8 +438,8 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworksPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -447,7 +449,8 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 func networksPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	requestProjectName := request.ProjectParam(r)
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -531,26 +534,34 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	u := api.NewURL().Path(version.APIVersion, "networks", req.Name).Project(projectName)
-
-	resp := response.SyncResponseLocation(true, nil, u.String())
-
 	clientType := requestor.ClientType()
 
 	if requestor.IsClusterNotification() {
-		n, err := network.LoadByName(s, projectName, req.Name)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
-		}
-
 		// This is an internal request which triggers the actual creation of the network across all nodes
 		// after they have been previously defined.
-		err = doNetworksCreate(r.Context(), s, n, clientType)
-		if err != nil {
-			return response.SmartError(err)
+		run := func(ctx context.Context, op *operations.Operation) error {
+			n, err := network.LoadByName(s, projectName, req.Name)
+			if err != nil {
+				return fmt.Errorf("Failed loading network: %w", err)
+			}
+
+			return doNetworksCreate(ctx, s, n, clientType)
 		}
 
-		return resp
+		opArgs := operations.OperationArgs{
+			ProjectName: projectName,
+			Type:        operationtype.NetworkCreate,
+			Class:       operations.OperationClassTask,
+			RunHook:     run,
+			EntityURL:   entity.ProjectURL(projectName),
+		}
+
+		op, err := operations.ScheduleUserOperationFromRequest(s, r, opArgs)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return operations.OperationResponse(op)
 	}
 
 	targetNode := request.QueryParam(r, "target")
@@ -567,18 +578,35 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.CreatePendingNetwork(ctx, targetNode, projectName, req.Name, netType.DBType(), req.Config)
-		})
-		if err != nil {
-			if api.StatusErrorCheck(err, http.StatusConflict) {
-				return response.BadRequest(fmt.Errorf("The network is already defined on member %q", targetNode))
+		run := func(ctx context.Context, op *operations.Operation) error {
+			err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.CreatePendingNetwork(ctx, targetNode, projectName, req.Name, netType.DBType(), req.Config)
+			})
+			if err != nil {
+				if api.StatusErrorCheck(err, http.StatusConflict) {
+					return api.StatusErrorf(http.StatusBadRequest, "The network is already defined on member %q", targetNode)
+				}
+
+				return err
 			}
 
-			return response.SmartError(err)
+			return nil
 		}
 
-		return resp
+		opArgs := operations.OperationArgs{
+			ProjectName: requestProjectName,
+			Type:        operationtype.NetworkCreate,
+			Class:       operations.OperationClassTask,
+			RunHook:     run,
+			EntityURL:   entity.ProjectURL(projectName),
+		}
+
+		op, err := operations.ScheduleUserOperationFromRequest(s, r, opArgs)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return operations.OperationResponse(op)
 	}
 
 	var netInfo *api.Network
@@ -599,95 +627,113 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// No targetNode was specified and we're clustered or there is an existing partially created single node
-	// network, either way finalize the config in the db and actually create the network on all cluster nodes.
-	if count > 1 || (netInfo != nil && netInfo.Status != api.NetworkStatusCreated) {
-		// Simulate adding pending node network config when the driver doesn't support per-node config.
-		if !netTypeInfo.NodeSpecificConfig && clientType != request.ClientTypeJoiner {
-			// Create pending entry for each node.
-			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				members, err := tx.GetNodes(ctx)
-				if err != nil {
-					return fmt.Errorf("Failed getting cluster members: %w", err)
-				}
-
-				for _, member := range members {
-					// Don't pass in any config, as these nodes don't have any node-specific
-					// config and we don't want to create duplicate global config.
-					err = tx.CreatePendingNetwork(ctx, member.Name, projectName, req.Name, netType.DBType(), nil)
-					if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {
-						return fmt.Errorf("Failed creating pending network for member %q: %w", member.Name, err)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		// No targetNode was specified and we're clustered or there is an existing partially created single node
+		// network, either way finalize the config in the db and actually create the network on all cluster nodes.
+		if count > 1 || (netInfo != nil && netInfo.Status != api.NetworkStatusCreated) {
+			// Simulate adding pending node network config when the driver doesn't support per-node config.
+			if !netTypeInfo.NodeSpecificConfig && clientType != request.ClientTypeJoiner {
+				// Create pending entry for each node.
+				err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+					members, err := tx.GetNodes(ctx)
+					if err != nil {
+						return fmt.Errorf("Failed getting cluster members: %w", err)
 					}
+
+					for _, member := range members {
+						// Don't pass in any config, as these nodes don't have any node-specific
+						// config and we don't want to create duplicate global config.
+						err = tx.CreatePendingNetwork(ctx, member.Name, projectName, req.Name, netType.DBType(), nil)
+						if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {
+							return fmt.Errorf("Failed creating pending network for member %q: %w", member.Name, err)
+						}
+					}
+
+					return nil
+				})
+				if err != nil {
+					return err
 				}
 
-				return nil
-			})
-			if err != nil {
-				return response.SmartError(err)
+				n, err := network.LoadByName(s, projectName, req.Name)
+				if err != nil {
+					return fmt.Errorf("Failed loading network: %w", err)
+				}
+
+				requestor := request.CreateRequestor(ctx)
+				s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor, nil))
 			}
 
-			n, err := network.LoadByName(s, projectName, req.Name)
+			err = networksPostCluster(ctx, s, projectName, netInfo, req, clientType, netType)
 			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+				return err
 			}
 
-			s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor.EventLifecycleRequestor(), nil))
+			return nil
 		}
 
-		err = networksPostCluster(r.Context(), s, projectName, netInfo, req, clientType, netType)
-		if err != nil {
-			return response.SmartError(err)
+		// Non-clustered network creation.
+		if netInfo != nil {
+			return api.StatusErrorf(http.StatusBadRequest, "The network already exists")
 		}
 
-		return resp
-	}
+		revert := revert.New()
+		defer revert.Fail()
 
-	// Non-clustered network creation.
-	if netInfo != nil {
-		return response.BadRequest(errors.New("The network already exists"))
-	}
-
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Populate default config unless joining a cluster.
-	if clientType != request.ClientTypeJoiner {
-		err = netType.FillConfig(req.Config)
-		if err != nil {
-			return response.SmartError(err)
+		// Populate default config unless joining a cluster.
+		if clientType != request.ClientTypeJoiner {
+			err = netType.FillConfig(req.Config)
+			if err != nil {
+				return err
+			}
 		}
-	}
 
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Create the database entry.
-		_, err = tx.CreateNetwork(ctx, projectName, req.Name, req.Description, netType.DBType(), req.Config)
-
-		return err
-	})
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Error inserting %q into database: %w", req.Name, err))
-	}
-
-	revert.Add(func() {
-		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.DeleteNetwork(ctx, projectName, req.Name)
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			// Create the database entry.
+			_, err := tx.CreateNetwork(ctx, projectName, req.Name, req.Description, netType.DBType(), req.Config)
+			return err
 		})
-	})
+		if err != nil {
+			return fmt.Errorf("Error inserting %q into database: %w", req.Name, err)
+		}
 
-	n, err := network.LoadByName(s, projectName, req.Name)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+		revert.Add(func() {
+			_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.DeleteNetwork(ctx, projectName, req.Name)
+			})
+		})
+
+		n, err := network.LoadByName(s, projectName, req.Name)
+		if err != nil {
+			return fmt.Errorf("Failed loading network: %w", err)
+		}
+
+		err = doNetworksCreate(ctx, s, n, clientType)
+		if err != nil {
+			return err
+		}
+
+		requestor := request.CreateRequestor(ctx)
+		s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor, nil))
+
+		revert.Success()
+		return nil
 	}
 
-	err = doNetworksCreate(r.Context(), s, n, clientType)
-	if err != nil {
-		return response.SmartError(err)
+	args := operations.OperationArgs{
+		ProjectName: requestProjectName,
+		Type:        operationtype.NetworkCreate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.ProjectURL(projectName),
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor.EventLifecycleRequestor(), nil))
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
 
-	revert.Success()
-	return resp
+	return operations.OperationResponse(op)
 }
 
 // networkPartiallyCreated returns true of supplied network has properties that indicate it has had previous
@@ -834,7 +880,11 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 			Type: n.Type(),
 		}
 
-		err = client.UseProject(n.Project()).CreateNetwork(nodeReq)
+		op, err := client.UseProject(n.Project()).CreateNetwork(nodeReq)
+		if err == nil {
+			err = op.WaitContext(ctx)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -1127,8 +1177,8 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 //	    type: string
 //	    example: default
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1153,12 +1203,49 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = doNetworkDelete(r.Context(), s, details.networkName, effectiveProjectName, details.requestProject.Config, requestor.ClientType())
-	if err != nil {
-		return response.SmartError(err)
+	clientType := requestor.ClientType()
+
+	if clientType.IsClusterNotification() {
+		run := func(ctx context.Context, op *operations.Operation) error {
+			return doNetworkDelete(ctx, s, details.networkName, effectiveProjectName, details.requestProject.Config, clientType)
+		}
+
+		args := operations.OperationArgs{
+			ProjectName: effectiveProjectName,
+			Type:        operationtype.NetworkDelete,
+			Class:       operations.OperationClassTask,
+			RunHook:     run,
+			EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
+		}
+
+		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return operations.OperationResponse(op)
 	}
 
-	return response.EmptySyncResponse
+	entityURL := entity.NetworkURL(effectiveProjectName, details.networkName)
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		return doNetworkDelete(ctx, s, details.networkName, effectiveProjectName, details.requestProject.Config, clientType)
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkDelete,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entityURL,
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // doNetworkDelete deletes the named network in the given project.
@@ -1213,7 +1300,12 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UseProject(n.Project()).DeleteNetwork(n.Name())
+			op, err := client.UseProject(n.Project()).DeleteNetwork(n.Name())
+			if err == nil {
+				err = op.WaitContext(ctx)
+			}
+
+			return err
 		})
 		if err != nil {
 			return err
@@ -1258,8 +1350,8 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 //	    schema:
 //	      $ref: "#/definitions/NetworkPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1349,17 +1441,36 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Network %q already exists", req.Name))
 	}
 
-	// Rename it.
-	err = n.Rename(req.Name)
-	if err != nil {
-		return response.SmartError(err)
+	networkName := details.networkName
+	entityURL := entity.NetworkURL(effectiveProjectName, networkName)
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = n.Rename(req.Name)
+		if err != nil {
+			return err
+		}
+
+		requestor := request.CreateRequestor(ctx)
+		lc := lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": networkName})
+		s.Events.SendLifecycle(effectiveProjectName, lc)
+
+		return nil
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	lc := lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": details.networkName})
-	s.Events.SendLifecycle(effectiveProjectName, lc)
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkRename,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entityURL,
+	}
 
-	return response.SyncResponseLocation(true, nil, lc.Source)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation PUT /1.0/networks/{name} networks network_put
@@ -1391,8 +1502,8 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1491,11 +1602,37 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	response := doNetworkUpdate(n, req, targetNode, requestor.ClientType(), r.Method, s.ServerClustered)
+	clientType := requestor.ClientType()
+	httpMethod := r.Method
+	clustered := s.ServerClustered
+	entityURL := entity.NetworkURL(effectiveProjectName, details.networkName)
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor.EventLifecycleRequestor(), nil))
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err := doNetworkUpdate(n, req, targetNode, clientType, httpMethod, clustered)
+		if err != nil {
+			return err
+		}
 
-	return response
+		requestor := request.CreateRequestor(ctx)
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor, nil))
+
+		return nil
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkUpdate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entityURL,
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/networks/{name} networks network_patch
@@ -1527,8 +1664,8 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1543,7 +1680,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(n network.Network, req api.NetworkPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) response.Response {
+func doNetworkUpdate(n network.Network, req api.NetworkPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) error {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
@@ -1573,16 +1710,16 @@ func doNetworkUpdate(n network.Network, req api.NetworkPut, targetNode string, c
 	// Validate the merged configuration.
 	err := n.Validate(req.Config)
 	if err != nil {
-		return response.BadRequest(err)
+		return api.NewStatusError(http.StatusBadRequest, err.Error())
 	}
 
 	// Apply the new configuration (will also notify other cluster nodes if needed).
 	err = n.Update(req, targetNode, clientType)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 // swagger:operation GET /1.0/networks/{name}/leases networks networks_leases_get

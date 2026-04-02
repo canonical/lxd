@@ -109,6 +109,14 @@ const (
 	StoragePoolCreate
 	StoragePoolUpdate
 	StoragePoolDelete
+	NetworkCreate
+	NetworkUpdate
+	NetworkDelete
+	NetworkRename
+	NetworkACLCreate
+	NetworkACLUpdate
+	NetworkACLDelete
+	NetworkACLRename
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -288,6 +296,22 @@ func (t Type) Description() string {
 		return "Updating storage pool"
 	case StoragePoolDelete:
 		return "Deleting storage pool"
+	case NetworkCreate:
+		return "Creating network"
+	case NetworkUpdate:
+		return "Updating network"
+	case NetworkDelete:
+		return "Deleting network"
+	case NetworkRename:
+		return "Renaming network"
+	case NetworkACLCreate:
+		return "Creating network ACL"
+	case NetworkACLUpdate:
+		return "Updating network ACL"
+	case NetworkACLDelete:
+		return "Deleting network ACL"
+	case NetworkACLRename:
+		return "Renaming network ACL"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -311,7 +335,7 @@ func (t Type) EntityType() entity.Type {
 	// If creating a resource, then the parent project is the primary entity
 	// (the entity being created is not yet referenceable).
 	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore,
-		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, StoragePoolCreate:
+		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, StoragePoolCreate, NetworkCreate, NetworkACLCreate:
 		return entity.TypeProject
 
 	// Volume operations.
@@ -352,6 +376,14 @@ func (t Type) EntityType() entity.Type {
 	// Profile operations.
 	case ProfileUpdate:
 		return entity.TypeProfile
+
+	// Network operations.
+	case NetworkUpdate, NetworkDelete, NetworkRename:
+		return entity.TypeNetwork
+
+	// Network ACL operations.
+	case NetworkACLUpdate, NetworkACLDelete, NetworkACLRename:
+		return entity.TypeNetworkACL
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
