@@ -54,6 +54,7 @@ Add a specific GPU from the host system as a `physical` GPU device to an instanc
 
 See {ref}`instances-configure-devices` for more information.
 
+(gpu-physical-cdi)=
 #### CDI mode
 
 ```{note}
