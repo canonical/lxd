@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -1287,13 +1288,15 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 
 	contentType := storagePools.VolumeDBContentTypeToContentType(volumeDBContentType)
 
-	projectURL := entity.ProjectURL(projectName)
+	requestProjectURL := entity.ProjectURL(requestProjectName)
 	var run func(ctx context.Context, op *operations.Operation) error
 	var opType operationtype.Type
 	var entityURL *api.URL
+	metadata := make(map[string]any)
 	if req.Source.Name == "" {
 		opType = operationtype.VolumeCreate
-		entityURL = projectURL
+		entityURL = requestProjectURL
+		metadata[api.MetadataEntityURL] = api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, req.Name).Project(requestProjectName).String()
 		run = func(ctx context.Context, op *operations.Operation) error {
 			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
 		}
@@ -1327,6 +1330,7 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entityURL,
+		Metadata:    metadata,
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -1399,13 +1403,16 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		RunHook:     run,
+		Type:        operationtype.VolumeCreate,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", requestProjectName),
+		Metadata: map[string]any{
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", req.Type, req.Name).Project(requestProjectName).String(),
+		},
 	}
 
-	args.Type = operationtype.VolumeCreate
-	args.EntityURL = api.NewURL().Path(version.APIVersion, "projects", projectName)
 	if push {
 		args.Class = operations.OperationClassWebsocket
-		args.Metadata = sink.Metadata()
+		maps.Copy(args.Metadata, sink.Metadata())
 		args.ConnectHook = sink.Connect
 	} else {
 		args.Class = operations.OperationClassTask
@@ -2662,10 +2669,13 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", requestProjectName),
 		Type:        operationtype.VolumeCreate,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
+		Metadata: map[string]any{
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", pool, "volumes", cluster.StoragePoolVolumeTypeNameCustom, volName).Project(requestProjectName).String(),
+		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -2716,13 +2726,16 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 		return nil
 	}
 
-	projectURL := api.NewURL().Path(version.APIVersion, "projects", projectName)
+	requestProjectURL := api.NewURL().Path(version.APIVersion, "projects", requestProjectName)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		Type:        operationtype.VolumeCreate,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
-		EntityURL:   projectURL,
+		EntityURL:   requestProjectURL,
+		Metadata: map[string]any{
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", cluster.StoragePoolVolumeTypeNameCustom, volName).Project(requestProjectName).String(),
+		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
