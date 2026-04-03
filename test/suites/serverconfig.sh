@@ -6,6 +6,7 @@ test_server_config() {
   _server_config_auth
   _server_config_cluster_uuid
   _server_config_user_microcloud
+  _server_config_ui_serving
 }
 
 _server_config_cluster_uuid() {
@@ -77,6 +78,41 @@ _server_config_access() {
 
   # test that the /ui redirect works
   [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{url_effective}" -o /dev/null --location -H "User-Agent: Mozilla/5.0" "lxd/")" = "http://lxd/ui/" ]
+
+  sub_test "Verify /ui and /documentation return correct Content-Type when not served"
+  # When LXD_UI is not set, /ui/ returns 503 with text/html, not application/json.
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -o /dev/null -w "%{http_code}" "lxd/ui/")" = "503" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -o /dev/null -w "%{content_type}" "lxd/ui/")" = "text/html" ]
+
+  # When LXD_DOCUMENTATION is not set, /documentation/ returns 404 with application/json.
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -o /dev/null -w "%{http_code}" "lxd/documentation/")" = "404" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -o /dev/null -w "%{content_type}" "lxd/documentation/")" = "application/json" ]
+}
+
+_server_config_ui_serving() {
+  # Regression test: LXD_UI and LXD_DOCUMENTATION files must be served as text/html,
+  # not as application/json (which createCmd pre-sets before dispatching to handlers).
+  local ui_dir doc_dir
+  ui_dir="$(mktemp -d)"
+  doc_dir="$(mktemp -d)"
+  echo "<html><body>UI</body></html>" > "${ui_dir}/app.html"
+  echo "<html><body>Docs</body></html>" > "${doc_dir}/guide.html"
+
+  shutdown_lxd "${LXD_DIR}"
+  LXD_UI="${ui_dir}" LXD_DOCUMENTATION="${doc_dir}" respawn_lxd "${LXD_DIR}" true
+
+  sub_test "Verify /ui files are served as text/html (not application/json)"
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -o /dev/null -w "%{http_code}" "lxd/ui/app.html")" = "200" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -o /dev/null -w "%{content_type}" "lxd/ui/app.html")" = "text/html; charset=utf-8" ]
+
+  sub_test "Verify /documentation files are served as text/html (not application/json)"
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -o /dev/null -w "%{http_code}" "lxd/documentation/guide.html")" = "200" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -o /dev/null -w "%{content_type}" "lxd/documentation/guide.html")" = "text/html; charset=utf-8" ]
+
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
+
+  rm -rf "${ui_dir}" "${doc_dir}"
 }
 
 _server_config_storage() {
