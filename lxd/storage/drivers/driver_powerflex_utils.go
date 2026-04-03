@@ -176,6 +176,13 @@ type powerFlexVolume struct {
 	} `json:"mappedSdcInfo"`
 }
 
+// powerFlexSystemInfo stores system information from PowerFlex.
+type powerFlexSystemInfo struct {
+	SystemVersionName string `json:"systemVersionName"`
+	SWID              string `json:"swid"`
+	DaysInstalled     int    `json:"daysInstalled"`
+}
+
 // powerFlexClient holds the PowerFlex HTTP client and an access token factory.
 type powerFlexClient struct {
 	driver *powerflex
@@ -360,6 +367,17 @@ func (p *powerFlexClient) getStoragePoolVolumes(poolID string) ([]powerFlexVolum
 	return actualResponse, nil
 }
 
+// getSystemInfo returns system information from the PowerFlex system.
+func (p *powerFlexClient) getSystemInfo() (*powerFlexSystemInfo, error) {
+	var actualResponse []powerFlexSystemInfo
+	err := p.requestAuthenticated(http.MethodGet, "/api/types/System/instances", nil, &actualResponse)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get system instances: %w", err)
+	}
+
+	return &actualResponse[0], nil
+}
+
 // getProtectionDomainID returns the ID of the protection domain behind domainName.
 func (p *powerFlexClient) getProtectionDomainID(domainName string) (string, error) {
 	body := map[string]any{
@@ -535,6 +553,8 @@ func (p *powerFlexClient) renameVolume(volumeID string, newName string) error {
 // The accessMode can be either ReadWrite or ReadOnly.
 // The returned string represents the ID of the snapshot.
 func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string, snapshotName string, accessMode powerFlexSnapshotMode) (string, error) {
+	method := "createThinClone" // method for when PowerFlex supports ThinClones (R5 and later)
+
 	body := map[string]any{
 		"snapshotDefs": []map[string]string{
 			{
@@ -542,14 +562,20 @@ func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string,
 				"snapshotName": snapshotName,
 			},
 		},
-		"accessModeLimit": accessMode,
 	}
 
 	var actualResponse struct {
 		VolumeIDs []string `json:"volumeIdList"`
 	}
 
-	err := p.requestAuthenticated(http.MethodPost, "/api/instances/System::"+systemID+"/action/snapshotVolumes", body, &actualResponse)
+	// Need to specify the accessModeLimit setting for snapshot creation when PowerFlex does not
+	// support ThinClones. Also revert to classic snapshot method.
+	if !p.driver.hasThinCloneSupport() {
+		body["accessModeLimit"] = accessMode
+		method = "snapshotVolumes"
+	}
+
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/System::"+systemID+"/action/"+method, body, &actualResponse)
 	if err != nil {
 		powerFlexError, ok := err.(*powerFlexError)
 		if ok {
@@ -1335,7 +1361,8 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 	// This allows differentiating between snapshots which actually belong to its parent volume
 	// and snapshots which were being created as part of copying a volume using powerflex.snapshot_copy.
 	// The latter are snapshots of the original volume stand on their own and don't use the snapshot prefix.
-	if vol.IsSnapshot() {
+	// This is required for PowerFlex versions that do not support ThinClones.
+	if !d.hasThinCloneSupport() && vol.IsSnapshot() {
 		volName = powerFlexSnapshotPrefix + volName
 	}
 

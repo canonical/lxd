@@ -6251,6 +6251,13 @@ Must have at least SystemAdmin role to give LXD full control over managed storag
 
 ```
 
+```{config:option} powerflex.version storage-powerflex-pool-conf
+:scope: "global"
+:shortdesc: "Software version of the PowerFlex array."
+:type: "string"
+This field is automatically populated by querying the PowerFlex system.
+```
+
 ```{config:option} rsync.bwlimit storage-powerflex-pool-conf
 :defaultdesc: "`0` (no limit)"
 :scope: "global"

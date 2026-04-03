@@ -6899,6 +6899,14 @@
 						}
 					},
 					{
+						"powerflex.version": {
+							"longdesc": "This field is automatically populated by querying the PowerFlex system.",
+							"scope": "global",
+							"shortdesc": "Software version of the PowerFlex array.",
+							"type": "string"
+						}
+					},
+					{
 						"rsync.bwlimit": {
 							"defaultdesc": "`0` (no limit)",
 							"longdesc": "When `rsync` must be used to transfer storage entities, this option specifies the upper limit\nto be placed on the socket I/O.",
