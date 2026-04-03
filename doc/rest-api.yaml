@@ -12947,6 +12947,8 @@ paths:
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Delete the network ACL
@@ -13081,6 +13083,8 @@ paths:
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
                 "500":
@@ -13826,6 +13830,8 @@ paths:
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Delete the network
@@ -13975,6 +13981,8 @@ paths:
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
                 "500":
@@ -16389,6 +16397,8 @@ paths:
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Delete the storage pool
@@ -16507,6 +16517,8 @@ paths:
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
                 "500":
