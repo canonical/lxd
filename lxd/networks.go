@@ -536,32 +536,21 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 	clientType := requestor.ClientType()
 
-	if requestor.IsClusterNotification() {
+	if clientType.IsClusterOperationNotification() {
 		// This is an internal request which triggers the actual creation of the network across all nodes
-		// after they have been previously defined.
-		run := func(ctx context.Context, op *operations.Operation) error {
-			n, err := network.LoadByName(s, projectName, req.Name)
-			if err != nil {
-				return fmt.Errorf("Failed loading network: %w", err)
-			}
-
-			return doNetworksCreate(ctx, s, n, clientType)
-		}
-
-		opArgs := operations.OperationArgs{
-			ProjectName: projectName,
-			Type:        operationtype.NetworkCreate,
-			Class:       operations.OperationClassTask,
-			RunHook:     run,
-			EntityURL:   entity.ProjectURL(projectName),
-		}
-
-		op, err := operations.ScheduleUserOperationFromRequest(s, r, opArgs)
+		// after they have been previously defined. It is coming from an existing operation, so we can
+		// handle it synchronously.
+		n, err := network.LoadByName(s, projectName, req.Name)
 		if err != nil {
-			return response.InternalError(err)
+			return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 		}
 
-		return operations.OperationResponse(op)
+		err = doNetworksCreate(r.Context(), s, n, clientType)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
 	}
 
 	targetNode := request.QueryParam(r, "target")
@@ -834,12 +823,6 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 		return err
 	}
 
-	// Create notifier for other nodes to create the network.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
-	if err != nil {
-		return err
-	}
-
 	// Load the network from the database for the local member.
 	n, err := network.LoadByName(s, projectName, req.Name)
 	if err != nil {
@@ -858,6 +841,12 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 	// Remove this node's node specific config keys.
 	for _, key := range db.NodeSpecificNetworkConfig {
 		delete(netConfig, key)
+	}
+
+	// Create notifier for other nodes to create the network.
+	notifier, err := cluster.NewOperationNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
+	if err != nil {
+		return err
 	}
 
 	// Notify other nodes to create the network.
@@ -1183,6 +1172,8 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkDelete(d *Daemon, r *http.Request) response.Response {
@@ -1205,25 +1196,24 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 
 	clientType := requestor.ClientType()
 
-	if clientType.IsClusterNotification() {
-		run := func(ctx context.Context, op *operations.Operation) error {
-			return doNetworkDelete(ctx, s, details.networkName, effectiveProjectName, details.requestProject.Config, clientType)
-		}
-
-		args := operations.OperationArgs{
-			ProjectName: effectiveProjectName,
-			Type:        operationtype.NetworkDelete,
-			Class:       operations.OperationClassTask,
-			RunHook:     run,
-			EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
-		}
-
-		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if clientType.IsClusterOperationNotification() {
+		// Cluster notification from existing operation, handle synchronously.
+		err := doNetworkDelete(r.Context(), s, details.networkName, effectiveProjectName, details.requestProject.Config, clientType)
 		if err != nil {
-			return response.InternalError(err)
+			return response.SmartError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.EmptySyncResponse
+	}
+
+	// Load the network before creating the operation so Not Found errors are returned synchronously.
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	entityURL := entity.NetworkURL(effectiveProjectName, details.networkName)
@@ -1266,8 +1256,8 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 		return err
 	}
 
-	clusterNotification := clientType.IsClusterNotification()
-	if !clusterNotification {
+	clusterOperationNotification := clientType.IsClusterOperationNotification()
+	if !clusterOperationNotification {
 		// Quick checks.
 		inUse, err := n.IsUsed()
 		if err != nil {
@@ -1286,15 +1276,15 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 		}
 	}
 
-	// If this is a cluster notification, we're done, any database work will be done by the node that is
+	// If this is a cluster operation notification, we're done, any database work will be done by the node that is
 	// originally serving the request.
-	if clusterNotification {
+	if clusterOperationNotification {
 		return nil
 	}
 
 	// If we are clustered, also notify all other nodes, if any.
 	if s.ServerClustered {
-		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
+		notifier, err := cluster.NewOperationNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 		if err != nil {
 			return err
 		}
@@ -1508,6 +1498,8 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
 //	  "412":
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
@@ -1613,10 +1605,22 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		requestor := request.CreateRequestor(ctx)
-		s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor, nil))
+		if !clientType.IsClusterOperationNotification() {
+			requestor := request.CreateRequestor(ctx)
+			s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor, nil))
+		}
 
 		return nil
+	}
+
+	if clientType.IsClusterOperationNotification() {
+		// Handle cluster notification from an operation synchronously.
+		err := run(r.Context(), nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
 	}
 
 	args := operations.OperationArgs{
