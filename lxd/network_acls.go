@@ -21,7 +21,6 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -390,14 +389,39 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	clientType := requestor.ClientType()
+
 	// Load the ACL before creating the operation so we can return a synchronous 404 if not found.
-	_, err = acl.LoadByName(r.Context(), s, effectiveProjectName, aclName)
+	netACL, err := acl.LoadByName(r.Context(), s, effectiveProjectName, aclName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
-		return doNetworkACLDelete(ctx, s, aclName, effectiveProjectName)
+		err := netACL.Delete(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed deleting network ACL %q: %w", netACL.Info().Name, err)
+		}
+
+		if !clientType.IsClusterOperationNotification() {
+			s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(ctx), nil))
+		}
+
+		return nil
+	}
+
+	if clientType.IsClusterOperationNotification() {
+		err := run(r.Context(), nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
 	}
 
 	args := operations.OperationArgs{
@@ -414,23 +438,6 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return operations.OperationResponse(op)
-}
-
-// doNetworkACLDelete deletes the named network ACL in the given project.
-func doNetworkACLDelete(ctx context.Context, s *state.State, aclName string, projectName string) error {
-	netACL, err := acl.LoadByName(ctx, s, projectName, aclName)
-	if err != nil {
-		return err
-	}
-
-	err = netACL.Delete(ctx)
-	if err != nil {
-		return fmt.Errorf("Failed deleting network ACL %q: %w", aclName, err)
-	}
-
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(ctx), nil))
-
-	return nil
 }
 
 // swagger:operation GET /1.0/network-acls/{name} network-acls network_acl_get
@@ -641,10 +648,22 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		requestor := request.CreateRequestor(ctx)
-		s.Events.SendLifecycle(projectName, lifecycle.NetworkACLUpdated.Event(netACL, requestor, nil))
+		if !clientType.IsClusterOperationNotification() {
+			requestor := request.CreateRequestor(ctx)
+			s.Events.SendLifecycle(projectName, lifecycle.NetworkACLUpdated.Event(netACL, requestor, nil))
+		}
 
 		return nil
+	}
+
+	if clientType.IsClusterOperationNotification() {
+		// Operation notification from the leader node: handle synchronously.
+		err := run(r.Context(), nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
 	}
 
 	args := operations.OperationArgs{
