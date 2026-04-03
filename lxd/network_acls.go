@@ -373,6 +373,8 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkACLDelete(d *Daemon, r *http.Request) response.Response {
@@ -384,6 +386,12 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	aclName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Load the ACL before creating the operation so we can return a synchronous 404 if not found.
+	_, err = acl.LoadByName(r.Context(), s, effectiveProjectName, aclName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -570,6 +578,8 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
 //	  "412":
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
