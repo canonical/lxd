@@ -224,6 +224,10 @@ func uiGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.ManualResponse(func(w http.ResponseWriter) error {
+		// Delete the Content-Type header pre-set by createCmd so that the file server
+		// can detect and set the correct MIME type for each requested file.
+		w.Header().Del("Content-Type")
+
 		// Disables the FLoC (Federated Learning of Cohorts) feature on the browser,
 		// preventing the current page from being included in the user's FLoC calculation.
 		// FLoC is a proposed replacement for third-party cookies to enable interest-based advertising.
@@ -273,6 +277,10 @@ func documentationGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.ManualResponse(func(w http.ResponseWriter) error {
+		// Delete the Content-Type header pre-set by createCmd so that the file server
+		// can detect and set the correct MIME type for each requested file.
+		w.Header().Del("Content-Type")
+
 		w.Header().Set("Permissions-Policy", "interest-cohort=()")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
