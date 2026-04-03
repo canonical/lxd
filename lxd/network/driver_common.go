@@ -489,10 +489,10 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 
 	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
 	// update the database.
-	if clientType != request.ClientTypeNotifier {
+	if clientType != request.ClientTypeOperationNotifier {
 		if targetNode == "" {
 			// Notify all other nodes to update the network if no target specified.
-			notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+			notifier, err := cluster.NewOperationNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
 			if err != nil {
 				return err
 			}
