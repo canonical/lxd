@@ -1376,7 +1376,7 @@ jobs:
           localRev="$(git rev-parse HEAD)"
           cd ~/"${PACKAGE}-pkg-snap-lp"
           lxd-snapcraft -package "${PACKAGE}" -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
-          git add --all
-          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
+          git add snapcraft.yaml
+          git commit --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
           git show
           git push --quiet
