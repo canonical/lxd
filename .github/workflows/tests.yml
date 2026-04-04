@@ -1380,3 +1380,7 @@ jobs:
           git commit --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
           git show
           git push --quiet
+
+          # Unload the SSH key from the agent now that the push is done, to
+          # prevent accidental usage in any subsequent steps within this job.
+          ssh-add -D
