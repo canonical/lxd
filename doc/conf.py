@@ -254,14 +254,16 @@ exclude_patterns = [
     'reference/release-notes/release-notes-template.md',
 ]
 
-# Adds custom CSS files, located under 'html_static_path'
+# Adds custom CSS files, located under 'html_static_path' or from external link
 html_css_files = [
     'lxd_custom.css',
-    'cookie-banner.css',
+    'https://assets.ubuntu.com/v1/d86746ef-cookie_banner.css',
 ]
 
-# Adds custom JavaScript files, located under 'html_static_path'
-html_js_files = ['js/bundle.js']
+# Adds custom JavaScript files, located under 'html_static_path' or from external link
+html_js_files = [
+    'https://assets.ubuntu.com/v1/287a5e8f-bundle.js',
+]
 
 # Feedback button at the top; enabled by default
 # To disable the button, uncomment the line below:
