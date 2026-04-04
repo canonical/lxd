@@ -19,21 +19,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Setup Launchpad SSH access
-      shell: bash
-      env:
-        INPUTS_SSH_KEY: ${{ inputs.ssh-key }}
-      run: |
-        set -eux
-        mkdir -m 0700 -p ~/.ssh/
-        ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
-        ssh-add - <<< "${INPUTS_SSH_KEY}"
-        ssh-add -L > ~/.ssh/id_ed25519.pub
-        # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
-        # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
-        ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
-        [ "$(ssh-keygen -qlF git.launchpad.net)" = 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo' ]
-
     - name: Configure Git
       shell: bash
       run: |
@@ -44,12 +29,6 @@ runs:
         git config --global commit.gpgsign true
         git config --global gpg.format "ssh"
         git config --global user.signingkey ~/.ssh/id_ed25519.pub
-
-    - name: Git clone repository
-      shell: bash
-      run: |
-        set -eux
-        git clone --depth 1 -b "${BRANCH}" "${REPO}" ~/"${PACKAGE}-pkg-snap-lp"
 
     - name: Install lxd-snapcraft tool
       shell: bash
@@ -64,3 +43,32 @@ runs:
         # Move the binary into its final location in PATH
         sudo mv "${GOBIN}/lxd-snapcraft" /usr/local/bin/
         rmdir "${GOBIN}"
+
+    - name: Verify Launchpad SSH host key
+      shell: bash
+      run: |
+        set -eux
+        mkdir -m 0700 -p ~/.ssh/
+        # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
+        # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
+        ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
+        [ "$(ssh-keygen -qlF git.launchpad.net)" = 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo' ]
+
+    # XXX: from this point onwards, the action has access to the private SSH key
+    #      either as an environment variable or through the SSH agent
+    - name: Setup Launchpad SSH access
+      shell: bash
+      env:
+        INPUTS_SSH_KEY: ${{ inputs.ssh-key }}
+      run: |
+        set -eu # let's not use -x here to avoid leaking the SSH key in the logs
+        ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
+        ssh-add - <<< "${INPUTS_SSH_KEY}"
+        unset INPUTS_SSH_KEY
+        ssh-add -L > ~/.ssh/id_ed25519.pub
+
+    - name: Git clone repository
+      shell: bash
+      run: |
+        set -eux
+        git clone --depth 1 -b "${BRANCH}" "${REPO}" ~/"${PACKAGE}-pkg-snap-lp"

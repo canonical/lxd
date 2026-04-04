@@ -1363,6 +1363,8 @@ jobs:
         with:
           persist-credentials: false
 
+      # XXX: from this point onwards in this **specific job**, the private SSH key is
+      #      available through the SSH_AUTH_SOCK environment variable.
       - uses: ./.github/actions/lp-snap-build
         with:
           ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]
@@ -1374,7 +1376,11 @@ jobs:
           localRev="$(git rev-parse HEAD)"
           cd ~/"${PACKAGE}-pkg-snap-lp"
           lxd-snapcraft -package "${PACKAGE}" -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
-          git add --all
-          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
+          git add snapcraft.yaml
+          git commit --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
           git show
           git push --quiet
+
+          # Unload the SSH key from the agent now that the push is done, to
+          # prevent accidental usage in any subsequent steps within this job.
+          ssh-add -D
