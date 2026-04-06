@@ -24,6 +24,19 @@ _server_config_password() {
   ! lxc config set core.trust_password true || false
   ! lxc config set core.trust_password false || false
 
+  # Verify that setting loki.auth.password to the obfuscated display value is rejected
+  lxc config set loki.auth.password secret123
+
+  config=$(lxc config show)
+  echo "${config}" | grep -F "loki.auth.password"
+  ! echo "${config}" | grep -F "secret123" || false
+
+  lxc config unset loki.auth.password
+  ! lxc config show | grep -F "loki.auth.password" || false
+
+  ! lxc config set loki.auth.password true || false
+  ! lxc config set loki.auth.password false || false
+
   # PATCH
   my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'"}}' | jq -e '.status == "Success" and .status_code == 200'
 }
