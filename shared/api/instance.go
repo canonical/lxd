@@ -547,6 +547,12 @@ type InstanceSource struct {
 	// Example: ed56997f7c5b48e8d78986d2467a26109be6fb9f2d92e8c7b08eb8b6cec7629a
 	Fingerprint string `json:"fingerprint,omitempty" yaml:"fingerprint,omitempty"`
 
+	// Image registry name
+	// Example: ubuntu
+	//
+	// API extension: image_registries_operations
+	ImageRegistry string `json:"image_registry" yaml:"image_registry"`
+
 	// Image filters (for image source)
 	// Example: {"os": "Ubuntu", "release": "jammy", "variant": "cloud"}
 	Properties map[string]string `json:"properties,omitempty" yaml:"properties,omitempty"`
