@@ -2,11 +2,11 @@
 set -eu
 
 # Update copilot instructions from two sources:
-# - Extract the recommendations section from test/README.md.
-# - Extract the commit message table from CONTRIBUTING.md.
-# The script replaces the marked sections in .github/copilot-instructions.md.
+# - Extract the recommendations section from test/README.md into the run-integration-tests skill.
+# - Extract the commit message table from CONTRIBUTING.md into copilot-instructions.md.
+# The script replaces the marked sections in the target files.
 
-echo "Updating .github/copilot-instructions.md from test/README.md recommendations"
+echo "Updating run-integration-tests skill from test/README.md recommendations"
 
 tmp=""
 tmp_out=""
@@ -68,7 +68,7 @@ if [ ! -s "${tmp}" ]; then
   echo "Failed to extract recommendations from test/README.md"
   exit 1
 fi
-replace_block "TEST RECOMMENDATIONS" "${tmp}" .github/copilot-instructions.md
+replace_block "TEST RECOMMENDATIONS" "${tmp}" .github/skills/run-integration-tests/SKILL.md
 
 echo "Updating commit structure table from CONTRIBUTING.md"
 awk '/^\| Type/ {in_table=1} in_table {print} in_table && NF==0 {exit}' CONTRIBUTING.md > "${tmp}"
