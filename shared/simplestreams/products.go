@@ -159,7 +159,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				filename := fields[len(fields)-1]
 
 				// Generate the actual image entry
-				description := product.OperatingSystem + " " + product.ReleaseTitle + " " + product.Architecture
+				description := product.OperatingSystem + " " + product.ReleaseTitle
 				if version.Label != "" {
 					description += " (" + version.Label + ")"
 				}
