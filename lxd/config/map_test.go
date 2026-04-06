@@ -227,6 +227,7 @@ func TestMap_ChangeError(t *testing.T) {
 	schema := config.Schema{
 		"foo": {Type: config.Bool},
 		"egg": {Setter: failingSetter},
+		"xyz": {Hidden: true},
 	}
 
 	var cases = []struct {
@@ -253,6 +254,16 @@ func TestMap_ChangeError(t *testing.T) {
 			`non string value`,
 			map[string]any{"egg": 123},
 			`Cannot set "egg": Invalid type: "int"`,
+		},
+		{
+			`hidden key cannot be set to string "true"`,
+			map[string]any{"xyz": "true"},
+			`Cannot set "xyz" to "true": hidden config keys display as "true" when set; provide the actual secret value`,
+		},
+		{
+			`hidden key cannot be set to string "false"`,
+			map[string]any{"xyz": "false"},
+			`Cannot set "xyz" to "false": hidden config keys display as "true" when set; provide the actual secret value`,
 		},
 	}
 
