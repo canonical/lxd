@@ -11,11 +11,11 @@ _server_config_password() {
   lxc config set core.trust_password 123456
 
   config=$(lxc config show)
-  echo "${config}" | grep -q "trust_password"
-  echo "${config}" | grep -q -v "123456"
+  echo "${config}" | grep -F "trust_password"
+  ! echo "${config}" | grep -F "123456" || false
 
   lxc config unset core.trust_password
-  lxc config show | grep -Fv "trust_password"
+  ! lxc config show | grep -F "trust_password" || false
 
   # PATCH
   my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'"}}' | jq -e '.status == "Success" and .status_code == 200'
