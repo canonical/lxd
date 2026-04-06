@@ -302,6 +302,7 @@ sudo apt install \
     socat \
     sqlite3 \
     swtpm \
+    xdelta3 \
     xfsprogs \
     yq
 ```
