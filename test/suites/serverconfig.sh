@@ -17,6 +17,13 @@ _server_config_password() {
   lxc config unset core.trust_password
   ! lxc config show | grep -F "trust_password" || false
 
+  # Verify that setting core.trust_password to the obfuscated display value is rejected
+  # The config show output displays hidden keys as "true", which a user might
+  # try to copy back as an lxc config set argument. Verify this is rejected to
+  # prevent accidentally storing a weak password.
+  ! lxc config set core.trust_password true || false
+  ! lxc config set core.trust_password false || false
+
   # PATCH
   my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'"}}' | jq -e '.status == "Success" and .status_code == 200'
 }
