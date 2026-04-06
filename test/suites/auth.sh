@@ -645,7 +645,7 @@ fine_grained_authorization() {
 
   # Check we can view the server's config.
   # As the core.trust_password is stored as scrypt value together with its hash, we cannot easily compare it against the original value.
-  lxc_remote query "${remote}:/1.0" | jq --exit-status '.config."core.trust_password" = "true"'
+  lxc_remote query "${remote}:/1.0" | jq --exit-status '.config."core.trust_password" == true'
   lxc_remote query "${remote}:/1.0" | jq --exit-status '.config."loki.auth.password" == true'
 
   # Check we can modify the server's config.
