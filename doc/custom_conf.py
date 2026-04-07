@@ -416,3 +416,15 @@ else:
 
 
 sys.path.append(os.path.abspath('.sphinx/_extensions/'))
+
+
+
+###########################################
+### Prevent indexing of older docs versions
+###########################################
+
+# Add RTD docs version slugs for versions that should not be indexed by search engines
+noindex_versions = {"stable-5.0", "stable-4.0", "v4", "v5"}
+
+rtd_version = os.environ.get("READTHEDOCS_VERSION", "")
+html_context["seo_noindex"] = rtd_version in noindex_versions
