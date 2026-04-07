@@ -8,13 +8,13 @@ import yaml
 
 import sys
 import subprocess
-from git import Repo, InvalidGitRepositoryError
+from git import Repo
 import filecmp
 import ast
 import re
 
 sys.path.insert(0, os.path.abspath('.'))
-from redirects import redirects
+from redirects import redirects  # noqa: F401 (used by sphinx_reredirects via conf.py namespace)
 
 sys.path.append('.sphinx/')
 
