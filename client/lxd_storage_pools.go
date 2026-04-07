@@ -83,8 +83,9 @@ func (r *ProtocolLXD) CreateStoragePool(pool api.StoragePoolsPost) (Operation, e
 
 	// Send the request
 	err = r.CheckExtension("storage_and_network_operations")
-	if err != nil {
-		// Fallback to older behavior without operations.
+	if err != nil || r.isClusterOperationNotification() {
+		// Use a synchronous request when the server lacks async endpoint support
+		// or when handling a cluster operation notification.
 		op = noopOperation{}
 		_, _, err = r.query(http.MethodPost, "/storage-pools", pool, "")
 	} else {
@@ -111,8 +112,9 @@ func (r *ProtocolLXD) UpdateStoragePool(name string, pool api.StoragePoolPut, ET
 
 	// Send the request
 	err = r.CheckExtension("storage_and_network_operations")
-	if err != nil {
-		// Fallback to older behavior without operations.
+	if err != nil || r.isClusterOperationNotification() {
+		// Use a synchronous request when the server lacks async endpoint support
+		// or when handling a cluster operation notification.
 		op = noopOperation{}
 		_, _, err = r.query(http.MethodPut, path.String(), pool, ETag)
 	} else {
@@ -139,8 +141,9 @@ func (r *ProtocolLXD) DeleteStoragePool(name string) (Operation, error) {
 
 	// Send the request
 	err = r.CheckExtension("storage_and_network_operations")
-	if err != nil {
-		// Fallback to older behavior without operations.
+	if err != nil || r.isClusterOperationNotification() {
+		// Use a synchronous request when the server lacks async endpoint support
+		// or when handling a cluster operation notification.
 		op = noopOperation{}
 		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
 	} else {
