@@ -250,6 +250,7 @@ readonly test_group_standalone_storage=(
     "storage_driver_ceph"
     "storage_driver_cephfs"
     "storage_driver_dir"
+    "storage_driver_lvm"
     "storage_driver_zfs"
     "storage_driver_pure"
     "storage_buckets"
