@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2026-02-24 15:05+0000\n"
+"POT-Creation-Date: 2026-04-07 15:29+0100\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -2433,12 +2433,12 @@ msgstr "Ephemeral インスタンス"
 
 #: lxc/utils_properties.go:222
 #, fuzzy, c-format
-msgid "Error creating decoder: %v"
+msgid "Error creating decoder: %w"
 msgstr "イメージの取得中: %s"
 
 #: lxc/utils_properties.go:227
 #, fuzzy, c-format
-msgid "Error decoding data: %v"
+msgid "Error decoding data: %w"
 msgstr "イメージの取得中: %s"
 
 #: lxc/publish.go:247
@@ -2633,6 +2633,11 @@ msgstr "インスタンスの存在確認に失敗しました \"%s:%s\": %w"
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "インスタンスのスナップショットの存在確認に失敗しました \"%s:%s\": %w"
 
+#: lxc/move.go:388
+#, fuzzy, c-format
+msgid "Failed connecting to cluster member: %w"
+msgstr "クラスタメンバへの接続に失敗しました: %w"
+
 #: lxc/file.go:1545
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -2712,7 +2717,7 @@ msgstr "リモートの追加に失敗しました"
 msgid "Failed to close server cert file %q: %w"
 msgstr "サーバー証明書ファイル %q のクローズに失敗しました: %w"
 
-#: lxc/move.go:312 lxc/move.go:388
+#: lxc/move.go:312
 #, c-format
 msgid "Failed to connect to cluster member: %w"
 msgstr "クラスタメンバへの接続に失敗しました: %w"
@@ -6654,7 +6659,8 @@ msgid "The --mode flag can't be used with --target"
 msgstr "--mode と --target は同時に指定できません"
 
 #: lxc/console.go:134
-msgid "The --show-log flag is only supported for by 'console' output type"
+#, fuzzy
+msgid "The --show-log flag is only supported for 'console' output type"
 msgstr "--show-log フラグは 'console' アウトプットタイプの時だけ使えます"
 
 #: lxc/move.go:191

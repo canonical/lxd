@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2026-02-24 15:05+0000\n"
+"POT-Creation-Date: 2026-04-07 15:29+0100\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -2396,12 +2396,12 @@ msgstr ""
 
 #: lxc/utils_properties.go:222
 #, c-format
-msgid "Error creating decoder: %v"
+msgid "Error creating decoder: %w"
 msgstr ""
 
 #: lxc/utils_properties.go:227
 #, c-format
-msgid "Error decoding data: %v"
+msgid "Error decoding data: %w"
 msgstr ""
 
 #: lxc/publish.go:247
@@ -2583,6 +2583,11 @@ msgstr "Il nome del container è: %s"
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "Il nome del container è: %s"
 
+#: lxc/move.go:388
+#, fuzzy, c-format
+msgid "Failed connecting to cluster member: %w"
+msgstr "Il nome del container è: %s"
+
 #: lxc/file.go:1545
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -2662,7 +2667,7 @@ msgstr ""
 msgid "Failed to close server cert file %q: %w"
 msgstr "Accetta certificato"
 
-#: lxc/move.go:312 lxc/move.go:388
+#: lxc/move.go:312
 #, fuzzy, c-format
 msgid "Failed to connect to cluster member: %w"
 msgstr "Il nome del container è: %s"
@@ -6362,7 +6367,7 @@ msgid "The --mode flag can't be used with --target"
 msgstr ""
 
 #: lxc/console.go:134
-msgid "The --show-log flag is only supported for by 'console' output type"
+msgid "The --show-log flag is only supported for 'console' output type"
 msgstr ""
 
 #: lxc/move.go:191
