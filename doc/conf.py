@@ -364,7 +364,7 @@ else:
 # Generate man pages content
 
 os.makedirs('.sphinx/deps/manpages', exist_ok=True)
-if (os.path.isfile(lxc)):
+if os.path.isfile(lxc):
     subprocess.run([lxc, 'manpage', '.sphinx/deps/manpages/', '--format=md'],
                    check=True)
 else:
