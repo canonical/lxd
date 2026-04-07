@@ -358,7 +358,7 @@ if ('LOCAL_SPHINX_BUILD' in os.environ and
         print('Using ' + lxc + ' to generate man pages.')
     else:
         print('Cannot find lxc in ' + lxc)
-        exit(2)
+        sys.exit(2)
 else:
     lxc = '../lxc.bin'
 
