@@ -141,3 +141,13 @@ ogp_image = "https://documentation.ubuntu.com/lxd/en/stable-4.0/_static/tag.png"
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
 redirects = {
 }
+
+###########################################
+### Prevent indexing of older docs versions
+###########################################
+
+# Add RTD docs version slugs for versions that should not be indexed by search engines
+noindex_versions = {"stable-5.0", "stable-4.0", "v4", "v5"}
+
+rtd_version = os.environ.get("READTHEDOCS_VERSION", "")
+html_context["seo_noindex"] = rtd_version in noindex_versions
