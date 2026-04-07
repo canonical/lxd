@@ -350,8 +350,7 @@ if not os.path.islink('_static/swagger-ui/swagger-ui.css'):
 
 # Find path to lxc client (different for local builds and on RTD)
 
-if ('LOCAL_SPHINX_BUILD' in os.environ and
-    os.environ['LOCAL_SPHINX_BUILD'] == 'True'):
+if os.environ.get('LOCAL_SPHINX_BUILD') == 'True':
     path = str(subprocess.check_output(['go', 'env', 'GOPATH'], encoding='utf-8').strip())
     lxc = os.path.join(path, 'bin', 'lxc')
     if os.path.isfile(lxc):
