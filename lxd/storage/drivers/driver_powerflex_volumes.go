@@ -156,6 +156,11 @@ func (d *powerflex) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info
 	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
 }
 
+// CreateVolumeFromImage creates a new volume from an image, unpacking it directly.
+func (d *powerflex) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error {
+	return d.CreateVolume(vol, filler, op)
+}
+
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
 func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
 	revert := revert.New()
