@@ -305,9 +305,10 @@ myst_linkify_fuzzy_links = False
 # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html#auto-generated-header-anchors
 myst_heading_anchors = 7
 
+myst_substitutions = {}
 if os.path.exists('./substitutions.yaml'):
     with open('./substitutions.yaml', 'r') as fd:
-        myst_substitutions = yaml.safe_load(fd.read())
+        myst_substitutions.update(yaml.safe_load(fd.read()))
 if os.path.exists('./related_topics.yaml'):
     with open('./related_topics.yaml', 'r') as fd:
         myst_substitutions.update(yaml.safe_load(fd.read()))
