@@ -12,6 +12,7 @@ from git import Repo
 import filecmp
 import ast
 import re
+import shutil
 
 sys.path.insert(0, os.path.abspath('.'))
 from redirects import redirects  # noqa: F401 (used by sphinx_reredirects via conf.py namespace)
@@ -435,7 +436,7 @@ for folder, subfolders, files in os.walk('.sphinx/deps/manpages'):
             not filecmp.cmp(sourcefile, targetfile, shallow=False)):
 
             os.makedirs(os.path.dirname(targetfile), exist_ok=True)
-            os.system('cp ' + sourcefile + ' ' + targetfile)
+            shutil.copy2(sourcefile, targetfile)
 
 ### End MAN PAGES ###
 
