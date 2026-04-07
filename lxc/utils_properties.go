@@ -219,12 +219,12 @@ func unpackKVToWritable(writable any, keys map[string]string) error {
 		),
 	})
 	if err != nil {
-		return fmt.Errorf(i18n.G("Error creating decoder: %v"), err)
+		return fmt.Errorf(i18n.G("Error creating decoder: %w"), err)
 	}
 
 	err = decoder.Decode(data)
 	if err != nil {
-		return fmt.Errorf(i18n.G("Error decoding data: %v"), err)
+		return fmt.Errorf(i18n.G("Error decoding data: %w"), err)
 	}
 
 	return nil

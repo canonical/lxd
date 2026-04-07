@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2026-02-24 15:05+0000\n"
+"POT-Creation-Date: 2026-04-07 15:29+0100\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -2486,13 +2486,13 @@ msgid "Ephemeral instance"
 msgstr "Flüchtiger Container"
 
 #: lxc/utils_properties.go:222
-#, c-format
-msgid "Error creating decoder: %v"
-msgstr ""
+#, fuzzy, c-format
+msgid "Error creating decoder: %w"
+msgstr "Fehler beim hinzufügen des Alias %s\n"
 
 #: lxc/utils_properties.go:227
 #, c-format
-msgid "Error decoding data: %v"
+msgid "Error decoding data: %w"
 msgstr ""
 
 #: lxc/publish.go:247
@@ -2684,6 +2684,11 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
+#: lxc/move.go:388
+#, fuzzy, c-format
+msgid "Failed connecting to cluster member: %w"
+msgstr "kann nicht zum selben Container Namen kopieren"
+
 #: lxc/file.go:1545
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -2763,7 +2768,7 @@ msgstr ""
 msgid "Failed to close server cert file %q: %w"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/move.go:312 lxc/move.go:388
+#: lxc/move.go:312
 #, fuzzy, c-format
 msgid "Failed to connect to cluster member: %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -6592,7 +6597,7 @@ msgid "The --mode flag can't be used with --target"
 msgstr ""
 
 #: lxc/console.go:134
-msgid "The --show-log flag is only supported for by 'console' output type"
+msgid "The --show-log flag is only supported for 'console' output type"
 msgstr ""
 
 #: lxc/move.go:191

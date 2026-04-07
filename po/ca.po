@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2026-02-24 15:05+0000\n"
+"POT-Creation-Date: 2026-04-07 15:29+0100\n"
 "PO-Revision-Date: 2022-03-10 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Catalan <https://hosted.weblate.org/projects/linux-containers/"
@@ -2105,12 +2105,12 @@ msgstr ""
 
 #: lxc/utils_properties.go:222
 #, c-format
-msgid "Error creating decoder: %v"
+msgid "Error creating decoder: %w"
 msgstr ""
 
 #: lxc/utils_properties.go:227
 #, c-format
-msgid "Error decoding data: %v"
+msgid "Error decoding data: %w"
 msgstr ""
 
 #: lxc/publish.go:247
@@ -2289,6 +2289,11 @@ msgstr ""
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr ""
 
+#: lxc/move.go:388
+#, c-format
+msgid "Failed connecting to cluster member: %w"
+msgstr ""
+
 #: lxc/file.go:1545
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -2368,7 +2373,7 @@ msgstr ""
 msgid "Failed to close server cert file %q: %w"
 msgstr ""
 
-#: lxc/move.go:312 lxc/move.go:388
+#: lxc/move.go:312
 #, c-format
 msgid "Failed to connect to cluster member: %w"
 msgstr ""
@@ -5941,7 +5946,7 @@ msgid "The --mode flag can't be used with --target"
 msgstr ""
 
 #: lxc/console.go:134
-msgid "The --show-log flag is only supported for by 'console' output type"
+msgid "The --show-log flag is only supported for 'console' output type"
 msgstr ""
 
 #: lxc/move.go:191

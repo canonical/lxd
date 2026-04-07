@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2026-02-24 15:05+0000\n"
+"POT-Creation-Date: 2026-04-07 15:29+0100\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -2509,12 +2509,12 @@ msgstr "Conteneur éphémère"
 
 #: lxc/utils_properties.go:222
 #, fuzzy, c-format
-msgid "Error creating decoder: %v"
+msgid "Error creating decoder: %w"
 msgstr "Récupération de l'image : %s"
 
 #: lxc/utils_properties.go:227
 #, fuzzy, c-format
-msgid "Error decoding data: %v"
+msgid "Error decoding data: %w"
 msgstr "Récupération de l'image : %s"
 
 #: lxc/publish.go:247
@@ -2717,6 +2717,11 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "Profil à appliquer au nouveau conteneur"
 
+#: lxc/move.go:388
+#, fuzzy, c-format
+msgid "Failed connecting to cluster member: %w"
+msgstr "Profil à appliquer au nouveau conteneur"
+
 #: lxc/file.go:1545
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -2797,7 +2802,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed to close server cert file %q: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/move.go:312 lxc/move.go:388
+#: lxc/move.go:312
 #, fuzzy, c-format
 msgid "Failed to connect to cluster member: %w"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -6729,7 +6734,7 @@ msgid "The --mode flag can't be used with --target"
 msgstr ""
 
 #: lxc/console.go:134
-msgid "The --show-log flag is only supported for by 'console' output type"
+msgid "The --show-log flag is only supported for 'console' output type"
 msgstr ""
 
 #: lxc/move.go:191

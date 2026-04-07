@@ -168,7 +168,7 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	}
 
 	if op.class == OperationClassToken && op.onRun != nil {
-		return nil, errors.New("Token operations can't have a Run hook")
+		return nil, errors.New("Token operations cannot have a Run hook")
 	}
 
 	if op.class == OperationClassToken && op.onCancel != nil {
@@ -515,9 +515,13 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		renderedResources = tmpResources
 	}
 
-	// Local server name
-
 	op.lock.Lock()
+
+	// Make a copy of the metadata to avoid concurrent reads/writes.
+	metadata := make(map[string]any, len(op.metadata))
+	maps.Copy(metadata, op.metadata)
+
+	// Put together the response struct.
 	retOp := &api.Operation{
 		ID:          op.id,
 		Class:       op.class.String(),
@@ -527,7 +531,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		Status:      op.status.String(),
 		StatusCode:  op.status,
 		Resources:   renderedResources,
-		Metadata:    op.metadata,
+		Metadata:    metadata,
 		MayCancel:   op.mayCancel(),
 	}
 
@@ -558,34 +562,6 @@ func (op *Operation) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-}
-
-// UpdateResources updates the resources of the operation. It returns an error
-// if the operation is not pending or running, or the operation is read-only.
-func (op *Operation) UpdateResources(opResources map[string][]api.URL) error {
-	op.lock.Lock()
-	if op.status != api.Pending && op.status != api.Running {
-		op.lock.Unlock()
-		return errors.New("Only pending or running operations can be updated")
-	}
-
-	if op.readonly {
-		op.lock.Unlock()
-		return errors.New("Read-only operations can't be updated")
-	}
-
-	op.updatedAt = time.Now()
-	op.resources = opResources
-	op.lock.Unlock()
-
-	op.logger.Debug("Updated resources for oeration")
-	_, md, _ := op.Render()
-
-	op.lock.Lock()
-	op.sendEvent(md)
-	op.lock.Unlock()
-
-	return nil
 }
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
