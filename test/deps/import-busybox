@@ -101,9 +101,10 @@ class LXD:
         if isinstance(path, str):
             headers["Content-Type"] = "application/octet-stream"
 
-            status, data = self.rest_call(
-                "/1.0/images", open(path, "rb"), "POST", headers
-            )
+            with open(path, "rb") as f:
+                status, data = self.rest_call(
+                    "/1.0/images", f, "POST", headers
+                )
         else:
             meta_path, rootfs_path = path
             boundary = str(uuid.uuid1())
@@ -112,31 +113,31 @@ class LXD:
             if not isinstance(self.workdir, str) or not self.workdir:
                 raise RuntimeError("Temporary working directory is not available")
             upload_path = os.path.join(self.workdir, "upload")
-            body = open(upload_path, "wb+")
-            for name, path in [("metadata", meta_path), ("rootfs", rootfs_path)]:
-                body.write(bytes("--%s\r\n" % boundary, "utf-8"))
-                body.write(
-                    bytes(
-                        "Content-Disposition: form-data; "
-                        "name=%s;%s\r\n" % (name, filename_entry),
-                        "utf-8",
+            with open(upload_path, "wb+") as body:
+                for name, path in [("metadata", meta_path), ("rootfs", rootfs_path)]:
+                    body.write(bytes("--%s\r\n" % boundary, "utf-8"))
+                    body.write(
+                        bytes(
+                            "Content-Disposition: form-data; "
+                            "name=%s;%s\r\n" % (name, filename_entry),
+                            "utf-8",
+                        )
                     )
-                )
-                body.write(b"Content-Type: application/octet-stream\r\n")
-                body.write(b"\r\n")
-                with open(path, "rb") as fd:
-                    shutil.copyfileobj(fd, body)
-                body.write(b"\r\n")
+                    body.write(b"Content-Type: application/octet-stream\r\n")
+                    body.write(b"\r\n")
+                    with open(path, "rb") as fd:
+                        shutil.copyfileobj(fd, body)
+                    body.write(b"\r\n")
 
-            body.write(bytes("--%s--\r\n" % boundary, "utf-8"))
-            body.write(b"\r\n")
-            body.close()
+                body.write(bytes("--%s--\r\n" % boundary, "utf-8"))
+                body.write(b"\r\n")
 
             headers["Content-Type"] = "multipart/form-data; boundary=%s" % boundary
 
-            status, data = self.rest_call(
-                "/1.0/images", open(upload_path, "rb"), "POST", headers
-            )
+            with open(upload_path, "rb") as f:
+                status, data = self.rest_call(
+                    "/1.0/images", f, "POST", headers
+                )
 
         if status != 202:
             raise Exception("Failed to upload the image: %s" % status)
