@@ -5,6 +5,9 @@ lxd-*.tar.gz
 tags
 **/*.bak
 
+# scripts
+scripts/__pycache__/
+
 test/busybox.tar.cache
 test/.durations.*
 
