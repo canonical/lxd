@@ -181,8 +181,8 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 	// Render the profile.
 	sb := &strings.Builder{}
 	err = archiveProfileTpl.Execute(sb, map[string]any{
-		"name":                ArchiveProfileName(outputPath), // Use non-deferenced outputPath for name.
-		"outputPath":          outputPathFull,                 // Use deferenced path in AppArmor profile.
+		"name":                ArchiveProfileName(outputPath), // Use non-dereferenced outputPath for name.
+		"outputPath":          outputPathFull,                 // Use dereferenced path in AppArmor profile.
 		"rootPath":            rootPath,
 		"backupsPaths":        daemonStorageVolumePathsSlices[config.DaemonStorageTypeBackups],
 		"imagesPaths":         daemonStorageVolumePathsSlices[config.DaemonStorageTypeImages],

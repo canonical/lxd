@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -64,48 +63,91 @@ func specDevToInstanceDev(configDevices *ConfigDevices, d specs.DeviceNode) erro
 // specMountToInstanceDev builds a list of disk mounts to be created from a CDI spec.
 func specMountToInstanceDev(configDevices *ConfigDevices, cdiID ID, mounts []*specs.Mount) ([]SymlinkEntry, error) {
 	indirectSymlinks := make([]SymlinkEntry, 0)
-	var chosenOpts []string
 
 	rootPath := ""
 	if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"
 	}
 
-	for _, mount := range mounts {
-		if mount.HostPath == "" || mount.ContainerPath == "" {
-			return nil, fmt.Errorf("The hostPath or containerPath is empty in the CDI mount: %v", *mount)
+	addBindMount := func(hostSourcePath string, containerPath string, mountOptions ...string) error {
+		if hostSourcePath == "" {
+			return errors.New("The host path is empty")
 		}
 
-		chosenOpts = []string{}
-		for _, opt := range mount.Options {
-			if !slices.Contains(chosenOpts, opt) {
-				chosenOpts = append(chosenOpts, opt)
-			}
+		if containerPath == "" {
+			return errors.New("The container path is empty")
 		}
 
-		chosenOptsStr := strings.Join(chosenOpts, ",")
-
-		// mount.HostPath can be a symbolic link, so we need to evaluate it
-		evaluatedHostPath, err := filepath.EvalSymlinks(mount.HostPath)
+		// mount.HostPath directory can contain a symbolic link, so evaluate it to get dereferenced path.
+		mountHostPathDir := filepath.Dir(hostSourcePath)
+		defrefHostPathDir, err := filepath.EvalSymlinks(mountHostPathDir)
 		if err != nil {
-			return nil, err
+			return fmt.Errorf("Failed dereferencing host source path directory %q: %w", mountHostPathDir, err)
 		}
 
-		if evaluatedHostPath != mount.HostPath && mount.ContainerPath == strings.TrimPrefix(mount.HostPath, rootPath) {
-			targetPath := strings.TrimPrefix(evaluatedHostPath, rootPath)
-			indirectSymlinks = append(indirectSymlinks, SymlinkEntry{Target: targetPath, Link: mount.ContainerPath})
-			mount.ContainerPath = targetPath
+		hostSourcePath = filepath.Join(defrefHostPathDir, filepath.Base(hostSourcePath))
+
+		// If the dereferenced host path is different from the original host path (i.e contains a symlink)
+		// and the container path is the same as the original host path relative to rootPath,
+		// then we update the container path to be the dereferenced host path relative to rootPath,
+		// because its likely that the container filesystem also has a symlink in the target path.
+		if defrefHostPathDir != mountHostPathDir && filepath.Dir(containerPath) == strings.TrimPrefix(mountHostPathDir, rootPath) {
+			containerPath = strings.TrimPrefix(hostSourcePath, rootPath)
 		}
 
-		configDevices.BindMounts = append(
-			configDevices.BindMounts,
-			map[string]string{
-				"type":              "disk",
-				"source":            evaluatedHostPath,
-				"path":              mount.ContainerPath,
-				"raw.mount.options": chosenOptsStr,
-			},
-		)
+		// If the original targetPath is itself a symlink, then deference the bind-mount and request
+		// the symlink be re-created in container.
+		hostSourcePathInfo, err := os.Lstat(hostSourcePath)
+		if err != nil {
+			return fmt.Errorf("Failed getting info for mount host source path %q: %w", hostSourcePath, err)
+		}
+
+		if hostSourcePathInfo.Mode()&os.ModeSymlink == os.ModeSymlink {
+			hostSourcePath, err = filepath.EvalSymlinks(hostSourcePath)
+			if err != nil {
+				return fmt.Errorf("Failed dereferencing host source path %q: %w", hostSourcePath, err)
+			}
+
+			indirectSymlinks = append(indirectSymlinks, SymlinkEntry{
+				Target: strings.TrimPrefix(hostSourcePath, rootPath),
+				Link:   containerPath,
+			})
+
+			containerPath = strings.TrimPrefix(hostSourcePath, rootPath)
+		}
+
+		mount := map[string]string{
+			"type":   "disk",
+			"source": hostSourcePath,
+			"path":   containerPath,
+		}
+
+		if len(mountOptions) > 0 {
+			// De-duplicate the mount options.
+			opts := strings.Builder{}
+			uniqueOpts := make(map[string]struct{}, len(mountOptions))
+			for _, opt := range mountOptions {
+				_, existing := uniqueOpts[opt]
+				if !existing {
+					uniqueOpts[opt] = struct{}{}
+					opts.WriteString(opt)
+					opts.WriteString(",")
+				}
+			}
+
+			mount["raw.mount.options"] = strings.TrimSuffix(opts.String(), ",")
+		}
+
+		configDevices.BindMounts = append(configDevices.BindMounts, mount)
+
+		return nil
+	}
+
+	for _, mount := range mounts {
+		err := addBindMount(mount.HostPath, mount.ContainerPath, mount.Options...)
+		if err != nil {
+			return nil, fmt.Errorf("Failed configuring spec instance device %q: %w", mount.HostPath, err)
+		}
 	}
 
 	// If the user desires to run a nested docker container inside a LXD container,
@@ -129,16 +171,12 @@ func specMountToInstanceDev(configDevices *ConfigDevices, cdiID ID, mounts []*sp
 			return nil, errors.New("No CSV files detected for Tegra iGPU")
 		}
 
+		mountOpts := []string{"ro"} // Mount files read only.
 		for _, tegraFile := range tegraCSVFiles {
-			configDevices.BindMounts = append(
-				configDevices.BindMounts,
-				map[string]string{
-					"type":     "disk",
-					"source":   tegraFile,
-					"path":     strings.TrimPrefix(tegraFile, rootPath),
-					"readonly": "true",
-				},
-			)
+			err := addBindMount(tegraFile, tegraFile, mountOpts...)
+			if err != nil {
+				return nil, fmt.Errorf("Failed configuring tegra instance device %q: %w", tegraFile, err)
+			}
 		}
 	}
 

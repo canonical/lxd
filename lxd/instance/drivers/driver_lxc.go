@@ -40,7 +40,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device"
-	"github.com/canonical/lxd/lxd/device/cdi"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/device/nictype"
@@ -1991,7 +1990,6 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 	// Create the devices
 	nicID := -1
 	nvidiaDevices := []string{}
-	cdiConfigFiles := []string{}
 
 	sortedDevices := d.expandedDevices.Sorted()
 	startDevices := make([]device.Device, 0, len(sortedDevices))
@@ -2142,10 +2140,6 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 				if entry.Key == device.GPUNvidiaDeviceKey {
 					nvidiaDevices = append(nvidiaDevices, entry.Value)
 				}
-
-				if entry.Key == cdi.CDIHookDefinitionKey {
-					cdiConfigFiles = append(cdiConfigFiles, entry.Value)
-				}
 			}
 		}
 	}
@@ -2155,13 +2149,6 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES="+strings.Join(nvidiaDevices, ","))
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("Cannot set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
-		}
-	}
-
-	if len(cdiConfigFiles) > 0 {
-		err = lxcSetConfigItem(cc, "lxc.hook.mount", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+shared.ShellQuote(d.Project().Name)+" "+shared.ShellQuote(d.Name())+" startmountns --devicesRootFolder "+d.DevicesPath()+" "+strings.Join(cdiConfigFiles, " "))
-		if err != nil {
-			return nil, "", nil, fmt.Errorf("Cannot set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
 		}
 	}
 
@@ -5723,6 +5710,22 @@ func (d *lxc) inheritInitPidFd() (int, *os.File) {
 
 // FileSFTPConn returns a connection to the forkfile handler.
 func (d *lxc) FileSFTPConn() (net.Conn, error) {
+	// Check for ongoing operations (that may involve shifting or replacing the root volume) so as to avoid
+	// allowing SFTP access while the container's filesystem setup is in flux.
+	// If there is an update operation ongoing and the instance is running then do not wait for the operation
+	// to complete before continuing as it is possible that a disk device is being removed that requires SFTP
+	// to clean up the path inside the container. Also it is not possible to be shifting/replacing the root
+	// volume when the instance is running, so there should be no reason to wait for the operation to finish.
+	op := operationlock.Get(d.Project().Name, d.Name())
+	if op.Action() != operationlock.ActionUpdate || !d.IsRunning() {
+		_ = op.Wait(context.Background())
+	}
+
+	return d.fileSFTPConnNoLock()
+}
+
+// fileSFTPConnNoLock returns a connection to the forkfile handler without checking for ongoing operations.
+func (d *lxc) fileSFTPConnNoLock() (net.Conn, error) {
 	// Lock to avoid concurrent spawning.
 	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprint("forkfile_", d.id))
 	if err != nil {
@@ -5756,17 +5759,6 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	if err == nil {
 		// Found an existing server.
 		return forkfileConn, nil
-	}
-
-	// Check for ongoing operations (that may involve shifting or replacing the root volume) so as to avoid
-	// allowing SFTP access while the container's filesystem setup is in flux.
-	// If there is an update operation ongoing and the instance is running then do not wait for the operation
-	// to complete before continuing as it is possible that a disk device is being removed that requires SFTP
-	// to clean up the path inside the container. Also it is not possible to be shifting/replacing the root
-	// volume when the instance is running, so there should be no reason to wait for the operation to finish.
-	op := operationlock.Get(d.Project().Name, d.Name())
-	if op.Action() != operationlock.ActionUpdate || !d.IsRunning() {
-		_ = op.Wait(context.Background())
 	}
 
 	// Setup reverter.
@@ -5941,14 +5933,8 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	return forkfileConn, nil
 }
 
-// FileSFTP returns an SFTP connection to the forkfile handler.
-func (d *lxc) FileSFTP() (*sftp.Client, error) {
-	// Connect to the forkfile daemon.
-	conn, err := d.FileSFTPConn()
-	if err != nil {
-		return nil, err
-	}
-
+// fileSFTPConnToClient converts a net.Conn to an SFTP client.
+func (d *lxc) fileSFTPConnToClient(conn net.Conn) (*sftp.Client, error) {
 	// Get a SFTP client.
 	client, err := sftp.NewClientPipe(conn, conn)
 	if err != nil {
@@ -5963,6 +5949,28 @@ func (d *lxc) FileSFTP() (*sftp.Client, error) {
 	}()
 
 	return client, nil
+}
+
+// FileSFTP returns an SFTP connection to the forkfile handler.
+func (d *lxc) FileSFTP() (*sftp.Client, error) {
+	// Connect to the forkfile daemon.
+	conn, err := d.FileSFTPConn()
+	if err != nil {
+		return nil, err
+	}
+
+	return d.fileSFTPConnToClient(conn)
+}
+
+// FileSFTPNoLock returns an SFTP connection to the forkfile handler without checking for ongoing operations.
+func (d *lxc) FileSFTPNoLock() (*sftp.Client, error) {
+	// Connect to the forkfile daemon.
+	conn, err := d.fileSFTPConnNoLock()
+	if err != nil {
+		return nil, err
+	}
+
+	return d.fileSFTPConnToClient(conn)
 }
 
 // stopForkFile attempts to send SIGTERM (if force is true) or SIGINT to forkfile then waits for it to exit.
