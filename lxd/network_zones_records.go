@@ -280,12 +280,14 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 //	    type: string
 //	    example: default
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
@@ -312,15 +314,38 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Delete the record.
-	err = netzone.DeleteRecord(r.Context(), recordName)
+	// Ensure network zone record exists before creating an operation.
+	_, err = netzone.GetRecord(r.Context(), recordName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneRecordDeleted.Event(netzone, recordName, request.CreateRequestor(r.Context()), nil))
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = netzone.DeleteRecord(ctx, recordName)
+		if err != nil {
+			return err
+		}
 
-	return response.EmptySyncResponse
+		requestor := request.CreateRequestor(ctx)
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneRecordDeleted.Event(netzone, recordName, requestor, nil))
+
+		return nil
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkZoneRecordDelete,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkZoneURL(effectiveProjectName, details.zoneName),
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/network-zones/{zone}/records/{name} network-zones network_zone_record_get
