@@ -445,12 +445,14 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 //      schema:
 //        $ref: "#/definitions/NetworkZoneRecordPut"
 //  responses:
-//    "200":
-//      $ref: "#/responses/EmptySyncResponse"
+//    "202":
+//      $ref: "#/responses/Operation"
 //    "400":
 //      $ref: "#/responses/BadRequest"
 //    "403":
 //      $ref: "#/responses/Forbidden"
+//    "404":
+//      $ref: "#/responses/NotFound"
 //    "412":
 //      $ref: "#/responses/PreconditionFailed"
 //    "500":
@@ -480,12 +482,14 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkZoneRecordPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
 //	  "412":
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
@@ -552,12 +556,30 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	err = netzone.UpdateRecord(r.Context(), recordName, req)
-	if err != nil {
-		return response.SmartError(err)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		err = netzone.UpdateRecord(ctx, recordName, req)
+		if err != nil {
+			return err
+		}
+
+		requestor := request.CreateRequestor(ctx)
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneRecordUpdated.Event(netzone, recordName, requestor, nil))
+
+		return nil
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneRecordUpdated.Event(netzone, recordName, request.CreateRequestor(r.Context()), nil))
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkZoneRecordUpdate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkZoneURL(effectiveProjectName, details.zoneName),
+	}
 
-	return response.EmptySyncResponse
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
