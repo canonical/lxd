@@ -4590,25 +4590,26 @@ test_clustering_roles() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.max_standby=0
   sleep 12
 
-  # Identify current voters and spares
+  # Identify current leader, a non-leader voter that will keep the control-plane role,
+  # and two spares that will be promoted into the control plane.
   cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
-  voter1="$(jq -r '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader")))] | .[0].server_name' <<< "${cluster_list}")"
-  voter2="$(jq -r '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader")))] | .[1].server_name' <<< "${cluster_list}")"
-  voter3="$(jq -r '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader")))] | .[2].server_name' <<< "${cluster_list}")"
+  leader="$(jq -r '[.[] | select(any(.roles[]; . == "database-leader"))] | .[0].server_name' <<< "${cluster_list}")"
+  control_plane_voter="$(jq -r --arg leader "${leader}" '[.[] | select(.server_name != $leader) | select(any(.roles[]; . == "database-voter"))] | .[0].server_name' <<< "${cluster_list}")"
   spare1="$(jq -r '[.[] | select(any(.roles[]; contains("database")) | not)] | .[0].server_name' <<< "${cluster_list}")"
   spare2="$(jq -r '[.[] | select(any(.roles[]; contains("database")) | not)] | .[1].server_name' <<< "${cluster_list}")"
 
-  echo "Current voters: ${voter1}, ${voter2}, ${voter3} (none have control-plane)"
+  echo "Current leader: ${leader} (will remain non-control-plane during activation)"
+  echo "Current control-plane voter: ${control_plane_voter}"
   echo "Current spares: ${spare1}, ${spare2}"
-  # Verify 2 spares found
-  [ -n "${spare1}" ] && [ -n "${spare2}" ]
+  # Verify we found the intended transition members.
+  [ -n "${leader}" ] && [ -n "${control_plane_voter}" ] && [ -n "${spare1}" ] && [ -n "${spare2}" ]
 
-  # Assign control-plane to 2 spares + 1 voter to activate control plane mode
-  # voter2 and voter3 lack control-plane when mode activates
-  # Promotes spares first, interleaves demotions and maintains quorum
+  # Assign control-plane to 2 spares + 1 non-leader voter to activate control plane mode.
+  # The current database leader is intentionally left without control-plane so rebalance
+  # must transfer leadership before it can demote the old leader out of Raft.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${spare1}" control-plane
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${spare2}" control-plane
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${voter1}" control-plane
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add "${control_plane_voter}" control-plane
   sleep 12
 
   # Verify voter count during transition
@@ -4622,6 +4623,13 @@ test_clustering_roles() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
   jq --exit-status '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader"))) | select(any(.roles[]; . == "control-plane") | not)] | length == 0' <<< "${cluster_list}"
+
+  # Verify leadership transferred away from the original non-control-plane leader
+  current_leader="$(jq -r '[.[] | select(any(.roles[]; . == "database-leader"))] | .[0].server_name' <<< "${cluster_list}")"
+  [ "${current_leader}" != "${leader}" ]
+
+  # Verify the original leader is no longer part of the database roles
+  jq --exit-status --arg leader "${leader}" '[.[] | select(.server_name == $leader) | select(any(.roles[]; test("database-(leader|voter|standby)")))] | length == 0' <<< "${cluster_list}"
 
   # Verify non-control-plane members have no database roles
   jq --exit-status '[.[] | select(any(.roles[]; . == "control-plane") | not) | select(any(.roles[]; test("database-(leader|voter|standby)")))] | length == 0' <<< "${cluster_list}"

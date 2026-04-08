@@ -1328,6 +1328,11 @@ func handoverMemberRole(s *state.State, gateway *cluster.Gateway) error {
 
 	logCtx := logger.Ctx{"address": localClusterAddress}
 
+	memberRoles, err := getClusterMemberRoles(context.Background(), s)
+	if err != nil {
+		return err
+	}
+
 	// Find the cluster leader.
 findLeader:
 	leaderInfo, err := s.LeaderInfo()
@@ -1337,7 +1342,7 @@ findLeader:
 
 	if leaderInfo.Leader {
 		logger.Info("Transferring leadership", logCtx)
-		err := gateway.TransferLeadership()
+		err := gateway.TransferLeadership(memberRoles)
 		if err != nil {
 			return fmt.Errorf("Failed transferring leadership: %w", err)
 		}
