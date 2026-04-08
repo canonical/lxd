@@ -2240,7 +2240,7 @@ func (d *common) removeDiskDevices() error {
 }
 
 // validateConfig validates the configuration.
-func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices deviceConfig.Devices, removeDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, changedConfigKeys []string, oldExpandedConfig map[string]string, userRequested bool) error {
+func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices deviceConfig.Devices, removeDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, changedConfigKeys []string, oldExpandedConfig map[string]string, actionType instance.UpdateAction) error {
 	if shared.StringPrefixInSlice(deviceConfig.ConfigInitialPrefix, allUpdatedDeviceKeys) {
 		for devName, newDev := range addDevices {
 			for k, newVal := range newDev {
@@ -2253,8 +2253,8 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 					return fmt.Errorf("New device %q with initial configuration %q cannot be added once the instance is created", devName, k)
 				}
 
-				if k == deviceConfig.ConfigInitialPrefix+"zfs.promote" {
-					// Allow zfs.promote to be added as this is needed for volume promotion.
+				if actionType == instance.UpdateActionUserRefresh && k == deviceConfig.ConfigInitialPrefix+"zfs.promote" {
+					// Allow zfs.promote to be added only during refresh as this is needed for volume promotion.
 					continue
 				}
 
@@ -2270,6 +2270,8 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 			}
 		}
 	}
+
+	userRequested := d.isUserRequested(actionType)
 
 	if userRequested {
 		// Look for deleted protected keys.
