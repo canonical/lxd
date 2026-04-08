@@ -403,7 +403,7 @@ sudo PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd --
 ```
 
 ```{note}
-If `newuidmap/newgidmap` tools are present on your system and `/etc/subuid`, `etc/subgid` exist, they must be configured to allow the root user a contiguous range of at least 10M UID/GID.
+If `newuidmap/newgidmap` tools are present on your system and `/etc/subuid`, `/etc/subgid` exist, they must be configured to allow the root user a contiguous range of at least 65536 UIDs/GIDs.
 ```
 
 ### Shell completions
