@@ -3384,7 +3384,12 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	trusted := requestor.IsTrusted()
 	secret := r.FormValue("secret")
 
-	// Unauthenticated clients that do not provide a secret may only view public images.
+	// Untrusted callers may only retrieve images from the default project unless they provide a valid secret.
+	if !trusted && secret == "" && projectName != api.ProjectDefaultName {
+		return response.NotFound(nil)
+	}
+
+	// Untrusted callers that do not provide a secret may only view public images.
 	publicOnly := !trusted && secret == ""
 
 	// Get the image. We need to do this before the permission check because the URL in the permission check will not
@@ -3430,6 +3435,11 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 
 	// No operation found for the secret. Perform other access checks.
 	if !userCanViewImage {
+		// Untrusted callers can only access non-default projects with a valid secret.
+		if !trusted && projectName != api.ProjectDefaultName {
+			return response.NotFound(nil)
+		}
+
 		if info.Public {
 			// If the image is public any client can view it.
 			userCanViewImage = true
