@@ -1228,7 +1228,12 @@ func (c *cmdNetworkZoneRecordSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], writable, etag)
+	op, err := resource.server.UpdateNetworkZoneRecord(resource.name, args[1], writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 // Unset.
@@ -1357,7 +1362,12 @@ func (c *cmdNetworkZoneRecordEdit) run(cmd *cobra.Command, args []string) error 
 			return err
 		}
 
-		return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], newdata.Writable(), "")
+		op, err := resource.server.UpdateNetworkZoneRecord(resource.name, args[1], newdata.Writable(), "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// Get the current config.
@@ -1382,7 +1392,11 @@ func (c *cmdNetworkZoneRecordEdit) run(cmd *cobra.Command, args []string) error 
 		newdata := api.NetworkZoneRecord{} // We show the full Zone info, but only send the writable fields.
 		err = yaml.UnmarshalStrict(content, &newdata)
 		if err == nil {
-			err = resource.server.UpdateNetworkZoneRecord(resource.name, args[1], newdata.Writable(), etag)
+			var op lxd.Operation
+			op, err = resource.server.UpdateNetworkZoneRecord(resource.name, args[1], newdata.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor.
@@ -1551,7 +1565,12 @@ func (c *cmdNetworkZoneRecordEntry) runAdd(cmd *cobra.Command, args []string) er
 	}
 
 	netRecord.Entries = append(netRecord.Entries, entry)
-	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
+	op, err := resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 func (c *cmdNetworkZoneRecordEntry) commandRemove() *cobra.Command {
@@ -1614,5 +1633,10 @@ func (c *cmdNetworkZoneRecordEntry) runRemove(cmd *cobra.Command, args []string)
 		return errors.New("Could not find a matching entry")
 	}
 
-	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
+	op, err := resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
