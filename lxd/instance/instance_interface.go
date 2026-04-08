@@ -46,6 +46,20 @@ const (
 // TemplateTrigger trigger name.
 type TemplateTrigger string
 
+// UpdateAction defines the trigger source for an instance update.
+type UpdateAction int
+
+const (
+	// UpdateActionUser indicates an update directly requested by users.
+	UpdateActionUser UpdateAction = iota
+
+	// UpdateActionUserRefresh indicates an update requested by user requested refresh workflows.
+	UpdateActionUserRefresh
+
+	// UpdateActionInternal indicates an internal update not directly user requested.
+	UpdateActionInternal
+)
+
 // TemplateTriggerCreate for when an instance is created.
 const TemplateTriggerCreate TemplateTrigger = "create"
 
@@ -100,7 +114,7 @@ type Instance interface {
 
 	// Config handling.
 	Rename(newName string, applyTemplateTrigger bool) error
-	Update(newConfig db.InstanceArgs, userRequested bool) error
+	Update(newConfig db.InstanceArgs, actionType UpdateAction) error
 
 	Delete(force bool, diskVolumesMode string) error
 	Export(w io.Writer, properties map[string]string, expiration time.Time, tracker *ioprogress.ProgressTracker) (api.ImageMetadata, error)
