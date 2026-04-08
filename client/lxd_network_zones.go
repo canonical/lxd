@@ -264,17 +264,29 @@ func (r *ProtocolLXD) UpdateNetworkZoneRecord(zone string, name string, record a
 }
 
 // DeleteNetworkZoneRecord deletes an existing network zone record.
-func (r *ProtocolLXD) DeleteNetworkZoneRecord(zone string, name string) error {
+func (r *ProtocolLXD) DeleteNetworkZoneRecord(zone string, name string) (Operation, error) {
 	err := r.CheckExtension("network_dns_records")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-zones", zone, "records", name)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodDelete, fmt.Sprintf("/network-zones/%s/records/%s", url.PathEscape(zone), url.PathEscape(name)), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, path.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
