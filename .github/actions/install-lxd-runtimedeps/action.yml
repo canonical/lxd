@@ -59,6 +59,7 @@ runs:
           tcl \
           thin-provisioning-tools \
           uuid-runtime \
+          xdelta3 \
           xfsprogs \
           xz-utils
 
