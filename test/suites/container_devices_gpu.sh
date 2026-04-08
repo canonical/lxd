@@ -66,7 +66,9 @@ gpu_run_generic_tests() {
 
 gpu_run_nvidia_legacy_tests() {
   echo "==> Running NVIDIA legacy GPU device tests"
-    # Check if nvidia GPU exists.
+  local ctName="$1"
+
+  # Check if nvidia GPU exists.
   if [ ! -c /dev/nvidia0  ]; then
     echo "==> SKIP: /dev/nvidia0 does not exist, skipping nvidia legacy tests"
     return
