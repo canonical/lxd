@@ -129,7 +129,7 @@ var updates = map[int]schema.Update{
 }
 
 func updateFromV81(ctx context.Context, tx *sql.Tx) error {
-	q := `SELECT identities.id, identities.name, identities.identifier, identities.type, json_extract(identities.metadata, '$.cert') FROM identities WHERE json_extract(identities.metadata, '$.cert') IS NOT NULL`
+	q := `SELECT identities.id, identities.name, identities.identifier, identities.type, json_extract(identities.metadata, '$.cert') FROM identities WHERE json_valid(identities.metadata) = 1 AND json_extract(identities.metadata, '$.cert') IS NOT NULL`
 
 	type certIdentity struct {
 		name       string
@@ -224,7 +224,7 @@ CREATE TRIGGER identities_certificates_after_delete
 	// There are no other identities that authenticate via TLS whose certificate is stored anywhere else, and all of these
 	// certificates have now been moved into the certificates table. It is safe for us to remove the certificates from identity
 	// metadata now.
-	stmt := `UPDATE identities SET metadata = '' WHERE json_extract(identities.metadata, '$.cert') IS NOT NULL`
+	stmt := `UPDATE identities SET metadata = '' WHERE json_valid(metadata) = 1 AND json_extract(identities.metadata, '$.cert') IS NOT NULL`
 	res, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return fmt.Errorf("Failed unsetting identity metadata: %w", err)
