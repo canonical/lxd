@@ -1457,7 +1457,11 @@ func (c *cmdNetworkZoneRecordDelete) run(cmd *cobra.Command, args []string) erro
 	}
 
 	// Delete the network zone.
-	err = resource.server.DeleteNetworkZoneRecord(resource.name, args[1])
+	op, err := resource.server.DeleteNetworkZoneRecord(resource.name, args[1])
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
