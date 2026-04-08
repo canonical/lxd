@@ -3742,9 +3742,11 @@ func (d *lxc) CGroupSet(key string, value string) error {
 }
 
 // Update applies updated config.
-func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
+func (d *lxc) Update(args db.InstanceArgs, actionType instance.UpdateAction) error {
 	reverter := revert.New()
 	defer reverter.Fail()
+
+	userRequested := d.isUserRequested(actionType)
 
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
