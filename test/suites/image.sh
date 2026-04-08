@@ -350,6 +350,14 @@ run_images_public() {
   lxc project create foo
   deps/import-busybox --project foo --alias foo-img
 
+  # Marking a newly imported image as public is forbidden when the image is in a non-default project.
+  if err_msg="$(deps/import-busybox --project foo --alias foo-public --public --template create 2>&1)"; then
+    echo "ERROR: Importing a public image into a non-default project unexpectedly succeeded" >&2
+    exit 1
+  fi
+
+  echo "${err_msg}" | grep -Fq "Images can only be marked public in the default project"
+
   # All callers see an empty list of images in the default project.
   query /1.0/images | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
   query /1.0/images?project=default | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
@@ -451,6 +459,32 @@ run_images_public() {
   query "/1.0/images/${fingerprint:0:12}" | jq --exit-status '.status_code == 200'
   query "/1.0/images/${fingerprint}" | jq --exit-status '.status_code == 200'
   query "/1.0/images/${fingerprint}?project=default" | jq --exit-status '.status_code == 200'
+
+  # Marking an image as public is forbidden when the image is in a non-default project. This is effectively testing the PUT request.
+  if err_msg="$(lxc image show "${fingerprint}" --project foo | sed -e "s/public: false/public: true/" | lxc image edit "${fingerprint}" --project foo 2>&1)"; then
+    echo "ERROR: Marking a non-default project image as public unexpectedly succeeded" >&2
+    exit 1
+  fi
+
+  echo "${err_msg}" | grep -Fq "Images can only be marked public in the default project"
+
+  # Ensure that PATCH request also does not allow marking an image as public when the image is in a non-default project.
+  if err_msg="$(lxc query -X PATCH "/1.0/images/${fingerprint}?project=foo" -d '{"public": true}' 2>&1)"; then
+    echo "ERROR: Marking a non-default project image as public unexpectedly succeeded" >&2
+    exit 1
+  fi
+
+  echo "${err_msg}" | grep -Fq "Images can only be marked public in the default project"
+
+  # Untrusted callers still cannot access the image in the non-default project.
+  if [ -z "${CERT_NAME:-}" ]; then
+    query "/1.0/images/aliases/foo-img?project=foo" | jq --exit-status '.error_code == 404'
+    query "/1.0/images/${fingerprint}?project=foo" | jq --exit-status '.error_code == 404'
+    query "/1.0/images/${fingerprint}/export?project=foo" | jq --exit-status '.error_code == 404'
+    # Also assert with an invalid secret to prevent bypasses where any non-empty secret skips non-default restrictions.
+    query "/1.0/images/${fingerprint}?project=foo&secret=bar" | jq --exit-status '.error_code == 404'
+    query "/1.0/images/${fingerprint}/export?project=foo&secret=bar" | jq --exit-status '.error_code == 404'
+  fi
 
   # All callers can export the public image if using a valid prefix.
   query "/1.0/images/%25/export" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
