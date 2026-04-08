@@ -4516,8 +4516,12 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	trusted := requestor.IsTrusted()
 
-	// Unauthenticated remote clients that do not provide a secret may only view public images.
-	// For devlxd, we allow querying for private images. We'll subsequently perform additional access checks.
+	// Untrusted callers may only retrieve images from the default project unless they provide a valid secret.
+	if !trusted && secret == "" && projectName != api.ProjectDefaultName {
+		return response.NotFound(nil)
+	}
+
+	// Without a secret, untrusted callers are restricted to public images in the default project.
 	publicOnly := !trusted && secret == ""
 
 	// Get the image. We need to do this before the permission check because the URL in the permission check will not
@@ -4563,6 +4567,11 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !userCanViewImage {
+		// Untrusted callers can only access non-default projects with a valid secret.
+		if !trusted && projectName != api.ProjectDefaultName {
+			return response.NotFound(nil)
+		}
+
 		if imgInfo.Public {
 			// If the image is public any client can view it.
 			userCanViewImage = true
