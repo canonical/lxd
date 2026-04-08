@@ -3038,3 +3038,10 @@ Clients should check for this extension and handle the asynchronous response by 
 ## `gpu_cdi_hotplug`
 
 Adds support for hotplugging GPU devices into containers when using {ref}`gpu-physical-cdi`.
+
+(extension-image-extended-metadata)=
+## `image_extended_metadata`
+
+Adds `release_codename` and `release_title` fields to the `api.Image` struct. These fields are optional and are populated from the SimpleStreams index when available.
+
+Also updates the generated image description for SimpleStreams images to include variant if available. The image creation date and architecture are no longer used for image description.

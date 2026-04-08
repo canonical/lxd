@@ -159,12 +159,15 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				filename := fields[len(fields)-1]
 
 				// Generate the actual image entry
-				description := product.OperatingSystem + " " + product.ReleaseTitle + " " + product.Architecture
+				description := product.OperatingSystem + " " + product.ReleaseTitle
 				if version.Label != "" {
 					description += " (" + version.Label + ")"
 				}
 
-				description += " (" + name + ")"
+				// If variant is specified, append it to the image description.
+				if product.Variant != "" {
+					description += " (" + product.Variant + ")"
+				}
 
 				image := api.Image{}
 				image.Architecture = architectureName
@@ -199,6 +202,9 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				}
 
 				image.Type = "container"
+
+				image.ReleaseCodename = product.ReleaseCodename
+				image.ReleaseTitle = product.ReleaseTitle
 
 				if root != nil {
 					image.Properties["type"] = root.FileType

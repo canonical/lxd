@@ -209,6 +209,18 @@ type Image struct {
 	//
 	// API extension: images_all_projects
 	Project string `json:"project" yaml:"project"`
+
+	// OS release codename
+	// Example: jammy
+	//
+	// API extension: image_extended_metadata
+	ReleaseCodename string `json:"release_codename,omitempty" yaml:"release_codename,omitempty"`
+
+	// OS release title
+	// Example: 22.04 LTS
+	//
+	// API extension: image_extended_metadata
+	ReleaseTitle string `json:"release_title,omitempty" yaml:"release_title,omitempty"`
 }
 
 // Writable converts a full Image struct into a ImagePut struct (filters read-only fields).
