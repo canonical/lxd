@@ -826,7 +826,7 @@ func filterPromotionCandidates(candidates []client.NodeInfo, memberRoles map[str
 // memberRoles reflects the current LXD cluster role assignments and defines the target raft topology:
 // when control-plane mode is active, only members with the control-plane role are eligible for
 // voter/standby positions, and non-control-plane members holding those positions are demoted.
-func rolesAdjust(roles *app.RolesChanges, leaderID uint64, nodes []db.RaftNode, connectivity map[string]bool, memberRoles map[string][]db.ClusterRole) (client.NodeRole, []client.NodeInfo, bool) {
+func rolesAdjust(roles *app.RolesChanges, leaderID uint64, nodes []db.RaftNode, connectivity map[string]bool, memberRoles map[string][]db.ClusterRole) (role client.NodeRole, candidates []client.NodeInfo, leaderNeedsTransfer bool) {
 	if roles.Size() == 1 {
 		return -1, nil, false
 	}
@@ -1010,7 +1010,7 @@ func rolesAdjust(roles *app.RolesChanges, leaderID uint64, nodes []db.RaftNode, 
 		// Phase 1: Demote non-control-plane voters to standby.
 		// Track whether the leader itself lacks the control-plane role. If all other voters are
 		// already control-plane members, the leader must transfer leadership before it can be demoted.
-		leaderNeedsTransfer := false
+		leaderNeedsTransfer = false
 		for _, node := range nodes {
 			if node.Role != db.RaftVoter || !connectivity[node.Address] {
 				continue

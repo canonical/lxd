@@ -1328,6 +1328,7 @@ func handoverMemberRole(s *state.State, gateway *cluster.Gateway) error {
 
 	logCtx := logger.Ctx{"address": localClusterAddress}
 
+	// Use context.Background() because s.ShutdownCtx may already be cancelled at this point in the shutdown sequence, but the handover must complete.
 	memberRoles, err := getClusterMemberRoles(context.Background(), s)
 	if err != nil {
 		return err
