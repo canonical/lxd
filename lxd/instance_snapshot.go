@@ -538,7 +538,7 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 				Snapshot:     snapInst.IsSnapshot(),
 			}
 
-			err = snapInst.Update(args, false)
+			err = snapInst.Update(args, instance.UpdateActionInternal)
 			if err != nil {
 				return err
 			}

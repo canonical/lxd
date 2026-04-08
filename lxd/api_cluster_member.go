@@ -1970,7 +1970,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 					ExpiryDate:   inst.ExpiryDate(),
 				}
 
-				err = inst.Update(args, false)
+				err = inst.Update(args, instance.UpdateActionInternal)
 				if err != nil {
 					return fmt.Errorf("Failed updating instance %q: %w", inst.Name(), err)
 				}

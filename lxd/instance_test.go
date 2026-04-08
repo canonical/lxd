@@ -296,7 +296,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 			"eth1": eth1,
 		},
 		Name: "testFoo",
-	}, true)
+	}, instance.UpdateActionUser)
 	suite.Req.NoError(err, "Adding multiple routed with gateway mode ['none'] should succeed.")
 
 	eth0["ipv6.gateway"] = "auto"
@@ -310,7 +310,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 			"eth1": eth1,
 		},
 		Name: "testFoo",
-	}, true)
+	}, instance.UpdateActionUser)
 	suite.Req.Error(err,
 		"Adding multiple routed nic devices with any gateway mode ['auto',''] should throw error.")
 
@@ -323,7 +323,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 			"eth2": eth2,
 		},
 		Name: "testFoo",
-	}, true)
+	}, instance.UpdateActionUser)
 	suite.Req.NoError(err,
 		"Adding multiple nic devices with unique nictype ['routed'] should throw error.")
 }

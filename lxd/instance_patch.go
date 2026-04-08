@@ -236,7 +236,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 		Project:      projectName,
 	}
 
-	err = c.Update(args, true)
+	err = c.Update(args, instance.UpdateActionUser)
 	if err != nil {
 		return response.SmartError(err)
 	}

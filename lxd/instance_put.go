@@ -177,7 +177,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 				Project:      projectName,
 			}
 
-			err = inst.Update(args, true)
+			err = inst.Update(args, instance.UpdateActionUser)
 			if err != nil {
 				return err
 			}
