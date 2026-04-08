@@ -45,6 +45,7 @@ Users will have no permissions by default. You must set up {ref}`LXD authorizati
 
 1. Configure roles in Auth0 and use automatic mapping to LXD authorization groups as described below.
 
+(oidc-auth0-automatic-group-mapping)=
 ## Set up automatic group mappings
 An admin can set up multiple users in Auth0 and allocate roles to those users. When a user logs in via OIDC, their allocated Auth0 roles can be mapped to LXD authorization groups through custom claims. This section details the steps for configuring roles in Auth0 and setting up a custom claim so that LXD can map those roles to its authorization groups.
 

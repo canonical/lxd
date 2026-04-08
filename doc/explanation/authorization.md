@@ -139,8 +139,8 @@ When an OIDC client makes a request to LXD, any groups that can be extracted fro
 
 To configure IdP group mappings in LXD, first configure your IdP to add groups to identity and access tokens as a custom claim.
 This configuration depends on your IdP.
-In [{spellexception}`Auth0`](https://auth0.com/), for example, you can enable [{abbr}`RBAC (role-based access control)`](https://auth0.com/docs/manage-users/access-control/rbac) which will add a "permissions" claim to tokens.
-In Keycloak, you can define a [mapper](https://forum.keycloak.org/t/anyway-to-include-user-groups-into-my-jwt-token/8715) to set Keycloak groups in the token.
+In [{spellexception}`Auth0`](https://auth0.com/), for example, you can enable [{abbr}`RBAC (role-based access control)`](https://auth0.com/docs/manage-users/access-control/rbac) which will add a "permissions" claim to tokens. Then, configure {ref}`automatic mapping to LXD authorization groups <oidc-auth0-automatic-group-mapping>`.
+In Keycloak, you can define a [mapper](https://forum.keycloak.org/t/anyway-to-include-user-groups-into-my-jwt-token/8715) to set Keycloak groups in the token. In [Pocket ID](https://pocket-id.org/docs), you can set up {ref}`custom claims <oidc-pocket-id-automatic-group-mapping>` in your admin dashboard.
 
 Then configure LXD to extract this claim.
 To do so, set the value of the {config:option}`server-oidc:oidc.groups.claim` configuration key to the value of the field name of the custom claim:
