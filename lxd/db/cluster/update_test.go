@@ -868,14 +868,32 @@ func TestUpdateFromV81(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	pendingTLSClientSecret, err := shared.RandomCryptoString()
+	require.NoError(t, err)
+	pendingTLSMetadata := PendingTLSMetadata{
+		Secret: pendingTLSClientSecret,
+	}
+
+	pendingTLSClientMetadataBytes, err := json.Marshal(pendingTLSMetadata)
+	require.NoError(t, err)
+
 	schema := Schema()
 	db, err := schema.ExerciseUpdate(82, func(db *sql.DB) {
 		_, err := db.Exec(`
 INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES (?, ?, ?, ?, ?);
 INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES (?, ?, ?, ?, ?);
+-- Initial UI identity with no metadata
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c49-4909-7e85-bac0-ae9b5b230cc0', 3, 11, 'initial-ui-access', '');
+-- Bearer identity with no metadata
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c4f-bf62-7bb8-a1d2-a07808b64143', 3, 10, 'api-token-bearer', '');
+-- OIDC identity with metadata
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('jane.doe@example.com', 2, 5, 'Jane Doe', '{"subject": "019d6c52-5b4e-70e3-8758-cb71d6c829ec", "identity_provider_groups":["admins"]}');
+-- Pending TLS identity with metadata
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c92-f1a2-77bf-98d9-ca867f80ad28', 1, 8, 'pending-tls-client', ?);
 `,
 			cert1Fingerprint, authMethodTLS, identity.CertificateClientUnrestricted{}.Code(), "unrestricted", string(cert1Metadata),
 			cert2Fingerprint, authMethodTLS, identity.CertificateClient{}.Code(), "fine-grained", string(cert2Metadata),
+			string(pendingTLSClientMetadataBytes),
 		)
 		require.NoError(t, err)
 	})
@@ -899,4 +917,37 @@ FROM identities
 	require.Equal(t, cert2Fingerprint, fingerprint)
 	require.Equal(t, cert2PEM, certificate)
 	require.Empty(t, metadata)
+
+	q := `SELECT identifier, auth_method, type, name, metadata FROM identities WHERE identifier = ?`
+	row = db.QueryRowContext(t.Context(), q, "019d6c49-4909-7e85-bac0-ae9b5b230cc0")
+	var authMethod AuthMethod
+	var identityType IdentityType
+	var name string
+	require.NoError(t, row.Scan(&identifier, &authMethod, &identityType, &name, &metadata))
+	require.Equal(t, AuthMethod(api.AuthenticationMethodBearer), authMethod)
+	require.Equal(t, IdentityType(api.IdentityTypeBearerTokenInitialUI), identityType)
+	require.Equal(t, "initial-ui-access", name)
+	require.Empty(t, metadata)
+
+	row = db.QueryRowContext(t.Context(), q, "jane.doe@example.com")
+	require.NoError(t, row.Scan(&identifier, &authMethod, &identityType, &name, &metadata))
+	require.Equal(t, AuthMethod(api.AuthenticationMethodOIDC), authMethod)
+	require.Equal(t, IdentityType(api.IdentityTypeOIDCClient), identityType)
+	require.Equal(t, "Jane Doe", name)
+	var oidcMetadata OIDCMetadata
+	err = json.Unmarshal([]byte(metadata), &oidcMetadata)
+	require.NoError(t, err)
+	require.Equal(t, "019d6c52-5b4e-70e3-8758-cb71d6c829ec", oidcMetadata.Subject)
+	require.Len(t, oidcMetadata.IdentityProviderGroups, 1)
+	require.Equal(t, "admins", oidcMetadata.IdentityProviderGroups[0])
+
+	row = db.QueryRowContext(t.Context(), q, "019d6c92-f1a2-77bf-98d9-ca867f80ad28")
+	require.NoError(t, row.Scan(&identifier, &authMethod, &identityType, &name, &metadata))
+	require.Equal(t, AuthMethod(api.AuthenticationMethodTLS), authMethod)
+	require.Equal(t, IdentityType(api.IdentityTypeCertificateClientPending), identityType)
+	require.Equal(t, "pending-tls-client", name)
+	var gotPendingTLSMetadata PendingTLSMetadata
+	err = json.Unmarshal([]byte(metadata), &gotPendingTLSMetadata)
+	require.NoError(t, err)
+	require.Equal(t, pendingTLSMetadata, gotPendingTLSMetadata)
 }
