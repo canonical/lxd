@@ -590,7 +590,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 			Snapshot:     inst.IsSnapshot(),
 		}
 
-		err := inst.Update(args, false)
+		err := inst.Update(args, instance.UpdateActionInternal)
 		if err != nil {
 			return err
 		}
@@ -598,7 +598,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 		// On function return, set the flag back on
 		defer func() {
 			args.Ephemeral = ephemeral
-			_ = inst.Update(args, false)
+			_ = inst.Update(args, instance.UpdateActionInternal)
 		}()
 	}
 
@@ -1188,7 +1188,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 				Snapshot:     d.IsSnapshot(),
 			}
 
-			err := inst.Update(args, false)
+			err := inst.Update(args, instance.UpdateActionInternal)
 			if err != nil {
 				op.Done(err)
 				return false, nil, err
@@ -1197,7 +1197,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 			// On function return, set the flag back on.
 			defer func() {
 				args.Ephemeral = ephemeral
-				err = inst.Update(args, false)
+				err = inst.Update(args, instance.UpdateActionInternal)
 				if err != nil {
 					d.logger.Error("Failed restoring ephemeral flag after restore", logger.Ctx{"err": err})
 				}
@@ -1236,7 +1236,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 
 	// Don't pass as user-requested as there's no way to fix a bad config.
 	// This will call d.UpdateBackupFile() to ensure snapshot list is up to date.
-	err = inst.Update(args, false)
+	err = inst.Update(args, instance.UpdateActionInternal)
 	if err != nil {
 		op.Done(err)
 		return false, nil, err
