@@ -867,6 +867,7 @@ func (op *Operation) updateStatus(ctx context.Context, newStatus api.StatusCode)
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
+// The api.MetadataEntityURL field is retained unless the caller sets api.MetadataEntityURL in the input map.
 func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	opMetadata, err := validateMetadata(opMetadata)
 	if err != nil {
@@ -882,6 +883,16 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	if op.readonly {
 		op.lock.Unlock()
 		return errors.New("Read-only operations cannot be updated")
+	}
+
+	// Retain entity URL unless it is set in the input map.
+	// This is to prevent the caller inadvertently overwriting it.
+	oldEntityURL, ok := op.metadata[api.MetadataEntityURL]
+	if ok {
+		_, ok := opMetadata[api.MetadataEntityURL]
+		if !ok {
+			opMetadata[api.MetadataEntityURL] = oldEntityURL
+		}
 	}
 
 	op.updatedAt = time.Now()
