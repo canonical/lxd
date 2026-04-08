@@ -1400,6 +1400,11 @@ func (d *common) isStartableStatusCode(statusCode api.StatusCode) error {
 	return nil
 }
 
+// isUserRequested returns whether the update action is user-requested.
+func (d *common) isUserRequested(actionType instance.UpdateAction) bool {
+	return actionType == instance.UpdateActionUser || actionType == instance.UpdateActionUserRefresh
+}
+
 // getStartupSnapNameAndExpiry returns the name and expiry for a snapshot to be taken at startup.
 func (d *common) getStartupSnapNameAndExpiry(inst instance.Instance) (string, *time.Time, error) {
 	schedule := strings.ToLower(d.expandedConfig["snapshots.schedule"])
