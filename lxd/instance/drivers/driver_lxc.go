@@ -3951,7 +3951,7 @@ func (d *lxc) Update(args db.InstanceArgs, actionType instance.UpdateAction) err
 		return newDevType.UpdatableFields(oldDevType)
 	})
 
-	err = d.validateConfig(allUpdatedDeviceKeys, addDevices, removeDevices, oldExpandedDevices, changedConfig, oldExpandedConfig, userRequested)
+	err = d.validateConfig(allUpdatedDeviceKeys, addDevices, removeDevices, oldExpandedDevices, changedConfig, oldExpandedConfig, actionType)
 	if err != nil {
 		return err
 	}
