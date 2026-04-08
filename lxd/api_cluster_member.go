@@ -1142,8 +1142,9 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 
 	if !force {
 		// Try to gracefully delete all networks and storage pools on it.
-		// Delete all networks on this node
-		client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+		// Use ClientTypeOperationNotifier so the leaving member only deletes its local
+		// networks and storage pools without propagating the operation to other cluster members.
+		client, err := cluster.ConnectNotification(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), request.ClientTypeOperationNotifier)
 		if err != nil {
 			return response.SmartError(err)
 		}
