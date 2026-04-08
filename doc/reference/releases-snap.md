@@ -53,7 +53,7 @@ Interim HWE kernels are only tentatively supported.
 | 5.0 | 22.04 LTS (Jammy) | 5.15 | 6.8 |
 | 4.0 | 20.04 LTS (Focal) | 5.4 | 5.15 |
 
-For more information on Ubuntu kernels support, please refer to the official [documentation](https://canonical-kernel-docs.readthedocs-hosted.com/latest/reference/hwe-kernels/).
+For more information on Ubuntu kernels support, please refer to the [Ubuntu kernels lifecycle](https://ubuntu.com/kernel/lifecycle).
 
 (ref-releases-feature)=
 ### Feature releases
