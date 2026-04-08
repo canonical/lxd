@@ -480,6 +480,10 @@ _backup_import_with_project() {
   fi
 
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
+
+  # The server-side backup directory must be cleaned up after export.
+  [ ! -d "${LXD_DIR}/backups/instances/c1" ]
+
   lxc delete c1
 
   # import backup, and ensure it's valid and runnable
