@@ -1130,7 +1130,11 @@ func (c *cmdNetworkZoneRecordCreate) run(cmd *cobra.Command, args []string) erro
 		record.Config[entry[0]] = entry[1]
 	}
 
-	err = resource.server.CreateNetworkZoneRecord(resource.name, record)
+	op, err := resource.server.CreateNetworkZoneRecord(resource.name, record)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
