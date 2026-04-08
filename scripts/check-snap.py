@@ -14,8 +14,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-ResolvedFormat = Literal["terminal", "markdown", "plain"]
-Format = Literal["auto"] | ResolvedFormat
+Format = Literal["auto", "terminal", "markdown", "plain"]
 
 
 def _make_link(text: str, url: str, fmt: Format = "terminal") -> str:
@@ -95,9 +94,9 @@ def check_snap(snap_name: str, track: str, risk: str, github_repo: Optional[str]
     """
     # Resolve "auto" format based on TTY detection
     if fmt == "auto":
-        resolved_fmt: ResolvedFormat = "terminal" if sys.stdout.isatty() else "plain"
+        resolved_fmt: str = "terminal" if sys.stdout.isatty() else "plain"
     else:
-        resolved_fmt = fmt  # type: ignore[assignment]
+        resolved_fmt = fmt
     snap_name_encoded = urllib.parse.quote(snap_name, safe='')
     url = f"https://api.snapcraft.io/v2/snaps/info/{snap_name_encoded}"
 
