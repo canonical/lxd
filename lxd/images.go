@@ -4058,6 +4058,16 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Untrusted callers may only retrieve aliases from the default project.
+	if !requestor.IsTrusted() && projectName != api.ProjectDefaultName {
+		return response.NotFound(nil)
+	}
+
 	var effectiveProjectName string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
