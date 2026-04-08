@@ -9,6 +9,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -34,6 +35,17 @@ const (
 // NewNotifier builds a Notifier that can be used to notify other peers using
 // the given policy.
 func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, policy NotifierPolicy, members ...db.NodeInfo) (Notifier, error) {
+	return newNotifier(state, networkCert, serverCert, policy, request.ClientTypeNotifier, members...)
+}
+
+// NewOperationNotifier builds a Notifier like NewNotifier but connects with ClientTypeOperationNotifier.
+// This is used when sending notifications from within an operation, so that recipients handle the request
+// synchronously without creating per-member operations of their own.
+func NewOperationNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, policy NotifierPolicy, members ...db.NodeInfo) (Notifier, error) {
+	return newNotifier(state, networkCert, serverCert, policy, request.ClientTypeOperationNotifier, members...)
+}
+
+func newNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, policy NotifierPolicy, clientType request.ClientType, members ...db.NodeInfo) (Notifier, error) {
 	localClusterAddress := state.LocalConfig.ClusterAddress()
 
 	// Unfortunately the notifier is called during database startup before the
@@ -108,7 +120,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 			logger.Debug("Notify cluster member of state changes", logger.Ctx{"name": member.Name, "address": member.Address})
 			go func(i int, member db.NodeInfo) {
 				defer wg.Done()
-				client, err := Connect(context.Background(), member.Address, networkCert, serverCert, true)
+				client, err := ConnectNotification(context.Background(), member.Address, networkCert, serverCert, clientType)
 				if err != nil {
 					errs[i] = fmt.Errorf("Failed connecting to cluster member %q at %q: %w", member.Name, member.Address, err)
 					return

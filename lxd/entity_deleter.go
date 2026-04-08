@@ -6,6 +6,8 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/network/acl"
 	"github.com/canonical/lxd/lxd/operations"
 	projectutils "github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
@@ -115,10 +117,17 @@ type networkACLDeleter struct{}
 func (d networkACLDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	name := ref.Name()
 
-	err := doNetworkACLDelete(ctx, s, name, ref.ProjectName)
+	netACL, err := acl.LoadByName(ctx, s, ref.ProjectName, name)
 	if err != nil {
-		return fmt.Errorf("Failed deleting network ACL %q: %w", name, err)
+		return err
 	}
+
+	err = netACL.Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed deleting network ACL %q: %w", netACL.Info().Name, err)
+	}
+
+	s.Events.SendLifecycle(ref.ProjectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(ctx), nil))
 
 	return nil
 }

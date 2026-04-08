@@ -161,6 +161,14 @@ func (r *ProtocolLXD) isSameProject(server Server) (bool, error) {
 	return sameProject, nil
 }
 
+// isClusterOperationNotification checks whether the user agent of the current request represents
+// a cluster operation notification.
+func (r *ProtocolLXD) isClusterOperationNotification() bool {
+	// Equals to [request.UserAgentOperationNotifier], but not imported to
+	// avoid client depending on internal package.
+	return r.httpUserAgent == "lxd-operation-notifier"
+}
+
 // GetHTTPClient returns the http client used for the connection. This can be used to set custom http options.
 func (r *ProtocolLXD) GetHTTPClient() (*http.Client, error) {
 	if r.http == nil {

@@ -128,8 +128,9 @@ func (r *ProtocolLXD) CreateNetwork(network api.NetworksPost) (Operation, error)
 
 	// Send the request
 	err = r.CheckExtension("storage_and_network_operations")
-	if err != nil {
-		// Fallback to older behavior without operations.
+	if err != nil || r.isClusterOperationNotification() {
+		// Use a synchronous request when the server lacks async endpoint support
+		// or when handling a cluster operation notification.
 		op = noopOperation{}
 		_, _, err = r.query(http.MethodPost, "/networks", network, "")
 	} else {
@@ -156,8 +157,9 @@ func (r *ProtocolLXD) UpdateNetwork(name string, network api.NetworkPut, ETag st
 
 	// Send the request
 	err = r.CheckExtension("storage_and_network_operations")
-	if err != nil {
-		// Fallback to older behavior without operations.
+	if err != nil || r.isClusterOperationNotification() {
+		// Use a synchronous request when the server lacks async endpoint support
+		// or when handling a cluster operation notification.
 		op = noopOperation{}
 		_, _, err = r.query(http.MethodPut, path.String(), network, ETag)
 	} else {
@@ -184,8 +186,9 @@ func (r *ProtocolLXD) RenameNetwork(name string, network api.NetworkPost) (Opera
 
 	// Send the request
 	err = r.CheckExtension("storage_and_network_operations")
-	if err != nil {
-		// Fallback to older behavior without operations.
+	if err != nil || r.isClusterOperationNotification() {
+		// Use a synchronous request when the server lacks async endpoint support
+		// or when handling a cluster operation notification.
 		op = noopOperation{}
 		_, _, err = r.query(http.MethodPost, path.String(), network, "")
 	} else {
@@ -212,8 +215,9 @@ func (r *ProtocolLXD) DeleteNetwork(name string) (Operation, error) {
 
 	// Send the request
 	err = r.CheckExtension("storage_and_network_operations")
-	if err != nil {
-		// Fallback to older behavior without operations.
+	if err != nil || r.isClusterOperationNotification() {
+		// Use a synchronous request when the server lacks async endpoint support
+		// or when handling a cluster operation notification.
 		op = noopOperation{}
 		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
 	} else {
