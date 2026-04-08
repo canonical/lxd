@@ -37,7 +37,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.1
-	github.com/openfga/openfga v1.13.1
+	github.com/openfga/openfga v1.14.0
 	github.com/osrg/gobgp/v3 v3.37.0
 	github.com/pkg/sftp v1.13.10
 	github.com/pkg/xattr v0.4.12
