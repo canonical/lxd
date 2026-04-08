@@ -220,19 +220,31 @@ func (r *ProtocolLXD) GetNetworkZoneRecord(zone string, name string) (*api.Netwo
 }
 
 // CreateNetworkZoneRecord defines a new Network zone record using the provided struct.
-func (r *ProtocolLXD) CreateNetworkZoneRecord(zone string, record api.NetworkZoneRecordsPost) error {
+func (r *ProtocolLXD) CreateNetworkZoneRecord(zone string, record api.NetworkZoneRecordsPost) (Operation, error) {
 	err := r.CheckExtension("network_dns_records")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("network-zones", zone, "records")
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPost, fmt.Sprintf("/network-zones/%s/records", url.PathEscape(zone)), record, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, path.String(), record, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, path.String(), record, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // UpdateNetworkZoneRecord updates the network zone record to match the provided struct.

@@ -250,7 +250,7 @@ type InstanceServer interface {
 	GetNetworkZoneRecordNames(zone string) (names []string, err error)
 	GetNetworkZoneRecords(zone string) (records []api.NetworkZoneRecord, err error)
 	GetNetworkZoneRecord(zone string, name string) (record *api.NetworkZoneRecord, ETag string, err error)
-	CreateNetworkZoneRecord(zone string, record api.NetworkZoneRecordsPost) (err error)
+	CreateNetworkZoneRecord(zone string, record api.NetworkZoneRecordsPost) (op Operation, err error)
 	UpdateNetworkZoneRecord(zone string, name string, record api.NetworkZoneRecordPut, ETag string) (err error)
 	DeleteNetworkZoneRecord(zone string, name string) (err error)
 
