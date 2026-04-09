@@ -30,37 +30,15 @@ jobs:
           ref: main
           persist-credentials: false
 
-      - name: Install Trivy
-        uses: ./.github/actions/install-trivy
-
-      - name: Download Trivy DB
-        id: db_download
-        run: trivy fs --download-db-only --cache-dir /home/runner/vuln-cache
-        continue-on-error: true
-
-      - name: Use previously downloaded database
-        if: ${{ steps.db_download.outcome == 'failure' }}
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          path: /home/runner/vuln-cache
-          key: download-failed # Use a non existing key to fallback to restore-keys
-          restore-keys: |
-            trivy-cache-
-
       - name: Run Trivy vulnerability scanner
-        run: |
-          trivy fs --skip-db-update \
-          --scanners vuln,secret,misconfig \
-          --format sarif \
-          --cache-dir /home/runner/vuln-cache \
-          --severity LOW,MEDIUM,HIGH,CRITICAL \
-          --output trivy-lxd-repo-scan-results.sarif .
-
-      - name: Cache Trivy vulnerability database
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
-          path: /home/runner/vuln-cache
-          key: trivy-cache-${{ github.run_id }}
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: sarif
+          severity: LOW,MEDIUM,HIGH,CRITICAL
+          output: trivy-lxd-repo-scan-results.sarif
 
       - name: Tag KEV alerts
         run: |
@@ -102,18 +80,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}
           persist-credentials: false
 
-      - name: Install Trivy
-        uses: ./.github/actions/install-trivy
-
-      - name: Restore cached Trivy vulnerability database
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          path: /home/runner/vuln-cache
-          key: download-failed # Use a non existing key to fallback to restore-keys
-          restore-keys: |
-            trivy-cache-
+      - name: Resolve branch HEAD SHA
+        id: branch-sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Download snap for scan
         run: |
@@ -121,17 +93,17 @@ jobs:
           unsquashfs ./lxd*.snap
 
       - name: Run Trivy vulnerability scanner
-        run: |
-          trivy rootfs --skip-db-update \
-          --scanners vuln,secret,misconfig \
-          --format sarif \
-          --cache-dir /home/runner/vuln-cache \
-          --severity LOW,MEDIUM,HIGH,CRITICAL \
-          --output /home/runner/${{ matrix.version }}-stable.sarif squashfs-root
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: rootfs
+          scan-ref: squashfs-root
+          scanners: vuln,secret,misconfig
+          format: sarif
+          severity: LOW,MEDIUM,HIGH,CRITICAL
+          output: ${{ matrix.version }}-stable.sarif
 
       - name: Flag snap scanning alerts and tag KEV alerts
         run: |
-          cd /home/runner
           # Download KEV catalog
           curl -s --compressed -o kev.json https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
           kev_ids="$(jq -r '.vulnerabilities[].cveID' kev.json)"
@@ -150,16 +122,9 @@ jobs:
             )' ${{ matrix.version }}-stable.sarif > ${{ matrix.version }}-modified.sarif
           mv ${{ matrix.version }}-modified.sarif ${{ matrix.version }}-stable.sarif
 
-      # Now we checkout to the branch related to the scanned snap to populate github.sha appropriately.
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}
-          persist-credentials: false
-
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
-          sarif_file: /home/runner/${{ matrix.version }}-stable.sarif
-          sha: ${{ github.sha }}
+          sarif_file: ${{ matrix.version }}-stable.sarif
+          sha: ${{ steps.branch-sha.outputs.sha }}
           ref: refs/heads/${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}
