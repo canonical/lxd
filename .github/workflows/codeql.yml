@@ -88,21 +88,27 @@ jobs:
           # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
           # queries: security-extended,security-and-quality
 
+      # Build dqlite and liblxc and export CGO env vars needed to compile LXD (Go only).
+      - name: Build LXD native CGO dependencies
+        if: matrix.language == 'go'
+        run: |
+          set -eux
+          make deps
+          # Get the needed variables for building LXD but strip the "export " prefix and quotes
+          # so they can be added to the environment for subsequent steps.
+          make -s env | sed -E 's/^export ([^=]+)="(.*)"/\1=\2/' >> "${GITHUB_ENV}"
 
       # Autobuild attempts to build any compiled languages (C/C++, C#, Go, Java, or Swift).
-      # If this step fails, then you should remove it and run the build manually (see below)
       - name: Autobuild
+        if: matrix.language != 'go'
         uses: github/codeql-action/autobuild@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
 
-      # ℹ️ Command-line programs to run using the OS shell.
-      # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-
-      #   If the Autobuild fails above, remove it and uncomment the following three lines.
-      #   modify them (or add more) to build your code if your project, please refer to the EXAMPLE below for guidance.
-
-      # - run: |
-      #     echo "Run, Build Application using script"
-      #     ./location_of_script_within_repo/buildscript.sh
+      # Manual build for Go to ensure all CGO packages are compiled with the correct headers.
+      - name: Build LXD
+        if: matrix.language == 'go'
+        run: |
+          set -eux
+          make all
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
