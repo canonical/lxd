@@ -8,13 +8,14 @@ import yaml
 
 import sys
 import subprocess
-from git import Repo, InvalidGitRepositoryError
+from git import Repo
 import filecmp
 import ast
 import re
+import shutil
 
 sys.path.insert(0, os.path.abspath('.'))
-from redirects import redirects
+from redirects import redirects  # noqa: F401 (used by sphinx_reredirects via conf.py namespace)
 
 sys.path.append('.sphinx/')
 
@@ -305,9 +306,10 @@ myst_linkify_fuzzy_links = False
 # https://myst-parser.readthedocs.io/en/latest/syntax/optional.html#auto-generated-header-anchors
 myst_heading_anchors = 7
 
+myst_substitutions = {}
 if os.path.exists('./substitutions.yaml'):
     with open('./substitutions.yaml', 'r') as fd:
-        myst_substitutions = yaml.safe_load(fd.read())
+        myst_substitutions.update(yaml.safe_load(fd.read()))
 if os.path.exists('./related_topics.yaml'):
     with open('./related_topics.yaml', 'r') as fd:
         myst_substitutions.update(yaml.safe_load(fd.read()))
@@ -349,22 +351,21 @@ if not os.path.islink('_static/swagger-ui/swagger-ui.css'):
 
 # Find path to lxc client (different for local builds and on RTD)
 
-if ('LOCAL_SPHINX_BUILD' in os.environ and
-    os.environ['LOCAL_SPHINX_BUILD'] == 'True'):
+if os.environ.get('LOCAL_SPHINX_BUILD') == 'True':
     path = str(subprocess.check_output(['go', 'env', 'GOPATH'], encoding='utf-8').strip())
     lxc = os.path.join(path, 'bin', 'lxc')
     if os.path.isfile(lxc):
         print('Using ' + lxc + ' to generate man pages.')
     else:
         print('Cannot find lxc in ' + lxc)
-        exit(2)
+        sys.exit(2)
 else:
     lxc = '../lxc.bin'
 
 # Generate man pages content
 
 os.makedirs('.sphinx/deps/manpages', exist_ok=True)
-if (os.path.isfile(lxc)):
+if os.path.isfile(lxc):
     subprocess.run([lxc, 'manpage', '.sphinx/deps/manpages/', '--format=md'],
                    check=True)
 else:
@@ -435,7 +436,7 @@ for folder, subfolders, files in os.walk('.sphinx/deps/manpages'):
             not filecmp.cmp(sourcefile, targetfile, shallow=False)):
 
             os.makedirs(os.path.dirname(targetfile), exist_ok=True)
-            os.system('cp ' + sourcefile + ' ' + targetfile)
+            shutil.copy2(sourcefile, targetfile)
 
 ### End MAN PAGES ###
 
