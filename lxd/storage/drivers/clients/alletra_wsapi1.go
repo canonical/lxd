@@ -218,13 +218,13 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 
 	gwURL, err := url.Parse(gw)
 	if err != nil {
-		return fmt.Errorf("Failed parsing Pure Storage gateway URL %q: %w", gw, err)
+		return fmt.Errorf("Failed parsing Alletra Storage gateway URL %q: %w", gw, err)
 	}
 
 	url.Scheme = gwURL.Scheme
 	url.Host = gwURL.Host
 
-	// Prepand gateway path with the request path in case Pure Storage is served on a sub-path.
+	// Prepand gateway path with the request path in case Alletra Storage is served on a sub-path.
 	url.Path = path.Join(gwURL.Path, url.Path)
 
 	var reqBodyReader io.Reader
