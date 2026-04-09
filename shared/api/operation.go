@@ -219,3 +219,26 @@ func (op *Operation) parseCommonTokenFields() (secret string, fingerprint string
 
 	return secret, fingerprint, addresses, nil
 }
+
+// WebsocketSecrets extracts the secrets for websockets from the operation's metadata.
+func (op *Operation) WebsocketSecrets() (secrets map[string]string, err error) {
+	if op.Class != OperationClassWebsocket {
+		return nil, errors.New("Operation is not a websocket operation")
+	}
+
+	secrets = map[string]string{}
+	for k, v := range op.Metadata {
+		if k == MetadataEntityURL { // This field is not used as a secret.
+			continue
+		}
+
+		vStr, ok := v.(string)
+		if !ok {
+			continue
+		}
+
+		secrets[k] = vStr
+	}
+
+	return secrets, nil
+}

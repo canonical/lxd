@@ -334,3 +334,64 @@ func TestOperation_parseCommonTokenFields(t *testing.T) {
 		})
 	}
 }
+
+func TestOperation_WebsocketSecrets(t *testing.T) {
+	tests := []struct {
+		name    string
+		op      Operation
+		want    map[string]string
+		wantErr bool
+	}{
+		{
+			name: "not websocket operation",
+			op: Operation{
+				Class:    OperationClassTask,
+				Metadata: map[string]any{"0": "stdin-secret"},
+			},
+			wantErr: true,
+		},
+		{
+			name: "websocket operation returns string secrets",
+			op: Operation{
+				Class: OperationClassWebsocket,
+				Metadata: map[string]any{
+					"0":          "stdin-secret",
+					"1":          "stdout-secret",
+					"control":    "control-secret",
+					"entity_url": "/1.0/instances/c1",
+					"pid":        100,
+					"fds":        map[string]any{"0": "nested"},
+				},
+			},
+			want: map[string]string{
+				"0":       "stdin-secret",
+				"1":       "stdout-secret",
+				"control": "control-secret",
+			},
+			wantErr: false,
+		},
+		{
+			name: "websocket operation with nil metadata",
+			op: Operation{
+				Class:    OperationClassWebsocket,
+				Metadata: nil,
+			},
+			want:    map[string]string{},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.op.WebsocketSecrets()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("WebsocketSecrets() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("WebsocketSecrets() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
