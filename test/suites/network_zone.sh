@@ -10,7 +10,8 @@ test_network_zone() {
   netName=lxdt$$
   lxc network create "${netName}" \
         ipv4.address=192.0.2.1/24 \
-        ipv6.address=fd42:4242:4242:1010::1/64
+        ipv6.address=fd42:4242:4242:1010::1/64 \
+        ipv6.dhcp.stateful=true
 
   # Create the zones
   ! lxc network zone create /lxd.example.net || false
@@ -27,8 +28,8 @@ test_network_zone() {
     -c restricted.networks.zones=example.net
 
   # Put an instance on the network in each project.
-  lxc init testimage c1 --network "${netName}" -d eth0,ipv4.address=192.0.2.42
-  lxc init testimage c2 --network "${netName}" --storage "${poolName}" -d eth0,ipv4.address=192.0.2.43 --project foo
+  lxc init testimage c1 --network "${netName}" -d eth0,ipv4.address=192.0.2.42 -d eth0,ipv6.address=fd42:4242:4242:1010::42
+  lxc init testimage c2 --network "${netName}" --storage "${poolName}" -d eth0,ipv4.address=192.0.2.43 -d eth0,ipv6.address=fd42:4242:4242:1010::43 --project foo
 
   # Check features.networks.zones can be enabled if false in a non-empty project, but cannot be disabled again.
   lxc project set foo features.networks.zones=true
@@ -66,13 +67,6 @@ test_network_zone() {
 
   lxc start c1
   lxc start c2 --project foo
-
-  # Wait for IPv4 and IPv6 addresses
-  while :; do
-    sleep 1
-    [ -n "$(lxc list -c6 --format=csv c1)" ] || continue
-    break
-  done
 
   # Setup DNS peers
   lxc network zone set lxd.example.net peers.test.address=192.0.2.1
