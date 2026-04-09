@@ -10,7 +10,8 @@ test_network_zone() {
   netName=lxdt$$
   lxc network create "${netName}" \
         ipv4.address=192.0.2.1/24 \
-        ipv6.address=fd42:4242:4242:1010::1/64
+        ipv6.address=fd42:4242:4242:1010::1/64 \
+        ipv6.dhcp.stateful=true
 
   # Create the zones
   ! lxc network zone create /lxd.example.net || false
@@ -27,8 +28,8 @@ test_network_zone() {
     -c restricted.networks.zones=example.net
 
   # Put an instance on the network in each project.
-  lxc init testimage c1 --network "${netName}" -d eth0,ipv4.address=192.0.2.42
-  lxc init testimage c2 --network "${netName}" --storage "${poolName}" -d eth0,ipv4.address=192.0.2.43 --project foo
+  lxc init testimage c1 --network "${netName}" -d eth0,ipv4.address=192.0.2.42 -d eth0,ipv6.address=fd42:4242:4242:1010::42
+  lxc init testimage c2 --network "${netName}" --storage "${poolName}" -d eth0,ipv4.address=192.0.2.43 -d eth0,ipv6.address=fd42:4242:4242:1010::43 --project foo
 
   # Check features.networks.zones can be enabled if false in a non-empty project, but cannot be disabled again.
   lxc project set foo features.networks.zones=true
@@ -67,13 +68,6 @@ test_network_zone() {
   lxc start c1
   lxc start c2 --project foo
 
-  # Wait for IPv4 and IPv6 addresses
-  while :; do
-    sleep 1
-    [ -n "$(lxc list -c6 --format=csv c1)" ] || continue
-    break
-  done
-
   # Setup DNS peers
   lxc network zone set lxd.example.net peers.test.address=192.0.2.1
   lxc network zone set lxdfoo.example.net peers.test.address=192.0.2.1 --project=foo
@@ -81,11 +75,11 @@ test_network_zone() {
   lxc network zone set 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa peers.test.address=192.0.2.1
 
   # Enable the DNS listener on the bridge itself
-  lxc config set core.dns_address 192.0.2.1:8853
+  DNS_ADDR="192.0.2.1"
+  DNS_PORT="8853"
+  lxc config set core.dns_address "${DNS_ADDR}:${DNS_PORT}"
 
   # Check the zones
-  DNS_ADDR="$(lxc config get core.dns_address | cut -d: -f1)"
-  DNS_PORT="$(lxc config get core.dns_address | cut -d: -f2)"
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep "${netName}.gw.lxd.example.net.\s\+300\s\+IN\s\+A\s\+"
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep "c1.lxd.example.net.\s\+300\s\+IN\s\+A\s\+"
