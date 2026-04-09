@@ -793,7 +793,12 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 	var imageMeta *api.ImageMetadata
 	l := logger.AddContext(logger.Ctx{"function": "getImgPostInfo"})
 
-	info.Public = shared.IsTrue(r.Header.Get("X-LXD-public"))
+	public, err := isImageUploadPublic(r, metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	info.Public = public
 	propHeaders := r.Header[http.CanonicalHeaderKey("X-LXD-properties")]
 	profilesHeaders := r.Header.Get("X-LXD-profiles")
 	ctype, ctypeParams, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1053,14 +1058,6 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 			return nil, err
 		}
 	} else {
-		public, ok := metadata["public"]
-		if ok {
-			info.Public, ok = public.(bool)
-			if !ok {
-				return nil, errors.New("Invalid type for key \"public\"")
-			}
-		}
-
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Create the database entry
 			return tx.CreateImage(ctx, project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, profileIDs)
