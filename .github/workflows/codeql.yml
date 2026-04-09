@@ -71,6 +71,11 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      # Install C headers and build tools needed to compile LXD's CGO code (Go only).
+      - name: Install LXD build dependencies
+        if: matrix.language == 'go'
+        uses: ./.github/actions/install-lxd-builddeps
+
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
