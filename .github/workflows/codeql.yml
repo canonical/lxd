@@ -50,6 +50,13 @@ jobs:
       actions: read
       contents: read
 
+    env:
+      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
+      CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
+      LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
+      LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
+      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+
     strategy:
       fail-fast: false
       matrix:
@@ -65,6 +72,17 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: 'go.mod'
+
+      # Install C headers and build tools needed to compile LXD's CGO code (Go only).
+      - name: Install LXD build dependencies
+        if: matrix.language == 'go'
+        uses: ./.github/actions/install-lxd-builddeps
+
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
@@ -77,21 +95,38 @@ jobs:
           # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
           # queries: security-extended,security-and-quality
 
+      # Create a symlink so the cache-dqlite-liblxc action can build from the checkout on a cache miss.
+      - name: Create deps build symlink
+        if: matrix.language == 'go'
+        run: ln -s "${GITHUB_WORKSPACE}" /home/runner/work/lxd/lxd-test
+
+      # Build or restore dqlite/liblxc from the daily cache (Go only).
+      - name: Build or restore dqlite/liblxc dependencies
+        if: matrix.language == 'go'
+        uses: ./.github/actions/cache-dqlite-liblxc
+
+      - name: Update env variables for deps
+        if: matrix.language == 'go'
+        run: |
+          set -eux
+          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
+
+          echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
+          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
+          echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
+          echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
 
       # Autobuild attempts to build any compiled languages (C/C++, C#, Go, Java, or Swift).
-      # If this step fails, then you should remove it and run the build manually (see below)
       - name: Autobuild
+        if: matrix.language != 'go'
         uses: github/codeql-action/autobuild@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
 
-      # ℹ️ Command-line programs to run using the OS shell.
-      # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-
-      #   If the Autobuild fails above, remove it and uncomment the following three lines.
-      #   modify them (or add more) to build your code if your project, please refer to the EXAMPLE below for guidance.
-
-      # - run: |
-      #     echo "Run, Build Application using script"
-      #     ./location_of_script_within_repo/buildscript.sh
+      # Manual build for Go to ensure all CGO packages are compiled with the correct headers.
+      - name: Build LXD
+        if: matrix.language == 'go'
+        run: |
+          set -eux
+          make all
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
