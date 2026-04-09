@@ -1235,6 +1235,14 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Project to associate image with.
+	imageProject := dbProject.Name
+
+	// If "features.images" is disabled for the project, associate the image with the "default" project.
+	if shared.IsFalseOrEmpty(projectConfig["features.images"]) {
+		imageProject = api.ProjectDefaultName
+	}
+
 	secret := r.Header.Get("X-LXD-secret")
 	fingerprint := r.Header.Get("X-LXD-fingerprint")
 
@@ -1324,6 +1332,28 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		imageUpload = true
 	}
 
+	if imageUpload {
+		public, err := isImageUploadPublic(r, imageMetadata)
+		if err != nil {
+			cleanup(builddir, post)
+			return response.BadRequest(err)
+		}
+
+		// Ensure that public images are only allowed in the default project.
+		err = validateImagePublicSetting(public, imageProject)
+		if err != nil {
+			cleanup(builddir, post)
+			return response.SmartError(err)
+		}
+	} else {
+		// Ensure that public images are only allowed in the default project.
+		err = validateImagePublicSetting(req.Public, imageProject)
+		if err != nil {
+			cleanup(builddir, post)
+			return response.SmartError(err)
+		}
+	}
+
 	if !imageUpload && req.Source.Mode == "push" {
 		cleanup(builddir, post)
 
@@ -1391,14 +1421,6 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			/* Processing image upload */
 			info, err = getImgPostInfo(s, r, builddir, dbProject.Name, post, imageMetadata)
 		} else {
-			// Project to associate image with.
-			imageProject := dbProject.Name
-
-			// If "features.images" is disabled for the project, associate the image with the "default" project.
-			if shared.IsFalseOrEmpty(projectConfig["features.images"]) {
-				imageProject = api.ProjectDefaultName
-			}
-
 			// Project to associate profiles with.
 			profileProject := dbProject.Name
 
