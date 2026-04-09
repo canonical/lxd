@@ -11,6 +11,7 @@ import subprocess
 from git import Repo, InvalidGitRepositoryError
 import filecmp
 import ast
+import re
 
 sys.path.insert(0, os.path.abspath('.'))
 from redirects import redirects
@@ -19,7 +20,8 @@ sys.path.append('.sphinx/')
 
 # Set global version variable used in objects.inv to numeric version defined in flex.go
 with open("../shared/version/flex.go") as fd:
-    version = fd.readlines()[3].split()[-1].strip("\"")
+    match = re.search(r'var Version = "([^"]+)"', fd.read())
+    version = match.group(1) if match else "unknown"
 
 
 #######################
@@ -32,7 +34,7 @@ author = 'LXD contributors'
 
 # Sidebar documentation title; best kept reasonably short
 # To disable the title, set to an empty string.
-html_title = project + ' documentation'
+html_title = project + ' documentation ' + version
 
 # Copyright string; shown at the bottom of the page
 copyright = '2014-%s AGPL-3.0, %s' % (datetime.date.today().year, author)
