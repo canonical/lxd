@@ -3556,6 +3556,11 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 
 	// Get current value
 	projectName := request.ProjectParam(r)
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -3572,6 +3577,12 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	// Ensure that public images are only allowed in the default project.
+	err = validateImagePublicSetting(req.Public, effectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Get ExpiresAt
