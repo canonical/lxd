@@ -5759,7 +5759,9 @@ func allowRemoveSecurityProtectionStart(state *state.State, poolName string, vol
 }
 
 // Update the instance config.
-func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
+func (d *qemu) Update(args db.InstanceArgs, actionType instance.UpdateAction) error {
+	userRequested := d.isUserRequested(actionType)
+
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -5958,7 +5960,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return newDevType.UpdatableFields(oldDevType)
 	})
 
-	err = d.validateConfig(allUpdatedDeviceKeys, addDevices, removeDevices, oldExpandedDevices, changedConfig, oldExpandedConfig, userRequested)
+	err = d.validateConfig(allUpdatedDeviceKeys, addDevices, removeDevices, oldExpandedDevices, changedConfig, oldExpandedConfig, actionType)
 	if err != nil {
 		return err
 	}

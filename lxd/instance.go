@@ -271,7 +271,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			opts.refresh = false // Instance doesn't exist, so switch to copy mode.
 		} else {
 			// Validate and apply refresh target config before the storage refresh.
-			err = inst.Update(opts.targetInstance, true)
+			err = inst.Update(opts.targetInstance, instance.UpdateActionUserRefresh)
 			if err != nil {
 				return nil, fmt.Errorf("Failed applying refresh target instance config: %w", err)
 			}

@@ -590,7 +590,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 			Snapshot:     inst.IsSnapshot(),
 		}
 
-		err := inst.Update(args, false)
+		err := inst.Update(args, instance.UpdateActionInternal)
 		if err != nil {
 			return err
 		}
@@ -598,7 +598,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 		// On function return, set the flag back on
 		defer func() {
 			args.Ephemeral = ephemeral
-			_ = inst.Update(args, false)
+			_ = inst.Update(args, instance.UpdateActionInternal)
 		}()
 	}
 
@@ -1188,7 +1188,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 				Snapshot:     d.IsSnapshot(),
 			}
 
-			err := inst.Update(args, false)
+			err := inst.Update(args, instance.UpdateActionInternal)
 			if err != nil {
 				op.Done(err)
 				return false, nil, err
@@ -1197,7 +1197,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 			// On function return, set the flag back on.
 			defer func() {
 				args.Ephemeral = ephemeral
-				err = inst.Update(args, false)
+				err = inst.Update(args, instance.UpdateActionInternal)
 				if err != nil {
 					d.logger.Error("Failed restoring ephemeral flag after restore", logger.Ctx{"err": err})
 				}
@@ -1236,7 +1236,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 
 	// Don't pass as user-requested as there's no way to fix a bad config.
 	// This will call d.UpdateBackupFile() to ensure snapshot list is up to date.
-	err = inst.Update(args, false)
+	err = inst.Update(args, instance.UpdateActionInternal)
 	if err != nil {
 		op.Done(err)
 		return false, nil, err
@@ -1398,6 +1398,11 @@ func (d *common) isStartableStatusCode(statusCode api.StatusCode) error {
 	}
 
 	return nil
+}
+
+// isUserRequested returns whether the update action is user-requested.
+func (d *common) isUserRequested(actionType instance.UpdateAction) bool {
+	return actionType == instance.UpdateActionUser || actionType == instance.UpdateActionUserRefresh
 }
 
 // getStartupSnapNameAndExpiry returns the name and expiry for a snapshot to be taken at startup.
@@ -2235,7 +2240,7 @@ func (d *common) removeDiskDevices() error {
 }
 
 // validateConfig validates the configuration.
-func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices deviceConfig.Devices, removeDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, changedConfigKeys []string, oldExpandedConfig map[string]string, userRequested bool) error {
+func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices deviceConfig.Devices, removeDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, changedConfigKeys []string, oldExpandedConfig map[string]string, actionType instance.UpdateAction) error {
 	if shared.StringPrefixInSlice(deviceConfig.ConfigInitialPrefix, allUpdatedDeviceKeys) {
 		for devName, newDev := range addDevices {
 			for k, newVal := range newDev {
@@ -2248,8 +2253,8 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 					return fmt.Errorf("New device %q with initial configuration %q cannot be added once the instance is created", devName, k)
 				}
 
-				if k == deviceConfig.ConfigInitialPrefix+"zfs.promote" {
-					// Allow zfs.promote to be added as this is needed for volume promotion.
+				if actionType == instance.UpdateActionUserRefresh && k == deviceConfig.ConfigInitialPrefix+"zfs.promote" {
+					// Allow zfs.promote to be added only during refresh as this is needed for volume promotion.
 					continue
 				}
 
@@ -2265,6 +2270,8 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 			}
 		}
 	}
+
+	userRequested := d.isUserRequested(actionType)
 
 	if userRequested {
 		// Look for deleted protected keys.

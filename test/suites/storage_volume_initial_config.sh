@@ -134,6 +134,7 @@ test_storage_volume_initial_config() {
 
     sub_test "Verify initial.zfs.promote functionality."
     lxc launch "${image}" c --no-profiles --storage "${pool}"
+    ! lxc config device set c root initial.zfs.promote=true || false  # NOK: Cannot enable zfs.promote in update.
 
     # > Check that container's origin is the base image snapshot.
     [ "$(zfs get origin "${pool}/containers/c" -H -o value)" = "${pool}/images/$(lxc config get c volatile.base_image)@readonly" ]

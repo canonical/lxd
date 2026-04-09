@@ -244,7 +244,7 @@ func doProfileUpdateInstance(ctx context.Context, s *state.State, args db.Instan
 		Project:      inst.Project().Name,
 		Type:         inst.Type(),
 		Snapshot:     inst.IsSnapshot(),
-	}, true)
+	}, instance.UpdateActionUser)
 }
 
 // Query the db for information about instances associated with the given profile.

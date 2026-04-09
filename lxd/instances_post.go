@@ -318,7 +318,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 		// For refresh requests, validate and apply target config before migration transfer starts.
 		// Skip this during internal cluster move requests, where config update semantics differ.
 		if req.Source.Refresh && clusterMoveSourceName == "" {
-			err = inst.Update(*args, true)
+			err = inst.Update(*args, instance.UpdateActionUserRefresh)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed applying refresh target instance config: %w", err))
 			}
