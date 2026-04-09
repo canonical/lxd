@@ -1143,7 +1143,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(errors.New("The source is currently offline"))
 		}
 
-		return clusterCopyCustomVolumeInternal(s, r, nodeAddress, projectName, poolName, &req)
+		return clusterCopyCustomVolumeInternal(s, r, nodeAddress, requestProjectName, projectName, poolName, &req)
 	}
 
 	switch req.Source.Type {
@@ -1167,7 +1167,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
-func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddress string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
+func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddress string, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	client, err := lxdCluster.Connect(r.Context(), sourceAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
@@ -1206,7 +1206,7 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 	req.Source.Websockets = websockets
 	req.Source.Project = ""
 
-	return doVolumeMigration(s, r, req.Source.Project, projectName, poolName, req)
+	return doVolumeMigration(s, r, requestProjectName, projectName, poolName, req)
 }
 
 func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
