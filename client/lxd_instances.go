@@ -843,14 +843,9 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 		opAPI := op.Get()
 
-		targetSecrets := map[string]string{}
-		for k, v := range opAPI.Metadata {
-			vStr, ok := v.(string)
-			if !ok {
-				continue
-			}
-
-			targetSecrets[k] = vStr
+		targetSecrets, err := opAPI.WebsocketSecrets()
+		if err != nil {
+			return nil, err
 		}
 
 		// Prepare the source request
@@ -876,14 +871,9 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 	opAPI := op.Get()
 
-	sourceSecrets := map[string]string{}
-	for k, v := range opAPI.Metadata {
-		vStr, ok := v.(string)
-		if !ok {
-			continue
-		}
-
-		sourceSecrets[k] = vStr
+	sourceSecrets, err := opAPI.WebsocketSecrets()
+	if err != nil {
+		return nil, err
 	}
 
 	// Relay mode migration
@@ -901,14 +891,9 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		targetOpAPI := targetOp.Get()
 
 		// Extract the websockets
-		targetSecrets := map[string]string{}
-		for k, v := range targetOpAPI.Metadata {
-			vStr, ok := v.(string)
-			if !ok {
-				continue
-			}
-
-			targetSecrets[k] = vStr
+		targetSecrets, err := targetOpAPI.WebsocketSecrets()
+		if err != nil {
+			return nil, err
 		}
 
 		// Launch the relay
@@ -1961,14 +1946,9 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 
 		opAPI := op.Get()
 
-		targetSecrets := map[string]string{}
-		for k, v := range opAPI.Metadata {
-			vStr, ok := v.(string)
-			if !ok {
-				continue
-			}
-
-			targetSecrets[k] = vStr
+		targetSecrets, err := opAPI.WebsocketSecrets()
+		if err != nil {
+			return nil, err
 		}
 
 		// Prepare the source request
@@ -1994,14 +1974,9 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 
 	opAPI := op.Get()
 
-	sourceSecrets := map[string]string{}
-	for k, v := range opAPI.Metadata {
-		vStr, ok := v.(string)
-		if !ok {
-			continue
-		}
-
-		sourceSecrets[k] = vStr
+	sourceSecrets, err := opAPI.WebsocketSecrets()
+	if err != nil {
+		return nil, err
 	}
 
 	// Relay mode migration
@@ -2019,14 +1994,9 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 		targetOpAPI := targetOp.Get()
 
 		// Extract the websockets
-		targetSecrets := map[string]string{}
-		for k, v := range targetOpAPI.Metadata {
-			vStr, ok := v.(string)
-			if !ok {
-				continue
-			}
-
-			targetSecrets[k] = vStr
+		targetSecrets, err := targetOpAPI.WebsocketSecrets()
+		if err != nil {
+			return nil, err
 		}
 
 		// Launch the relay
