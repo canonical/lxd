@@ -489,13 +489,21 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if r.Method == http.MethodPatch {
+		if req.Config == nil {
+			req.Config = make(map[string]string, len(record.Config))
+		}
+
 		// If config being updated via "patch" method, then merge all existing config with the keys that
 		// are present in the request config.
-		for k, v := range netzone.Info().Config {
+		for k, v := range record.Config {
 			_, ok := req.Config[k]
 			if !ok {
 				req.Config[k] = v
 			}
+		}
+
+		if req.Entries == nil {
+			req.Entries = record.Entries
 		}
 	}
 
