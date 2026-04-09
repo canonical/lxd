@@ -261,6 +261,8 @@ ifeq "$(GOMIN)" "$(NEW_GOMIN)"
 	@echo "Error: NEW_GOMIN ($(NEW_GOMIN)) is the same as current GOMIN ($(GOMIN))"
 	exit 1
 endif
+	@# Verify the new Go version snap is uniformly available for all architectures
+	@./scripts/check-go-snap.sh "$(NEW_GOMIN)"
 	@echo "Updating Go minimum version from $(GOMIN) to $(NEW_GOMIN)"
 
 	@# Update GOMIN in Makefile
