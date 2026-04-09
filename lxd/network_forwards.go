@@ -520,8 +520,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	targetMember := request.QueryParam(r, "target")
-	memberSpecific := targetMember != ""
+	memberSpecific := target != ""
 
 	var forward *api.NetworkForward
 
@@ -651,8 +650,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	targetMember := request.QueryParam(r, "target")
-	memberSpecific := targetMember != ""
+	memberSpecific := target != ""
 
 	if r.Method == http.MethodPatch {
 		var forward *api.NetworkForward
