@@ -2,6 +2,8 @@ package drivers
 
 import (
 	"bufio"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -60,93 +62,144 @@ func CephGetRBDImageName(vol Volume, zombie bool) (imageName string, snapName st
 	return imageName, snapName
 }
 
-// CephMonitors gets the mon-host field for the relevant cluster and extracts the list of addresses and ports.
-func CephMonitors(cluster string) ([]string, error) {
-	// Open the CEPH configuration.
-	cephConf, err := os.Open("/etc/ceph/" + cluster + ".conf")
+// callCeph makes a call to ceph with the given args.
+func callCeph(ctx context.Context, args ...string) (string, error) {
+	out, err := shared.RunCommand(ctx, "ceph", args...)
+	return strings.TrimSpace(out), err
+}
+
+// callCephJSON makes a call to the ceph admin tool with the given args then parses the JSON output into out.
+func callCephJSON(ctx context.Context, out any, args ...string) error {
+	// Get as JSON format.
+	args = append([]string{"--format", "json"}, args...)
+
+	// Make the call.
+	jsonOut, err := callCeph(ctx, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed opening %q: %w", "/etc/ceph/"+cluster+".conf", err)
+		return err
 	}
 
-	defer func() { _ = cephConf.Close() }()
+	// Parse the JSON.
+	return json.Unmarshal([]byte(jsonOut), out)
+}
 
-	// Locate the mon-host key and its values.
-	cephMon := []string{}
-	scan := bufio.NewScanner(cephConf)
-	for scan.Scan() {
-		line := scan.Text()
-		line = strings.TrimSpace(line)
+// Monitors holds a list of Ceph monitor addresses based on which protocol they expect.
+type Monitors struct {
+	V1 []string
+	V2 []string
+}
 
-		if line == "" {
-			continue
-		}
+// CephMonitors returns a list of public monitor addresses for the given cluster.
+func CephMonitors(ctx context.Context, cluster string) (Monitors, error) {
+	// Get the monitor dump.
+	monitors := struct {
+		Mons []struct {
+			PublicAddrs struct {
+				Addrvec []struct {
+					Type string `json:"type"`
+					Addr string `json:"addr"`
+				} `json:"addrvec"`
+			} `json:"public_addrs"`
+		} `json:"mons"`
+	}{}
 
-		if strings.HasPrefix(line, "mon_host") || strings.HasPrefix(line, "mon-host") || strings.HasPrefix(line, "mon host") {
-			fields := strings.SplitN(line, "=", 2)
-			if len(fields) < 2 {
-				continue
-			}
+	err := callCephJSON(ctx, &monitors, "--cluster", cluster, "mon", "dump")
+	if err != nil {
+		return Monitors{}, fmt.Errorf("Ceph mon dump for %q failed: %w", cluster, err)
+	}
 
-			// Parsing mon_host is quite tricky.
-			// It supports a space separate list of comma separated lists of:
-			//  - DNS names
-			//  - IPv4 addresses
-			//  - IPv6 addresses (square brackets)
-			//  - Optional version indicator
-			//  - Optional port numbers
-			//  - Optional data (after / separator)
-			//  - Tuples of addresses with all the above still applying inside the tuple
-			//
-			// As this function is primarily used for cephfs which
-			// doesn't take the version indication, trailing bits or supports those
-			// tuples, all of those effectively get stripped away to get a clean
-			// address list (with ports).
-			entries := strings.SplitSeq(fields[1], " ")
-			for entry := range entries {
-				servers := strings.SplitSeq(entry, ",")
-				for server := range servers {
-					// Trim leading/trailing spaces.
-					server = strings.TrimSpace(server)
-
-					// Trim leading protocol version.
-					server = strings.TrimPrefix(server, "v1:")
-					server = strings.TrimPrefix(server, "v2:")
-					server = strings.TrimPrefix(server, "[v1:")
-					server = strings.TrimPrefix(server, "[v2:")
-
-					// Trim trailing divider.
-					server = strings.Split(server, "/")[0]
-
-					// Handle end of nested blocks.
-					server = strings.ReplaceAll(server, "]]", "]")
-					if !strings.HasPrefix(server, "[") {
-						server = strings.TrimSuffix(server, "]")
-					}
-
-					// Trim any spaces.
-					server = strings.TrimSpace(server)
-
-					// If nothing left, skip.
-					if server == "" {
-						continue
-					}
-
-					// Append the default v1 port if none are present.
-					if !strings.HasSuffix(server, ":6789") && !strings.HasSuffix(server, ":3300") {
-						server += ":6789"
-					}
-
-					cephMon = append(cephMon, strings.TrimSpace(server))
-				}
+	// Loop through monitors then monitor addresses and add them to the list.
+	var ep Monitors
+	for _, mon := range monitors.Mons {
+		for _, addr := range mon.PublicAddrs.Addrvec {
+			switch addr.Type {
+			case "v1":
+				ep.V1 = append(ep.V1, addr.Addr)
+			case "v2":
+				ep.V2 = append(ep.V2, addr.Addr)
 			}
 		}
 	}
 
-	if len(cephMon) == 0 {
-		return nil, errors.New("Could not find a CEPH mon")
+	if len(ep.V2) == 0 {
+		if len(ep.V1) == 0 {
+			return Monitors{}, fmt.Errorf("No Ceph monitors found for %q", cluster)
+		}
 	}
 
-	return cephMon, nil
+	return ep, nil
+}
+
+// CephFSID retrieves the FSID for the given cluster.
+func CephFSID(ctx context.Context, cluster string) (string, error) {
+	fsid := struct {
+		FSID string `json:"fsid"`
+	}{}
+
+	err := callCephJSON(ctx, &fsid, "--cluster", cluster, "fsid")
+	if err != nil {
+		return "", fmt.Errorf("Failed getting fsid for %q: %w", cluster, err)
+	}
+
+	return fsid.FSID, nil
+}
+
+// CephBuildMount creates a mount string and option list from mount parameters.
+func CephBuildMount(user string, key string, fsid string, monitors Monitors, fsName string, path string, msMode string) (source string, options []string) {
+	// Ceph mount paths must begin with a '/'. If it doesn't (or is empty),
+	// prefix it now.
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
+	// Prefer V2 addresses when available; fall back to V1.
+	monAddrs := monitors.V1
+	if len(monitors.V2) > 0 {
+		monAddrs = monitors.V2
+	}
+
+	// Build the source path.
+	source = fmt.Sprintf("%s@%s.%s=%s", user, fsid, fsName, path)
+
+	// Build the options list.
+	options = []string{
+		"mon_addr=" + strings.Join(monAddrs, "/"),
+		"name=" + user,
+	}
+
+	// If key is blank assume cephx is disabled.
+	if key != "" {
+		options = append(options, "secret="+key)
+	}
+
+	options = append(options, "ms_mode="+msMode)
+
+	return source, options
+}
+
+// CephMSMode queries the cluster for the client messenger mode and maps it to
+// the equivalent kernel ms_mode mount option. The Ceph config key
+// ms_client_mode is a space-separated preference list (e.g. "crc secure");
+// the first entry is the preferred mode which maps to a kernel "prefer-*"
+// variant.
+func CephMSMode(ctx context.Context, cluster string) (string, error) {
+	raw, err := callCeph(ctx, "--cluster", cluster, "config", "get", "client", "ms_client_mode")
+	if err != nil {
+		return "", fmt.Errorf("Failed querying ms_client_mode for %q: %w", cluster, err)
+	}
+
+	modes := strings.Fields(raw)
+	if len(modes) == 0 {
+		return "prefer-crc", nil
+	}
+
+	// Single mode means no fallback — use it as-is (e.g. "secure" or "crc").
+	if len(modes) == 1 {
+		return modes[0], nil
+	}
+
+	// Multiple modes — the first one is preferred, map to kernel "prefer-*".
+	return "prefer-" + modes[0], nil
 }
 
 func getCephKeyFromFile(path string) (string, error) {
@@ -187,7 +240,46 @@ func getCephKeyFromFile(path string) (string, error) {
 }
 
 // CephKeyring gets the key for a particular Ceph cluster and client name.
-func CephKeyring(cluster string, client string) (string, error) {
+func CephKeyring(ctx context.Context, cluster string, client string) (string, error) {
+	// Try to find the key from the filesystem directly (fast path).
+	value, err := cephKeyringFromFile(cluster, client)
+	if err == nil {
+		return value, nil
+	}
+
+	// Fall back to using the ceph CLI.
+
+	// If client isn't prefixed, prefix it with 'client.'.
+	cephClient := client
+	if !strings.Contains(cephClient, ".") {
+		cephClient = "client." + cephClient
+	}
+
+	// Check that cephx is enabled.
+	authType, err := callCeph(ctx, "--cluster", cluster, "config", "get", cephClient, "auth_service_required")
+	if err != nil {
+		return "", fmt.Errorf("Failed querying Ceph config for auth_service_required: %w", err)
+	}
+
+	if authType == "none" {
+		return "", nil
+	}
+
+	// Call ceph auth get-key.
+	key := struct {
+		Key string `json:"key"`
+	}{}
+
+	err = callCephJSON(ctx, &key, "--cluster", cluster, "auth", "get-key", cephClient)
+	if err != nil {
+		return "", fmt.Errorf("Failed getting keyring for %q on %q: %w", client, cluster, err)
+	}
+
+	return key.Key, nil
+}
+
+// cephKeyringFromFile gets the key for a particular Ceph cluster and client name from local files.
+func cephKeyringFromFile(cluster string, client string) (string, error) {
 	var cephSecret string
 	cephConfigPath := "/etc/ceph/" + cluster + ".conf"
 
