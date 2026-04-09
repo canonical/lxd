@@ -998,7 +998,7 @@ func (p *AlletraClient) CreateVolumePhysicalCopy(ctx context.Context, poolName s
 	case hpeTaskStatusFailed:
 		return fmt.Errorf(`Failed creating a physical copy "%s/%s" to "%s/%s": task failed`, poolName, volName, poolName, copyName)
 	default:
-		return fmt.Errorf(`Failed creating a physical copy "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, volName, copyName, volName)
+		return fmt.Errorf(`Failed creating a physical copy "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, volName, poolName, copyName)
 	}
 }
 
