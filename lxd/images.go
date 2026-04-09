@@ -153,6 +153,24 @@ func validateImagePublicSetting(requestedPublic bool, imageProject string) error
 	return nil
 }
 
+// isImageUploadPublic resolves the requested public flag for image uploads from HTTP header and token metadata.
+// Metadata field "public" takes precedence over "X-LXD-public" HTTP header, and is type-checked when present.
+func isImageUploadPublic(r *http.Request, metadata map[string]any) (bool, error) {
+	public := shared.IsTrue(r.Header.Get("X-LXD-public"))
+
+	publicValue, ok := metadata["public"]
+	if ok {
+		publicBool, ok := publicValue.(bool)
+		if !ok {
+			return false, errors.New(`Invalid type for key "public"`)
+		}
+
+		public = publicBool
+	}
+
+	return public, nil
+}
+
 const ctxImageDetails request.CtxKey = "image-details"
 
 // imageDetails contains fields that are determined prior to the access check. This is set in the request context when
