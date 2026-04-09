@@ -85,7 +85,7 @@ func (d *alletra) client() *clients.AlletraClient {
 			d.config["alletra.wsapi"],
 			d.config["alletra.user.name"],
 			d.config["alletra.user.password"],
-			shared.IsFalse(d.config["alletra.wsapi.verify"]),
+			shared.IsTrueOrEmpty(d.config["alletra.wsapi.verify"]),
 			d.config["alletra.cpg"])
 	}
 

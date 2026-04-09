@@ -254,7 +254,7 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: p.verifyTLS,
+				InsecureSkipVerify: !p.verifyTLS,
 			},
 		},
 	}
