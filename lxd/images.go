@@ -3696,6 +3696,11 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get current value
 	projectName := request.ProjectParam(r)
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -3738,6 +3743,12 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	public, err := reqRaw.GetBool("public")
 	if err == nil {
 		details.image.Public = public
+	}
+
+	// Ensure that public images are only allowed in the default project.
+	err = validateImagePublicSetting(details.image.Public, effectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Get Properties
