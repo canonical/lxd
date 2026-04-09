@@ -71,7 +71,10 @@ var apiInternal = []APIEndpoint{
 
 // changedBlockTrackingInternalCmds are the internal API endpoints gated behind the changed_block_tracking
 // feature preview. The restServer registers them only when the preview is enabled.
-var changedBlockTrackingInternalCmds = []APIEndpoint{}
+var changedBlockTrackingInternalCmds = []APIEndpoint{
+	internalInstanceBitmapsCmd,
+	internalInstanceBitmapCmd,
+}
 
 var internalShutdownCmd = APIEndpoint{
 	Path: "shutdown",
