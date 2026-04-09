@@ -143,6 +143,16 @@ func validateImageFingerprintPrefix(prefix string) error {
 	return nil
 }
 
+// validateImagePublicSetting checks whether an image visibility update is allowed for the effective image project.
+// Public images outside the default project are rejected.
+func validateImagePublicSetting(requestedPublic bool, imageProject string) error {
+	if requestedPublic && imageProject != api.ProjectDefaultName {
+		return api.NewStatusError(http.StatusBadRequest, "Images can only be marked public in the default project")
+	}
+
+	return nil
+}
+
 const ctxImageDetails request.CtxKey = "image-details"
 
 // imageDetails contains fields that are determined prior to the access check. This is set in the request context when
