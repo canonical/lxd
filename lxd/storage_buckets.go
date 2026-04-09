@@ -6,10 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"sort"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -225,11 +222,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	poolName := r.PathValue("poolName")
 	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
@@ -461,11 +454,7 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	poolName := r.PathValue("poolName")
 	// Parse the request into a record.
 	req := api.StorageBucketsPost{}
 	err = json.NewDecoder(r.Body).Decode(&req)
@@ -1097,10 +1086,7 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	keyName, err := url.PathUnescape(mux.Vars(r)["keyName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
+	keyName := r.PathValue("keyName")
 
 	location := ""
 	if !details.pool.Driver().Info().Remote {
@@ -1199,11 +1185,7 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Storage pool does not support buckets"))
 	}
 
-	keyName, err := url.PathUnescape(mux.Vars(r)["keyName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	keyName := r.PathValue("keyName")
 	targetMember := request.QueryParam(r, "target")
 	memberSpecific := targetMember != ""
 
@@ -1286,11 +1268,7 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	keyName, err := url.PathUnescape(mux.Vars(r)["keyName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	keyName := r.PathValue("keyName")
 	// Decode the request.
 	req := api.StorageBucketKeyPut{}
 	err = json.NewDecoder(r.Body).Decode(&req)
@@ -1365,11 +1343,7 @@ func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
 
 	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return err
-	}
-
+	poolName := r.PathValue("poolName")
 	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return fmt.Errorf("Failed loading storage pool: %w", err)
@@ -1377,11 +1351,7 @@ func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
 
 	details.pool = pool
 
-	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
-	if err != nil {
-		return err
-	}
-
+	bucketName := r.PathValue("bucketName")
 	details.bucketName = bucketName
 	return nil
 }

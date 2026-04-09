@@ -6,9 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -55,11 +52,7 @@ type networkZoneDetails struct {
 // addNetworkZoneDetailsToRequestContext sets the effective project in the request.Info and sets ctxNetworkZoneDetails (networkZoneDetails)
 // in the request context.
 func addNetworkZoneDetailsToRequestContext(s *state.State, r *http.Request) error {
-	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
-	if err != nil {
-		return err
-	}
-
+	zoneName := r.PathValue("zone")
 	requestProjectName := request.ProjectParam(r)
 	effectiveProjectName, requestProject, err := project.NetworkZoneProject(s.DB.Cluster, requestProjectName)
 	if err != nil {

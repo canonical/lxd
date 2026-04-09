@@ -6,12 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
@@ -134,11 +131,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	cname, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	cname := r.PathValue("name")
 	if shared.IsSnapshot(cname) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -239,11 +232,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -444,20 +433,12 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	backupName := r.PathValue("backupName")
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 	if err != nil {
@@ -518,20 +499,12 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	backupName := r.PathValue("backupName")
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 	if err != nil {
@@ -625,20 +598,12 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	backupName := r.PathValue("backupName")
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 	if err != nil {
@@ -711,20 +676,12 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	backupName := r.PathValue("backupName")
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 	if err != nil {

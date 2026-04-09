@@ -6,12 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
@@ -516,11 +513,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 	}
 
 	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	backupName := r.PathValue("backupName")
 	// Check that the storage volume type is valid.
 	if details.volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
@@ -598,11 +591,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 	}
 
 	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	backupName := r.PathValue("backupName")
 	// Check that the storage volume type is valid.
 	if details.volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
@@ -714,11 +703,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 	}
 
 	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	backupName := r.PathValue("backupName")
 	// Check that the storage volume type is valid.
 	if details.volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
@@ -812,11 +797,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 	}
 
 	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	backupName := r.PathValue("backupName")
 	// Check that the storage volume type is valid.
 	if details.volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))

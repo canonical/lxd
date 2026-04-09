@@ -7,10 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -265,11 +262,8 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func warningGet(d *Daemon, r *http.Request) response.Response {
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	id := r.PathValue("id")
+	var err error
 	var resp api.Warning
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbWarning, err := cluster.GetWarning(ctx, tx.Tx(), id)
@@ -354,11 +348,8 @@ func warningPatch(d *Daemon, r *http.Request) response.Response {
 func warningPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	id := r.PathValue("id")
+	var err error
 	req := api.WarningPut{}
 
 	err = json.NewDecoder(r.Body).Decode(&req)
@@ -421,11 +412,8 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 func warningDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	id := r.PathValue("id")
+	var err error
 	var warning *cluster.Warning
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		warning, err = cluster.GetWarning(ctx, tx.Tx(), id)

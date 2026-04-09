@@ -15,8 +15,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -499,11 +497,7 @@ func projectCreateDefaultProfile(ctx context.Context, tx *db.ClusterTx, project 
 func projectGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeProject, false)
 	if err != nil {
 		return response.SmartError(err)
@@ -578,11 +572,8 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 func projectPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	// Get the current data
 	var project *api.Project
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -664,11 +655,8 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 func projectPatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	// Get the current data
 	var project *api.Project
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -949,11 +937,8 @@ func projectNodeConfigRename(d *Daemon, ctx context.Context, oldName string, new
 func projectPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	// Parse the request.
 	req := api.ProjectPost{}
 
@@ -1219,11 +1204,7 @@ func doProjectForceDelete(ctx context.Context, clientType request.ClientType, op
 func projectDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	force := shared.IsTrue(r.FormValue("force"))
 
 	// Quick checks.
@@ -1458,11 +1439,8 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	// Setup the state struct.
 	state := api.ProjectState{}
 
