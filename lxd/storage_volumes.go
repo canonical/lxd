@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/archive"
@@ -120,18 +119,10 @@ func checkStoragePoolVolumeTypeAccess(s *state.State, r *http.Request, entityTyp
 	case entity.TypeStorageVolume:
 		u = entity.StorageVolumeURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName)
 	case entity.TypeStorageVolumeBackup:
-		backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-		if err != nil {
-			return err
-		}
-
+		backupName := r.PathValue("backupName")
 		u = entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName)
 	case entity.TypeStorageVolumeSnapshot:
-		snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
-		if err != nil {
-			return err
-		}
-
+		snapshotName := r.PathValue("snapshotName")
 		u = entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, snapshotName)
 	default:
 		return fmt.Errorf("Cannot use storage volume access handler with entities of type %q", entityType)
@@ -632,11 +623,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	targetMember := request.QueryParam(r, "target")
 	memberSpecific := targetMember != ""
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	poolName := r.PathValue("poolName")
 	// Detect if we want to also return entitlements for each volume.
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolume, true)
 	if err != nil {
@@ -647,11 +634,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	allPools := poolName == ""
 
 	// Get the name of the volume type.
-	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	volumeTypeName := r.PathValue("type")
 	// Convert volume type name to internal integer representation if requested.
 	var volumeType cluster.StoragePoolVolumeType
 	if volumeTypeName != "" {
@@ -995,11 +978,7 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	poolName := r.PathValue("poolName")
 	requestProjectName := request.ProjectParam(r)
 	projectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, cluster.StoragePoolVolumeTypeCustom)
 	if err != nil {
@@ -1049,12 +1028,9 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle being called through the typed URL.
-	_, ok := mux.Vars(r)["type"]
-	if ok {
-		req.Type, err = url.PathUnescape(mux.Vars(r)["type"])
-		if err != nil {
-			return response.SmartError(err)
-		}
+	volumeType := r.PathValue("type")
+	if volumeType != "" {
+		req.Type = volumeType
 	}
 
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.
@@ -2956,22 +2932,14 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 		request.SetContextValue(r, ctxStorageVolumeDetails, details)
 	}()
 
-	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
-	if err != nil {
-		return err
-	}
-
+	volumeName := r.PathValue("volumeName")
 	details.volumeName = volumeName
 
 	if shared.IsSnapshot(volumeName) {
 		return api.StatusErrorf(http.StatusBadRequest, "Invalid storage volume %q", volumeName)
 	}
 
-	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
-	if err != nil {
-		return err
-	}
-
+	volumeTypeName := r.PathValue("type")
 	details.volumeTypeName = volumeTypeName
 
 	// Convert the volume type name to our internal integer representation.
@@ -2983,11 +2951,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	details.volumeType = volumeType
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return err
-	}
-
+	poolName := r.PathValue("poolName")
 	// Load the storage pool containing the volume. This is required by the access handler as all remote volumes
 	// do not have a location (regardless of whether the caller used a target parameter to send the request to a
 	// particular member).

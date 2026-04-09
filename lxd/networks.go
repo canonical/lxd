@@ -8,14 +8,11 @@ import (
 	"maps"
 	"net"
 	"net/http"
-	"net/url"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -94,11 +91,7 @@ type networkDetails struct {
 // addNetworkDetailsToRequestContext sets the effective project on the request.Info and sets ctxNetworkDetails (networkDetails)
 // in the request context.
 func addNetworkDetailsToRequestContext(s *state.State, r *http.Request) error {
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
-	if err != nil {
-		return err
-	}
-
+	networkName := r.PathValue("networkName")
 	requestProjectName := request.ProjectParam(r)
 	effectiveProjectName, requestProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
@@ -1782,11 +1775,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	networkName := r.PathValue("networkName")
 	// Attempt to load the network.
 	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
@@ -2233,11 +2222,7 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	networkName := r.PathValue("networkName")
 	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))

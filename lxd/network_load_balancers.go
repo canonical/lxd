@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -351,11 +348,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
 	}
 
-	listenAddress, err := url.PathUnescape(mux.Vars(r)["listenAddress"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	listenAddress := r.PathValue("listenAddress")
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
@@ -444,11 +437,7 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
 	}
 
-	listenAddress, err := url.PathUnescape(mux.Vars(r)["listenAddress"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	listenAddress := r.PathValue("listenAddress")
 	targetMember := request.QueryParam(r, "target")
 	memberSpecific := targetMember != ""
 
@@ -568,11 +557,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
 	}
 
-	listenAddress, err := url.PathUnescape(mux.Vars(r)["listenAddress"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	listenAddress := r.PathValue("listenAddress")
 	// Decode the request.
 	req := api.NetworkLoadBalancerPut{}
 	err = json.NewDecoder(r.Body).Decode(&req)

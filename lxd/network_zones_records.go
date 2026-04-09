@@ -3,9 +3,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -281,11 +278,7 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recordName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	recordName := r.PathValue("name")
 	// Get the network zone.
 	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {
@@ -356,11 +349,7 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recordName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	recordName := r.PathValue("name")
 	// Get the network zone.
 	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {
@@ -458,11 +447,7 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	recordName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	recordName := r.PathValue("name")
 	// Get the network zone.
 	netzone, err := zone.LoadByNameAndProject(r.Context(), s, effectiveProjectName, details.zoneName)
 	if err != nil {

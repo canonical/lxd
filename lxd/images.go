@@ -27,7 +27,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/kballard/go-shellquote"
 	"go.yaml.in/yaml/v2"
 
@@ -111,7 +110,7 @@ var imageAliasesCmd = APIEndpoint{
 }
 
 var imageAliasCmd = APIEndpoint{
-	Path:        "images/aliases/{name:.*}",
+	Path:        "images/aliases/{name}",
 	MetricsType: entity.TypeImage,
 
 	Delete: APIEndpointAction{Handler: imageAliasDelete, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanDelete)},
@@ -156,11 +155,8 @@ type imageDetails struct {
 // addImageDetailsToRequestContext sets the effective project in the request.Info and sets ctxImageDetails (imageDetails)
 // in the request context.
 func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
-	imageFingerprintPrefix, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
-	if err != nil {
-		return err
-	}
-
+	imageFingerprintPrefix := r.PathValue("fingerprint")
+	var err error
 	err = validateImageFingerprintPrefix(imageFingerprintPrefix)
 	if err != nil {
 		return err
@@ -252,11 +248,8 @@ func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Re
 
 func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
-		imageAliasName, err := url.PathUnescape(mux.Vars(r)["name"])
-		if err != nil {
-			return response.SmartError(err)
-		}
-
+		imageAliasName := r.PathValue("name")
+		var err error
 		requestProjectName := request.ProjectParam(r)
 		var effectiveProjectName string
 		s := d.State()
@@ -3361,11 +3354,8 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	fingerprint := r.PathValue("fingerprint")
+	var err error
 	err = validateImageFingerprintPrefix(fingerprint)
 	if err != nil {
 		return response.SmartError(err)
@@ -4036,11 +4026,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	s := d.State()
 
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImageAlias, false)
@@ -4117,11 +4103,8 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		_, _, err = tx.GetImageAlias(ctx, projectName, name, true)
 		if err != nil {
@@ -4184,11 +4167,8 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 
 	// Get current value
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	req := api.ImageAliasesEntryPut{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -4275,11 +4255,8 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get current value
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	req := shared.Jmap{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -4378,11 +4355,8 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	req := api.ImageAliasesEntryPost{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -4476,11 +4450,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	fingerprint := r.PathValue("fingerprint")
+	var err error
 	err = validateImageFingerprintPrefix(fingerprint)
 	if err != nil {
 		return response.SmartError(err)

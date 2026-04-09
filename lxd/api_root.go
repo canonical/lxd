@@ -79,28 +79,24 @@ var acmeChallengeCmd = APIEndpoint{
 }
 
 var oidcLoginCmd = APIEndpoint{
-	Name: "oidcLogin",
 	Path: "oidc/login",
 
 	Get: APIEndpointAction{Handler: oidcLoginGet, AllowUntrusted: true},
 }
 
 var oidcCallbackCmd = APIEndpoint{
-	Name: "oidcCallback",
 	Path: "oidc/callback",
 
 	Get: APIEndpointAction{Handler: oidcCallbackGet, AllowUntrusted: true},
 }
 
 var oidcLogoutCmd = APIEndpoint{
-	Name: "oidcLogout",
 	Path: "oidc/logout",
 
 	Get: APIEndpointAction{Handler: oidcLogoutGet, AllowUntrusted: true},
 }
 
 var bearerLogoutCmd = APIEndpoint{
-	Name: "bearerLogout",
 	Path: "bearer/logout",
 
 	Get: APIEndpointAction{Handler: bearerLogoutGet, AllowUntrusted: true},
@@ -108,7 +104,7 @@ var bearerLogoutCmd = APIEndpoint{
 
 // uiCmd serves the LXD web UI. The path pattern captures any subpath under /ui/.
 var uiCmd = APIEndpoint{
-	Path: "ui/{filepath:.*}",
+	Path: "ui/{filepath...}",
 
 	Get: APIEndpointAction{Handler: uiGet, AllowUntrusted: true},
 }
@@ -122,7 +118,7 @@ var uiRedirectCmd = APIEndpoint{
 
 // documentationCmd serves the LXD documentation. The path pattern captures any subpath under /documentation/.
 var documentationCmd = APIEndpoint{
-	Path: "documentation/{filepath:.*}",
+	Path: "documentation/{filepath...}",
 
 	Get: APIEndpointAction{Handler: documentationGet, AllowUntrusted: true},
 }

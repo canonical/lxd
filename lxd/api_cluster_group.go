@@ -6,10 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -312,11 +309,8 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	if !s.ServerClustered {
 		return response.BadRequest(errors.New("This server is not clustered"))
 	}
@@ -392,11 +386,8 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	if name == "default" {
 		return response.Forbidden(errors.New(`The "default" group cannot be renamed`))
 	}
@@ -484,11 +475,8 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	if !s.ServerClustered {
 		return response.BadRequest(errors.New("This server is not clustered"))
 	}
@@ -610,11 +598,8 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	if !s.ServerClustered {
 		return response.BadRequest(errors.New("This server is not clustered"))
 	}
@@ -773,11 +758,8 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	// Quick checks.
 	if name == "default" {
 		return response.Forbidden(errors.New("The 'default' cluster group cannot be deleted"))

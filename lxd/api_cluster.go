@@ -17,7 +17,6 @@ import (
 	"time"
 
 	dqlite "github.com/canonical/go-dqlite/v3/client"
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -1591,11 +1590,8 @@ func clusterCheckNetworksMatch(ctx context.Context, cluster *db.Cluster, reqNetw
 func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	address, err := url.PathUnescape(mux.Vars(r)["address"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	address := r.PathValue("address")
+	var err error
 	err = cluster.RemoveRaftNode(d.gateway, address)
 	if err != nil {
 		return response.SmartError(err)

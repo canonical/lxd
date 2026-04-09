@@ -13,11 +13,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -748,11 +745,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func certificateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	fingerprint := r.PathValue("fingerprint")
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeCertificate, false)
 	if err != nil {
 		return response.SmartError(err)
@@ -823,12 +816,9 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func certificatePut(d *Daemon, r *http.Request) response.Response {
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	fingerprint := r.PathValue("fingerprint")
 	// Get current database record.
+	var err error
 	var cert *dbCluster.CertificateLegacy
 	var projectMap map[int64][]string
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -896,12 +886,9 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func certificatePatch(d *Daemon, r *http.Request) response.Response {
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	fingerprint := r.PathValue("fingerprint")
 	// Get current database record.
+	var err error
 	var cert *dbCluster.CertificateLegacy
 	var projectMap map[int64][]string
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1122,13 +1109,9 @@ func doCertificateUpdateUnprivileged(ctx context.Context, s *state.State, cert d
 func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	fingerprint := r.PathValue("fingerprint")
 	var certInfo *dbCluster.CertificateLegacy
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get current database record.
 		var err error
 		certInfo, err = dbCluster.GetCertificateLegacyByFingerprintPrefix(ctx, tx.Tx(), fingerprint)

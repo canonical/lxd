@@ -4,13 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/instance"
@@ -27,7 +24,6 @@ import (
 )
 
 var instanceLogCmd = APIEndpoint{
-	Name:        "instanceLog",
 	Path:        "instances/{name}/logs/{file}",
 	MetricsType: entity.TypeInstance,
 
@@ -35,7 +31,6 @@ var instanceLogCmd = APIEndpoint{
 }
 
 var instanceLogsCmd = APIEndpoint{
-	Name:        "instanceLogs",
 	Path:        "instances/{name}/logs",
 	MetricsType: entity.TypeInstance,
 
@@ -43,7 +38,6 @@ var instanceLogsCmd = APIEndpoint{
 }
 
 var instanceExecOutputCmd = APIEndpoint{
-	Name:        "instanceExecOutput",
 	Path:        "instances/{name}/logs/exec-output/{file}",
 	MetricsType: entity.TypeInstance,
 
@@ -55,7 +49,6 @@ var instanceExecOutputCmd = APIEndpoint{
 var instanceProtectedLogFiles = []string{"edk2.log", "lxc.log", "qemu.log", "qemu.early.log"}
 
 var instanceExecOutputsCmd = APIEndpoint{
-	Name:        "instanceExecOutputs",
 	Path:        "instances/{name}/logs/exec-output",
 	MetricsType: entity.TypeInstance,
 
@@ -127,11 +120,7 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -213,11 +202,7 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -238,11 +223,7 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	file, err := url.PathUnescape(mux.Vars(r)["file"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	file := r.PathValue("file")
 	if !validLogFileName(file) {
 		return response.BadRequest(fmt.Errorf("Log file name %q not valid", file))
 	}
@@ -316,11 +297,7 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -421,11 +398,7 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -446,11 +419,7 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	file, err := url.PathUnescape(mux.Vars(r)["file"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	file := r.PathValue("file")
 	if !validExecOutputFileName(file) {
 		return response.BadRequest(fmt.Errorf("Exec record-output file name %q not valid", file))
 	}
@@ -521,11 +490,7 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -546,11 +511,7 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	file, err := url.PathUnescape(mux.Vars(r)["file"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	file := r.PathValue("file")
 	if !validExecOutputFileName(file) {
 		return response.BadRequest(fmt.Errorf("Exec record-output file name %q not valid", file))
 	}

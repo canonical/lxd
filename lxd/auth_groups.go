@@ -10,8 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -26,7 +24,6 @@ import (
 )
 
 var authGroupsCmd = APIEndpoint{
-	Name:        "auth_groups",
 	Path:        "auth/groups",
 	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
@@ -40,7 +37,6 @@ var authGroupsCmd = APIEndpoint{
 }
 
 var authGroupCmd = APIEndpoint{
-	Name:        "auth_group",
 	Path:        "auth/groups/{groupName}",
 	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
@@ -404,11 +400,7 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getAuthGroup(d *Daemon, r *http.Request) response.Response {
-	groupName, err := url.PathUnescape(mux.Vars(r)["groupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	groupName := r.PathValue("groupName")
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeAuthGroup, false)
 	if err != nil {
 		return response.SmartError(err)
@@ -480,10 +472,8 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
-	groupName, err := url.PathUnescape(mux.Vars(r)["groupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
+	groupName := r.PathValue("groupName")
+	var err error
 
 	if groupName == api.AuthGroupAdminsName {
 		return response.BadRequest(errors.New("The admins group cannot be modified"))
@@ -579,10 +569,8 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
-	groupName, err := url.PathUnescape(mux.Vars(r)["groupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
+	groupName := r.PathValue("groupName")
+	var err error
 
 	if groupName == api.AuthGroupAdminsName {
 		return response.BadRequest(errors.New("The admins group cannot be modified"))
@@ -689,10 +677,8 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
-	groupName, err := url.PathUnescape(mux.Vars(r)["groupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
+	groupName := r.PathValue("groupName")
+	var err error
 
 	if groupName == api.AuthGroupAdminsName {
 		return response.BadRequest(errors.New("The admins group cannot be renamed"))
@@ -749,10 +735,8 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
-	groupName, err := url.PathUnescape(mux.Vars(r)["groupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
+	groupName := r.PathValue("groupName")
+	var err error
 
 	if groupName == api.AuthGroupAdminsName {
 		return response.BadRequest(errors.New("The admins group cannot be deleted"))

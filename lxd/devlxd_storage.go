@@ -4,10 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"strings"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -69,11 +66,7 @@ func devLXDStoragePoolGetHandler(d *Daemon, r *http.Request) response.Response {
 		return response.DevLXDErrorResponse(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
+	poolName := r.PathValue("poolName")
 	// Get storage pool.
 	projectName := inst.Project().Name
 	pool := api.StoragePool{}
@@ -83,6 +76,8 @@ func devLXDStoragePoolGetHandler(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
+
+	req.SetPathValue("poolName", poolName)
 
 	resp := storagePoolGet(d, req)
 	etag, err := response.NewResponseCapture(req).RenderToStruct(resp, &pool)
@@ -109,18 +104,9 @@ func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) response.Res
 	}
 
 	projectName := inst.Project().Name
-	pathVars := mux.Vars(r)
 
-	poolName, err := url.PathUnescape(pathVars["poolName"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
-	volType, err := url.PathUnescape(pathVars["type"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
+	poolName := r.PathValue("poolName")
+	volType := r.PathValue("type")
 	// Get identity from the request context.
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
@@ -157,6 +143,9 @@ func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) response.Res
 		return response.DevLXDErrorResponse(err)
 	}
 
+	req.SetPathValue("poolName", poolName)
+	req.SetPathValue("type", volType)
+
 	resp := storagePoolVolumesGet(d, req)
 	_, err = response.NewResponseCapture(req).RenderToStruct(resp, &vols)
 	if err != nil {
@@ -192,18 +181,9 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 	}
 
 	projectName := inst.Project().Name
-	pathVars := mux.Vars(r)
 
-	poolName, err := url.PathUnescape(pathVars["poolName"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
-	volType, err := url.PathUnescape(pathVars["type"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
+	poolName := r.PathValue("poolName")
+	volType := r.PathValue("type")
 	// Get identity from the request context.
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
@@ -278,11 +258,9 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 
 		// Set path variables for the request, required when populating the request using volume details.
 		// Source volume is not part of the original request URL.
-		req = mux.SetURLVars(req, map[string]string{
-			"volumeName": sourceVolName,
-			"poolName":   vol.Source.Pool,
-			"type":       "custom",
-		})
+		req.SetPathValue("volumeName", sourceVolName)
+		req.SetPathValue("poolName", vol.Source.Pool)
+		req.SetPathValue("type", "custom")
 
 		// Populate request context with source volume details.
 		err = addStoragePoolVolumeDetailsToRequestContext(d.State(), req)
@@ -327,6 +305,9 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 		return response.DevLXDErrorResponse(err)
 	}
 
+	req.SetPathValue("poolName", poolName)
+	req.SetPathValue("type", volType)
+
 	resp := storagePoolVolumesPost(d, req)
 	op, err := response.NewResponseCapture(req).RenderToOperation(resp)
 	if err != nil {
@@ -363,6 +344,10 @@ func devLXDStoragePoolVolumeGet(ctx context.Context, d *Daemon, target string, p
 	if err != nil {
 		return nil, "", err
 	}
+
+	req.SetPathValue("poolName", poolName)
+	req.SetPathValue("type", volType)
+	req.SetPathValue("volumeName", volName)
 
 	resp := storagePoolVolumeGet(d, req)
 	etag, err := response.NewResponseCapture(req).RenderToStruct(resp, &vol)
@@ -477,6 +462,10 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Resp
 		return response.DevLXDErrorResponse(err)
 	}
 
+	req.SetPathValue("poolName", poolName)
+	req.SetPathValue("type", volType)
+	req.SetPathValue("volumeName", volName)
+
 	var resp response.Response
 	if r.Method == http.MethodPatch {
 		resp = storagePoolVolumePatch(d, req)
@@ -524,6 +513,10 @@ func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) response.R
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
+
+	req.SetPathValue("poolName", poolName)
+	req.SetPathValue("type", volType)
+	req.SetPathValue("volumeName", volName)
 
 	resp := storagePoolVolumeDelete(d, req)
 	op, err := response.NewResponseCapture(req).RenderToOperation(resp)
@@ -577,6 +570,10 @@ func devLXDStoragePoolVolumeSnapshotsGetHandler(d *Daemon, r *http.Request) resp
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
+
+	req.SetPathValue("poolName", poolName)
+	req.SetPathValue("type", volType)
+	req.SetPathValue("volumeName", volName)
 
 	var snapshots []api.StorageVolumeSnapshot
 
@@ -650,6 +647,10 @@ func devLXDStoragePoolVolumeSnapshotsPostHandler(d *Daemon, r *http.Request) res
 		return response.DevLXDErrorResponse(err)
 	}
 
+	req.SetPathValue("poolName", poolName)
+	req.SetPathValue("type", volType)
+	req.SetPathValue("volumeName", volName)
+
 	resp := storagePoolVolumeSnapshotsTypePost(d, req)
 	op, err := response.NewResponseCapture(req).RenderToOperation(resp)
 	if err != nil {
@@ -672,11 +673,7 @@ func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) respo
 		return response.DevLXDErrorResponse(err)
 	}
 
-	snapName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
+	snapName := r.PathValue("snapshotName")
 	projectName := inst.Project().Name
 	target := r.URL.Query().Get("target")
 
@@ -701,6 +698,11 @@ func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) respo
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
+
+	req.SetPathValue("poolName", poolName)
+	req.SetPathValue("type", volType)
+	req.SetPathValue("volumeName", volName)
+	req.SetPathValue("snapshotName", snapName)
 
 	var snapshot api.StorageVolumeSnapshot
 
@@ -734,11 +736,7 @@ func devLXDStoragePoolVolumeSnapshotDeleteHandler(d *Daemon, r *http.Request) re
 		return response.DevLXDErrorResponse(err)
 	}
 
-	snapName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
+	snapName := r.PathValue("snapshotName")
 	projectName := inst.Project().Name
 	target := r.URL.Query().Get("target")
 
@@ -763,6 +761,11 @@ func devLXDStoragePoolVolumeSnapshotDeleteHandler(d *Daemon, r *http.Request) re
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
+
+	req.SetPathValue("poolName", poolName)
+	req.SetPathValue("type", volType)
+	req.SetPathValue("volumeName", volName)
+	req.SetPathValue("snapshotName", snapName)
 
 	resp := storagePoolVolumeSnapshotTypeDelete(d, req)
 	op, err := response.NewResponseCapture(req).RenderToOperation(resp)
@@ -808,22 +811,8 @@ func devLXDStoragePoolVolumeTypeAccessHandler(entityType entity.Type, entitlemen
 
 // extractVolumeParams extracts the pool name, volume type and volume name from the request URL.
 func extractVolumeParams(r *http.Request) (poolName string, volType string, volName string, err error) {
-	pathVars := mux.Vars(r)
-
-	poolName, err = url.PathUnescape(pathVars["poolName"])
-	if err != nil {
-		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
-	}
-
-	volType, err = url.PathUnescape(pathVars["type"])
-	if err != nil {
-		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
-	}
-
-	volName, err = url.PathUnescape(pathVars["volumeName"])
-	if err != nil {
-		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
-	}
-
+	poolName = r.PathValue("poolName")
+	volType = r.PathValue("type")
+	volName = r.PathValue("volumeName")
 	return poolName, volType, volName, nil
 }

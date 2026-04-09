@@ -1,12 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/bearer"
@@ -22,10 +22,7 @@ import (
 
 func restServer(d *Daemon) *http.Server {
 	/* Setup the web server */
-	mux := mux.NewRouter()
-	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
-	mux.SkipClean(true)
-	mux.UseEncodedPath() // Allow encoded values in path segments.
+	mux := &lxdMux{ServeMux: http.NewServeMux()}
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
 		mux.HandleFunc(endpoint, f)
@@ -38,16 +35,6 @@ func restServer(d *Daemon) *http.Server {
 		}
 
 		d.createCmd(mux, "1.0", c)
-
-		// Create any alias endpoints using the same handlers as the parent endpoint but
-		// with a different path and name (so the handler can differentiate being called via
-		// a different endpoint) if it wants to.
-		for _, alias := range c.Aliases {
-			ac := c
-			ac.Name = alias.Name
-			ac.Path = alias.Path
-			d.createCmd(mux, "1.0", ac)
-		}
 	}
 
 	for _, c := range apiInternal {
@@ -58,7 +45,7 @@ func restServer(d *Daemon) *http.Server {
 		d.createCmd(mux, "", c)
 	}
 
-	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		metrics.TrackStartedRequest(r, entity.TypeServer) // Use TypeServer for not found handler
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
@@ -84,11 +71,9 @@ func isBrowserClient(r *http.Request) bool {
 
 func metricsServer(d *Daemon) *http.Server {
 	/* Setup the web server */
-	mux := mux.NewRouter()
-	mux.StrictSlash(false)
-	mux.SkipClean(true)
+	mux := &lxdMux{ServeMux: http.NewServeMux()}
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
 	})
@@ -100,7 +85,7 @@ func metricsServer(d *Daemon) *http.Server {
 	d.createCmd(mux, "1.0", api10Cmd)
 	d.createCmd(mux, "1.0", metricsCmd)
 
-	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		metrics.TrackStartedRequest(r, entity.TypeServer) // Use TypeServer for not found handler
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
@@ -116,8 +101,147 @@ func metricsServer(d *Daemon) *http.Server {
 	}
 }
 
+type lxdMux struct {
+	*http.ServeMux
+	prefixHandlers []lxdPrefixHandler
+}
+
+// lxdPrefixHandler handles patterns that could not be registered on ServeMux
+// due to routing conflicts [images/aliases/{name} vs. "images/{fingerprint}/export"]
+// It matches requests by prefix, an optional suffix, and a single-segment variable in between.
+type lxdPrefixHandler struct {
+	prefix  string
+	varName string
+	suffix  string
+	handler http.HandlerFunc
+}
+
+// HandleFunc registers a handler for the given pattern. If the pattern conflicts
+// with an already-registered ServeMux pattern, it falls back to prefix-based matching.
+func (m *lxdMux) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	if !m.tryRegister(pattern, handler) {
+		// Parse the pattern to extract prefix, variable name, and suffix.
+		// For example, "images/{fingerprint}/export" becomes:
+		// prefix="/1.0/images/", varName="fingerprint", suffix="/export".
+		start := strings.Index(pattern, "{")
+		end := strings.Index(pattern, "}")
+		if start == -1 || end == -1 || end <= start {
+			panic(fmt.Sprintf("Conflicting route pattern without parsable path variable: %q", pattern))
+		}
+
+		prefix := pattern[:start]
+		suffix := pattern[end+1:]
+
+		// Guard against duplicate registrations: a second call with the same
+		// conflicting pattern would append an unreachable entry.
+		for _, existing := range m.prefixHandlers {
+			if existing.prefix == prefix && existing.suffix == suffix {
+				panic(fmt.Sprintf("Duplicate conflicting route registration for pattern %q", pattern))
+			}
+		}
+
+		m.prefixHandlers = append(m.prefixHandlers, lxdPrefixHandler{
+			prefix:  prefix,
+			varName: strings.TrimSuffix(pattern[start+1:end], "..."),
+			suffix:  suffix,
+			handler: handler,
+		})
+	}
+}
+
+// tryRegister attempts to register a pattern on the underlying ServeMux.
+// Returns false if ServeMux panics due to a routing conflict. Any other
+// panic is re-raised so that unexpected issues are not silently swallowed.
+func (m *lxdMux) tryRegister(pattern string, handler http.HandlerFunc) (registered bool) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+
+		msg := fmt.Sprint(r)
+
+		// ServeMux panics with a message containing "conflicts with pattern"
+		// when two patterns overlap. Verified against Go 1.22-1.26. If Go
+		// changes the wording, tryRegister will re-panic (safe failure)
+		// instead of silently dropping routes.
+		if !strings.Contains(msg, "conflicts with pattern") {
+			panic(r)
+		}
+
+		// Distinguish a legitimate overlap (two different patterns that
+		// conflict) from an accidental exact duplicate. Go's panic message
+		// for ServeMux conflicts is of the form:
+		//   pattern "A" ... conflicts with pattern "B" ...
+		// If our pattern appears twice, A == B: the caller registered the
+		// exact same pattern twice, which is a programmer error.
+		quoted := fmt.Sprintf("%q", pattern)
+		if strings.Count(msg, quoted) >= 2 {
+			panic(r)
+		}
+
+		registered = false
+	}()
+
+	m.ServeMux.HandleFunc(pattern, handler)
+
+	return true
+}
+
+func (m *lxdMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// note that we prefer ServeMux when it has a matching pattern. This ensures
+	// that directly-registered routes take priority over prefix fallback
+	// handlers, which matters when both could match. like
+	// /images/aliases/export matches both "images/aliases/{name}" on ServeMux
+	// and the prefix handler for "images/{fingerprint}/export". See
+	// https://github.com/canonical/lxd/pull/17856
+	_, pattern := m.Handler(r)
+	if pattern != "" && pattern != "/" {
+		m.ServeMux.ServeHTTP(w, r)
+		return
+	}
+
+	// prefix handlers
+	escapedPath := r.URL.EscapedPath()
+	pathLen := len(escapedPath)
+
+	for _, ph := range m.prefixHandlers {
+		preLen := len(ph.prefix)
+		sufLen := len(ph.suffix)
+
+		if pathLen < preLen+sufLen || !strings.HasPrefix(escapedPath, ph.prefix) {
+			continue
+		}
+
+		remainder := escapedPath[preLen:]
+		if !strings.HasSuffix(remainder, ph.suffix) {
+			continue
+		}
+
+		val := remainder[:len(remainder)-sufLen]
+
+		if val == "" || strings.Contains(val, "/") {
+			// encoded slashes (%2f) are fine and stay as-is.
+			continue
+		}
+
+		decoded, err := url.PathUnescape(val)
+		if err != nil {
+			decoded = val
+		}
+
+		r.SetPathValue(ph.varName, decoded)
+		ph.handler(w, r)
+
+		return
+	}
+
+	// a legit 404.
+	m.ServeMux.ServeHTTP(w, r)
+}
+
 type lxdHTTPServer struct {
-	r *mux.Router
+	r http.Handler
 	d *Daemon
 }
 

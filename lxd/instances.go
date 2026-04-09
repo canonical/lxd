@@ -27,7 +27,6 @@ import (
 )
 
 var instancesCmd = APIEndpoint{
-	Name:        "instances",
 	Path:        "instances",
 	MetricsType: entity.TypeInstance,
 
@@ -37,7 +36,6 @@ var instancesCmd = APIEndpoint{
 }
 
 var instanceCmd = APIEndpoint{
-	Name:        "instance",
 	Path:        "instances/{name}",
 	MetricsType: entity.TypeInstance,
 
@@ -49,7 +47,6 @@ var instanceCmd = APIEndpoint{
 }
 
 var instanceUEFIVarsCmd = APIEndpoint{
-	Name:        "instanceUEFIVars",
 	Path:        "instances/{name}/uefi-vars",
 	MetricsType: entity.TypeInstance,
 
@@ -58,7 +55,6 @@ var instanceUEFIVarsCmd = APIEndpoint{
 }
 
 var instanceRebuildCmd = APIEndpoint{
-	Name:        "instanceRebuild",
 	Path:        "instances/{name}/rebuild",
 	MetricsType: entity.TypeInstance,
 
@@ -66,7 +62,6 @@ var instanceRebuildCmd = APIEndpoint{
 }
 
 var instanceStateCmd = APIEndpoint{
-	Name:        "instanceState",
 	Path:        "instances/{name}/state",
 	MetricsType: entity.TypeInstance,
 
@@ -75,7 +70,6 @@ var instanceStateCmd = APIEndpoint{
 }
 
 var instanceSFTPCmd = APIEndpoint{
-	Name:        "instanceFile",
 	Path:        "instances/{name}/sftp",
 	MetricsType: entity.TypeInstance,
 
@@ -83,7 +77,6 @@ var instanceSFTPCmd = APIEndpoint{
 }
 
 var instanceFileCmd = APIEndpoint{
-	Name:        "instanceFile",
 	Path:        "instances/{name}/files",
 	MetricsType: entity.TypeInstance,
 
@@ -94,7 +87,6 @@ var instanceFileCmd = APIEndpoint{
 }
 
 var instanceSnapshotsCmd = APIEndpoint{
-	Name:        "instanceSnapshots",
 	Path:        "instances/{name}/snapshots",
 	MetricsType: entity.TypeInstance,
 
@@ -103,7 +95,6 @@ var instanceSnapshotsCmd = APIEndpoint{
 }
 
 var instanceSnapshotCmd = APIEndpoint{
-	Name:        "instanceSnapshot",
 	Path:        "instances/{name}/snapshots/{snapshotName}",
 	MetricsType: entity.TypeInstance,
 
@@ -115,7 +106,6 @@ var instanceSnapshotCmd = APIEndpoint{
 }
 
 var instanceConsoleCmd = APIEndpoint{
-	Name:        "instanceConsole",
 	Path:        "instances/{name}/console",
 	MetricsType: entity.TypeInstance,
 
@@ -125,7 +115,6 @@ var instanceConsoleCmd = APIEndpoint{
 }
 
 var instanceExecCmd = APIEndpoint{
-	Name:        "instanceExec",
 	Path:        "instances/{name}/exec",
 	MetricsType: entity.TypeInstance,
 
@@ -133,7 +122,6 @@ var instanceExecCmd = APIEndpoint{
 }
 
 var instanceMetadataCmd = APIEndpoint{
-	Name:        "instanceMetadata",
 	Path:        "instances/{name}/metadata",
 	MetricsType: entity.TypeInstance,
 
@@ -143,7 +131,6 @@ var instanceMetadataCmd = APIEndpoint{
 }
 
 var instanceMetadataTemplatesCmd = APIEndpoint{
-	Name:        "instanceMetadataTemplates",
 	Path:        "instances/{name}/metadata/templates",
 	MetricsType: entity.TypeInstance,
 
@@ -153,7 +140,6 @@ var instanceMetadataTemplatesCmd = APIEndpoint{
 }
 
 var instanceBackupsCmd = APIEndpoint{
-	Name:        "instanceBackups",
 	Path:        "instances/{name}/backups",
 	MetricsType: entity.TypeInstance,
 
@@ -162,7 +148,6 @@ var instanceBackupsCmd = APIEndpoint{
 }
 
 var instanceBackupCmd = APIEndpoint{
-	Name:        "instanceBackup",
 	Path:        "instances/{name}/backups/{backupName}",
 	MetricsType: entity.TypeInstance,
 
@@ -172,7 +157,6 @@ var instanceBackupCmd = APIEndpoint{
 }
 
 var instanceBackupExportCmd = APIEndpoint{
-	Name:        "instanceBackupExport",
 	Path:        "instances/{name}/backups/{backupName}/export",
 	MetricsType: entity.TypeInstance,
 
