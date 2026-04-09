@@ -126,6 +126,9 @@ const (
 	NetworkLoadBalancerCreate
 	NetworkLoadBalancerUpdate
 	NetworkLoadBalancerDelete
+	NetworkForwardCreate
+	NetworkForwardUpdate
+	NetworkForwardDelete
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -339,6 +342,12 @@ func (t Type) Description() string {
 		return "Updating network load balancer"
 	case NetworkLoadBalancerDelete:
 		return "Deleting network load balancer"
+	case NetworkForwardCreate:
+		return "Creating network forward"
+	case NetworkForwardUpdate:
+		return "Updating network forward"
+	case NetworkForwardDelete:
+		return "Deleting network forward"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -419,6 +428,10 @@ func (t Type) EntityType() entity.Type {
 
 	// Network load balancer operations.
 	case NetworkLoadBalancerCreate, NetworkLoadBalancerUpdate, NetworkLoadBalancerDelete:
+		return entity.TypeNetwork
+
+	// Network forward operations.
+	case NetworkForwardCreate, NetworkForwardUpdate, NetworkForwardDelete:
 		return entity.TypeNetwork
 
 	// It should never be possible to reach the default clause.
