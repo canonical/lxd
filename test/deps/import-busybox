@@ -53,7 +53,7 @@ class LXD:
             data["project"] = self.project
             self.lxd.request(
                 method,
-                "%s?%s" % "&".join([f"{key}={value}" for key, value in data.items()]),
+                path + "?" + "&".join([f"{key}={value}" for key, value in data.items()]),
                 headers,
             )
         else:
