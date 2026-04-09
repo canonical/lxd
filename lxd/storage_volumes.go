@@ -1167,8 +1167,6 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 }
 
 func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddress string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
-	websockets := map[string]string{}
-
 	client, err := lxdCluster.Connect(r.Context(), sourceAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
@@ -1194,13 +1192,9 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 
 	opAPI := op.Get()
 
-	for k, v := range opAPI.Metadata {
-		ws, ok := v.(string)
-		if !ok {
-			continue
-		}
-
-		websockets[k] = ws
+	websockets, err := opAPI.WebsocketSecrets()
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Reset the source for a migration
