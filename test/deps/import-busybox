@@ -159,10 +159,9 @@ class BusyBox:
     def __init__(self):
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
-        binary_path = shutil.which("busybox")
-        if not binary_path:
+        self.binary_path = shutil.which("busybox")
+        if not self.binary_path:
             raise RuntimeError("Unable to locate busybox binary in PATH")
-        self.binary_path = binary_path
         atexit.register(self.cleanup)
 
     def cleanup(self):
