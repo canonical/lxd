@@ -166,7 +166,7 @@ func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 	memberSpecific := false // Get load balancers for all cluster members.
 
 	recursion, _ := util.IsRecursionRequest(r)
-	if recursion > 0 {
+	if recursion == 1 {
 		var records map[int64]*api.NetworkLoadBalancer
 
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
