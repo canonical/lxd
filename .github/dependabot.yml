@@ -20,6 +20,11 @@ updates:
 
   - package-ecosystem: "gomod"
     directory: "/tools"
+    # golangci-lint is declared via the `tool` directive in go.mod, which does not
+    # create a Go import, so `go mod tidy` marks it as `// indirect`. Dependabot
+    # skips indirect deps by default, so we must explicitly allow it here.
+    allow:
+      - dependency-name: "github.com/golangci/golangci-lint/v2"
     labels: []
     schedule:
       interval: "weekly"
