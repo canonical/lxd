@@ -75,11 +75,11 @@ test_network_zone() {
   lxc network zone set 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa peers.test.address=192.0.2.1
 
   # Enable the DNS listener on the bridge itself
-  lxc config set core.dns_address 192.0.2.1:8853
+  DNS_ADDR="192.0.2.1"
+  DNS_PORT="8853"
+  lxc config set core.dns_address "${DNS_ADDR}:${DNS_PORT}"
 
   # Check the zones
-  DNS_ADDR="$(lxc config get core.dns_address | cut -d: -f1)"
-  DNS_PORT="$(lxc config get core.dns_address | cut -d: -f2)"
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep "${netName}.gw.lxd.example.net.\s\+300\s\+IN\s\+A\s\+"
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep "c1.lxd.example.net.\s\+300\s\+IN\s\+A\s\+"
