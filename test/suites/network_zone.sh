@@ -143,6 +143,26 @@ test_network_zone() {
   [ "$(dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxdfoo.example.net | grep -Fc demo.lxdfoo.example.net)" = "6" ]
   lxc network zone record entry remove lxdfoo.example.net demo A 1.1.1.1 --project foo
 
+  # Test patching of network zone record.
+  lxc network zone record create lxd.example.net patchtest user.key1=val1 user.key2=val2
+  lxc network zone record entry add lxd.example.net patchtest A 3.3.3.3 --ttl 600
+
+  # Patch config. Description, entries, and other config keys must be preserved.
+  lxc query --wait -X PATCH /1.0/network-zones/lxd.example.net/records/patchtest -d '{"config": {"user.key1": "updated"}}'
+  record_output="$(lxc query /1.0/network-zones/lxd.example.net/records/patchtest)"
+  echo "${record_output}" | jq --exit-status '.config["user.key1"] == "updated"'
+  echo "${record_output}" | jq --exit-status '.config["user.key2"] == "val2"'
+  echo "${record_output}" | jq --exit-status '.entries | length == 1'
+
+  # Patch entries. Description and config must be preserved.
+  lxc query --wait -X PATCH /1.0/network-zones/lxd.example.net/records/patchtest -d '{"entries": [{"type": "A", "value": "4.4.4.4", "ttl": 300}]}'
+  record_output="$(lxc query /1.0/network-zones/lxd.example.net/records/patchtest)"
+  echo "${record_output}" | jq --exit-status '.config["user.key1"] == "updated"'
+  echo "${record_output}" | jq --exit-status '.config["user.key2"] == "val2"'
+  echo "${record_output}" | jq --exit-status '.entries[0].value == "4.4.4.4"'
+
+  lxc network zone record delete lxd.example.net patchtest
+
   # Check that the listener survives a restart of LXD
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
