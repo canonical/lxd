@@ -7,7 +7,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.26.1
+GOMIN=1.26.2
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
@@ -261,6 +261,8 @@ ifeq "$(GOMIN)" "$(NEW_GOMIN)"
 	@echo "Error: NEW_GOMIN ($(NEW_GOMIN)) is the same as current GOMIN ($(GOMIN))"
 	exit 1
 endif
+	@# Verify the new Go version snap is uniformly available for all architectures
+	@./scripts/check-go-snap.sh "$(NEW_GOMIN)"
 	@echo "Updating Go minimum version from $(GOMIN) to $(NEW_GOMIN)"
 
 	@# Update GOMIN in Makefile
