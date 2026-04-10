@@ -58,6 +58,7 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -1305,10 +1306,15 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Revert handling.
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() { cleanup(builddir, post) })
+
 	_, err = io.Copy(shared.NewQuotaWriter(post, budget), r.Body)
 	if err != nil {
 		logger.Errorf("Store image POST data to disk: %v", err)
-		cleanup(builddir, post)
 		return response.InternalError(err)
 	}
 
@@ -1325,7 +1331,6 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	err = decoder.Decode(&req)
 	if err != nil {
 		if r.Header.Get("Content-Type") == "application/json" {
-			cleanup(builddir, post)
 			return response.BadRequest(err)
 		}
 
@@ -1335,28 +1340,23 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	if imageUpload {
 		public, err := isImageUploadPublic(r, imageMetadata)
 		if err != nil {
-			cleanup(builddir, post)
 			return response.BadRequest(err)
 		}
 
 		// Ensure that public images are only allowed in the default project.
 		err = validateImagePublicSetting(public, imageProject)
 		if err != nil {
-			cleanup(builddir, post)
 			return response.SmartError(err)
 		}
 	} else {
 		// Ensure that public images are only allowed in the default project.
 		err = validateImagePublicSetting(req.Public, imageProject)
 		if err != nil {
-			cleanup(builddir, post)
 			return response.SmartError(err)
 		}
 	}
 
 	if !imageUpload && req.Source.Mode == "push" {
-		cleanup(builddir, post)
-
 		metadata := map[string]any{
 			"aliases":    req.Aliases,
 			"expires_at": req.ExpiresAt,
@@ -1368,7 +1368,6 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !imageUpload && !slices.Contains([]api.SourceType{"container", "instance", "virtual-machine", "snapshot", "image", "url"}, req.Source.Type) {
-		cleanup(builddir, post)
 		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
@@ -1391,11 +1390,11 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			r.Body = post
 			resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, dbProject.Name, name, instanceType)
 			if err != nil {
-				cleanup(builddir, post)
 				return response.SmartError(err)
 			}
 
 			if resp != nil {
+				revert.Success()
 				cleanup(builddir, nil)
 				return resp
 			}
@@ -1546,10 +1545,10 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	imageOp, err := operations.ScheduleUserOperationFromRequest(s, r, args)
 	if err != nil {
-		cleanup(builddir, post)
 		return response.InternalError(err)
 	}
 
+	revert.Success()
 	return operations.OperationResponse(imageOp)
 }
 
