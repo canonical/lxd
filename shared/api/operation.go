@@ -15,6 +15,17 @@ const OperationClassWebsocket = "websocket"
 // OperationClassToken represents the Token OperationClass.
 const OperationClassToken = "token"
 
+const (
+	// MetadataEntityURL is always set in operation metadata for operations whose associated entity type is not "server".
+	// It identifies the entity that the operation is acting on.
+	// The default value is the operation primary entity URL, but callers can override it to indicate the expected new URL.
+	MetadataEntityURL = "entity_url"
+
+	// MetadataOriginalEntityURL is set in operation metadata when renaming a resource.
+	// Callers are expected to set both MetadataOriginalEntityURL and MetadataEntityURL in operation metadata.
+	MetadataOriginalEntityURL = "original_entity_url"
+)
+
 // Operation represents a LXD background operation
 //
 // swagger:model
