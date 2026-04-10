@@ -93,7 +93,7 @@ The CI pipeline (`.github/workflows/tests.yml`) runs:
 
 ### Validation Steps Before Committing
 
-See `.github/skills/pre-commit-checks/SKILL.md`.
+Invoke the `pre-commit-checks` skill before committing any code change.
 
 ## Development Guidelines
 
