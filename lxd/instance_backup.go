@@ -375,7 +375,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	metadata := map[string]any{
-		operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(inst.Project().Name).String(),
+		api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(inst.Project().Name).String(),
 	}
 
 	args := operations.OperationArgs{

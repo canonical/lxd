@@ -239,7 +239,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		Class:       operations.OperationClassTask,
 		RunHook:     snapshot,
 		Metadata: map[string]any{
-			operations.EntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", req.Name).Project(effectiveProjectName).String(),
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", req.Name).Project(effectiveProjectName).String(),
 		},
 	}
 
