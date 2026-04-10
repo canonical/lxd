@@ -1297,6 +1297,12 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 			req.Type = api.InstanceType(sourceInst.Type.String())
 
+			// Use source instance's architecture.
+			req.Architecture, err = osarch.ArchitectureName(sourceInst.Architecture)
+			if err != nil {
+				return err
+			}
+
 			// Use source instance's profiles if no profile override.
 			if req.Profiles == nil {
 				sourceInstArgs, err := tx.InstancesToInstanceArgs(ctx, true, *sourceInst)
