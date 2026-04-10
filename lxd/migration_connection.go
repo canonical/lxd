@@ -16,8 +16,6 @@ import (
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/tcp"
 	"github.com/canonical/lxd/shared/ws"
 )
 
@@ -97,14 +95,12 @@ func (c *migrationConn) AcceptIncoming(r *http.Request, w http.ResponseWriter) e
 		return fmt.Errorf("Failed upgrading incoming request to websocket: %w", err)
 	}
 
-	// Set TCP timeout options.
-	remoteTCP, err := tcp.ExtractConn(c.conn.NetConn())
-	if err == nil && remoteTCP != nil {
-		err = tcp.SetTimeouts(remoteTCP, 0)
-		if err != nil {
-			logger.Warn("Failed setting TCP timeouts on incoming websocket connection", logger.Ctx{"err": err})
-		}
-	}
+	// Enable TCP keepalive and periodic websocket pings so that a silently-dead
+	// connection (e.g. after a network partition) is detected within ~15 seconds
+	// rather than relying solely on TCP retransmission timeouts, which can take
+	// minutes. This ensures migration failures are surfaced quickly so cleanup
+	// can happen on both sides while LXD is still running.
+	ws.StartKeepAlive(c.conn)
 
 	close(c.connected)
 
@@ -138,6 +134,11 @@ func (c *migrationConn) WebSocket(ctx context.Context) (*websocket.Conn, error) 
 			c.mu.Unlock()
 			return nil, err
 		}
+
+		// Enable keepalive so that a dead outgoing connection is detected quickly.
+		// Previously outgoing connections had no TCP timeouts at all,
+		// so the dialing side could block indefinitely on a network partition.
+		ws.StartKeepAlive(c.conn)
 
 		c.mu.Unlock()
 		return c.conn, nil
