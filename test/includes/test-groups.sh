@@ -13,6 +13,7 @@ readonly test_group_cluster=(
     "clustering_profiles"
     "clustering_projects_force_delete"
     "clustering_join_api"
+    "clustering_join_certificate_conflict"
     "clustering_shutdown_nodes"
     "clustering_projects"
     "clustering_metrics"
