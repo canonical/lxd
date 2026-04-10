@@ -7,6 +7,9 @@ on:
 permissions:
   contents: read
 
+env:
+  KEV_URL: https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
@@ -42,10 +45,10 @@ jobs:
 
       - name: Tag KEV alerts
         run: |
-            cd /home/runner
-            curl -s --compressed -o kev.json https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+            set -euo pipefail
+            curl -s --compressed --proto '=https' --tlsv1.3 --fail --max-time 30 -o kev.json "${KEV_URL}"
             kev_ids="$(jq -r '.vulnerabilities[].cveID' kev.json)"
-            jq --arg ids "$kev_ids" '($ids | split("\n")) as $id_list | .runs[].tool.driver.rules[] |= (
+            jq --exit-status --arg ids "$kev_ids" '($ids | split("\n")) as $id_list | .runs[].tool.driver.rules[] |= (
               if (.id as $id | $id_list | index($id)) then
                 .shortDescription.text |= . + " (KEV)"
               else
@@ -104,11 +107,12 @@ jobs:
 
       - name: Flag snap scanning alerts and tag KEV alerts
         run: |
+          set -euo pipefail
           # Download KEV catalog
-          curl -s --compressed -o kev.json https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+          curl -s --compressed --proto '=https' --tlsv1.3 --fail --max-time 30 -o kev.json "${KEV_URL}"
           kev_ids="$(jq -r '.vulnerabilities[].cveID' kev.json)"
           # Modify the SARIF file to both add "Snap scan - " prefix and tag KEV alerts
-          jq --arg ids "$kev_ids" '
+          jq --exit-status --arg ids "$kev_ids" '
             ($ids | split("\n")) as $id_list |
             .runs[].tool.driver.rules[] |= (
               # First add the Snap scan prefix to all entries
