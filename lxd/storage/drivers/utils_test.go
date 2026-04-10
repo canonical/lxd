@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 // Test GetVolumeMountPath.
@@ -152,7 +153,17 @@ func TestLoopFileSizeResolve(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, strconv.FormatInt(3*1024*1024*1024+512, 10)+"B", size)
 
-	// sourceRecover=false or nonexistent file falls back to loopFileSizeDefault.
+	// sourceRecover=false or nonexistent file falls back to loopFileSizeDefault
+	// which requires at least 5GiB free on the LXD_DIR filesystem.
+	var st unix.Statfs_t
+	err = unix.Statfs(dir, &st)
+	require.NoError(t, err)
+
+	gibFree := uint64(st.Frsize) * st.Bavail / (1024 * 1024 * 1024)
+	if gibFree < 5 {
+		t.Skipf("Skipping loopFileSizeDefault tests: only %d GiB free, need at least 5 GiB", gibFree)
+	}
+
 	size, err = loopFileSizeResolve(existingFile, false)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, size)
