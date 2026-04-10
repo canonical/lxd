@@ -63,50 +63,85 @@ func (r *ProtocolLXD) GetNetworkPeer(networkName string, peerName string) (*api.
 }
 
 // CreateNetworkPeer defines a new network peer using the provided struct.
-// Returns true if the peer connection has been mutually created. Returns false if peering has been only initiated.
-func (r *ProtocolLXD) CreateNetworkPeer(networkName string, peer api.NetworkPeersPost) error {
+func (r *ProtocolLXD) CreateNetworkPeer(networkName string, peer api.NetworkPeersPost) (Operation, error) {
 	err := r.CheckExtension("network_peer")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("networks", networkName, "peers")
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPost, "/networks/"+url.PathEscape(networkName)+"/peers", peer, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, path.String(), peer, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, path.String(), peer, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // UpdateNetworkPeer updates the network peer to match the provided struct.
-func (r *ProtocolLXD) UpdateNetworkPeer(networkName string, peerName string, peer api.NetworkPeerPut, ETag string) error {
+func (r *ProtocolLXD) UpdateNetworkPeer(networkName string, peerName string, peer api.NetworkPeerPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("network_peer")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("networks", networkName, "peers", peerName)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodPut, "/networks/"+url.PathEscape(networkName)+"/peers/"+url.PathEscape(peerName), peer, ETag)
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, path.String(), peer, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, path.String(), peer, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // DeleteNetworkPeer deletes an existing network peer.
-func (r *ProtocolLXD) DeleteNetworkPeer(networkName string, peerName string) error {
+func (r *ProtocolLXD) DeleteNetworkPeer(networkName string, peerName string) (Operation, error) {
 	err := r.CheckExtension("network_peer")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	path := api.NewURL().Path("networks", networkName, "peers", peerName)
+
+	var op Operation
 
 	// Send the request.
-	_, _, err = r.query(http.MethodDelete, "/networks/"+url.PathEscape(networkName)+"/peers/"+url.PathEscape(peerName), nil, "")
+	err = r.CheckExtension("storage_and_network_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, path.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }

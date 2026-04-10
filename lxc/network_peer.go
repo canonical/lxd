@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -337,7 +338,11 @@ func (c *cmdNetworkPeerCreate) run(cmd *cobra.Command, args []string) error {
 
 	client := resource.server
 
-	err = client.CreateNetworkPeer(resource.name, peer)
+	op, err := client.CreateNetworkPeer(resource.name, peer)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
@@ -541,7 +546,12 @@ func (c *cmdNetworkPeerSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	return client.UpdateNetworkPeer(resource.name, peer.Name, writable, etag)
+	op, err := client.UpdateNetworkPeer(resource.name, peer.Name, writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
 }
 
 // Unset.
@@ -677,7 +687,12 @@ func (c *cmdNetworkPeerEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return client.UpdateNetworkPeer(resource.name, args[1], newData.Writable(), "")
+		op, err := client.UpdateNetworkPeer(resource.name, args[1], newData.Writable(), "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
 	}
 
 	// Get the current config.
@@ -702,7 +717,11 @@ func (c *cmdNetworkPeerEdit) run(cmd *cobra.Command, args []string) error {
 		newData := api.NetworkPeer{} // We show the full info, but only send the writable fields.
 		err = yaml.UnmarshalStrict(content, &newData)
 		if err == nil {
-			err = client.UpdateNetworkPeer(resource.name, args[1], newData.Writable(), etag)
+			var op lxd.Operation
+			op, err = client.UpdateNetworkPeer(resource.name, args[1], newData.Writable(), etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor.
@@ -784,7 +803,11 @@ func (c *cmdNetworkPeerDelete) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Delete the network peer.
-	err = client.DeleteNetworkPeer(resource.name, args[1])
+	op, err := client.DeleteNetworkPeer(resource.name, args[1])
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
