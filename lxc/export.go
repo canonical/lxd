@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 type cmdExport struct {
@@ -152,10 +153,16 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	defer func() {
-		// Delete backup after we're done
+		// Delete the server-side backup after export. Log errors rather than
+		// discarding them silently so that cleanup failures are visible.
 		op, err = d.DeleteInstanceBackup(name, backupName)
-		if err == nil {
-			_ = op.Wait()
+		if err != nil {
+			logger.Warn("Failed deleting instance backup", logger.Ctx{"err": err})
+		} else {
+			err = op.Wait()
+			if err != nil {
+				logger.Warn("Failed waiting for instance backup deletion", logger.Ctx{"err": err})
+			}
 		}
 	}()
 
