@@ -55,6 +55,14 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
+			Name:     "Cluster link",
+			URL:      "/1.0/cluster/links/foo",
+			WantType: TypeClusterLink,
+			WantArgs: map[string]string{
+				"name": "foo",
+			},
+		},
+		{
 			// TypeContainer is retained for internal database compatibility. The /1.0/containers route
 			// was removed in LXD 6.7; instances are now accessed via /1.0/instances.
 			Name:        "Container",

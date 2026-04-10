@@ -256,6 +256,7 @@ test_clustering_membership() {
   # Unset join_token_expiry which will set it to the default value of 3h
   LXD_DIR="${LXD_ONE_DIR}" lxc config unset cluster.join_token_expiry
 
+  # shellcheck disable=SC2153
   LXD_DIR="${LXD_NINE_DIR}" lxd shutdown
   LXD_DIR="${LXD_EIGHT_DIR}" lxd shutdown
   LXD_DIR="${LXD_SIX_DIR}" lxd shutdown
@@ -5304,5 +5305,238 @@ test_clustering_project_limits() {
   teardown_clustering_netns
   teardown_clustering_bridge
 
+  kill_lxd "${LXD_ONE_DIR}"
+}
+
+test_clustering_link_auth() {
+  # Create two standalone clustered LXD daemons to simulate two separate clusters.
+  # We keep this test intentionally simple (single member per side) because it is
+  # focused on basic cluster-link authentication and trust state transitions.
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_ONE_DIR}" false
+
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_TWO_DIR}" false
+
+  # Get the address of LXD_ONE.
+  LXD_ONE_ADDR="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get core.https_address)"
+
+  # Enable clustering on LXD_ONE.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -cwF 'node1')" = 1 ]
+
+  sub_test "Check local cluster link deletion with pending identity"
+
+  # Create pending cluster link on LXD_ONE
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --quiet
+
+  # Check that it is not possible to create a cluster link with the same name as a pre-existing cluster link.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --quiet || false
+
+  # Check pending cluster link identity is present on LXD_ONE
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate (pending)')" = 1 ]
+
+  # Delete pending cluster link on LXD_ONE
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete foo
+
+  # Check pending cluster link identity is removed
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate (pending)')" = 0 ]
+
+  sub_test "Check cluster link trust establishment"
+
+  # Get a cluster link trust token from LXD_ONE.
+  # Create pending cluster link on LXD_ONE
+  LXD_ONE_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --quiet)"
+
+  # Check that the cluster link identity on LXD_ONE is pending
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate (pending)')" = 1 ]
+
+  sub_test "Check malformed cluster link request returns error"
+
+  malformed_cluster_link_resp="$(curl --silent --unix-socket "${LXD_ONE_DIR}/unix.socket" -H 'Content-Type: application/json' -X POST "lxd/1.0/cluster/links" -d '{"trust_token": "'"${LXD_ONE_TRUST_TOKEN}"'","type":"bidirectional"}')"
+  [ "$(echo "${malformed_cluster_link_resp}" | jq --raw-output '.error_code')" = "400" ]
+  [ "$(echo "${malformed_cluster_link_resp}" | jq --raw-output '.error')" = 'Invalid cluster link request: expected one of pending creation (name without trust_token), active creation (name with trust_token), or activation (trust_token with non-empty "volatile.addresses")' ]
+
+  # Get the address of LXD_TWO.
+  LXD_TWO_ADDR="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
+
+  # Enable clustering on LXD_TWO.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster enable node2
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -cwF 'node2')" = 1 ]
+
+  sub_test "Check failed cluster link activation rolls back local trust state"
+
+  BROKEN_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create broken_link --quiet | base64 -d | jq --exit-status '.secret |= . + "-broken"' | base64 --wrap=0)"
+
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create broken_link --token "${BROKEN_TRUST_TOKEN}" 2>&1)" = "Error: Failed activating cluster link \"broken_link\" after trying 1 address(es): Remote cluster address \"${LXD_ONE_ADDR}\": Failed during search for pending identity: Failed finding a matching pending identity: No pending identities found with given secret" ]
+
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster link list --format csv | grep -cF 'broken_link')" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc auth identity list --format csv | grep -cF 'broken_link')" = 0 ]
+
+  # Check that LXD_TWO does not trust LXD_ONE after the failed activation.
+  LXD_CONF="${LXD_ONE_DIR}" CERTNAME="cluster" CACERT="${LXD_TWO_DIR}/cluster.crt" trusted_curl "https://${LXD_TWO_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
+
+  # Delete the pending broken link from LXD_ONE before establishing the real link.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete broken_link
+
+  # Create cluster link on LXD_TWO using the token from LXD_ONE
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}"
+
+  # Check that the cluster link on LXD_TWO contains the address of LXD_ONE
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster link list --format csv | grep -cF "${LXD_ONE_ADDR}")" = 1 ]
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link info lxd_one
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster link show lxd_one | grep -cF 'type: bidirectional')" = 1 ]
+
+  # Check that the cluster link identity on LXD_TWO is active
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc auth identity list --format csv | grep -vF '(pending)' | grep -cF 'Cluster link certificate')" = 1 ]
+
+  # Check that the cluster link identity on LXD_ONE is active
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate')" = 1 ]
+
+  # Check that the cluster link on LXD_ONE contains the address of LXD_TWO
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -cF "${LXD_TWO_ADDR}")" = 1 ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link info lxd_two
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link show lxd_two | grep -cF 'type: bidirectional')" = 1 ]
+
+  # Check that LXD_TWO trusts LXD_ONE
+  LXD_CONF="${LXD_ONE_DIR}" CERTNAME="cluster" CACERT="${LXD_TWO_DIR}/cluster.crt" trusted_curl "https://${LXD_TWO_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+  # Check that LXD_ONE trusts LXD_TWO
+  LXD_CONF="${LXD_TWO_DIR}" CERTNAME="cluster" CACERT="${LXD_ONE_DIR}/cluster.crt" trusted_curl "https://${LXD_ONE_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+  sub_test "Check cluster link config get/set/unset"
+
+  # Set a user config key on the cluster link.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link set lxd_two user.foo=bar
+
+  # Verify the key is readable.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get lxd_two user.foo)" = "bar" ]
+
+  # Unset the key and verify it is removed.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link unset lxd_two user.foo
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get lxd_two user.foo || echo fail)" = "" ]
+
+  sub_test "Check volatile.* keys cannot be set by users"
+
+  # Attempting to change volatile.addresses via set must fail.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link set lxd_two volatile.addresses=99.99.99.99:8443 2>&1)" = 'Error: Volatile configuration keys cannot be modified' ]
+
+  # Verify volatile.addresses was not changed.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get lxd_two volatile.addresses)" != "99.99.99.99:8443" ]
+
+  sub_test "Check cluster link deletion and trust removal"
+
+  # Delete cluster link on LXD_ONE
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_two
+
+  # Check cluster link identity on LXD_ONE is removed
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate')" = 0 ]
+
+  # Check that LXD_ONE no longer trusts LXD_TWO
+  LXD_CONF="${LXD_TWO_DIR}" CERTNAME="cluster" CACERT="${LXD_ONE_DIR}/cluster.crt" trusted_curl "https://${LXD_ONE_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
+
+  # Check that LXD_TWO still trusts LXD_ONE
+  LXD_CONF="${LXD_ONE_DIR}" CERTNAME="cluster" CACERT="${LXD_TWO_DIR}/cluster.crt" trusted_curl "https://${LXD_TWO_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+  # Delete cluster link on LXD_TWO
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link delete lxd_one
+
+  # Check cluster link identity on LXD_TWO is removed
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate')" = 0 ]
+
+  # Check that LXD_TWO no longer trusts LXD_ONE
+  LXD_CONF="${LXD_ONE_DIR}" CERTNAME="cluster" CACERT="${LXD_TWO_DIR}/cluster.crt" trusted_curl "https://${LXD_TWO_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
+
+  # Cleanup
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
+
+test_clustering_link_info() {
+  # Create first 2-node cluster (node1,node2).
+  spawn_lxd_and_bootstrap_cluster
+
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+
+  # Create second 2-node cluster (node3,node4).
+  spawn_lxd_and_bootstrap_cluster "dir" "" 3
+
+  cert="$(cert_to_yaml "${LXD_THREE_DIR}/cluster.crt")"
+  spawn_lxd_and_join_cluster "${cert}" 4 3 "${LXD_THREE_DIR}"
+
+  sub_test "Establish cluster link and refresh volatile addresses"
+
+  # Create pending link on cluster A and activate it on cluster B.
+  LXD_ONE_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_three --quiet)"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}"
+
+  # Add a new member to cluster A and force a volatile address refresh on cluster B.
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+  spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
+  LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --raw --wait /internal/testing/cluster/link/refresh-volatile-addresses
+
+  sub_test "Check cluster link info reports active members"
+
+  # Check link info from both clusters.
+  link_info_node3="$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster link info lxd_one)"
+  echo "${link_info_node3}" | grep -F 'Cluster link members:'
+  [ "$(echo "${link_info_node3}" | grep -cF 'ACTIVE')" = 3 ]
+  link_info_node1="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link info lxd_three)"
+  echo "${link_info_node1}" | grep -F 'Cluster link members:'
+  echo "${link_info_node1}" | grep -F 'ACTIVE'
+
+  # Check link info through non-leader members on both clusters.
+  link_info_node4="$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster link info lxd_one --target node4)"
+  [ "$(echo "${link_info_node4}" | grep -cF 'ACTIVE')" = 3 ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link info lxd_three --target node2 | grep -F 'ACTIVE'
+
+  sub_test "Check cluster link info reports unreachable members"
+
+  # Take one linked member offline and ensure it is reported as unreachable.
+  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
+  link_info_node3="$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster link info lxd_one)"
+  link_info_node4="$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster link info lxd_one --target node4)"
+  [ "$(echo "${link_info_node3}" | grep -cF 'UNREACHABLE')" = 1 ]
+  [ "$(echo "${link_info_node4}" | grep -cF 'UNREACHABLE')" = 1 ]
+
+  sub_test "Check cluster link info reports unauthenticated members"
+
+  # Delete link on one side first and verify the remaining side reports it as unauthenticated.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_three
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster link info lxd_one | grep -F 'UNAUTHENTICATED'
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster link info lxd_one --target node4 | grep -F 'UNAUTHENTICATED'
+
+  sub_test "Check cluster link info when linked cluster is completely down"
+
+  # Shut down all remaining members of cluster A (node5 already down from previous sub_test).
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+
+  # Cluster link info from cluster B should report all cluster A members as UNREACHABLE.
+  link_info_down="$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster link info lxd_one)"
+  [ "$(echo "${link_info_down}" | grep -cF 'UNREACHABLE')" = 3 ]
+
+  # Cleanup remaining link.
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster link delete lxd_one
+
+  # Cleanup.
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+
+  rm -f "${LXD_FIVE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_FIVE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_ONE_DIR}"
 }

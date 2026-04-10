@@ -761,6 +761,18 @@ func IsHostname(name string) error {
 	return nil
 }
 
+// IsDomainName checks that value is a valid domain name by validating each label with [IsHostname].
+func IsDomainName(value string) error {
+	for _, label := range strings.Split(value, ".") {
+		err := IsHostname(label)
+		if err != nil {
+			return fmt.Errorf("Invalid domain name %q: %w", value, err)
+		}
+	}
+
+	return nil
+}
+
 // IsDeviceName checks name is 1-63 characters long, doesn't start with a full stop and contains only alphanumeric,
 // forward slash, hyphen, colon, underscore and full stop characters.
 func IsDeviceName(name string) error {

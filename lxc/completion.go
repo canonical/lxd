@@ -97,6 +97,9 @@ var topLevelInstanceServerResourceNameFuncs = map[string]func(server lxd.Instanc
 	"cluster_group": func(server lxd.InstanceServer) ([]string, error) {
 		return server.GetClusterGroupNames()
 	},
+	"cluster_link": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetClusterLinkNames()
+	},
 }
 
 var topLevelImageServerResourceNameFuncs = map[string]func(server lxd.ImageServer) ([]string, error){
@@ -293,6 +296,30 @@ func (g *cmdGlobal) cmpClusterMemberConfigs(memberName string) ([]string, cobra.
 
 	results := make([]string, 0, len(member.Config))
 	for k := range member.Config {
+		results = append(results, k)
+	}
+
+	return results, cobra.ShellCompDirectiveNoFileComp
+}
+
+// cmpClusterLinkConfig provides shell completion for cluster link configs.
+// It takes a link name and returns a list of cluster link configs along with a shell completion directive.
+func (g *cmdGlobal) cmpClusterLinkConfig(linkName string) ([]string, cobra.ShellCompDirective) {
+	// Parse remote
+	resources, err := g.ParseServers(linkName)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	client := resource.server
+	link, _, err := client.GetClusterLink(resource.name)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	results := make([]string, 0, len(link.Config))
+	for k := range link.Config {
 		results = append(results, k)
 	}
 

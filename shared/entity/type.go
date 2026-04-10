@@ -115,6 +115,9 @@ const (
 
 	// TypePlacementGroup represents placement group resources.
 	TypePlacementGroup Type = "placement_group"
+
+	// TypeClusterLink represents cluster link resources.
+	TypeClusterLink Type = "cluster_link"
 )
 
 const (
@@ -175,6 +178,7 @@ var entityTypes = map[Type]typeInfo{
 	TypeAuthGroup:             authGroup{},
 	TypeIdentityProviderGroup: identityProviderGroup{},
 	TypePlacementGroup:        placementGroup{},
+	TypeClusterLink:           clusterLink{},
 }
 
 // metricsEntityTypes is the source of truth for which entity types can be used to categorize endpoints
@@ -193,6 +197,7 @@ var metricsEntityTypes = []Type{
 	TypeServer,
 	TypeIdentity,
 	TypePlacementGroup,
+	TypeClusterLink,
 }
 
 // APIMetricsEntityTypes returns the list of entity types relevant for the API metrics.
@@ -587,5 +592,21 @@ func (placementGroup) path() []string {
 }
 
 func (placementGroup) pathArgNames() []string {
+	return []string{"name"}
+}
+
+type clusterLink struct {
+	typeInfoCommon
+}
+
+func (clusterLink) requiresProject() bool {
+	return false
+}
+
+func (clusterLink) path() []string {
+	return []string{"cluster", "links", pathPlaceholder}
+}
+
+func (clusterLink) pathArgNames() []string {
 	return []string{"name"}
 }
