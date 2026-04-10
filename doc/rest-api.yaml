@@ -13730,8 +13730,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -13754,12 +13754,14 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Delete the network zone
@@ -13824,12 +13826,14 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
                 "500":
@@ -13857,12 +13861,14 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
                 "500":
@@ -13938,8 +13944,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -13962,12 +13968,14 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Delete the network zone record
@@ -14032,12 +14040,14 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
                 "500":
@@ -14065,12 +14075,14 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
                 "500":

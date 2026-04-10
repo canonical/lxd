@@ -298,13 +298,18 @@ func (d *zone) Update(config *api.NetworkZonePut, clientType request.ClientType)
 		})
 
 		// Notify all other nodes to update the network zone if no target specified.
-		notifier, err := cluster.NewNotifier(d.state, d.state.Endpoints.NetworkCert(), d.state.ServerCert(), cluster.NotifyAll)
+		notifier, err := cluster.NewOperationNotifier(d.state, d.state.Endpoints.NetworkCert(), d.state.ServerCert(), cluster.NotifyAll)
 		if err != nil {
 			return err
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UseProject(d.projectName).UpdateNetworkZone(d.info.Name, d.info.Writable(), "")
+			op, err := client.UseProject(d.projectName).UpdateNetworkZone(d.info.Name, d.info.Writable(), "")
+			if err == nil {
+				err = op.Wait()
+			}
+
+			return err
 		})
 		if err != nil {
 			return err
