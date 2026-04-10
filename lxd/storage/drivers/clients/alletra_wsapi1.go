@@ -224,7 +224,7 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 	url.Scheme = gwURL.Scheme
 	url.Host = gwURL.Host
 
-	// Prepand gateway path with the request path in case Alletra Storage is served on a sub-path.
+	// Prepend gateway path with the request path in case Alletra Storage is served on a sub-path.
 	url.Path = path.Join(gwURL.Path, url.Path)
 
 	var reqBodyReader io.Reader
@@ -254,7 +254,7 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: p.verifyTLS,
+				InsecureSkipVerify: !p.verifyTLS,
 			},
 		},
 	}
@@ -666,7 +666,7 @@ func (p *AlletraClient) deleteVolume(poolName string, volName string) error {
 	return nil
 }
 
-// DeleteVolume deletes an exisiting volume in the given storage pool.
+// DeleteVolume deletes an existing volume in the given storage pool.
 func (p *AlletraClient) DeleteVolume(poolName string, volName string) error {
 	err := p.modifyVolumeSet(poolName, hpeAPIVolumeSetMemberRemove, volName)
 	if err != nil {
@@ -998,7 +998,7 @@ func (p *AlletraClient) CreateVolumePhysicalCopy(ctx context.Context, poolName s
 	case hpeTaskStatusFailed:
 		return fmt.Errorf(`Failed creating a physical copy "%s/%s" to "%s/%s": task failed`, poolName, volName, poolName, copyName)
 	default:
-		return fmt.Errorf(`Failed creating a physical copy "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, volName, copyName, volName)
+		return fmt.Errorf(`Failed creating a physical copy "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, volName, poolName, copyName)
 	}
 }
 
