@@ -150,16 +150,16 @@ test_clustering_move() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc profile delete prof1
 
-  sub_test "Phantom volume DB entry error after failed migration"
-  # When a cluster move fails mid-transfer (e.g. due to network disruption), LXD may leave a
-  # phantom storage_volumes DB entry on the target node if the target's revert chain could not
+  sub_test "Orphaned volume DB entry error after failed migration"
+  # When a cluster move fails mid-transfer (e.g. due to network disruption), LXD may leave an
+  # orphaned storage_volumes DB entry on the target member if the target's revert chain could not
   # reach the distributed DB while the network was down. Simulate this by directly inserting an
-  # orphaned row on node2 (no corresponding storage backing exists there), then verify LXD
+  # orphaned row on member2 (no corresponding storage backing exists there), then verify LXD
   # returns an actionable error message telling the administrator how to fix it.
 
-  # c1 is on node1 at this point.
+  # c1 is on member1 at this point.
 
-  # Inject a phantom storage_volumes row for c1 on node2, mimicking what is left behind
+  # Inject an orphaned storage_volumes row for c1 on member2, mimicking what is left behind
   # when a migration fails mid-transfer and the target cannot run its DB revert.
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global "INSERT INTO storage_volumes (name, storage_pool_id, node_id, type, description, project_id) SELECT 'c1', (SELECT id FROM storage_pools WHERE name='data'), (SELECT id FROM nodes WHERE name='node2'), 0, '', (SELECT id FROM projects WHERE name='default')"
 
@@ -168,12 +168,12 @@ test_clustering_move() {
   exit_code=0
   err_msg="$(LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c1 --target node2 2>&1)" || exit_code=$?
   [[ "${exit_code}" -ne 0 ]]
-  [[ "${err_msg}" == *"exists in database but not on storage"* ]]
+  [[ "${err_msg}" == *"orphaned entry from a previous failed migration"* ]]
 
-  # Remove the phantom entry as directed by the error message.
+  # Remove the orphaned entry as directed by the error message.
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global "DELETE FROM storage_volumes WHERE name='c1' AND node_id=(SELECT id FROM nodes WHERE name='node2') AND storage_pool_id=(SELECT id FROM storage_pools WHERE name='data')"
 
-  # After removing the phantom, migration to node2 succeeds.
+  # After removing the orphaned entry, migration to node2 succeeds.
   LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c1 --target node2
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list --format csv --columns L cluster:c1)" = "node2" ]
 
