@@ -174,6 +174,11 @@ func (d *pure) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, src
 	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
 }
 
+// CreateVolumeFromImage creates volume from image by using createVolumeFromImage utility function.
+func (d *pure) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error {
+	return createVolumeFromImage(vol, imgVol, filler, op)
+}
+
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
 func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
 	revert := revert.New()
