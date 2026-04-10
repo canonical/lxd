@@ -2349,7 +2349,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	}
 
 	if dbVol != nil && !volExists {
-		return errors.New("Volume exists in database but not on storage")
+		return fmt.Errorf("Volume %q exists in database on member %q but not on storage, this may be an orphaned entry from a previous failed migration. Refer to the how-to guide on recovering orphaned volume entries in the documentation", inst.Name(), dbVol.Location)
 	}
 
 	// Consistency check for refresh mode.
@@ -5420,7 +5420,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	if dbVol != nil && !volExists {
-		return errors.New("Volume exists in database but not on storage")
+		return fmt.Errorf("Volume %q exists in database on member %q but not on storage, this may be an orphaned entry from a previous failed migration. Refer to the how-to guide on recovering orphaned volume entries in the documentation", args.Name, dbVol.Location)
 	}
 
 	// Disable refresh mode if volume doesn't exist yet.
