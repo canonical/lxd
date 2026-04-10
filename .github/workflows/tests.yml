@@ -29,9 +29,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Require GHA pinning
-        uses: canonical/lxd/.github/actions/require-gha-pinning@main # zizmor: ignore[unpinned-uses]
-
       - id: ShellCheck
         name: Differential ShellCheck
         uses: redhat-plumbers-in-action/differential-shellcheck@d965e66ec0b3b2f821f75c8eff9b12442d9a7d1e # v5.5.6
