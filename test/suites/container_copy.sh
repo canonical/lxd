@@ -131,6 +131,20 @@ test_container_copy_start() {
   lxc copy c1 c2
   [ "$(lxc list -f csv -c s c2)" = "STOPPED" ]
 
+  sub_test "Copied container inherits the source architecture via raw API without architecture field"
+  lxc delete -f c2
+  lxc query --request POST --wait /1.0/instances --data '{
+    "name": "c2",
+    "source": {
+      "type": "copy",
+      "source": "c1"
+    }
+  }'
+  local source_arch target_arch
+  source_arch="$(lxc query /1.0/instances/c1 | jq --exit-status --raw-output '.architecture')"
+  target_arch="$(lxc query /1.0/instances/c2 | jq --exit-status --raw-output '.architecture')"
+  [ "${source_arch}" = "${target_arch}" ]
+
   lxc delete -f c2
 
   echo "==> Check that a container can be copied and started with the same command"
