@@ -223,7 +223,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return nil
 	}
 
-	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName)
+	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(requestProjectName)
 
 	// We're creating snapshot on this node.
 	// When looking up the entity for the operation, we look for the volumes located on the nodes based on the target parameter.
@@ -239,7 +239,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		Class:       operations.OperationClassTask,
 		RunHook:     snapshot,
 		Metadata: map[string]any{
-			operations.EntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", req.Name).Project(effectiveProjectName).String(),
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", req.Name).Project(requestProjectName).String(),
 		},
 	}
 
@@ -558,20 +558,24 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return details.pool.RenameCustomVolumeSnapshot(effectiveProjectName, fullSnapshotName, req.Name, op)
 	}
 
-	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName)
+	originalEntityURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(requestProjectName)
 
 	// In a clustered environment with a non-remote pool, volumes are pinned to a specific node.
 	// Include the target so that the entity lookup can match by node name.
 	if s.ServerClustered && !details.pool.Driver().Info().Remote {
-		volumeURL = volumeURL.Target(s.ServerName)
+		originalEntityURL = originalEntityURL.Target(s.ServerName)
 	}
 
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   volumeURL,
+		EntityURL:   originalEntityURL,
 		Type:        operationtype.VolumeSnapshotRename,
 		Class:       operations.OperationClassTask,
 		RunHook:     snapshotRename,
+		Metadata: map[string]any{
+			api.MetadataOriginalEntityURL: originalEntityURL.String(),
+			api.MetadataEntityURL:         api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", req.Name).Project(requestProjectName).String(),
+		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)

@@ -450,7 +450,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		Class:       operations.OperationClassTask,
 		RunHook:     backup,
 		Metadata: map[string]any{
-			operations.EntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName).String(),
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName).String(),
 		},
 	}
 
@@ -657,13 +657,17 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return nil
 	}
 
-	backupURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName)
+	originalEntityURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   backupURL,
+		EntityURL:   originalEntityURL,
 		Type:        operationtype.CustomVolumeBackupRename,
 		Class:       operations.OperationClassTask,
 		RunHook:     rename,
+		Metadata: map[string]any{
+			api.MetadataOriginalEntityURL: originalEntityURL.String(),
+			api.MetadataEntityURL:         api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", newBackupName).Project(requestProjectName).String(),
+		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)

@@ -527,12 +527,19 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return inst.Rename(req.Name, true)
 	}
 
+	originalEntityURL := api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)
+	metadata := map[string]any{
+		api.MetadataOriginalEntityURL: originalEntityURL.String(),
+		api.MetadataEntityURL:         api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+	}
+
 	args := operations.OperationArgs{
 		ProjectName: projectName,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
+		EntityURL:   originalEntityURL,
 		Type:        operationtype.InstanceRename,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
+		Metadata:    metadata,
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)

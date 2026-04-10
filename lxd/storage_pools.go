@@ -393,10 +393,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		args := operations.OperationArgs{
-			Type:      operationtype.StoragePoolCreate,
-			Class:     operations.OperationClassTask,
-			RunHook:   run,
-			EntityURL: entity.ProjectURL(request.ProjectParam(r)),
+			Type:    operationtype.StoragePoolCreate,
+			Class:   operations.OperationClassTask,
+			RunHook: run,
+			Metadata: map[string]any{
+				api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", req.Name).String(),
+			},
 		}
 
 		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -451,10 +453,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	args := operations.OperationArgs{
-		Type:      operationtype.StoragePoolCreate,
-		Class:     operations.OperationClassTask,
-		RunHook:   run,
-		EntityURL: entity.ProjectURL(request.ProjectParam(r)),
+		Type:    operationtype.StoragePoolCreate,
+		Class:   operations.OperationClassTask,
+		RunHook: run,
+		Metadata: map[string]any{
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", req.Name).String(),
+		},
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)

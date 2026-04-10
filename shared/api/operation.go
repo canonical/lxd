@@ -15,6 +15,17 @@ const OperationClassWebsocket = "websocket"
 // OperationClassToken represents the Token OperationClass.
 const OperationClassToken = "token"
 
+const (
+	// MetadataEntityURL is always set in operation metadata for operations whose associated entity type is not "server".
+	// It identifies the entity that the operation is acting on.
+	// The default value is the operation primary entity URL, but callers can override it to indicate the expected new URL.
+	MetadataEntityURL = "entity_url"
+
+	// MetadataOriginalEntityURL is set in operation metadata when renaming a resource.
+	// Callers are expected to set both MetadataOriginalEntityURL and MetadataEntityURL in operation metadata.
+	MetadataOriginalEntityURL = "original_entity_url"
+)
+
 // Operation represents a LXD background operation
 //
 // swagger:model
@@ -207,4 +218,27 @@ func (op *Operation) parseCommonTokenFields() (secret string, fingerprint string
 	}
 
 	return secret, fingerprint, addresses, nil
+}
+
+// WebsocketSecrets extracts the secrets for websockets from the operation's metadata.
+func (op *Operation) WebsocketSecrets() (secrets map[string]string, err error) {
+	if op.Class != OperationClassWebsocket {
+		return nil, errors.New("Operation is not a websocket operation")
+	}
+
+	secrets = map[string]string{}
+	for k, v := range op.Metadata {
+		if k == MetadataEntityURL { // This field is not used as a secret.
+			continue
+		}
+
+		vStr, ok := v.(string)
+		if !ok {
+			continue
+		}
+
+		secrets[k] = vStr
+	}
+
+	return secrets, nil
 }

@@ -152,7 +152,7 @@ func createFromImage(r *http.Request, s *state.State, p api.Project, profiles []
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
-			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(p.Name).String(),
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(p.Name).String(),
 		},
 	}
 
@@ -213,7 +213,7 @@ func createFromNone(r *http.Request, s *state.State, projectName string, profile
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
-			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
@@ -398,7 +398,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 		Type:        operationtype.InstanceCreate,
 		RunHook:     run,
 		Metadata: map[string]any{
-			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
@@ -510,7 +510,7 @@ func createFromConversion(r *http.Request, s *state.State, projectName string, p
 	}
 
 	metadata := sink.Metadata()
-	metadata[operations.EntityURL] = api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String()
+	metadata[api.MetadataEntityURL] = api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String()
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
@@ -732,7 +732,7 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
-			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
@@ -1005,7 +1005,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
-			operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", bInfo.Name).Project(bInfo.Project).String(),
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", bInfo.Name).Project(bInfo.Project).String(),
 		},
 	}
 
@@ -1788,14 +1788,9 @@ func clusterCopyContainerInternal(r *http.Request, s *state.State, source instan
 		opAPI = op.Get()
 	}
 
-	websockets := map[string]string{}
-	for k, v := range opAPI.Metadata {
-		ws, ok := v.(string)
-		if !ok {
-			continue
-		}
-
-		websockets[k] = ws
+	websockets, err := opAPI.WebsocketSecrets()
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Reset the source for a migration

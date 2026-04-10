@@ -681,12 +681,9 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 
 		opAPI := op.Get()
 
-		targetSecrets := map[string]string{}
-		for k, v := range opAPI.Metadata {
-			value, ok := v.(string)
-			if ok {
-				targetSecrets[k] = value
-			}
+		targetSecrets, err := opAPI.WebsocketSecrets()
+		if err != nil {
+			return nil, err
 		}
 
 		// Prepare the source request
@@ -714,12 +711,9 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	opAPI := op.Get()
 
 	// Prepare source server secrets for remote
-	sourceSecrets := map[string]string{}
-	for k, v := range opAPI.Metadata {
-		value, ok := v.(string)
-		if ok {
-			sourceSecrets[k] = value
-		}
+	sourceSecrets, err := opAPI.WebsocketSecrets()
+	if err != nil {
+		return nil, err
 	}
 
 	// Relay mode migration
@@ -740,12 +734,9 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		targetOpAPI := targetOp.Get()
 
 		// Extract the websockets
-		targetSecrets := map[string]string{}
-		for k, v := range targetOpAPI.Metadata {
-			value, ok := v.(string)
-			if ok {
-				targetSecrets[k] = value
-			}
+		targetSecrets, err := targetOpAPI.WebsocketSecrets()
+		if err != nil {
+			return nil, err
 		}
 
 		// Launch the relay

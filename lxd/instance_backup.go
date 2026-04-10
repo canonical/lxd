@@ -375,7 +375,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	metadata := map[string]any{
-		operations.EntityURL: api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(inst.Project().Name).String(),
+		api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(inst.Project().Name).String(),
 	}
 
 	args := operations.OperationArgs{
@@ -574,12 +574,19 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
+	originalEntityURL := api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(projectName)
+	metadata := map[string]any{
+		api.MetadataOriginalEntityURL: originalEntityURL.String(),
+		api.MetadataEntityURL:         api.NewURL().Path(version.APIVersion, "instances", name, "backups", newBackupName).Project(projectName).String(),
+	}
+
 	args := operations.OperationArgs{
 		ProjectName: projectName,
 		Type:        operationtype.BackupRename,
-		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(projectName),
+		EntityURL:   originalEntityURL,
 		Class:       operations.OperationClassTask,
 		RunHook:     rename,
+		Metadata:    metadata,
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)

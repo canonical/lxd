@@ -53,14 +53,6 @@ func (t OperationClass) String() string {
 	}[t]
 }
 
-const (
-	// EntityURL is set in the operation metadata if the caller requests a resource that might have a generated name.
-	// For example, EntityURL is set on instance creation because a name is generated if one is not provided by the client.
-	// Whereas EntityURL is not set on creation of a custom storage volume, because a name must be provided.
-	// The value corresponding to EntityURL must be a string.
-	EntityURL = "entity_url"
-)
-
 // Init sets the debug value for the operations package.
 func Init(d bool) {
 	debug = d
@@ -266,7 +258,20 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 			op.location = s.ServerName
 		}
 
-		op.metadata, err = validateMetadata(args.Metadata)
+		metadata := args.Metadata
+		if metadata == nil {
+			metadata = make(map[string]any)
+		}
+
+		// If the entity_url field is not already populated, populate it with the entity url of the operation.
+		// This allows the caller to override the entity URL if e.g. creating a new entity but ensures the field is populated.
+		// Skip if the entity type is "server". This doesn't give any useful information to the requestor (since the url will just be "/1.0").
+		_, ok := metadata[api.MetadataEntityURL]
+		if !ok && operationEntityType != entity.TypeServer {
+			metadata[api.MetadataEntityURL] = op.entityURL.String()
+		}
+
+		op.metadata, err = validateMetadata(metadata)
 		if err != nil {
 			return nil, fmt.Errorf("Failed validating operation metadata: %w", err)
 		}
@@ -862,6 +867,7 @@ func (op *Operation) updateStatus(ctx context.Context, newStatus api.StatusCode)
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
+// The api.MetadataEntityURL field is retained unless the caller sets api.MetadataEntityURL in the input map.
 func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	opMetadata, err := validateMetadata(opMetadata)
 	if err != nil {
@@ -877,6 +883,16 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	if op.readonly {
 		op.lock.Unlock()
 		return errors.New("Read-only operations cannot be updated")
+	}
+
+	// Retain entity URL unless it is set in the input map.
+	// This is to prevent the caller inadvertently overwriting it.
+	oldEntityURL, ok := op.metadata[api.MetadataEntityURL]
+	if ok {
+		_, ok := opMetadata[api.MetadataEntityURL]
+		if !ok {
+			opMetadata[api.MetadataEntityURL] = oldEntityURL
+		}
 	}
 
 	op.updatedAt = time.Now()
@@ -1015,17 +1031,20 @@ func validateMetadata(metadata map[string]any) (map[string]any, error) {
 		metadata = make(map[string]any)
 	}
 
-	// If the entity_url field is used, it must always be a string and must always be a valid URL.
-	entityURLAny, ok := metadata[EntityURL]
-	if ok {
-		entityURL, ok := entityURLAny.(string)
-		if !ok {
-			return nil, fmt.Errorf("Operation metadata entity_url must be a string (got %T)", entityURLAny)
-		}
+	// If any url fields are used, they must always be a string and must always be a valid URL.
+	urlFields := []string{api.MetadataEntityURL, api.MetadataOriginalEntityURL}
+	for _, urlField := range urlFields {
+		urlAny, ok := metadata[urlField]
+		if ok {
+			urlString, ok := urlAny.(string)
+			if !ok {
+				return nil, fmt.Errorf("Operation metadata field %q must be a string (got %T)", urlField, urlAny)
+			}
 
-		err := validate.IsRequestURL(entityURL)
-		if err != nil {
-			return nil, fmt.Errorf("Operation metadata entity_url must be a valid request URL: %w", err)
+			err := validate.IsRequestURL(urlString)
+			if err != nil {
+				return nil, fmt.Errorf("Operation metadata field %q must be a valid request URL: %w", urlField, err)
+			}
 		}
 	}
 
