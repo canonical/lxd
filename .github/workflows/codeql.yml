@@ -33,7 +33,7 @@ permissions: {}
 
 jobs:
   analyze:
-    if: ${{ github.repository == 'canonical/lxd' }}
+    if: ${{ github.repository_owner == 'canonical' }}
     name: Analyze
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
