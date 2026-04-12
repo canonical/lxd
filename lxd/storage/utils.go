@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -1399,6 +1400,79 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, progressReporter i
 	}
 
 	return blockDiskSize, nil
+}
+
+// InstanceByVolumeName returns the virtual machine whose root volume the volume is, or the
+// instance that the custom volume is attached to, and the name of its disk device.
+// The instance does not need to be running.
+func InstanceByVolumeName(s *state.State, poolName string, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType) (instance.Instance, string, error) {
+	if volumeType == cluster.StoragePoolVolumeTypeVM {
+		inst, err := instance.LoadByProjectAndName(s, projectName, volumeName)
+		if err != nil {
+			return nil, "", err
+		}
+
+		rootDiskName, _, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		if err != nil {
+			return nil, "", err
+		}
+
+		return inst, rootDiskName, nil
+	}
+
+	if volumeType != cluster.StoragePoolVolumeTypeCustom {
+		return nil, "", api.StatusErrorf(http.StatusBadRequest, "Volumes of type %q cannot be attached to an instance", volumeType)
+	}
+
+	pool, err := LoadByName(s, poolName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	dbVol, err := VolumeDBGet(pool, projectName, volumeName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var instArgs *db.InstanceArgs
+	var instProject api.Project
+	var deviceName string
+
+	err = VolumeUsedByInstanceDevices(s, pool.Name(), projectName, &dbVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		if dbInst.Type != instancetype.VM {
+			return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to container %q", dbInst.Name)
+		}
+
+		if instArgs != nil {
+			return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to multiple instances (%q and %q)", instArgs.Name, dbInst.Name)
+		}
+
+		// A bitmap or an NBD export is added to one QEMU block node.
+		// A volume attached through several disk devices of the same instance therefore has no single node to address.
+		if len(usedByDevices) > 1 {
+			return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to instance %q through multiple disk devices (%s)", dbInst.Name, strings.Join(usedByDevices, ", "))
+		}
+
+		instArgs = &dbInst
+		instProject = project
+		deviceName = usedByDevices[0]
+
+		return nil
+	})
+	if err != nil {
+		return nil, "", err
+	}
+
+	if instArgs == nil {
+		return nil, "", ErrVolumeNotAttached
+	}
+
+	inst, err := instance.Load(s, *instArgs, instProject)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return inst, deviceName, nil
 }
 
 // qcow2ImageOpts returns the image options that open the metadata image at path with the null-co
