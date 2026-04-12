@@ -48,7 +48,7 @@ on:
 env:
   LXD_SKIP_TESTS: "concurrent"  # concurrent is too unreliable/racy
   LXD_REQUIRED_TESTS: "network_ovn"
-  GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && github.event.inputs.coverage == 'true' ) || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' )) && 'true' || 'false' }}
+  GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && github.event.inputs.coverage == 'true' ) || ( github.event_name == 'schedule' && github.repository_owner == 'canonical' )) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
   IMAGE_CACHE_DIR: "/home/runner/image-cache"
   SNAP_CACHE_DIR: "/home/runner/snap-cache"
@@ -77,7 +77,7 @@ jobs:
       LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
       SUDO_PRESERVE_ENV: "CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,PKG_CONFIG_PATH,LD_LIBRARY_PATH,PATH"
-    if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
+    if: ${{ github.event_name != 'schedule' || github.repository_owner == 'canonical' }}
     name: Code
     runs-on: ubuntu-24.04
     steps:
@@ -289,7 +289,7 @@ jobs:
       LXD_TMPFS: "1"
       GOTRACEBACK: "crash"
       SUDO_PRESERVE_ENV: "PATH,GOPATH,GOCOVERDIR,GOTRACEBACK,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,IMAGE_CACHE_DIR,LXD_VERBOSE,LXD_REPEAT_TESTS,LXD_BACKENDS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_TMPFS"
-    if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
+    if: ${{ github.event_name != 'schedule' || github.repository_owner == 'canonical' }}
     name: System
     runs-on: ubuntu-24.04
     needs: code-tests
@@ -521,7 +521,7 @@ jobs:
           limit-access-to-actor: true
 
   snap-tests:
-    if: github.event_name != 'schedule' || github.repository == 'canonical/lxd'
+    if: github.event_name != 'schedule' || github.repository_owner == 'canonical'
     needs: code-tests
     env:
       BRANCH_NAME: ${{ github.ref_name }}
@@ -833,7 +833,7 @@ jobs:
       LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
       GOTOOLCHAIN: "local"
-    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
+    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository_owner == 'canonical' }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1046,7 +1046,7 @@ jobs:
     name: UI e2e tests
     runs-on: ubuntu-24.04
     needs: [code-tests, documentation]
-    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
+    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' ) && github.ref_name == 'main' && github.repository_owner == 'canonical' }}
     env:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LXD_DIR: "/var/lib/lxd"
@@ -1247,7 +1247,7 @@ jobs:
   documentation:
     name: Documentation
     runs-on: ubuntu-24.04
-    if: github.event_name == 'workflow_dispatch' || github.repository == 'canonical/lxd'
+    if: github.event_name == 'workflow_dispatch' || github.repository_owner == 'canonical'
     needs: code-tests
     steps:
       - name: Checkout
@@ -1346,7 +1346,7 @@ jobs:
     name: Trigger snap edge build
     runs-on: ubuntu-24.04
     needs: [code-tests, system-tests, client, documentation]
-    if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
+    if: ${{ github.repository_owner == 'canonical' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     env:
       SSH_AUTH_SOCK: /tmp/ssh_agent.sock
       PACKAGE: "lxd"
