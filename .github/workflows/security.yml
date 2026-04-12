@@ -25,7 +25,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # for uploading SARIF results to the security tab
-    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
+    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository_owner == 'canonical' }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -71,7 +71,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # for uploading SARIF results to the security tab
-    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
+    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository_owner == 'canonical' }}
     strategy:
       matrix:
         version:
