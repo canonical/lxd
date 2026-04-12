@@ -12,7 +12,7 @@ fi
 # load tab completion for test runner
 if [ -f "$(dirname "${BASH_SOURCE[0]}")/main.sh.bash-completion" ]; then
     . "$(dirname "${BASH_SOURCE[0]}")/main.sh.bash-completion"
-    echo "Tab completion enabled for ./main.sh (usage: ./main.sh <TAB>)"
+    echo "Tab completion enabled for ./main.sh and ./vmtest.sh"
 fi
 
 # provide useful aliases like `ll`, etc

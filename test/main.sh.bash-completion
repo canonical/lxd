@@ -1,7 +1,7 @@
 #!/bin/bash
-# Bash completion for test/main.sh
+# Bash completion for test/main.sh and test/vmtest.sh
 #
-# To enable tab completion for the test runner, source this file:
+# To enable tab completion for the test runners, source this file:
 #   source test/main.sh.bash-completion
 #
 # Or add it to your ~/.bashrc:
@@ -13,6 +13,10 @@ _lxd_test_completion() {
     COMP_WORDBREAKS="$_wb"
 
     local cur="${COMP_WORDS[COMP_CWORD]}"
+    local prev=""
+    if [ "${COMP_CWORD}" -gt 0 ]; then
+        prev="${COMP_WORDS[COMP_CWORD-1]}"
+    fi
     local script_dir
     if [ -n "${MAIN_DIR:-}" ]; then
         script_dir="${MAIN_DIR}"
@@ -30,7 +34,36 @@ _lxd_test_completion() {
     fi
 
     # Build group keywords dynamically from test_group_* variables
-    local keywords="test-shell"
+    local cmd
+    cmd="$(basename -- "${COMP_WORDS[0]}")"
+
+    if [ "${cmd}" = "vmtest.sh" ]; then
+        case "${prev}" in
+            --timeout|--caffeinate)
+                COMPREPLY=()
+                return 0
+                ;;
+            *)
+                ;;
+        esac
+
+        case "${cur}" in
+            --timeout=*|--caffeinate=*)
+                COMPREPLY=()
+                return 0
+                ;;
+            *)
+                ;;
+        esac
+    fi
+
+    local keywords=""
+    if [ "${cmd}" = "main.sh" ]; then
+        keywords="test-shell"
+    else
+        keywords="-h --help --keep-artifacts --timeout --timeout= --caffeinate --caffeinate="
+    fi
+
     local tests_array=()
     while IFS= read -r v; do
         local g="${v#test_group_}"
@@ -56,4 +89,4 @@ _lxd_test_completion() {
 }
 
 # Register completion
-complete -F _lxd_test_completion ./main.sh
+complete -F _lxd_test_completion ./main.sh main.sh ./vmtest.sh vmtest.sh
