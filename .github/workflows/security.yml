@@ -91,9 +91,11 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Download snap for scan
+        env:
+          SNAP_NAME: ${{ github.event.repository.name }}
         run: |
-          snap download lxd --channel=${{ matrix.version }}/stable --cohort="+"
-          unsquashfs ./lxd*.snap
+          snap download "${SNAP_NAME}" --channel=${{ matrix.version }}/stable --cohort="+"
+          unsquashfs ./${SNAP_NAME}*.snap
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
