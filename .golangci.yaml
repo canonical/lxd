@@ -1,6 +1,7 @@
 version: "2"
 linters:
   enable:
+    - depguard
     - godot
     - misspell
     - musttag
@@ -10,6 +11,14 @@ linters:
     - testifylint
     - whitespace
   settings:
+    depguard:
+      rules:
+        yaml-legacy:
+          deny:
+            - pkg: gopkg.in/yaml.v2
+              desc: Use go.yaml.in/yaml/v2 instead.
+            - pkg: gopkg.in/yaml.v3
+              desc: Use go.yaml.in/yaml/v3 instead.
     errcheck:
       exclude-functions:
         - (io.ReadCloser).Close

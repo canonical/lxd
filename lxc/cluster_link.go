@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
