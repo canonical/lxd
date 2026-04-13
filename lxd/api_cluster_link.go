@@ -1108,7 +1108,12 @@ func clusterLinkActivate(s *state.State, r *http.Request, req api.ClusterLinksPo
 
 		// Activate the pending cluster link by updating only volatile keys from the request.
 		// This preserves any user.* configuration set while the link was pending.
-		err = dbCluster.UpdateClusterLinkConfig(ctx, tx.Tx(), clusterLink.ID, mergeClusterLinkActivationConfig(currentConfig, req.Config))
+		mergedConfig := mergeClusterLinkActivationConfig(currentConfig, req.Config)
+		if req.Type == api.ClusterLinkTypeUnidirectional {
+			delete(mergedConfig, "volatile.addresses")
+		}
+
+		err = dbCluster.UpdateClusterLinkConfig(ctx, tx.Tx(), clusterLink.ID, mergedConfig)
 		if err != nil {
 			return fmt.Errorf("Failed activating cluster link %q: %w", clusterLink.Name, err)
 		}
