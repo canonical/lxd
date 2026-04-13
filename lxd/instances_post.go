@@ -1379,7 +1379,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			// connections always authenticate via a named TLS identity in the DB, so they have a
 			// non-zero ID. A zero ID here means the caller is not a named identity (e.g. a PKI
 			// admin cert), which must not be allowed to write to a standby project.
-			if requestor.CallerIdentityID() == 0 || requestor.CallerIdentityID() != clusterLink.IdentityID {
+			if requestor.CallerIdentityID() == 0 || clusterLink.IdentityID == nil || requestor.CallerIdentityID() != *clusterLink.IdentityID {
 				return api.StatusErrorf(http.StatusForbidden, "Cannot create instances in a standby replica project")
 			}
 		}

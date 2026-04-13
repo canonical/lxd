@@ -537,19 +537,21 @@ func clusterLinkPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading cluster link: %w", err)
 		}
 
-		// Get identity for notification and lifecycle event.
-		identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), clusterLink.IdentityID)
-		if err != nil {
-			return fmt.Errorf("Failed getting identity with ID %d: %w", clusterLink.IdentityID, err)
-		}
+		// Get identity for notification and lifecycle event (bidirectional links only).
+		if clusterLink.IdentityID != nil {
+			identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), *clusterLink.IdentityID)
+			if err != nil {
+				return fmt.Errorf("Failed getting identity with ID %d: %w", *clusterLink.IdentityID, err)
+			}
 
-		identityIdentifier = identity.Identifier
+			identityIdentifier = identity.Identifier
 
-		// Rename identity.
-		identity.Name = req.Name
-		err = query.UpdateByPrimaryKey(ctx, tx.Tx(), *identity)
-		if err != nil {
-			return err
+			// Rename identity.
+			identity.Name = req.Name
+			err = query.UpdateByPrimaryKey(ctx, tx.Tx(), *identity)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Rename cluster link.
@@ -568,10 +570,12 @@ func clusterLinkPost(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name}))
 
-	// Notify other members, update the cache, and send an identity lifecycle event.
-	_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identityIdentifier, true)
-	if err != nil {
-		return response.SmartError(err)
+	// Notify other members and update the identity cache (bidirectional links only).
+	if identityIdentifier != "" {
+		_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identityIdentifier, true)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.EmptySyncResponse
@@ -608,7 +612,7 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
 
 	// Update DB entry.
-	var identity *dbCluster.IdentitiesRow
+	var identityIdentifier string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Prevent deletion if the cluster link is referenced by any entity.
 		usedBy, err := dbCluster.GetClusterLinkUsedBy(ctx, tx.Tx(), name, true)
@@ -626,16 +630,24 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		// Get identity for notification and lifecycle event.
-		identity, err = dbCluster.GetIdentityByID(ctx, tx.Tx(), clusterLink.IdentityID)
-		if err != nil {
-			return fmt.Errorf("Failed getting identity with ID %d: %w", clusterLink.IdentityID, err)
-		}
+		if clusterLink.IdentityID != nil {
+			// For bidirectional links, deleting the identity cascades to delete the cluster link.
+			identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), *clusterLink.IdentityID)
+			if err != nil {
+				return fmt.Errorf("Failed getting identity with ID %d: %w", *clusterLink.IdentityID, err)
+			}
 
-		// Deleting the identity also deletes the cluster link.
-		err = dbCluster.DeleteIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), api.AuthenticationMethodTLS, identity.Identifier)
-		if err != nil {
-			return err
+			identityIdentifier = identity.Identifier
+			err = dbCluster.DeleteIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), api.AuthenticationMethodTLS, identity.Identifier)
+			if err != nil {
+				return err
+			}
+		} else {
+			// For unidirectional links, delete the cluster link directly.
+			err = dbCluster.DeleteClusterLink(ctx, tx.Tx(), name)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -648,10 +660,12 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkDeleted.Event(name, requestor, nil))
 
-	// Notify other members, update the cache, and send an identity lifecycle event.
-	_, err = notify(lifecycle.IdentityDeleted, api.AuthenticationMethodTLS, identity.Identifier, true)
-	if err != nil {
-		return response.SmartError(err)
+	// Notify other members, update the cache, and send an identity lifecycle event (bidirectional links only).
+	if identityIdentifier != "" {
+		_, err = notify(lifecycle.IdentityDeleted, api.AuthenticationMethodTLS, identityIdentifier, true)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.EmptySyncResponse
@@ -799,7 +813,7 @@ func clusterLinkCreatePending(s *state.State, r *http.Request, req api.ClusterLi
 		}
 
 		clusterLinkID, err := dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLinkRow{
-			IdentityID:  id,
+			IdentityID:  &id,
 			Name:        req.Name,
 			Description: req.Description,
 			Type:        clusterLinkType,
@@ -879,7 +893,7 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 
 		// Create cluster link DB entry.
 		clusterLinkID, err := dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLinkRow{
-			IdentityID:  id,
+			IdentityID:  &id,
 			Name:        req.Name,
 			Description: req.Description,
 			Type:        clusterLinkType,
@@ -1046,7 +1060,38 @@ func clusterLinkActivate(s *state.State, r *http.Request, req api.ClusterLinksPo
 
 		// Get cluster link by name.
 		clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), identity.Name)
-		if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// No cluster link row exists yet; this happens when B used
+			// `lxc auth identity create cluster-link/<name>` rather than
+			// `lxc cluster link create <name>`. Create the cluster link now,
+			// linked to the now-active identity.
+			clusterLinkType, typeErr := validateClusterLinkType(req.Type)
+			if typeErr != nil {
+				return fmt.Errorf("Invalid cluster link type %q: %w", req.Type, typeErr)
+			}
+
+			id, createErr := dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLinkRow{
+				IdentityID: &identity.ID,
+				Name:       identity.Name,
+				Type:       clusterLinkType,
+			})
+			if createErr != nil {
+				return fmt.Errorf("Failed creating cluster link %q: %w", identity.Name, createErr)
+			}
+
+			persistedConfig := mergeClusterLinkActivationConfig(map[string]string{}, req.Config)
+			if req.Type == api.ClusterLinkTypeUnidirectional {
+				delete(persistedConfig, "volatile.addresses")
+			}
+
+			createErr = dbCluster.CreateClusterLinkConfig(ctx, tx.Tx(), id, persistedConfig)
+			if createErr != nil {
+				return fmt.Errorf("Failed creating cluster link config for %q: %w", identity.Name, createErr)
+			}
+
+			clusterLinkName = identity.Name
+			return nil
+		} else if err != nil {
 			return fmt.Errorf("Failed loading cluster link: %w", err)
 		}
 
@@ -1064,7 +1109,12 @@ func clusterLinkActivate(s *state.State, r *http.Request, req api.ClusterLinksPo
 
 		// Activate the pending cluster link by updating only volatile keys from the request.
 		// This preserves any user.* configuration set while the link was pending.
-		err = dbCluster.UpdateClusterLinkConfig(ctx, tx.Tx(), clusterLink.ID, mergeClusterLinkActivationConfig(currentConfig, req.Config))
+		mergedConfig := mergeClusterLinkActivationConfig(currentConfig, req.Config)
+		if req.Type == api.ClusterLinkTypeUnidirectional {
+			delete(mergedConfig, "volatile.addresses")
+		}
+
+		err = dbCluster.UpdateClusterLinkConfig(ctx, tx.Tx(), clusterLink.ID, mergedConfig)
 		if err != nil {
 			return fmt.Errorf("Failed activating cluster link %q: %w", clusterLink.Name, err)
 		}
@@ -1395,23 +1445,35 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 
 		clusterLink = dbClusterLink.ToAPI(config)
 
-		identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), dbClusterLink.IdentityID)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link identity: %w", err)
+		var pemCert string
+		if dbClusterLink.IdentityID != nil {
+			// Bidirectional: cert is stored via the identity.
+			identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), *dbClusterLink.IdentityID)
+			if err != nil {
+				return fmt.Errorf("Failed loading cluster link identity: %w", err)
+			}
+
+			certs, err := dbCluster.GetIdentitiesPEMCertificates(ctx, tx.Tx(), &identity.ID)
+			if err != nil {
+				return fmt.Errorf("Failed loading cluster link certificate: %w", err)
+			}
+
+			if len(certs[identity.ID]) == 0 {
+				return fmt.Errorf("No certificate found for cluster link identity %q", identity.Name)
+			}
+
+			pemCert = certs[identity.ID][0]
+		} else {
+			// Unidirectional: cert is stored directly in cluster_links_certificates.
+			pemCert, err = dbCluster.GetClusterLinkPEMCertificate(ctx, tx.Tx(), dbClusterLink.ID)
+			if err != nil {
+				return fmt.Errorf("Failed loading cluster link certificate: %w", err)
+			}
 		}
 
-		certs, err := dbCluster.GetIdentitiesPEMCertificates(ctx, tx.Tx(), &identity.ID)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link certificate: %w", err)
-		}
-
-		if len(certs[identity.ID]) == 0 {
-			return fmt.Errorf("No certificate found for cluster link identity %q", identity.Name)
-		}
-
-		certBlock, _ := pem.Decode([]byte(certs[identity.ID][0]))
+		certBlock, _ := pem.Decode([]byte(pemCert))
 		if certBlock == nil {
-			return fmt.Errorf("Failed decoding certificate for cluster link identity %q", identity.Name)
+			return fmt.Errorf("Failed decoding certificate for cluster link %q", dbClusterLink.Name)
 		}
 
 		targetCert, err = x509.ParseCertificate(certBlock.Bytes)
