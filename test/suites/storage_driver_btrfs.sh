@@ -1,3 +1,58 @@
+do_storage_driver_btrfs_image_recovery() {
+  local pool pool_path fingerprint
+  pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
+  pool_path="${LXD_DIR}/storage-pools/${pool}"
+
+  sub_test "Verify a corrupted image volume is automatically regenerated before instance creation."
+
+  ensure_import_testimage
+  fingerprint=$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')
+
+  # Simulate an aborted image download by clearing the readonly marker on the subvolume.
+  btrfs property set "${pool_path}/images/${fingerprint}" ro false
+
+  # The image integrity check detects the non-readonly subvolume and
+  # regenerates the image volume before the instance is created.
+  lxc init testimage c-recovery
+
+  # Verify the readonly property was restored as part of the regeneration.
+  [ "$(btrfs property get "${pool_path}/images/${fingerprint}" ro)" = "ro=true" ]
+
+  lxc delete c-recovery
+  lxc image delete testimage
+
+  # Test VM image recovery (if VM tests are enabled)
+  if [ "${LXD_VM_TESTS:-}" = "true" ]; then
+    sub_test "Verify a corrupted VM image volume is automatically regenerated before instance creation."
+
+    ensure_import_ubuntu_vm_image
+    fingerprint=$(lxc image info ubuntu-vm | awk '/^Fingerprint/ {print $2}')
+
+    # On btrfs, VM block images are a single subvolume with the block disk stored as root.img inside.
+    # There is no separate .block subvolume (unlike ZFS/LVM).
+    local image_path="${pool_path}/images/${fingerprint}"
+    [ -d "${image_path}" ]
+    [ -f "${image_path}/root.img" ]
+
+    # Simulate an aborted VM image download by clearing the readonly marker on the subvolume.
+    btrfs property set "${image_path}" ro false
+
+    # The image integrity check should detect the non-readonly subvolume
+    # and regenerate the image before instance creation.
+    lxc init ubuntu-vm vm-recovery --vm
+
+    # Verify the readonly property was restored on the subvolume.
+    [ "$(btrfs property get "${image_path}" ro)" = "ro=true" ]
+
+    # Verify the instance volume was created at the expected btrfs path (single subvolume, no .block sibling).
+    local instance_path="${pool_path}/virtual-machines/vm-recovery"
+    [ -d "${instance_path}" ]
+
+    lxc delete vm-recovery
+    lxc image delete ubuntu-vm
+  fi
+}
+
 test_storage_driver_btrfs() {
   local lxd_backend
 
@@ -154,6 +209,9 @@ test_storage_driver_btrfs() {
     lxc exec c1pool1 -- touch /a/b/c/w.txt
 
     lxc delete -f c1pool1
+
+    do_storage_driver_btrfs_image_recovery
+
     lxc profile device remove default root
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"

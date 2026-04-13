@@ -125,6 +125,74 @@ test_storage_driver_ceph() {
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool2" c3pool1
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2
 
+    sub_test "Verify a corrupted image volume is automatically regenerated before instance creation."
+
+    fingerprint=$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')
+    osd_pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
+
+    # Find one matching RBD image volume name (includes the block.filesystem suffix).
+    # Use grep -m1 to ensure vol_name is a single value even if multiple matches exist.
+    vol_name=$(rbd --cluster "${LXD_CEPH_CLUSTER}" list "${osd_pool}" | grep -m1 -E "^image_${fingerprint}_[^[:space:]]+$")
+    [ -n "${vol_name}" ]
+
+    # Simulate an aborted image download by removing the finalization snapshot.
+    # The snapshot must be unprotected first, LXD protects it immediately after creation
+    # to allow Ceph cloning, so direct removal would fail otherwise.
+    rbd --cluster "${LXD_CEPH_CLUSTER}" snap unprotect "${osd_pool}/${vol_name}@readonly"
+    rbd --cluster "${LXD_CEPH_CLUSTER}" snap rm "${osd_pool}/${vol_name}@readonly"
+
+    # The image integrity check detects the missing readonly snapshot and
+    # regenerates the image volume before the instance is created.
+    lxc init testimage c-recovery
+
+    # Verify the readonly snapshot was recreated as part of the regeneration.
+    rbd --cluster "${LXD_CEPH_CLUSTER}" snap list "${osd_pool}/${vol_name}" | grep -Fw "readonly"
+
+    lxc delete c-recovery
+
+    # Test VM image recovery (if VM tests are enabled)
+    if [ "${LXD_VM_TESTS:-}" = "true" ]; then
+      sub_test "Verify a corrupted VM image volume is automatically regenerated before instance creation."
+
+      ensure_import_ubuntu_vm_image
+      fingerprint=$(lxc image info ubuntu-vm | awk '/^Fingerprint/ {print $2}')
+
+      # Find the VM block image volume (with .block suffix)
+      block_vol_name=$(rbd --cluster "${LXD_CEPH_CLUSTER}" list "${osd_pool}" | grep -E "^image_${fingerprint}_[^[:space:]]+\.block$")
+      [ -n "${block_vol_name}" ]
+
+      # Find the companion filesystem config volume (without .block suffix)
+      config_vol_name=$(rbd --cluster "${LXD_CEPH_CLUSTER}" list "${osd_pool}" | grep -E "^image_${fingerprint}_[^[:space:]]+$" | grep -v "\.block$")
+      [ -n "${config_vol_name}" ]
+
+      # Simulate an aborted VM image download by removing the block image's readonly snapshot.
+      # ValidateImageVolume checks this snapshot first, so removing it alone is sufficient to
+      # trigger recovery without needing to also remove the companion FS snapshot.
+      rbd --cluster "${LXD_CEPH_CLUSTER}" snap unprotect "${osd_pool}/${block_vol_name}@readonly"
+      rbd --cluster "${LXD_CEPH_CLUSTER}" snap rm "${osd_pool}/${block_vol_name}@readonly"
+
+      # The image integrity check should detect the missing readonly snapshot
+      # and regenerate the complete VM image structure before instance creation
+      lxc init ubuntu-vm vm-recovery --vm
+
+      # Verify the readonly snapshot was recreated on the block volume
+      rbd --cluster "${LXD_CEPH_CLUSTER}" snap list "${osd_pool}/${block_vol_name}" | grep -Fw "readonly"
+
+      # Verify the readonly snapshot was recreated on the companion volume
+      rbd --cluster "${LXD_CEPH_CLUSTER}" snap list "${osd_pool}/${config_vol_name}" | grep -Fw "readonly"
+
+      # Verify the instance root disk volumes were properly created
+      instance_name="vm-recovery"
+      instance_block_vol=$(rbd --cluster "${LXD_CEPH_CLUSTER}" list "${osd_pool}" | grep -E "^virtual-machine_${instance_name}_[^[:space:]]+\.block$")
+      [ -n "${instance_block_vol}" ]
+
+      instance_config_vol=$(rbd --cluster "${LXD_CEPH_CLUSTER}" list "${osd_pool}" | grep -E "^virtual-machine_${instance_name}_[^[:space:]]+$" | grep -v "\.block$")
+      [ -n "${instance_config_vol}" ]
+
+      lxc delete vm-recovery --force
+      lxc image delete ubuntu-vm
+    fi
+
     lxc image delete testimage
     lxc profile device remove default root
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"

@@ -117,6 +117,8 @@ test_storage_driver_pure() {
     lxc storage volume delete "${poolName2}" c3pool1
     lxc storage volume delete "${poolName2}" c4pool2
 
+    do_storage_driver_pure_image_recovery "${poolName1}"
+
     lxc image delete testimage
     lxc profile device remove default root
     lxc storage delete "${poolName1}"
@@ -125,4 +127,124 @@ test_storage_driver_pure() {
 
   # shellcheck disable=SC2031
   kill_lxd "${LXD_STORAGE_DIR}"
+}
+
+do_storage_driver_pure_image_recovery() {
+  local pool="${1}"
+  local fingerprint vol_uuid vol_name token snap_ref count
+
+  local gateway="${PURE_GATEWAY%/}"
+  local tls_opts=()
+  if [ "${PURE_GATEWAY_VERIFY:-true}" = "false" ]; then
+    tls_opts=("-k")
+  fi
+
+  sub_test "Verify a corrupted image volume is automatically regenerated before instance creation."
+
+  ensure_import_testimage
+  fingerprint=$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')
+
+  # Pure Storage uses UUID-based volume names with a type prefix (i=image) and an optional
+  # content-type suffix (b=block). Derive the volume name from the image volume's volatile.uuid.
+  vol_uuid=$(lxc storage volume get "${pool}" "image/${fingerprint}" volatile.uuid)
+  vol_name="i-$(echo "${vol_uuid}" | tr -d '-')"
+
+  # Authenticate once for all API calls in this sub-test.
+  token=$(curl -s "${tls_opts[@]}" -X POST \
+    -H "Content-Type: application/json" \
+    -d "{\"api-token\": \"${PURE_API_TOKEN}\"}" \
+    -D - -o /dev/null \
+    "${gateway}/api/2.21/login" | grep -i "^x-auth-token:" | tr -d '\r' | awk '{print $2}')
+  [ -n "${token}" ]
+
+  # Simulate an aborted image download by destroying the readonly snapshot.
+  # Pure Storage requires a two-step soft/hard delete: destroy first, then eradicate.
+  snap_ref="${pool}::${vol_name}.readonly"
+  curl --fail-with-body -s "${tls_opts[@]}" -X PATCH \
+    -H "X-Auth-Token: ${token}" \
+    -H "Content-Type: application/json" \
+    -d '{"destroyed": true}' \
+    "${gateway}/api/2.21/volume-snapshots?names=${snap_ref}"
+  curl --fail-with-body -s "${tls_opts[@]}" -X DELETE \
+    -H "X-Auth-Token: ${token}" \
+    "${gateway}/api/2.21/volume-snapshots?names=${snap_ref}"
+
+  # Verify the snapshot was actually deleted before proceeding.
+  count=$(curl -s "${tls_opts[@]}" -X GET \
+    -H "X-Auth-Token: ${token}" \
+    "${gateway}/api/2.21/volume-snapshots?names=${snap_ref}" | jq '.total_item_count')
+  [ "${count}" -eq 0 ]
+
+  # The image integrity check detects the missing readonly snapshot and
+  # regenerates the image volume before the instance is created.
+  lxc init testimage c-recovery
+
+  # Verify the readonly snapshot was recreated as part of the regeneration.
+  count=$(curl -s "${tls_opts[@]}" -X GET \
+    -H "X-Auth-Token: ${token}" \
+    "${gateway}/api/2.21/volume-snapshots?names=${snap_ref}" | jq '.total_item_count')
+  [ "${count}" -gt 0 ]
+
+  lxc delete c-recovery
+
+  # Test VM image recovery (if VM tests are enabled).
+  if [ "${LXD_VM_TESTS:-}" = "true" ]; then
+    sub_test "Verify a corrupted VM image volume is automatically regenerated before instance creation."
+
+    ensure_import_ubuntu_vm_image
+    fingerprint=$(lxc image info ubuntu-vm | awk '/^Fingerprint/ {print $2}')
+
+    # Pure Storage VM images consist of a block volume (i-<uuid>-b) and a companion FS volume
+    # (i-<uuid>). Both share the same volatile.uuid, so one lookup suffices.
+    vol_uuid=$(lxc storage volume get "${pool}" "image/${fingerprint}" volatile.uuid)
+    local block_vol_name fs_vol_name
+    block_vol_name="i-$(echo "${vol_uuid}" | tr -d '-')-b"
+    fs_vol_name="i-$(echo "${vol_uuid}" | tr -d '-')"
+
+    # Re-authenticate for the VM sub-test.
+    token=$(curl -s "${tls_opts[@]}" -X POST \
+      -H "Content-Type: application/json" \
+      -d "{\"api-token\": \"${PURE_API_TOKEN}\"}" \
+      -D - -o /dev/null \
+      "${gateway}/api/2.21/login" | grep -i "^x-auth-token:" | tr -d '\r' | awk '{print $2}')
+    [ -n "${token}" ]
+
+    # Simulate an aborted VM image download by removing the block volume's readonly snapshot.
+    # ValidateImageVolume checks this snapshot first, so removing it alone is sufficient to
+    # trigger recovery without needing to also remove the companion FS snapshot.
+    snap_ref="${pool}::${block_vol_name}.readonly"
+    curl --fail-with-body -s "${tls_opts[@]}" -X PATCH \
+      -H "X-Auth-Token: ${token}" \
+      -H "Content-Type: application/json" \
+      -d '{"destroyed": true}' \
+      "${gateway}/api/2.21/volume-snapshots?names=${snap_ref}"
+    curl --fail-with-body -s "${tls_opts[@]}" -X DELETE \
+      -H "X-Auth-Token: ${token}" \
+      "${gateway}/api/2.21/volume-snapshots?names=${snap_ref}"
+
+    # Verify the snapshot was actually deleted before proceeding.
+    count=$(curl -s "${tls_opts[@]}" -X GET \
+      -H "X-Auth-Token: ${token}" \
+      "${gateway}/api/2.21/volume-snapshots?names=${snap_ref}" | jq '.total_item_count')
+    [ "${count}" -eq 0 ]
+
+    # The image integrity check should detect the missing readonly snapshot
+    # and regenerate the complete VM image structure before instance creation.
+    lxc init ubuntu-vm vm-recovery --vm
+
+    # Verify both readonly snapshots were recreated as part of the regeneration.
+    count=$(curl -s "${tls_opts[@]}" -X GET \
+      -H "X-Auth-Token: ${token}" \
+      "${gateway}/api/2.21/volume-snapshots?names=${snap_ref}" | jq '.total_item_count')
+    [ "${count}" -gt 0 ]
+
+    snap_ref="${pool}::${fs_vol_name}.readonly"
+    count=$(curl -s "${tls_opts[@]}" -X GET \
+      -H "X-Auth-Token: ${token}" \
+      "${gateway}/api/2.21/volume-snapshots?names=${snap_ref}" | jq '.total_item_count')
+    [ "${count}" -gt 0 ]
+
+    lxc delete vm-recovery
+    lxc image delete ubuntu-vm
+  fi
 }

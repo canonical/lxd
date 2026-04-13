@@ -15,6 +15,64 @@ test_storage_driver_zfs() {
   do_zfs_delegate
   do_zfs_rebase
   do_recursive_copy_snapshot_cleanup
+  do_storage_driver_zfs_image_recovery
+}
+
+do_storage_driver_zfs_image_recovery() {
+  local pool fingerprint
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  sub_test "Verify a corrupted image volume is automatically regenerated before instance creation."
+
+  ensure_import_testimage
+  fingerprint=$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')
+
+  # Simulate an aborted image download by destroying the finalization marker.
+  zfs destroy "${pool}/images/${fingerprint}@readonly"
+
+  # The image integrity check detects the missing readonly snapshot and
+  # regenerates the image volume before the instance is created.
+  lxc init testimage c-recovery
+
+  # Verify the readonly snapshot was recreated as part of the regeneration.
+  zfs list "${pool}/images/${fingerprint}@readonly"
+
+  lxc delete c-recovery
+  lxc image delete testimage
+
+  # Test VM image recovery (if VM tests are enabled)
+  if [ "${LXD_VM_TESTS:-}" = "true" ]; then
+    sub_test "Verify a corrupted VM image volume is automatically regenerated before instance creation."
+
+    ensure_import_ubuntu_vm_image
+    fingerprint=$(lxc image info ubuntu-vm | awk '/^Fingerprint/ {print $2}')
+
+    # Get the VM image volume details
+    local image_volume="${pool}/images/${fingerprint}"
+
+    # Verify the VM image structure includes both block and filesystem components
+    zfs list "${image_volume}"
+
+    # Simulate an aborted VM image download by destroying the block dataset's readonly snapshot.
+    # ValidateImageVolume checks this snapshot first, so destroying it alone is sufficient to
+    # trigger recovery without needing to also destroy the companion FS snapshot.
+    zfs destroy "${image_volume}.block@readonly"
+
+    # The image integrity check should detect the missing block-content snapshot
+    # and regenerate the complete VM image structure before instance creation
+    lxc init ubuntu-vm vm-recovery --vm
+
+    # Verify both readonly snapshots were recreated as part of the regeneration.
+    zfs list "${image_volume}.block@readonly"
+    zfs list "${image_volume}@readonly"
+
+    # Verify the instance root disk is properly created
+    local instance_volume="${pool}/virtual-machines/vm-recovery"
+    zfs list "${instance_volume}.block"
+
+    lxc delete vm-recovery
+    lxc image delete ubuntu-vm
+  fi
 }
 
 do_zfs_delegate() {
