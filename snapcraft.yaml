@@ -1484,7 +1484,7 @@ parts:
       lib/python3.12/site-packages/: lib/python3/dist-packages/
       bin/uefivars: bin/uefivars.py
     prime:
-      - bin/uefivars.py
+      - bin/uefivars.py  # LXD expects the .py extension
       - lib/python3/dist-packages/crc32c*
       - lib/python3/dist-packages/pyuefivars*
 
