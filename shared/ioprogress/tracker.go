@@ -1,7 +1,11 @@
 package ioprogress
 
 import (
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/canonical/lxd/shared/units"
 )
 
 // ProgressTracker provides the stream information needed for tracking.
@@ -69,4 +73,53 @@ func (pt *ProgressTracker) update(n int) {
 	}
 
 	pt.Handler(min(int64(pt.percentage)+1, 100), pt.total, speedInt)
+}
+
+func (pt *ProgressTracker) buildProgressData(description string, percentage int64, bytesTransferred int64, bytesPerSecond int64) ProgressData {
+	var b strings.Builder
+
+	// Expected max size of string is:
+	// - Length of description + 2 (for colon and space)
+	// - Length of total byte transfer representation <= 8 (up to 3 digits, 2 decimals, 2 units).
+	// - Length of bytes per second representation <= 13 (as above, plus 5 for space, brackets, and "/s")
+	// Percentage not included in calculation since the total bytes representation is longer.
+	b.Grow(len(description) + 23)
+
+	// Write the description followed by a colon if given.
+	if description != "" {
+		b.WriteString(description)
+		b.WriteString(": ")
+	}
+
+	// Write the progress as {x}% if percentage is given (only set when Length is set).
+	// Otherwise, write the total number of transferred bytes in human-readable form.
+	var noProgress bool
+	if percentage > 0 {
+		b.WriteString(strconv.FormatInt(percentage, 10))
+		b.WriteString("%")
+	} else if bytesTransferred > 0 {
+		b.WriteString(units.GetByteSizeString(bytesTransferred, 2))
+	} else {
+		noProgress = true
+	}
+
+	// Write the bytes per second if given. Wrap with brackets if progress was written.
+	if bytesPerSecond > 0 {
+		if noProgress {
+			b.WriteString(units.GetByteSizeString(bytesPerSecond, 2))
+			b.WriteString("/s")
+		} else {
+			b.WriteString(" (")
+			b.WriteString(units.GetByteSizeString(bytesPerSecond, 2))
+			b.WriteString("/s)")
+		}
+	}
+
+	return ProgressData{
+		Text:             b.String(),
+		Percentage:       int(percentage),
+		TransferredBytes: bytesTransferred,
+		TotalBytes:       pt.Length,
+		BytesPerSecond:   bytesPerSecond,
+	}
 }
