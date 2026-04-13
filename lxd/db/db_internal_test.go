@@ -279,10 +279,10 @@ func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
 		imageID, _, err := tx.GetImage(ctx, "fingerprint", cluster.ImageFilter{Project: &project})
 		s.NoError(err)
 
-		err = tx.CreateImageSource(ctx, imageID, "server.remote", "simplestreams", "", "test")
+		err = tx.CreateImageSource(ctx, imageID, "ubuntu", "test")
 		s.NoError(err)
 
-		fingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, "server.remote", "simplestreams", "test", "container", 0)
+		fingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, "ubuntu", "test", "container", 0)
 		s.NoError(err)
 		s.Equal("fingerprint", fingerprint)
 		return nil
@@ -296,10 +296,10 @@ func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint_no_match() {
 		imageID, _, err := tx.GetImage(ctx, "fingerprint", cluster.ImageFilter{Project: &project})
 		s.NoError(err)
 
-		err = tx.CreateImageSource(ctx, imageID, "server.remote", "simplestreams", "", "test")
+		err = tx.CreateImageSource(ctx, imageID, "ubuntu", "test")
 		s.NoError(err)
 
-		_, err = tx.GetCachedImageSourceFingerprint(ctx, "server.remote", "lxd", "test", "container", 0)
+		_, err = tx.GetCachedImageSourceFingerprint(ctx, "images", "test", "container", 0)
 		s.True(api.StatusErrorCheck(err, http.StatusNotFound))
 		return nil
 	})
