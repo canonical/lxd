@@ -1,0 +1,58 @@
+{
+  "skill_name": "backport-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need you to backport a bug fix to our stable branch. First, set up the test repo by running: bash evals/files/setup_simple_backport.sh. Parse the REPO and SHA from the output. Then, working inside that repo directory, backport the commit identified by SHA to the stable-5.0 branch.",
+      "expected_output": "The commit is cherry-picked onto stable-5.0, the commit message includes a '(cherry picked from commit <sha>)' trailer, and the working tree is clean.",
+      "files": [],
+      "expectations": [
+        "The agent checks out the stable-5.0 branch before cherry-picking",
+        "The agent runs git cherry-pick -x <sha> (or equivalent that adds the cherry-picked-from trailer)",
+        "The resulting commit on stable-5.0 contains the line 'fmt.Println(\"hello, world\")' in buggy.go",
+        "The commit message on stable-5.0 includes '(cherry picked from commit' followed by the original SHA",
+        "The working tree is clean (git status -s outputs nothing) at the end"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "We have two commits from a feature branch that need to go into stable-5.0. Please run bash evals/files/setup_multicommit_backport.sh first to set up the repo. Parse REPO, SHA1, and SHA2 from its output. Then backport both commits (SHA1 first, then SHA2) to the stable-5.0 branch in the repo at REPO.",
+      "expected_output": "Both commits appear on stable-5.0 in topological order (SHA1's change before SHA2's change), each with a '(cherry picked from commit ...)' trailer, and the working tree is clean.",
+      "files": [],
+      "expectations": [
+        "The agent applies SHA1 before SHA2 (topological order preserved)",
+        "Both commits on stable-5.0 include a '(cherry picked from commit' trailer",
+        "After the backport, stable-5.0 contains api.go with 'return \"1.1\"'",
+        "After the backport, stable-5.0 contains changelog.md with the v1.1 entry",
+        "The working tree is clean at the end"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Run bash evals/files/setup_conflict_backport.sh to set up the test repo. Parse REPO and SHA from the output. Try to backport the commit SHA to the stable-5.0 branch in that repo. There will be a merge conflict — handle it appropriately.",
+      "expected_output": "The agent detects the conflict, aborts the cherry-pick (or resolves it with preserved intent), and clearly explains what blocked the backport and what manual steps are needed.",
+      "files": [],
+      "expectations": [
+        "The agent detects that git cherry-pick results in a conflict",
+        "The agent does NOT silently skip the conflict or leave the repo in a mid-cherry-pick state",
+        "If the agent aborts (git cherry-pick --abort), it explains what file conflicted and why",
+        "The working tree is clean at the end (either conflict was resolved and committed, or cherry-pick was aborted)",
+        "The agent clearly communicates to the user what manual intervention is needed"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Run bash evals/files/setup_mixed_backport.sh to set up the test repo. Parse REPO, BRANCH, and COMMITS from the output (COMMITS is a space-separated list of 4 SHAs in topological order). Then, working inside REPO, backport those 4 commits onto BRANCH. The commits include a mix of cosmetic changes (renames, comment fixes) and essential bug fixes. Some will conflict — use your judgment about which to skip vs resolve. Clearly state which commits were applied, which were skipped, and why.",
+      "expected_output": "The two essential commits (bug fix and new feature) land on the target branch. The cosmetic commit that conflicts is skipped with an explanation. The cosmetic comment-fix commit that applies cleanly may or may not be included. Every applied commit has a '(cherry picked from commit ...)' trailer. The working tree is clean at the end.",
+      "files": [],
+      "expectations": [
+        "The essential bug-fix commit ('fix: restore original address on revert instead of wiping cfg') is present on the target branch",
+        "The essential feature commit ('feat: reinstate cluster.https_address listener') is present on the target branch",
+        "Each applied commit includes a '(cherry picked from commit' trailer",
+        "The cosmetic rename commit that conflicts is skipped with an explicit explanation",
+        "The agent does not attempt conflict resolution indefinitely — it aborts and reports if a conflict cannot be resolved cleanly",
+        "The working tree is clean (git status -s outputs nothing) at the end"
+      ]
+    }
+  ]
+}
