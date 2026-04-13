@@ -158,35 +158,60 @@ See {ref}`howto-cluster-groups` and {ref}`cluster-target-instance` for more info
 (exp-cluster-links)=
 ## Cluster links
 
-Cluster links enable authenticated communication between separate LXD clusters by establishing a bidirectional trust relationship using mutual TLS certificates.
+Cluster links enable secure communication between separate LXD clusters by pinning the remote cluster's TLS certificate and optionally establishing mutual trust.
+
+Cluster links are the foundation for {ref}`replicators <exp-replicators>`, which use bidirectional links to sync instances across clusters for active-passive disaster recovery. Unidirectional links are suited to scenarios where one cluster needs to read from another without granting reciprocal access, or for anonymous access to a cluster that exposes resources publicly.
+
+### Link types
+
+There are three link types, each suited to different trust and access requirements:
+
+`bidirectional`
+: Both clusters authenticate each other using mutual TLS. Each side creates an identity for the other and can initiate requests to the other. This is the default type.
+
+`unidirectional`
+: A pins B's certificate and uses a token to activate a pending identity that B created for A. B stores a corresponding link entry and can authenticate incoming requests from A, but holds no address for A and cannot initiate requests to it.
+
+`unidirectional-unauthenticated`
+: Only the initiating cluster (A) stores a link to B. A connects to B without presenting a client certificate, relying solely on certificate pinning for server authentication. B is completely unaware of the link and no identity is created on either side. Use this type when B exposes resources publicly or when you want read-only, anonymous-style access to B.
 
 ### How cluster links work
 
-1. **Trust establishment**: Each cluster presents its certificate to the other, establishing mutual trust.
-1. **Identity creation**: LXD automatically creates a special identity for each linked cluster with type `Cluster link certificate`.
-1. **Permission control**: The linked cluster's permissions are managed through LXD's {ref}`fine-grained-authorization` system.
-1. **Secure communication**: All communication between clusters uses TLS encryption with certificate verification.
+All link types rely on TLS certificate pinning: A fetches and pins B's certificate before making any connection. The link type determines what trust is established on B's side.
 
-#### Connection process
-
-Both clusters coordinate to create a link.
+#### Bidirectional connection process
 
 1. **Cluster A** creates a pending cluster link and generates a trust token.
 1. **Cluster B** uses this token to establish the connection and send its certificate back.
 1. Both clusters validate certificates and activate the bidirectional link.
 1. The link becomes active and both clusters can communicate.
 
+#### Unidirectional connection process
+
+1. **Cluster B** issues a pending identity token using `lxc auth identity create cluster-link/<name>`.
+1. **Cluster A** consumes the token with `lxc cluster link create <name> --token <token> --unidirectional`, pins B's certificate, and calls back to B to activate the pending identity.
+1. A has an active link to B with no associated identity. B has an active identity for A and a corresponding link row.
+
+#### Unauthenticated unidirectional connection process
+
+1. **Cluster A** runs `lxc cluster link create <name> --unauthenticated --remote-address <addr>`.
+1. The CLI fetches B's certificate and displays the fingerprint for the user to confirm.
+1. A stores the link locally with B's pinned certificate. B is not contacted and remains unaware of the link.
+
 For more information, see: {ref}`howto-cluster-links-create`.
 
 (exp-clusters-links-identity)=
 ### Identity management for cluster links
 
-When you create a cluster link, LXD automatically creates an identity for the linked cluster. This identity is of type `Cluster link certificate` and is used to authenticate that cluster. These identities are managed using {ref}`fine-grained-authorization`.
+The identities created depend on the link type:
 
-The identity can be in one of two states:
+- **Bidirectional**: LXD creates a `Cluster link certificate` identity on each side. The identity can be in one of two states:
+  - **Pending**: A trust token has been generated but the link has not been activated yet.
+  - **Active**: Both clusters have exchanged certificates and the link is operational.
+- **Unidirectional (authenticated)**: B creates an identity for A and a corresponding link entry (no addresses, so B cannot reach A, but can manage A's access via `lxc cluster link delete`). A stores B's certificate directly without an associated identity.
+- **Unidirectional unauthenticated**: No identity is created on either side.
 
-- **Pending**: When a trust token is generated but the link hasn't been activated yet.
-- **Active**: When both clusters have exchanged certificates and the link is operational.
+Identities are managed using {ref}`fine-grained-authorization`.
 
 #### Security considerations
 
@@ -195,7 +220,15 @@ The identity can be in one of two states:
 - **Identity isolation**: Each cluster link gets its own identity that can be managed independently.
 - **Group membership**: Cluster link identities can be assigned to authentication groups for bulk permission management.
 
-Together, these controls limit the blast radius of a compromised link by enforcing mutual authentication and least-privilege access. They also make it possible to revoke a single link’s access without impacting other cluster-to-cluster trust relationships.
+Together, these controls limit the blast radius of a compromised link by enforcing certificate-based trust and least-privilege access. They also make it possible to revoke a single link's access without impacting other cluster-to-cluster trust relationships.
+
+#### Cluster link deletion
+
+Deletion behavior depends on the link type:
+
+- **Bidirectional**: Run `lxc cluster link delete` on both clusters to fully remove the trust relationship.
+- **Unidirectional (authenticated)**: Deleting on A removes only A's link. B's identity and link row remain until B explicitly deletes its link.
+- **Unidirectional unauthenticated**: Only A has a link. Run `lxc cluster link delete` on A; B is unaffected.
 
 #### Cluster link member status
 
