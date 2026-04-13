@@ -16,6 +16,8 @@ type ProgressTracker struct {
 }
 
 func (pt *ProgressTracker) update(n int) {
+	pt.total += int64(n)
+
 	// Skip the rest if no handler attached
 	if pt.Handler == nil {
 		return
@@ -33,7 +35,7 @@ func (pt *ProgressTracker) update(n int) {
 		return
 	}
 
-	// Update interval handling
+	// Update interval handling (this is to prevent the tracker hook from being called too frequently).
 	var percentage float64
 	if pt.Length > 0 {
 		// If running in relative mode, check that we increased by at least 1%
