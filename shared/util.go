@@ -35,7 +35,6 @@ import (
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/revert"
-	"github.com/canonical/lxd/shared/units"
 )
 
 // SnapshotDelimiter is the character used to delimit instance and snapshot names.
@@ -1232,22 +1231,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 	}
 
 	// Handle the data
-	body := r.Body
-	if progress != nil {
-		body = &ioprogress.ProgressReader{
-			ReadCloser: r.Body,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: r.ContentLength,
-				Handler: func(percent int64, speed int64) {
-					if filename != "" {
-						progress(ioprogress.ProgressData{Text: fmt.Sprintf("%s: %d%% (%s/s)", filename, percent, units.GetByteSizeString(speed, 2))})
-					} else {
-						progress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
-					}
-				},
-			},
-		}
-	}
+	body := ioprogress.NewProgressReader(r.Body, ioprogress.WithLength(r.ContentLength), ioprogress.WithDescriptiveProgressHandler(filename, progress))
 
 	var size int64
 
