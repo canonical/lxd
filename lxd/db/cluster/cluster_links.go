@@ -19,7 +19,9 @@ import (
 type ClusterLinkType string
 
 const (
-	clusterLinkTypeBidirectional int64 = 0
+	clusterLinkTypeBidirectional                 int64 = 0
+	clusterLinkTypeUnidirectional                int64 = 1
+	clusterLinkTypeUnidirectionalUnauthenticated int64 = 2
 )
 
 // ClusterLinkRow represents a single row of the cluster_links table.
@@ -42,6 +44,10 @@ func (c *ClusterLinkType) ScanInteger(clusterLinkTypeCode int64) error {
 	switch clusterLinkTypeCode {
 	case clusterLinkTypeBidirectional:
 		*c = api.ClusterLinkTypeBidirectional
+	case clusterLinkTypeUnidirectional:
+		*c = api.ClusterLinkTypeUnidirectional
+	case clusterLinkTypeUnidirectionalUnauthenticated:
+		*c = api.ClusterLinkTypeUnidirectionalUnauthenticated
 	default:
 		return fmt.Errorf("Unknown cluster link type %d", clusterLinkTypeCode)
 	}
@@ -59,6 +65,10 @@ func (c ClusterLinkType) Value() (driver.Value, error) {
 	switch c {
 	case api.ClusterLinkTypeBidirectional:
 		return clusterLinkTypeBidirectional, nil
+	case api.ClusterLinkTypeUnidirectional:
+		return clusterLinkTypeUnidirectional, nil
+	case api.ClusterLinkTypeUnidirectionalUnauthenticated:
+		return clusterLinkTypeUnidirectionalUnauthenticated, nil
 	}
 
 	return nil, fmt.Errorf("Invalid cluster link type %q", c)
