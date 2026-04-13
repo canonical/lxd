@@ -2,15 +2,11 @@ package migration
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"slices"
 
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/ioprogress"
-	"github.com/canonical/lxd/shared/units"
 )
 
 // Info represents the index frame sent if supported.
@@ -253,75 +249,4 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 	}
 
 	return matchedTypes, nil
-}
-
-func progressWrapperRender(op *operations.Operation, key string, description string, progressInt int64, speedInt int64) {
-	meta := map[string]any{}
-
-	progress := fmt.Sprintf("%s (%s/s)", units.GetByteSizeString(progressInt, 2), units.GetByteSizeString(speedInt, 2))
-	if description != "" {
-		progress = fmt.Sprintf("%s: %s (%s/s)", description, units.GetByteSizeString(progressInt, 2), units.GetByteSizeString(speedInt, 2))
-	}
-
-	if meta[key] != progress {
-		meta[key] = progress
-		_ = op.ExtendMetadata(meta)
-	}
-}
-
-// ProgressReader reports the read progress.
-func ProgressReader(op *operations.Operation, key string, description string) func(io.ReadCloser) io.ReadCloser {
-	return func(reader io.ReadCloser) io.ReadCloser {
-		if op == nil {
-			return reader
-		}
-
-		progress := func(progressInt int64, speedInt int64) {
-			progressWrapperRender(op, key, description, progressInt, speedInt)
-		}
-
-		readPipe := &ioprogress.ProgressReader{
-			ReadCloser: reader,
-			Tracker: &ioprogress.ProgressTracker{
-				Handler: progress,
-			},
-		}
-
-		return readPipe
-	}
-}
-
-// ProgressWriter reports the write progress.
-func ProgressWriter(op *operations.Operation, key string, description string) func(io.WriteCloser) io.WriteCloser {
-	return func(writer io.WriteCloser) io.WriteCloser {
-		if op == nil {
-			return writer
-		}
-
-		progress := func(progressInt int64, speedInt int64) {
-			progressWrapperRender(op, key, description, progressInt, speedInt)
-		}
-
-		writePipe := &ioprogress.ProgressWriter{
-			WriteCloser: writer,
-			Tracker: &ioprogress.ProgressTracker{
-				Handler: progress,
-			},
-		}
-
-		return writePipe
-	}
-}
-
-// ProgressTracker returns a migration I/O tracker.
-func ProgressTracker(op *operations.Operation, key string, description string) *ioprogress.ProgressTracker {
-	progress := func(progressInt int64, speedInt int64) {
-		progressWrapperRender(op, key, description, progressInt, speedInt)
-	}
-
-	tracker := &ioprogress.ProgressTracker{
-		Handler: progress,
-	}
-
-	return tracker
 }
