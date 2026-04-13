@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
@@ -179,6 +180,63 @@ func UpdateClusterLinkConfig(ctx context.Context, tx *sql.Tx, clusterLinkID int6
 	}
 
 	return CreateClusterLinkConfig(ctx, tx, clusterLinkID, config)
+}
+
+// SetClusterLinkCertificate stores the certificate for a unidirectional cluster link.
+// Any existing certificate for the link is replaced.
+func SetClusterLinkCertificate(ctx context.Context, tx *sql.Tx, clusterLinkID int64, fingerprint string, pemCert string) error {
+	// Check whether this fingerprint is already in use. The certificates table enforces UNIQUE(fingerprint),
+	// so inserting a duplicate would produce an opaque constraint error. Return a clear error instead.
+	_, err := query.SelectOne[CertificatesRow](ctx, tx, "WHERE fingerprint = ?", fingerprint)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed checking for existing certificate with fingerprint %q: %w", fingerprint, err)
+	}
+
+	if err == nil {
+		return fmt.Errorf("A cluster link certificate with fingerprint %q already exists; the remote cluster may already be linked", fingerprint)
+	}
+
+	// Delete any existing certificate for this link. The trigger deletes the corresponding certificates row.
+	_, err = tx.ExecContext(ctx, "DELETE FROM cluster_links_certificates WHERE cluster_link_id = ?", clusterLinkID)
+	if err != nil {
+		return fmt.Errorf("Failed deleting existing cluster link certificate: %w", err)
+	}
+
+	cert := CertificatesRow{
+		Fingerprint: fingerprint,
+		Certificate: pemCert,
+	}
+
+	certificateID, err := query.Create(ctx, tx, cert)
+	if err != nil {
+		return fmt.Errorf("Failed creating certificate: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, "INSERT INTO cluster_links_certificates (cluster_link_id, certificate_id) VALUES (?, ?)", clusterLinkID, certificateID)
+	if err != nil {
+		return fmt.Errorf("Failed associating cluster link with certificate: %w", err)
+	}
+
+	return nil
+}
+
+// GetClusterLinkPEMCertificate returns the PEM-encoded certificate stored for a unidirectional cluster link, or an empty string if none is stored.
+func GetClusterLinkPEMCertificate(ctx context.Context, tx *sql.Tx, clusterLinkID int64) (string, error) {
+	var pemCert string
+	err := query.Scan(ctx, tx,
+		`SELECT certificates.certificate FROM certificates
+		 JOIN cluster_links_certificates ON certificates.id = cluster_links_certificates.certificate_id
+		 WHERE cluster_links_certificates.cluster_link_id = ?`,
+		func(scan func(dest ...any) error) error {
+			return scan(&pemCert)
+		},
+		clusterLinkID,
+	)
+	if err != nil {
+		return "", fmt.Errorf("Failed loading cluster link certificate: %w", err)
+	}
+
+	return pemCert, nil
 }
 
 // GetClusterLinksAndURLs returns all cluster links that pass the given filter, along with their entity URLs.
