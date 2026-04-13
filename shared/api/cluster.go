@@ -9,6 +9,16 @@ import (
 const (
 	// ClusterLinkTypeBidirectional indicates that the cluster link can be used by both clusters.
 	ClusterLinkTypeBidirectional = "bidirectional"
+
+	// ClusterLinkTypeUnidirectional indicates that only the local cluster can use the link (authenticated).
+	//
+	// API extension: cluster_links_unidirectional.
+	ClusterLinkTypeUnidirectional = "unidirectional"
+
+	// ClusterLinkTypeUnidirectionalUnauthenticated indicates that only the local cluster can use the link and no client certificate is presented.
+	//
+	// API extension: cluster_links_unidirectional.
+	ClusterLinkTypeUnidirectionalUnauthenticated = "unidirectional-unauthenticated"
 )
 
 // Cluster represents high-level information about a LXD cluster.
