@@ -203,7 +203,7 @@ WHERE images_source.image_id=?
 	}
 
 	if len(sources) == 0 {
-		return -1, nil, api.StatusErrorf(http.StatusNotFound, "Image source not found")
+		return -1, nil, api.NewStatusError(http.StatusNotFound, "Image source not found")
 	}
 
 	source := sources[0]
