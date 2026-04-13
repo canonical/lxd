@@ -501,6 +501,25 @@ type ClusterLinksPost struct {
 	// The certificate (X509 PEM encoded) for the linked cluster. This is included in server-side POST requests to activate the pending cluster link on the linked cluster that generated the trust token.
 	// Example: X509 PEM certificate
 	ClusterCertificate string `json:"cluster_certificate" yaml:"cluster_certificate"`
+
+	// RemoteAddress is the address of the remote cluster, used for unauthenticated unidirectional links.
+	// Example: 10.0.0.1:8443
+	RemoteAddress string `json:"remote_address,omitempty" yaml:"remote_address,omitempty"`
+}
+
+// ClusterLinkCertificate represents a remote cluster certificate fetched for user verification.
+//
+// swagger:model
+//
+// API extension: cluster_links_unidirectional.
+type ClusterLinkCertificate struct {
+	// SHA-256 fingerprint of the certificate.
+	// Example: a1b2c3d4...
+	Fingerprint string `json:"fingerprint" yaml:"fingerprint"`
+
+	// PEM-encoded X.509 certificate.
+	// Example: -----BEGIN CERTIFICATE-----\n...
+	Certificate string `json:"certificate" yaml:"certificate"`
 }
 
 // ClusterLinkPost represents the fields available for renaming a cluster link.
