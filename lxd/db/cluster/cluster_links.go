@@ -28,7 +28,7 @@ const (
 // db:model cluster_links
 type ClusterLinkRow struct {
 	ID          int64           `db:"id"`
-	IdentityID  int64           `db:"identity_id"`
+	IdentityID  *int64          `db:"identity_id"`
 	Name        string          `db:"name"`
 	Description string          `db:"description"`
 	Type        ClusterLinkType `db:"type"`
