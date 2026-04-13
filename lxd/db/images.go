@@ -113,7 +113,7 @@ func (c *ClusterTx) GetCachedImageSourceFingerprint(ctx context.Context, imageRe
 	}
 
 	if len(fingerprints) == 0 {
-		return "", api.StatusErrorf(http.StatusNotFound, "Image source not found")
+		return "", api.NewStatusError(http.StatusNotFound, "Image source not found")
 	}
 
 	return fingerprints[0], nil
