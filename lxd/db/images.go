@@ -78,9 +78,9 @@ func (c *ClusterTx) CreateImageSource(ctx context.Context, id int, imageRegistry
 }
 
 // GetCachedImageSourceFingerprint tries to find a source entry of a locally
-// cached image that matches the given remote details (server, protocol and
-// alias). Return the fingerprint linked to the matching entry, if any.
-func (c *ClusterTx) GetCachedImageSourceFingerprint(ctx context.Context, server string, protocol string, alias string, typeName string, architecture int) (string, error) {
+// cached image that matches the given remote details (image registry and alias).
+// Returns the fingerprint linked to the matching entry, if any.
+func (c *ClusterTx) GetCachedImageSourceFingerprint(ctx context.Context, imageRegistry string, alias string, typeName string, architecture int) (string, error) {
 	imageType := instancetype.Any
 	if typeName != "" {
 		var err error
@@ -90,25 +90,16 @@ func (c *ClusterTx) GetCachedImageSourceFingerprint(ctx context.Context, server 
 		}
 	}
 
-	protocolInt := -1
-	for protoInt, protoString := range cluster.ImageSourceProtocol {
-		if protoString == protocol {
-			protocolInt = protoInt
-		}
-	}
-
-	if protocolInt == -1 {
-		return "", fmt.Errorf("Invalid protocol: %s", protocol)
-	}
-
 	q := `SELECT images.fingerprint
 			FROM images_source
 			INNER JOIN images
 			ON images_source.image_id=images.id
-			WHERE server=? AND protocol=? AND alias=? AND auto_update=1 AND images.architecture=?
-`
+			INNER JOIN image_registries
+			ON images_source.image_registry_id=image_registries.id
+			WHERE image_registries.name=? AND alias=? AND auto_update=1 AND images.architecture=?
+	`
 
-	args := []any{server, protocolInt, alias, architecture}
+	args := []any{imageRegistry, alias, architecture}
 	if imageType != instancetype.Any {
 		q += "AND images.type=?\n"
 		args = append(args, imageType)
