@@ -29,7 +29,6 @@ import (
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -352,19 +351,9 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	defer cleanup()
 
 	// Setup a progress handler
-	progress := func(progress ioprogress.ProgressData) {
-		if op == nil {
-			return
-		}
-
-		meta := op.Metadata()
-		if meta == nil {
-			meta = make(map[string]any)
-		}
-
-		if meta["download_progress"] != progress.Text {
-			_ = op.ExtendMetadata(map[string]any{"download_progress": progress.Text})
-		}
+	var progress ioprogress.ProgressHandler
+	if op != nil {
+		progress = op.ProgressHandler("download")
 	}
 
 	var canceler *cancel.HTTPRequestCanceller
@@ -509,16 +498,8 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			return nil, fmt.Errorf("Cannot fetch %q: %s", args.Server, raw.Status)
 		}
 
-		// Progress handler
-		body := &ioprogress.ProgressReader{
-			ReadCloser: raw.Body,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: raw.ContentLength,
-				Handler: func(percent int64, speed int64) {
-					progress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
-				},
-			},
-		}
+		// Track progress
+		body := ioprogress.NewProgressReader(raw.Body, ioprogress.WithLength(raw.ContentLength), ioprogress.WithProgressHandler(progress))
 
 		// Create the target files
 		f, err := os.Create(destName)
