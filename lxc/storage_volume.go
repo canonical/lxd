@@ -2928,16 +2928,8 @@ func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	createArgs := lxd.StoragePoolVolumeBackupArgs{
-		BackupFile: &ioprogress.ProgressReader{
-			ReadCloser: file,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: fstat.Size(),
-				Handler: func(percent int64, speed int64) {
-					progress.UpdateProgress(ioprogress.ProgressData{Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)"})
-				},
-			},
-		},
-		Name: volName,
+		BackupFile: ioprogress.NewProgressReader(file, ioprogress.WithLength(fstat.Size()), ioprogress.WithProgressUpdater(&progress)),
+		Name:       volName,
 	}
 
 	var op lxd.Operation
