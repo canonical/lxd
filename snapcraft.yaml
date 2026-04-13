@@ -1373,10 +1373,8 @@ parts:
       - spice-server
       - edk2
       - nftables
-    # XXX: cannot use python3-pyuefivars (1.0.0-0ubuntu2) from Noble as the Ubuntu patch breaks it
-    #      the version in Ubuntu 24.10 onward should be OK so let's revisit with core26.
-    source: https://github.com/awslabs/python-uefivars
-    source-commit: ec1eab1717c65ea36ca7160c96fe0e10e071fb66 # v1.2
+    source: https://git.launchpad.net/ubuntu/+source/python-uefivars
+    source-commit: f5390dfa5df2c99da84a471fe5b322020d78cb15 # import/1.2-0ubuntu1
     source-depth: 1
     source-type: git
     plugin: python
