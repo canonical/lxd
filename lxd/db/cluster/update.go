@@ -128,6 +128,64 @@ var updates = map[int]schema.Update{
 	82: updateFromV81,
 	83: updateFromV82,
 	84: updateFromV83,
+	85: updateFromV84,
+}
+
+func updateFromV84(ctx context.Context, tx *sql.Tx) error {
+	// Recreate cluster_links with nullable identity_id to support unidirectional links.
+	// Add cluster_links_certificates to store the remote cert for unidirectional links.
+	//
+	// Renaming cluster_links to cluster_links_old causes cluster_links_config's
+	// FK to be rewritten to reference "cluster_links_old". We must recreate
+	// cluster_links_config to restore the correct FK reference to cluster_links.
+	_, err := tx.ExecContext(ctx, `
+ALTER TABLE cluster_links RENAME TO cluster_links_old;
+
+CREATE TABLE cluster_links (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	identity_id INTEGER,
+	description TEXT NOT NULL,
+	name TEXT NOT NULL,
+	type INTEGER NOT NULL DEFAULT 0,
+	UNIQUE(identity_id),
+	UNIQUE(name),
+	FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
+);
+
+INSERT INTO cluster_links SELECT * FROM cluster_links_old;
+
+CREATE TABLE cluster_links_config_new (
+	cluster_link_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (cluster_link_id) REFERENCES cluster_links (id) ON DELETE CASCADE,
+	PRIMARY KEY (cluster_link_id, key)
+) WITHOUT ROWID;
+
+INSERT INTO cluster_links_config_new SELECT * FROM cluster_links_config;
+DROP TABLE cluster_links_config;
+ALTER TABLE cluster_links_config_new RENAME TO cluster_links_config;
+
+DROP TABLE cluster_links_old;
+
+CREATE TABLE cluster_links_certificates (
+	cluster_link_id INTEGER NOT NULL,
+	certificate_id INTEGER NOT NULL,
+	FOREIGN KEY (cluster_link_id) REFERENCES cluster_links (id) ON DELETE CASCADE,
+	FOREIGN KEY (certificate_id) REFERENCES certificates (id) ON DELETE CASCADE,
+	UNIQUE (certificate_id),
+	PRIMARY KEY (cluster_link_id, certificate_id)
+) WITHOUT ROWID;
+
+CREATE TRIGGER cluster_links_certificates_after_delete
+	AFTER DELETE ON cluster_links_certificates
+	BEGIN
+	DELETE FROM certificates
+		WHERE certificates.id = OLD.certificate_id;
+	END;
+`)
+
+	return err
 }
 
 func updateFromV83(ctx context.Context, tx *sql.Tx) error {
