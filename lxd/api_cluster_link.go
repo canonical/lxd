@@ -66,6 +66,13 @@ var clusterLinkStateCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: clusterLinkStateGet, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanView, "name")},
 }
 
+var clusterLinksCertificateCmd = APIEndpoint{
+	Path:        "cluster/links/certificate",
+	MetricsType: entity.TypeClusterLink,
+
+	Get: APIEndpointAction{Handler: clusterLinkCertificateGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateClusterLinks)},
+}
+
 // swagger:operation GET /1.0/cluster/links cluster-links cluster_links_get
 //
 //		Get the cluster links
@@ -1495,4 +1502,66 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 	wg.Wait()
 
 	return response.SyncResponse(true, clusterLinkState)
+}
+
+// swagger:operation GET /1.0/cluster/links/certificate cluster-links cluster_links_certificate_get
+//
+//	Get the remote cluster certificate
+//
+//	Fetches the TLS certificate from the given remote address for user verification.
+//	This is used as the first step of the unauthenticated unidirectional cluster link creation flow.
+//
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: address
+//	    description: Address of the remote cluster
+//	    type: string
+//	    example: 10.0.0.1:8443
+//	responses:
+//	  "200":
+//	    description: Remote cluster certificate
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterLinkCertificate"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinkCertificateGet(d *Daemon, r *http.Request) response.Response {
+	address := r.URL.Query().Get("address")
+	if address == "" {
+		return response.BadRequest(errors.New("Address query parameter is required"))
+	}
+
+	canonicalAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
+	cert, err := shared.GetRemoteCertificate(r.Context(), "https://"+canonicalAddress, version.UserAgent)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed retrieving certificate from %q: %w", address, err))
+	}
+
+	pemCert := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+	return response.SyncResponse(true, api.ClusterLinkCertificate{
+		Fingerprint: shared.CertFingerprint(cert),
+		Certificate: pemCert,
+	})
 }

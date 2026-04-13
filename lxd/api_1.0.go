@@ -61,6 +61,7 @@ var api10 = []APIEndpoint{
 	clusterMemberCmd,
 	clusterMemberStateCmd,
 	clusterMembersCmd,
+	clusterLinksCertificateCmd,
 	clusterLinkCmd,
 	clusterLinksCmd,
 	clusterLinkStateCmd,
