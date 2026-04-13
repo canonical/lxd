@@ -4247,24 +4247,67 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 		// Add existing image volume's config to imgVol.
 		imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, imgDBVol.Config)
 
-		// Check if the volume's config differs from the pool's current configuration for new volumes.
-		// If the existing image volume no longer matches the pool's settings for new volumes then we need
-		// to delete and re-create it.
+		// Check if the existing image volume's config still matches the pool's current settings.
+		// If not, handle the transition: for drivers with image variant support (e.g. ZFS) any
+		// existing variant is preserved on disk and only the DB record is refreshed; for
+		// single-variant drivers the old volume is deleted and recreated.
 		if !b.driver.ImageVolumeConfigMatch(imgVol, tmpImgVol) {
-			l.Debug("Image volume configuration differs from storage pool configuration, regenerating image volume")
-			err = b.DeleteImage(ctx, image.Fingerprint, progressReporter)
+			l.Debug("Image volume configuration differs from storage pool configuration")
+
+			// Construct new pool-default image volume with filled config.
+			newImgVol := b.GetNewVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
+			err = b.driver.FillVolumeConfig(newImgVol)
 			if err != nil {
 				return err
 			}
 
-			// Reset img volume as we just deleted the old one.
+			// Check whether any image volume already exists on disk.
+			// For drivers with image variant support (e.g. ZFS), this returns true if
+			// any variant exists regardless of config, so existing variants are left
+			// untouched. For single-variant drivers, only the specific new-config dataset
+			// is checked.
+			newExists, err := b.driver.HasVolume(newImgVol)
+			if err != nil {
+				return err
+			}
+
+			// Delete old DB record so it can be recreated with new pool defaults.
+			err = VolumeDBDelete(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage)
+			if err != nil {
+				return err
+			}
+
+			if newExists {
+				// At least one image variant exists on disk. Refresh the DB record with the
+				// current pool volume settings (e.g. zfs.block_mode, block.filesystem) so that
+				// the next config match check sees them as equal and does not re-trigger this
+				// transition. The correct variant for the new config will be created lazily on
+				// first use.
+				err = VolumeDBCreate(b, api.ProjectDefaultName, image.Fingerprint, "",
+					drivers.VolumeTypeImage, false, newImgVol.Config(),
+					time.Now().UTC(), time.Time{}, contentType, false, false)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			}
+
+			// Fall through to create the new pool-default volume.
 			imgDBVol = nil
+			imgVol = newImgVol
 		}
 	}
 
 	if imgDBVol == nil {
 		// Instantiate a new volume including its own UUID.
 		imgVol = b.GetNewVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
+
+		// Fill with pool defaults so the volume existence check targets the correct dataset.
+		err = b.driver.FillVolumeConfig(imgVol)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Check if we already have a suitable volume on storage device.
@@ -4334,12 +4377,17 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 	defer revert.Fail()
 
 	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, api.ProjectDefaultName, image.Fingerprint, "", drivers.VolumeTypeImage, false, imgVol.Config(), time.Now().UTC(), time.Time{}, contentType, false, false)
-	if err != nil {
-		return err
-	}
+	// Only create a new DB entry if one does not already exist. When the DB record is
+	// present but the on-disk volume is missing after a pool config change, the existing
+	// DB entry is still valid and only the on-disk volume needs to be recreated.
+	if imgDBVol == nil {
+		err = VolumeDBCreate(b, api.ProjectDefaultName, image.Fingerprint, "", drivers.VolumeTypeImage, false, imgVol.Config(), time.Now().UTC(), time.Time{}, contentType, false, false)
+		if err != nil {
+			return err
+		}
 
-	revert.Add(func() { _ = VolumeDBDelete(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage) })
+		revert.Add(func() { _ = VolumeDBDelete(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage) })
+	}
 
 	err = b.driver.CreateVolume(imgVol, &volFiller, progressReporter)
 	if err != nil {
