@@ -7,7 +7,7 @@ import (
 // ProgressTracker provides the stream information needed for tracking.
 type ProgressTracker struct {
 	Length  int64
-	Handler func(int64, int64)
+	Handler func(percentage int64, bytesTransferred int64, bytesPerSecond int64)
 
 	percentage float64
 	total      int64
@@ -60,17 +60,13 @@ func (pt *ProgressTracker) update(n int) {
 	}
 
 	// Determine progress
-	var progressInt int64
 	if pt.Length > 0 {
 		pt.percentage = percentage
-		progressInt = min(int64(1+int(percentage)), 100)
 	} else {
-		progressInt = pt.total
-
 		// Update timestamp
 		cur := time.Now()
 		pt.last = &cur
 	}
 
-	pt.Handler(progressInt, speedInt)
+	pt.Handler(min(int64(pt.percentage)+1, 100), pt.total, speedInt)
 }
