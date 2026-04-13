@@ -131,7 +131,7 @@ func CopyFile(source string, dest string, bwlimit string, xattrs bool, rsyncArgs
 
 // Send sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker, features []string, bwlimit string, execPath string, rsyncArgs ...string) error {
+func Send(name string, path string, conn io.ReadWriteCloser, wrapper ioprogress.ReaderWrapper, features []string, bwlimit string, execPath string, rsyncArgs ...string) error {
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
@@ -248,11 +248,8 @@ func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress
 	// Setup progress tracker.
 	netcatConn := *ncConn
 	readNetcatPipe := io.ReadCloser(netcatConn)
-	if tracker != nil {
-		readNetcatPipe = &ioprogress.ProgressReader{
-			ReadCloser: netcatConn,
-			Tracker:    tracker,
-		}
+	if wrapper != nil {
+		readNetcatPipe = wrapper(readNetcatPipe)
 	}
 
 	// Forward from netcat to target.
@@ -309,7 +306,7 @@ func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress
 // Recv sets up the receiving half of the websocket to rsync (the other
 // half set up by rsync.Send), putting the contents in the directory specified
 // by path.
-func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker, features []string) error {
+func Recv(path string, conn io.ReadWriteCloser, readWrapper func(closer io.ReadCloser) io.ReadCloser, features []string) error {
 	args := []string{
 		"--server",
 		"-vlogDtpre.iLsfx",
@@ -361,11 +358,8 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 	}
 
 	readSourcePipe := io.ReadCloser(conn)
-	if tracker != nil {
-		readSourcePipe = &ioprogress.ProgressReader{
-			ReadCloser: conn,
-			Tracker:    tracker,
-		}
+	if readWrapper != nil {
+		readSourcePipe = readWrapper(readSourcePipe)
 	}
 
 	chCopySource := make(chan error, 1)
