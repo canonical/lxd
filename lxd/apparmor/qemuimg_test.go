@@ -9,7 +9,7 @@ import (
 func TestHandleWriter(t *testing.T) {
 	status := []int64{}
 	var buffer bytes.Buffer
-	out := &nullWriteCloser{handleWriter(&buffer, func(percent int64, _ int64) {
+	out := &nullWriteCloser{handleWriter(&buffer, func(percent int64, _ int64, _ int64) {
 		status = append(status, percent)
 	})}
 

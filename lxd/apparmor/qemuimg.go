@@ -74,7 +74,7 @@ func (w writerFunc) Write(b []byte) (n int, err error) {
 	return w(b)
 }
 
-func handleWriter(out io.Writer, hand func(int64, int64)) io.Writer {
+func handleWriter(out io.Writer, hand func(int64, int64, int64)) io.Writer {
 	var current int64
 	return writerFunc(func(b []byte) (int, error) {
 		n, _ := out.Write(b)
@@ -87,7 +87,7 @@ func handleWriter(out io.Writer, hand func(int64, int64)) io.Writer {
 		percent := int64(f)
 		if percent != current {
 			current = percent
-			hand(percent, 0)
+			hand(percent, 0, 0)
 		}
 
 		return n, nil
