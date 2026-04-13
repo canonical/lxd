@@ -51,29 +51,26 @@ SELECT fingerprint
 }
 
 // CreateImageSource inserts a new image source.
-func (c *ClusterTx) CreateImageSource(ctx context.Context, id int, server string, protocol string, certificate string, alias string) error {
-	protocolInt := -1
-	for protoInt, protoString := range cluster.ImageSourceProtocol {
-		if protoString == protocol {
-			protocolInt = protoInt
+func (c *ClusterTx) CreateImageSource(ctx context.Context, id int, imageRegistry string, alias string) error {
+	q := `SELECT id FROM image_registries WHERE name=?`
+
+	var registryID int
+	err := c.tx.QueryRowContext(ctx, q, imageRegistry).Scan(&registryID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return api.NewStatusError(http.StatusNotFound, "Image registry not found")
 		}
+
+		return err
 	}
 
-	if protocolInt == -1 {
-		return fmt.Errorf("Invalid protocol: %s", protocol)
-	}
-
-	_, err := query.UpsertObject(c.tx, "images_source", []string{
+	_, err = query.UpsertObject(c.tx, "images_source", []string{
 		"image_id",
-		"server",
-		"protocol",
-		"certificate",
+		"image_registry_id",
 		"alias",
 	}, []any{
 		id,
-		server,
-		protocolInt,
-		certificate,
+		registryID,
 		alias,
 	})
 
