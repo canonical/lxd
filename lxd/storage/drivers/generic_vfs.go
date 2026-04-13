@@ -175,9 +175,9 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol VolumeCopy, conn io.R
 
 	// Define function to send a filesystem volume.
 	sendFSVol := func(vol Volume, conn io.ReadWriteCloser, mountPath string) error {
-		var wrapper *ioprogress.ProgressTracker
+		var wrapper ioprogress.ReaderWrapper
 		if volSrcArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+			wrapper = ioprogress.NewProgressReaderWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, op))
 		}
 
 		path := shared.AddSlash(mountPath)
@@ -198,11 +198,6 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol VolumeCopy, conn io.R
 		// Close when done to indicate to target side we are finished sending this volume.
 		defer func() { _ = conn.Close() }()
 
-		var wrapper *ioprogress.ProgressTracker
-		if volSrcArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "block_progress", vol.name)
-		}
-
 		path, err := d.GetVolumeDiskPath(vol)
 		if err != nil {
 			return fmt.Errorf("Error getting VM block volume disk path: %w", err)
@@ -217,11 +212,8 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol VolumeCopy, conn io.R
 
 		// Setup progress tracker.
 		fromPipe := io.ReadCloser(from)
-		if wrapper != nil {
-			fromPipe = &ioprogress.ProgressReader{
-				ReadCloser: fromPipe,
-				Tracker:    wrapper,
-			}
+		if volSrcArgs.TrackProgress {
+			fromPipe = ioprogress.NewProgressReader(fromPipe, ioprogress.WithDescriptiveProgressReporter("block", vol.name, op))
 		}
 
 		d.Logger().Debug("Sending block volume", logger.Ctx{"volName": vol.name, "path": path})
@@ -324,9 +316,9 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 	}
 
 	recvFSVol := func(volName string, conn io.ReadWriteCloser, path string) error {
-		var wrapper *ioprogress.ProgressTracker
+		var wrapper ioprogress.ReaderWrapper
 		if volTargetArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", volName)
+			wrapper = ioprogress.NewProgressReaderWrapper(ioprogress.WithDescriptiveProgressReporter("fs", volName, op))
 		}
 
 		d.Logger().Debug("Receiving filesystem volume started", logger.Ctx{"volName": volName, "path": path, "features": volTargetArgs.MigrationType.Features})
@@ -336,11 +328,6 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 	}
 
 	recvBlockVol := func(volName string, conn io.ReadWriteCloser, path string) error {
-		var wrapper *ioprogress.ProgressTracker
-		if volTargetArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "block_progress", volName)
-		}
-
 		to, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC, 0)
 		if err != nil {
 			return fmt.Errorf("Error opening file for writing %q: %w", path, err)
@@ -350,11 +337,8 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 
 		// Setup progress tracker.
 		fromPipe := io.ReadCloser(conn)
-		if wrapper != nil {
-			fromPipe = &ioprogress.ProgressReader{
-				ReadCloser: fromPipe,
-				Tracker:    wrapper,
-			}
+		if volTargetArgs.TrackProgress {
+			fromPipe = ioprogress.NewProgressReader(fromPipe, ioprogress.WithDescriptiveProgressReporter("block", volName, op))
 		}
 
 		d.Logger().Debug("Receiving block volume started", logger.Ctx{"volName": volName, "path": path})

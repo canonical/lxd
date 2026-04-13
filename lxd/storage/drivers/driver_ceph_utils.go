@@ -1191,7 +1191,7 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 //
 //	rbd export-diff pool1/container_a@snapshot_snap1 --from-snap snapshot_snap0 - | rbd import-diff - pool2/container_a
 //	rbd export-diff pool1/container_a --from-snap snapshot_snap1 - | rbd import-diff - pool2/container_a
-func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumeParentName string, tracker *ioprogress.ProgressTracker) error {
+func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumeParentName string, writerWrapper ioprogress.WriterWrapper) error {
 	defer func() { _ = conn.Close() }()
 
 	args := []string{
@@ -1217,11 +1217,8 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 
 	// Setup progress tracker.
 	var stdout io.WriteCloser = conn
-	if tracker != nil {
-		stdout = &ioprogress.ProgressWriter{
-			WriteCloser: conn,
-			Tracker:     tracker,
-		}
+	if writerWrapper != nil {
+		stdout = writerWrapper(conn)
 	}
 
 	cmd.Stdout = stdout

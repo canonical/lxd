@@ -256,7 +256,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 			}
 
 			if hdr.Name == srcFile {
-				subVolRecvPath, err := d.receiveSubVolume(tr, targetPath, nil)
+				subVolRecvPath, err := d.receiveSubVolume(io.NopCloser(tr), targetPath, nil)
 				if err != nil {
 					return "", err
 				}
@@ -676,9 +676,9 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 		_, snapName, _ := api.GetParentAndSnapshotName(v.name)
 
 		// Setup progress tracking.
-		var wrapper *ioprogress.ProgressTracker
+		var wrapper ioprogress.ReaderWrapper
 		if volTargetArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", v.name)
+			wrapper = ioprogress.NewProgressReaderWrapper(ioprogress.WithDescriptiveProgressReporter("fs", v.name, op))
 		}
 
 		for _, subVol := range subvolumes {
@@ -1285,9 +1285,9 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 		}
 
 		// Setup progress tracking.
-		var wrapper *ioprogress.ProgressTracker
+		var writerWrapper ioprogress.WriterWrapper
 		if volSrcArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", v.name)
+			writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", v.name, op))
 		}
 
 		sentVols := 0
@@ -1331,7 +1331,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 			}
 
 			d.logger.Debug("Sending subvolume", logger.Ctx{"name": v.name, "source": sourcePath, "parent": parentPath, "path": subVolume.Path})
-			err := d.sendSubvolume(sourcePath, parentPath, conn, wrapper)
+			err := d.sendSubvolume(sourcePath, parentPath, conn, writerWrapper)
 			if err != nil {
 				return fmt.Errorf("Failed sending volume %v:%s: %w", v.name, subVolume.Path, err)
 			}

@@ -632,7 +632,7 @@ func (d *ceph) createVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 			}
 
 			fullSnapshotName := d.getRBDVolumeName(vol.Volume, targetSnapshotName, false, true)
-			wrapper := migration.ProgressWriter(op, "fs_progress", fullSnapshotName)
+			wrapper := ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", fullSnapshotName, op))
 
 			err := d.receiveVolume(targetVolumeName, conn, wrapper)
 			if err != nil {
@@ -671,7 +671,7 @@ func (d *ceph) createVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 		}
 	}()
 
-	wrapper := migration.ProgressWriter(op, "fs_progress", vol.name)
+	wrapper := ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, op))
 
 	// Apply the diff.
 	err = d.receiveVolume(targetVolumeName, conn, wrapper)
@@ -1785,12 +1785,12 @@ func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs
 		sendSnapName := d.getRBDVolumeName(cloneVol, "", false, true)
 
 		// Setup progress tracking.
-		var wrapper *ioprogress.ProgressTracker
+		var writerWrapper ioprogress.WriterWrapper
 		if volSrcArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+			writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, op))
 		}
 
-		return d.sendVolume(conn, sendSnapName, "", wrapper)
+		return d.sendVolume(conn, sendSnapName, "", writerWrapper)
 	}
 
 	var lastSnap string
@@ -1834,15 +1834,14 @@ func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs
 			lastSnap = sourceParentSnapshotName
 
 			// Setup progress tracking.
-			var wrapper *ioprogress.ProgressTracker
-
+			var writerWrapper ioprogress.WriterWrapper
 			if volSrcArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", targetSnapshot.name)
+				writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", targetSnapshot.name, op))
 			}
 
 			sendSnapName := d.getRBDVolumeName(vol.Volume, "snapshot_"+targetSnapshotName, false, true)
 
-			err := d.sendVolume(conn, sendSnapName, lastSnap, wrapper)
+			err := d.sendVolume(conn, sendSnapName, lastSnap, writerWrapper)
 			if err != nil {
 				return err
 			}
@@ -1857,9 +1856,9 @@ func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs
 	}
 
 	// Setup progress tracking.
-	var wrapper *ioprogress.ProgressTracker
+	var writerWrapper ioprogress.WriterWrapper
 	if volSrcArgs.TrackProgress {
-		wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+		writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, op))
 	}
 
 	runningSnapName := "migration-send-" + uuid.New().String()
@@ -1872,7 +1871,7 @@ func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs
 	defer func() { _ = d.rbdDeleteVolumeSnapshot(vol.Volume, runningSnapName) }()
 
 	cur := d.getRBDVolumeName(vol.Volume, runningSnapName, false, true)
-	return d.sendVolume(conn, cur, lastSnap, wrapper)
+	return d.sendVolume(conn, cur, lastSnap, writerWrapper)
 }
 
 // BackupVolume creates an exported version of a volume.
