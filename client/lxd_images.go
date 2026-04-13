@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
-	"github.com/canonical/lxd/shared/units"
 )
 
 // Image handling functions
@@ -501,19 +499,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		}()
 
 		// Setup progress handler
-		if args.ProgressHandler != nil {
-			body = &ioprogress.ProgressReader{
-				ReadCloser: pr,
-				Tracker: &ioprogress.ProgressTracker{
-					Handler: func(received int64, speed int64) {
-						args.ProgressHandler(ioprogress.ProgressData{Text: units.GetByteSizeString(received, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)"})
-					},
-				},
-			}
-		} else {
-			body = pr
-		}
-
+		body = ioprogress.NewProgressReader(pr, ioprogress.WithProgressHandler(args.ProgressHandler))
 		contentType = w.FormDataContentType()
 	}
 
