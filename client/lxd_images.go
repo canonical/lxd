@@ -251,27 +251,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 	}
 
 	// Handle the data
-	body := response.Body
-	if req.ProgressHandler != nil {
-		reader := &ioprogress.ProgressReader{
-			ReadCloser: response.Body,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: response.ContentLength,
-			},
-		}
-
-		if response.ContentLength > 0 {
-			reader.Tracker.Handler = func(percent int64, speed int64) {
-				req.ProgressHandler(ioprogress.ProgressData{Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)"})
-			}
-		} else {
-			reader.Tracker.Handler = func(received int64, speed int64) {
-				req.ProgressHandler(ioprogress.ProgressData{Text: units.GetByteSizeString(received, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)"})
-			}
-		}
-
-		body = reader
-	}
+	body := ioprogress.NewProgressReader(response.Body, ioprogress.WithLength(response.ContentLength), ioprogress.WithProgressHandler(req.ProgressHandler))
 
 	// Hashing
 	sha256 := sha256.New()
