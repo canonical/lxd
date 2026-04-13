@@ -44,7 +44,7 @@ CREATE TABLE "cluster_groups" (
 );
 CREATE TABLE cluster_links (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-	identity_id INTEGER NOT NULL,
+	identity_id INTEGER,
 	description TEXT NOT NULL,
 	name TEXT NOT NULL,
 	type INTEGER NOT NULL DEFAULT 0,
@@ -52,7 +52,22 @@ CREATE TABLE cluster_links (
 	UNIQUE(name),
 	FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
 );
-CREATE TABLE cluster_links_config (
+CREATE TABLE cluster_links_certificates (
+	cluster_link_id INTEGER NOT NULL,
+	certificate_id INTEGER NOT NULL,
+	FOREIGN KEY (cluster_link_id) REFERENCES cluster_links (id) ON DELETE CASCADE,
+	FOREIGN KEY (certificate_id) REFERENCES certificates (id) ON DELETE CASCADE,
+	UNIQUE (certificate_id),
+	PRIMARY KEY (cluster_link_id,
+    certificate_id)
+) WITHOUT ROWID;
+CREATE TRIGGER cluster_links_certificates_after_delete
+	AFTER DELETE ON cluster_links_certificates
+	BEGIN
+	DELETE FROM certificates
+		WHERE certificates.id = OLD.certificate_id;
+	END;
+CREATE TABLE "cluster_links_config" (
 	cluster_link_id INTEGER NOT NULL,
 	key TEXT NOT NULL,
 	value TEXT NOT NULL,
@@ -795,5 +810,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (84, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (85, strftime("%s"))
 `
