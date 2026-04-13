@@ -163,20 +163,6 @@ type ImageFilter struct {
 	AutoUpdate  *bool
 }
 
-// ImageSourceProtocol maps image source protocol codes to human-readable names.
-var ImageSourceProtocol = map[int]string{
-	0: "lxd",
-	1: "direct", // Deprecated: kept for backward compatibility with existing data.
-	2: "simplestreams",
-}
-
-// imageSourceProtocolCode maps image source protocol names to database codes.
-var imageSourceProtocolCode = map[string]int{
-	"lxd":           0,
-	"direct":        1, // Deprecated: kept for backward compatibility with existing data.
-	"simplestreams": 2,
-}
-
 // GetImageSource returns the image source with the given ID.
 func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, *api.ImageSource, error) {
 	q := `
