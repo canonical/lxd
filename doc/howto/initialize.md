@@ -75,7 +75,7 @@ To create a minimal setup with default options, you can skip the configuration s
 
 ```{note}
 The minimal setup provides a basic configuration, but the configuration is not optimized for speed or functionality.
-Especially the [`dir` storage driver](storage-dir), which is used by default, is slower than other drivers and doesn't provide fast snapshots, fast copy/launch, quotas and optimized backups.
+The [`dir` storage driver](storage-dir), which is chosen by default in the minimal setup using `--minimal`, is slower than other drivers and doesn't provide fast snapshots, fast copy/launch, quotas and optimized backups.
 
 If you want to use an optimized setup, go through the interactive configuration process instead.
 ```
