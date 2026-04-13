@@ -126,7 +126,7 @@ func CompressedTarReader(s *state.State, ctx context.Context, r io.ReadSeeker, u
 	return tr, cancelFunc, nil
 }
 
-func doUnpack(s *state.State, file string, path string, blockBackend bool, excludeDevices bool, tracker *ioprogress.ProgressTracker) error {
+func doUnpack(s *state.State, file string, path string, blockBackend bool, excludeDevices bool, progressHandler ioprogress.ProgressHandler) error {
 	extractArgs, extension, unpacker, err := shared.DetectCompression(file)
 	if err != nil {
 		return err
@@ -135,7 +135,7 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, exclu
 	command := ""
 	args := []string{}
 	var allowedCmds []string
-	var reader io.Reader
+	var reader io.ReadCloser
 	if strings.HasPrefix(extension, ".tar") {
 		command = "tar"
 		if excludeDevices && s.OS.RunningInUserNS {
@@ -163,19 +163,13 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, exclu
 		defer func() { _ = f.Close() }()
 
 		reader = f
-
-		// Attach the ProgressTracker if supplied.
-		if tracker != nil {
+		if progressHandler != nil {
 			fsinfo, err := f.Stat()
 			if err != nil {
 				return err
 			}
 
-			tracker.Length = fsinfo.Size()
-			reader = &ioprogress.ProgressReader{
-				ReadCloser: f,
-				Tracker:    tracker,
-			}
+			reader = ioprogress.NewProgressReader(f, ioprogress.WithLength(fsinfo.Size()), ioprogress.WithProgressHandler(progressHandler))
 		}
 
 		// Allow supplementary commands for the unpacker to use.
@@ -209,12 +203,7 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, exclu
 
 	defer func() { _ = outputDir.Close() }()
 
-	var readCloser io.ReadCloser
-	if reader != nil {
-		readCloser = io.NopCloser(reader)
-	}
-
-	err = ExtractWithFds(s, command, args, allowedCmds, readCloser, outputDir)
+	err = ExtractWithFds(s, command, args, allowedCmds, reader, outputDir)
 	if err != nil {
 		// We can't create char/block devices in unpriv containers so ignore related errors.
 		if s.OS.RunningInUserNS && command == "unsquashfs" {
@@ -279,11 +268,11 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, exclu
 }
 
 // UnpackImage extracts image from archive.
-func UnpackImage(s *state.State, file string, path string, blockBackend bool, tracker *ioprogress.ProgressTracker) error {
-	return doUnpack(s, file, path, blockBackend, true, tracker)
+func UnpackImage(s *state.State, file string, path string, blockBackend bool, progressHandler ioprogress.ProgressHandler) error {
+	return doUnpack(s, file, path, blockBackend, true, progressHandler)
 }
 
 // UnpackRaw extracts all content from archive.
-func UnpackRaw(s *state.State, file string, path string, blockBackend bool, tracker *ioprogress.ProgressTracker) error {
-	return doUnpack(s, file, path, blockBackend, false, tracker)
+func UnpackRaw(s *state.State, file string, path string, blockBackend bool, progressHandler ioprogress.ProgressHandler) error {
+	return doUnpack(s, file, path, blockBackend, false, progressHandler)
 }
