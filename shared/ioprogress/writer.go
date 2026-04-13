@@ -1,6 +1,7 @@
 package ioprogress
 
 import (
+	"errors"
 	"io"
 )
 
@@ -10,9 +11,13 @@ type ProgressWriter struct {
 	Tracker *ProgressTracker
 }
 
-// Write in ProgressWriter is the same as io.Write.
+// Write in [ProgressWriter] is the same as io.Write.
 func (pt *ProgressWriter) Write(p []byte) (int, error) {
 	// Do normal writer tasks
+	if pt.WriteCloser == nil {
+		return 0, errors.New("ProgressWriter is missing a writer")
+	}
+
 	n, err := pt.WriteCloser.Write(p)
 
 	// Do the actual progress tracking
