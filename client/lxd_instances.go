@@ -23,7 +23,6 @@ import (
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/tcp"
-	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/ws"
 )
 
@@ -2960,19 +2959,7 @@ func (r *ProtocolLXD) GetInstanceBackupFile(instanceName string, name string, re
 	}
 
 	// Handle the data
-	body := response.Body
-	if req.ProgressHandler != nil {
-		body = &ioprogress.ProgressReader{
-			ReadCloser: response.Body,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: response.ContentLength,
-				Handler: func(percent int64, speed int64) {
-					req.ProgressHandler(ioprogress.ProgressData{Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)"})
-				},
-			},
-		}
-	}
-
+	body := ioprogress.NewProgressReader(response.Body, ioprogress.WithLength(response.ContentLength), ioprogress.WithProgressHandler(req.ProgressHandler))
 	size, err := io.Copy(req.BackupFile, body)
 	if err != nil {
 		return nil, err
