@@ -188,13 +188,12 @@ CREATE TABLE "images_properties" (
     FOREIGN KEY (image_id) REFERENCES "images" (id) ON DELETE CASCADE
 );
 CREATE TABLE "images_source" (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    image_id INTEGER NOT NULL,
-    server TEXT NOT NULL,
-    protocol INTEGER NOT NULL,
-    certificate TEXT NOT NULL,
-    alias TEXT NOT NULL,
-    FOREIGN KEY (image_id) REFERENCES "images" (id) ON DELETE CASCADE
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	image_id INTEGER NOT NULL,
+	image_registry_id INTEGER NOT NULL,
+	alias TEXT NOT NULL,
+	FOREIGN KEY (image_id) REFERENCES "images" (id) ON DELETE CASCADE,
+	FOREIGN KEY (image_registry_id) REFERENCES "image_registries" (id) ON DELETE CASCADE
 );
 CREATE TABLE "instances" (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
@@ -811,5 +810,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (85, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (86, strftime("%s"))
 `
