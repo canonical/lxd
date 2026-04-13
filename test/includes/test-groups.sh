@@ -52,6 +52,7 @@ readonly test_group_cluster=(
     "clustering_link_auth"
     "clustering_link_info"
     "clustering_image_proxy_bypass"
+    "clustering_link_unidirectional"
 )
 
 readonly test_group_cluster_storage=(
