@@ -8,6 +8,23 @@ import (
 	"github.com/canonical/lxd/shared/units"
 )
 
+// TrackerOption is a function that configures a [ProgressTracker].
+type TrackerOption func(tracker *ProgressTracker)
+
+// ProgressReporter is a type which, given some action, can return a [ProgressHandler].
+// This is useful when several different I/O actions are performed in the same API call or code path.
+type ProgressReporter interface {
+	ProgressHandler(action string) ProgressHandler
+}
+
+// ProgressUpdater is a type with a function defining what to do with [ProgressData].
+type ProgressUpdater interface {
+	UpdateProgress(data ProgressData)
+}
+
+// ProgressHandler is a function that receives [ProgressData] and performs some action with it (e.g. printing to stdout).
+type ProgressHandler func(ProgressData)
+
 // ProgressTracker provides the stream information needed for tracking.
 type ProgressTracker struct {
 	Length  int64
@@ -17,6 +34,83 @@ type ProgressTracker struct {
 	total      int64
 	start      *time.Time
 	last       *time.Time
+}
+
+// NewProgressTracker returns a [ProgressTracker] configured with the given list of [TrackerOption].
+func NewProgressTracker(opts ...TrackerOption) *ProgressTracker {
+	tracker := &ProgressTracker{}
+	for _, option := range opts {
+		option(tracker)
+	}
+
+	return tracker
+}
+
+// WithProgressReporter is a convenience for configuring a [ProgressTracker] for types that implement
+// [ProgressReporter].
+func WithProgressReporter(action string, reporter ProgressReporter) TrackerOption {
+	return func(tracker *ProgressTracker) {
+		if reporter == nil {
+			return
+		}
+
+		(*ProgressTracker).withDescriptiveProgressHandler(tracker, "", reporter.ProgressHandler(action))
+	}
+}
+
+// WithDescriptiveProgressReporter is a convenience for configuring a [ProgressTracker] for types that implement
+// [ProgressReporter]. The description is prepended to [ProgressData.Text] with a ": " separator.
+func WithDescriptiveProgressReporter(action string, description string, reporter ProgressReporter) TrackerOption {
+	return func(tracker *ProgressTracker) {
+		if reporter == nil {
+			return
+		}
+
+		(*ProgressTracker).withDescriptiveProgressHandler(tracker, description, reporter.ProgressHandler(action))
+	}
+}
+
+// WithProgressUpdater is a convenience for configuring a [ProgressTracker] for types that implement [ProgressUpdater].
+func WithProgressUpdater(updater ProgressUpdater) TrackerOption {
+	return func(tracker *ProgressTracker) {
+		if updater == nil {
+			return
+		}
+
+		(*ProgressTracker).withDescriptiveProgressHandler(tracker, "", updater.UpdateProgress)
+	}
+}
+
+// WithProgressHandler sets a [ProgressHandler] for tracker updates.
+func WithProgressHandler(handler ProgressHandler) TrackerOption {
+	return func(tracker *ProgressTracker) {
+		(*ProgressTracker).withDescriptiveProgressHandler(tracker, "", handler)
+	}
+}
+
+// WithDescriptiveProgressHandler sets a [ProgressHandler] for tracker updates.
+// The description is prepended to [ProgressData.Text] with a ": " separator.
+func WithDescriptiveProgressHandler(description string, handler func(data ProgressData)) TrackerOption {
+	return func(tracker *ProgressTracker) {
+		(*ProgressTracker).withDescriptiveProgressHandler(tracker, description, handler)
+	}
+}
+
+// WithLength sets the expected total number of bytes to be read.
+func WithLength(length int64) TrackerOption {
+	return func(tracker *ProgressTracker) {
+		tracker.Length = length
+	}
+}
+
+func (pt *ProgressTracker) withDescriptiveProgressHandler(description string, handler ProgressHandler) {
+	if handler == nil {
+		return
+	}
+
+	pt.Handler = func(percentage int64, bytesTransferred int64, bytesPerSecond int64) {
+		handler(pt.buildProgressData(description, percentage, bytesTransferred, bytesPerSecond))
+	}
 }
 
 func (pt *ProgressTracker) update(n int) {
