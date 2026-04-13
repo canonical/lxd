@@ -27,7 +27,6 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/termios"
-	"github.com/canonical/lxd/shared/units"
 )
 
 const (
@@ -276,17 +275,7 @@ func (c *cmdFileCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if readCloser != nil {
-		fileArgs.Content = shared.NewReadSeeker(&ioprogress.ProgressReader{
-			ReadCloser: readCloser,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: contentLength,
-				Handler: func(percent int64, speed int64) {
-					progress.UpdateProgress(ioprogress.ProgressData{
-						Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)",
-					})
-				},
-			},
-		}, fileArgs.Content)
+		fileArgs.Content = shared.NewReadSeeker(ioprogress.NewProgressReader(readCloser, ioprogress.WithLength(contentLength), ioprogress.WithProgressUpdater(&progress)), fileArgs.Content)
 	}
 
 	err = resource.server.CreateInstanceFile(resource.name, targetPath, fileArgs)
@@ -646,19 +635,9 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 			Quiet:  c.global.flagQuiet,
 		}
 
-		writer := &ioprogress.ProgressWriter{
-			WriteCloser: f,
-			Tracker: &ioprogress.ProgressTracker{
-				Handler: func(bytesReceived int64, speed int64) {
-					if targetPath == "-" {
-						return
-					}
-
-					progress.UpdateProgress(ioprogress.ProgressData{
-						Text: units.GetByteSizeString(bytesReceived, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)",
-					})
-				},
-			},
+		var writer io.WriteCloser = f
+		if targetPath != "-" {
+			writer = ioprogress.NewProgressWriter(writer, ioprogress.WithProgressUpdater(&progress))
 		}
 
 		_, err = io.Copy(writer, buf)
@@ -929,18 +908,7 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 			Quiet:  c.global.flagQuiet,
 		}
 
-		args.Content = shared.NewReadSeeker(&ioprogress.ProgressReader{
-			ReadCloser: f,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: fstat.Size(),
-				Handler: func(percent int64, speed int64) {
-					progress.UpdateProgress(ioprogress.ProgressData{
-						Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)",
-					})
-				},
-			},
-		}, f)
-
+		args.Content = shared.NewReadSeeker(ioprogress.NewProgressReader(f, ioprogress.WithLength(fstat.Size()), ioprogress.WithProgressUpdater(&progress)), f)
 		logger.Infof("Pushing %s to %s (%s)", f.Name(), fpath, args.Type)
 		err = resource.server.CreateInstanceFile(resource.name, fpath, args)
 		if err != nil {
@@ -1019,17 +987,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 			Quiet:  c.global.flagQuiet,
 		}
 
-		writer := &ioprogress.ProgressWriter{
-			WriteCloser: f,
-			Tracker: &ioprogress.ProgressTracker{
-				Handler: func(bytesReceived int64, speed int64) {
-					progress.UpdateProgress(ioprogress.ProgressData{
-						Text: units.GetByteSizeString(bytesReceived, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)",
-					})
-				},
-			},
-		}
-
+		writer := ioprogress.NewProgressWriter(f, ioprogress.WithProgressUpdater(&progress))
 		_, err = io.Copy(writer, buf)
 		if err != nil {
 			progress.Done("")
@@ -1159,17 +1117,7 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source st
 				return err
 			}
 
-			args.Content = shared.NewReadSeeker(&ioprogress.ProgressReader{
-				ReadCloser: readCloser,
-				Tracker: &ioprogress.ProgressTracker{
-					Length: contentLength,
-					Handler: func(percent int64, speed int64) {
-						progress.UpdateProgress(ioprogress.ProgressData{
-							Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)",
-						})
-					},
-				},
-			}, args.Content)
+			args.Content = shared.NewReadSeeker(ioprogress.NewProgressReader(readCloser, ioprogress.WithLength(contentLength), ioprogress.WithProgressUpdater(&progress)), args.Content)
 		}
 
 		logger.Infof("Pushing %s to %s (%s)", p, targetPath, args.Type)
