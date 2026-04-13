@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -11,7 +10,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/ioprogress"
-	"github.com/canonical/lxd/shared/units"
 )
 
 type cmdImport struct {
@@ -114,18 +112,10 @@ func (c *cmdImport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	createArgs := lxd.InstanceBackupArgs{
-		BackupFile: &ioprogress.ProgressReader{
-			ReadCloser: file,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: fstat.Size(),
-				Handler: func(percent int64, speed int64) {
-					progress.UpdateProgress(ioprogress.ProgressData{Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)"})
-				},
-			},
-		},
-		PoolName: c.flagStorage,
-		Name:     instanceName,
-		Devices:  deviceMap,
+		BackupFile: ioprogress.NewProgressReader(file, ioprogress.WithLength(fstat.Size()), ioprogress.WithProgressUpdater(&progress)),
+		PoolName:   c.flagStorage,
+		Name:       instanceName,
+		Devices:    deviceMap,
 	}
 
 	op, err := resource.server.CreateInstanceFromBackup(createArgs)
