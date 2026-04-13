@@ -13,4 +13,7 @@ type ProgressData struct {
 
 	// Total number of bytes (for files)
 	TotalBytes int64
+
+	// Bytes per second (mean value calculated since I/O operation started).
+	BytesPerSecond int64
 }
