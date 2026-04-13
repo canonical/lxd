@@ -1378,6 +1378,8 @@ parts:
     source-depth: 1
     source-type: git
     plugin: python
+    build-packages:
+      - quilt
     stage-packages:
       - to amd64:
         - python3-crc32c
@@ -1395,9 +1397,8 @@ parts:
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
 
-      # Apply patches
-      # XXX: taken from: https://git.launchpad.net/ubuntu/+source/python-uefivars/plain/debian/patches/Revert-Use-google-crc32c-instead-of-crc32c.patch?h=ubuntu/plucky
-      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/uefivars-Revert-Use-google-crc32c-instead-of-crc32c.patch"
+      # Apply patches from Ubuntu sources.
+      QUILT_PATCHES=debian/patches quilt push -a
 
       craftctl default
     organize:
