@@ -53,6 +53,7 @@ readonly test_group_cluster=(
     "clustering_replicator_scheduled"
     "clustering_replicator_dr"
     "clustering_replicator_snapshot"
+    "clustering_link_unidirectional"
 )
 
 readonly test_group_cluster_storage=(
