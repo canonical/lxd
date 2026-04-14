@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -27,6 +26,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/lxd/operations"
@@ -44,9 +44,6 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
-
-// Lock to prevent concurent networks creation.
-var networkCreateLock sync.Mutex
 
 var networksCmd = APIEndpoint{
 	Path:        "networks",
@@ -455,9 +452,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	networkCreateLock.Lock()
-	defer networkCreateLock.Unlock()
-
 	req := api.NetworksPost{}
 
 	// Parse the request.
@@ -617,6 +611,16 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
+		// Don't allow concurrent ongoing network creation requests from external API requests.
+		// This isn't perfect as concurrent requests can come into other cluster members, but we do not yet
+		// have cluster wide locking semantics.
+		unlock, err := locking.Lock(ctx, "networkCreateLock")
+		if err != nil {
+			return fmt.Errorf("Failed acquiring network create lock: %w", err)
+		}
+
+		defer unlock()
+
 		// No targetNode was specified and we're clustered or there is an existing partially created single node
 		// network, either way finalize the config in the db and actually create the network on all cluster nodes.
 		if count > 1 || (netInfo != nil && netInfo.Status != api.NetworkStatusCreated) {
