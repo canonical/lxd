@@ -592,24 +592,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return operations.OperationResponse(op)
 	}
 
-	var netInfo *api.Network
-
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Load existing network if exists, if not don't fail.
-		_, netInfo, _, err = tx.GetNetworkInAnyState(ctx, projectName, req.Name)
-
-		return err
-	})
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return response.InternalError(err)
-	}
-
-	// Check if we're clustered.
-	count, err := cluster.Count(s)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	run := func(ctx context.Context, op *operations.Operation) error {
 		// Don't allow concurrent ongoing network creation requests from external API requests.
 		// This isn't perfect as concurrent requests can come into other cluster members, but we do not yet
@@ -620,6 +602,24 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		defer unlock()
+
+		var netInfo *api.Network
+
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			// Load existing network if exists, if not don't fail.
+			_, netInfo, _, err = tx.GetNetworkInAnyState(ctx, projectName, req.Name)
+
+			return err
+		})
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+
+		// Check if we're clustered.
+		count, err := cluster.Count(s)
+		if err != nil {
+			return err
+		}
 
 		// No targetNode was specified and we're clustered or there is an existing partially created single node
 		// network, either way finalize the config in the db and actually create the network on all cluster nodes.
