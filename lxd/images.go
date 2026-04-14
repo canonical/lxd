@@ -2476,7 +2476,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		poolNames = append(poolNames, "")
 	}
 
-	logger.Info("Checking image update", logger.Ctx{"member": s.ServerName, "poolNames": poolNames, "project": projectName, "fingerprint": fingerprint, "source": source.Server, "protocol": source.Protocol, "alias": source.Alias})
+	logger.Info("Checking image update", logger.Ctx{"member": s.ServerName, "poolNames": poolNames, "project": projectName, "fingerprint": fingerprint, "imageRegistry": source.ImageRegistry, "alias": source.Alias})
 
 	// Set operation metadata to indicate whether a refresh happened
 	setRefreshResult := func(result bool) {
@@ -2493,13 +2493,6 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		}
 	}
 
-	// The "direct" protocol was used for URL-based image imports, which is no longer supported.
-	// Skip auto-update for these images to avoid persistent error logs.
-	if source.Protocol == "direct" {
-		logger.Warn("Skipping auto-update for image with unsupported direct protocol", logger.Ctx{"fingerprint": fingerprint, "project": projectName})
-		return nil, nil
-	}
-
 	// Update the image on each pool where it currently exists.
 	hash := fingerprint
 	var newInfo *api.Image
@@ -2512,16 +2505,14 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		}
 
 		newInfo, err = ImageDownload(context.Background(), s, op, &ImageDownloadArgs{
-			Server:      source.Server,
-			Protocol:    source.Protocol,
-			Certificate: source.Certificate,
-			Alias:       source.Alias,
-			Type:        info.Type,
-			AutoUpdate:  true,
-			Public:      info.Public,
-			StoragePool: poolName,
-			ProjectName: projectName,
-			Budget:      -1,
+			ImageRegistry: source.ImageRegistry,
+			Alias:         source.Alias,
+			Type:          info.Type,
+			AutoUpdate:    true,
+			Public:        info.Public,
+			StoragePool:   poolName,
+			ProjectName:   projectName,
+			Budget:        -1,
 		})
 		if err != nil {
 			logger.Error("Failed updating the image", logger.Ctx{"err": err, "fingerprint": fingerprint})
