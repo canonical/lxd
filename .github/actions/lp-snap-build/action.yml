@@ -39,15 +39,14 @@ runs:
         go build -o /tmp/lxd-snapcraft .
         sudo mv /tmp/lxd-snapcraft /usr/local/bin/
 
-    - name: Verify Launchpad SSH host key
+    - name: Seed Launchpad SSH host key
       shell: bash
       run: |
         set -eux
         mkdir -m 0700 -p ~/.ssh/
-        # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
-        # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
-        ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
-        [ "$(ssh-keygen -qlF git.launchpad.net)" = 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo' ]
+        # Seed known_hosts with the expected RSA key (fingerprint: SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo)
+        # from https://documentation.ubuntu.com/launchpad/user/reference/ssh-fingerprints/
+        echo 'git.launchpad.net ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEFREwBD2ye2Xrc2SVcUmmJ44MF1BCB3W11NTaiqzVj7XZnQmgWZk9UadHVY2wBXvelcDO51MPN5ozJjFAknw09rP7XMRJMlAOLSIVoU6DRF1u1j8kJVY+dfiDHheS7+siADnrmb8HGn2xQQ6EJDjAXrw1x58x5eZjQ0PFWdI+pRTdYGvWkpHdXKFO6a9/lDx4uo9MCnePEGi/QnkCmKqLCBUlYNZYRiB8nVee2tMF0mjV8xk1rJ+/UP+897+FXFR9w/B1EPRjiQ35ZNQZKPP4isxPtyMuCQkZY7ckWr5YsylNfvNcyGDnO1XazZhJ71rzDpi1RmnFXBW5i+2dm2y7' > ~/.ssh/known_hosts
 
     # XXX: from this point onwards, the action has access to the private SSH key
     #      either as an environment variable or through the SSH agent
