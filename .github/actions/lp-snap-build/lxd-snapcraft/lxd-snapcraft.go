@@ -42,10 +42,12 @@ func main() {
 			log.Fatal("Package name is required")
 		}
 
-		_, pkgConfig := getVersionInfo(*flagPackageName, snapcraftConfig)
+		pkgVersion, pkgConfig := getVersionInfo(*flagPackageName, snapcraftConfig)
+		if pkgConfig == nil {
+			log.Fatalf("Package %q not found in %s", *flagPackageName, *flagFilePath)
+		}
 
 		if *flagGetVersion {
-			pkgVersion, _ := getVersionInfo(*flagPackageName, snapcraftConfig)
 			fmt.Println(pkgVersion)
 
 			if pkgConfig["source-commit"] != nil {
