@@ -133,8 +133,10 @@ test_storage_volume_initial_config() {
     lxc storage unset "${pool}" volume.zfs.block_mode
 
     sub_test "Verify initial.zfs.promote functionality."
+
+    [ "$(! "${_LXC}" launch "${image}" c --no-profiles --storage "${pool}" --device root,initial.zfs.promote=true 2>&1 1>/dev/null)" = 'Error: Failed creating instance from image: Cannot promote volume when creating from an image' ]
     lxc launch "${image}" c --no-profiles --storage "${pool}"
-    ! lxc config device set c root initial.zfs.promote=true || false  # NOK: Cannot enable zfs.promote in update.
+    [ "$(! "${_LXC}" config device set c root initial.zfs.promote=true 2>&1 1>/dev/null)" = 'Error: Device "root" initial configuration "initial.zfs.promote" cannot be added once the instance is created' ]
 
     # > Check that container's origin is the base image snapshot.
     [ "$(zfs get origin "${pool}/containers/c" -H -o value)" = "${pool}/images/$(lxc config get c volatile.base_image)@readonly" ]
@@ -149,7 +151,7 @@ test_storage_volume_initial_config() {
     # > Create a snapshot of the container to check that after promotion is not allowed with snapshots present.
     lxc snapshot c snap0
     # > Check that a container with snapshots cannot be promoted.
-    [ "$("${_LXC}" copy c c-save1 --refresh -c "volatile.uuid=$(uuidgen)" -d root,initial.zfs.promote=true 2>&1 1>/dev/null || false)" = 'Error: Create instance from copy: Cannot promote volume when source volume has snapshots or is a snapshot' ]
+    [ "$(! "${_LXC}" copy c c-save1 --refresh -c "volatile.uuid=$(uuidgen)" -d root,initial.zfs.promote=true 2>&1 1>/dev/null)" = 'Error: Create instance from copy: Cannot promote volume when source volume has snapshots or is a snapshot' ]
     lxc delete c/snap0
 
     # > Add some data to the container and create a ZFS promoted saved point with a new volatile.uuid.

@@ -595,6 +595,10 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 	// Validate that promotion can be done if requested.
 	if shared.IsTrue(vol.config["zfs.promote"]) {
+		if srcVol.volType == VolumeTypeImage {
+			return errors.New("Cannot promote volume when creating from an image")
+		}
+
 		// Don't allow promotion when source volume has snapshots as zfs promote will move them under the
 		// promoted volume, which we do not want as it would mess up snapshot ownership.
 		if len(srcVol.Snapshots) > 0 || srcVol.IsSnapshot() {
