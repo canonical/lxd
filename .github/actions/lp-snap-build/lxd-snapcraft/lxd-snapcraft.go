@@ -182,7 +182,7 @@ func writeSnapcraftYaml(snapcraftYamlPath string, snapcraftConfig map[string]any
 		return err
 	}
 
-	err = os.WriteFile(snapcraftYamlPath, out, 0)
+	err = os.WriteFile(snapcraftYamlPath, out, 0644)
 	if err != nil {
 		return err
 	}
