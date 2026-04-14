@@ -9,7 +9,7 @@ import (
 
 // CreateRequestor extracts the lifecycle event requestor data from the provided context.
 func CreateRequestor(ctx context.Context) *api.EventLifecycleRequestor {
-	requestor, err := GetRequestor(ctx)
+	requestor, err := GetRequestorAuditor(ctx)
 	if err != nil {
 		return &api.EventLifecycleRequestor{}
 	}
