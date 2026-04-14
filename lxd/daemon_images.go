@@ -34,9 +34,7 @@ import (
 // ImageDownloadArgs used with ImageDownload.
 type ImageDownloadArgs struct {
 	ProjectName       string
-	Server            string
-	Protocol          string
-	Certificate       string
+	ImageRegistry     string
 	Secret            string
 	Alias             string
 	Type              string
