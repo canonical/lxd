@@ -605,9 +605,7 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 	}
 
 	info, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
-		Server:            req.Source.Server,
-		Protocol:          req.Source.Protocol,
-		Certificate:       req.Source.Certificate,
+		ImageRegistry:     req.Source.ImageRegistry,
 		Secret:            req.Source.Secret,
 		Alias:             hash,
 		Type:              req.Source.ImageType,
@@ -621,6 +619,9 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 	if err != nil {
 		return nil, err
 	}
+
+	// Copy aliases from source so that they can be applied later if needed.
+	remoteAliases := info.Aliases
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var id int
@@ -667,6 +668,58 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, profileIDs)
 			if err != nil {
 				return err
+			}
+		}
+
+		// Create any requested aliases.
+		for _, alias := range req.Aliases {
+			_, _, err := tx.GetImageAlias(ctx, imageProject, alias.Name, true)
+			if !response.IsNotFoundError(err) {
+				if err != nil {
+					return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
+				}
+
+				return fmt.Errorf("Alias already exists: %s", alias.Name)
+			}
+
+			err = tx.CreateImageAlias(ctx, imageProject, alias.Name, id, alias.Description)
+			if err != nil {
+				return fmt.Errorf("Add new image alias to the database: %w", err)
+			}
+		}
+
+		// Copy aliases from the source image if requested and if the source is either a remote registry
+		// or a different local project.
+		if req.Source.CopyAliases && (req.Source.ImageRegistry != "" || (req.Source.Project != "" && req.Source.Project != imageProject)) {
+			for _, alias := range remoteAliases {
+				// Skip the source alias if the same alias name was explicitly requested in req.Aliases.
+				found := false
+				for _, a := range req.Aliases {
+					if a.Name == alias.Name {
+						found = true
+						break
+					}
+				}
+
+				if found {
+					continue
+				}
+
+				// Check if the alias already exists in the target project.
+				_, _, err := tx.GetImageAlias(ctx, imageProject, alias.Name, true)
+				if !response.IsNotFoundError(err) {
+					if err != nil {
+						return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
+					}
+
+					return fmt.Errorf("Alias already exists: %s", alias.Name)
+				}
+
+				// Create the alias in the target project.
+				err = tx.CreateImageAlias(ctx, imageProject, alias.Name, id, alias.Description)
+				if err != nil {
+					return fmt.Errorf("Add new image alias to the database: %w", err)
+				}
 			}
 		}
 
