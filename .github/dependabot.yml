@@ -1,7 +1,9 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/*"
     labels: []
     schedule:
       interval: "weekly"
@@ -9,6 +11,18 @@ updates:
       default-days: 7
     groups:
       github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "gomod"
+    directory: "/.github/actions/lp-snap-build/lxd-snapcraft"
+    labels: []
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      gomod:
         patterns:
           - "*"
 
