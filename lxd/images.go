@@ -744,9 +744,7 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 	}
 
 	info, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
-		Server:            req.Source.Server,
-		Protocol:          req.Source.Protocol,
-		Certificate:       req.Source.Certificate,
+		ImageRegistry:     req.Source.ImageRegistry,
 		Secret:            req.Source.Secret,
 		Alias:             hash,
 		Type:              req.Source.ImageType,
@@ -761,6 +759,9 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 	if err != nil {
 		return nil, err
 	}
+
+	// Copy aliases from source so that they can be applied later if needed.
+	remoteAliases := info.Aliases
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var id int
@@ -807,6 +808,61 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, profileIDs)
 			if err != nil {
 				return err
+			}
+		}
+
+		// Build the full set of aliases to apply to the image: the explicitly requested aliases
+		// plus, if requested, the aliases copied from the source image. Deduplicate by name,
+		// giving precedence to explicitly requested aliases.
+		aliasesToApply := make([]api.ImageAlias, 0, len(req.Aliases)+len(remoteAliases))
+		seenAliases := make(map[string]struct{}, len(req.Aliases)+len(remoteAliases))
+
+		for _, alias := range req.Aliases {
+			_, ok := seenAliases[alias.Name]
+			if ok {
+				continue
+			}
+
+			seenAliases[alias.Name] = struct{}{}
+			aliasesToApply = append(aliasesToApply, alias)
+		}
+
+		// Copy aliases from the source image if requested and if the source is either a remote registry
+		// or a different local project.
+		if req.Source.CopyAliases && (req.Source.ImageRegistry != "" || (req.Source.Project != "" && req.Source.Project != imageProject)) {
+			for _, alias := range remoteAliases {
+				_, ok := seenAliases[alias.Name]
+				if ok {
+					continue
+				}
+
+				seenAliases[alias.Name] = struct{}{}
+				aliasesToApply = append(aliasesToApply, alias)
+			}
+		}
+
+		// Apply the aliases, reassigning any that already exist to the newly copied image. This mirrors
+		// the client-side "ensureImageAliases" behavior used for "lxc image copy --copy-aliases", where an
+		// existing alias is moved to the new image (e.g. copying both the container and VM variants of an
+		// image that share the same alias) rather than causing the copy to fail.
+		for _, alias := range aliasesToApply {
+			_, _, err := tx.GetImageAlias(ctx, imageProject, alias.Name, true)
+			if err != nil && !response.IsNotFoundError(err) {
+				return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
+			}
+
+			// If the alias already exists (possibly pointing at another image), remove it so it can be
+			// reassigned to the newly copied image.
+			if err == nil {
+				err = tx.DeleteImageAlias(ctx, imageProject, alias.Name)
+				if err != nil {
+					return fmt.Errorf("Failed removing existing image alias %q: %w", alias.Name, err)
+				}
+			}
+
+			err = tx.CreateImageAlias(ctx, imageProject, alias.Name, id, alias.Description)
+			if err != nil {
+				return fmt.Errorf("Add new image alias to the database: %w", err)
 			}
 		}
 
