@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/dnsutil"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // OVNRouter OVN router name.
@@ -1876,48 +1878,63 @@ func (o *OVN) PortGroupPortClearACLRules(portGroupName OVNPortGroup, portName OV
 	return nil
 }
 
-// loadBalancerUUIDs returns list of UUID records for named load balancer.
-func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) ([]string, error) {
-	lbTCPName := string(loadBalancerName) + "-tcp"
-	lbUDPName := string(loadBalancerName) + "-udp"
-
-	var lbUUIDs []string //nolint:prealloc
+// loadBalancerUUIDs returns a map of UUID records for the named load balancer.
+// All load balancers for all protocols matching the given name are returned.
+// The returned map is keyed by protocol which helps differentiating the UUIDs.
+func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) (map[string][]string, error) {
+	protocols := []string{"tcp", "udp"}
+	lbUUIDs := make(map[string][]string, len(protocols))
 
 	// Use find command in order to workaround OVN bug where duplicate records of same name can exist.
-	for _, lbName := range []string{lbTCPName, lbUDPName} {
-		output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid", "find", "load_balancer", `name="`+lbName+`"`)
+	for _, protocol := range protocols {
+		output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid", "find", "load_balancer", `name="`+string(loadBalancerName)+"-"+protocol+`"`)
 		if err != nil {
 			return nil, err
 		}
 
-		lbUUIDs = append(lbUUIDs, shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)...)
+		uuids := shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+
+		if lbUUIDs[protocol] == nil {
+			lbUUIDs[protocol] = make([]string, 0, len(uuids))
+		}
+
+		lbUUIDs[protocol] = append(lbUUIDs[protocol], uuids...)
 	}
 
 	return lbUUIDs, nil
 }
 
+// loadBalancerVIPs returns a slice of VIPs currently configured on the given load balancer.
+func (o *OVN) loadBalancerVIPs(loadBalancerName OVNLoadBalancer, protocol string) ([]string, error) {
+	lbName := string(loadBalancerName) + "-" + protocol
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=vips", "list", "load_balancer", lbName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed listing the VIPs of load balancer %q: %w", lbName, err)
+	}
+
+	output, err = unquote(strings.TrimSpace(output))
+	if err != nil {
+		return nil, fmt.Errorf("Failed unquoting VIPs output %q of load balancer %q: %w", output, lbName, err)
+	}
+
+	vipTargets := strings.Fields(output)
+	vips := make([]string, 0, len(vipTargets))
+
+	for _, vipTarget := range vipTargets {
+		before, _, found := strings.Cut(vipTarget, "=")
+		if !found {
+			return nil, fmt.Errorf("Invalid line %q in VIPs output of load balancer %q", vipTarget, lbName)
+		}
+
+		vips = append(vips, before)
+	}
+
+	return vips, nil
+}
+
 // LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
 // Providing an empty set of vips will delete the load balancer.
 func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, switches []OVNSwitch, vips ...OVNLoadBalancerVIP) error {
-	lbTCPName := string(loadBalancerName) + "-tcp"
-	lbUDPName := string(loadBalancerName) + "-udp"
-
-	// Remove load balancers if they exist.
-	lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
-	if err != nil {
-		return fmt.Errorf("Failed getting UUIDs: %w", err)
-	}
-
-	args := make([]string, 0, 5*len(lbUUIDs))
-
-	for _, lbUUID := range lbUUIDs {
-		if len(args) > 0 {
-			args = append(args, "--")
-		}
-
-		args = append(args, "--if-exists", "destroy", "load_balancer", lbUUID)
-	}
-
 	// ipToString wraps IPv6 addresses in square brackets.
 	ipToString := func(ip net.IP) string {
 		if ip.To4() == nil {
@@ -1927,55 +1944,41 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		return ip.String()
 	}
 
-	// Build up the commands to add VIPs to the load balancer.
-	for _, r := range vips {
-		if r.ListenAddress == nil {
-			return errors.New("Missing VIP listen address")
-		}
-
-		if len(r.Targets) == 0 {
-			return errors.New("Missing VIP target(s)")
-		}
-
+	// deleteLBArgs returns the args for load balancer deletion.
+	deleteLBArgs := func(args []string, lbUUID string) []string {
 		if len(args) > 0 {
 			args = append(args, "--")
 		}
 
-		if r.Protocol == "udp" {
-			args = append(args, "lb-add", lbUDPName)
-		} else {
-			args = append(args, "lb-add", lbTCPName)
-		}
+		return append(args, "--if-exists", "destroy", "load_balancer", lbUUID)
+	}
 
-		targetArgs := make([]string, 0, len(r.Targets))
+	allVIPsForProtocol := map[string][]string{}
 
-		for _, target := range r.Targets {
-			if (r.ListenPort > 0 && target.Port <= 0) || (target.Port > 0 && r.ListenPort <= 0) {
-				return errors.New("The listen and target ports must be specified together")
+	// Get a view of all load balancers matching the given name.
+	lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
+	if err != nil {
+		return fmt.Errorf("Failed getting UUIDs for load balancer %q: %w", loadBalancerName, err)
+	}
+
+	// When initializing the size assume there are no duplicates (which should be the normal case).
+	args := make([]string, 0)
+
+	// Account for https://github.com/canonical/lxd/issues/13462.
+	// If there is more than one load balancer with the same name, drop it.
+	// This ensures consistency and allows all of the following operations to operate on a single load balancer.
+	for _, protocol := range []string{"tcp", "udp"} {
+		if len(lbUUIDs[protocol]) > 1 {
+			// Delete all duplicate load balancers except the first one.
+			for _, lbUUID := range lbUUIDs[protocol][1:] {
+				logger.Warn("Cleaning up duplicate load balancer", logger.Ctx{"name": loadBalancerName, "protocol": protocol, "uuid": lbUUID})
+
+				args = deleteLBArgs(args, lbUUID)
 			}
-
-			if r.ListenPort > 0 {
-				targetArgs = append(targetArgs, ipToString(target.Address)+":"+strconv.FormatUint(target.Port, 10))
-			} else {
-				targetArgs = append(targetArgs, ipToString(target.Address))
-			}
-		}
-
-		if r.ListenPort > 0 {
-			args = append(args,
-				ipToString(r.ListenAddress)+":"+strconv.FormatUint(r.ListenPort, 10),
-				strings.Join(targetArgs, ","),
-				r.Protocol,
-			)
-		} else {
-			args = append(args,
-				ipToString(r.ListenAddress),
-				strings.Join(targetArgs, ","),
-			)
 		}
 	}
 
-	// Apply the load balancer changes.
+	// Remove the duplicates right away to have a clean set of load balancers to continue.
 	if len(args) > 0 {
 		_, err := o.nbctl(args...)
 		if err != nil {
@@ -1983,40 +1986,150 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		}
 	}
 
-	// If there are some VIP rules then associate the load balancer to the requested routers and switches.
-	if len(vips) > 0 {
-		args := make([]string, 0, 6*len(lbUUIDs))
+	// When initializing the size assume the best case without any VIP or load balancer removal.
+	args = make([]string, 0, len(vips)*7)
 
-		// Get fresh list of load balancer UUIDs.
-		lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
-		if err != nil {
-			return fmt.Errorf("Failed getting UUIDs: %w", err)
+	// Build up the commands for the load balancer changes.
+	for _, vip := range vips {
+		// Validate the VIP.
+		if vip.ListenAddress == nil {
+			return errors.New("Missing VIP listen address")
 		}
 
-		for _, lbUUID := range lbUUIDs {
-			if len(args) > 0 {
-				args = append(args, "--")
+		if len(vip.Targets) == 0 {
+			return errors.New("Missing VIP target(s)")
+		}
+
+		targetArgs := make([]string, 0, len(vip.Targets))
+
+		// Generate a list of load balancer targets.
+		for _, target := range vip.Targets {
+			if (vip.ListenPort > 0 && target.Port <= 0) || (target.Port > 0 && vip.ListenPort <= 0) {
+				return errors.New("The listen and target ports must be specified together")
 			}
 
-			for _, r := range routers {
-				args = append(args, "add", "logical_router", string(r), "load_balancer", lbUUID)
+			if vip.ListenPort > 0 {
+				targetArgs = append(targetArgs, ipToString(target.Address)+":"+strconv.FormatUint(target.Port, 10))
+			} else {
+				targetArgs = append(targetArgs, ipToString(target.Address))
 			}
 		}
 
 		if len(args) > 0 {
-			_, err = o.nbctl(args...)
-			if err != nil {
-				return err
-			}
+			args = append(args, "--")
 		}
 
-		for _, lbUUID := range lbUUIDs {
-			for _, s := range switches {
-				_, err = o.nbctl("ls-lb-add", string(s), lbUUID)
-				if err != nil {
-					return err
+		// In case no protocol is set, default to TCP as OVN does.
+		if vip.Protocol == "" {
+			vip.Protocol = "tcp"
+		}
+
+		// Append all requested targets to the load balancer VIP.
+		lbName := string(loadBalancerName) + "-" + vip.Protocol
+		args = append(args, "--may-exist", "lb-add", lbName)
+
+		vipStr := ipToString(vip.ListenAddress)
+		joinedTargets := strings.Join(targetArgs, ",")
+
+		if vip.ListenPort > 0 {
+			vipStr = ipToString(vip.ListenAddress) + ":" + strconv.FormatUint(vip.ListenPort, 10)
+			args = append(args, vipStr, joinedTargets, vip.Protocol)
+		} else {
+			args = append(args, vipStr, joinedTargets)
+		}
+
+		// Record the VIP for this protocol.
+		if allVIPsForProtocol[vip.Protocol] == nil {
+			allVIPsForProtocol[vip.Protocol] = []string{}
+		}
+
+		allVIPsForProtocol[vip.Protocol] = append(allVIPsForProtocol[vip.Protocol], vipStr)
+	}
+
+	// Check if the current load balancer has any obsolete VIPs that require removal.
+	// We can only retrieve the VIPs in case the load balancer already exists.
+	for _, protocol := range []string{"tcp", "udp"} {
+		// If there are no VIPs for the current protocol there is no need to remove VIPs
+		// as the parent load balancer will be removed anyway if it exists.
+		if allVIPsForProtocol[protocol] == nil {
+			continue
+		}
+
+		lbName := string(loadBalancerName) + "-" + protocol
+
+		currentVIPs, err := o.loadBalancerVIPs(loadBalancerName, protocol)
+		if err == nil {
+			for _, currentVIP := range currentVIPs {
+				if !slices.Contains(allVIPsForProtocol[protocol], currentVIP) {
+					if len(args) > 0 {
+						args = append(args, "--")
+					}
+
+					args = append(args, "--if-exists", "lb-del", lbName, currentVIP)
 				}
 			}
+		}
+	}
+
+	// When initializing the size account for all load balancers.
+	toBeDeletedLBs := make([]string, 0, len(lbUUIDs["tcp"])+len(lbUUIDs["udp"]))
+
+	// If there are no VIPs for an existing TCP or UDP load balancer, mark it for deletion.
+	for _, protocol := range []string{"tcp", "udp"} {
+		if allVIPsForProtocol[protocol] == nil && len(lbUUIDs[protocol]) > 0 {
+			// If there is more than one load balancer matching the name, it already got removed.
+			toBeDeletedLBs = append(toBeDeletedLBs, lbUUIDs[protocol][:1]...)
+		}
+	}
+
+	for _, lbUUID := range toBeDeletedLBs {
+		args = deleteLBArgs(args, lbUUID)
+	}
+
+	// Apply the load balancer changes.
+	// This will add new and remove obsolete load balancers together with their VIPs and targets.
+	if len(args) > 0 {
+		_, err := o.nbctl(args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	// If there are new load balancers, associate them to the requested routers and switches.
+	// It's a noop in case the load balancer is already associated to the router/switch.
+	// Start by getting a fresh list of load balancer UUIDs.
+	lbUUIDs, err = o.loadBalancerUUIDs(loadBalancerName)
+	if err != nil {
+		return fmt.Errorf("Failed getting UUIDs: %w", err)
+	}
+
+	args = make([]string, 0, (len(lbUUIDs["tcp"])+len(lbUUIDs["udp"]))*(len(routers)+len(switches))*5)
+
+	for _, lbUUIDsForProtocol := range lbUUIDs {
+		for _, lbUUID := range lbUUIDsForProtocol {
+			for _, r := range routers {
+				if len(args) > 0 {
+					args = append(args, "--")
+				}
+
+				args = append(args, "--may-exist", "lr-lb-add", string(r), lbUUID)
+			}
+
+			for _, s := range switches {
+				if len(args) > 0 {
+					args = append(args, "--")
+				}
+
+				args = append(args, "--may-exist", "ls-lb-add", string(s), lbUUID)
+			}
+		}
+	}
+
+	// Apply both router and switch associations together.
+	if len(args) > 0 {
+		_, err = o.nbctl(args...)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -2034,12 +2147,14 @@ func (o *OVN) LoadBalancerDelete(loadBalancerNames ...OVNLoadBalancer) error {
 		}
 
 		// Remove load balancers if they exist.
-		for _, lbUUID := range lbUUIDs {
-			if len(args) > 0 {
-				args = append(args, "--")
-			}
+		for _, lbUUIDsForProtocol := range lbUUIDs {
+			for _, lbUUID := range lbUUIDsForProtocol {
+				if len(args) > 0 {
+					args = append(args, "--")
+				}
 
-			args = append(args, "--if-exists", "destroy", "load_balancer", lbUUID)
+				args = append(args, "--if-exists", "destroy", "load_balancer", lbUUID)
+			}
 		}
 	}
 
