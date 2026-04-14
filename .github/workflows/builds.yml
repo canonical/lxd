@@ -27,7 +27,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: canonical/lxd/.github/actions/lp-snap-build@main # zizmor: ignore[unpinned-uses]
+      - uses: ./.github/actions/lp-snap-build
         with:
           ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]
 
