@@ -33,9 +33,10 @@ import (
 // ImageDownloadArgs used with ImageDownload.
 type ImageDownloadArgs struct {
 	ProjectName       string
-	Server            string
-	Protocol          string
-	Certificate       string
+	Server            string // Deprecated: Use ImageRegistry.
+	Protocol          string // Deprecated: Use ImageRegistry.
+	Certificate       string // Deprecated: Use ImageRegistry.
+	ImageRegistry     string
 	Secret            string
 	Alias             string
 	Type              string
