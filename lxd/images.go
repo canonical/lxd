@@ -2475,7 +2475,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		poolNames = append(poolNames, "")
 	}
 
-	logger.Info("Checking image update", logger.Ctx{"member": s.ServerName, "poolNames": poolNames, "project": projectName, "fingerprint": fingerprint, "source": source.Server, "protocol": source.Protocol, "alias": source.Alias})
+	logger.Info("Checking image update", logger.Ctx{"member": s.ServerName, "poolNames": poolNames, "project": projectName, "fingerprint": fingerprint, "imageRegistry": source.ImageRegistry, "alias": source.Alias})
 
 	// Set operation metadata to indicate whether a refresh happened
 	setRefreshResult := func(result bool) {
@@ -2504,16 +2504,14 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		}
 
 		newInfo, err = ImageDownload(context.Background(), s, op, &ImageDownloadArgs{
-			Server:      source.Server,
-			Protocol:    source.Protocol,
-			Certificate: source.Certificate,
-			Alias:       source.Alias,
-			Type:        info.Type,
-			AutoUpdate:  true,
-			Public:      info.Public,
-			StoragePool: poolName,
-			ProjectName: projectName,
-			Budget:      -1,
+			ImageRegistry: source.ImageRegistry,
+			Alias:         source.Alias,
+			Type:          info.Type,
+			AutoUpdate:    true,
+			Public:        info.Public,
+			StoragePool:   poolName,
+			ProjectName:   projectName,
+			Budget:        -1,
 		})
 		if err != nil {
 			logger.Error("Failed updating the image", logger.Ctx{"err": err, "fingerprint": fingerprint})
