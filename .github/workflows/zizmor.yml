@@ -5,7 +5,8 @@ on:
     branches:
       - latest-edge
       - latest-candidate
-      - '^[0-9.]+-(edge|candidate)$'
+      - '[0-9]*-edge'
+      - '[0-9]*-candidate'
   pull_request:
 
 permissions: {}
