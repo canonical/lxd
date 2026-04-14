@@ -25,7 +25,9 @@ jobs:
     permissions:
       contents: read
       security-events: write # for uploading SARIF results to the security tab
-    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
+    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository_owner == 'canonical' }}
+    env:
+      SARIF_FILE: trivy-${{ github.event.repository.name }}-repo-scan-results.sarif
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -41,7 +43,7 @@ jobs:
           scanners: vuln,secret,misconfig
           format: sarif
           severity: LOW,MEDIUM,HIGH,CRITICAL
-          output: trivy-lxd-repo-scan-results.sarif
+          output: ${{ env.SARIF_FILE }}
 
       - name: Tag KEV alerts
         run: |
@@ -54,13 +56,13 @@ jobs:
               else
                 .
               end
-            )' "$GITHUB_WORKSPACE/trivy-lxd-repo-scan-results.sarif" > trivy-modified.sarif
-            mv trivy-modified.sarif "$GITHUB_WORKSPACE/trivy-lxd-repo-scan-results.sarif"
+            )' "${SARIF_FILE}" > trivy-modified.sarif
+            mv trivy-modified.sarif "${SARIF_FILE}"
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
-          sarif_file: "trivy-lxd-repo-scan-results.sarif"
+          sarif_file: ${{ env.SARIF_FILE }}
           sha: ${{ github.sha }}
           ref: refs/heads/main
 
@@ -71,7 +73,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # for uploading SARIF results to the security tab
-    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
+    if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository_owner == 'canonical' }}
     strategy:
       matrix:
         version:
@@ -91,9 +93,11 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Download snap for scan
+        env:
+          SNAP_NAME: ${{ github.event.repository.name }}
         run: |
-          snap download lxd --channel=${{ matrix.version }}/stable --cohort="+"
-          unsquashfs ./lxd*.snap
+          snap download "${SNAP_NAME}" --channel=${{ matrix.version }}/stable --cohort="+"
+          unsquashfs ./${SNAP_NAME}*.snap
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
