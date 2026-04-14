@@ -136,7 +136,7 @@ test_storage_volume_initial_config() {
 
     [ "$(! "${_LXC}" launch "${image}" c --no-profiles --storage "${pool}" --device root,initial.zfs.promote=true 2>&1 1>/dev/null)" = 'Error: Failed creating instance from image: Cannot promote volume when creating from an image' ]
     lxc launch "${image}" c --no-profiles --storage "${pool}"
-    ! lxc config device set c root initial.zfs.promote=true || false  # NOK: Cannot enable zfs.promote in update.
+    [ "$(! "${_LXC}" config device set c root initial.zfs.promote=true 2>&1 1>/dev/null)" = 'Error: Device "root" initial configuration "initial.zfs.promote" cannot be added once the instance is created' ]
 
     # > Check that container's origin is the base image snapshot.
     [ "$(zfs get origin "${pool}/containers/c" -H -o value)" = "${pool}/images/$(lxc config get c volatile.base_image)@readonly" ]
