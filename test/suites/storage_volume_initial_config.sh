@@ -133,6 +133,8 @@ test_storage_volume_initial_config() {
     lxc storage unset "${pool}" volume.zfs.block_mode
 
     sub_test "Verify initial.zfs.promote functionality."
+
+    [ "$(! "${_LXC}" launch "${image}" c --no-profiles --storage "${pool}" --device root,initial.zfs.promote=true 2>&1 1>/dev/null)" = 'Error: Failed creating instance from image: Cannot promote volume when creating from an image' ]
     lxc launch "${image}" c --no-profiles --storage "${pool}"
     ! lxc config device set c root initial.zfs.promote=true || false  # NOK: Cannot enable zfs.promote in update.
 
