@@ -4,3 +4,4 @@ snap/
 stage/
 *.snap
 edk2-vars-generator/UEFI/__pycache__/
+.github/actions/lp-snap-build/lxd-snapcraft/lxd-snapcraft
