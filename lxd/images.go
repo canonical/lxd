@@ -1413,46 +1413,49 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		// Apply any provided alias
-		aliases, ok := imageMetadata["aliases"]
-		if ok {
-			b, err := json.Marshal(aliases)
-			if err != nil {
-				return fmt.Errorf("Invalid image alias metadata: %w", err)
+		// Aliases for images with source type "image" are handled in imgPostRemoteInfo.
+		if imageUpload || req.Source == nil || req.Source.Type != "image" {
+			// Apply any provided alias
+			aliases, ok := imageMetadata["aliases"]
+			if ok {
+				b, err := json.Marshal(aliases)
+				if err != nil {
+					return fmt.Errorf("Invalid image alias metadata: %w", err)
+				}
+
+				err = json.Unmarshal(b, &req.Aliases)
+				if err != nil {
+					return fmt.Errorf("Invalid image alias metadata: %w", err)
+				}
 			}
 
-			err = json.Unmarshal(b, &req.Aliases)
-			if err != nil {
-				return fmt.Errorf("Invalid image alias metadata: %w", err)
-			}
-		}
+			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &dbProject.Name})
+				if err != nil {
+					return fmt.Errorf("Fetch image %q: %w", info.Fingerprint, err)
+				}
 
-		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &dbProject.Name})
-			if err != nil {
-				return fmt.Errorf("Fetch image %q: %w", info.Fingerprint, err)
-			}
+				for _, alias := range req.Aliases {
+					_, _, err := tx.GetImageAlias(ctx, dbProject.Name, alias.Name, true)
+					if !response.IsNotFoundError(err) {
+						if err != nil {
+							return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
+						}
 
-			for _, alias := range req.Aliases {
-				_, _, err := tx.GetImageAlias(ctx, dbProject.Name, alias.Name, true)
-				if !response.IsNotFoundError(err) {
-					if err != nil {
-						return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
+						return fmt.Errorf("Alias already exists: %s", alias.Name)
 					}
 
-					return fmt.Errorf("Alias already exists: %s", alias.Name)
+					err = tx.CreateImageAlias(ctx, dbProject.Name, alias.Name, imgID, alias.Description)
+					if err != nil {
+						return fmt.Errorf("Add new image alias to the database: %w", err)
+					}
 				}
 
-				err = tx.CreateImageAlias(ctx, dbProject.Name, alias.Name, imgID, alias.Description)
-				if err != nil {
-					return fmt.Errorf("Add new image alias to the database: %w", err)
-				}
+				return nil
+			})
+			if err != nil {
+				return err
 			}
-
-			return nil
-		})
-		if err != nil {
-			return err
 		}
 
 		// Sync the images between each node in the cluster on demand
