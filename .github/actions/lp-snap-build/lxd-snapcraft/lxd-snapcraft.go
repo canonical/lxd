@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	yaml "gopkg.in/yaml.v2"
+	yaml "go.yaml.in/yaml/v3"
 )
 
 // lxd-snapcraft
@@ -60,13 +60,13 @@ func main() {
 	}
 }
 
-func loadSnapcraftYaml(snapcraftYamlPath string) (map[any]any, error) {
+func loadSnapcraftYaml(snapcraftYamlPath string) (map[string]any, error) {
 	buf, err := os.ReadFile(snapcraftYamlPath)
 	if err != nil {
 		return nil, err
 	}
 
-	var data map[any]any
+	var data map[string]any
 
 	err = yaml.Unmarshal(buf, &data)
 	if err != nil {
@@ -76,20 +76,20 @@ func loadSnapcraftYaml(snapcraftYamlPath string) (map[any]any, error) {
 	return data, nil
 }
 
-func getVersionInfo(pkgName string, snapcraftConfig map[any]any) (string, map[any]any) {
+func getVersionInfo(pkgName string, snapcraftConfig map[string]any) (string, map[string]any) {
 	var pkgVersion string
-	var pkgConfig map[any]any
+	var pkgConfig map[string]any
 
 	for k, v := range snapcraftConfig {
 		if k == "version" {
 			pkgVersion = v.(string)
 		} else if k == "parts" {
-			for k, v := range v.(map[any]any) {
-				if k.(string) != pkgName {
+			for k, v := range v.(map[string]any) {
+				if k != pkgName {
 					continue
 				}
 
-				pkgConfig = v.(map[any]any)
+				pkgConfig = v.(map[string]any)
 			}
 		}
 	}
@@ -97,7 +97,7 @@ func getVersionInfo(pkgName string, snapcraftConfig map[any]any) (string, map[an
 	return pkgVersion, pkgConfig
 }
 
-func writeSnapcraftYaml(snapcraftYamlPath string, snapcraftConfig map[any]any) error {
+func writeSnapcraftYaml(snapcraftYamlPath string, snapcraftConfig map[string]any) error {
 	out, err := yaml.Marshal(snapcraftConfig)
 	if err != nil {
 		return err
