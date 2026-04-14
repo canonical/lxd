@@ -148,14 +148,25 @@ func getVersionInfo(pkgName string, snapcraftConfig map[string]any) (string, map
 
 	for k, v := range snapcraftConfig {
 		if k == "version" {
-			pkgVersion = v.(string)
+			ver, ok := v.(string)
+			if ok {
+				pkgVersion = ver
+			}
 		} else if k == "parts" {
-			for k, v := range v.(map[string]any) {
+			parts, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			for k, v := range parts {
 				if k != pkgName {
 					continue
 				}
 
-				pkgConfig = v.(map[string]any)
+				partConfig, ok := v.(map[string]any)
+				if ok {
+					pkgConfig = partConfig
+				}
 			}
 		}
 	}
