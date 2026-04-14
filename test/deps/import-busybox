@@ -140,7 +140,7 @@ class LXD:
                 )
 
         if status != 202:
-            raise Exception("Failed to upload the image: %s" % status)
+            raise Exception("Failed to upload the image: %s %s" % (status, data.get("error", "")))
 
         status, data = self.rest_call(data["operation"] + "/wait", "", "GET", {})
         if status != 200:
