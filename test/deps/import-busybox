@@ -447,4 +447,5 @@ if __name__ == "__main__":
     try:
         args.func(parser, args)
     except Exception as e:
-        parser.error(str(e))
+        sys.stderr.write("\nerror: %s\n" % e)
+        sys.exit(1)
