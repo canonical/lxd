@@ -316,12 +316,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		req.Config = map[string]string{}
 	}
 
-	ctx := logger.Ctx{}
-
 	targetNode := request.QueryParam(r, "target")
-	if targetNode != "" {
-		ctx["target"] = targetNode
-	}
 
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
@@ -403,28 +398,6 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return operations.OperationResponse(op)
 	}
 
-	var pool *api.StoragePool
-
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-
-		// Load existing pool if exists, if not don't fail.
-		_, pool, _, err = tx.GetStoragePoolInAnyState(ctx, req.Name)
-
-		return err
-	})
-	if err != nil && !response.IsNotFoundError(err) {
-		return response.InternalError(err)
-	}
-
-	// Check if we're clustered.
-	count, err := cluster.Count(s)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	lc := lifecycle.StoragePoolCreated.Event(req.Name, requestor.EventLifecycleRequestor(), ctx)
-
 	run := func(ctx context.Context, op *operations.Operation) error {
 		// Don't allow concurrent ongoing storage pool creation requests from external API requests.
 		// This isn't perfect as concurrent requests can come into other cluster members, but we do not yet
@@ -435,6 +408,26 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		defer unlock()
+
+		var pool *api.StoragePool
+
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+
+			// Load existing pool if exists, if not don't fail.
+			_, pool, _, err = tx.GetStoragePoolInAnyState(ctx, req.Name)
+
+			return err
+		})
+		if err != nil && !response.IsNotFoundError(err) {
+			return err
+		}
+
+		// Check if we're clustered.
+		count, err := cluster.Count(s)
+		if err != nil {
+			return err
+		}
 
 		// No targetNode was specified and we're clustered or there is an existing partially created single node
 		// pool, either way finalize the config in the db and actually create the pool on all nodes in the cluster.
@@ -451,6 +444,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
+		loggingCtx := logger.Ctx{}
+		if targetNode != "" {
+			loggingCtx["target"] = targetNode
+		}
+
+		lc := lifecycle.StoragePoolCreated.Event(req.Name, requestor.EventLifecycleRequestor(), loggingCtx)
 		s.Events.SendLifecycle("", lc)
 
 		return nil
