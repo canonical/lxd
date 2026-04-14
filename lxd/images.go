@@ -679,95 +679,6 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 	return info, nil
 }
 
-func imgPostURLInfo(ctx context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, imageProject string, budget int64) (*api.Image, error) {
-	var err error
-
-	if req.Source.URL == "" {
-		return nil, errors.New("Missing URL")
-	}
-
-	myhttp, err := util.HTTPClient("", s.Proxy)
-	if err != nil {
-		return nil, err
-	}
-
-	// Resolve the image URL
-	head, err := http.NewRequest("HEAD", req.Source.URL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	architectures := []string{}
-	for _, architecture := range s.OS.Architectures {
-		architectureName, err := osarch.ArchitectureName(architecture)
-		if err != nil {
-			return nil, err
-		}
-
-		architectures = append(architectures, architectureName)
-	}
-
-	head.Header.Set("User-Agent", version.UserAgent)
-	head.Header.Set("LXD-Server-Architectures", strings.Join(architectures, ", "))
-	head.Header.Set("LXD-Server-Version", version.Version)
-
-	raw, err := myhttp.Do(head)
-	if err != nil {
-		return nil, err
-	}
-
-	hash := raw.Header.Get("LXD-Image-Hash")
-	if hash == "" {
-		return nil, errors.New("Missing LXD-Image-Hash header")
-	}
-
-	url := raw.Header.Get("LXD-Image-URL")
-	if url == "" {
-		return nil, errors.New("Missing LXD-Image-URL header")
-	}
-
-	// Import the image
-	info, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
-		Server:        url,
-		Protocol:      "direct",
-		Alias:         hash,
-		AutoUpdate:    req.AutoUpdate,
-		Public:        req.Public,
-		ProjectName:   imageProject,
-		Budget:        budget,
-		UserRequested: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var id int
-
-		id, info, err = tx.GetImage(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &imageProject})
-		if err != nil {
-			return err
-		}
-
-		// Allow overriding or adding properties
-		maps.Copy(info.Properties, req.Properties)
-
-		if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, nil)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return info, nil
-}
-
 func getImgPostInfo(s *state.State, r *http.Request, builddir string, project string, post *os.File, metadata map[string]any) (*api.Image, error) {
 	info := api.Image{}
 	var imageMeta *api.ImageMetadata
@@ -1413,7 +1324,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 				info, err = imgPostRemoteInfo(ctx, s, req, op, profileProject, imageProject, budget)
 			case "url":
 				/* Processing image copy from URL */
-				info, err = imgPostURLInfo(ctx, s, req, op, imageProject, budget)
+				return errors.New("Image download from client specified URL is not supported")
 			default:
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
