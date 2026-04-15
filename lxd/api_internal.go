@@ -237,7 +237,7 @@ func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = imageCreateInPool(s, &req.Image, req.Pool, req.Project)
+	err = imageCreateInPool(r.Context(), s, &req.Image, req.Pool, req.Project)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -926,7 +926,7 @@ func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup
 		return err
 	}
 
-	_, instOp, cleanup, err := instance.CreateInternal(s, *instDBArgs, true)
+	_, instOp, cleanup, err := instance.CreateInternal(ctx, s, *instDBArgs, true)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance record: %w", err)
 	}
@@ -1006,7 +1006,7 @@ func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup
 
 		internalImportRootDevicePopulate(instancePoolName, snap.Devices, snap.ExpandedDevices, profiles)
 
-		_, snapInstOp, cleanup, err := instance.CreateInternal(s, db.InstanceArgs{
+		_, snapInstOp, cleanup, err := instance.CreateInternal(ctx, s, db.InstanceArgs{
 			Project:      projectName,
 			Architecture: arch,
 			BaseImage:    baseImage,
