@@ -1143,7 +1143,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, removeImgFingerprint := range removeImgFingerprints {
-				err = pool.DeleteImage(removeImgFingerprint, nil)
+				err = pool.DeleteImage(ctx, removeImgFingerprint, nil)
 				if err != nil {
 					return fmt.Errorf("Error deleting image %q from storage pool %q: %w", removeImgFingerprint, pool.Name(), err)
 				}
