@@ -58,6 +58,7 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -141,6 +142,34 @@ func validateImageFingerprintPrefix(prefix string) error {
 	}
 
 	return nil
+}
+
+// validateImagePublicSetting checks whether an image visibility update is allowed for the effective image project.
+// Public images outside the default project are rejected.
+func validateImagePublicSetting(requestedPublic bool, imageProject string) error {
+	if requestedPublic && imageProject != api.ProjectDefaultName {
+		return api.NewStatusError(http.StatusBadRequest, "Images can only be marked public in the default project")
+	}
+
+	return nil
+}
+
+// isImageUploadPublic resolves the requested public flag for image uploads from HTTP header and token metadata.
+// Metadata field "public" takes precedence over "X-LXD-public" HTTP header, and is type-checked when present.
+func isImageUploadPublic(r *http.Request, metadata map[string]any) (bool, error) {
+	public := shared.IsTrue(r.Header.Get("X-LXD-public"))
+
+	publicValue, ok := metadata["public"]
+	if ok {
+		publicBool, ok := publicValue.(bool)
+		if !ok {
+			return false, errors.New(`Invalid type for key "public"`)
+		}
+
+		public = publicBool
+	}
+
+	return public, nil
 }
 
 const ctxImageDetails request.CtxKey = "image-details"
@@ -744,7 +773,12 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 	var imageMeta *api.ImageMetadata
 	l := logger.AddContext(logger.Ctx{"function": "getImgPostInfo"})
 
-	info.Public = shared.IsTrue(r.Header.Get("X-LXD-public"))
+	public, err := isImageUploadPublic(r, metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	info.Public = public
 	propHeaders := r.Header[http.CanonicalHeaderKey("X-LXD-properties")]
 	profilesHeaders := r.Header.Get("X-LXD-profiles")
 	ctype, ctypeParams, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1004,14 +1038,6 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 			return nil, err
 		}
 	} else {
-		public, ok := metadata["public"]
-		if ok {
-			info.Public, ok = public.(bool)
-			if !ok {
-				return nil, errors.New("Invalid type for key \"public\"")
-			}
-		}
-
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Create the database entry
 			return tx.CreateImage(ctx, project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, profileIDs)
@@ -1189,6 +1215,14 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Project to associate image with.
+	imageProject := dbProject.Name
+
+	// If "features.images" is disabled for the project, associate the image with the "default" project.
+	if shared.IsFalseOrEmpty(projectConfig["features.images"]) {
+		imageProject = api.ProjectDefaultName
+	}
+
 	secret := r.Header.Get("X-LXD-secret")
 	fingerprint := r.Header.Get("X-LXD-fingerprint")
 
@@ -1251,10 +1285,15 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Revert handling.
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() { cleanup(builddir, post) })
+
 	_, err = io.Copy(shared.NewQuotaWriter(post, budget), r.Body)
 	if err != nil {
 		logger.Errorf("Store image POST data to disk: %v", err)
-		cleanup(builddir, post)
 		return response.InternalError(err)
 	}
 
@@ -1271,16 +1310,32 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	err = decoder.Decode(&req)
 	if err != nil {
 		if r.Header.Get("Content-Type") == "application/json" {
-			cleanup(builddir, post)
 			return response.BadRequest(err)
 		}
 
 		imageUpload = true
 	}
 
-	if !imageUpload && req.Source.Mode == "push" {
-		cleanup(builddir, post)
+	if imageUpload {
+		public, err := isImageUploadPublic(r, imageMetadata)
+		if err != nil {
+			return response.BadRequest(err)
+		}
 
+		// Ensure that public images are only allowed in the default project.
+		err = validateImagePublicSetting(public, imageProject)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	} else {
+		// Ensure that public images are only allowed in the default project.
+		err = validateImagePublicSetting(req.Public, imageProject)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	if !imageUpload && req.Source.Mode == "push" {
 		metadata := map[string]any{
 			"aliases":    req.Aliases,
 			"expires_at": req.ExpiresAt,
@@ -1292,7 +1347,6 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !imageUpload && !slices.Contains([]api.SourceType{"container", "instance", "virtual-machine", "snapshot", "image", "url"}, req.Source.Type) {
-		cleanup(builddir, post)
 		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
@@ -1315,11 +1369,11 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			r.Body = post
 			resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, dbProject.Name, name, instanceType)
 			if err != nil {
-				cleanup(builddir, post)
 				return response.SmartError(err)
 			}
 
 			if resp != nil {
+				revert.Success()
 				cleanup(builddir, nil)
 				return resp
 			}
@@ -1345,14 +1399,6 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			/* Processing image upload */
 			info, err = getImgPostInfo(s, r, builddir, dbProject.Name, post, imageMetadata)
 		} else {
-			// Project to associate image with.
-			imageProject := dbProject.Name
-
-			// If "features.images" is disabled for the project, associate the image with the "default" project.
-			if shared.IsFalseOrEmpty(projectConfig["features.images"]) {
-				imageProject = api.ProjectDefaultName
-			}
-
 			// Project to associate profiles with.
 			profileProject := dbProject.Name
 
@@ -1478,10 +1524,10 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	imageOp, err := operations.ScheduleUserOperationFromRequest(s, r, args)
 	if err != nil {
-		cleanup(builddir, post)
 		return response.InternalError(err)
 	}
 
+	revert.Success()
 	return operations.OperationResponse(imageOp)
 }
 
@@ -3363,7 +3409,12 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	trusted := requestor.IsTrusted()
 	secret := r.FormValue("secret")
 
-	// Unauthenticated clients that do not provide a secret may only view public images.
+	// Untrusted callers may only retrieve images from the default project unless they provide a valid secret.
+	if !trusted && secret == "" && projectName != api.ProjectDefaultName {
+		return response.NotFound(nil)
+	}
+
+	// Untrusted callers that do not provide a secret may only view public images.
 	publicOnly := !trusted && secret == ""
 
 	// Get the image. We need to do this before the permission check because the URL in the permission check will not
@@ -3409,6 +3460,11 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 
 	// No operation found for the secret. Perform other access checks.
 	if !userCanViewImage {
+		// Untrusted callers can only access non-default projects with a valid secret.
+		if !trusted && projectName != api.ProjectDefaultName {
+			return response.NotFound(nil)
+		}
+
 		if info.Public {
 			// If the image is public any client can view it.
 			userCanViewImage = true
@@ -3479,6 +3535,11 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 
 	// Get current value
 	projectName := request.ProjectParam(r)
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -3495,6 +3556,12 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	// Ensure that public images are only allowed in the default project.
+	err = validateImagePublicSetting(req.Public, effectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Get ExpiresAt
@@ -3608,6 +3675,11 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get current value
 	projectName := request.ProjectParam(r)
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -3650,6 +3722,12 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	public, err := reqRaw.GetBool("public")
 	if err == nil {
 		details.image.Public = public
+	}
+
+	// Ensure that public images are only allowed in the default project.
+	err = validateImagePublicSetting(details.image.Public, effectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Get Properties
@@ -4025,6 +4103,16 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImageAlias, false)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Untrusted callers may only retrieve aliases from the default project.
+	if !requestor.IsTrusted() && projectName != api.ProjectDefaultName {
+		return response.NotFound(nil)
 	}
 
 	var effectiveProjectName string
@@ -4475,8 +4563,12 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	trusted := requestor.IsTrusted()
 
-	// Unauthenticated remote clients that do not provide a secret may only view public images.
-	// For devlxd, we allow querying for private images. We'll subsequently perform additional access checks.
+	// Untrusted callers may only retrieve images from the default project unless they provide a valid secret.
+	if !trusted && secret == "" && projectName != api.ProjectDefaultName {
+		return response.NotFound(nil)
+	}
+
+	// Without a secret, untrusted callers are restricted to public images in the default project.
 	publicOnly := !trusted && secret == ""
 
 	// Get the image. We need to do this before the permission check because the URL in the permission check will not
@@ -4522,6 +4614,11 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !userCanViewImage {
+		// Untrusted callers can only access non-default projects with a valid secret.
+		if !trusted && projectName != api.ProjectDefaultName {
+			return response.NotFound(nil)
+		}
+
 		if imgInfo.Public {
 			// If the image is public any client can view it.
 			userCanViewImage = true
