@@ -143,7 +143,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			// However, the operation is not available on other members handling instance updates. So, we don't set
 			// the operation on instance here to keep the same behavior on all members.
 
-			return doInstanceStatePut(inst, *req.State)
+			return doInstanceStatePut(ctx, inst, *req.State, op)
 		}
 
 		// Record the results.
