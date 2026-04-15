@@ -462,7 +462,7 @@ func createFromConversion(r *http.Request, s *state.State, projectName string, p
 	}
 
 	// Create the instance DB record for main instance.
-	inst, instOp, cleanup, err := instance.CreateInternal(s, *args, true)
+	inst, instOp, cleanup, err := instance.CreateInternal(r.Context(), s, *args, true)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed creating instance record: %w", err))
 	}
@@ -493,10 +493,8 @@ func createFromConversion(r *http.Request, s *state.State, projectName string, p
 	run := func(ctx context.Context, op *operations.Operation) error {
 		defer runRevert.Fail()
 
-		sink.instance.SetOperation(op)
-
 		// And finally run the migration.
-		err = sink.Do(s, instOp)
+		err = sink.Do(s, instOp, op)
 		if err != nil {
 			err = fmt.Errorf("Error transferring instance data: %w", err)
 			instOp.Done(err) // Complete operation that was created earlier, to release lock.
