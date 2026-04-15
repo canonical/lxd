@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"path"
 
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/revert"
@@ -20,7 +19,7 @@ func (d *cephobject) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 }
 
 // CreateBucket creates a new bucket.
-func (d *cephobject) CreateBucket(bucket Volume, op *operations.Operation) error {
+func (d *cephobject) CreateBucket(bucket Volume) error {
 	_, bucketName := project.StorageVolumeParts(bucket.name)
 	storageBucketName := d.radosgwBucketName(bucketName)
 
@@ -96,7 +95,7 @@ func (d *cephobject) setBucketQuota(bucket Volume, quotaSize string) error {
 }
 
 // DeleteBucket deletes an existing bucket.
-func (d *cephobject) DeleteBucket(bucket Volume, op *operations.Operation) error {
+func (d *cephobject) DeleteBucket(bucket Volume) error {
 	_, bucketName := project.StorageVolumeParts(bucket.name)
 	storageBucketName := d.radosgwBucketName(bucketName)
 
@@ -139,7 +138,7 @@ func (d *cephobject) bucketKeyRadosgwAccessRole(roleName string) (string, error)
 }
 
 // CreateBucketKey creates a new bucket key.
-func (d *cephobject) CreateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+func (d *cephobject) CreateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string) (*S3Credentials, error) {
 	_, bucketName := project.StorageVolumeParts(bucket.name)
 	storageBucketName := d.radosgwBucketName(bucketName)
 
@@ -168,7 +167,7 @@ func (d *cephobject) CreateBucketKey(bucket Volume, keyName string, creds S3Cred
 }
 
 // UpdateBucketKey updates bucket key.
-func (d *cephobject) UpdateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+func (d *cephobject) UpdateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string) (*S3Credentials, error) {
 	_, bucketName := project.StorageVolumeParts(bucket.name)
 	storageBucketName := d.radosgwBucketName(bucketName)
 
@@ -204,7 +203,7 @@ func (d *cephobject) UpdateBucketKey(bucket Volume, keyName string, creds S3Cred
 }
 
 // DeleteBucketKey deletes an existing bucket key.
-func (d *cephobject) DeleteBucketKey(bucket Volume, keyName string, op *operations.Operation) error {
+func (d *cephobject) DeleteBucketKey(bucket Volume, keyName string) error {
 	_, bucketName := project.StorageVolumeParts(bucket.name)
 	storageBucketName := d.radosgwBucketName(bucketName)
 

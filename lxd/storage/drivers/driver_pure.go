@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
@@ -287,7 +287,7 @@ func (d *pure) Update(changedConfig map[string]string) error {
 }
 
 // Delete removes the storage pool (Pure Storage pod).
-func (d *pure) Delete(op *operations.Operation) error {
+func (d *pure) Delete(progressReporter ioprogress.ProgressReporter) error {
 	// First delete the storage pool on Pure Storage.
 	err := d.client().deleteStoragePool(d.name)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {

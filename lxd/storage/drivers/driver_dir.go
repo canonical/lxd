@@ -10,10 +10,10 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 )
 
 type dir struct {
@@ -126,7 +126,7 @@ func (d *dir) Create() error {
 }
 
 // Delete removes the storage pool from the storage device.
-func (d *dir) Delete(op *operations.Operation) error {
+func (d *dir) Delete(progressReporter ioprogress.ProgressReporter) error {
 	// On delete, wipe everything in the directory.
 	err := wipeDirectory(GetPoolMountPath(d.name))
 	if err != nil {

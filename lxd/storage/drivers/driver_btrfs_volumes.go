@@ -22,7 +22,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
@@ -34,7 +33,7 @@ import (
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
-func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	volPath := vol.MountPath()
 
 	// Setup revert.
@@ -126,7 +125,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	} else if vol.contentType == ContentTypeFS {
 		// Set initial quota for filesystem volumes.
-		err := d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
+		err := d.SetVolumeQuota(vol, vol.ConfigSize(), false, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -151,10 +150,10 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 }
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
-func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (VolumePostHook, revert.Hook, error) {
 	// Handle the non-optimized tarballs through the generic unpacker.
 	if !*srcBackup.OptimizedStorage {
-		return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
+		return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, progressReporter)
 	}
 
 	volExists, err := d.HasVolume(vol.Volume)
@@ -175,11 +174,11 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 		for _, snapName := range srcBackup.Snapshots {
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
 			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
-			_ = d.DeleteVolumeSnapshot(snapVol, op)
+			_ = d.DeleteVolumeSnapshot(snapVol, progressReporter)
 		}
 
 		// And lastly the main volume.
-		_ = d.DeleteVolume(vol.Volume, op)
+		_ = d.DeleteVolume(vol.Volume, progressReporter)
 	}
 	// Only execute the revert function if we have had an error internally.
 	revert.Add(revertHook)
@@ -417,7 +416,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 
 // createVolumeFromCopy creates a volume from copy by snapshotting the parent volume.
 // It also copies the source volume's snapshots and supports refreshing an already existing volume.
-func (d *btrfs) createVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, refresh bool, op *operations.Operation) error {
+func (d *btrfs) createVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, refresh bool, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -463,7 +462,7 @@ func (d *btrfs) createVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInc
 
 	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
 	// to give the caller more control over the size being used.
-	err = d.SetVolumeQuota(vol.Volume, vol.config["size"], false, op)
+	err = d.SetVolumeQuota(vol.Volume, vol.config["size"], false, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -479,7 +478,7 @@ func (d *btrfs) createVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInc
 	// Get snapshot list if copying snapshots.
 	if len(vol.Snapshots) > 0 && !srcVol.IsSnapshot() {
 		// Get the list of source snapshots.
-		snapshots, err = d.VolumeSnapshots(srcVol.Volume, op)
+		snapshots, err = d.VolumeSnapshots(srcVol.Volume)
 		if err != nil {
 			return err
 		}
@@ -494,7 +493,7 @@ func (d *btrfs) createVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInc
 		}
 
 		// Get the list of target volume snapshots.
-		targetSnapshots, err := d.VolumeSnapshots(vol.Volume, op)
+		targetSnapshots, err := d.VolumeSnapshots(vol.Volume)
 		if err != nil {
 			return err
 		}
@@ -545,15 +544,15 @@ func (d *btrfs) createVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInc
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *btrfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
-	return d.createVolumeFromCopy(vol, srcVol, allowInconsistent, false, op)
+func (d *btrfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
+	return d.createVolumeFromCopy(vol, srcVol, allowInconsistent, false, progressReporter)
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	// Handle simple rsync and block_and_rsync through generic.
 	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
-		_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+		_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, progressReporter)
 		return err
 	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BTRFS {
 		return ErrNotSupported
@@ -595,7 +594,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 	}
 
 	if volTargetArgs.Refresh && slices.Contains(volTargetArgs.MigrationType.Features, migration.BTRFSFeatureSubvolumeUUIDs) {
-		snapshots, err := d.volumeSnapshotsSorted(vol.Volume, op)
+		snapshots, err := d.volumeSnapshotsSorted(vol.Volume, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -654,10 +653,10 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 		syncSubvolumes = migrationHeader.Subvolumes
 	}
 
-	return d.createVolumeFromMigrationOptimized(vol.Volume, conn, volTargetArgs, preFiller, syncSubvolumes, op)
+	return d.createVolumeFromMigrationOptimized(vol.Volume, conn, volTargetArgs, preFiller, syncSubvolumes, progressReporter)
 }
 
-func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, subvolumes []BTRFSSubVolume, op *operations.Operation) error {
+func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, subvolumes []BTRFSSubVolume, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -678,7 +677,7 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 		// Setup progress tracking.
 		var wrapper ioprogress.ReaderWrapper
 		if volTargetArgs.TrackProgress {
-			wrapper = ioprogress.NewProgressReaderWrapper(ioprogress.WithDescriptiveProgressReporter("fs", v.name, op))
+			wrapper = ioprogress.NewProgressReaderWrapper(ioprogress.WithDescriptiveProgressReporter("fs", v.name, progressReporter))
 		}
 
 		for _, subVol := range subvolumes {
@@ -820,7 +819,7 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 
 	if vol.contentType == ContentTypeFS {
 		// Apply the size limit.
-		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -831,20 +830,20 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 }
 
 // CreateVolumeFromImage creates volume from image by using createVolumeFromImage utility function.
-func (d *btrfs) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error {
-	return createVolumeFromImage(vol, imgVol, filler, op)
+func (d *btrfs) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+	return createVolumeFromImage(vol, imgVol, filler, progressReporter)
 }
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
-func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
-	return d.createVolumeFromCopy(vol, srcVol, allowInconsistent, true, op)
+func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
+	return d.createVolumeFromCopy(vol, srcVol, allowInconsistent, true, progressReporter)
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
 // this function will return an error.
-func (d *btrfs) DeleteVolume(vol Volume, op *operations.Operation) error {
+func (d *btrfs) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	// Check that we don't have snapshots.
-	snapshots, err := d.VolumeSnapshots(vol, op)
+	snapshots, err := d.VolumeSnapshots(vol)
 	if err != nil {
 		return err
 	}
@@ -921,7 +920,7 @@ func (d *btrfs) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
-func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, progressReporter ioprogress.ProgressReporter) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -1079,7 +1078,7 @@ func (d *btrfs) ListVolumes() ([]Volume, error) {
 }
 
 // MountVolume simulates mounting a volume.
-func (d *btrfs) MountVolume(vol Volume, op *operations.Operation) error {
+func (d *btrfs) MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	unlock, err := vol.MountLock()
 	if err != nil {
 		return err
@@ -1102,7 +1101,7 @@ func (d *btrfs) MountVolume(vol Volume, op *operations.Operation) error {
 
 // UnmountVolume simulates unmounting a volume.
 // As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
-func (d *btrfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+func (d *btrfs) UnmountVolume(vol Volume, keepBlockDev bool, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	unlock, err := vol.MountLock()
 	if err != nil {
 		return false, err
@@ -1120,8 +1119,8 @@ func (d *btrfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Oper
 }
 
 // RenameVolume renames a volume and its snapshots.
-func (d *btrfs) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
-	return genericVFSRenameVolume(d, vol, newVolName, op)
+func (d *btrfs) RenameVolume(vol Volume, newVolName string, progressReporter ioprogress.ProgressReporter) error {
+	return genericVFSRenameVolume(d, vol, newVolName)
 }
 
 // readonlySnapshot creates a readonly snapshot.
@@ -1170,7 +1169,7 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	// Handle simple rsync and block_and_rsync through generic.
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		// If volume is filesystem type and is not already a snapshot, create a fast snapshot to ensure migration is consistent.
@@ -1188,7 +1187,7 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 			vol.mountCustomPath = snapshotPath
 		}
 
-		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
+		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, progressReporter)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BTRFS {
 		return ErrNotSupported
 	}
@@ -1204,7 +1203,7 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 
 	if !volSrcArgs.VolumeOnly {
 		// Generate restoration header, containing info on the subvolumes and how they should be restored.
-		snapshots, err = d.volumeSnapshotsSorted(vol.Volume, op)
+		snapshots, err = d.volumeSnapshotsSorted(vol.Volume, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -1270,10 +1269,10 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 		}
 	}
 
-	return d.migrateVolumeOptimized(vol.Volume, conn, volSrcArgs, migrationHeader.Subvolumes, op)
+	return d.migrateVolumeOptimized(vol.Volume, conn, volSrcArgs, migrationHeader.Subvolumes, progressReporter)
 }
 
-func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, subvolumes []BTRFSSubVolume, op *operations.Operation) error {
+func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, subvolumes []BTRFSSubVolume, progressReporter ioprogress.ProgressReporter) error {
 	// sendVolume sends a volume and its subvolumes (if negotiated subvolumes feature) to recipient.
 	sendVolume := func(v Volume, sourcePrefix string, parentPrefix string) error {
 		snapName := "" // Default to empty (sending main volume) from migrationHeader.Subvolumes.
@@ -1287,7 +1286,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 		// Setup progress tracking.
 		var writerWrapper ioprogress.WriterWrapper
 		if volSrcArgs.TrackProgress {
-			writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", v.name, op))
+			writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", v.name, progressReporter))
 		}
 
 		sentVols := 0
@@ -1351,7 +1350,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 	lastVolPath := "" // Used as parent for differential transfers.
 
 	if !vol.IsSnapshot() && !volSrcArgs.VolumeOnly {
-		snapshots, err := vol.Snapshots(op)
+		snapshots, err := vol.Snapshots(progressReporter)
 		if err != nil {
 			return err
 		}
@@ -1420,7 +1419,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
-func (d *btrfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+func (d *btrfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, progressReporter ioprogress.ProgressReporter) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
 		// Because the generic backup method will not take a consistent backup if files are being modified
@@ -1439,14 +1438,14 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *inst
 			vol.mountCustomPath = snapshotPath
 		}
 
-		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
+		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, progressReporter)
 	}
 
 	// Optimized backup.
 
 	if len(snapshots) > 0 {
 		// Check requested snapshot match those in storage.
-		err := d.CheckVolumeSnapshots(vol.Volume, vol.Snapshots, op)
+		err := d.CheckVolumeSnapshots(vol.Volume, vol.Snapshots)
 		if err != nil {
 			return err
 		}
@@ -1678,7 +1677,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *inst
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
-func (d *btrfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *btrfs) CreateVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
 	srcPath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
 	snapPath := snapVol.MountPath()
@@ -1728,7 +1727,7 @@ func (d *btrfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) e
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device. The volName and snapshotName
 // must be bare names and should not be in the format "volume/snapshot".
-func (d *btrfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *btrfs) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	snapPath := snapVol.MountPath()
 
 	// Delete the snapshot.
@@ -1748,7 +1747,7 @@ func (d *btrfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) e
 }
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
-func (d *btrfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *btrfs) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	unlock, err := snapVol.MountLock()
 	if err != nil {
 		return err
@@ -1777,7 +1776,7 @@ func (d *btrfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 }
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
-func (d *btrfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+func (d *btrfs) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	unlock, err := snapVol.MountLock()
 	if err != nil {
 		return false, err
@@ -1796,13 +1795,13 @@ func (d *btrfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
-func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	return genericVFSVolumeSnapshots(d, vol, op)
+func (d *btrfs) VolumeSnapshots(vol Volume) ([]string, error) {
+	return genericVFSVolumeSnapshots(d, vol)
 }
 
 // volumeSnapshotsSorted returns a list of snapshots for the volume (ordered by subvolume ID).
 // Since the subvolume ID is incremental, this also represents the order of creation.
-func (d *btrfs) volumeSnapshotsSorted(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *btrfs) volumeSnapshotsSorted(vol Volume, progressReporter ioprogress.ProgressReporter) ([]string, error) {
 	stdout := bytes.Buffer{}
 
 	err := shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", GetPoolMountPath(vol.pool))
@@ -1838,7 +1837,7 @@ func (d *btrfs) volumeSnapshotsSorted(vol Volume, op *operations.Operation) ([]s
 }
 
 // RestoreVolume restores a volume from a snapshot.
-func (d *btrfs) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+func (d *btrfs) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1893,6 +1892,6 @@ func (d *btrfs) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operati
 }
 
 // RenameVolumeSnapshot renames a volume snapshot.
-func (d *btrfs) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
-	return genericVFSRenameVolumeSnapshot(d, snapVol, newSnapshotName, op)
+func (d *btrfs) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, progressReporter ioprogress.ProgressReporter) error {
+	return genericVFSRenameVolumeSnapshot(d, snapVol, newSnapshotName, progressReporter)
 }

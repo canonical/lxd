@@ -4,7 +4,7 @@ import (
 	"errors"
 	"maps"
 
-	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/shared/ioprogress"
 )
 
 // imageVolumeConfigMatchesPoolDefault checks whether the instance volume's effective config
@@ -51,14 +51,14 @@ func CanUseOptimizedImage(vol Volume) (bool, error) {
 // volume via the filler. Otherwise it verifies that the cached image volume's config still
 // matches the pool's defaults and clones from it, falling back to a direct unpack if the
 // configs have drifted or the image volume cannot be shrunk to the requested size.
-func createVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error {
+func createVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	// vol is passed by value so it is never nil, but its driver field may be unset.
 	if vol.driver == nil {
 		return errors.New("Volume has no associated driver")
 	}
 
 	if imgVol == nil {
-		return vol.driver.CreateVolume(vol, filler, op)
+		return vol.driver.CreateVolume(vol, filler, progressReporter)
 	}
 
 	// Pool settings may have changed since the cached image volume was created.
@@ -69,7 +69,7 @@ func createVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op 
 	}
 
 	if !vol.driver.ImageVolumeConfigMatch(*imgVol, poolDefaultVol) {
-		return vol.driver.CreateVolume(vol, filler, op)
+		return vol.driver.CreateVolume(vol, filler, progressReporter)
 	}
 
 	// Derive the volume size to use for the new volume when copying from the image volume.
@@ -84,7 +84,7 @@ func createVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op 
 	vol.SetConfigSize(newVolSize)
 
 	// Clone the new volume from the cached image volume.
-	err = vol.driver.CreateVolumeFromCopy(NewVolumeCopy(vol), NewVolumeCopy(*imgVol), false, op)
+	err = vol.driver.CreateVolumeFromCopy(NewVolumeCopy(vol), NewVolumeCopy(*imgVol), false, progressReporter)
 	if err != nil {
 		if !errors.Is(err, ErrCannotBeShrunk) {
 			return err
@@ -93,7 +93,7 @@ func createVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op 
 		// The cached image volume is larger than the requested new volume size and cannot
 		// be shrunk. Fall back to unpacking the image directly into a new volume. This is
 		// slower but allows creating volumes smaller than the pool's volume settings.
-		return vol.driver.CreateVolume(vol, filler, op)
+		return vol.driver.CreateVolume(vol, filler, progressReporter)
 	}
 
 	return nil

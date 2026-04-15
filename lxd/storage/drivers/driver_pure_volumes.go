@@ -12,10 +12,10 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -53,7 +53,7 @@ func (d *pure) commonVolumeRules() map[string]func(value string) error {
 }
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
-func (d *pure) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *pure) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	client := d.client()
 
 	revert := revert.New()
@@ -98,15 +98,15 @@ func (d *pure) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
-		err := d.CreateVolume(fsVol, nil, op)
+		err := d.CreateVolume(fsVol, nil, progressReporter)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = d.DeleteVolume(fsVol, op) })
+		revert.Add(func() { _ = d.DeleteVolume(fsVol, progressReporter) })
 	}
 
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err = vol.MountTask(func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
 		// Run the volume filler function if supplied.
 		if filler != nil && filler.Fill != nil {
 			var err error
@@ -160,7 +160,7 @@ func (d *pure) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 		}
 
 		return nil
-	}, op)
+	}, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -170,17 +170,17 @@ func (d *pure) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *pure) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
-	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
+func (d *pure) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (VolumePostHook, revert.Hook, error) {
+	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, progressReporter)
 }
 
 // CreateVolumeFromImage creates volume from image by using createVolumeFromImage utility function.
-func (d *pure) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error {
-	return createVolumeFromImage(vol, imgVol, filler, op)
+func (d *pure) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+	return createVolumeFromImage(vol, imgVol, filler, progressReporter)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
+func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -189,16 +189,16 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 	postCreateTasks := func(v Volume) error {
 		if vol.contentType == ContentTypeFS {
 			// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
-			err := v.MountTask(func(_ string, _ *operations.Operation) error {
+			err := v.MountTask(func(_ string, _ ioprogress.ProgressReporter) error {
 				return v.EnsureMountPath()
-			}, op)
+			}, progressReporter)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Resize volume to the size specified.
-		err := d.SetVolumeQuota(v, vol.config["size"], false, op)
+		err := d.SetVolumeQuota(v, vol.config["size"], false, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -226,12 +226,12 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 		fsVol.SetParentUUID(vol.parentUUID)
 		srcFSVol.SetParentUUID(srcVol.parentUUID)
 
-		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
+		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, progressReporter)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = d.DeleteVolume(fsVol.Volume, op) })
+		revert.Add(func() { _ = d.DeleteVolume(fsVol.Volume, progressReporter) })
 	}
 
 	poolName := vol.pool
@@ -288,7 +288,7 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 			if deleteVolCopy {
 				// If at least one snapshot is copied into destination volume, we need to remove
 				// that volume as well in case of an error.
-				revert.Add(func() { _ = d.DeleteVolume(vol.Volume, op) })
+				revert.Add(func() { _ = d.DeleteVolume(vol.Volume, progressReporter) })
 				deleteVolCopy = false
 			}
 
@@ -298,7 +298,7 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 			// Create snapshot from a new volume (that was created from the source snapshot).
 			// However, do not create VM's filesystem volume snapshot, as filesystem volume is
 			// copied before block volume.
-			err = d.createVolumeSnapshot(snapshot, false, op)
+			err = d.createVolumeSnapshot(snapshot, false, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -328,7 +328,7 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 
 	// Add reverted to delete destination volume, if not already added.
 	if deleteVolCopy {
-		revert.Add(func() { _ = d.DeleteVolume(vol.Volume, op) })
+		revert.Add(func() { _ = d.DeleteVolume(vol.Volume, progressReporter) })
 	}
 
 	err = postCreateTasks(vol.Volume)
@@ -341,7 +341,7 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *pure) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *pure) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	// When performing a cluster member move prepare the volumes on the target side.
 	if volTargetArgs.ClusterMoveSourceName != "" {
 		err := vol.EnsureMountPath()
@@ -351,7 +351,7 @@ func (d *pure) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 
 		if vol.IsVMBlock() {
 			fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
-			err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, op)
+			err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -360,12 +360,12 @@ func (d *pure) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 		return nil
 	}
 
-	_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, progressReporter)
 	return err
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
-func (d *pure) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
+func (d *pure) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -385,7 +385,7 @@ func (d *pure) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
 		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcFsVolSnapshots...)
 
-		cleanup, err := d.refreshVolume(fsVol, srcFSVol, refreshSnapshots, allowInconsistent, op)
+		cleanup, err := d.refreshVolume(fsVol, srcFSVol, refreshSnapshots, allowInconsistent, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -393,7 +393,7 @@ func (d *pure) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 		revert.Add(cleanup)
 	}
 
-	cleanup, err := d.refreshVolume(vol, srcVol, refreshSnapshots, allowInconsistent, op)
+	cleanup, err := d.refreshVolume(vol, srcVol, refreshSnapshots, allowInconsistent, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -407,7 +407,7 @@ func (d *pure) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 // refreshVolume updates an existing volume to match the state of another. For VMs, this function
 // refreshes either block or filesystem volume, depending on the volume type. Therefore, the caller
 // needs to ensure it is called twice - once for each volume type.
-func (d *pure) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) (revert.Hook, error) {
+func (d *pure) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -416,16 +416,16 @@ func (d *pure) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 	postCreateTasks := func(v Volume) error {
 		if vol.contentType == ContentTypeFS {
 			// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
-			err := v.MountTask(func(_ string, _ *operations.Operation) error {
+			err := v.MountTask(func(_ string, _ ioprogress.ProgressReporter) error {
 				return v.EnsureMountPath()
-			}, op)
+			}, progressReporter)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Resize volume to the size specified.
-		err := d.SetVolumeQuota(vol.Volume, vol.ConfigSize(), false, op)
+		err := d.SetVolumeQuota(vol.Volume, vol.ConfigSize(), false, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -517,12 +517,12 @@ func (d *pure) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 
 			// Create snapshot of a new volume. Do not copy VM's filesystem volume snapshot,
 			// as FS volumes are already copied by this point.
-			err = d.createVolumeSnapshot(snapshot, false, op)
+			err = d.createVolumeSnapshot(snapshot, false, progressReporter)
 			if err != nil {
 				return nil, err
 			}
 
-			revert.Add(func() { _ = d.DeleteVolumeSnapshot(snapshot, op) })
+			revert.Add(func() { _ = d.DeleteVolumeSnapshot(snapshot, progressReporter) })
 
 			// Append snapshot to the list of successfully refreshed snapshots.
 			refreshedSnapshots = append(refreshedSnapshots, snapshotShortName)
@@ -571,7 +571,7 @@ func (d *pure) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 }
 
 // DeleteVolume deletes the volume and all associated snapshots.
-func (d *pure) DeleteVolume(vol Volume, op *operations.Operation) error {
+func (d *pure) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	volExists, err := d.HasVolume(vol)
 	if err != nil {
 		return err
@@ -611,7 +611,7 @@ func (d *pure) DeleteVolume(vol Volume, op *operations.Operation) error {
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
-		err := d.DeleteVolume(fsVol, op)
+		err := d.DeleteVolume(fsVol, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -777,7 +777,7 @@ func (d *pure) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an non-positive size.
-func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, progressReporter ioprogress.ProgressReporter) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -1024,31 +1024,31 @@ func (d *pure) ListVolumes() ([]Volume, error) {
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
-func (d *pure) MountVolume(vol Volume, op *operations.Operation) error {
-	return mountVolume(d, vol, d.getMappedDevPath, op)
+func (d *pure) MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
+	return mountVolume(d, vol, d.getMappedDevPath, progressReporter)
 }
 
 // UnmountVolume simulates unmounting a volume.
 // keepBlockDev indicates if backing block device should not be unmapped if volume is unmounted.
-func (d *pure) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
-	return unmountVolume(d, vol, keepBlockDev, d.getMappedDevPath, d.unmapVolume, op)
+func (d *pure) UnmountVolume(vol Volume, keepBlockDev bool, progressReporter ioprogress.ProgressReporter) (bool, error) {
+	return unmountVolume(d, vol, keepBlockDev, d.getMappedDevPath, d.unmapVolume, progressReporter)
 }
 
 // RenameVolume renames a volume and its snapshots.
-func (d *pure) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+func (d *pure) RenameVolume(vol Volume, newVolName string, progressReporter ioprogress.ProgressReporter) error {
 	// Renaming a volume won't change an actual name of the Pure Storage volume.
 	return nil
 }
 
 // RestoreVolume restores a volume from a snapshot.
-func (d *pure) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
-	ourUnmount, err := d.UnmountVolume(vol, false, op)
+func (d *pure) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
+	ourUnmount, err := d.UnmountVolume(vol, false, progressReporter)
 	if err != nil {
 		return err
 	}
 
 	if ourUnmount {
-		defer func() { _ = d.MountVolume(vol, op) }()
+		defer func() { _ = d.MountVolume(vol, progressReporter) }()
 	}
 
 	volName, err := d.getVolumeName(vol)
@@ -1074,7 +1074,7 @@ func (d *pure) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operatio
 		snapFSVol := snapVol.NewVMBlockFilesystemVolume()
 		snapFSVol.SetParentUUID(snapVol.parentUUID)
 
-		err := d.RestoreVolume(fsVol, snapFSVol, op)
+		err := d.RestoreVolume(fsVol, snapFSVol, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -1084,28 +1084,28 @@ func (d *pure) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operatio
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *pure) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *pure) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	// When performing a cluster member move don't do anything on the source member.
 	if volSrcArgs.ClusterMove {
 		return nil
 	}
 
-	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
+	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, progressReporter)
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *pure) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
-	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
+func (d *pure) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, progressReporter ioprogress.ProgressReporter) error {
+	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, progressReporter)
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
-func (d *pure) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
-	return d.createVolumeSnapshot(snapVol, true, op)
+func (d *pure) CreateVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
+	return d.createVolumeSnapshot(snapVol, true, progressReporter)
 }
 
 // createVolumeSnapshot creates a snapshot of a volume. If snapshotVMfilesystem is false, a VM's filesystem volume
 // is not copied.
-func (d *pure) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool, op *operations.Operation) error {
+func (d *pure) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1150,7 +1150,7 @@ func (d *pure) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool, o
 		return err
 	}
 
-	revert.Add(func() { _ = d.DeleteVolumeSnapshot(snapVol, op) })
+	revert.Add(func() { _ = d.DeleteVolumeSnapshot(snapVol, progressReporter) })
 
 	// For VMs, create a snapshot of the filesystem volume too.
 	// Skip if snapshotVMfilesystem is false to prevent overwriting separately copied volumes.
@@ -1160,12 +1160,12 @@ func (d *pure) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool, o
 		// Set the parent volume's UUID.
 		fsVol.SetParentUUID(snapVol.parentUUID)
 
-		err := d.CreateVolumeSnapshot(fsVol, op)
+		err := d.CreateVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = d.DeleteVolumeSnapshot(fsVol, op) })
+		revert.Add(func() { _ = d.DeleteVolumeSnapshot(fsVol, progressReporter) })
 	}
 
 	revert.Success()
@@ -1173,7 +1173,7 @@ func (d *pure) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool, o
 }
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device.
-func (d *pure) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *pure) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	parentVol := snapVol.GetParent()
 	parentVolName, err := d.getVolumeName(parentVol)
 	if err != nil {
@@ -1232,7 +1232,7 @@ func (d *pure) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
 		fsVol.SetParentUUID(snapVol.parentUUID)
 
-		err := d.DeleteVolumeSnapshot(fsVol, op)
+		err := d.DeleteVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -1242,7 +1242,7 @@ func (d *pure) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 }
 
 // MountVolumeSnapshot creates a new temporary volume from a volume snapshot to allow mounting it.
-func (d *pure) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *pure) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1295,7 +1295,7 @@ func (d *pure) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 		revert.Add(func() { _ = d.client().deleteVolume(snapVol.pool, snapFsVolName) })
 	}
 
-	err = d.MountVolume(snapVol, op)
+	err = d.MountVolume(snapVol, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -1306,8 +1306,8 @@ func (d *pure) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 // UnmountVolumeSnapshot unmountes and deletes volume that was temporary created from a snapshot
 // to allow mounting it.
-func (d *pure) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
-	ourUnmount, err := d.UnmountVolume(snapVol, false, op)
+func (d *pure) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) (bool, error) {
+	ourUnmount, err := d.UnmountVolume(snapVol, false, progressReporter)
 	if err != nil {
 		return false, err
 	}
@@ -1345,7 +1345,7 @@ func (d *pure) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 }
 
 // VolumeSnapshots returns a list of Pure Storage snapshot names for the given volume (in no particular order).
-func (d *pure) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *pure) VolumeSnapshots(vol Volume) ([]string, error) {
 	volName, err := d.getVolumeName(vol)
 	if err != nil {
 		return nil, err
@@ -1376,9 +1376,9 @@ func (d *pure) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, 
 // CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver,
 // match those provided. Note that additional snapshots may exist within the Pure Storage pool
 // if protection groups are configured outside of LXD.
-func (d *pure) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operations.Operation) error {
+func (d *pure) CheckVolumeSnapshots(vol Volume, snapVols []Volume) error {
 	// Get all of the volume's snapshots in base64 encoded format.
-	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol, op)
+	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol)
 	if err != nil {
 		return err
 	}
@@ -1399,7 +1399,7 @@ func (d *pure) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operation
 }
 
 // RenameVolumeSnapshot renames a volume snapshot.
-func (d *pure) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+func (d *pure) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, progressReporter ioprogress.ProgressReporter) error {
 	// Renaming a volume snapshot won't change an actual name of the Pure Storage volume snapshot.
 	return nil
 }

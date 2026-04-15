@@ -15,10 +15,10 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -29,7 +29,7 @@ import (
 const factorGiB = 1024 * 1024 * 1024
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
-func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -87,15 +87,15 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
-		err := d.CreateVolume(fsVol, nil, op)
+		err := d.CreateVolume(fsVol, nil, progressReporter)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = d.DeleteVolume(fsVol, op) })
+		revert.Add(func() { _ = d.DeleteVolume(fsVol, progressReporter) })
 	}
 
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err = vol.MountTask(func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
 		// Run the volume filler function if supplied.
 		if filler != nil && filler.Fill != nil {
 			var err error
@@ -141,7 +141,7 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 		}
 
 		return nil
-	}, op)
+	}, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -151,17 +151,17 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *powerflex) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
-	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
+func (d *powerflex) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (VolumePostHook, revert.Hook, error) {
+	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, progressReporter)
 }
 
 // CreateVolumeFromImage creates a new volume from an image, unpacking it directly.
-func (d *powerflex) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error {
-	return d.CreateVolume(vol, filler, op)
+func (d *powerflex) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+	return d.CreateVolume(vol, filler, progressReporter)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
+func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -170,9 +170,9 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 	postCreateTasks := func(v Volume) error {
 		if vol.contentType == ContentTypeFS {
 			// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
-			err := v.MountTask(func(_ string, _ *operations.Operation) error {
+			err := v.MountTask(func(_ string, _ ioprogress.ProgressReporter) error {
 				return v.EnsureMountPath()
-			}, op)
+			}, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -180,7 +180,7 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 
 		// Resize volume to the size specified.
 		// In case there isn't any explicit size set, it's a noop.
-		err := d.SetVolumeQuota(vol.Volume, vol.config["size"], false, op)
+		err := d.SetVolumeQuota(vol.Volume, vol.config["size"], false, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -223,13 +223,13 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 			return err
 		}
 
-		revert.Add(func() { _ = d.DeleteVolume(vol.Volume, op) })
+		revert.Add(func() { _ = d.DeleteVolume(vol.Volume, progressReporter) })
 
 		// For VMs, also copy the filesystem volume.
 		if vol.IsVMBlock() {
 			srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume())
 			fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
-			err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
+			err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -253,7 +253,7 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 	// Copy "lazy" with snapshots.
 	// If clone copies are enforced by the pools config or the volume has snapshots that need to be copied,
 	// fallback to simply copying the contents between source and target volumes.
-	cleanup, err := genericVFSCopyVolume(d, nil, vol, srcVol, srcVolumeSnapshots, false, allowInconsistent, op)
+	cleanup, err := genericVFSCopyVolume(d, nil, vol, srcVol, srcVolumeSnapshots, false, allowInconsistent, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -265,7 +265,7 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *powerflex) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *powerflex) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	// When performing a cluster member move prepare the volumes on the target side.
 	if volTargetArgs.ClusterMoveSourceName != "" {
 		err := vol.EnsureMountPath()
@@ -275,7 +275,7 @@ func (d *powerflex) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteC
 
 		if vol.IsVMBlock() {
 			fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
-			err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, op)
+			err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -284,19 +284,19 @@ func (d *powerflex) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteC
 		return nil
 	}
 
-	_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, progressReporter)
 	return err
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
-func (d *powerflex) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
-	_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+func (d *powerflex) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
+	_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, progressReporter)
 	return err
 }
 
 // DeleteVolume deletes a volume of the storage device.
 // If any snapshots of the volume remain then this function will return an error.
-func (d *powerflex) DeleteVolume(vol Volume, op *operations.Operation) error {
+func (d *powerflex) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	volExists, err := d.HasVolume(vol)
 	if err != nil {
 		return err
@@ -337,7 +337,7 @@ func (d *powerflex) DeleteVolume(vol Volume, op *operations.Operation) error {
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
-		err := d.DeleteVolume(fsVol, op)
+		err := d.DeleteVolume(fsVol, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -526,7 +526,7 @@ func (d *powerflex) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size.
-func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, progressReporter ioprogress.ProgressReporter) error {
 	// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
 	// updated when the volume's size is changed, and this is what instances are created from.
 	// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
@@ -760,39 +760,39 @@ func (d *powerflex) defaultBlockVolumeSize() string {
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
-func (d *powerflex) MountVolume(vol Volume, op *operations.Operation) error {
-	return mountVolume(d, vol, d.getMappedDevPath, op)
+func (d *powerflex) MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
+	return mountVolume(d, vol, d.getMappedDevPath, progressReporter)
 }
 
 // UnmountVolume simulates unmounting a volume.
 // keepBlockDev indicates if backing block device should not be unmapped if volume is unmounted.
-func (d *powerflex) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
-	return unmountVolume(d, vol, keepBlockDev, d.getMappedDevPath, d.unmapVolume, op)
+func (d *powerflex) UnmountVolume(vol Volume, keepBlockDev bool, progressReporter ioprogress.ProgressReporter) (bool, error) {
+	return unmountVolume(d, vol, keepBlockDev, d.getMappedDevPath, d.unmapVolume, progressReporter)
 }
 
 // RenameVolume renames a volume and its snapshots.
-func (d *powerflex) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+func (d *powerflex) RenameVolume(vol Volume, newVolName string, progressReporter ioprogress.ProgressReporter) error {
 	// Renaming a volume in PowerFlex won't change it's name in storage.
 	return nil
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *powerflex) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *powerflex) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	// When performing a cluster member move don't do anything on the source member.
 	if volSrcArgs.ClusterMove {
 		return nil
 	}
 
-	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
+	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, progressReporter)
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *powerflex) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
-	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
+func (d *powerflex) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, progressReporter ioprogress.ProgressReporter) error {
+	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, progressReporter)
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
-func (d *powerflex) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *powerflex) CreateVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -853,7 +853,7 @@ func (d *powerflex) CreateVolumeSnapshot(snapVol Volume, op *operations.Operatio
 		return err
 	}
 
-	revert.Add(func() { _ = d.DeleteVolumeSnapshot(snapVol, op) })
+	revert.Add(func() { _ = d.DeleteVolumeSnapshot(snapVol, progressReporter) })
 
 	// For VM images, create a filesystem volume too.
 	if snapVol.IsVMBlock() {
@@ -862,12 +862,12 @@ func (d *powerflex) CreateVolumeSnapshot(snapVol Volume, op *operations.Operatio
 		// Set the parent volume's UUID.
 		fsVol.SetParentUUID(snapVol.parentUUID)
 
-		err := d.CreateVolumeSnapshot(fsVol, op)
+		err := d.CreateVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = d.DeleteVolumeSnapshot(fsVol, op) })
+		revert.Add(func() { _ = d.DeleteVolumeSnapshot(fsVol, progressReporter) })
 	}
 
 	revert.Success()
@@ -875,7 +875,7 @@ func (d *powerflex) CreateVolumeSnapshot(snapVol Volume, op *operations.Operatio
 }
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device.
-func (d *powerflex) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *powerflex) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	snapVolName, err := d.getVolumeName(snapVol)
 	if err != nil {
 		return err
@@ -917,7 +917,7 @@ func (d *powerflex) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operatio
 	// For VM images, delete the filesystem volume too.
 	if snapVol.IsVMBlock() {
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
-		err := d.DeleteVolumeSnapshot(fsVol, op)
+		err := d.DeleteVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -927,21 +927,21 @@ func (d *powerflex) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operatio
 }
 
 // MountVolumeSnapshot simulates mounting a volume snapshot.
-func (d *powerflex) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *powerflex) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	// A snapshot in PowerFlex is just another volume.
 	// We can reuse the volume mounting procedures.
-	return d.MountVolume(snapVol, op)
+	return d.MountVolume(snapVol, progressReporter)
 }
 
 // UnmountVolumeSnapshot simulates unmounting a volume snapshot.
-func (d *powerflex) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+func (d *powerflex) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	// A snapshot in PowerFlex is just another volume.
 	// We can reuse the volume mounting procedures.
-	return d.UnmountVolume(snapVol, false, op)
+	return d.UnmountVolume(snapVol, false, progressReporter)
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
-func (d *powerflex) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *powerflex) VolumeSnapshots(vol Volume) ([]string, error) {
 	volName, err := d.getVolumeName(vol)
 	if err != nil {
 		return nil, err
@@ -973,9 +973,9 @@ func (d *powerflex) VolumeSnapshots(vol Volume, op *operations.Operation) ([]str
 }
 
 // CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver, match those provided.
-func (d *powerflex) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operations.Operation) error {
+func (d *powerflex) CheckVolumeSnapshots(vol Volume, snapVols []Volume) error {
 	// Get all of the volume's snapshots in base64 encoded format.
-	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol, op)
+	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol)
 	if err != nil {
 		return err
 	}
@@ -1010,14 +1010,14 @@ func (d *powerflex) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *oper
 }
 
 // RestoreVolume restores a volume from a snapshot.
-func (d *powerflex) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
-	ourUnmount, err := d.UnmountVolume(vol, false, op)
+func (d *powerflex) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
+	ourUnmount, err := d.UnmountVolume(vol, false, progressReporter)
 	if err != nil {
 		return err
 	}
 
 	if ourUnmount {
-		defer func() { _ = d.MountVolume(vol, op) }()
+		defer func() { _ = d.MountVolume(vol, progressReporter) }()
 	}
 
 	volName, err := d.getVolumeName(vol)
@@ -1050,7 +1050,7 @@ func (d *powerflex) RestoreVolume(vol Volume, snapVol Volume, op *operations.Ope
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 		snapFSVol := snapVol.NewVMBlockFilesystemVolume()
-		err := d.RestoreVolume(fsVol, snapFSVol, op)
+		err := d.RestoreVolume(fsVol, snapFSVol, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -1060,7 +1060,7 @@ func (d *powerflex) RestoreVolume(vol Volume, snapVol Volume, op *operations.Ope
 }
 
 // RenameVolumeSnapshot renames a volume snapshot.
-func (d *powerflex) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+func (d *powerflex) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, progressReporter ioprogress.ProgressReporter) error {
 	// Renaming a volume snapshot in PowerFlex won't change it's name in storage.
 	return nil
 }

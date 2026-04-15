@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -287,7 +287,7 @@ func (d *ceph) Create() error {
 }
 
 // Delete removes the storage pool from the storage device.
-func (d *ceph) Delete(op *operations.Operation) error {
+func (d *ceph) Delete(progressReporter ioprogress.ProgressReporter) error {
 	// Test if the pool exists.
 	poolExists, err := d.osdPoolExists()
 	if err != nil {

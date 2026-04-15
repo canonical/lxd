@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/lxd/storage/drivers/clients"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -270,7 +270,7 @@ func (d *alletra) Create() error {
 }
 
 // Delete removes a storage pool.
-func (d *alletra) Delete(op *operations.Operation) error {
+func (d *alletra) Delete(progressReporter ioprogress.ProgressReporter) error {
 	err := d.client().DeleteVolumeSet(d.name)
 	if err != nil {
 		return err

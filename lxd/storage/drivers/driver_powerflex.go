@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -209,7 +209,7 @@ func (d *powerflex) Create() error {
 }
 
 // Delete removes the storage pool from the storage device.
-func (d *powerflex) Delete(op *operations.Operation) error {
+func (d *powerflex) Delete(progressReporter ioprogress.ProgressReporter) error {
 	// On delete, wipe everything in the directory.
 	return wipeDirectory(GetPoolMountPath(d.name))
 }

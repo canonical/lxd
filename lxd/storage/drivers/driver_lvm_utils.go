@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/lxd/locking"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/refcount"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -652,7 +652,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []string, refr
 		}
 
 		// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
-		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
+		err = vol.MountTask(func(_ string, _ ioprogress.ProgressReporter) error {
 			return vol.EnsureMountPath()
 		}, nil)
 		if err != nil {
