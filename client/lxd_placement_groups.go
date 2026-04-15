@@ -147,3 +147,19 @@ func (r *ProtocolLXD) RenamePlacementGroup(placementGroupName string, placementG
 
 	return nil
 }
+
+// RebalancePlacementGroup triggers rebalancing of instances in the given placement group.
+// It returns an Operation that can be used to wait for and track the rebalancing.
+func (r *ProtocolLXD) RebalancePlacementGroup(placementGroupName string) (Operation, error) {
+	err := r.CheckExtension("placement_group_rebalance")
+	if err != nil {
+		return nil, err
+	}
+
+	op, _, err := r.queryOperation(http.MethodPost, api.NewURL().Path("placement-groups", placementGroupName, "rebalance").String(), nil, "", true)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}

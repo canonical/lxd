@@ -160,6 +160,7 @@ var api10 = []APIEndpoint{
 	oidcSessionCmd,
 	placementGroupsCmd,
 	placementGroupCmd,
+	placementGroupRebalanceCmd,
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted

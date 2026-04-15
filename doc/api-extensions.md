@@ -3064,3 +3064,12 @@ This includes the following new endpoints (see {ref}`rest-api` for details):
 * [`POST /1.0/cluster/links`](swagger:/cluster-links/cluster_links_post)
 * [`POST /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_post)
 * [`DELETE /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_delete)
+
+(extension-placement-group-rebalance)=
+## `placement_group_rebalance`
+
+Adds a rebalance action for placement groups that migrates instances to comply with the current placement policy.
+
+This introduces the following new endpoint (see {ref}`rest-api` for details):
+
+* [`POST /1.0/placement-groups/<name>/rebalance`](swagger:/placement-groups/placement_group_rebalance_post)

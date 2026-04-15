@@ -142,4 +142,5 @@ const (
 	EventLifecyclePlacementGroupDeleted             = "placement-group-deleted"
 	EventLifecyclePlacementGroupRenamed             = "placement-group-renamed"
 	EventLifecyclePlacementGroupUpdated             = "placement-group-updated"
+	EventLifecyclePlacementGroupRebalanced          = "placement-group-rebalanced"
 )

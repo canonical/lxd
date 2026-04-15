@@ -487,6 +487,7 @@ var APIExtensions = []string{
 	"gpu_cdi_hotplug",
 	"image_extended_metadata",
 	"cluster_links",
+	"placement_group_rebalance",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

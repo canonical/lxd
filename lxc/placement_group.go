@@ -65,6 +65,10 @@ func (c *cmdPlacementGroup) command() *cobra.Command {
 	placementGroupRenameCmd := cmdPlacementGroupRename{global: c.global, placementGroup: c}
 	cmd.AddCommand(placementGroupRenameCmd.command())
 
+	// Rebalance.
+	placementGroupRebalanceCmd := cmdPlacementGroupRebalance{global: c.global, placementGroup: c}
+	cmd.AddCommand(placementGroupRebalanceCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -774,6 +778,72 @@ func (c *cmdPlacementGroupRename) run(cmd *cobra.Command, args []string) error {
 
 	if !c.global.flagQuiet {
 		fmt.Printf("Placement group %s renamed to %s\n", resource.name, args[1])
+	}
+
+	return nil
+}
+
+// Rebalance.
+type cmdPlacementGroupRebalance struct {
+	global         *cmdGlobal
+	placementGroup *cmdPlacementGroup
+}
+
+func (c *cmdPlacementGroupRebalance) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("rebalance", "[<remote>:]<placement_group>")
+	cmd.Short = "Rebalance instances in a placement group"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
+
+Migrates instances that do not comply with the placement policy to more appropriate cluster members.`)
+	cmd.Example = cli.FormatSection("", `lxc placement-group rebalance pg1
+    Rebalance instances in placement group pg1 according to its current policy.`)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("placement_group", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdPlacementGroupRebalance) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing placement group name")
+	}
+
+	// Rebalance the placement group.
+	op, err := resource.server.RebalancePlacementGroup(resource.name)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Placement group %s rebalanced\n", resource.name)
 	}
 
 	return nil

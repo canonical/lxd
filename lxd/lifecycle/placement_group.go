@@ -10,10 +10,11 @@ type PlacementGroupAction string
 
 // All supported lifecycle events for placement groups.
 const (
-	PlacementGroupCreated = PlacementGroupAction(api.EventLifecyclePlacementGroupCreated)
-	PlacementGroupDeleted = PlacementGroupAction(api.EventLifecyclePlacementGroupDeleted)
-	PlacementGroupRenamed = PlacementGroupAction(api.EventLifecyclePlacementGroupRenamed)
-	PlacementGroupUpdated = PlacementGroupAction(api.EventLifecyclePlacementGroupUpdated)
+	PlacementGroupCreated   = PlacementGroupAction(api.EventLifecyclePlacementGroupCreated)
+	PlacementGroupDeleted   = PlacementGroupAction(api.EventLifecyclePlacementGroupDeleted)
+	PlacementGroupRenamed   = PlacementGroupAction(api.EventLifecyclePlacementGroupRenamed)
+	PlacementGroupUpdated   = PlacementGroupAction(api.EventLifecyclePlacementGroupUpdated)
+	PlacementGroupRebalanced = PlacementGroupAction(api.EventLifecyclePlacementGroupRebalanced)
 )
 
 // Event creates the lifecycle event for an action on a placement group.

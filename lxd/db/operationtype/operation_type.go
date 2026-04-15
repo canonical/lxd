@@ -139,6 +139,7 @@ const (
 	NetworkZoneRecordCreate
 	NetworkZoneRecordUpdate
 	NetworkZoneRecordDelete
+	PlacementGroupRebalance
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -378,6 +379,8 @@ func (t Type) Description() string {
 		return "Updating network zone record"
 	case NetworkZoneRecordDelete:
 		return "Deleting network zone record"
+	case PlacementGroupRebalance:
+		return "Rebalancing placement group"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -473,6 +476,10 @@ func (t Type) EntityType() entity.Type {
 	// Network zone operations.
 	case NetworkZoneUpdate, NetworkZoneDelete, NetworkZoneRecordCreate, NetworkZoneRecordUpdate, NetworkZoneRecordDelete:
 		return entity.TypeNetworkZone
+
+	// Placement group operations.
+	case PlacementGroupRebalance:
+		return entity.TypePlacementGroup
 
 	// It should never be possible to reach the default clause.
 	// See the init function.

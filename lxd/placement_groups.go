@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,10 +13,14 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
+	lxdCluster "github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -23,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -43,6 +49,13 @@ var placementGroupCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: placementGroupPut, AccessHandler: allowPermission(entity.TypePlacementGroup, auth.EntitlementCanEdit, "name")},
 	Patch:  APIEndpointAction{Handler: placementGroupPut, AccessHandler: allowPermission(entity.TypePlacementGroup, auth.EntitlementCanEdit, "name")},
 	Post:   APIEndpointAction{Handler: placementGroupPost, AccessHandler: allowPermission(entity.TypePlacementGroup, auth.EntitlementCanEdit, "name")},
+}
+
+var placementGroupRebalanceCmd = APIEndpoint{
+	Path:        "placement-groups/{name}/rebalance",
+	MetricsType: entity.TypePlacementGroup,
+
+	Post: APIEndpointAction{Handler: placementGroupRebalancePost, AccessHandler: allowPermission(entity.TypePlacementGroup, auth.EntitlementCanEdit, "name")},
 }
 
 // API endpoints.
@@ -794,4 +807,334 @@ func placementGroupValidateConfig(config map[string]string) error {
 	}
 
 	return nil
+}
+
+// swagger:operation POST /1.0/placement-groups/{name}/rebalance placement-groups placement_group_rebalance_post
+//
+//	Rebalance a placement group
+//
+//	Triggers rebalancing of instances in the given placement group according to its placement policy.
+//	Instances that do not comply with the current policy and rigor are migrated to more appropriate cluster members.
+//
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func placementGroupRebalancePost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+	if !s.ServerClustered {
+		return response.BadRequest(errors.New("This server is not clustered"))
+	}
+
+	projectName := request.ProjectParam(r)
+	placementGroupName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Verify the placement group exists.
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err := cluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error {
+		req := api.InstancePost{
+			Name: inst.Name(),
+			Live: live,
+		}
+
+		err := migrateInstance(ctx, s, inst, targetMemberInfo.Name, "", req, nil, op)
+		if err != nil {
+			return fmt.Errorf("Failed migrating instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
+		}
+
+		if !startInstance || live {
+			return nil
+		}
+
+		// Start the instance on the target.
+		dest, err := lxdCluster.Connect(ctx, targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+		if err != nil {
+			return fmt.Errorf("Failed connecting to destination %q for instance %q in project %q: %w", targetMemberInfo.Address, inst.Name(), inst.Project().Name, err)
+		}
+
+		dest = dest.UseProject(inst.Project().Name)
+
+		if op != nil {
+			_ = op.ExtendMetadata(map[string]any{"rebalance_progress": fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)})
+		}
+
+		startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
+		if err != nil {
+			return err
+		}
+
+		return startOp.Wait()
+	}
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		return doPlacementGroupRebalance(ctx, d, op, placementGroupName, projectName, migrateFunc)
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.PlacementGroupRebalance,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return operations.OperationResponse(op)
+}
+
+// rebalanceMigration represents a planned instance migration for rebalancing.
+type rebalanceMigration struct {
+	instanceID   int
+	targetMember *db.NodeInfo
+}
+
+// doPlacementGroupRebalance performs the rebalancing of instances in a placement group.
+// It determines which instances are out of compliance with the placement policy and migrates
+// them to more appropriate cluster members.
+func doPlacementGroupRebalance(ctx context.Context, d *Daemon, op *operations.Operation, placementGroupName string, projectName string, migrateInstance evacuateMigrateFunc) error {
+	s := d.State()
+
+	// Load placement group.
+	var apiPlacementGroup *api.PlacementGroup
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbGroup, err := cluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
+		if err != nil {
+			return err
+		}
+
+		apiPlacementGroup, err = dbGroup.ToAPI(ctx, tx.Tx())
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	policy := apiPlacementGroup.Config["policy"]
+	rigor := apiPlacementGroup.Config["rigor"]
+
+	// Get candidate members and the current instance placement.
+	var memberToInstIDs map[int64][]int64
+	var candidateMembers []db.NodeInfo
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		allMembers, err := tx.GetNodes(ctx)
+		if err != nil {
+			return err
+		}
+
+		candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, nil, "", nil, s.GlobalConfig.OfflineThreshold())
+		if err != nil {
+			return err
+		}
+
+		memberToInstIDs, err = cluster.GetInstancesInPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName, nil)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(memberToInstIDs) == 0 {
+		// No instances in placement group, nothing to rebalance.
+		return nil
+	}
+
+	// Build member ID → NodeInfo map for quick lookup.
+	memberIDToInfo := make(map[int64]*db.NodeInfo, len(candidateMembers))
+	for i := range candidateMembers {
+		memberIDToInfo[candidateMembers[i].ID] = &candidateMembers[i]
+	}
+
+	// Compute the migration plan based on the placement policy.
+	migrations, err := computeRebalanceMigrations(policy, rigor, memberToInstIDs, candidateMembers, memberIDToInfo)
+	if err != nil {
+		return err
+	}
+
+	if len(migrations) == 0 {
+		logger.Debug("Placement group is already balanced, no migrations needed", logger.Ctx{"placementGroup": placementGroupName, "project": projectName})
+		return nil
+	}
+
+	// Execute migrations.
+	for _, migration := range migrations {
+		inst, err := instance.LoadByID(s, migration.instanceID)
+		if err != nil {
+			return fmt.Errorf("Failed loading instance with ID %d: %w", migration.instanceID, err)
+		}
+
+		l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
+		migrate, live := inst.CanMigrate()
+		if !migrate {
+			l.Info("Skipping non-migratable instance during placement group rebalance")
+			continue
+		}
+
+		if op != nil {
+			_ = op.ExtendMetadata(map[string]any{"rebalance_progress": fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project().Name, migration.targetMember.Name)})
+		}
+
+		start := inst.IsRunning() || instanceShouldAutoStart(inst)
+		err = migrateInstance(ctx, s, inst, migration.targetMember, live, start, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	s.Events.SendLifecycle(projectName, lifecycle.PlacementGroupRebalanced.Event(projectName, placementGroupName, request.CreateRequestor(ctx), nil))
+
+	return nil
+}
+
+// computeRebalanceMigrations determines which instances need to be migrated to rebalance the placement group.
+// It returns a list of (instanceID, targetMember) pairs representing the planned migrations.
+func computeRebalanceMigrations(policy string, rigor string, memberToInstIDs map[int64][]int64, candidateMembers []db.NodeInfo, memberIDToInfo map[int64]*db.NodeInfo) ([]rebalanceMigration, error) {
+	var migrations []rebalanceMigration
+
+	switch policy {
+	case api.PlacementPolicyCompact:
+		// Find the member with the most instances (this is the compact target).
+		var targetMemberID int64
+		maxCount := -1
+		for memberID, instIDs := range memberToInstIDs {
+			if len(instIDs) > maxCount {
+				maxCount = len(instIDs)
+				targetMemberID = memberID
+			}
+		}
+
+		// The target member must be an online candidate.
+		targetMember, ok := memberIDToInfo[targetMemberID]
+		if !ok {
+			if rigor == api.PlacementRigorStrict {
+				return nil, fmt.Errorf("Target cluster member for compact placement group is unavailable")
+			}
+
+			// Permissive: pick the first available candidate as the target.
+			if len(candidateMembers) == 0 {
+				return nil, errors.New("No candidate cluster members available for rebalance")
+			}
+
+			targetMember = &candidateMembers[0]
+			targetMemberID = targetMember.ID
+		}
+
+		// All instances on online non-target members should be migrated to the target.
+		for memberID, instIDs := range memberToInstIDs {
+			if memberID == targetMemberID {
+				continue
+			}
+
+			// Only migrate instances from online (candidate) members.
+			if _, isCandidate := memberIDToInfo[memberID]; !isCandidate {
+				continue
+			}
+
+			for _, instID := range instIDs {
+				migrations = append(migrations, rebalanceMigration{int(instID), targetMember})
+			}
+		}
+
+	case api.PlacementPolicySpread:
+		// Build a mutable count map for online candidate members.
+		countPerMember := make(map[int64]int, len(candidateMembers))
+		for _, m := range candidateMembers {
+			countPerMember[m.ID] = len(memberToInstIDs[m.ID])
+		}
+
+		// Compute total instances across all candidate members.
+		totalInstances := 0
+		for _, m := range candidateMembers {
+			totalInstances += countPerMember[m.ID]
+		}
+
+		nCandidates := len(candidateMembers)
+		if nCandidates == 0 {
+			return nil, errors.New("No candidate cluster members available for rebalance")
+		}
+
+		// Determine the maximum number of instances allowed per member.
+		// For strict: max 1 per member.
+		// For permissive: ceil(total / candidates).
+		maxPerMember := 1
+		if rigor == api.PlacementRigorPermissive {
+			maxPerMember = (totalInstances + nCandidates - 1) / nCandidates
+		}
+
+		// For each online candidate member that is overloaded, select instances to migrate.
+		for _, m := range candidateMembers {
+			instIDs := memberToInstIDs[m.ID]
+			excess := len(instIDs) - maxPerMember
+			if excess <= 0 {
+				continue
+			}
+
+			// Migrate the excess instances to the least-loaded candidate members.
+			for _, instID := range instIDs[:excess] {
+				// Find the candidate member with the fewest instances (excluding the current member).
+				var targetMember *db.NodeInfo
+				minCount := math.MaxInt
+				for i := range candidateMembers {
+					if candidateMembers[i].ID == m.ID {
+						continue
+					}
+
+					if countPerMember[candidateMembers[i].ID] < minCount {
+						minCount = countPerMember[candidateMembers[i].ID]
+						targetMember = &candidateMembers[i]
+					}
+				}
+
+				if targetMember == nil {
+					continue
+				}
+
+				// For strict: only migrate if the target has fewer instances than allowed.
+				if rigor == api.PlacementRigorStrict && minCount >= maxPerMember {
+					logger.Debug("Insufficient empty cluster members for strict spread rebalance, skipping instance",
+						logger.Ctx{"instanceID": instID, "currentMember": m.Name})
+					continue
+				}
+
+				migrations = append(migrations, rebalanceMigration{int(instID), targetMember})
+
+				// Optimistically update counts to guide subsequent target selection.
+				countPerMember[m.ID]--
+				countPerMember[targetMember.ID]++
+			}
+		}
+
+	default:
+		return nil, fmt.Errorf("Invalid placement group policy: %q", policy)
+	}
+
+	return migrations, nil
 }

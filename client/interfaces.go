@@ -437,6 +437,7 @@ type InstanceServer interface {
 	UpdatePlacementGroup(placementGroupName string, placementGroupPut api.PlacementGroupPut, ETag string) error
 	DeletePlacementGroup(placementGroupName string) error
 	RenamePlacementGroup(placementGroupName string, placementGroupPost api.PlacementGroupPost) error
+	RebalancePlacementGroup(placementGroupName string) (op Operation, err error)
 
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data any, queryETag string) (resp *api.Response, ETag string, err error)

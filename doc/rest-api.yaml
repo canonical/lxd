@@ -15882,6 +15882,32 @@ paths:
             summary: Update the placement group
             tags:
                 - placement-groups
+    /1.0/placement-groups/{name}/rebalance:
+        post:
+            description: |-
+                Triggers rebalancing of instances in the given placement group according to its placement policy.
+                Instances that do not comply with the current policy and rigor are migrated to more appropriate cluster members.
+            operationId: placement_group_rebalance_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Rebalance a placement group
+            tags:
+                - placement-groups
     /1.0/placement-groups?recursion=1:
         get:
             description: Returns a list of placement groups (structs).
