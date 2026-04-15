@@ -9,7 +9,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -21,7 +20,6 @@ import (
 type Instance interface {
 	Name() string
 	Project() api.Project
-	Operation() *operations.Operation
 }
 
 // InstanceBackup represents an instance backup.
@@ -59,7 +57,7 @@ func (b *InstanceBackup) Instance() Instance {
 }
 
 // Rename renames an instance backup.
-func (b *InstanceBackup) Rename(newName string) error {
+func (b *InstanceBackup) Rename(ctx context.Context, newName string) error {
 	backupsPath := b.state.BackupsStoragePath(b.instance.Project().Name)
 	oldBackupPath := filepath.Join(backupsPath, "instances", project.Instance(b.instance.Project().Name, b.name))
 	newBackupPath := filepath.Join(backupsPath, "instances", project.Instance(b.instance.Project().Name, newName))
@@ -103,12 +101,12 @@ func (b *InstanceBackup) Rename(newName string) error {
 
 	oldName := b.name
 	b.name = newName
-	b.state.Events.SendLifecycle(b.instance.Project().Name, lifecycle.InstanceBackupRenamed.Event(b.name, b.instance, map[string]any{"old_name": oldName}))
+	b.state.Events.SendLifecycle(b.instance.Project().Name, lifecycle.InstanceBackupRenamed.Event(ctx, b.name, b.instance, map[string]any{"old_name": oldName}))
 	return nil
 }
 
 // Delete removes an instance backup.
-func (b *InstanceBackup) Delete() error {
+func (b *InstanceBackup) Delete(ctx context.Context) error {
 	backupsPathBase := b.state.BackupsStoragePath(b.instance.Project().Name)
 	backupPath := filepath.Join(backupsPathBase, "instances", project.Instance(b.instance.Project().Name, b.name))
 
@@ -136,7 +134,7 @@ func (b *InstanceBackup) Delete() error {
 		return err
 	}
 
-	b.state.Events.SendLifecycle(b.instance.Project().Name, lifecycle.InstanceBackupDeleted.Event(b.name, b.instance, nil))
+	b.state.Events.SendLifecycle(b.instance.Project().Name, lifecycle.InstanceBackupDeleted.Event(ctx, b.name, b.instance, nil))
 
 	return nil
 }
