@@ -81,15 +81,15 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 // Do performs the migration operation on the source side for the given state and
 // operation. It sets up the necessary websocket connections for control, state,
 // and filesystem, and then initiates the migration process.
-func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
+func (s *migrationSourceWs) Do(ctx context.Context, state *state.State, migrateOp *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live, "clusterMoveSourceName": s.clusterMoveSourceName, "push": s.pushOperationURL != ""})
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	connectCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	l.Info("Waiting for migration control connection on source")
 
-	_, err := s.conns[api.SecretNameControl].WebSocket(ctx)
+	_, err := s.conns[api.SecretNameControl].WebSocket(connectCtx)
 	if err != nil {
 		return fmt.Errorf("Failed waiting for migration control connection on source: %w", err)
 	}
@@ -127,8 +127,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return wsConn, nil
 	}
 
-	s.instance.SetOperation(migrateOp)
-	err = s.instance.MigrateSend(instance.MigrateSendArgs{
+	err = s.instance.MigrateSend(ctx, instance.MigrateSendArgs{
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    s.send,
 			ControlReceive: s.recv,
@@ -146,7 +145,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			ClusterMoveSourceName: s.clusterMoveSourceName,
 		},
 		AllowInconsistent: s.allowInconsistent,
-	})
+	}, migrateOp)
 	if err != nil {
 		l.Error("Failed migration on source", logger.Ctx{"err": err})
 		return fmt.Errorf("Failed migration on source: %w", err)
@@ -206,15 +205,15 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 // Do performs the migration operation on the target side (sink) for the given
 // state and instance operation. It sets up the necessary websocket connections
 // for control, state, and filesystem, and then receives the migration data.
-func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOperation) error {
+func (c *migrationSink) Do(ctx context.Context, instOpLock *operationlock.InstanceOperation, migrateOp *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": c.instance.Project().Name, "instance": c.instance.Name(), "live": c.live, "clusterMoveSourceName": c.clusterMoveSourceName, "push": c.push})
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	connectCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	l.Info("Waiting for migration control connection on target")
 
-	_, err := c.conns[api.SecretNameControl].WebSocket(ctx)
+	_, err := c.conns[api.SecretNameControl].WebSocket(connectCtx)
 	if err != nil {
 		return fmt.Errorf("Failed waiting for migration control connection on target: %w", err)
 	}
@@ -255,7 +254,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		return wsConn, nil
 	}
 
-	err = c.instance.MigrateReceive(instance.MigrateReceiveArgs{
+	err = c.instance.MigrateReceive(ctx, instance.MigrateReceiveArgs{
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    c.send,
 			ControlReceive: c.recv,
@@ -272,9 +271,9 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 			},
 			ClusterMoveSourceName: c.clusterMoveSourceName,
 		},
-		InstanceOperation: instOp,
+		InstanceOperation: instOpLock,
 		Refresh:           c.refresh,
-	})
+	}, migrateOp)
 	if err != nil {
 		l.Error("Failed migration on target", logger.Ctx{"err": err})
 		return fmt.Errorf("Failed migration on target: %w", err)
