@@ -180,7 +180,7 @@ func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
 
 		logger.Debug("VGA dynamic websocket connected")
 
-		console, _, err := s.instance.Console("vga")
+		console, _, err := s.instance.Console(r.Context(), "vga")
 		if err != nil {
 			_ = conn.Close()
 			return err
@@ -238,7 +238,7 @@ func (s *consoleWs) doConsole(ctx context.Context) error {
 	<-s.allConnected
 
 	// Get console from instance.
-	console, consoleDisconnectCh, err := s.instance.Console(s.protocol)
+	console, consoleDisconnectCh, err := s.instance.Console(ctx, s.protocol)
 	if err != nil {
 		return err
 	}
@@ -655,7 +655,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a ringbuffer request to the container.
-	logContents, err := c.ConsoleLog(console)
+	logContents, err := c.ConsoleLog(r.Context(), console)
 	if err != nil {
 		errno, isErrno := shared.GetErrno(err)
 		if !isErrno {
@@ -760,7 +760,7 @@ func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 		WriteToLogFile: false,
 	}
 
-	_, err = c.ConsoleLog(console)
+	_, err = c.ConsoleLog(r.Context(), console)
 	if err != nil {
 		errno, isErrno := shared.GetErrno(err)
 		if !isErrno {
