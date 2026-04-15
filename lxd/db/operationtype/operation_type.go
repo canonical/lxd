@@ -507,6 +507,8 @@ func (t Type) ConflictAction() ConflictAction {
 		return ConflictActionFail
 	case ClusterMemberEvacuate:
 		return ConflictActionFail // Enforces cluster-wide evacuation exclusivity when used with a shared ConflictReference; this prevents evacuation race conditions.
+	case ReplicatorRun:
+		return ConflictActionFail // Prevents concurrent runs of the same replicator; the replicator URL is used as the per-replicator conflict reference.
 	}
 
 	return ConflictActionNone
