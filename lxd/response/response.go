@@ -261,6 +261,19 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
+	// Prepare the JSON response
+	status := api.Success
+	if !r.success {
+		status = api.Failure
+
+		// If the metadata is an error, consider the response a SmartError
+		// to propagate the data and preserve the status code.
+		err, ok := r.metadata.(error)
+		if ok {
+			return SmartError(err).Render(w, req)
+		}
+	}
+
 	// Handle plain text headers.
 	if r.plaintext {
 		w.Header().Set("Content-Type", "text/plain")
@@ -282,19 +295,6 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 
 	if w.Header().Get("Connection") != "keep-alive" {
 		w.WriteHeader(code)
-	}
-
-	// Prepare the JSON response
-	status := api.Success
-	if !r.success {
-		status = api.Failure
-
-		// If the metadata is an error, consider the response a SmartError
-		// to propagate the data and preserve the status code.
-		err, ok := r.metadata.(error)
-		if ok {
-			return SmartError(err).Render(w, req)
-		}
 	}
 
 	// defer calling the callback function after possibly considering the response a SmartError.
