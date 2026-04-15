@@ -26,7 +26,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/node"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
@@ -1219,17 +1218,17 @@ func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(respon
 
 // InstanceMount mounts an instance's storage volume (if not already mounted).
 // Please call InstanceUnmount when finished.
-func InstanceMount(pool Pool, inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
+func InstanceMount(pool Pool, inst instance.Instance, progressReporter ioprogress.ProgressReporter) (*MountInfo, error) {
 	var err error
 	var mountInfo *MountInfo
 
 	if inst.IsSnapshot() {
-		mountInfo, err = pool.MountInstanceSnapshot(inst, op)
+		mountInfo, err = pool.MountInstanceSnapshot(inst, progressReporter)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		mountInfo, err = pool.MountInstance(inst, op)
+		mountInfo, err = pool.MountInstance(inst, progressReporter)
 		if err != nil {
 			return nil, err
 		}
@@ -1239,13 +1238,13 @@ func InstanceMount(pool Pool, inst instance.Instance, op *operations.Operation) 
 }
 
 // InstanceUnmount unmounts an instance's storage volume (if not in use).
-func InstanceUnmount(pool Pool, inst instance.Instance, op *operations.Operation) error {
+func InstanceUnmount(pool Pool, inst instance.Instance, progressReporter ioprogress.ProgressReporter) error {
 	var err error
 
 	if inst.IsSnapshot() {
-		err = pool.UnmountInstanceSnapshot(inst, op)
+		err = pool.UnmountInstanceSnapshot(inst, progressReporter)
 	} else {
-		err = pool.UnmountInstance(inst, op)
+		err = pool.UnmountInstance(inst, progressReporter)
 	}
 
 	return err
@@ -1253,13 +1252,13 @@ func InstanceUnmount(pool Pool, inst instance.Instance, op *operations.Operation
 
 // InstanceDiskBlockSize returns the block device size for the instance's disk.
 // This will mount the instance if not already mounted and will unmount at the end if needed.
-func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Operation) (int64, error) {
-	mountInfo, err := InstanceMount(pool, inst, op)
+func InstanceDiskBlockSize(pool Pool, inst instance.Instance, progressReporter ioprogress.ProgressReporter) (int64, error) {
+	mountInfo, err := InstanceMount(pool, inst, progressReporter)
 	if err != nil {
 		return -1, err
 	}
 
-	defer func() { _ = InstanceUnmount(pool, inst, op) }()
+	defer func() { _ = InstanceUnmount(pool, inst, progressReporter) }()
 
 	devSource, isPath := mountInfo.DevSource.(deviceConfig.DevSourcePath)
 
