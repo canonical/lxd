@@ -272,6 +272,7 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	// Handle compression.
 	if r.compress {
 		w.Header().Set("Content-Encoding", "gzip")
+		addVaryHeader(w.Header(), "Accept-Encoding")
 	}
 
 	// Write header and status code.
