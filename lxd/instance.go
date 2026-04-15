@@ -524,7 +524,8 @@ func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances 
 			return err
 		}
 
-		err = inst.Snapshot(snapshotName, nil, false, api.DiskVolumesModeRoot)
+		// Don't track progress for automated snapshot creation
+		err = inst.Snapshot(ctx, snapshotName, nil, false, api.DiskVolumesModeRoot, nil)
 		if err != nil {
 			l.Error("Error creating snapshot", logger.Ctx{"snapshot": snapshotName, "err": err})
 			return err
@@ -549,7 +550,8 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, snapshots []instance.Ins
 			continue // Deletion of this snapshot is already running, skip.
 		}
 
-		err = snapshot.Delete(true, "")
+		// Don't track progress for automated snapshot pruning.
+		err = snapshot.Delete(ctx, true, "", nil)
 		instSnapshotsPruneRunning.Delete(snapshot.ID())
 		if err != nil {
 			return fmt.Errorf("Failed deleting expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project().Name, err)
