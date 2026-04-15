@@ -6,13 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
-	"github.com/canonical/lxd/shared/units"
 )
 
 // Storage volumes handling function
@@ -1047,19 +1045,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupFile(pool string, volName string
 	}
 
 	// Handle the data
-	body := response.Body
-	if req.ProgressHandler != nil {
-		body = &ioprogress.ProgressReader{
-			ReadCloser: response.Body,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: response.ContentLength,
-				Handler: func(percent int64, speed int64) {
-					req.ProgressHandler(ioprogress.ProgressData{Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)"})
-				},
-			},
-		}
-	}
-
+	body := ioprogress.NewProgressReader(response.Body, ioprogress.WithLength(response.ContentLength), ioprogress.WithProgressHandler(req.ProgressHandler))
 	size, err := io.Copy(req.BackupFile, body)
 	if err != nil {
 		return nil, err

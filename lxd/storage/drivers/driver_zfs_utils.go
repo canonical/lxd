@@ -389,7 +389,7 @@ func (d *zfs) needsRecursion(dataset string) bool {
 	return len(entries) != 0
 }
 
-func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.VolumeSourceArgs, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker) error {
+func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.VolumeSourceArgs, conn io.ReadWriteCloser, wrapper ioprogress.WriterWrapper) error {
 	defer func() { _ = conn.Close() }()
 
 	// Assemble zfs send command.
@@ -422,11 +422,8 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 
 	// Setup progress tracker.
 	var stdout io.WriteCloser = conn
-	if tracker != nil {
-		stdout = &ioprogress.ProgressWriter{
-			WriteCloser: conn,
-			Tracker:     tracker,
-		}
+	if wrapper != nil {
+		stdout = wrapper(conn)
 	}
 
 	cmd.Stdout = stdout

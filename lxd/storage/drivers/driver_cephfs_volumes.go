@@ -198,9 +198,9 @@ func (d *cephfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClos
 		// Snapshots are sent first by the sender, so create these first.
 		for _, snapName := range volTargetArgs.Snapshots {
 			// Receive the snapshot.
-			var wrapper *ioprogress.ProgressTracker
+			var wrapper ioprogress.ReaderWrapper
 			if volTargetArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", snapName)
+				wrapper = ioprogress.NewProgressReaderWrapper(ioprogress.WithDescriptiveProgressReporter("fs", snapName, op))
 			}
 
 			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
@@ -230,9 +230,9 @@ func (d *cephfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClos
 		}
 
 		// Receive the main volume from sender.
-		var wrapper *ioprogress.ProgressTracker
+		var wrapper ioprogress.ReaderWrapper
 		if volTargetArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+			wrapper = ioprogress.NewProgressReaderWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, op))
 		}
 
 		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)

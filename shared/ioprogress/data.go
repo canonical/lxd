@@ -1,16 +1,19 @@
 package ioprogress
 
-// The ProgressData struct represents new progress information on an operation.
+// The ProgressData struct contains details about an I/O task.
 type ProgressData struct {
-	// Preferred string representation of progress (always set)
+	// Text is a string representation of progress.
 	Text string
 
-	// Progress in percent
+	// Percentage is the percentage progress. This is only set if TotalBytes is non-zero.
 	Percentage int
 
-	// Number of bytes transferred (for files)
+	// TransferredBytes is the number of transferred bytes.
 	TransferredBytes int64
 
-	// Total number of bytes (for files)
+	// TotalBytes is the number of expected bytes.
 	TotalBytes int64
+
+	// Bytes per second (mean value calculated since I/O operation started).
+	BytesPerSecond int64
 }

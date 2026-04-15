@@ -344,7 +344,7 @@ func (d *btrfs) getQGroup(path string) (string, int64, error) {
 	return qgroup, usage, nil
 }
 
-func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker) error {
+func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteCloser, writerWrapper ioprogress.WriterWrapper) error {
 	defer func() { _ = conn.Close() }()
 
 	// Assemble btrfs send command.
@@ -363,11 +363,8 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 
 	// Setup progress tracker.
 	var stdout io.WriteCloser = conn
-	if tracker != nil {
-		stdout = &ioprogress.ProgressWriter{
-			WriteCloser: conn,
-			Tracker:     tracker,
-		}
+	if writerWrapper != nil {
+		stdout = writerWrapper(conn)
 	}
 
 	cmd.Stdout = stdout
@@ -604,7 +601,7 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 }
 
 // receiveSubVolume receives a subvolume from an io.Reader into the receivePath and returns the path to the received subvolume.
-func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *ioprogress.ProgressTracker) (string, error) {
+func (d *btrfs) receiveSubVolume(r io.ReadCloser, receivePath string, wrapper ioprogress.ReaderWrapper) (string, error) {
 	files, err := os.ReadDir(receivePath)
 	if err != nil {
 		return "", fmt.Errorf("Failed listing contents of %q: %w", receivePath, err)
@@ -612,11 +609,8 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *iopro
 
 	// Setup progress tracker.
 	stdin := r
-	if tracker != nil {
-		stdin = &ioprogress.ProgressReader{
-			Reader:  r,
-			Tracker: tracker,
-		}
+	if wrapper != nil {
+		stdin = wrapper(r)
 	}
 
 	err = shared.RunCommandWithFds(d.state.ShutdownCtx, stdin, nil, "btrfs", "receive", "-e", receivePath)

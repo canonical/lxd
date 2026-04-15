@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
-	"github.com/canonical/lxd/shared/units"
 )
 
 // Image handling functions
@@ -251,27 +249,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 	}
 
 	// Handle the data
-	body := response.Body
-	if req.ProgressHandler != nil {
-		reader := &ioprogress.ProgressReader{
-			ReadCloser: response.Body,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: response.ContentLength,
-			},
-		}
-
-		if response.ContentLength > 0 {
-			reader.Tracker.Handler = func(percent int64, speed int64) {
-				req.ProgressHandler(ioprogress.ProgressData{Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)"})
-			}
-		} else {
-			reader.Tracker.Handler = func(received int64, speed int64) {
-				req.ProgressHandler(ioprogress.ProgressData{Text: units.GetByteSizeString(received, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)"})
-			}
-		}
-
-		body = reader
-	}
+	body := ioprogress.NewProgressReader(response.Body, ioprogress.WithLength(response.ContentLength), ioprogress.WithProgressHandler(req.ProgressHandler))
 
 	// Hashing
 	sha256 := sha256.New()
@@ -521,19 +499,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		}()
 
 		// Setup progress handler
-		if args.ProgressHandler != nil {
-			body = &ioprogress.ProgressReader{
-				ReadCloser: pr,
-				Tracker: &ioprogress.ProgressTracker{
-					Handler: func(received int64, speed int64) {
-						args.ProgressHandler(ioprogress.ProgressData{Text: units.GetByteSizeString(received, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)"})
-					},
-				},
-			}
-		} else {
-			body = pr
-		}
-
+		body = ioprogress.NewProgressReader(pr, ioprogress.WithProgressHandler(args.ProgressHandler))
 		contentType = w.FormDataContentType()
 	}
 

@@ -22,8 +22,8 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -1051,12 +1051,21 @@ func validateMetadata(metadata map[string]any) (map[string]any, error) {
 	return metadata, nil
 }
 
-// UpdateProgress updates the operation metadata with progress information, including
-// the percentage complete, data processed, and speed. It formats and stores these values for
-// both API callers and CLI display purposes.
-func (op *Operation) UpdateProgress(stage string, displayPrefix string, percent int64, processed int64, speed int64) error {
-	// Copy current metadata.
+// ProgressHandler implements [ioprogress.ProgressHandlerFactory]. This is used by instance and storage drivers to
+// report I/O progress as they perform different actions (migration, download, image unpack, etc.).
+func (op *Operation) ProgressHandler(action string) ioprogress.ProgressHandler {
+	return func(data ioprogress.ProgressData) {
+		_ = op.updateProgress(action, data)
+	}
+}
+
+// updateProgress updates the operation metadata with progress information for a specific action.
+func (op *Operation) updateProgress(action string, data ioprogress.ProgressData) error {
+	// Copy current metadata and ensure it is non-nil.
 	metadata := op.Metadata()
+	if metadata == nil {
+		metadata = make(map[string]any)
+	}
 
 	// Delete any keys that end in "_progress", we rely on there only being one.
 	for k := range metadata {
@@ -1065,35 +1074,23 @@ func (op *Operation) UpdateProgress(stage string, displayPrefix string, percent 
 		}
 	}
 
-	// Create a map for progress.
-	// stage, percent, speed sent for API callers.
 	progress := make(map[string]string)
-	progress["stage"] = stage
-	if processed > 0 {
-		progress["processed"] = strconv.FormatInt(processed, 10)
+	progress["stage"] = action
+
+	if data.TransferredBytes > 0 {
+		progress["processed"] = strconv.FormatInt(data.TransferredBytes, 10)
 	}
 
-	if percent > 0 {
-		progress["percent"] = strconv.FormatInt(percent, 10)
+	if data.Percentage > 0 {
+		progress["percent"] = strconv.Itoa(data.Percentage)
 	}
 
-	progress["speed"] = strconv.FormatInt(speed, 10)
+	if data.BytesPerSecond > 0 {
+		progress["speed"] = strconv.FormatInt(data.BytesPerSecond, 10)
+	}
 
+	metadata[action+"_progress"] = data.Text
 	metadata["progress"] = progress
-
-	// <stage>_progress with formatted text sent for lxc cli.
-	activeStageProgress := stage + "_progress"
-	if percent > 0 {
-		if speed > 0 {
-			metadata[activeStageProgress] = fmt.Sprintf("%s: %d%% (%s/s)", displayPrefix, percent, units.GetByteSizeString(speed, 2))
-		} else {
-			metadata[activeStageProgress] = fmt.Sprintf("%s: %d%%", displayPrefix, percent)
-		}
-	} else if processed > 0 {
-		metadata[activeStageProgress] = displayPrefix + ": " + units.GetByteSizeString(processed, 2) + " (" + units.GetByteSizeString(speed, 2) + "/s)"
-	} else {
-		metadata[activeStageProgress] = displayPrefix + ": " + units.GetByteSizeString(speed, 2) + "/s"
-	}
 
 	// Write the updated metadata.
 	return op.UpdateMetadata(metadata)

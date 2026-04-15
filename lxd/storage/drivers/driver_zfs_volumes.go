@@ -1127,7 +1127,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 				return err
 			}
 
-			wrapper := migration.ProgressWriter(op, "fs_progress", snapVol.Name())
+			wrapper := ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", snapVol.Name(), op))
 
 			err = d.receiveDataset(snapVol, conn, wrapper)
 			if err != nil {
@@ -1148,7 +1148,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 	}
 
 	// Transfer the main volume.
-	wrapper := migration.ProgressWriter(op, "fs_progress", vol.name)
+	wrapper := ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, op))
 	err = d.receiveDataset(vol, conn, wrapper)
 	if err != nil {
 		return fmt.Errorf("Failed receiving volume %q: %w", vol.Name(), err)
@@ -2729,13 +2729,13 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 		}
 
 		// Setup progress tracking.
-		var wrapper *ioprogress.ProgressTracker
+		var writerWrapper ioprogress.WriterWrapper
 		if volSrcArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
+			writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", snapshot.name, op))
 		}
 
 		// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
-		err := d.sendDataset(d.dataset(snapshot, false), parent, volSrcArgs, conn, wrapper)
+		err := d.sendDataset(d.dataset(snapshot, false), parent, volSrcArgs, conn, writerWrapper)
 		if err != nil {
 			return err
 		}
@@ -2744,9 +2744,9 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 	}
 
 	// Setup progress tracking.
-	var wrapper *ioprogress.ProgressTracker
+	var writerWrapper ioprogress.WriterWrapper
 	if volSrcArgs.TrackProgress {
-		wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+		writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, op))
 	}
 
 	srcSnapshot := d.dataset(vol, false)
@@ -2780,7 +2780,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 	}
 
 	// Send the volume itself.
-	err := d.sendDataset(srcSnapshot, finalParent, volSrcArgs, conn, wrapper)
+	err := d.sendDataset(srcSnapshot, finalParent, volSrcArgs, conn, writerWrapper)
 	if err != nil {
 		return err
 	}

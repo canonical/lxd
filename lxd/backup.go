@@ -33,7 +33,6 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
-	"github.com/canonical/lxd/shared/units"
 )
 
 // Create a new backup.
@@ -156,28 +155,19 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	tarWriterRes := make(chan error)
 	var compressErr error
 
-	backupProgressWriter := &ioprogress.ProgressWriter{
-		Tracker: &ioprogress.ProgressTracker{
-			Handler: func(value, speed int64) {
-				_ = op.ExtendMetadata(map[string]any{"create_backup_progress": fmt.Sprintf("%s (%s/s)", units.GetByteSizeString(value, 2), units.GetByteSizeString(speed, 2))})
-			},
-		},
-	}
-
+	writerWrapper := ioprogress.NewProgressWriterWrapper(ioprogress.WithProgressReporter("create_backup", op))
 	go func(resCh chan<- error) {
 		l.Debug("Started backup tarball writer")
 		defer l.Debug("Finished backup tarball writer")
 		if compress != "none" {
-			backupProgressWriter.WriteCloser = tarFileWriter
-			compressErr = compressFile(compress, tarPipeReader, backupProgressWriter)
+			compressErr = compressFile(compress, tarPipeReader, writerWrapper(tarFileWriter))
 
 			// If a compression error occurred, close the tarPipeWriter to end the export.
 			if compressErr != nil {
 				_ = tarPipeWriter.Close()
 			}
 		} else {
-			backupProgressWriter.WriteCloser = tarFileWriter
-			_, err = io.Copy(backupProgressWriter, tarPipeReader)
+			_, err = io.Copy(writerWrapper(tarFileWriter), tarPipeReader)
 		}
 
 		resCh <- err

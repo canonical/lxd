@@ -1938,16 +1938,23 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 // provided, and for VM images, a raw root block path is required to unpack the qcow2 image into.
 func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation, projectName string) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
 	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
-		var tracker *ioprogress.ProgressTracker
-		if op != nil { // Not passed when being done as part of pre-migration setup.
-			tracker = &ioprogress.ProgressTracker{
-				Handler: func(percent, speed int64) {
-					_ = op.UpdateProgress("create_instance_from_image_unpack", "Unpacking image", percent, 0, speed)
-				}}
+		var progressHandler ioprogress.ProgressHandler
+		if op != nil {
+			// No operation is passed when this function is called as part of pre-migration setup.
+			// If an operation is passed, pass a progress handler to ImageUnpack.
+			// A progress handler is passed rather than a progress tracker so that the tracker does not need to be
+			// modified by the general archive functions that ImageUnpack calls out to.
+			// Those general archive functions don't know what description to apply to the progress data, so instead
+			// wrap the progress handler here and prepend the description.
+			opHandler := op.ProgressHandler("create_instance_from_image_unpack")
+			progressHandler = func(data ioprogress.ProgressData) {
+				data.Text = "Unpacking image: " + data.Text
+				opHandler(data)
+			}
 		}
 
 		imageFile := filepath.Join(b.state.ImagesStoragePath(projectName), fingerprint)
-		return ImageUnpack(b.state, projectName, imageFile, vol, rootBlockPath, allowUnsafeResize, tracker)
+		return ImageUnpack(b.state, projectName, imageFile, vol, rootBlockPath, allowUnsafeResize, progressHandler)
 	}
 }
 
@@ -1985,12 +1992,8 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 		// Setup the progress tracker.
 		var tracker *ioprogress.ProgressTracker
 		if op != nil {
-			tracker = &ioprogress.ProgressTracker{
-				Handler: func(percent, speed int64) {
-					displayPrefix := "Converting image format from " + imgFormat + " to raw"
-					_ = op.UpdateProgress("format_progress", displayPrefix, percent, 0, speed)
-				},
-			}
+			description := "Converting image format from " + imgFormat + " to raw"
+			tracker = ioprogress.NewProgressTracker(ioprogress.WithDescriptiveProgressReporter("format", description, op))
 		}
 
 		// Convert uploaded image from backups directory into RAW format on the instance volume.
@@ -2077,18 +2080,9 @@ func (b *lxdBackend) recvBlockVol(toFile *os.File, volName string, conn io.ReadW
 	b.logger.Debug("Receive block volume started", logger.Ctx{"volName": volName})
 	defer b.logger.Debug("Receive block volume finished", logger.Ctx{"volName": volName})
 
-	var wrapper *ioprogress.ProgressTracker
-	if args.TrackProgress {
-		wrapper = migration.ProgressTracker(op, "block_progress", "Transferring instance")
-	}
-
-	// Setup progress tracker.
 	fromPipe := io.ReadCloser(conn)
-	if wrapper != nil {
-		fromPipe = &ioprogress.ProgressReader{
-			ReadCloser: fromPipe,
-			Tracker:    wrapper,
-		}
+	if args.TrackProgress {
+		fromPipe = ioprogress.NewProgressReader(conn, ioprogress.WithDescriptiveProgressReporter("block", "Transferring instance", op))
 	}
 
 	_, err := io.Copy(toFile, fromPipe)
@@ -2115,9 +2109,9 @@ func (b *lxdBackend) recvFS(path string, volName string, conn io.ReadWriteCloser
 	b.logger.Debug("Receiving filesystem volume started", logger.Ctx{"volName": volName, "path": path, "features": args.MigrationType.Features})
 	defer b.logger.Debug("Receiving filesystem volume stopped", logger.Ctx{"volName": volName, "path": path})
 
-	var wrapper *ioprogress.ProgressTracker
+	var wrapper ioprogress.ReaderWrapper
 	if args.TrackProgress {
-		wrapper = migration.ProgressTracker(op, "fs_progress", "Transferring instance")
+		wrapper = ioprogress.NewProgressReaderWrapper(ioprogress.WithDescriptiveProgressReporter("fs", "Transferring instance", op))
 	}
 
 	return rsync.Recv(shared.AddSlash(path), conn, wrapper, args.MigrationType.Features)

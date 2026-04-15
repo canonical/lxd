@@ -435,27 +435,11 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	}
 
 	// Track progress creating image.
-	imageProgressWriter := &ioprogress.ProgressWriter{
-		Tracker: &ioprogress.ProgressTracker{
-			Handler: func(value, speed int64) {
-				percent := int64(0)
-				var processed int64
-
-				if totalSize > 0 {
-					percent = value
-					processed = totalSize * (percent / 100.0)
-				} else {
-					processed = value
-				}
-
-				_ = op.UpdateProgress("create_image_from_instance_pack", "Image pack", percent, processed, speed)
-			},
-			Length: totalSize,
-		},
-	}
+	imageProgressWriterWrapper := ioprogress.NewProgressWriterWrapper(ioprogress.WithLength(totalSize), ioprogress.WithDescriptiveProgressReporter("create_image_from_instance_pack", "Image pack", op))
 
 	sha256 := sha256.New()
 	var compress string
+	var imageProgressWriter io.WriteCloser
 	var writer io.Writer
 
 	if req.CompressionAlgorithm != "" {
@@ -489,7 +473,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	if compress != "none" {
 		wg.Add(1)
 		tarReader, tarWriter := io.Pipe()
-		imageProgressWriter.WriteCloser = tarWriter
+		imageProgressWriter = imageProgressWriterWrapper(tarWriter)
 		writer = imageProgressWriter
 		compressWriter := io.MultiWriter(imageFile, sha256)
 		go func() {
@@ -502,16 +486,11 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 			}
 		}()
 	} else {
-		imageProgressWriter.WriteCloser = imageFile
+		imageProgressWriter = imageProgressWriterWrapper(imageFile)
 		writer = io.MultiWriter(imageProgressWriter, sha256)
 	}
 
-	// Tracker instance for the export phase.
-	tracker := &ioprogress.ProgressTracker{
-		Handler: func(value, speed int64) {
-			_ = op.UpdateProgress("create_image_from_instance_pack", "Exporting", value, 0, 0)
-		},
-	}
+	tracker := ioprogress.NewProgressTracker(ioprogress.WithDescriptiveProgressReporter("create_image_from_instance_pack", "Exporting", op))
 
 	// Export instance to writer.
 	var meta api.ImageMetadata

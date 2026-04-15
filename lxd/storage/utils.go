@@ -670,7 +670,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // VM Format A: Separate metadata tarball and root qcow2 file.
 //   - Unpack metadata tarball into mountPath.
 //   - Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
-func ImageUnpack(s *state.State, projectName string, imageFile string, vol drivers.Volume, destBlockFile string, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
+func ImageUnpack(s *state.State, projectName string, imageFile string, vol drivers.Volume, destBlockFile string, allowUnsafeResize bool, progressHandler ioprogress.ProgressHandler) (int64, error) {
 	l := logger.Log.AddContext(logger.Ctx{"imageFile": imageFile, "volName": vol.Name()})
 	l.Info("Image unpack started")
 	defer l.Info("Image unpack stopped")
@@ -684,7 +684,7 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 		rootfsPath := filepath.Join(destPath, "rootfs")
 
 		// Unpack the main image file.
-		err := archive.UnpackImage(s, imageFile, destPath, vol.IsBlockBacked(), tracker)
+		err := archive.UnpackImage(s, imageFile, destPath, vol.IsBlockBacked(), progressHandler)
 		if err != nil {
 			return -1, err
 		}
@@ -695,7 +695,7 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 			return -1, errors.New("Error creating rootfs directory")
 		}
 
-		err = archive.UnpackImage(s, imageRootfsFile, rootfsPath, vol.IsBlockBacked(), tracker)
+		err = archive.UnpackImage(s, imageRootfsFile, rootfsPath, vol.IsBlockBacked(), progressHandler)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return -1, err
 		}
@@ -725,7 +725,8 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 
 	// convertBlockImage converts the qcow2 block image file into a raw block device. If needed it will attempt
 	// to enlarge the destination volume to accommodate the unpacked qcow2 image file.
-	convertBlockImage := func(imgPath string, dstPath string, tracker *ioprogress.ProgressTracker) (int64, error) {
+	convertBlockImage := func(imgPath string, dstPath string, progressHandler ioprogress.ProgressHandler) (int64, error) {
+		tracker := ioprogress.NewProgressTracker(ioprogress.WithProgressHandler(progressHandler))
 		imgFormat, imgVirtualSize, err := qemuImageInfo(s.OS, imgPath, tracker)
 		if err != nil {
 			return -1, err
@@ -809,13 +810,13 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 
 	if shared.PathExists(imageRootfsFile) {
 		// Unpack the main image file.
-		err := archive.UnpackImage(s, imageFile, destPath, vol.IsBlockBacked(), tracker)
+		err := archive.UnpackImage(s, imageFile, destPath, vol.IsBlockBacked(), progressHandler)
 		if err != nil {
 			return -1, err
 		}
 
 		// Convert the qcow2 format to a raw block device.
-		imgSize, err = convertBlockImage(imageRootfsFile, destBlockFile, tracker)
+		imgSize, err = convertBlockImage(imageRootfsFile, destBlockFile, progressHandler)
 		if err != nil {
 			return -1, err
 		}
@@ -829,7 +830,7 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 		defer func() { _ = os.RemoveAll(tempDir) }()
 
 		// Unpack the whole image.
-		err = archive.UnpackImage(s, imageFile, tempDir, vol.IsBlockBacked(), tracker)
+		err = archive.UnpackImage(s, imageFile, tempDir, vol.IsBlockBacked(), progressHandler)
 		if err != nil {
 			return -1, err
 		}
@@ -837,7 +838,7 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 		imgPath := filepath.Join(tempDir, "rootfs.img")
 
 		// Convert the qcow2 format to a raw block device.
-		imgSize, err = convertBlockImage(imgPath, destBlockFile, tracker)
+		imgSize, err = convertBlockImage(imgPath, destBlockFile, progressHandler)
 		if err != nil {
 			return -1, err
 		}
