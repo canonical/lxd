@@ -29,6 +29,11 @@ type Info struct {
 	// Whether driver stores images as separate volume.
 	OptimizedImages bool
 
+	// Whether the driver maintains per-config image volume variants on disk so an
+	// instance whose effective config differs from the pool default can still be
+	// cloned from a matching cached image.
+	HasImageVariants bool
+
 	// Whether driver supports optimized volume backups.
 	OptimizedBackups bool
 

@@ -142,6 +142,7 @@ func (d *zfs) Info() Info {
 		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              true,
+		HasImageVariants:             true,
 		OptimizedBackups:             true,
 		PreservesInodes:              true,
 		Remote:                       d.isRemote(),
