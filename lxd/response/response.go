@@ -204,6 +204,11 @@ func SyncResponse(success bool, metadata any) Response {
 	return &syncResponse{success: success, metadata: metadata}
 }
 
+// SyncResponseCompressed returns a new syncResponse with gzip compressed JSON output.
+func SyncResponseCompressed(success bool, metadata any) Response {
+	return &syncResponse{success: success, metadata: metadata, compress: true}
+}
+
 // SyncResponseETag returns a new syncResponse with an etag.
 func SyncResponseETag(success bool, metadata any, etag any) Response {
 	return &syncResponse{success: success, metadata: metadata, etag: etag}
@@ -329,6 +334,14 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	var debugLogger logger.Logger
 	if debug {
 		debugLogger = logger.AddContext(logger.Ctx{"http_code": code})
+	}
+
+	// Handle JSON compression to gzip if needed.
+	if r.compress {
+		comp := gzip.NewWriter(w)
+		defer comp.Close()
+
+		return util.WriteJSON(comp, resp, debugLogger)
 	}
 
 	return util.WriteJSON(w, resp, debugLogger)
