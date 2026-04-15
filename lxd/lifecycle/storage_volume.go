@@ -1,7 +1,9 @@
 package lifecycle
 
 import (
-	"github.com/canonical/lxd/lxd/operations"
+	"context"
+
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -25,18 +27,13 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a storage volume.
-func (a StorageVolumeAction) Event(v volume, volumeType string, projectName string, op *operations.Operation, ctx map[string]any) api.EventLifecycle {
+func (a StorageVolumeAction) Event(ctx context.Context, v volume, volumeType string, projectName string, eventCtx map[string]any) api.EventLifecycle {
 	u := api.NewURL().Path(version.APIVersion, "storage-pools", v.Pool(), "volumes", volumeType, v.Name()).Project(projectName)
-
-	var requestor *api.EventLifecycleRequestor
-	if op != nil {
-		requestor = op.EventLifecycleRequestor()
-	}
 
 	return api.EventLifecycle{
 		Action:    string(a),
 		Source:    u.String(),
-		Context:   ctx,
-		Requestor: requestor,
+		Context:   eventCtx,
+		Requestor: request.CreateRequestor(ctx),
 	}
 }

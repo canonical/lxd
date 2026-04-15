@@ -1,7 +1,9 @@
 package lifecycle
 
 import (
-	"github.com/canonical/lxd/lxd/operations"
+	"context"
+
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -10,7 +12,6 @@ import (
 type instance interface {
 	Name() string
 	Project() api.Project
-	Operation() *operations.Operation
 }
 
 // InstanceAction represents a lifecycle event action for instances.
@@ -41,19 +42,14 @@ const (
 )
 
 // Event creates the lifecycle event for an action on an instance.
-func (a InstanceAction) Event(inst instance, ctx map[string]any) api.EventLifecycle {
+func (a InstanceAction) Event(ctx context.Context, inst instance, eventCtx map[string]any) api.EventLifecycle {
 	url := api.NewURL().Path(version.APIVersion, "instances", inst.Name()).Project(inst.Project().Name)
-
-	var requestor *api.EventLifecycleRequestor
-	if inst.Operation() != nil {
-		requestor = inst.Operation().EventLifecycleRequestor()
-	}
 
 	return api.EventLifecycle{
 		Action:    string(a),
 		Source:    url.String(),
-		Context:   ctx,
-		Requestor: requestor,
+		Context:   eventCtx,
+		Requestor: request.CreateRequestor(ctx),
 		Name:      inst.Name(),
 		Project:   inst.Project().Name,
 	}
