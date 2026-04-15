@@ -48,7 +48,7 @@ var Load func(s *state.State, args db.InstanceArgs, p api.Project) (Instance, er
 
 // Create is linked from instance/drivers.create to allow difference instance types to be created.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
-var Create func(s *state.State, args db.InstanceArgs, p api.Project) (Instance, revert.Hook, error)
+var Create func(ctx context.Context, s *state.State, args db.InstanceArgs, p api.Project) (Instance, revert.Hook, error)
 
 // ValidConfig validates an instance's config.
 func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanceType instancetype.Type) error {
@@ -668,7 +668,7 @@ func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx
 // Returns the created instance, along with a "create" operation lock that needs to be marked as Done once the
 // instance is fully completed, and a revert fail function that can be used to undo this function if a subsequent
 // step fails.
-func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Instance, *operationlock.InstanceOperation, revert.Hook, error) {
+func CreateInternal(ctx context.Context, s *state.State, args db.InstanceArgs, clearLogDir bool) (Instance, *operationlock.InstanceOperation, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -956,7 +956,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 			return tx.DeleteInstance(ctx, dbInst.Project, dbInst.Name)
 		})
 	})
-	inst, cleanup, err := Create(s, args, *p)
+	inst, cleanup, err := Create(ctx, s, args, *p)
 	if err != nil {
 		logger.Error("Failed initialising instance", logger.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
 		return nil, nil, nil, fmt.Errorf("Failed initialising instance: %w", err)
