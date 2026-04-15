@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -25,13 +27,18 @@ func main() {
 
 	flag.Parse()
 
-	snapcraftConfig, err := loadSnapcraftYaml(*flagFilePath)
+	buf, err := os.ReadFile(*flagFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	snapcraftConfig, err := loadSnapcraftYaml(bytes.NewReader(buf))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if *flagVerifySourceCommits {
-		err = verifySourceCommits(*flagFilePath, snapcraftConfig)
+		err = verifySourceCommits(bytes.NewReader(buf), snapcraftConfig)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -77,8 +84,8 @@ func main() {
 	}
 }
 
-func loadSnapcraftYaml(snapcraftYamlPath string) (map[string]any, error) {
-	buf, err := os.ReadFile(snapcraftYamlPath)
+func loadSnapcraftYaml(r io.Reader) (map[string]any, error) {
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -93,11 +100,11 @@ func loadSnapcraftYaml(snapcraftYamlPath string) (map[string]any, error) {
 	return data, nil
 }
 
-// sourceCommitComments parses the snapcraft.yaml at snapcraftYamlPath using the
-// yaml.v3 Node tree and returns a map of partName -> inline comment on the
-// source-commit key (the text after the leading "# ").
-func sourceCommitComments(snapcraftYamlPath string) (map[string]string, error) {
-	buf, err := os.ReadFile(snapcraftYamlPath)
+// sourceCommitComments parses the snapcraft.yaml from r using the yaml.v3 Node
+// tree and returns a map of partName -> inline comment on the source-commit key
+// (the text after the leading "# ").
+func sourceCommitComments(r io.Reader) (map[string]string, error) {
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -192,8 +199,8 @@ func writeSnapcraftYaml(snapcraftYamlPath string, snapcraftConfig map[string]any
 
 // verifySourceCommits checks that every git part whose source-commit has an
 // inline tag comment resolves to the expected SHA via git ls-remote.
-func verifySourceCommits(snapcraftYamlPath string, snapcraftConfig map[string]any) error {
-	comments, err := sourceCommitComments(snapcraftYamlPath)
+func verifySourceCommits(r io.Reader, snapcraftConfig map[string]any) error {
+	comments, err := sourceCommitComments(r)
 	if err != nil {
 		return err
 	}
