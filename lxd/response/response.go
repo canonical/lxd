@@ -263,6 +263,9 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	// Handle plain text headers.
 	if r.plaintext {
 		w.Header().Set("Content-Type", "text/plain")
+	} else if w.Header().Get("Content-Type") == "" {
+		// If Content-Type is not set, default to "application/json".
+		w.Header().Set("Content-Type", "application/json")
 	}
 
 	// Handle compression.
