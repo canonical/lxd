@@ -282,12 +282,22 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	unlock, err := locking.Lock(r.Context(), "storagePoolCreateLock")
+	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer unlock()
+	if !requestor.IsClusterNotification() {
+		// Don't allow concurrent ongoing storage pool creation requests from external API requests.
+		// This isn't perfect as concurrent requests can come into other cluster members, but we do not yet
+		// have cluster wide locking semantics.
+		unlock, err := locking.Lock(r.Context(), "storagePoolCreateLock")
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		defer unlock()
+	}
 
 	req := api.StoragePoolsPost{}
 
@@ -319,11 +329,6 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	targetNode := request.QueryParam(r, "target")
 	if targetNode != "" {
 		ctx["target"] = targetNode
-	}
-
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	lc := lifecycle.StoragePoolCreated.Event(req.Name, requestor.EventLifecycleRequestor(), ctx)
