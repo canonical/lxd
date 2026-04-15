@@ -449,12 +449,22 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	unlock, err := locking.Lock(r.Context(), "networkCreateLock")
+	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer unlock()
+	if !requestor.IsClusterNotification() {
+		// Don't allow concurrent ongoing network creation requests from external API requests.
+		// This isn't perfect as concurrent requests can come into other cluster members, but we do not yet
+		// have cluster wide locking semantics.
+		unlock, err := locking.Lock(r.Context(), "networkCreateLock")
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		defer unlock()
+	}
 
 	req := api.NetworksPost{}
 
@@ -499,11 +509,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	netTypeInfo := netType.Info()
 	if projectName != api.ProjectDefaultName && !netTypeInfo.Projects {
 		return response.BadRequest(errors.New("Network type does not support non-default projects"))
-	}
-
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Check if project has limits.network and if so check we are allowed to create another network.
