@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -26,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/lxd/project"
@@ -42,9 +42,6 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
-
-// Lock to prevent concurent networks creation.
-var networkCreateLock sync.Mutex
 
 var networksCmd = APIEndpoint{
 	Path:        "networks",
@@ -452,8 +449,12 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	networkCreateLock.Lock()
-	defer networkCreateLock.Unlock()
+	unlock, err := locking.Lock(r.Context(), "networkCreateLock")
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	defer unlock()
 
 	req := api.NetworksPost{}
 
