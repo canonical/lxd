@@ -251,10 +251,10 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 
 // DoStorage handles the storage volume migration on the target side. It waits for
 // migration connections, negotiates migration types, and initiates the volume reception.
-func (c *migrationSink) DoStorage(state *state.State, projectName string, poolName string, req *api.StorageVolumesPost, op *operations.Operation) error {
+func (c *migrationSink) DoStorage(ctx context.Context, state *state.State, projectName string, poolName string, req *api.StorageVolumesPost, op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "pool": poolName, "volume": req.Name, "push": c.push})
 
-	ctx, cancel := context.WithTimeout(state.ShutdownCtx, time.Second*10)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	l.Info("Waiting for migration connections on target")
@@ -346,7 +346,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			}
 		}
 
-		return pool.CreateCustomVolumeFromMigration(projectName, conn, volTargetArgs, op)
+		return pool.CreateCustomVolumeFromMigration(ctx, projectName, conn, volTargetArgs, op)
 	}
 
 	if c.refresh {
@@ -388,7 +388,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 
 		// Delete the extra local snapshots first.
 		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
-			err := pool.DeleteCustomVolumeSnapshot(projectName, targetSnapshots[deleteTargetSnapshotIndex].Name, op)
+			err := pool.DeleteCustomVolumeSnapshot(ctx, projectName, targetSnapshots[deleteTargetSnapshotIndex].Name, op)
 			if err != nil {
 				c.sendControl(err)
 				return err
