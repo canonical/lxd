@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/gorilla/mux"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -32,9 +32,6 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
-
-// Lock to prevent concurent storage pools creation.
-var storagePoolCreateLock sync.Mutex
 
 var storagePoolsCmd = APIEndpoint{
 	Path:        "storage-pools",
@@ -285,13 +282,17 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	storagePoolCreateLock.Lock()
-	defer storagePoolCreateLock.Unlock()
+	unlock, err := locking.Lock(r.Context(), "storagePoolCreateLock")
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	defer unlock()
 
 	req := api.StoragePoolsPost{}
 
 	// Parse the request.
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
