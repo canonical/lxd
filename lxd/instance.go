@@ -222,7 +222,7 @@ func instanceRebuildFromImage(ctx context.Context, s *state.State, inst instance
 		return err
 	}
 
-	err = inst.Rebuild(img, op)
+	err = inst.Rebuild(ctx, img, op)
 	if err != nil {
 		return fmt.Errorf("Failed rebuilding instance from image: %w", err)
 	}
@@ -230,8 +230,8 @@ func instanceRebuildFromImage(ctx context.Context, s *state.State, inst instance
 	return nil
 }
 
-func instanceRebuildFromEmpty(inst instance.Instance, op *operations.Operation) error {
-	err := inst.Rebuild(nil, op) // Rebuild as empty.
+func instanceRebuildFromEmpty(ctx context.Context, inst instance.Instance, op *operations.Operation) error {
+	err := inst.Rebuild(ctx, nil, op) // Rebuild as empty.
 	if err != nil {
 		return fmt.Errorf("Failed rebuilding as an empty instance: %w", err)
 	}
