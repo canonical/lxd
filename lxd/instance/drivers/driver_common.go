@@ -546,7 +546,7 @@ func (d *common) expandConfig() error {
 }
 
 // restartCommon handles the common part of instance restarts.
-func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) error {
+func (d *common) restartCommon(ctx context.Context, inst instance.Instance, timeout time.Duration, progressReporter ioprogress.ProgressReporter) error {
 	// Setup a new operation for the stop/shutdown phase.
 	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestart, true, true)
 	if err != nil {
@@ -579,7 +579,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 			Snapshot:     inst.IsSnapshot(),
 		}
 
-		err := inst.Update(args, instance.UpdateActionInternal)
+		err := inst.Update(ctx, args, instance.UpdateActionInternal)
 		if err != nil {
 			return err
 		}
@@ -587,12 +587,12 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 		// On function return, set the flag back on
 		defer func() {
 			args.Ephemeral = ephemeral
-			_ = inst.Update(args, instance.UpdateActionInternal)
+			_ = inst.Update(ctx, args, instance.UpdateActionInternal)
 		}()
 	}
 
 	if timeout == 0 {
-		err := inst.Stop(false)
+		err := inst.Stop(ctx, false)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -604,7 +604,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 			return err
 		}
 
-		err := inst.Shutdown(timeout)
+		err := inst.Shutdown(ctx, timeout)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -617,20 +617,20 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 		return fmt.Errorf("Create restart (for start) operation: %w", err)
 	}
 
-	err = inst.Start(false)
+	err = inst.Start(ctx, progressReporter, false)
 	if err != nil {
 		op.Done(err)
 		return err
 	}
 
 	d.logger.Info("Restarted instance", ctxMap)
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(ctx, d, nil))
 
 	return nil
 }
 
 // rebuildCommon handles the common part of instance rebuilds.
-func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *operations.Operation) error {
+func (d *common) rebuildCommon(ctx context.Context, inst instance.Instance, img *api.Image, progressReporter ioprogress.ProgressReporter) error {
 	instLocalConfig := d.localConfig
 
 	// Reset the "image.*" keys.
@@ -658,7 +658,7 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 		return err
 	}
 
-	err = pool.DeleteInstance(inst, op)
+	err = pool.DeleteInstance(inst, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -670,7 +670,7 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 			return err
 		}
 	} else {
-		err = pool.CreateInstanceFromImage(inst, img.Fingerprint, op)
+		err = pool.CreateInstanceFromImage(ctx, inst, img.Fingerprint, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -701,7 +701,7 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 
 // deleteAttachedVolumeSnapshots deletes the attached volume snapshots for a snapshot instance.
 // When diskVolumesMode is "all-exclusive", it deletes the attached volume snapshots.
-func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskVolumesMode string) error {
+func (d *common) deleteAttachedVolumeSnapshots(ctx context.Context, snapInst instance.Instance, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	// Get attached volume snapshot UUIDs from the snapshot instance.
 	var attachedVolumeUUIDs map[string]string
 	err := json.Unmarshal([]byte(snapInst.LocalConfig()["volatile.attached_volumes"]), &attachedVolumeUUIDs)
@@ -728,7 +728,7 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 			return fmt.Errorf("Failed loading storage pool %q: %w", vol.Pool, err)
 		}
 
-		err = pool.DeleteCustomVolumeSnapshot(vol.Project, vol.Name, d.op)
+		err = pool.DeleteCustomVolumeSnapshot(ctx, vol.Project, vol.Name, progressReporter)
 		if err != nil {
 			return fmt.Errorf("Failed deleting attached volume %q snapshot in storage pool %q: %w", vol.Name, vol.Pool, err)
 		}
@@ -746,7 +746,7 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 // - Calls driver-specific delete function.
 // - Attached volume snapshot deletion for snapshots (if diskVolumesMode is "all-exclusive").
 // - Parent backup file update for snapshots.
-func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMode string) error {
+func (d *common) deleteCommon(ctx context.Context, inst instance.Instance, force bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	isSnapshot := inst.IsSnapshot()
 
 	if isSnapshot {
@@ -783,13 +783,13 @@ func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMod
 
 	switch s := inst.(type) {
 	case *lxc:
-		err = s.delete(force)
+		err = s.delete(ctx, force)
 		if err != nil {
 			return err
 		}
 
 	case *qemu:
-		err = s.delete(force)
+		err = s.delete(ctx, force)
 		if err != nil {
 			return err
 		}
@@ -801,7 +801,7 @@ func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMod
 	if isSnapshot {
 		// Delete attached volume snapshots (if requested).
 		if diskVolumesMode == api.DiskVolumesModeAllExclusive {
-			err = d.deleteAttachedVolumeSnapshots(inst, diskVolumesMode)
+			err = d.deleteAttachedVolumeSnapshots(ctx, inst, diskVolumesMode, progressReporter)
 			if err != nil {
 				return fmt.Errorf("Failed deleting attached volume snapshots: %w", err)
 			}
@@ -932,7 +932,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map
 // stateful is true. When diskVolumesMode is set to [api.DiskVolumesModeAllExclusive],
 // the instance's attached exclusive volumes are included in a crash-consistent
 // snapshot.
-func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
+func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, name string, expiry *time.Time, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -977,7 +977,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	}
 
 	// Create the snapshot.
-	snap, snapInstOp, cleanup, err := instance.CreateInternal(d.state, args, true)
+	snap, snapInstOp, cleanup, err := instance.CreateInternal(ctx, d.state, args, true)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance snapshot record %q: %w", name, err)
 	}
@@ -992,13 +992,13 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 
 	if pool.Driver().Info().RunningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() {
 		// Freeze the processes.
-		err = inst.Freeze()
+		err = inst.Freeze(ctx)
 		if err != nil {
 			return err
 		}
 
 		defer func() {
-			err := inst.Unfreeze()
+			err := inst.Unfreeze(ctx)
 			if err != nil {
 				d.logger.Warn("Failed unfreezing instance after snapshot", logger.Ctx{"err": err})
 			}
@@ -1006,7 +1006,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	}
 
 	// Snapshot root disk.
-	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
+	err = pool.CreateInstanceSnapshot(snap, inst, progressReporter)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance root volume snapshot: %w", err)
 	}
@@ -1014,9 +1014,9 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	revert.Add(func() {
 		switch s := snap.(type) {
 		case *lxc:
-			_ = s.delete(true)
+			_ = s.delete(context.Background(), true)
 		case *qemu:
-			_ = s.delete(true)
+			_ = s.delete(context.Background(), true)
 		default:
 			d.logger.Error("Failed deleting snapshot during revert", logger.Ctx{"snapshot": snap.Name()})
 		}
@@ -1053,7 +1053,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			}
 
 			expiry := snap.ExpiryDate() // Attached volume snapshots inherit the expiry date of the instance snapshot.
-			snapshotUUID, err := pool.CreateCustomVolumeSnapshot(volume.Project, volume.Name, snapshotName, description, &expiry, d.op)
+			snapshotUUID, err := pool.CreateCustomVolumeSnapshot(ctx, volume.Project, volume.Name, snapshotName, description, &expiry, progressReporter)
 			if err != nil {
 				return fmt.Errorf("Failed creating attached volume %q snapshot %q in storage pool %q: %w", volume.Name, snapshotName, volume.Pool, err)
 			}
@@ -1063,7 +1063,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			volatileAttachedVolumes[deviceName] = snapshotUUID.String()
 
 			revert.Add(func() {
-				err := pool.DeleteCustomVolumeSnapshot(volume.Project, volume.Name+"/"+snapshotName, d.op)
+				err := pool.DeleteCustomVolumeSnapshot(ctx, volume.Project, volume.Name+"/"+snapshotName, progressReporter)
 				if err != nil {
 					d.logger.Warn("Failed deleting attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volume.Name, "snapshot": snapshotName, "project": volume.Project, "err": err})
 				}
@@ -1085,13 +1085,13 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	}
 
 	// Mount volume for backup.yaml writing.
-	_, err = pool.MountInstance(inst, d.op)
+	_, err = pool.MountInstance(inst, progressReporter)
 	if err != nil {
 		return fmt.Errorf("Failed mounting instance root volume for backup file writing during snapshot: %w", err)
 	}
 
 	defer func() {
-		err := pool.UnmountInstance(inst, d.op)
+		err := pool.UnmountInstance(inst, progressReporter)
 		// Unmounting volumes while an instance is running is expected to return [storageDrivers.ErrInUse].
 		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			d.logger.Warn("Failed unmounting instance after snapshot", logger.Ctx{"err": err})
@@ -1133,7 +1133,7 @@ func updateProgress(progressReporter ioprogress.ProgressReporter, progress strin
 // - wasRunning: whether the instance was running before restore.
 // - op: the restore operation lock.
 // - err: error, if any.
-func (d *common) restoreCommon(inst instance.Instance, source instance.Instance, diskVolumesMode string) (wasRunning bool, op *operationlock.InstanceOperation, err error) {
+func (d *common) restoreCommon(ctx context.Context, inst instance.Instance, source instance.Instance, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) (wasRunning bool, op *operationlock.InstanceOperation, err error) {
 	// Load the storage driver.
 	pool, err := d.getStoragePool()
 	if err != nil {
@@ -1172,7 +1172,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 				Snapshot:     d.IsSnapshot(),
 			}
 
-			err := inst.Update(args, instance.UpdateActionInternal)
+			err := inst.Update(ctx, args, instance.UpdateActionInternal)
 			if err != nil {
 				op.Done(err)
 				return false, nil, err
@@ -1181,7 +1181,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 			// On function return, set the flag back on.
 			defer func() {
 				args.Ephemeral = ephemeral
-				err = inst.Update(args, instance.UpdateActionInternal)
+				err = inst.Update(ctx, args, instance.UpdateActionInternal)
 				if err != nil {
 					d.logger.Error("Failed restoring ephemeral flag after restore", logger.Ctx{"err": err})
 				}
@@ -1189,7 +1189,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 		}
 
 		// This will unmount the instance storage.
-		err := inst.Stop(false)
+		err := inst.Stop(ctx, false)
 		if err != nil {
 			op.Done(err)
 			return false, nil, err
@@ -1220,14 +1220,14 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 
 	// Don't pass as user-requested as there's no way to fix a bad config.
 	// This will call d.UpdateBackupFile() to ensure snapshot list is up to date.
-	err = inst.Update(args, instance.UpdateActionInternal)
+	err = inst.Update(ctx, args, instance.UpdateActionInternal)
 	if err != nil {
 		op.Done(err)
 		return false, nil, err
 	}
 
 	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(inst, source, nil)
+	err = pool.RestoreInstanceSnapshot(ctx, inst, source, nil)
 	if err != nil {
 		op.Done(err)
 		return false, nil, fmt.Errorf("Failed restoring snapshot rootfs: %w", err)
@@ -1246,7 +1246,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 				return false, nil, fmt.Errorf("Failed loading storage pool %q: %w", volume.Pool, err)
 			}
 
-			err = pool.RestoreCustomVolume(volume.Project, volName, snapName, d.op)
+			err = pool.RestoreCustomVolume(ctx, volume.Project, volName, snapName, progressReporter)
 			if err != nil {
 				return false, nil, fmt.Errorf("Failed restoring volume %q snapshot %q in storage pool %q: %w", volume.Name, snapName, volume.Pool, err)
 			}
