@@ -17,7 +17,7 @@ func (suite *containerTestSuite) TestSnapshotScheduling() {
 		Name:      "hal9000",
 	}
 
-	c, op, _, err := instance.CreateInternal(suite.d.State(), args, true)
+	c, op, _, err := instance.CreateInternal(suite.T().Context(), suite.d.State(), args, true)
 	suite.Req.NoError(err)
 	suite.True(snapshotIsScheduledNow("* * * * *",
 		int64(c.ID())),
