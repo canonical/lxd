@@ -2,6 +2,7 @@ package cdi
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -147,7 +148,7 @@ func ApplyHooksToContainer(hooksFilePath string, c instance.Container) error {
 		return err
 	}
 
-	updateLDCache(c, &sftpContainerFS{client: sftpClient})
+	updateLDCache(context.Background(), c, &sftpContainerFS{client: sftpClient})
 
 	return nil
 }
@@ -270,13 +271,13 @@ func createSymlinkInContainer(cfs containerFS, target string, link string) error
 // updateLDCache updates the linker cache inside the instance. It ignores
 // possible errors and logs them instead since this is a best effort action and
 // failure should not impact the container's start or hotplugging.
-func updateLDCache(inst instance.Instance, cfs containerFS) {
+func updateLDCache(ctx context.Context, inst instance.Instance, cfs containerFS) {
 	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
 	if inst.IsRunning() {
 		// Run ldconfig to update the linker cache, note we do not update symlinks via
 		// -X as those are handled by the CDI hooks.
-		cmd, err := inst.Exec(api.InstanceExecPost{
+		cmd, err := inst.Exec(ctx, api.InstanceExecPost{
 			Command:   []string{"/sbin/ldconfig", "-X"},
 			WaitForWS: false,
 		}, nil, nil, nil)
