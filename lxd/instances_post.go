@@ -137,12 +137,12 @@ func createFromImage(r *http.Request, s *state.State, p api.Project, profiles []
 		}
 
 		// Actually create the instance.
-		err = instanceCreateFromImage(s, img, args, op)
+		err = instanceCreateFromImage(ctx, s, img, args, op)
 		if err != nil {
 			return err
 		}
 
-		return instanceCreateFinish(s, req, args, nil)
+		return instanceCreateFinish(ctx, s, req, args, nil, op)
 	}
 
 	args := operations.OperationArgs{
@@ -196,14 +196,14 @@ func createFromNone(r *http.Request, s *state.State, projectName string, profile
 		args.Architecture = architecture
 	}
 
-	run := func(_ context.Context, _ *operations.Operation) error {
+	run := func(ctx context.Context, op *operations.Operation) error {
 		// Actually create the instance.
-		_, err := instanceCreateAsEmpty(s, args)
+		_, err := instanceCreateAsEmpty(ctx, s, args, op)
 		if err != nil {
 			return err
 		}
 
-		return instanceCreateFinish(s, req, args, nil)
+		return instanceCreateFinish(ctx, s, req, args, nil, op)
 	}
 
 	opArgs := operations.OperationArgs{
@@ -308,7 +308,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 		// Note: At this stage we do not yet know if snapshots are going to be received and so we cannot
 		// create their DB records. This will be done if needed in the migrationSink.Do() function called
 		// as part of the operation below.
-		inst, instOp, cleanup, err = instance.CreateInternal(s, *args, true)
+		inst, instOp, cleanup, err = instance.CreateInternal(r.Context(), s, *args, true)
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Failed creating instance record: %w", err))
 		}
@@ -318,7 +318,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 		// For refresh requests, validate and apply target config before migration transfer starts.
 		// Skip this during internal cluster move requests, where config update semantics differ.
 		if req.Source.Refresh && clusterMoveSourceName == "" {
-			err = inst.Update(*args, instance.UpdateActionUserRefresh)
+			err = inst.Update(r.Context(), *args, instance.UpdateActionUserRefresh)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed applying refresh target instance config: %w", err))
 			}
@@ -367,10 +367,8 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 	run := func(ctx context.Context, op *operations.Operation) error {
 		defer runRevert.Fail()
 
-		sink.instance.SetOperation(op)
-
 		// And finally run the migration.
-		err = sink.Do(s, instOp)
+		err = sink.Do(ctx, instOp, op)
 		if err != nil {
 			err = fmt.Errorf("Error transferring instance data: %w", err)
 			instOp.Done(err) // Complete operation that was created earlier, to release lock.
@@ -382,7 +380,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 
 		// Start up the instance if requested by the client.
 		if req != nil && req.Start {
-			err := inst.Start(false)
+			err := inst.Start(ctx, op, false)
 			if err != nil {
 				return fmt.Errorf("Failed starting instance %q: %w", inst.Name(), err)
 			}
@@ -679,7 +677,7 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 		}
 
 		// Actually create the instance.
-		targetInst, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
+		targetInst, err := instanceCreateAsCopy(ctx, s, instanceCreateAsCopyOpts{
 			sourceInstance: source,
 			targetInstance: args,
 			// We keep the ContainerOnly for backward compatibility.
@@ -707,7 +705,7 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 			}
 		}
 
-		return instanceCreateFinish(s, req, args, targetClient)
+		return instanceCreateFinish(ctx, s, req, args, targetClient, op)
 	}
 
 	var opType operationtype.Type
@@ -979,7 +977,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		}
 
 		// Clean up created instance if the post hook fails below.
-		runRevert.Add(func() { _ = inst.Delete(true, "") })
+		runRevert.Add(func() { _ = inst.Delete(ctx, true, "", op) })
 
 		// Run the storage post hook to perform any final actions now that the instance has been created
 		// in the database (this normally includes unmounting volumes that were mounted).
@@ -993,7 +991,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		runRevert.Success()
 
-		return instanceCreateFinish(s, &req, db.InstanceArgs{Name: bInfo.Name, Project: bInfo.Project}, nil)
+		return instanceCreateFinish(ctx, s, &req, db.InstanceArgs{Name: bInfo.Name, Project: bInfo.Project}, nil, op)
 	}
 
 	args := operations.OperationArgs{
@@ -1812,7 +1810,7 @@ func clusterCopyContainerInternal(r *http.Request, s *state.State, source instan
 
 // instanceCreateFinish finalizes the creation process of an instance by starting it based on
 // the Start field of the request.
-func instanceCreateFinish(s *state.State, req *api.InstancesPost, args db.InstanceArgs, client lxd.InstanceServer) error {
+func instanceCreateFinish(ctx context.Context, s *state.State, req *api.InstancesPost, args db.InstanceArgs, client lxd.InstanceServer, op *operations.Operation) error {
 	if req == nil || !req.Start {
 		return nil
 	}
@@ -1835,5 +1833,5 @@ func instanceCreateFinish(s *state.State, req *api.InstancesPost, args db.Instan
 		return fmt.Errorf("Failed loading the instance: %w", err)
 	}
 
-	return inst.Start(false)
+	return inst.Start(ctx, op, false)
 }
