@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/canonical/lxd/client"
@@ -703,4 +704,20 @@ func (r *manualResponse) Render(w http.ResponseWriter, req *http.Request) error 
 
 func (r *manualResponse) String() string {
 	return "unknown"
+}
+
+// addVaryHeader adds a value to the Vary header if it is not already present.
+// It matches existing Vary entries case-insensitively, including comma-separated values.
+func addVaryHeader(header http.Header, value string) {
+	for _, vary := range header.Values("Vary") {
+		values := strings.Split(vary, ",")
+
+		for _, varyValue := range values {
+			if strings.EqualFold(strings.TrimSpace(varyValue), value) {
+				return
+			}
+		}
+	}
+
+	header.Add("Vary", value)
 }
