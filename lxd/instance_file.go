@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -74,13 +75,13 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 
 	switch r.Method {
 	case "GET":
-		return instanceFileGet(s, inst, path)
+		return instanceFileGet(r.Context(), s, inst, path)
 	case "HEAD":
 		return instanceFileHead(inst, path)
 	case "POST":
-		return instanceFilePost(s, inst, path, r)
+		return instanceFilePost(r.Context(), s, inst, path, r)
 	case "DELETE":
-		return instanceFileDelete(s, inst, path)
+		return instanceFileDelete(r.Context(), s, inst, path)
 	default:
 		return response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 	}
@@ -154,7 +155,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func instanceFileGet(s *state.State, inst instance.Instance, path string) response.Response {
+func instanceFileGet(ctx context.Context, s *state.State, inst instance.Instance, path string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -215,7 +216,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string) respon
 			cleanup.Fail()
 		}
 
-		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(ctx, inst, logger.Ctx{"path": path}))
 		return response.FileResponse(files, headers)
 	case "symlink":
 		// Find symlink target.
@@ -246,7 +247,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string) respon
 		files[0].FileModified = time.Now()
 		files[0].FileSize = int64(len(target))
 
-		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(ctx, inst, logger.Ctx{"path": path}))
 		return response.FileResponse(files, headers)
 	case "directory":
 		dirEnts := []string{}
@@ -261,7 +262,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string) respon
 			dirEnts = append(dirEnts, entry.Name())
 		}
 
-		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(ctx, inst, logger.Ctx{"path": path}))
 		return response.SyncResponseHeaders(true, dirEnts, headers)
 	}
 
@@ -484,7 +485,7 @@ func effectiveFileOwnership(inst instance.Instance, headers *shared.LXDFileHeade
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func instanceFilePost(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
+func instanceFilePost(ctx context.Context, s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
 	// Get a SFTP client.
 	client, err := inst.FileSFTP()
 	if err != nil {
@@ -562,7 +563,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 			}
 		}
 
-		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(ctx, inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
 	case "symlink":
 		// Figure out target.
@@ -583,7 +584,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 			return response.SmartError(fmt.Errorf("Failed creating symlink %q in instance %q: %w", path, inst.Name(), err))
 		}
 
-		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(ctx, inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
 	case "directory":
 		// Check if it already exists.
@@ -624,7 +625,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 			}
 		}
 
-		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(ctx, inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
 	}
 
@@ -662,7 +663,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func instanceFileDelete(s *state.State, inst instance.Instance, path string) response.Response {
+func instanceFileDelete(ctx context.Context, s *state.State, inst instance.Instance, path string) response.Response {
 	// Get a SFTP client.
 	client, err := inst.FileSFTP()
 	if err != nil {
@@ -677,6 +678,6 @@ func instanceFileDelete(s *state.State, inst instance.Instance, path string) res
 		return response.SmartError(fmt.Errorf("Failed removing %q in instance %q: %w", path, inst.Name(), err))
 	}
 
-	s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileDeleted.Event(inst, logger.Ctx{"path": path}))
+	s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileDeleted.Event(ctx, inst, logger.Ctx{"path": path}))
 	return response.EmptySyncResponse
 }
