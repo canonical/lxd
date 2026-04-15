@@ -35,6 +35,7 @@ How to recover a cluster:
 :titlesonly:
 
 Recover a cluster </howto/cluster_recover>
+Recover orphaned volume entries </howto/cluster_recover_volumes>
 ```
 
 How to set up a highly available virtual IP for clusters:

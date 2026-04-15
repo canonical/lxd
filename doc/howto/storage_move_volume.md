@@ -77,6 +77,7 @@ To rename a custom storage volume, navigate to its {guilabel}`Overview` page and
 ````
 `````
 
+(howto-storage-move-volume-cluster)=
 ## Copy or migrate between cluster members
 
 `````{tabs}
