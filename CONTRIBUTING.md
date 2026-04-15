@@ -51,7 +51,7 @@ Depending on complexity, large changes might be further split into smaller, logi
 
 To ensure transparency and accountability in contributions to this project, all contributors must include a **Signed-off-by** line in their commits in accordance with DCO 1.1:
 
-```
+```text
 Developer Certificate of Origin
 Version 1.1
 
@@ -99,7 +99,7 @@ git commit -s -m "Your commit message"
 
 This automatically adds the following to your commit message:
 
-```
+```text
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
