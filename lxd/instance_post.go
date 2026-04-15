@@ -471,7 +471,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				}
 			}()
 
-			return ws.Do(s, op)
+			return ws.Do(ctx, s, op)
 		}
 
 		if req.Target != nil {
@@ -523,8 +523,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Name %q already in use", req.Name))
 	}
 
-	run := func(context.Context, *operations.Operation) error {
-		return inst.Rename(req.Name, true)
+	run := func(ctx context.Context, _ *operations.Operation) error {
+		return inst.Rename(ctx, req.Name, true)
 	}
 
 	originalEntityURL := api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)
@@ -690,7 +690,7 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 		}
 
 		statefulStart = true
-		err := inst.Stop(true)
+		err := inst.Stop(ctx, true)
 		if err != nil {
 			return err
 		}
@@ -705,7 +705,7 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 	}
 
 	// Copy instance to new target instance.
-	targetInst, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
+	targetInst, err := instanceCreateAsCopy(ctx, s, instanceCreateAsCopyOpts{
 		sourceInstance:           inst,
 		targetInstance:           targetArgs,
 		instanceOnly:             req.InstanceOnly,
@@ -729,21 +729,21 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 	}
 
 	// Delete original instance.
-	err = inst.Delete(true, "")
+	err = inst.Delete(ctx, true, "", op)
 	if err != nil {
 		return err
 	}
 
 	// Rename copy from temporary name to original name if needed.
 	if tempNameRequired {
-		err = targetInst.Rename(req.Name, false) // Don't apply templates when moving.
+		err = targetInst.Rename(ctx, req.Name, false) // Don't apply templates when moving.
 		if err != nil {
 			return err
 		}
 	}
 
 	if statefulStart {
-		err = targetInst.Start(true)
+		err = targetInst.Start(ctx, op, true)
 		if err != nil {
 			return err
 		}
@@ -826,7 +826,7 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 		// running we must forcefully stop the instance on the source before starting the migration copy
 		// so that it is as consistent as possible.
 		if !stateful && srcInstRunning {
-			err := srcInst.Stop(false)
+			err := srcInst.Stop(ctx, false)
 			if err != nil {
 				return fmt.Errorf("Failed statelessly stopping instance %q: %w", srcInstName, err)
 			}
@@ -834,7 +834,7 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 
 		// Rename instance if requested.
 		if newInstName != srcInstName {
-			err = srcInst.Rename(newInstName, true)
+			err = srcInst.Rename(ctx, newInstName, true)
 			if err != nil {
 				return fmt.Errorf("Failed renaming instance %q to %q: %w", srcInstName, newInstName, err)
 			}
@@ -895,7 +895,7 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 				}
 			}()
 
-			return srcMigration.Do(s, op)
+			return srcMigration.Do(ctx, s, op)
 		}
 
 		instanceURL := api.NewURL().Path(version.APIVersion, "instances", srcInstName).Project(srcInst.Project().Name)
@@ -1083,7 +1083,7 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool stor
 		}
 
 		if srcInstName != finalName {
-			err = srcInst.Rename(finalName, true)
+			err = srcInst.Rename(ctx, finalName, true)
 			if err != nil {
 				return fmt.Errorf("Failed renaming instance %q to %q: %w", srcInstName, finalName, err)
 			}
