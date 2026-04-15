@@ -36,7 +36,7 @@ import (
 )
 
 // Create a new backup.
-func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, version uint32, op *operations.Operation) error {
+func backupCreate(ctx context.Context, s *state.State, args db.InstanceBackup, sourceInst instance.Instance, version uint32, op *operations.Operation) error {
 	projectName := sourceInst.Project().Name
 	l := logger.AddContext(logger.Ctx{"project": projectName, "instance": sourceInst.Name(), "name": args.Name})
 	l.Debug("Instance backup started")
@@ -215,7 +215,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	revert.Success()
-	s.Events.SendLifecycle(projectName, lifecycle.InstanceBackupCreated.Event(args.Name, b.Instance(), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceBackupCreated.Event(ctx, args.Name, b.Instance(), nil))
 
 	return nil
 }
@@ -381,7 +381,7 @@ func pruneExpiredInstanceBackups(ctx context.Context, s *state.State) error {
 		}
 
 		instBackup := backup.NewInstanceBackup(s, inst, b.ID, b.Name, b.CreationDate, b.ExpiryDate, b.InstanceOnly, b.OptimizedStorage)
-		err = instBackup.Delete()
+		err = instBackup.Delete(ctx)
 		if err != nil {
 			return fmt.Errorf("Error deleting instance backup %q: %w", b.Name, err)
 		}
