@@ -311,11 +311,11 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		if r.metadata != nil {
 			if r.compress {
 				comp := gzip.NewWriter(w)
-				defer comp.Close()
+				_, writeErr := comp.Write([]byte(r.metadata.(string)))
+				closeErr := comp.Close()
 
-				_, err := comp.Write([]byte(r.metadata.(string)))
-				if err != nil {
-					return err
+				if writeErr != nil || closeErr != nil {
+					return errors.Join(writeErr, closeErr)
 				}
 			} else {
 				_, err := w.Write([]byte(r.metadata.(string)))
@@ -344,9 +344,14 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	// Handle JSON compression to gzip if needed.
 	if r.compress {
 		comp := gzip.NewWriter(w)
-		defer comp.Close()
+		writeErr := util.WriteJSON(comp, resp, debugLogger)
+		closeErr := comp.Close()
 
-		return util.WriteJSON(comp, resp, debugLogger)
+		if writeErr != nil || closeErr != nil {
+			return errors.Join(writeErr, closeErr)
+		}
+
+		return nil
 	}
 
 	return util.WriteJSON(w, resp, debugLogger)
