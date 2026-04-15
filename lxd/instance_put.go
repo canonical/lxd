@@ -164,7 +164,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Update container configuration
-		do = func(_ context.Context, _ *operations.Operation) error {
+		do = func(ctx context.Context, _ *operations.Operation) error {
 			defer unlock()
 
 			args := db.InstanceArgs{
@@ -177,7 +177,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 				Project:      projectName,
 			}
 
-			err = inst.Update(args, instance.UpdateActionUser)
+			err = inst.Update(ctx, args, instance.UpdateActionUser)
 			if err != nil {
 				return err
 			}
@@ -188,10 +188,10 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		opType = operationtype.InstanceUpdate
 	} else {
 		// Snapshot Restore
-		do = func(_ context.Context, _ *operations.Operation) error {
+		do = func(ctx context.Context, op *operations.Operation) error {
 			defer unlock()
 
-			return instanceSnapRestore(s, projectName, name, configRaw)
+			return instanceSnapRestore(ctx, s, projectName, name, configRaw, op)
 		}
 
 		opType = operationtype.SnapshotRestore
@@ -214,7 +214,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func instanceSnapRestore(s *state.State, projectName string, name string, req api.InstancePut) error {
+func instanceSnapRestore(ctx context.Context, s *state.State, projectName string, name string, req api.InstancePut, op *operations.Operation) error {
 	// normalize snapshot name
 	snap := req.Restore
 	if !shared.IsSnapshot(snap) {
@@ -263,7 +263,7 @@ func instanceSnapRestore(s *state.State, projectName string, name string, req ap
 	// Generate a new `volatile.uuid.generation` to differentiate this instance restored from a snapshot from the original instance.
 	source.LocalConfig()["volatile.uuid.generation"] = uuid.New().String()
 
-	err = inst.Restore(source, req.Stateful, req.RestoreDiskVolumesMode)
+	err = inst.Restore(ctx, source, req.Stateful, req.RestoreDiskVolumesMode, op)
 	if err != nil {
 		return err
 	}
