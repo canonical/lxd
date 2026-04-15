@@ -187,7 +187,7 @@ Keys can be defined at the top of a file, or in a `myst_substitutions` option in
 
 ```{include} index.md
    :start-after: Project and community
-   :end-before: The LXD project
+   :end-before: Get involved
 ```
 
 ## Tabs
