@@ -78,7 +78,7 @@ The same applies to the `powerflex`, `pure` and `alletra` drivers.
 (storage-default-pool)=
 ### Default storage pool
 
-There is no concept of a default storage pool in LXD.
+While a storage pool named 'default' may be created during initial setup, the name carries no special significance — no pool is automatically used by default across all projects.
 
 When you create a storage volume, you must specify the storage pool to use.
 
