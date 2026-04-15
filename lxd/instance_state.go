@@ -199,9 +199,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	do := func(ctx context.Context, op *operations.Operation) error {
-		inst.SetOperation(op)
-
-		return doInstanceStatePut(inst, req)
+		return doInstanceStatePut(ctx, inst, req, op)
 	}
 
 	requestor, err := request.GetRequestor(r.Context())
@@ -290,7 +288,7 @@ func instanceActionToOptype(action string) (operationtype.Type, error) {
 	return operationtype.Unknown, fmt.Errorf("Unknown action: %q", action)
 }
 
-func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error {
+func doInstanceStatePut(ctx context.Context, inst instance.Instance, req api.InstanceStatePut, op *operations.Operation) error {
 	if req.Force {
 		// A zero timeout indicates to do a forced stop/restart.
 		req.Timeout = 0
@@ -305,30 +303,30 @@ func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error 
 	switch instancetype.InstanceAction(req.Action) {
 	case instancetype.Start:
 		if inst.IsFrozen() {
-			return inst.Unfreeze()
+			return inst.Unfreeze(ctx)
 		}
 
-		return inst.Start(req.Stateful)
+		return inst.Start(ctx, op, req.Stateful)
 	case instancetype.Stop:
 		if req.Stateful {
-			return inst.Stop(req.Stateful)
+			return inst.Stop(ctx, req.Stateful)
 		}
 
 		if req.Timeout == 0 {
-			return inst.Stop(false)
+			return inst.Stop(ctx, false)
 		}
 
 		if inst.IsFrozen() {
 			return errors.New("Cannot shutdown frozen instance (try force to stop)")
 		}
 
-		return inst.Shutdown(timeout)
+		return inst.Shutdown(ctx, timeout)
 	case instancetype.Restart:
-		return inst.Restart(timeout)
+		return inst.Restart(ctx, timeout, op)
 	case instancetype.Freeze:
-		return inst.Freeze()
+		return inst.Freeze(ctx)
 	case instancetype.Unfreeze:
-		return inst.Unfreeze()
+		return inst.Unfreeze(ctx)
 	}
 
 	return fmt.Errorf("Unknown action: %q", req.Action)
