@@ -39,6 +39,7 @@ User namespace setup </userns-idmap>
 OVN implementation </reference/ovn-internals>
 VM live migration implementation </reference/vm_live_migration_internals>
 Dqlite database for cluster state </reference/dqlite-internals>
+ZFS storage driver </reference/storage_zfs_internals>
 ```
 
 ## Related topics
