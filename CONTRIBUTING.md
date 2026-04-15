@@ -3,6 +3,7 @@
 <!-- Include start contributing -->
 
 The LXD team welcomes contributions through pull requests, issue reports, and discussions.
+
 - Contribute to the code or documentation, report bugs, or request features in the [GitHub repository](https://github.com/canonical/lxd)
 - Ask questions or join discussions in the [LXD forum](https://discourse.ubuntu.com/c/project/lxd/126).
 
