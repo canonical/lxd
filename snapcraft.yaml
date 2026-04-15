@@ -395,22 +395,6 @@ parts:
       # Apply patches from Ubuntu sources.
       QUILT_PATCHES=debian/patches quilt push -a
 
-      # On arm64, the secboot firmware (SECURE_BOOT_ENABLE=TRUE) enforces strict W^X memory
-      # protection via EFI_MEMORY_ATTRIBUTE_PROTOCOL (new in EDK2 2025.11+). This causes a
-      # Synchronous Exception when BdsDxe hands off to the grub2/shim bootloader.
-      # Fix: add $(NO_STRICTNX_COMMON_FLAGS) (i.e. --pcd PcdUninstallMemAttrProtocol=TRUE)
-      # to AAVMF_SECBOOT_FLAGS so the protocol is uninstalled before the bootloader runs.
-      # Secure Boot signature verification (SECURE_BOOT_ENABLE=TRUE) remains active; only
-      # the W^X enforcement is disabled. This mirrors exactly what the Ubuntu debian/rules
-      # already does for AAVMF_NO_SECBOOT_FLAGS and OVMF_4M_NO_SECBOOT_FLAGS, and is the
-      # fix that should be applied upstream. Note: AAVMF_SECBOOT_STRICTNX_FLAGS intentionally
-      # omits NO_STRICTNX_COMMON_FLAGS (strict W^X for future grub/shim support), so we
-      # only patch AAVMF_SECBOOT_FLAGS.
-      # https://bugs.launchpad.net/ubuntu/+source/edk2/+bug/2145095
-      if [ "$(uname -m)" = "aarch64" ]; then
-          sed -i 's/^\(AAVMF_SECBOOT_FLAGS = .*\)$/\1 $(NO_STRICTNX_COMMON_FLAGS)/' debian/rules
-      fi
-
       # Apply patches
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
       cp "${CRAFT_PROJECT_DIR}/patches/edk2-0002-logo.bmp" MdeModulePkg/Logo/Logo.bmp
