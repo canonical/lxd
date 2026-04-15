@@ -104,7 +104,7 @@ func lxcStatusCode(state liblxc.State) api.StatusCode {
 
 // lxcCreate creates the DB storage records and sets up instance devices.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
-func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
+func lxcCreate(ctx context.Context, s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -269,9 +269,9 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 	}
 
 	if d.isSnapshot {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(ctx, d, nil))
 	} else {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceCreated.Event(d, map[string]any{
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceCreated.Event(ctx, d, map[string]any{
 			"type":         api.InstanceTypeContainer,
 			"storage-pool": d.storagePool.Name(),
 			"location":     d.Location(),
@@ -1763,7 +1763,7 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	return nil
 }
 
-func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, error) {
+func (d *lxc) handleIdmappedStorage(progressReporter ioprogress.ProgressReporter) (idmap.IdmapStorageType, *idmap.IdmapSet, error) {
 	diskIdmap, err := d.DiskIdmap()
 	if err != nil {
 		return idmap.IdmapStorageNone, nil, fmt.Errorf("Set last ID map: %w", err)
@@ -1793,7 +1793,7 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 	}
 
 	d.logger.Debug("Container idmap changed, remapping")
-	d.updateProgress("Remapping container filesystem")
+	updateProgress(progressReporter, "Remapping container filesystem")
 
 	storageType, err := d.getStorageType()
 	if err != nil {
@@ -1849,12 +1849,12 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 		return idmap.IdmapStorageNone, nextIdmap, fmt.Errorf("Failed setting config key %q: %w", volatileKey, err)
 	}
 
-	d.updateProgress("")
+	updateProgress(progressReporter, "")
 	return idmapType, nextIdmap, nil
 }
 
 // Start functions.
-func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
+func (d *lxc) startCommon(ctx context.Context, progressReporter ioprogress.ProgressReporter) (revert.Hook, string, []func() error, error) {
 	postStartHooks := []func() error{}
 
 	revert := revert.New()
@@ -1916,7 +1916,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 
 	revert.Add(func() { _ = d.unmount() })
 
-	idmapType, nextIdmap, err := d.handleIdmappedStorage()
+	idmapType, nextIdmap, err := d.handleIdmappedStorage(progressReporter)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("Failed handling idmapped storage: %w", err)
 	}
@@ -2200,7 +2200,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, expiry, api.DiskVolumesModeRoot)
+		err := d.snapshot(ctx, snapName, expiry, api.DiskVolumesModeRoot, progressReporter)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
@@ -2246,7 +2246,7 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 }
 
 // Start starts the instance.
-func (d *lxc) Start(stateful bool) error {
+func (d *lxc) Start(ctx context.Context, progressReporter ioprogress.ProgressReporter, stateful bool) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -2316,7 +2316,7 @@ func (d *lxc) Start(stateful bool) error {
 	}
 
 	// Run the shared start code.
-	cleanupInstanceDevices, configPath, postStartHooks, err := d.startCommon()
+	cleanupInstanceDevices, configPath, postStartHooks, err := d.startCommon(ctx, progressReporter)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -2388,14 +2388,14 @@ func (d *lxc) Start(stateful bool) error {
 		op.Done(err) // Must come before Stop() otherwise stop will not proceed.
 
 		// Attempt to stop container.
-		_ = d.Stop(false)
+		_ = d.Stop(ctx, false)
 
 		return err
 	}
 
 	if op.Action() == operationlock.ActionStart {
 		d.logger.Info("Started instance", ctxMap)
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(ctx, d, nil))
 	}
 
 	return nil
@@ -2411,7 +2411,7 @@ func (d *lxc) OnHook(hookName string, args map[string]string) error {
 	case instance.HookStopNS:
 		return d.onStopNS(args)
 	case instance.HookStop:
-		return d.onStop(args)
+		return d.onStop(context.Background(), args)
 	default:
 		return instance.ErrNotImplemented
 	}
@@ -2578,7 +2578,7 @@ func (d *lxc) validateStartup(statusCode api.StatusCode) error {
 }
 
 // Stop functions.
-func (d *lxc) Stop(stateful bool) error {
+func (d *lxc) Stop(ctx context.Context, stateful bool) error {
 	d.logger.Debug("Stop started", logger.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Stop finished", logger.Ctx{"stateful": stateful})
 
@@ -2661,14 +2661,14 @@ func (d *lxc) Stop(stateful bool) error {
 		// Attempt to freeze the container
 		freezer := make(chan bool, 1)
 		go func() {
-			_ = d.Freeze()
+			_ = d.Freeze(ctx)
 			freezer <- true
 		}()
 
 		select {
 		case <-freezer:
 		case <-time.After(time.Second * 5):
-			_ = d.Unfreeze()
+			_ = d.Unfreeze(ctx)
 		}
 	}
 
@@ -2700,7 +2700,7 @@ func (d *lxc) Stop(stateful bool) error {
 		return errPrefix
 	} else if op.Action() == "stop" {
 		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(ctx, d, nil))
 	}
 
 	// Now handle errors from stop sequence and return to caller if wasn't completed cleanly.
@@ -2712,7 +2712,7 @@ func (d *lxc) Stop(stateful bool) error {
 }
 
 // Shutdown stops the instance.
-func (d *lxc) Shutdown(timeout time.Duration) error {
+func (d *lxc) Shutdown(ctx context.Context, timeout time.Duration) error {
 	d.logger.Debug("Shutdown started", logger.Ctx{"timeout": timeout})
 	defer d.logger.Debug("Shutdown finished", logger.Ctx{"timeout": timeout})
 
@@ -2739,7 +2739,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 
 	// If frozen, resume so the signal can be handled.
 	if d.IsFrozen() {
-		err := d.Unfreeze()
+		err := d.Unfreeze(ctx)
 		if err != nil {
 			return err
 		}
@@ -2792,7 +2792,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 
 	d.logger.Debug("Shutdown request sent to instance")
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Wait for operation lock to be Done or context to timeout. The operation lock is normally completed by
@@ -2810,7 +2810,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		return errPrefix
 	} else if op.Action() == "stop" {
 		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(ctx, d, nil))
 	}
 
 	// Now handle errors from shutdown sequence and return to caller if wasn't completed cleanly.
@@ -2822,13 +2822,13 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 }
 
 // Restart restart the instance.
-func (d *lxc) Restart(timeout time.Duration) error {
-	return d.restartCommon(d, timeout)
+func (d *lxc) Restart(ctx context.Context, timeout time.Duration, progressReporter ioprogress.ProgressReporter) error {
+	return d.restartCommon(ctx, d, timeout, progressReporter)
 }
 
 // Rebuild rebuilds the instance using the supplied image fingerprint as source.
-func (d *lxc) Rebuild(img *api.Image, op *operations.Operation) error {
-	return d.rebuildCommon(d, img, op)
+func (d *lxc) Rebuild(ctx context.Context, img *api.Image, op *operations.Operation) error {
+	return d.rebuildCommon(ctx, d, img, op)
 }
 
 // onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
@@ -2857,7 +2857,7 @@ func (d *lxc) onStopNS(args map[string]string) error {
 
 // onStop is triggered by LXC's post-stop hook once a container is shutdown and after the
 // container's namespaces have been closed.
-func (d *lxc) onStop(args map[string]string) error {
+func (d *lxc) onStop(ctx context.Context, args map[string]string) error {
 	target := args["target"]
 
 	// Validate target
@@ -2885,7 +2885,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		d.logger.Error("Failed recording last power state", logger.Ctx{"err": err})
 	}
 
-	go func(d *lxc, target string, op *operationlock.InstanceOperation) {
+	go func(ctx context.Context, d *lxc, target string, op *operationlock.InstanceOperation) {
 		d.fromHook = false
 		err = nil
 
@@ -2963,26 +2963,28 @@ func (d *lxc) onStop(args map[string]string) error {
 			}
 
 			d.logger.Info("Shut down instance", ctxMap)
-			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(ctx, d, nil))
 		}
 
 		// Reboot the container
 		if target == "reboot" {
 			// Start the container again
-			err = d.Start(false)
+			// Progress tracking here is not useful. We are in the on stop hook, which is called via lxc hook, so progress
+			// reporting would not be returned to the original client.
+			err = d.Start(ctx, nil, false)
 			if err != nil {
 				op.Done(fmt.Errorf("Failed restarting instance: %w", err))
 				return
 			}
 
-			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(ctx, d, nil))
 
 			return
 		}
 
 		// Destroy ephemeral containers
 		if d.ephemeral {
-			err = d.delete(true)
+			err = d.delete(ctx, true)
 			if err != nil {
 				op.Done(fmt.Errorf("Failed deleting ephemeral instance: %w", err))
 				return
@@ -2991,7 +2993,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Trigger a scheduler rebalance after DB changes made.
 		cgroup.TaskSchedulerTrigger(d.dbType, d.name, "stopped")
-	}(d, target, op)
+	}(ctx, d, target, op)
 
 	return nil
 }
@@ -3031,7 +3033,7 @@ func (d *lxc) cleanupDevices(instanceRunning bool, stopHookNetnsPath string) {
 }
 
 // Freeze functions.
-func (d *lxc) Freeze() error {
+func (d *lxc) Freeze(ctx context.Context) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -3076,13 +3078,13 @@ func (d *lxc) Freeze() error {
 	}
 
 	d.logger.Info("Froze container", ctxMap)
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstancePaused.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstancePaused.Event(ctx, d, nil))
 
 	return err
 }
 
 // Unfreeze unfreezes the instance.
-func (d *lxc) Unfreeze() error {
+func (d *lxc) Unfreeze(ctx context.Context) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -3124,7 +3126,7 @@ func (d *lxc) Unfreeze() error {
 	}
 
 	d.logger.Info("Unfroze container", ctxMap)
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceResumed.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceResumed.Event(ctx, d, nil))
 
 	return err
 }
@@ -3347,15 +3349,15 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface, opts ...instance.State
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *lxc) snapshot(name string, expiry *time.Time, diskVolumesMode string) error {
+func (d *lxc) snapshot(ctx context.Context, name string, expiry *time.Time, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	// Wait for any file operations to complete to have a more consistent snapshot.
 	d.stopForkfile(false)
 
-	return d.snapshotCommon(d, name, expiry, false, diskVolumesMode)
+	return d.snapshotCommon(ctx, d, name, expiry, false, diskVolumesMode, progressReporter)
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
+func (d *lxc) Snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshots are not supported for containers")
 	}
@@ -3367,11 +3369,11 @@ func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool, diskVolume
 
 	defer unlock()
 
-	return d.snapshot(name, expiry, diskVolumesMode)
+	return d.snapshot(ctx, name, expiry, diskVolumesMode, progressReporter)
 }
 
 // Restore restores a snapshot.
-func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, diskVolumesMode string) error {
+func (d *lxc) Restore(ctx context.Context, sourceContainer instance.Instance, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshot restore is not supported for containers")
 	}
@@ -3389,7 +3391,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, diskVolu
 	// This is required so we can actually unmount the container and restore its rootfs.
 	d.stopForkfile(false)
 
-	wasRunning, op, err := d.restoreCommon(d, sourceContainer, diskVolumesMode)
+	wasRunning, op, err := d.restoreCommon(ctx, d, sourceContainer, diskVolumesMode, progressReporter)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -3398,14 +3400,14 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, diskVolu
 	// Restart the container.
 	if wasRunning {
 		d.logger.Debug("Starting instance after snapshot restore")
-		err = d.Start(false)
+		err = d.Start(ctx, progressReporter, false)
 		if err != nil {
 			op.Done(err)
 			return err
 		}
 	}
 
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestored.Event(d, map[string]any{"snapshot": sourceContainer.Name()}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestored.Event(ctx, d, map[string]any{"snapshot": sourceContainer.Name()}))
 	d.logger.Info("Restored instance", ctxMap)
 
 	return nil
@@ -3428,12 +3430,12 @@ func (d *lxc) cleanup() {
 }
 
 // Delete deletes the instance.
-func (d *lxc) Delete(force bool, diskVolumesMode string) error {
-	return d.deleteCommon(d, force, diskVolumesMode)
+func (d *lxc) Delete(ctx context.Context, force bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
+	return d.deleteCommon(ctx, d, force, diskVolumesMode, progressReporter)
 }
 
 // Delete deletes the instance without creating an operation lock.
-func (d *lxc) delete(force bool) error {
+func (d *lxc) delete(ctx context.Context, force bool) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -3476,7 +3478,7 @@ func (d *lxc) delete(force bool) error {
 		} else {
 			// Remove all snapshots.
 			err := d.deleteSnapshots(func(snapInst instance.Instance) error {
-				return snapInst.(*lxc).delete(true) // Internal delete function that does not lock.
+				return snapInst.(*lxc).delete(ctx, true) // Internal delete function that does not lock.
 			})
 			if err != nil {
 				return fmt.Errorf("Failed deleting instance snapshots: %w", err)
@@ -3499,7 +3501,7 @@ func (d *lxc) delete(force bool) error {
 		}
 
 		for _, backup := range backups {
-			err = backup.Delete()
+			err = backup.Delete(ctx)
 			if err != nil {
 				return err
 			}
@@ -3532,16 +3534,16 @@ func (d *lxc) delete(force bool) error {
 	}
 
 	if d.isSnapshot {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(ctx, d, nil))
 	} else {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceDeleted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceDeleted.Event(ctx, d, nil))
 	}
 
 	return nil
 }
 
 // Rename renames the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
-func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
+func (d *lxc) Rename(ctx context.Context, newName string, applyTemplateTrigger bool) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -3672,12 +3674,12 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 		_, backupName, _ := strings.Cut(oldName, "/")
 		newName := newName + "/" + backupName
 
-		err = b.Rename(newName)
+		err = b.Rename(ctx, newName)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = b.Rename(oldName) })
+		revert.Add(func() { _ = b.Rename(context.Background(), oldName) })
 	}
 
 	// Invalidate the go-lxc cache.
@@ -3707,9 +3709,9 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 
 	d.logger.Info("Renamed instance", ctxMap)
 	if d.isSnapshot {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotRenamed.Event(ctx, d, map[string]any{"old_name": oldName}))
 	} else {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRenamed.Event(ctx, d, map[string]any{"old_name": oldName}))
 	}
 
 	revert.Success()
@@ -3742,7 +3744,7 @@ func (d *lxc) CGroupSet(key string, value string) error {
 }
 
 // Update applies updated config.
-func (d *lxc) Update(args db.InstanceArgs, actionType instance.UpdateAction) error {
+func (d *lxc) Update(ctx context.Context, args db.InstanceArgs, actionType instance.UpdateAction) error {
 	reverter := revert.New()
 	defer reverter.Fail()
 
@@ -4472,9 +4474,9 @@ func (d *lxc) Update(args db.InstanceArgs, actionType instance.UpdateAction) err
 
 	if userRequested {
 		if d.isSnapshot {
-			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotUpdated.Event(ctx, d, nil))
 		} else {
-			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(ctx, d, nil))
 		}
 	}
 
@@ -4716,7 +4718,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 }
 
 // MigrateSend controls the sending side of a migration.
-func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
+func (d *lxc) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, progressReporter ioprogress.ProgressReporter) (err error) {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
@@ -4788,7 +4790,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		}
 	}
 
-	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, d.op)
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, progressReporter)
 	if err != nil {
 		err := fmt.Errorf("Failed generating instance migration config: %w", err)
 		op.Done(err)
@@ -4923,7 +4925,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 
 		d.logger.Debug("Starting storage migration phase")
 
-		err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+		err = pool.MigrateInstance(ctx, d, filesystemConn, volSourceArgs, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -4940,7 +4942,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 			volSourceArgs.Snapshots = nil
 			rootVol.Snapshots = nil
 
-			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+			err = pool.MigrateInstance(ctx, d, filesystemConn, volSourceArgs, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -4967,7 +4969,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		}
 
 		op.Done(nil)
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceMigrated.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceMigrated.Event(ctx, d, nil))
 		return nil
 	}
 }
@@ -5008,7 +5010,7 @@ func (d *lxc) resetContainerDiskIdmap(srcIdmap *idmap.IdmapSet) error {
 
 // MigrateReceive receives the migration offer from the source and negotiates the migration options.
 // It establishes the necessary connections and transfers the filesystem and snapshots if required.
-func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
+func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveArgs, progressReporter ioprogress.ProgressReporter) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
 
@@ -5122,7 +5124,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Delete the extra local snapshots first.
 		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
-			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true, "")
+			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(ctx, true, "", progressReporter)
 			if err != nil {
 				return err
 			}
@@ -5167,7 +5169,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	g, ctx := errgroup.WithContext(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
 
 	// Start control connection monitor.
 	g.Go(func() error {
@@ -5306,7 +5308,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					}
 
 					// Create the snapshot instance.
-					_, snapInstOp, cleanup, err := instance.CreateInternal(d.state, *snapArgs, true)
+					_, snapInstOp, cleanup, err := instance.CreateInternal(ctx, d.state, *snapArgs, true)
 					if err != nil {
 						return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
 					}
@@ -5321,7 +5323,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
+		err = pool.CreateInstanceFromMigration(ctx, d, filesystemConn, volTargetArgs, progressReporter)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
@@ -5416,7 +5418,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 // ConversionReceive establishes the filesystem connection, transfers the filesystem / block volume,
 // and creates an instance from it.
-func (d *lxc) ConversionReceive(args instance.ConversionReceiveArgs) error {
+func (d *lxc) ConversionReceive(args instance.ConversionReceiveArgs, progressReporter ioprogress.ProgressReporter) error {
 	d.logger.Info("Conversion receive starting")
 	defer d.logger.Info("Conversion receive stopped")
 
@@ -5452,7 +5454,7 @@ func (d *lxc) ConversionReceive(args instance.ConversionReceiveArgs) error {
 		ConversionOptions: nil,                 // Containers do not support conversion options.
 	}
 
-	err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, d.op)
+	err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, progressReporter)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance on target: %w", err)
 	}
@@ -6017,7 +6019,7 @@ func (d *lxc) stopForkfile(force bool) {
 }
 
 // Console attaches to the instance console.
-func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
+func (d *lxc) Console(ctx context.Context, protocol string) (*os.File, chan error, error) {
 	if protocol != instance.ConsoleTypeConsole {
 		return nil, nil, fmt.Errorf("Container instances do not support %q output", protocol)
 	}
@@ -6078,13 +6080,13 @@ func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
 		_ = cmd.Process.Kill()
 	}()
 
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": instance.ConsoleTypeConsole}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsole.Event(ctx, d, logger.Ctx{"type": instance.ConsoleTypeConsole}))
 
 	return ptx, chDisconnect, nil
 }
 
 // ConsoleLog returns console log.
-func (d *lxc) ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error) {
+func (d *lxc) ConsoleLog(ctx context.Context, opts liblxc.ConsoleLogOptions) (string, error) {
 	cc, err := d.initLXC(false)
 	if err != nil {
 		return "", err
@@ -6096,16 +6098,16 @@ func (d *lxc) ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error) {
 	}
 
 	if opts.ClearLog {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsoleReset.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsoleReset.Event(ctx, d, nil))
 	} else if opts.ReadLog && opts.WriteToLogFile {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsoleRetrieved.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsoleRetrieved.Event(ctx, d, nil))
 	}
 
 	return string(msg), nil
 }
 
 // Exec executes a command inside the instance.
-func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
+func (d *lxc) Exec(ctx context.Context, req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
 	// Generate the LXC config if missing.
 	configPath := filepath.Join(d.LogPath(), "lxc.conf")
 	if !shared.PathExists(configPath) {
@@ -6207,7 +6209,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 
 	d.logger.Debug("Retrieved PID of executing child process", logger.Ctx{"attachedPid": attachedPid})
 
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceExec.Event(d, logger.Ctx{"command": req.Command}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceExec.Event(ctx, d, logger.Ctx{"command": req.Command}))
 
 	instCmd := &lxcCmd{
 		cmd:              &cmd,
