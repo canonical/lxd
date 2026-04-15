@@ -30,7 +30,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/locking"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -38,6 +37,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -61,7 +61,6 @@ type deviceManager interface {
 
 // common provides structure common to all instance types.
 type common struct {
-	op    *operations.Operation
 	state *state.State
 
 	architecture    int
@@ -209,11 +208,6 @@ func (d *common) IsStateful() bool {
 	return d.stateful
 }
 
-// Operation returns the instance's current operation.
-func (d *common) Operation() *operations.Operation {
-	return d.op
-}
-
 //
 // SECTION: general functions
 //
@@ -260,11 +254,6 @@ func (d *common) DeferTemplateApply(trigger instance.TemplateTrigger) error {
 	}
 
 	return nil
-}
-
-// SetOperation sets the current operation.
-func (d *common) SetOperation(op *operations.Operation) {
-	d.op = op
 }
 
 // Snapshots returns a list of snapshots.
@@ -1119,20 +1108,15 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	return nil
 }
 
-// updateProgress updates the operation metadata with a new progress string.
-func (d *common) updateProgress(progress string) {
-	if d.op == nil {
+func updateProgress(progressReporter ioprogress.ProgressReporter, progress string) {
+	if progressReporter == nil {
 		return
 	}
 
-	meta := d.op.Metadata()
-	if meta == nil {
-		meta = make(map[string]any)
-	}
-
-	if meta["container_progress"] != progress {
-		_ = d.op.ExtendMetadata(map[string]any{"container_progress": progress})
-	}
+	handler := progressReporter.ProgressHandler("container")
+	handler(ioprogress.ProgressData{
+		Text: progress,
+	})
 }
 
 // restoreCommon handles the common part of a restore.
