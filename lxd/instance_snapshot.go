@@ -345,8 +345,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	snapshot := func(ctx context.Context, op *operations.Operation) error {
-		inst.SetOperation(op)
-		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful, req.DiskVolumesMode)
+		return inst.Snapshot(ctx, req.Name, req.ExpiresAt, req.Stateful, req.DiskVolumesMode, op)
 	}
 
 	instanceURL := api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName)
@@ -524,7 +523,7 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 		}
 
 		// Update instance configuration
-		do = func(_ context.Context, _ *operations.Operation) error {
+		do = func(ctx context.Context, _ *operations.Operation) error {
 			args := db.InstanceArgs{
 				Architecture: snapInst.Architecture(),
 				Config:       snapInst.LocalConfig(),
@@ -538,7 +537,7 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 				Snapshot:     snapInst.IsSnapshot(),
 			}
 
-			err = snapInst.Update(args, instance.UpdateActionInternal)
+			err = snapInst.Update(ctx, args, instance.UpdateActionInternal)
 			if err != nil {
 				return err
 			}
@@ -708,7 +707,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		}
 
 		run := func(ctx context.Context, op *operations.Operation) error {
-			return ws.Do(s, op)
+			return ws.Do(ctx, s, op)
 		}
 
 		if req.Target != nil {
@@ -774,8 +773,8 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		return response.Conflict(err)
 	}
 
-	rename := func(_ context.Context, _ *operations.Operation) error {
-		return snapInst.Rename(fullName, false)
+	rename := func(ctx context.Context, _ *operations.Operation) error {
+		return snapInst.Rename(ctx, fullName, false)
 	}
 
 	originalEntityURL := api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name)
@@ -838,8 +837,8 @@ func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance)
 		diskVolumesMode = api.DiskVolumesModeRoot
 	}
 
-	remove := func(_ context.Context, _ *operations.Operation) error {
-		return snapInst.Delete(false, diskVolumesMode)
+	remove := func(ctx context.Context, op *operations.Operation) error {
+		return snapInst.Delete(ctx, false, diskVolumesMode, op)
 	}
 
 	parentName, snapName, _ := api.GetParentAndSnapshotName(snapInst.Name())
