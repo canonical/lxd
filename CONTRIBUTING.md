@@ -106,6 +106,13 @@ By including this line, you acknowledge your agreement to the DCO 1.1 for that s
 - Use a valid name and email address—anonymous contributions are not accepted.
 - Ensure your email matches the one associated with your GitHub account.
 
+If you forgot to sign off on one or more commits and the DCO check fails, you can retroactively add the sign-off to all commits on your branch with:
+
+```sh
+git rebase --signoff main
+git push --force-with-lease
+```
+
 ### Commit signature verification
 
 In addition to the sign-off requirement, contributors must also cryptographically sign their commits to verify authenticity. See: [GitHub's documentation on commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification).
