@@ -35,13 +35,14 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
 
-type evacuateStopFunc func(inst instance.Instance) error
+type evacuateStopFunc func(ctx context.Context, inst instance.Instance) error
 type evacuateMigrateFunc func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error
 
 const clusterMemberEvacuateConflictReference = "cluster-member-evacuation"
@@ -1384,7 +1385,7 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		stopFunc := func(inst instance.Instance) error {
+		stopFunc := func(ctx context.Context, inst instance.Instance) error {
 			l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
 			// Get the shutdown timeout for the instance.
@@ -1395,12 +1396,12 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Start with a clean shutdown.
-			err = inst.Shutdown(time.Duration(val) * time.Second)
+			err = inst.Shutdown(ctx, time.Duration(val)*time.Second)
 			if err != nil {
 				l.Warn("Failed shutting down instance, forcing stop", logger.Ctx{"err": err})
 
 				// Fallback to forced stop.
-				err = inst.Stop(false)
+				err = inst.Stop(ctx, false)
 				if err != nil && !errors.Is(err, instanceDrivers.ErrInstanceIsStopped) {
 					return fmt.Errorf("Failed stopping instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 				}
@@ -1439,10 +1440,7 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 
 			dest = dest.UseProject(inst.Project().Name)
 
-			if op != nil {
-				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)})
-			}
-
+			reportEvacuationProgress(op, fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name))
 			startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
 			if err != nil {
 				return err
@@ -1491,6 +1489,15 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.BadRequest(fmt.Errorf("Unknown action %q", req.Action))
+}
+
+func reportEvacuationProgress(progressReporter ioprogress.ProgressReporter, message string) {
+	if progressReporter == nil {
+		return
+	}
+
+	handler := progressReporter.ProgressHandler("evacuation")
+	handler(ioprogress.ProgressData{Text: message})
 }
 
 func evacuateClusterSetState(s *state.State, name string, state int) error {
@@ -1638,9 +1645,9 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		// Stop the instance if needed.
 		isRunning := inst.IsRunning()
 		if opts.stopInstance != nil && isRunning && (!migrate || !live) {
-			_ = opts.op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Stopping %q in project %q", inst.Name(), instProject.Name)})
+			reportEvacuationProgress(opts.op, fmt.Sprintf("Stopping %q in project %q", inst.Name(), instProject.Name))
 
-			err := opts.stopInstance(inst)
+			err := opts.stopInstance(ctx, inst)
 			if err != nil {
 				return err
 			}
@@ -1664,7 +1671,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		}
 
 		// Start migrating the instance.
-		_ = opts.op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), instProject.Name, targetMemberInfo.Name)})
+		reportEvacuationProgress(opts.op, fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), instProject.Name, targetMemberInfo.Name))
 
 		// Set origin server (but skip if already set as that suggests more than one server being evacuated).
 		if inst.LocalConfig()["volatile.evacuate.origin"] == "" {
@@ -1855,9 +1862,9 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 				}
 
 				// Start the instance.
-				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)})
+				reportEvacuationProgress(op, fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name))
 
-				err = inst.Start(false)
+				err = inst.Start(ctx, op, false)
 				if err != nil {
 					return fmt.Errorf("Failed starting instance %q: %w", inst.Name(), err)
 				}
@@ -1870,7 +1877,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 				// Check if live-migratable.
 				_, live := inst.CanMigrate()
 
-				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location())})
+				reportEvacuationProgress(op, fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location()))
 
 				err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 					sourceNode, err = tx.GetNodeByName(ctx, inst.Location())
@@ -1898,7 +1905,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 
 				isRunning := apiInst.StatusCode == api.Running
 				if isRunning && !live {
-					_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project().Name)})
+					reportEvacuationProgress(op, fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project().Name))
 
 					timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 					val, err := strconv.Atoi(timeout)
@@ -1970,7 +1977,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 					ExpiryDate:   inst.ExpiryDate(),
 				}
 
-				err = inst.Update(args, instance.UpdateActionInternal)
+				err = inst.Update(ctx, args, instance.UpdateActionInternal)
 				if err != nil {
 					return fmt.Errorf("Failed updating instance %q: %w", inst.Name(), err)
 				}
@@ -1979,9 +1986,9 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 					continue
 				}
 
-				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)})
+				reportEvacuationProgress(op, fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name))
 
-				err = inst.Start(false)
+				err = inst.Start(ctx, op, false)
 				if err != nil {
 					return fmt.Errorf("Failed starting instance %q: %w", inst.Name(), err)
 				}
