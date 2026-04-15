@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -26,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/lxd/project"
@@ -42,9 +42,6 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
-
-// Lock to prevent concurent networks creation.
-var networkCreateLock sync.Mutex
 
 var networksCmd = APIEndpoint{
 	Path:        "networks",
@@ -452,8 +449,22 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	networkCreateLock.Lock()
-	defer networkCreateLock.Unlock()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !requestor.IsClusterNotification() {
+		// Don't allow concurrent ongoing network creation requests from external API requests.
+		// This isn't perfect as concurrent requests can come into other cluster members, but we do not yet
+		// have cluster wide locking semantics.
+		unlock, err := locking.Lock(r.Context(), "networkCreateLock")
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		defer unlock()
+	}
 
 	req := api.NetworksPost{}
 
@@ -498,11 +509,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	netTypeInfo := netType.Info()
 	if projectName != api.ProjectDefaultName && !netTypeInfo.Projects {
 		return response.BadRequest(errors.New("Network type does not support non-default projects"))
-	}
-
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Check if project has limits.network and if so check we are allowed to create another network.

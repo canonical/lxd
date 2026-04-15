@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/gorilla/mux"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -32,9 +32,6 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
-
-// Lock to prevent concurent storage pools creation.
-var storagePoolCreateLock sync.Mutex
 
 var storagePoolsCmd = APIEndpoint{
 	Path:        "storage-pools",
@@ -285,13 +282,27 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	storagePoolCreateLock.Lock()
-	defer storagePoolCreateLock.Unlock()
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !requestor.IsClusterNotification() {
+		// Don't allow concurrent ongoing storage pool creation requests from external API requests.
+		// This isn't perfect as concurrent requests can come into other cluster members, but we do not yet
+		// have cluster wide locking semantics.
+		unlock, err := locking.Lock(r.Context(), "storagePoolCreateLock")
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		defer unlock()
+	}
 
 	req := api.StoragePoolsPost{}
 
 	// Parse the request.
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -318,11 +329,6 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	targetNode := request.QueryParam(r, "target")
 	if targetNode != "" {
 		ctx["target"] = targetNode
-	}
-
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	lc := lifecycle.StoragePoolCreated.Event(req.Name, requestor.EventLifecycleRequestor(), ctx)

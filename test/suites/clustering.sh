@@ -1325,6 +1325,32 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net1}"
 
+  echo "Test concurrent creation of different bridge networks."
+  net1="${net}"
+  net2="${net}2"
+
+  # Define both networks on both members.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --target node2
+
+  # Finalize both networks at the same time but routing request to different cluster members.
+  # Tests that locking logic doesn't deadlock for operatio notification requests.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" ipv4.address=none ipv6.address=none &
+  pid1=$!
+  LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net2}" ipv4.address=none ipv6.address=none &
+  pid2=$!
+  wait "${pid1}"
+  wait "${pid2}"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net1}" | grep -xF 'status: Created'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Created'
+
+  # Clean up concurrently created networks.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net1}"
+
   echo "Delete dummy interfaces."
   nsenter -n -t "${LXD_PID1}" -- ip link delete i2
   nsenter -n -t "${LXD_PID1}" -- ip link delete i1
