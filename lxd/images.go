@@ -1054,7 +1054,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 // the image. No entry in the images database will be created. This implies that
 // imageCreateinPool() should only be called when an image already exists in the
 // database and hence has already a storage volume in at least one storage pool.
-func imageCreateInPool(s *state.State, info *api.Image, storagePool string, projectName string) error {
+func imageCreateInPool(ctx context.Context, s *state.State, info *api.Image, storagePool string, projectName string) error {
 	if storagePool == "" {
 		return errors.New("No storage pool specified")
 	}
@@ -1064,7 +1064,7 @@ func imageCreateInPool(s *state.State, info *api.Image, storagePool string, proj
 		return err
 	}
 
-	err = pool.EnsureImage(info.Fingerprint, nil, projectName)
+	err = pool.EnsureImage(ctx, info.Fingerprint, projectName, nil)
 	if err != nil {
 		return err
 	}
@@ -2617,7 +2617,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 				continue
 			}
 
-			err = pool.DeleteImage(fingerprint, op)
+			err = pool.DeleteImage(ctx, fingerprint, op)
 			if err != nil {
 				logger.Error("Error deleting image from storage pool", logger.Ctx{"err": err, "pool": pool.Name(), "fingerprint": fingerprint})
 				continue
@@ -2983,7 +2983,7 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 				return fmt.Errorf("Error loading storage pool %q to delete image volume %q: %w", poolName, fingerprint, err)
 			}
 
-			err = pool.DeleteImage(fingerprint, op)
+			err = pool.DeleteImage(ctx, fingerprint, op)
 			if err != nil {
 				return fmt.Errorf("Error deleting image volume %q from storage pool %q: %w", fingerprint, pool.Name(), err)
 			}
@@ -3176,7 +3176,7 @@ func doImageDelete(isClusterNotification bool, opCreator operations.OperationSch
 
 			// Only perform the deletion of remote volumes on the server handling the request.
 			if !isClusterNotification || !pool.Driver().Info().Remote {
-				err = pool.DeleteImage(fingerprint, op)
+				err = pool.DeleteImage(ctx, fingerprint, op)
 				if err != nil {
 					return fmt.Errorf("Error deleting image %q from storage pool %q: %w", fingerprint, pool.Name(), err)
 				}
