@@ -1847,12 +1847,12 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	// Cleanup leftover images.
-	pruneLeftoverImages(d.State())
-
 	var instances []instance.Instance
 
 	if !d.os.MockMode {
+		// Cleanup leftover images.
+		pruneLeftoverImages(d.State())
+
 		// Start the scheduler
 		go deviceEventListener(d.State)
 
