@@ -1,6 +1,7 @@
 package ioprogress
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -143,7 +144,7 @@ func (pt *ProgressTracker) update(n int) {
 		}
 
 		pt.percentage = percentage
-		percentComplete = min(int64(pt.percentage)+1, 100)
+		percentComplete = int64(math.Round(percentage))
 	} else {
 		// If running in absolute mode, check that at least a second elapsed
 		interval := time.Since(*pt.last).Seconds()
