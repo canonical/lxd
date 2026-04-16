@@ -460,17 +460,17 @@ func IsNetworkVLAN(value string) error {
 	return nil
 }
 
-// IsNetworkMTU validates MTU number >= 1280 and <= 16384.
+// IsNetworkMTU validates MTU number >= 68 and <= 16384.
 // Anything below 68 and the kernel doesn't allow IPv4, anything below 1280 and the kernel doesn't allow IPv6.
-// So require an IPv6-compatible MTU as the low value and cap at the max ethernet jumbo frame size.
+// So require an IPv4-compatible MTU as the low value and cap at the max ethernet jumbo frame size.
 func IsNetworkMTU(value string) error {
 	mtu, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
 		return fmt.Errorf("Invalid MTU %q", value)
 	}
 
-	if mtu < 1280 || mtu > 16384 {
-		return fmt.Errorf("Out of MTU range (1280-16384) %q", value)
+	if mtu < 68 || mtu > 16384 {
+		return fmt.Errorf("Out of MTU range (68-16384) %q", value)
 	}
 
 	return nil
