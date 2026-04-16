@@ -15,7 +15,7 @@ jobs:
   snap:
     name: Trigger snap build
     runs-on: ubuntu-24.04
-    if: ${{ github.repository == 'canonical/lxd-pkg-snap' && github.actor != 'dependabot[bot]' }}
+    if: ${{ github.repository_owner == 'canonical' && github.actor != 'dependabot[bot]' }}
     env:
       SSH_AUTH_SOCK: /tmp/ssh_agent.sock
       PACKAGE: "lxd"
