@@ -3,6 +3,7 @@
 <!-- Include start contributing -->
 
 The LXD team welcomes contributions through pull requests, issue reports, and discussions.
+
 - Contribute to the code or documentation, report bugs, or request features in the [GitHub repository](https://github.com/canonical/lxd)
 - Ask questions or join discussions in the [LXD forum](https://discourse.ubuntu.com/c/project/lxd/126).
 
@@ -51,7 +52,7 @@ Depending on complexity, large changes might be further split into smaller, logi
 
 To ensure transparency and accountability in contributions to this project, all contributors must include a **Signed-off-by** line in their commits in accordance with DCO 1.1:
 
-```
+```text
 Developer Certificate of Origin
 Version 1.1
 
@@ -93,11 +94,13 @@ By making a contribution to this project, I certify that:
 
 Every commit must include a **Signed-off-by** line, even when part of a larger set of contributions. To do this, use the `-s` flag when committing:
 
-    git commit -s -m "Your commit message"
+```sh
+git commit -s -m "Your commit message"
+```
 
 This automatically adds the following to your commit message:
 
-```
+```text
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
@@ -105,6 +108,13 @@ By including this line, you acknowledge your agreement to the DCO 1.1 for that s
 
 - Use a valid name and email address—anonymous contributions are not accepted.
 - Ensure your email matches the one associated with your GitHub account.
+
+If you forgot to sign off on one or more commits and the DCO check fails, you can retroactively add the sign-off to all commits on your branch with:
+
+```sh
+git rebase --signoff main
+git push --force-with-lease
+```
 
 ### Commit signature verification
 
@@ -120,19 +130,25 @@ After you run any of the commands below, you'll be prompted whether to commit th
 
 If you modify any Go source files, format them:
 
-	make update-fmt
+```sh
+make update-fmt
+```
 
 #### API updates
 
 If you modify the LXD API (`shared/api`), regenerate and commit the Swagger YAML file (`doc/rest-api.yaml`) used for API reference documentation:
 
-    make update-api
+```sh
+make update-api
+```
 
 #### Configuration options updates
 
 If you add or update configuration options, regenerate and commit the documentation metadata files (`lxd/metadata/configuration.json` and `doc/metadata.txt`):
 
-    make update-metadata
+```sh
+make update-metadata
+```
 
 #### Development environment setup
 
