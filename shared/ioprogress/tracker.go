@@ -1,6 +1,7 @@
 package ioprogress
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -134,39 +135,37 @@ func (pt *ProgressTracker) update(n int) {
 	}
 
 	// Update interval handling (this is to prevent the tracker hook from being called too frequently).
-	var percentage float64
+	var percentComplete int64
 	if pt.Length > 0 {
 		// If running in relative mode, check that we increased by at least 1%
-		percentage = float64(pt.total) / float64(pt.Length) * float64(100)
+		percentage := float64(pt.total) / float64(pt.Length) * float64(100)
 		if percentage-pt.percentage < 0.9 {
 			return
 		}
+
+		pt.percentage = percentage
+		percentComplete = int64(math.Round(percentage))
 	} else {
 		// If running in absolute mode, check that at least a second elapsed
 		interval := time.Since(*pt.last).Seconds()
 		if interval < 1 {
 			return
 		}
-	}
 
-	// Determine speed
-	speedInt := int64(0)
-	duration := time.Since(*pt.start).Seconds()
-	if duration > 0 {
-		speed := float64(pt.total) / duration
-		speedInt = int64(speed)
-	}
-
-	// Determine progress
-	if pt.Length > 0 {
-		pt.percentage = percentage
-	} else {
 		// Update timestamp
 		cur := time.Now()
 		pt.last = &cur
 	}
 
-	pt.Handler(min(int64(pt.percentage)+1, 100), pt.total, speedInt)
+	// Determine speed
+	var bytesPerSecond int64
+	duration := time.Since(*pt.start).Seconds()
+	if duration > 0 {
+		speed := float64(pt.total) / duration
+		bytesPerSecond = int64(speed)
+	}
+
+	pt.Handler(percentComplete, pt.total, bytesPerSecond)
 }
 
 func (pt *ProgressTracker) buildProgressData(description string, percentage int64, bytesTransferred int64, bytesPerSecond int64) ProgressData {
