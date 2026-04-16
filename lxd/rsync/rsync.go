@@ -306,7 +306,7 @@ func Send(name string, path string, conn io.ReadWriteCloser, wrapper ioprogress.
 // Recv sets up the receiving half of the websocket to rsync (the other
 // half set up by rsync.Send), putting the contents in the directory specified
 // by path.
-func Recv(path string, conn io.ReadWriteCloser, readWrapper func(closer io.ReadCloser) io.ReadCloser, features []string) error {
+func Recv(path string, conn io.ReadWriteCloser, readWrapper ioprogress.ReaderWrapper, features []string) error {
 	args := []string{
 		"--server",
 		"-vlogDtpre.iLsfx",
