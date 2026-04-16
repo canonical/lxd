@@ -733,3 +733,33 @@ func Test_IsNetworkPortRange(t *testing.T) {
 		}
 	}
 }
+
+func TestIsNetworkMTU(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"minimum valid MTU", "68", false},
+		{"maximum valid MTU", "16384", false},
+		{"typical Ethernet MTU", "1500", false},
+		{"jumbo frame MTU", "9000", false},
+		{"minimum IPv6 MTU", "1280", false},
+		{"below minimum", "67", true},
+		{"zero", "0", true},
+		{"above maximum", "16385", true},
+		{"negative number", "-1", true},
+		{"non-numeric", "abc", true},
+		{"empty string", "", true},
+		{"float value", "1500.5", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validate.IsNetworkMTU(tt.value)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("IsNetworkMTU(%q) error = %v, wantErr %v", tt.value, err, tt.wantErr)
+			}
+		})
+	}
+}
