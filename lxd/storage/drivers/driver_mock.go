@@ -6,8 +6,8 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/revert"
 )
 
@@ -50,7 +50,7 @@ func (d *mock) Create() error {
 }
 
 // Delete removes a storage pool.
-func (d *mock) Delete(op *operations.Operation) error {
+func (d *mock) Delete(progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
@@ -80,33 +80,33 @@ func (d *mock) GetResources() (*api.ResourcesStoragePool, error) {
 }
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
-func (d *mock) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *mock) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
-func (d *mock) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func (d *mock) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (VolumePostHook, revert.Hook, error) {
 	return nil, nil, nil
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *mock) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
+func (d *mock) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *mock) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *mock) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
-func (d *mock) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
+func (d *mock) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then this function
 // will return an error.
-func (d *mock) DeleteVolume(vol Volume, op *operations.Operation) error {
+func (d *mock) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
@@ -143,7 +143,7 @@ func (d *mock) GetVolumeUsage(vol Volume) (int64, error) {
 }
 
 // SetVolumeQuota applies a size limit on volume.
-func (d *mock) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+func (d *mock) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
@@ -158,64 +158,64 @@ func (d *mock) ListVolumes() ([]Volume, error) {
 }
 
 // MountVolume simulates mounting a volume.
-func (d *mock) MountVolume(vol Volume, op *operations.Operation) error {
+func (d *mock) MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it
 // returns false indicating the volume was already unmounted.
-func (d *mock) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+func (d *mock) UnmountVolume(vol Volume, keepBlockDev bool, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	return false, nil
 }
 
 // RenameVolume renames a volume and its snapshots.
-func (d *mock) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+func (d *mock) RenameVolume(vol Volume, newVolName string, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *mock) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *mock) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
-func (d *mock) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+func (d *mock) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
-func (d *mock) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *mock) CreateVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device. The volName and snapshotName
 // must be bare names and should not be in the format "volume/snapshot".
-func (d *mock) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *mock) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
-func (d *mock) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *mock) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
-func (d *mock) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+func (d *mock) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	return true, nil
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
-func (d *mock) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *mock) VolumeSnapshots(vol Volume) ([]string, error) {
 	return nil, nil
 }
 
 // RestoreVolume restores a volume from a snapshot.
-func (d *mock) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+func (d *mock) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
 // RenameVolumeSnapshot renames a volume snapshot.
-func (d *mock) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+func (d *mock) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }

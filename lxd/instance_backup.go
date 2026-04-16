@@ -366,7 +366,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 			CompressionAlgorithm: req.CompressionAlgorithm,
 		}
 
-		err := backupCreate(s, args, inst, req.Version, op)
+		err := backupCreate(ctx, s, args, inst, req.Version, op)
 		if err != nil {
 			return fmt.Errorf("Create backup: %w", err)
 		}
@@ -566,7 +566,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	newName := name + shared.SnapshotDelimiter + newBackupName
 
 	rename := func(ctx context.Context, op *operations.Operation) error {
-		err := backup.Rename(newName)
+		err := backup.Rename(ctx, newName)
 		if err != nil {
 			return err
 		}
@@ -663,7 +663,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	remove := func(ctx context.Context, op *operations.Operation) error {
-		err := backup.Delete()
+		err := backup.Delete(ctx)
 		if err != nil {
 			return err
 		}
@@ -752,7 +752,7 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 		Path: filepath.Join(d.State().BackupsStoragePath(backup.Instance().Project().Name), "instances", project.Instance(projectName, backup.Name())),
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.InstanceBackupRetrieved.Event(fullName, backup.Instance(), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceBackupRetrieved.Event(r.Context(), fullName, backup.Instance(), nil))
 
 	return response.FileResponse([]response.FileResponseEntry{ent}, nil)
 }

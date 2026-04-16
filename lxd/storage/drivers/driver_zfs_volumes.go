@@ -27,7 +27,6 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -46,7 +45,7 @@ type sortableEntry struct {
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
 // filler function.
-func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	// Revert handling
 	revert := revert.New()
 	defer revert.Fail()
@@ -150,7 +149,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	}
 
 	// After this point we'll have a volume, so setup revert.
-	revert.Add(func() { _ = d.DeleteVolume(vol, op) })
+	revert.Add(func() { _ = d.DeleteVolume(vol, progressReporter) })
 
 	if vol.contentType == ContentTypeFS && !d.isBlockBacked(vol) {
 		// Create the filesystem dataset.
@@ -160,7 +159,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		// Apply the size limit.
-		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -247,15 +246,15 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	// For VM images, create a filesystem volume too.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := d.CreateVolume(fsVol, nil, op)
+		err := d.CreateVolume(fsVol, nil, progressReporter)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = d.DeleteVolume(fsVol, op) })
+		revert.Add(func() { _ = d.DeleteVolume(fsVol, progressReporter) })
 	}
 
-	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err := vol.MountTask(func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
 		// Run the volume filler function if supplied.
 		if filler != nil && filler.Fill != nil {
 			var err error
@@ -309,7 +308,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		return nil
-	}, op)
+	}, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -346,10 +345,10 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (VolumePostHook, revert.Hook, error) {
 	// Handle the non-optimized tarballs through the generic unpacker.
 	if !*srcBackup.OptimizedStorage {
-		return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
+		return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, progressReporter)
 	}
 
 	volExists, err := d.HasVolume(vol.Volume)
@@ -370,11 +369,11 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 		for _, snapName := range srcBackup.Snapshots {
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
 			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
-			_ = d.DeleteVolumeSnapshot(snapVol, op)
+			_ = d.DeleteVolumeSnapshot(snapVol, progressReporter)
 		}
 
 		// And lastly the main volume.
-		_ = d.DeleteVolume(vol.Volume, op)
+		_ = d.DeleteVolume(vol.Volume, progressReporter)
 	}
 
 	// Only execute the revert function if we have had an error internally.
@@ -545,15 +544,15 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 		// Only mount instance filesystem volumes for backup.yaml access.
 		if v.volType != VolumeTypeCustom && v.contentType != ContentTypeBlock {
 			// The import requires a mounted volume, so mount it and have it unmounted as a post hook.
-			err = d.MountVolume(v, op)
+			err = d.MountVolume(v, progressReporter)
 			if err != nil {
 				return nil, nil, err
 			}
 
-			revert.Add(func() { _, _ = d.UnmountVolume(v, false, op) })
+			revert.Add(func() { _, _ = d.UnmountVolume(v, false, progressReporter) })
 
 			postHook = func(postVol Volume) error {
-				_, err := d.UnmountVolume(postVol, false, op)
+				_, err := d.UnmountVolume(postVol, false, progressReporter)
 				return err
 			}
 		}
@@ -565,7 +564,7 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
+func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
 	// Revert handling
 	revert := revert.New()
 	defer revert.Fail()
@@ -578,13 +577,13 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcVol.Snapshots...)
 		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), vol.Snapshots...)
 
-		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
+		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, progressReporter)
 		if err != nil {
 			return err
 		}
 
 		// Delete on revert.
-		revert.Add(func() { _ = d.DeleteVolume(fsVol.Volume, op) })
+		revert.Add(func() { _ = d.DeleteVolume(fsVol.Volume, progressReporter) })
 	}
 
 	// Rebase mode is only used for instance copies when enabled.
@@ -678,7 +677,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 	}
 
 	// Delete the volume created on failure.
-	revert.Add(func() { _ = d.DeleteVolume(vol.Volume, op) })
+	revert.Add(func() { _ = d.DeleteVolume(vol.Volume, progressReporter) })
 
 	if fullCopy {
 		_, snapName, found := strings.Cut(srcSnapshot, "@")
@@ -899,9 +898,9 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		}
 
 		// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
-		err := vol.MountTask(func(_ string, _ *operations.Operation) error {
+		err := vol.MountTask(func(_ string, _ ioprogress.ProgressReporter) error {
 			return vol.EnsureMountPath()
-		}, op)
+		}, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -918,7 +917,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
 	// to give the caller more control over the size being used.
-	err = d.SetVolumeQuota(vol.Volume, vol.config["size"], allowUnsafeResize, op)
+	err = d.SetVolumeQuota(vol.Volume, vol.config["size"], allowUnsafeResize, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -929,10 +928,10 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	// Handle simple rsync and block_and_rsync through generic.
 	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
-		_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+		_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, progressReporter)
 		return err
 	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
@@ -960,7 +959,7 @@ func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 
 	// If we're refreshing, send back all snapshots of the target.
 	if volTargetArgs.Refresh && slices.Contains(volTargetArgs.MigrationType.Features, migration.ZFSFeatureMigrationHeader) {
-		snapshots, err := vol.Volume.Snapshots(op)
+		snapshots, err := vol.Volume.Snapshots(progressReporter)
 		if err != nil {
 			return fmt.Errorf("Failed getting volume snapshots: %w", err)
 		}
@@ -1015,7 +1014,7 @@ func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 		if !volumeOnly && len(respSnapshots) > 0 && len(migrationHeader.SnapshotDatasets) > 0 && respSnapshots[0].GUID != migrationHeader.SnapshotDatasets[0].GUID {
 			for _, snapVol := range snapshots {
 				// Delete
-				err = d.DeleteVolume(snapVol, op)
+				err = d.DeleteVolume(snapVol, progressReporter)
 				if err != nil {
 					return err
 				}
@@ -1045,7 +1044,7 @@ func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 
 				if targetOnlySnapshot {
 					// Delete
-					err = d.DeleteVolume(snapVol, op)
+					err = d.DeleteVolume(snapVol, progressReporter)
 					if err != nil {
 						return err
 					}
@@ -1078,13 +1077,13 @@ func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 		}
 	}
 
-	return d.createVolumeFromMigrationOptimized(vol.Volume, conn, volTargetArgs, volumeOnly, preFiller, op)
+	return d.createVolumeFromMigrationOptimized(vol.Volume, conn, volTargetArgs, volumeOnly, preFiller, progressReporter)
 }
 
-func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, volumeOnly bool, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, volumeOnly bool, preFiller *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := d.createVolumeFromMigrationOptimized(fsVol, conn, volTargetArgs, volumeOnly, preFiller, op)
+		err := d.createVolumeFromMigrationOptimized(fsVol, conn, volTargetArgs, volumeOnly, preFiller, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -1095,14 +1094,14 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 
 	// Rollback to the latest identical snapshot if performing a refresh.
 	if volTargetArgs.Refresh {
-		snapshots, err = vol.Snapshots(op)
+		snapshots, err = vol.Snapshots(progressReporter)
 		if err != nil {
 			return err
 		}
 
 		if len(snapshots) > 0 {
 			lastIdenticalSnapshot := snapshots[len(snapshots)-1]
-			err = d.restoreVolume(vol, lastIdenticalSnapshot, true, op)
+			err = d.restoreVolume(vol, lastIdenticalSnapshot, true, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -1127,28 +1126,28 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 				return err
 			}
 
-			wrapper := ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", snapVol.Name(), op))
+			wrapper := ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", snapVol.Name(), progressReporter))
 
 			err = d.receiveDataset(snapVol, conn, wrapper)
 			if err != nil {
-				_ = d.DeleteVolume(snapVol, op)
+				_ = d.DeleteVolume(snapVol, progressReporter)
 				return fmt.Errorf("Failed receiving snapshot volume %q: %w", snapVol.Name(), err)
 			}
 
 			revert.Add(func() {
-				_ = d.DeleteVolumeSnapshot(snapVol, op)
+				_ = d.DeleteVolumeSnapshot(snapVol, progressReporter)
 			})
 		}
 	}
 
 	if !volTargetArgs.Refresh {
 		revert.Add(func() {
-			_ = d.DeleteVolume(vol, op)
+			_ = d.DeleteVolume(vol, progressReporter)
 		})
 	}
 
 	// Transfer the main volume.
-	wrapper := ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, op))
+	wrapper := ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, progressReporter))
 	err = d.receiveDataset(vol, conn, wrapper)
 	if err != nil {
 		return fmt.Errorf("Failed receiving volume %q: %w", vol.Name(), err)
@@ -1217,7 +1216,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 			}
 
 			// Apply the size limit.
-			err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
+			err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -1253,24 +1252,24 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 }
 
 // CreateVolumeFromImage creates volume from image by using createVolumeFromImage utility function.
-func (d *zfs) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error {
-	return createVolumeFromImage(vol, imgVol, filler, op)
+func (d *zfs) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+	return createVolumeFromImage(vol, imgVol, filler, progressReporter)
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
-func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
+func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
 	var err error
 	var targetSnapshots []Volume
 	var srcSnapshotsAll []Volume
 
 	if !srcVol.IsSnapshot() {
 		// Get target snapshots
-		targetSnapshots, err = vol.Volume.Snapshots(op)
+		targetSnapshots, err = vol.Volume.Snapshots(progressReporter)
 		if err != nil {
 			return fmt.Errorf("Failed getting target snapshots: %w", err)
 		}
 
-		srcSnapshotsAll, err = srcVol.Volume.Snapshots(op)
+		srcSnapshotsAll, err = srcVol.Volume.Snapshots(progressReporter)
 		if err != nil {
 			return fmt.Errorf("Failed getting source snapshots: %w", err)
 		}
@@ -1289,12 +1288,12 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 	// We cannot use generic vfs volume copy here, as zfs will complain if a generic
 	// copy/refresh is followed by an optimized refresh.
 	if len(targetSnapshots) == 0 || len(srcSnapshotsAll) == 0 {
-		err = d.DeleteVolume(vol.Volume, op)
+		err = d.DeleteVolume(vol.Volume, progressReporter)
 		if err != nil {
 			return err
 		}
 
-		return d.CreateVolumeFromCopy(vol, srcVol, false, op)
+		return d.CreateVolumeFromCopy(vol, srcVol, false, progressReporter)
 	}
 
 	transfer := func(src Volume, target Volume, origin Volume) error {
@@ -1386,7 +1385,7 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 	_, lastIdenticalSnapshotOnlyName, _ := api.GetParentAndSnapshotName(lastIdenticalSnapshot.Name())
 
 	// Rollback target volume to the latest identical snapshot
-	err = d.RestoreVolume(vol.Volume, lastIdenticalSnapshot, op)
+	err = d.RestoreVolume(vol.Volume, lastIdenticalSnapshot, progressReporter)
 	if err != nil {
 		return fmt.Errorf("Failed restoring volume: %w", err)
 	}
@@ -1418,7 +1417,7 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 			// refresh instead.
 			if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
 				d.logger.Debug("Cannot perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
-				_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+				_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, progressReporter)
 				return err
 			}
 
@@ -1436,7 +1435,7 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 				// refresh instead.
 				if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
 					d.logger.Debug("Cannot perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
-					_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+					_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, progressReporter)
 					return err
 				}
 
@@ -1453,7 +1452,7 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 		return err
 	}
 
-	err = d.CreateVolumeSnapshot(srcSnap, op)
+	err = d.CreateVolumeSnapshot(srcSnap, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -1466,7 +1465,7 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 		// refresh instead.
 		if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
 			d.logger.Debug("Cannot perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
-			_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+			_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, progressReporter)
 			return err
 		}
 
@@ -1484,7 +1483,7 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 			// refresh instead.
 			if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
 				d.logger.Debug("Cannot perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
-				_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+				_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, progressReporter)
 				return err
 			}
 
@@ -1493,13 +1492,13 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 	}
 
 	// Restore target volume from main source snapshot.
-	err = d.RestoreVolume(vol.Volume, srcSnap, op)
+	err = d.RestoreVolume(vol.Volume, srcSnap, progressReporter)
 	if err != nil {
 		return err
 	}
 
 	// Delete temporary source snapshot.
-	err = d.DeleteVolumeSnapshot(srcSnap, op)
+	err = d.DeleteVolumeSnapshot(srcSnap, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -1510,7 +1509,7 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 		return err
 	}
 
-	err = d.DeleteVolumeSnapshot(targetSnap, op)
+	err = d.DeleteVolumeSnapshot(targetSnap, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -1521,7 +1520,7 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
 // this function will return an error.
 // For image volumes, both filesystem and block volumes will be removed.
-func (d *zfs) DeleteVolume(vol Volume, op *operations.Operation) error {
+func (d *zfs) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	if vol.volType == VolumeTypeImage {
 		// We need to clone vol the otherwise changing `zfs.block_mode`
 		// in tmpVol will also change it in vol.
@@ -1530,17 +1529,17 @@ func (d *zfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 		for _, filesystem := range blockBackedAllowedFilesystems {
 			tmpVol.config["block.filesystem"] = filesystem
 
-			err := d.deleteVolume(tmpVol, op)
+			err := d.deleteVolume(tmpVol, progressReporter)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	return d.deleteVolume(vol, op)
+	return d.deleteVolume(vol, progressReporter)
 }
 
-func (d *zfs) deleteVolume(vol Volume, op *operations.Operation) error {
+func (d *zfs) deleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	dataset := d.dataset(vol, false)
 
 	// Check that we have a dataset to delete.
@@ -1587,7 +1586,7 @@ func (d *zfs) deleteVolume(vol Volume, op *operations.Operation) error {
 	// For VMs, also delete the filesystem dataset.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := d.DeleteVolume(fsVol, op)
+		err := d.DeleteVolume(fsVol, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -1795,7 +1794,7 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota sets the quota/reservation on the volume.
 // Does nothing if supplied with an empty/zero size for block volumes.
-func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, progressReporter ioprogress.ProgressReporter) error {
 	dataset := d.dataset(vol, false)
 
 	// Convert to bytes.
@@ -1913,14 +1912,14 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as
 		// it is expected the caller will do all necessary post resize actions themselves).
 		if vol.IsVMBlock() && !allowUnsafeResize {
-			err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+			err = vol.MountTask(func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
 				devPath, err := d.GetVolumeDiskPath(vol)
 				if err != nil {
 					return err
 				}
 
 				return d.moveGPTAltHeader(devPath)
-			}, op)
+			}, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -2296,7 +2295,7 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
-func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
+func (d *zfs) MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	unlock, err := vol.MountLock()
 	if err != nil {
 		return err
@@ -2380,7 +2379,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 		if vol.IsVMBlock() {
 			// For VMs, also mount the filesystem dataset.
 			fsVol := vol.NewVMBlockFilesystemVolume()
-			err = d.MountVolume(fsVol, op)
+			err = d.MountVolume(fsVol, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -2394,7 +2393,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 
 // UnmountVolume unmounts volume if mounted and not in use. Returns true if this unmounted the volume.
 // keepBlockDev indicates if backing block device should be not be deactivated when volume is unmounted.
-func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	unlock, err := vol.MountLock()
 	if err != nil {
 		return false, err
@@ -2447,7 +2446,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 		// For VMs, also unmount the filesystem dataset.
 		if vol.IsVMBlock() {
 			fsVol := vol.NewVMBlockFilesystemVolume()
-			ourUnmount, err = d.UnmountVolume(fsVol, false, op)
+			ourUnmount, err = d.UnmountVolume(fsVol, false, progressReporter)
 			if err != nil {
 				return false, err
 			}
@@ -2471,7 +2470,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 }
 
 // RenameVolume renames a volume and its snapshots.
-func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+func (d *zfs) RenameVolume(vol Volume, newVolName string, progressReporter ioprogress.ProgressReporter) error {
 	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolName, vol.config, vol.poolConfig)
 
 	// Revert handling.
@@ -2479,13 +2478,13 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 	defer revert.Fail()
 
 	// First rename the VFS paths.
-	err := genericVFSRenameVolume(d, vol, newVolName, op)
+	err := genericVFSRenameVolume(d, vol, newVolName)
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		_ = genericVFSRenameVolume(d, newVol, vol.name, op)
+		_ = genericVFSRenameVolume(d, newVol, vol.name)
 	})
 
 	// Rename the ZFS datasets.
@@ -2509,14 +2508,14 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 	// For VM images, create a filesystem volume too.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := d.RenameVolume(fsVol, newVolName, op)
+		err := d.RenameVolume(fsVol, newVolName, progressReporter)
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
 			newFsVol := NewVolume(d, d.name, newVol.volType, ContentTypeFS, newVol.name, newVol.config, newVol.poolConfig)
-			_ = d.RenameVolume(newFsVol, vol.name, op)
+			_ = d.RenameVolume(newFsVol, vol.name, progressReporter)
 		})
 	}
 
@@ -2562,19 +2561,19 @@ func (d *zfs) DelegateVolume(vol Volume, pid int) error {
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	if !volSrcArgs.AllowInconsistent && vol.contentType == ContentTypeFS && vol.IsBlockBacked() {
 		// When migrating using zfs volumes (not datasets), ensure that the filesystem is synced
 		// otherwise the source and target volumes may differ. Tests have shown that only calling
 		// os.SyncFS() doesn't suffice. A freeze and unfreeze is needed.
-		err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		err := vol.MountTask(func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
 			unfreezeFS, err := d.filesystemFreeze(mountPath)
 			if err != nil {
 				return err
 			}
 
 			return unfreezeFS()
-		}, op)
+		}, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -2597,7 +2596,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 			vol.mountCustomPath = snapshotPath
 		}
 
-		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
+		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, progressReporter)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
 	}
@@ -2612,7 +2611,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 
 	// The target will validate the GUIDs and if successful proceed with the refresh.
 	if slices.Contains(volSrcArgs.MigrationType.Features, migration.ZFSFeatureMigrationHeader) {
-		snapshots, err := d.VolumeSnapshots(vol.Volume, op)
+		snapshots, err := d.VolumeSnapshots(vol.Volume)
 		if err != nil {
 			return err
 		}
@@ -2686,13 +2685,13 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 		}
 	}
 
-	return d.migrateVolumeOptimized(vol.Volume, conn, volSrcArgs, incrementalStream, op)
+	return d.migrateVolumeOptimized(vol.Volume, conn, volSrcArgs, incrementalStream, progressReporter)
 }
 
-func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, incremental bool, op *operations.Operation) error {
+func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, incremental bool, progressReporter ioprogress.ProgressReporter) error {
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := d.migrateVolumeOptimized(fsVol, conn, volSrcArgs, incremental, op)
+		err := d.migrateVolumeOptimized(fsVol, conn, volSrcArgs, incremental, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -2708,7 +2707,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 		// Figure out parent and current subvolumes.
 		parent := ""
 		if i == 0 && volSrcArgs.Refresh {
-			snapshots, err := vol.Snapshots(op)
+			snapshots, err := vol.Snapshots(progressReporter)
 			if err != nil {
 				return err
 			}
@@ -2731,7 +2730,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 		// Setup progress tracking.
 		var writerWrapper ioprogress.WriterWrapper
 		if volSrcArgs.TrackProgress {
-			writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", snapshot.name, op))
+			writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", snapshot.name, progressReporter))
 		}
 
 		// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
@@ -2746,7 +2745,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 	// Setup progress tracking.
 	var writerWrapper ioprogress.WriterWrapper
 	if volSrcArgs.TrackProgress {
-		writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, op))
+		writerWrapper = ioprogress.NewProgressWriterWrapper(ioprogress.WithDescriptiveProgressReporter("fs", vol.name, progressReporter))
 	}
 
 	srcSnapshot := d.dataset(vol, false)
@@ -2769,7 +2768,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 
 	// Get parent snapshot of the main volume which can then be used to send an incremental stream.
 	if volSrcArgs.Refresh && incremental {
-		localSnapshots, err := vol.Snapshots(op)
+		localSnapshots, err := vol.Snapshots(progressReporter)
 		if err != nil {
 			return err
 		}
@@ -2843,7 +2842,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *zfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+func (d *zfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, progressReporter ioprogress.ProgressReporter) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
 		// Because the generic backup method will not take a consistent backup if files are being modified
@@ -2862,14 +2861,14 @@ func (d *zfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instan
 			vol.mountCustomPath = snapshotPath
 		}
 
-		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
+		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, progressReporter)
 	}
 
 	// Optimized backup.
 
 	if len(snapshots) > 0 {
 		// Check requested snapshot match those in storage.
-		err := d.CheckVolumeSnapshots(vol.Volume, vol.Snapshots, op)
+		err := d.CheckVolumeSnapshots(vol.Volume, vol.Snapshots)
 		if err != nil {
 			return err
 		}
@@ -2878,7 +2877,7 @@ func (d *zfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instan
 	// Backup VM config volumes first.
 	if vol.IsVMBlock() {
 		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
-		err := d.BackupVolume(fsVol, projectName, tarWriter, optimized, snapshots, op)
+		err := d.BackupVolume(fsVol, projectName, tarWriter, optimized, snapshots, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -3011,7 +3010,7 @@ func (d *zfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instan
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
-func (d *zfs) CreateVolumeSnapshot(vol Volume, op *operations.Operation) error {
+func (d *zfs) CreateVolumeSnapshot(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	parentName, _, _ := api.GetParentAndSnapshotName(vol.name)
 
 	// Revert handling.
@@ -3036,17 +3035,17 @@ func (d *zfs) CreateVolumeSnapshot(vol Volume, op *operations.Operation) error {
 		return err
 	}
 
-	revert.Add(func() { _ = d.DeleteVolumeSnapshot(vol, op) })
+	revert.Add(func() { _ = d.DeleteVolumeSnapshot(vol, progressReporter) })
 
 	// For VM images, create a filesystem volume too.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := d.CreateVolumeSnapshot(fsVol, op)
+		err := d.CreateVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = d.DeleteVolumeSnapshot(fsVol, op) })
+		revert.Add(func() { _ = d.DeleteVolumeSnapshot(fsVol, progressReporter) })
 	}
 
 	// All done.
@@ -3056,7 +3055,7 @@ func (d *zfs) CreateVolumeSnapshot(vol Volume, op *operations.Operation) error {
 }
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device.
-func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
+func (d *zfs) DeleteVolumeSnapshot(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	parentName, _, _ := api.GetParentAndSnapshotName(vol.name)
 
 	dataset := d.dataset(vol, false)
@@ -3096,7 +3095,7 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 	// For VM images, create a filesystem volume too.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := d.DeleteVolumeSnapshot(fsVol, op)
+		err := d.DeleteVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -3106,7 +3105,7 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 }
 
 // MountVolumeSnapshot simulates mounting a volume snapshot.
-func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *zfs) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	unlock, err := snapVol.MountLock()
 	if err != nil {
 		return err
@@ -3114,7 +3113,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 
 	defer unlock()
 
-	_, err = d.mountVolumeSnapshot(snapVol, d.dataset(snapVol, false), snapVol.MountPath(), op)
+	_, err = d.mountVolumeSnapshot(snapVol, d.dataset(snapVol, false), snapVol.MountPath(), progressReporter)
 	if err != nil {
 		return err
 	}
@@ -3123,7 +3122,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 	return nil
 }
 
-func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountPath string, op *operations.Operation) (revert.Hook, error) {
+func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountPath string, progressReporter ioprogress.ProgressReporter) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -3149,12 +3148,12 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 		parent, snapshotOnlyName, _ := api.GetParentAndSnapshotName(snapVol.Name())
 		parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
 
-		err := d.MountVolume(parentVol, op)
+		err := d.MountVolume(parentVol, progressReporter)
 		if err != nil {
 			return nil, err
 		}
 
-		revert.Add(func() { _, _ = d.UnmountVolume(parentVol, false, op) })
+		revert.Add(func() { _, _ = d.UnmountVolume(parentVol, false, progressReporter) })
 
 		parentDataset := d.dataset(parentVol, false)
 
@@ -3263,7 +3262,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 		if snapVol.IsVMBlock() {
 			// For VMs, also mount the filesystem dataset.
 			fsVol := snapVol.NewVMBlockFilesystemVolume()
-			err = d.MountVolumeSnapshot(fsVol, op)
+			err = d.MountVolumeSnapshot(fsVol, progressReporter)
 			if err != nil {
 				return nil, err
 			}
@@ -3287,7 +3286,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 }
 
 // UnmountVolumeSnapshot simulates unmounting a volume snapshot.
-func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	unlock, err := snapVol.MountLock()
 	if err != nil {
 		return false, err
@@ -3306,7 +3305,7 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 		// For VMs, also mount the filesystem dataset.
 		if snapVol.IsVMBlock() {
 			fsSnapVol := snapVol.NewVMBlockFilesystemVolume()
-			ourUnmount, err = d.UnmountVolumeSnapshot(fsSnapVol, op)
+			ourUnmount, err = d.UnmountVolumeSnapshot(fsSnapVol, progressReporter)
 			if err != nil {
 				return false, err
 			}
@@ -3367,7 +3366,7 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 			d.logger.Debug("Deactivated ZFS snapshot volume", logger.Ctx{"dev": snapshotDataset})
 
 			// Ensure snap volume parent is deactivated in case we activated it when mounting snapshot.
-			_, err = d.UnmountVolume(parentVol, false, op)
+			_, err = d.UnmountVolume(parentVol, false, progressReporter)
 			if err != nil {
 				return false, err
 			}
@@ -3393,7 +3392,7 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
-func (d *zfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *zfs) VolumeSnapshots(vol Volume) ([]string, error) {
 	// Get all children datasets.
 	entries, err := d.getDatasets(d.dataset(vol, false), "snapshot")
 	if err != nil {
@@ -3413,11 +3412,11 @@ func (d *zfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, e
 }
 
 // RestoreVolume restores a volume from a snapshot.
-func (d *zfs) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
-	return d.restoreVolume(vol, snapVol, false, op)
+func (d *zfs) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
+	return d.restoreVolume(vol, snapVol, false, progressReporter)
 }
 
-func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, op *operations.Operation) error {
+func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, progressReporter ioprogress.ProgressReporter) error {
 	// Get the list of snapshots.
 	entries, err := d.getDatasets(d.dataset(vol, false), "snapshot")
 	if err != nil {
@@ -3515,7 +3514,7 @@ func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, op *oper
 	if !migration && vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 		fsSnapVol := snapVol.NewVMBlockFilesystemVolume()
-		err := d.restoreVolume(fsVol, fsSnapVol, migration, op)
+		err := d.restoreVolume(fsVol, fsSnapVol, migration, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -3525,7 +3524,7 @@ func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, op *oper
 }
 
 // RenameVolumeSnapshot renames a volume snapshot.
-func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *operations.Operation) error {
+func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, progressReporter ioprogress.ProgressReporter) error {
 	parentName, _, _ := api.GetParentAndSnapshotName(vol.name)
 	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, parentName+"/"+newSnapshotName, vol.config, vol.poolConfig)
 
@@ -3534,13 +3533,13 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 	defer revert.Fail()
 
 	// First rename the VFS paths.
-	err := genericVFSRenameVolumeSnapshot(d, vol, newSnapshotName, op)
+	err := genericVFSRenameVolumeSnapshot(d, vol, newSnapshotName, progressReporter)
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		_ = genericVFSRenameVolumeSnapshot(d, newVol, vol.name, op)
+		_ = genericVFSRenameVolumeSnapshot(d, newVol, vol.name, progressReporter)
 	})
 
 	// Rename the ZFS datasets.
@@ -3556,14 +3555,14 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 	// For VM images, create a filesystem volume too.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := d.RenameVolumeSnapshot(fsVol, newSnapshotName, op)
+		err := d.RenameVolumeSnapshot(fsVol, newSnapshotName, progressReporter)
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
 			newFsVol := NewVolume(d, d.name, newVol.volType, ContentTypeFS, newVol.name, newVol.config, newVol.poolConfig)
-			_ = d.RenameVolumeSnapshot(newFsVol, vol.name, op)
+			_ = d.RenameVolumeSnapshot(newFsVol, vol.name, progressReporter)
 		})
 	}
 

@@ -72,13 +72,13 @@ func storagePoolVolumeUpdateUsers(ctx context.Context, s *state.State, projectNa
 			Snapshot:     inst.IsSnapshot(),
 		}
 
-		err = inst.Update(args, instance.UpdateActionInternal)
+		err = inst.Update(ctx, args, instance.UpdateActionInternal)
 		if err != nil {
 			return nil, err
 		}
 
 		revert.Add(func() {
-			err := inst.Update(instancesOldArgs[i], instance.UpdateActionInternal)
+			err := inst.Update(ctx, instancesOldArgs[i], instance.UpdateActionInternal)
 			if err != nil {
 				logger.Error("Failed reverting instance update", logger.Ctx{"project": instancesOldArgs[i].Project, "instance": instancesOldArgs[i].Name, "error": err})
 			}

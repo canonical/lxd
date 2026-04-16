@@ -1,6 +1,9 @@
 package lifecycle
 
 import (
+	"context"
+
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -17,20 +20,15 @@ const (
 )
 
 // Event creates the lifecycle event for an action on an instance backup.
-func (a InstanceBackupAction) Event(fullBackupName string, inst instance, ctx map[string]any) api.EventLifecycle {
+func (a InstanceBackupAction) Event(ctx context.Context, fullBackupName string, inst instance, eventCtx map[string]any) api.EventLifecycle {
 	_, backupName, _ := api.GetParentAndSnapshotName(fullBackupName)
 
 	u := api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "backups", backupName).Project(inst.Project().Name)
 
-	var requestor *api.EventLifecycleRequestor
-	if inst.Operation() != nil {
-		requestor = inst.Operation().EventLifecycleRequestor()
-	}
-
 	return api.EventLifecycle{
 		Action:    string(a),
 		Source:    u.String(),
-		Context:   ctx,
-		Requestor: requestor,
+		Context:   eventCtx,
+		Requestor: request.CreateRequestor(ctx),
 	}
 }

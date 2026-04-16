@@ -140,7 +140,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		if req.Source.Type == api.SourceTypeNone {
-			return instanceRebuildFromEmpty(inst, op)
+			return instanceRebuildFromEmpty(ctx, inst, op)
 		}
 
 		if req.Source.Server != "" {

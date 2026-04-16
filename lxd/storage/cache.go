@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared/ioprogress"
 )
 
 // storageCache is used to cache pools and volumes.
@@ -67,7 +67,7 @@ func (s *storageCache) GetPool(name string) (Pool, error) {
 
 // getVolume returns the volume's backup config either by loading it from the DB or from the cache (preferred).
 // If snapshots is true the volume's snapshots are included in the returned backup config.
-func (s *storageCache) getVolume(projectName string, poolName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Volume, error) {
+func (s *storageCache) getVolume(projectName string, poolName string, volName string, snapshots bool, progressReporter ioprogress.ProgressReporter) (*backupConfig.Volume, error) {
 	// Create pool cache.
 	_, ok := s.volumes[poolName]
 	if !ok {
@@ -87,7 +87,7 @@ func (s *storageCache) getVolume(projectName string, poolName string, volName st
 			return nil, fmt.Errorf("Failed retrieving pool of volume %q in pool %q: %w", volName, poolName, err)
 		}
 
-		volConfig, err := pool.GenerateCustomVolumeBackupConfig(projectName, volName, snapshots, op)
+		volConfig, err := pool.GenerateCustomVolumeBackupConfig(projectName, volName, snapshots, progressReporter)
 		if err != nil {
 			return nil, fmt.Errorf("Failed generating backup config of volume %q in pool %q and project %q: %w", volName, poolName, projectName, err)
 		}

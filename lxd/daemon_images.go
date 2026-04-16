@@ -320,7 +320,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		// Import the image in the pool.
 		l.Debug("Image does not exist on storage pool")
 
-		err = imageCreateInPool(s, info, args.StoragePool, args.ProjectName)
+		err = imageCreateInPool(ctx, s, info, args.StoragePool, args.ProjectName)
 		if err != nil {
 			l.Debug("Failed creating image on storage pool", logger.Ctx{"err": err})
 			return nil, fmt.Errorf("Failed creating image %q on storage pool %q: %w", info.Fingerprint, args.StoragePool, err)
@@ -601,7 +601,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 	// Import into the requested storage pool
 	if args.StoragePool != "" {
-		err = imageCreateInPool(s, info, args.StoragePool, args.ProjectName)
+		err = imageCreateInPool(ctx, s, info, args.StoragePool, args.ProjectName)
 		if err != nil {
 			return nil, err
 		}

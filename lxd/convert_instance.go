@@ -68,7 +68,7 @@ func (s *conversionSink) Metadata() map[string]any {
 // Do performs the conversion operation on the target side (sink) for the given
 // state and instance operation. It sets up the necessary websocket connection
 // for filesystem, and then receives the conversion data.
-func (s *conversionSink) Do(state *state.State, instOp *operationlock.InstanceOperation) error {
+func (s *conversionSink) Do(state *state.State, instOp *operationlock.InstanceOperation, op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name()})
 
 	defer l.Info("Conversion channels disconnected on target")
@@ -96,7 +96,7 @@ func (s *conversionSink) Do(state *state.State, instOp *operationlock.InstanceOp
 		ConversionOptions: s.conversionOptions,
 	}
 
-	err := s.instance.ConversionReceive(args)
+	err := s.instance.ConversionReceive(args, op)
 	if err != nil {
 		l.Error("Failed conversion on target", logger.Ctx{"err": err})
 		return fmt.Errorf("Failed conversion on target: %w", err)

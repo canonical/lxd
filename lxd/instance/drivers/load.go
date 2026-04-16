@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -136,12 +137,12 @@ func validDevices(state *state.State, p api.Project, instanceType instancetype.T
 	return nil
 }
 
-func create(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
+func create(ctx context.Context, s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
 	switch args.Type {
 	case instancetype.Container:
-		return lxcCreate(s, args, p)
+		return lxcCreate(ctx, s, args, p)
 	case instancetype.VM:
-		return qemuCreate(s, args, p)
+		return qemuCreate(ctx, s, args, p)
 	}
 
 	return nil, nil, errors.New("Instance type invalid")

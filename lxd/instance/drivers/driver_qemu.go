@@ -196,7 +196,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 
 // qemuCreate creates a new storage volume record and returns an initialised Instance.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
-func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
+func qemuCreate(ctx context.Context, s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -314,9 +314,9 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 	}
 
 	if d.isSnapshot {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(ctx, d, nil))
 	} else {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceCreated.Event(d, map[string]any{
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceCreated.Event(ctx, d, map[string]any{
 			"type":         api.InstanceTypeVM,
 			"storage-pool": d.storagePool.Name(),
 			"location":     d.Location(),
@@ -438,7 +438,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 				d.logger.Debug("Instance stopped", logger.Ctx{"target": target, "reason": data["reason"]})
 			}
 
-			err = d.onStop(target)
+			err = d.onStop(context.Background(), target)
 			if err != nil {
 				d.logger.Error("Failed cleanly stopping instance", logger.Ctx{"err": err})
 				return
@@ -532,7 +532,7 @@ func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCer
 }
 
 // Freeze freezes the instance.
-func (d *qemu) Freeze() error {
+func (d *qemu) Freeze(ctx context.Context) error {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -545,7 +545,7 @@ func (d *qemu) Freeze() error {
 		return err
 	}
 
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstancePaused.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstancePaused.Event(ctx, d, nil))
 	return nil
 }
 
@@ -590,7 +590,7 @@ func (d *qemu) pidWait(timeout time.Duration) bool {
 }
 
 // onStop is run when the instance stops.
-func (d *qemu) onStop(target string) error {
+func (d *qemu) onStop(ctx context.Context, target string) error {
 	d.logger.Debug("onStop hook started", logger.Ctx{"target": target})
 	defer d.logger.Debug("onStop hook finished", logger.Ctx{"target": target})
 
@@ -658,23 +658,25 @@ func (d *qemu) onStop(target string) error {
 
 	// Log and emit lifecycle if not user triggered.
 	if op.GetInstanceInitiated() {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(ctx, d, nil))
 	} else if op.Action() != operationlock.ActionMigrate {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(ctx, d, nil))
 	}
 
 	// Reboot the instance.
 	if target == "reboot" {
-		err = d.Start(false)
+		// Progress tracking here is not useful. We are in the on stop hook, which is called via lxc hook, so progress
+		// reporting would not be returned to the original client.
+		err = d.Start(ctx, nil, false)
 		if err != nil {
 			op.Done(err)
 			return err
 		}
 
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(ctx, d, nil))
 	} else if d.ephemeral {
 		// Destroy ephemeral virtual machines.
-		err = d.delete(true)
+		err = d.delete(ctx, true)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -685,7 +687,7 @@ func (d *qemu) onStop(target string) error {
 }
 
 // Shutdown shuts the instance down.
-func (d *qemu) Shutdown(timeout time.Duration) error {
+func (d *qemu) Shutdown(ctx context.Context, timeout time.Duration) error {
 	d.logger.Debug("Shutdown started", logger.Ctx{"timeout": timeout})
 	defer d.logger.Debug("Shutdown finished", logger.Ctx{"timeout": timeout})
 
@@ -716,7 +718,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 
 	// If frozen, resume so the signal can be handled.
 	if d.IsFrozen() {
-		err := d.Unfreeze()
+		err := d.Unfreeze(ctx)
 		if err != nil {
 			return err
 		}
@@ -762,7 +764,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 
 	d.logger.Debug("Shutdown request sent to instance")
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Wait for operation lock to be Done or context to timeout. The operation lock is normally completed by
@@ -789,13 +791,13 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 }
 
 // Restart restart the instance.
-func (d *qemu) Restart(timeout time.Duration) error {
-	return d.restartCommon(d, timeout)
+func (d *qemu) Restart(ctx context.Context, timeout time.Duration, progressReporter ioprogress.ProgressReporter) error {
+	return d.restartCommon(ctx, d, timeout, progressReporter)
 }
 
 // Rebuild rebuilds the instance using the supplied image fingerprint as source.
-func (d *qemu) Rebuild(img *api.Image, op *operations.Operation) error {
-	return d.rebuildCommon(d, img, op)
+func (d *qemu) Rebuild(ctx context.Context, img *api.Image, op *operations.Operation) error {
+	return d.rebuildCommon(ctx, d, img, op)
 }
 
 // killQemuProcess kills specified process. Optimistically attempts to wait for the process to fully exit, but does
@@ -1091,7 +1093,7 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 }
 
 // Start starts the instance.
-func (d *qemu) Start(stateful bool) error {
+func (d *qemu) Start(ctx context.Context, progressReporter ioprogress.ProgressReporter, stateful bool) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -1099,11 +1101,11 @@ func (d *qemu) Start(stateful bool) error {
 
 	defer unlock()
 
-	return d.start(stateful, nil)
+	return d.start(ctx, stateful, nil, progressReporter)
 }
 
 // start starts the instance and can use an existing InstanceOperation lock.
-func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
+func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.InstanceOperation, progressReporter ioprogress.ProgressReporter) error {
 	d.logger.Debug("Start started", logger.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Start finished", logger.Ctx{"stateful": stateful})
 
@@ -1485,7 +1487,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, expiry, false, api.DiskVolumesModeRoot)
+		err := d.snapshot(ctx, snapName, expiry, false, api.DiskVolumesModeRoot, progressReporter)
 		if err != nil {
 			err = fmt.Errorf("Failed taking startup snapshot: %w", err)
 			op.Done(err)
@@ -1859,12 +1861,12 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		op.Done(err) // Must come before Stop() otherwise stop will not proceed.
 
 		// Shut down the VM if hooks fail.
-		_ = d.Stop(false)
+		_ = d.Stop(ctx, false)
 		return err
 	}
 
 	if op.Action() == "start" {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(ctx, d, nil))
 	}
 
 	// The VM started cleanly so now enable the unexpected disconnection event to ensure the onStop hook is
@@ -5262,7 +5264,7 @@ func (d *qemu) forceStop() error {
 }
 
 // Stop the VM.
-func (d *qemu) Stop(stateful bool) error {
+func (d *qemu) Stop(ctx context.Context, stateful bool) error {
 	d.logger.Debug("Stop started", logger.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Stop finished", logger.Ctx{"stateful": stateful})
 
@@ -5315,13 +5317,13 @@ func (d *qemu) Stop(stateful bool) error {
 		}
 
 		// Wait for QEMU process to exit and perform device cleanup.
-		err = d.onStop("stop")
+		err = d.onStop(ctx, "stop")
 		if err != nil {
 			op.Done(err)
 			return err
 		}
 
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(ctx, d, nil))
 
 		op.Done(nil)
 		return nil
@@ -5413,7 +5415,7 @@ func (d *qemu) Stop(stateful bool) error {
 }
 
 // Unfreeze restores the instance to running.
-func (d *qemu) Unfreeze() error {
+func (d *qemu) Unfreeze(ctx context.Context) error {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -5426,7 +5428,7 @@ func (d *qemu) Unfreeze() error {
 		return err
 	}
 
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceResumed.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceResumed.Event(ctx, d, nil))
 	return nil
 }
 
@@ -5436,7 +5438,7 @@ func (d *qemu) IsPrivileged() bool {
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
+func (d *qemu) snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	var err error
 	var monitor *qmp.Monitor
 
@@ -5466,7 +5468,7 @@ func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool, diskVolum
 	}
 
 	// Create the snapshot.
-	err = d.snapshotCommon(d, name, expiry, stateful, diskVolumesMode)
+	err = d.snapshotCommon(ctx, d, name, expiry, stateful, diskVolumesMode, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -5489,7 +5491,7 @@ func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool, diskVolum
 }
 
 // Snapshot takes a new snapshot.
-func (d *qemu) Snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
+func (d *qemu) Snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -5497,11 +5499,11 @@ func (d *qemu) Snapshot(name string, expiry *time.Time, stateful bool, diskVolum
 
 	defer unlock()
 
-	return d.snapshot(name, expiry, stateful, diskVolumesMode)
+	return d.snapshot(ctx, name, expiry, stateful, diskVolumesMode, progressReporter)
 }
 
 // Restore restores an instance snapshot.
-func (d *qemu) Restore(source instance.Instance, stateful bool, diskVolumesMode string) error {
+func (d *qemu) Restore(ctx context.Context, source instance.Instance, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -5511,7 +5513,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool, diskVolumesMode 
 
 	d.logger.Info("Restoring instance", ctxMap)
 
-	wasRunning, op, err := d.restoreCommon(d, source, diskVolumesMode)
+	wasRunning, op, err := d.restoreCommon(ctx, d, source, diskVolumesMode, progressReporter)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -5522,20 +5524,20 @@ func (d *qemu) Restore(source instance.Instance, stateful bool, diskVolumesMode 
 	// Restart the instance.
 	if wasRunning || stateful {
 		d.logger.Debug("Starting instance after snapshot restore")
-		err := d.Start(stateful)
+		err := d.Start(ctx, progressReporter, stateful)
 		if err != nil {
 			op.Done(err)
 			return err
 		}
 	}
 
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestored.Event(d, map[string]any{"snapshot": source.Name()}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestored.Event(ctx, d, map[string]any{"snapshot": source.Name()}))
 	d.logger.Info("Restored instance", ctxMap)
 	return nil
 }
 
 // Rename the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
-func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
+func (d *qemu) Rename(ctx context.Context, newName string, applyTemplateTrigger bool) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -5670,12 +5672,12 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 		_, backupName, _ := strings.Cut(oldName, "/")
 		newName := newName + "/" + backupName
 
-		err = b.Rename(newName)
+		err = b.Rename(ctx, newName)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = b.Rename(oldName) })
+		revert.Add(func() { _ = b.Rename(context.Background(), oldName) })
 	}
 
 	// Update lease files.
@@ -5701,9 +5703,9 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	d.logger.Info("Renamed instance", ctxMap)
 
 	if d.isSnapshot {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotRenamed.Event(ctx, d, map[string]any{"old_name": oldName}))
 	} else {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRenamed.Event(ctx, d, map[string]any{"old_name": oldName}))
 	}
 
 	revert.Success()
@@ -5750,7 +5752,7 @@ func allowRemoveSecurityProtectionStart(state *state.State, poolName string, vol
 }
 
 // Update the instance config.
-func (d *qemu) Update(args db.InstanceArgs, actionType instance.UpdateAction) error {
+func (d *qemu) Update(ctx context.Context, args db.InstanceArgs, actionType instance.UpdateAction) error {
 	userRequested := d.isUserRequested(actionType)
 
 	unlock, err := d.updateBackupFileLock(context.Background())
@@ -6216,9 +6218,9 @@ func (d *qemu) Update(args db.InstanceArgs, actionType instance.UpdateAction) er
 
 	if userRequested {
 		if d.isSnapshot {
-			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotUpdated.Event(ctx, d, nil))
 		} else {
-			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(ctx, d, nil))
 		}
 	}
 
@@ -6367,12 +6369,12 @@ func (d *qemu) init() error {
 }
 
 // Delete the instance.
-func (d *qemu) Delete(force bool, diskVolumesMode string) error {
-	return d.deleteCommon(d, force, diskVolumesMode)
+func (d *qemu) Delete(ctx context.Context, force bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
+	return d.deleteCommon(ctx, d, force, diskVolumesMode, progressReporter)
 }
 
 // Delete the instance without creating an operation lock.
-func (d *qemu) delete(force bool) error {
+func (d *qemu) delete(ctx context.Context, force bool) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -6414,7 +6416,7 @@ func (d *qemu) delete(force bool) error {
 		} else {
 			// Remove all snapshots.
 			err := d.deleteSnapshots(func(snapInst instance.Instance) error {
-				return snapInst.(*qemu).delete(true) // Internal delete function that does not lock.
+				return snapInst.(*qemu).delete(ctx, true) // Internal delete function that does not lock.
 			})
 			if err != nil {
 				return fmt.Errorf("Failed deleting instance snapshots: %w", err)
@@ -6437,7 +6439,7 @@ func (d *qemu) delete(force bool) error {
 		}
 
 		for _, backup := range backups {
-			err = backup.Delete()
+			err = backup.Delete(ctx)
 			if err != nil {
 				return err
 			}
@@ -6470,9 +6472,9 @@ func (d *qemu) delete(force bool) error {
 	}
 
 	if d.isSnapshot {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(ctx, d, nil))
 	} else {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceDeleted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceDeleted.Event(ctx, d, nil))
 	}
 
 	return nil
@@ -6757,7 +6759,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 }
 
 // MigrateSend controls the sending side of a migration.
-func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
+func (d *qemu) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, progressReporter ioprogress.ProgressReporter) (err error) {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
@@ -6809,7 +6811,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	offerHeader.IndexHeaderVersion = &indexHeaderVersion
 
 	// For VMs, send block device size hint in offer header so that target can create the volume the same size.
-	blockSize, err := storagePools.InstanceDiskBlockSize(pool, d, d.op)
+	blockSize, err := storagePools.InstanceDiskBlockSize(pool, d, progressReporter)
 	if err != nil {
 		err := fmt.Errorf("Failed getting source disk size: %w", err)
 		op.Done(err)
@@ -6819,7 +6821,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Debug("Set migration offer volume size", logger.Ctx{"blockSize": blockSize})
 	offerHeader.VolumeSize = &blockSize
 
-	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, d.op)
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, progressReporter)
 	if err != nil {
 		err := fmt.Errorf("Failed generating instance migration config: %w", err)
 		op.Done(err)
@@ -6917,7 +6919,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		}
 	}
 
-	g, ctx := errgroup.WithContext(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
 
 	// Start control connection monitor.
 	g.Go(func() error {
@@ -6981,20 +6983,20 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 				defer instanceRefClear(d)
 			}
 
-			err = d.migrateSendLive(pool, args.ClusterMoveSourceName, blockSize, filesystemConn, stateConn, volSourceArgs)
+			err = d.migrateSendLive(ctx, pool, args.ClusterMoveSourceName, blockSize, filesystemConn, stateConn, volSourceArgs, progressReporter)
 			if err != nil {
 				return err
 			}
 		} else {
 			// Perform stateful stop if live state transfer is not supported by target.
 			if args.Live {
-				err = d.Stop(true)
+				err = d.Stop(ctx, true)
 				if err != nil {
 					return fmt.Errorf("Failed statefully stopping instance: %w", err)
 				}
 			}
 
-			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+			err = pool.MigrateInstance(ctx, d, filesystemConn, volSourceArgs, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -7017,13 +7019,13 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		}
 
 		op.Done(nil)
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceMigrated.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceMigrated.Event(ctx, d, nil))
 		return nil
 	}
 }
 
 // migrateSendLive performs live migration send process.
-func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName string, rootDiskSize int64, filesystemConn io.ReadWriteCloser, stateConn io.ReadWriteCloser, volSourceArgs *migration.VolumeSourceArgs) error {
+func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clusterMoveSourceName string, rootDiskSize int64, filesystemConn io.ReadWriteCloser, stateConn io.ReadWriteCloser, volSourceArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
 		return err
@@ -7166,7 +7168,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 	// We enable AllowInconsistent mode as this allows for transferring the VM storage whilst it is running
 	// and the snapshot we took earlier is designed to provide consistency anyway.
 	volSourceArgs.AllowInconsistent = true
-	err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+	err = pool.MigrateInstance(ctx, d, filesystemConn, volSourceArgs, progressReporter)
 	if err != nil {
 		return err
 	}
@@ -7347,7 +7349,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 	if clusterMoveSourceName != "" {
 		// If doing an intra-cluster member move then we will be deleting the instance on the source,
 		// so lets just stop it after migration is completed.
-		err = d.Stop(false)
+		err = d.Stop(ctx, false)
 		if err != nil {
 			return fmt.Errorf("Failed stopping instance: %w", err)
 		}
@@ -7384,7 +7386,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 
 // MigrateReceive receives the migration offer from the source and negotiates the migration options.
 // It establishes the necessary connections and transfers the filesystem and snapshots if required.
-func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
+func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveArgs, progressReporter ioprogress.ProgressReporter) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
 
@@ -7487,7 +7489,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Delete the extra local snapshots first.
 		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
-			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true, "")
+			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(ctx, true, "", progressReporter)
 			if err != nil {
 				return err
 			}
@@ -7539,7 +7541,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	g, ctx := errgroup.WithContext(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
 
 	// Start control connection monitor.
 	g.Go(func() error {
@@ -7671,7 +7673,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					}
 
 					// Create the snapshot instance.
-					_, snapInstOp, cleanup, err := instance.CreateInternal(d.state, *snapArgs, true)
+					_, snapInstOp, cleanup, err := instance.CreateInternal(ctx, d.state, *snapArgs, true)
 					if err != nil {
 						return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
 					}
@@ -7686,7 +7688,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
+		err = pool.CreateInstanceFromMigration(ctx, d, filesystemConn, volTargetArgs, progressReporter)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
@@ -7777,7 +7779,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			// starting from the migrated state file or migration state connection.
 			d.stateful = true
 
-			err = d.start(true, args.InstanceOperation)
+			err = d.start(ctx, true, args.InstanceOperation, progressReporter)
 			if err != nil {
 				return err
 			}
@@ -7840,7 +7842,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 // ConversionReceive establishes the filesystem connection, transfers the filesystem / block volume,
 // and creates an instance from it.
-func (d *qemu) ConversionReceive(args instance.ConversionReceiveArgs) error {
+func (d *qemu) ConversionReceive(args instance.ConversionReceiveArgs, progressReporter ioprogress.ProgressReporter) error {
 	d.logger.Info("Conversion receive starting")
 	defer d.logger.Info("Conversion receive stopped")
 
@@ -7871,7 +7873,7 @@ func (d *qemu) ConversionReceive(args instance.ConversionReceiveArgs) error {
 		ConversionOptions: args.ConversionOptions, // Non-nil options indicate image conversion.
 	}
 
-	err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, d.op)
+	err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, progressReporter)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance on target: %w", err)
 	}
@@ -8014,7 +8016,7 @@ func (d *qemu) FileSFTP() (*sftp.Client, error) {
 }
 
 // Console gets access to the instance's console.
-func (d *qemu) Console(protocol string) (*os.File, chan error, error) {
+func (d *qemu) Console(ctx context.Context, protocol string) (*os.File, chan error, error) {
 	var path string
 	switch protocol {
 	case instance.ConsoleTypeConsole:
@@ -8041,13 +8043,13 @@ func (d *qemu) Console(protocol string) (*os.File, chan error, error) {
 
 	_ = conn.Close()
 
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": protocol}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsole.Event(ctx, d, logger.Ctx{"type": protocol}))
 
 	return file, chDisconnect, nil
 }
 
 // Exec a command inside the instance.
-func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
+func (d *qemu) Exec(ctx context.Context, req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -8112,7 +8114,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		controlResCh:     controlResCh,
 	}
 
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceExec.Event(d, logger.Ctx{"command": req.Command}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceExec.Event(ctx, d, logger.Ctx{"command": req.Command}))
 
 	revert.Success()
 	return instCmd, nil

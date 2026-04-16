@@ -35,12 +35,12 @@ import (
 // Helper functions
 
 // instanceCreateAsEmpty creates an empty instance.
-func instanceCreateAsEmpty(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
+func instanceCreateAsEmpty(ctx context.Context, s *state.State, args db.InstanceArgs, op *operations.Operation) (instance.Instance, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	// Create the instance record.
-	inst, instOp, cleanup, err := instance.CreateInternal(s, args, true)
+	inst, instOp, cleanup, err := instance.CreateInternal(ctx, s, args, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
@@ -58,7 +58,7 @@ func instanceCreateAsEmpty(s *state.State, args db.InstanceArgs) (instance.Insta
 		return nil, fmt.Errorf("Failed creating instance: %w", err)
 	}
 
-	revert.Add(func() { _ = inst.Delete(true, "") })
+	revert.Add(func() { _ = inst.Delete(context.Background(), true, "", nil) })
 
 	err = inst.UpdateBackupFile()
 	if err != nil {
@@ -131,7 +131,7 @@ func ensureImageIsLocallyAvailable(ctx context.Context, s *state.State, img *api
 }
 
 // instanceCreateFromImage creates an instance from a rootfs image.
-func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArgs, op *operations.Operation) error {
+func instanceCreateFromImage(ctx context.Context, s *state.State, img *api.Image, args db.InstanceArgs, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -156,7 +156,7 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 	args.BaseImage = img.Fingerprint
 
 	// Create the instance.
-	inst, instOp, cleanup, err := instance.CreateInternal(s, args, true)
+	inst, instOp, cleanup, err := instance.CreateInternal(ctx, s, args, true)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance record: %w", err)
 	}
@@ -190,12 +190,12 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 
 	defer unlock()
 
-	err = pool.CreateInstanceFromImage(inst, img.Fingerprint, op)
+	err = pool.CreateInstanceFromImage(ctx, inst, img.Fingerprint, op)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance from image: %w", err)
 	}
 
-	revert.Add(func() { _ = inst.Delete(true, "") })
+	revert.Add(func() { _ = inst.Delete(ctx, true, "", op) })
 
 	err = inst.UpdateBackupFile()
 	if err != nil {
@@ -222,7 +222,7 @@ func instanceRebuildFromImage(ctx context.Context, s *state.State, inst instance
 		return err
 	}
 
-	err = inst.Rebuild(img, op)
+	err = inst.Rebuild(ctx, img, op)
 	if err != nil {
 		return fmt.Errorf("Failed rebuilding instance from image: %w", err)
 	}
@@ -230,8 +230,8 @@ func instanceRebuildFromImage(ctx context.Context, s *state.State, inst instance
 	return nil
 }
 
-func instanceRebuildFromEmpty(inst instance.Instance, op *operations.Operation) error {
-	err := inst.Rebuild(nil, op) // Rebuild as empty.
+func instanceRebuildFromEmpty(ctx context.Context, inst instance.Instance, op *operations.Operation) error {
+	err := inst.Rebuild(ctx, nil, op) // Rebuild as empty.
 	if err != nil {
 		return fmt.Errorf("Failed rebuilding as an empty instance: %w", err)
 	}
@@ -251,7 +251,7 @@ type instanceCreateAsCopyOpts struct {
 }
 
 // instanceCreateAsCopy create a new instance by copying from an existing instance.
-func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *operations.Operation) (instance.Instance, error) {
+func instanceCreateAsCopy(ctx context.Context, s *state.State, opts instanceCreateAsCopyOpts, op *operations.Operation) (instance.Instance, error) {
 	var inst instance.Instance
 	var instOp *operationlock.InstanceOperation
 	var err error
@@ -271,7 +271,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			opts.refresh = false // Instance doesn't exist, so switch to copy mode.
 		} else {
 			// Validate and apply refresh target config before the storage refresh.
-			err = inst.Update(opts.targetInstance, instance.UpdateActionUserRefresh)
+			err = inst.Update(ctx, opts.targetInstance, instance.UpdateActionUserRefresh)
 			if err != nil {
 				return nil, fmt.Errorf("Failed applying refresh target instance config: %w", err)
 			}
@@ -283,7 +283,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		api.InstanceCreateConfigKeyPolicy.Apply(opts.targetInstance.Config, nil)
 
 		// Create the instance.
-		inst, instOp, cleanup, err = instance.CreateInternal(s, opts.targetInstance, true)
+		inst, instOp, cleanup, err = instance.CreateInternal(ctx, s, opts.targetInstance, true)
 		if err != nil {
 			return nil, fmt.Errorf("Failed creating instance record: %w", err)
 		}
@@ -345,7 +345,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 
 			// Delete extra snapshots first.
 			for _, deleteTargetSnapIndex := range deleteTargetSnapshotIndexes {
-				err := targetSnaps[deleteTargetSnapIndex].Delete(true, "")
+				err := targetSnaps[deleteTargetSnapIndex].Delete(ctx, true, "", op)
 				if err != nil {
 					return nil, err
 				}
@@ -424,7 +424,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			}
 
 			// Create the snapshots.
-			_, snapInstOp, cleanup, err := instance.CreateInternal(s, snapInstArgs, true)
+			_, snapInstOp, cleanup, err := instance.CreateInternal(ctx, s, snapInstArgs, true)
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating instance snapshot record %q: %w", newSnapName, err)
 			}
@@ -445,17 +445,17 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	}
 
 	if opts.refresh {
-		err = pool.RefreshInstance(inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
+		err = pool.RefreshInstance(ctx, inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
 		if err != nil {
 			return nil, fmt.Errorf("Failed refreshing instance: %w", err)
 		}
 	} else {
-		err = pool.CreateInstanceFromCopy(inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)
+		err = pool.CreateInstanceFromCopy(ctx, inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)
 		if err != nil {
 			return nil, fmt.Errorf("Create instance from copy: %w", err)
 		}
 
-		revert.Add(func() { _ = inst.Delete(true, "") })
+		revert.Add(func() { _ = inst.Delete(ctx, true, "", op) })
 
 		if opts.applyTemplateTrigger {
 			// Trigger the templates on next start.
@@ -524,7 +524,8 @@ func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances 
 			return err
 		}
 
-		err = inst.Snapshot(snapshotName, nil, false, api.DiskVolumesModeRoot)
+		// Don't track progress for automated snapshot creation
+		err = inst.Snapshot(ctx, snapshotName, nil, false, api.DiskVolumesModeRoot, nil)
 		if err != nil {
 			l.Error("Error creating snapshot", logger.Ctx{"snapshot": snapshotName, "err": err})
 			return err
@@ -549,7 +550,8 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, snapshots []instance.Ins
 			continue // Deletion of this snapshot is already running, skip.
 		}
 
-		err = snapshot.Delete(true, "")
+		// Don't track progress for automated snapshot pruning.
+		err = snapshot.Delete(ctx, true, "", nil)
 		instSnapshotsPruneRunning.Delete(snapshot.ID())
 		if err != nil {
 			return fmt.Errorf("Failed deleting expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project().Name, err)

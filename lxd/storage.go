@@ -152,7 +152,7 @@ func storageStartup(s *state.State) error {
 						if err != nil {
 							logger.Error("Failed loading instances to start", logger.Ctx{"err": err})
 						} else {
-							instancesStart(s, instances)
+							instancesStart(s.ShutdownCtx, s, instances)
 						}
 					}
 

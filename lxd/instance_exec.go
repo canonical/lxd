@@ -294,7 +294,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 		return cmdErr
 	}
 
-	cmd, err := s.instance.Exec(s.req, stdin, stdout, stderr)
+	cmd, err := s.instance.Exec(ctx, s.req, stdin, stdout, stderr)
 	if err != nil {
 		return finisher(-1, err)
 	}
@@ -752,7 +752,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Run the command.
-		cmd, err := inst.Exec(post, nil, stdout, stderr)
+		cmd, err := inst.Exec(ctx, post, nil, stdout, stderr)
 		if err != nil {
 			return err
 		}

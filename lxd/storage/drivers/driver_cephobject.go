@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -195,7 +195,7 @@ func (d *cephobject) Create() error {
 }
 
 // Delete clears any local and remote data related to this driver instance.
-func (d *cephobject) Delete(op *operations.Operation) error {
+func (d *cephobject) Delete(progressReporter ioprogress.ProgressReporter) error {
 	if shared.IsTrue(d.config["volatile.pool.pristine"]) {
 		err := d.radosgwadminUserDelete(context.TODO(), cephobjectRadosgwAdminUser)
 		if err != nil {

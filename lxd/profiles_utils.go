@@ -234,7 +234,7 @@ func doProfileUpdateInstance(ctx context.Context, s *state.State, args db.Instan
 	}
 
 	// Update will internally load the new profile configs and detect the changes to apply.
-	return inst.Update(db.InstanceArgs{
+	return inst.Update(ctx, db.InstanceArgs{
 		Architecture: inst.Architecture(),
 		Config:       inst.LocalConfig(),
 		Description:  inst.Description(),

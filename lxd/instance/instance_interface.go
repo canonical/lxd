@@ -93,30 +93,30 @@ type Instance interface {
 	ConfigReader
 
 	// Instance actions.
-	Freeze() error
-	Shutdown(timeout time.Duration) error
-	Start(stateful bool) error
-	Stop(stateful bool) error
-	Restart(timeout time.Duration) error
-	Rebuild(img *api.Image, op *operations.Operation) error
-	Unfreeze() error
+	Freeze(ctx context.Context) error
+	Shutdown(ctx context.Context, timeout time.Duration) error
+	Start(ctx context.Context, progressReporter ioprogress.ProgressReporter, stateful bool) error
+	Stop(ctx context.Context, stateful bool) error
+	Restart(ctx context.Context, timeout time.Duration, progressReporter ioprogress.ProgressReporter) error
+	Rebuild(ctx context.Context, img *api.Image, op *operations.Operation) error
+	Unfreeze(ctx context.Context) error
 	RegisterDevices()
 
 	Info() Info
 	IsPrivileged() bool
 
 	// Snapshots & migration & backups.
-	Restore(source Instance, stateful bool, diskVolumesMode string) error
-	Snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error
+	Restore(ctx context.Context, source Instance, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error
+	Snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error
 	Snapshots() ([]Instance, error)
 	Backups() ([]backup.InstanceBackup, error)
 	UpdateBackupFile() error
 
 	// Config handling.
-	Rename(newName string, applyTemplateTrigger bool) error
-	Update(newConfig db.InstanceArgs, actionType UpdateAction) error
+	Rename(ctx context.Context, newName string, applyTemplateTrigger bool) error
+	Update(ctx context.Context, newConfig db.InstanceArgs, actionType UpdateAction) error
 
-	Delete(force bool, diskVolumesMode string) error
+	Delete(ctx context.Context, force bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error
 	Export(w io.Writer, properties map[string]string, expiration time.Time, tracker *ioprogress.ProgressTracker) (api.ImageMetadata, error)
 
 	// Live configuration.
@@ -129,8 +129,8 @@ type Instance interface {
 	FileSFTP() (*sftp.Client, error)
 
 	// Console - Allocate and run a console tty or a spice Unix socket.
-	Console(protocol string) (*os.File, chan error, error)
-	Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (Cmd, error)
+	Console(ctx context.Context, protocol string) (*os.File, chan error, error)
+	Exec(ctx context.Context, req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (Cmd, error)
 
 	// Status
 	Render(options ...func(response any) error) (any, any, error)
@@ -177,15 +177,11 @@ type Instance interface {
 
 	// Migration.
 	CanMigrate() (bool, bool)
-	MigrateSend(args MigrateSendArgs) error
-	MigrateReceive(args MigrateReceiveArgs) error
+	MigrateSend(ctx context.Context, args MigrateSendArgs, progressReporter ioprogress.ProgressReporter) error
+	MigrateReceive(ctx context.Context, args MigrateReceiveArgs, progressReporter ioprogress.ProgressReporter) error
 
 	// Conversion.
-	ConversionReceive(args ConversionReceiveArgs) error
-
-	// Progress reporting.
-	SetOperation(op *operations.Operation)
-	Operation() *operations.Operation
+	ConversionReceive(args ConversionReceiveArgs, progressReporter ioprogress.ProgressReporter) error
 
 	DeferTemplateApply(trigger TemplateTrigger) error
 
@@ -199,7 +195,7 @@ type Container interface {
 	CurrentIdmap() (*idmap.IdmapSet, error)
 	DiskIdmap() (*idmap.IdmapSet, error)
 	NextIdmap() (*idmap.IdmapSet, error)
-	ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error)
+	ConsoleLog(ctx context.Context, opts liblxc.ConsoleLogOptions) (string, error)
 	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 	DevptsFd() (*os.File, error)
 	FileSFTPNoLock() (*sftp.Client, error)

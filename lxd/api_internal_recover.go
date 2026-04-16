@@ -569,7 +569,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 					}
 				}
 
-				inst, cleanup, err := internalRecoverImportInstance(s, pool, projectName, poolVol, profiles)
+				inst, cleanup, err := internalRecoverImportInstance(ctx, s, pool, projectName, poolVol, profiles)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed creating instance %q record in project %q: %w", poolVol.Instance.Name, projectName, err))
 				}
@@ -587,7 +587,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 						}
 					}
 
-					cleanup, err := internalRecoverImportInstanceSnapshot(s, pool, projectName, poolVol, poolInstSnap, profiles)
+					cleanup, err := internalRecoverImportInstanceSnapshot(ctx, s, pool, projectName, poolVol, poolInstSnap, profiles)
 					if err != nil {
 						return response.SmartError(fmt.Errorf("Failed creating instance %q snapshot %q record in project %q: %w", poolVol.Instance.Name, poolInstSnap.Name, projectName, err))
 					}
@@ -622,7 +622,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 // internalRecoverImportInstance recreates the database records for an instance and returns the new instance.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
-func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, profiles []api.Profile) (instance.Instance, revert.Hook, error) {
+func internalRecoverImportInstance(ctx context.Context, s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, profiles []api.Profile) (instance.Instance, revert.Hook, error) {
 	if poolVol.Instance == nil {
 		return nil, nil, errors.New("Pool volume is not an instance volume")
 	}
@@ -647,7 +647,7 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 		return nil, nil, errors.New("Invalid instance type")
 	}
 
-	inst, instOp, cleanup, err := instance.CreateInternal(s, *dbInst, false)
+	inst, instOp, cleanup, err := instance.CreateInternal(ctx, s, *dbInst, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
@@ -658,7 +658,7 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 }
 
 // internalRecoverImportInstance recreates the database records for an instance snapshot.
-func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, snap *api.InstanceSnapshot, profiles []api.Profile) (revert.Hook, error) {
+func internalRecoverImportInstanceSnapshot(ctx context.Context, s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, snap *api.InstanceSnapshot, profiles []api.Profile) (revert.Hook, error) {
 	if poolVol.Instance == nil || snap == nil {
 		return nil, errors.New("Pool volume is not an instance volume")
 	}
@@ -694,7 +694,7 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 		snap.ExpiresAt = expiry
 	}
 
-	_, snapInstOp, cleanup, err := instance.CreateInternal(s, db.InstanceArgs{
+	_, snapInstOp, cleanup, err := instance.CreateInternal(ctx, s, db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    snap.Config["volatile.base_image"],

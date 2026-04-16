@@ -1983,7 +1983,7 @@ func (d *Daemon) init() error {
 	d.tasks.Start(d.shutdownCtx)
 
 	// Restore instances
-	instancesStart(d.State(), instances)
+	instancesStart(d.shutdownCtx, d.State(), instances)
 
 	// Re-balance in case things changed while LXD was down
 	deviceTaskBalance(d.State())

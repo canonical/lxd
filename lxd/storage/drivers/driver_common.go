@@ -15,13 +15,13 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -362,37 +362,37 @@ func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller, all
 }
 
 // CreateVolume creates a new storage volume on disk.
-func (d *common) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *common) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *common) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func (d *common) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (VolumePostHook, revert.Hook, error) {
 	return nil, nil, ErrNotSupported
 }
 
 // CreateVolumeFromCopy copies an existing storage volume (with or without snapshots) into a new volume.
-func (d *common) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
+func (d *common) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // CreateVolumeFromImage creates volume from images.
-func (d *common) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *common) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // CreateVolumeFromMigration creates a new volume (with or without snapshots) from a migration data stream.
-func (d *common) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *common) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
-func (d *common) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
+func (d *common) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // DeleteVolume destroys the on-disk state of a volume.
-func (d *common) DeleteVolume(vol Volume, op *operations.Operation) error {
+func (d *common) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
@@ -417,7 +417,7 @@ func (d *common) GetVolumeUsage(vol Volume) (int64, error) {
 }
 
 // SetVolumeQuota applies a size limit on volume.
-func (d *common) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+func (d *common) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
@@ -432,13 +432,13 @@ func (d *common) ListVolumes() ([]Volume, error) {
 }
 
 // MountVolume sets up the volume for use.
-func (d *common) MountVolume(vol Volume, op *operations.Operation) error {
+func (d *common) MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // UnmountVolume clears any runtime state for the volume.
 // As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
-func (d *common) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+func (d *common) UnmountVolume(vol Volume, keepBlockDev bool, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	return false, ErrNotSupported
 }
 
@@ -453,49 +453,49 @@ func (d *common) DelegateVolume(vol Volume, pid int) error {
 }
 
 // RenameVolume renames the volume and all related filesystem entries.
-func (d *common) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+func (d *common) RenameVolume(vol Volume, newVolName string, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // MigrateVolume streams the volume (with or without snapshots).
-func (d *common) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *common) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *common) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+func (d *common) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // CreateVolumeSnapshot creates a new snapshot.
-func (d *common) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *common) CreateVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // DeleteVolumeSnapshot deletes a snapshot.
-func (d *common) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *common) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // MountVolumeSnapshot makes the snapshot available for use.
-func (d *common) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *common) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // UnmountVolumeSnapshot clears any runtime state for the snapshot.
-func (d *common) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+func (d *common) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	return false, ErrNotSupported
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
-func (d *common) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *common) VolumeSnapshots(vol Volume) ([]string, error) {
 	return nil, ErrNotSupported
 }
 
 // CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver, match those provided.
-func (d *common) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operations.Operation) error {
+func (d *common) CheckVolumeSnapshots(vol Volume, snapVols []Volume) error {
 	// Use the volume's driver reference to pick the actual method as implemented by the driver.
-	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol, op)
+	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol)
 	if err != nil {
 		return err
 	}
@@ -525,12 +525,12 @@ func (d *common) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operati
 }
 
 // RestoreVolume resets a volume to its snapshotted state.
-func (d *common) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+func (d *common) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
 // RenameVolumeSnapshot renames a snapshot.
-func (d *common) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+func (d *common) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 
@@ -559,12 +559,12 @@ func (d *common) GetBucketURL(bucketName string) *url.URL {
 }
 
 // CreateBucket creates a new bucket.
-func (d *common) CreateBucket(bucket Volume, op *operations.Operation) error {
+func (d *common) CreateBucket(bucket Volume) error {
 	return ErrNotSupported
 }
 
 // DeleteBucket deletes an existing bucket.
-func (d *common) DeleteBucket(bucket Volume, op *operations.Operation) error {
+func (d *common) DeleteBucket(bucket Volume) error {
 	return ErrNotSupported
 }
 
@@ -588,17 +588,17 @@ func (d *common) ValidateBucketKey(keyName string, creds S3Credentials, roleName
 }
 
 // CreateBucketKey create bucket key.
-func (d *common) CreateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+func (d *common) CreateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string) (*S3Credentials, error) {
 	return nil, ErrNotSupported
 }
 
 // UpdateBucketKey updates bucket key.
-func (d *common) UpdateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+func (d *common) UpdateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string) (*S3Credentials, error) {
 	return nil, ErrNotSupported
 }
 
 // DeleteBucketKey deletes the bucket key.
-func (d *common) DeleteBucketKey(bucket Volume, keyName string, op *operations.Operation) error {
+func (d *common) DeleteBucketKey(bucket Volume, keyName string) error {
 	return nil
 }
 

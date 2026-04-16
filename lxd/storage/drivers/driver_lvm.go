@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -424,7 +424,7 @@ func (d *lvm) Create() error {
 }
 
 // Delete removes the storage pool from the storage device.
-func (d *lvm) Delete(op *operations.Operation) error {
+func (d *lvm) Delete(progressReporter ioprogress.ProgressReporter) error {
 	var err error
 	var loopDevPath string
 

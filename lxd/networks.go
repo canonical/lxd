@@ -2038,7 +2038,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 						if err != nil {
 							logger.Warn("Failed loading instances to start", logger.Ctx{"err": err})
 						} else {
-							instancesStart(s, instances)
+							instancesStart(s.ShutdownCtx, s, instances)
 						}
 					}
 

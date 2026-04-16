@@ -217,7 +217,7 @@ func instanceShouldAutoStart(inst instance.Instance) bool {
 	return shared.IsFalseOrEmpty(protectStart) && (shared.IsTrue(autoStart) || (autoStart == "" && lastState == instance.PowerStateRunning))
 }
 
-func instancesStart(s *state.State, instances []instance.Instance) {
+func instancesStart(ctx context.Context, s *state.State, instances []instance.Instance) {
 	// Check if the cluster is currently evacuated.
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return
@@ -254,7 +254,9 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 		var attempt = 0
 		for {
 			attempt++
-			err := inst.Start(false)
+
+			// Don't track progress here as there is no client to return the updates to.
+			err := inst.Start(ctx, nil, false)
 			if err != nil {
 				if api.StatusErrorCheck(err, http.StatusServiceUnavailable) {
 					break // Don't log or retry instances that are not ready to start yet.
@@ -524,10 +526,10 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 					timeoutSeconds, _ = strconv.Atoi(value)
 				}
 
-				err := inst.Shutdown(time.Second * time.Duration(timeoutSeconds))
+				err := inst.Shutdown(ctx, time.Second*time.Duration(timeoutSeconds))
 				if err != nil {
 					l.Warn("Failed shutting down instance, forcefully stopping", logger.Ctx{"err": err})
-					err = inst.Stop(false)
+					err = inst.Stop(ctx, false)
 					if err != nil {
 						l.Warn("Failed forcefully stopping instance", logger.Ctx{"err": err})
 					}

@@ -20,11 +20,11 @@ import (
 
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/locking"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -452,7 +452,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 
 	switch fsType {
 	case "ext4":
-		return vol.UnmountTask(func(op *operations.Operation) error {
+		return vol.UnmountTask(func(progressReporter ioprogress.ProgressReporter) error {
 			output, err := shared.RunCommand(context.TODO(), "e2fsck", "-f", "-y", devPath)
 			if err != nil {
 				exitCodeFSModified := false
@@ -492,7 +492,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 			return nil
 		}, true, nil)
 	case "btrfs":
-		return vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		return vol.MountTask(func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
 			_, err := shared.RunCommand(context.TODO(), "btrfs", "filesystem", "resize", strSize, mountPath)
 			if err != nil {
 				return err
@@ -511,7 +511,7 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		fsType = DefaultFilesystem
 	}
 
-	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	return vol.MountTask(func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
 		var err error
 		switch fsType {
 		case "ext4":

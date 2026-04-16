@@ -113,11 +113,11 @@ func doInstanceDelete(opScheduler operations.OperationScheduler, s *state.State,
 	rmct := func(ctx context.Context, op *operations.Operation) error {
 		if instRunning {
 			// Stop instance.
-			err := doInstanceStatePut(inst, api.InstanceStatePut{
+			err := doInstanceStatePut(ctx, inst, api.InstanceStatePut{
 				Action:  "stop",
 				Timeout: -1,
 				Force:   true,
-			})
+			}, op)
 			if err != nil {
 				return fmt.Errorf("Failed force stopping instance %q before deletion: %w", name, err)
 			}
@@ -128,7 +128,7 @@ func doInstanceDelete(opScheduler operations.OperationScheduler, s *state.State,
 			}
 		}
 
-		return inst.Delete(false, "")
+		return inst.Delete(ctx, false, "", op)
 	}
 
 	args := operations.OperationArgs{

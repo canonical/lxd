@@ -13,10 +13,10 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -404,7 +404,7 @@ func (d *zfs) Create() error {
 }
 
 // Delete removes the storage pool from the storage device.
-func (d *zfs) Delete(op *operations.Operation) error {
+func (d *zfs) Delete(progressReporter ioprogress.ProgressReporter) error {
 	// Check if the dataset/pool is already gone.
 	exists, err := d.datasetExists(d.config["zfs.pool_name"])
 	if err != nil {

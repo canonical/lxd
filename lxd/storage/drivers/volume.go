@@ -8,10 +8,10 @@ import (
 	"os"
 
 	"github.com/canonical/lxd/lxd/locking"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/refcount"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 )
@@ -286,28 +286,28 @@ func (v Volume) EnsureMountPath() error {
 
 // MountTask runs the supplied task after mounting the volume if needed. If the volume was mounted
 // for this then it is unmounted when the task finishes.
-func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) error, op *operations.Operation) error {
+func (v Volume) MountTask(task func(mountPath string, progressReporter ioprogress.ProgressReporter) error, progressReporter ioprogress.ProgressReporter) error {
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	var err error
 
 	if v.IsSnapshot() {
-		err = v.driver.MountVolumeSnapshot(v, op)
+		err = v.driver.MountVolumeSnapshot(v, progressReporter)
 	} else {
-		err = v.driver.MountVolume(v, op)
+		err = v.driver.MountVolume(v, progressReporter)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	taskErr := task(v.MountPath(), op)
+	taskErr := task(v.MountPath(), progressReporter)
 
 	// Try and unmount, even on task error.
 	if v.IsSnapshot() {
-		_, err = v.driver.UnmountVolumeSnapshot(v, op)
+		_, err = v.driver.UnmountVolumeSnapshot(v, progressReporter)
 	} else {
-		_, err = v.driver.UnmountVolume(v, false, op)
+		_, err = v.driver.UnmountVolume(v, false, progressReporter)
 	}
 
 	// Return task error if failed.
@@ -326,39 +326,39 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 // UnmountTask runs the supplied task after unmounting the volume if needed.
 // If the volume was unmounted for this then it is mounted when the task finishes.
 // keepBlockDev indicates if backing block device should be not be deactivated if volume is unmounted.
-func (v Volume) UnmountTask(task func(op *operations.Operation) error, keepBlockDev bool, op *operations.Operation) error {
+func (v Volume) UnmountTask(task func(progressReporter ioprogress.ProgressReporter) error, keepBlockDev bool, progressReporter ioprogress.ProgressReporter) error {
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if v.IsSnapshot() {
-		ourUnmount, err := v.driver.UnmountVolumeSnapshot(v, op)
+		ourUnmount, err := v.driver.UnmountVolumeSnapshot(v, progressReporter)
 		if err != nil {
 			return err
 		}
 
 		if ourUnmount {
-			defer func() { _ = v.driver.MountVolumeSnapshot(v, op) }()
+			defer func() { _ = v.driver.MountVolumeSnapshot(v, progressReporter) }()
 		}
 	} else {
-		ourUnmount, err := v.driver.UnmountVolume(v, keepBlockDev, op)
+		ourUnmount, err := v.driver.UnmountVolume(v, keepBlockDev, progressReporter)
 		if err != nil {
 			return err
 		}
 
 		if ourUnmount {
-			defer func() { _ = v.driver.MountVolume(v, op) }()
+			defer func() { _ = v.driver.MountVolume(v, progressReporter) }()
 		}
 	}
 
-	return task(op)
+	return task(progressReporter)
 }
 
 // Snapshots returns a list of snapshots for the volume (in no particular order).
-func (v Volume) Snapshots(op *operations.Operation) ([]Volume, error) {
+func (v Volume) Snapshots(progressReporter ioprogress.ProgressReporter) ([]Volume, error) {
 	if v.IsSnapshot() {
 		return nil, errors.New("Volume is a snapshot")
 	}
 
-	snapshots, err := v.driver.VolumeSnapshots(v, op)
+	snapshots, err := v.driver.VolumeSnapshots(v)
 	if err != nil {
 		return nil, err
 	}
@@ -433,8 +433,8 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 }
 
 // SetQuota calls SetVolumeQuota on the Volume's driver.
-func (v Volume) SetQuota(size string, allowUnsafeResize bool, op *operations.Operation) error {
-	return v.driver.SetVolumeQuota(v, size, allowUnsafeResize, op)
+func (v Volume) SetQuota(size string, allowUnsafeResize bool, progressReporter ioprogress.ProgressReporter) error {
+	return v.driver.SetVolumeQuota(v, size, allowUnsafeResize, progressReporter)
 }
 
 // SetConfigSize sets the size config property on the Volume (does not resize volume).

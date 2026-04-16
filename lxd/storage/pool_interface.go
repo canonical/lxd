@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"io"
 	"net/url"
 	"os"
@@ -14,10 +15,10 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/revert"
 )
 
@@ -54,10 +55,10 @@ type Pool interface {
 
 	GetResources() (*api.ResourcesStoragePool, error)
 	IsUsed() (bool, error)
-	Delete(clientType request.ClientType, op *operations.Operation) error
-	Update(clientType request.ClientType, newDesc string, newConfig map[string]string, op *operations.Operation) error
+	Delete(clientType request.ClientType, progressReporter ioprogress.ProgressReporter) error
+	Update(clientType request.ClientType, newDesc string, newConfig map[string]string, progressReporter ioprogress.ProgressReporter) error
 
-	Create(clientType request.ClientType, op *operations.Operation) error
+	Create(clientType request.ClientType, progressReporter ioprogress.ProgressReporter) error
 	Mount() (bool, error)
 	Unmount() (bool, error)
 
@@ -66,87 +67,87 @@ type Pool interface {
 	GetVolume(volumeType drivers.VolumeType, contentType drivers.ContentType, name string, config map[string]string) drivers.Volume
 
 	// Instances.
-	CreateInstance(inst instance.Instance, op *operations.Operation) error
-	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, revert.Hook, error)
-	CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, allowInconsistent bool, op *operations.Operation) error
-	CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error
-	CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
-	CreateInstanceFromConversion(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
-	RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error
-	DeleteInstance(inst instance.Instance, op *operations.Operation) error
-	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
-	UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, version uint32, op *operations.Operation) error
-	GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, op *operations.Operation) (*backupConfig.Config, error)
-	GenerateInstanceCustomVolumeBackupConfig(inst instance.Instance, cache *storageCache, snapshots bool, op *operations.Operation) (*backupConfig.Config, error)
-	CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, op *operations.Operation) ([]*api.InstanceSnapshot, error)
-	ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error)
-	CleanupInstancePaths(inst instance.Instance, op *operations.Operation) error
+	CreateInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
+	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (func(instance.Instance) error, revert.Hook, error)
+	CreateInstanceFromCopy(ctx context.Context, inst instance.Instance, src instance.Instance, snapshots bool, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error
+	CreateInstanceFromImage(ctx context.Context, inst instance.Instance, fingerprint string, progressReporter ioprogress.ProgressReporter) error
+	CreateInstanceFromMigration(ctx context.Context, inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, progressReporter ioprogress.ProgressReporter) error
+	CreateInstanceFromConversion(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, progressReporter ioprogress.ProgressReporter) error
+	RenameInstance(inst instance.Instance, newName string, progressReporter ioprogress.ProgressReporter) error
+	DeleteInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
+	UpdateInstance(ctx context.Context, inst instance.Instance, newDesc string, newConfig map[string]string, progressReporter ioprogress.ProgressReporter) error
+	UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, version uint32, progressReporter ioprogress.ProgressReporter) error
+	GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, progressReporter ioprogress.ProgressReporter) (*backupConfig.Config, error)
+	GenerateInstanceCustomVolumeBackupConfig(inst instance.Instance, cache *storageCache, snapshots bool, progressReporter ioprogress.ProgressReporter) (*backupConfig.Config, error)
+	CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, progressReporter ioprogress.ProgressReporter) ([]*api.InstanceSnapshot, error)
+	ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, progressReporter ioprogress.ProgressReporter) (revert.Hook, error)
+	CleanupInstancePaths(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
 
-	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
-	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error
-	BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, version uint32, op *operations.Operation) error
+	MigrateInstance(ctx context.Context, inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error
+	RefreshInstance(ctx context.Context, inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error
+	BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, version uint32, progressReporter ioprogress.ProgressReporter) error
 
 	GetInstanceUsage(inst instance.Instance) (*VolumeUsage, error)
-	SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) error
+	SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, progressReporter ioprogress.ProgressReporter) error
 
-	MountInstance(inst instance.Instance, op *operations.Operation) (*MountInfo, error)
-	UnmountInstance(inst instance.Instance, op *operations.Operation) error
+	MountInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) (*MountInfo, error)
+	UnmountInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
 
 	// Instance snapshots.
-	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
-	RenameInstanceSnapshot(inst instance.Instance, newName string, op *operations.Operation) error
-	DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
-	RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
-	MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (*MountInfo, error)
-	UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
-	UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
+	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, progressReporter ioprogress.ProgressReporter) error
+	RenameInstanceSnapshot(inst instance.Instance, newName string, progressReporter ioprogress.ProgressReporter) error
+	DeleteInstanceSnapshot(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
+	RestoreInstanceSnapshot(ctx context.Context, inst instance.Instance, src instance.Instance, progressReporter ioprogress.ProgressReporter) error
+	MountInstanceSnapshot(inst instance.Instance, progressReporter ioprogress.ProgressReporter) (*MountInfo, error)
+	UnmountInstanceSnapshot(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
+	UpdateInstanceSnapshot(ctx context.Context, inst instance.Instance, newDesc string, newConfig map[string]string, progressReporter ioprogress.ProgressReporter) error
 
 	// Images.
-	EnsureImage(fingerprint string, op *operations.Operation, projectName string) error
-	DeleteImage(fingerprint string, op *operations.Operation) error
-	UpdateImage(fingerprint string, newDesc string, newConfig map[string]string, op *operations.Operation) error
+	EnsureImage(ctx context.Context, fingerprint string, projectName string, progressReporter ioprogress.ProgressReporter) error
+	DeleteImage(ctx context.Context, fingerprint string, progressReporter ioprogress.ProgressReporter) error
+	UpdateImage(ctx context.Context, fingerprint string, newDesc string, newConfig map[string]string, progressReporter ioprogress.ProgressReporter) error
 
 	// Buckets.
-	CreateBucket(projectName string, bucket api.StorageBucketsPost, op *operations.Operation) error
-	UpdateBucket(projectName string, bucketName string, bucket api.StorageBucketPut, op *operations.Operation) error
-	DeleteBucket(projectName string, bucketName string, op *operations.Operation) error
-	CreateBucketKey(projectName string, bucketName string, key api.StorageBucketKeysPost, op *operations.Operation) (*api.StorageBucketKey, error)
-	UpdateBucketKey(projectName string, bucketName string, keyName string, key api.StorageBucketKeyPut, op *operations.Operation) error
-	DeleteBucketKey(projectName string, bucketName string, keyName string, op *operations.Operation) error
+	CreateBucket(projectName string, bucket api.StorageBucketsPost) error
+	UpdateBucket(projectName string, bucketName string, bucket api.StorageBucketPut) error
+	DeleteBucket(projectName string, bucketName string) error
+	CreateBucketKey(projectName string, bucketName string, key api.StorageBucketKeysPost) (*api.StorageBucketKey, error)
+	UpdateBucketKey(projectName string, bucketName string, keyName string, key api.StorageBucketKeyPut) error
+	DeleteBucketKey(projectName string, bucketName string, keyName string) error
 	GetBucketURL(bucketName string) *url.URL
 
 	// Custom volumes.
-	CreateCustomVolume(projectName string, volName string, desc string, config map[string]string, contentType drivers.ContentType, op *operations.Operation) error
-	CreateCustomVolumeFromCopy(projectName string, srcProjectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error
-	UpdateCustomVolume(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error
-	RenameCustomVolume(projectName string, volName string, newVolName string, op *operations.Operation) error
-	DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error
+	CreateCustomVolume(ctx context.Context, projectName string, volName string, desc string, config map[string]string, contentType drivers.ContentType, progressReporter ioprogress.ProgressReporter) error
+	CreateCustomVolumeFromCopy(ctx context.Context, projectName, srcProjectName, volName, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, progressReporter ioprogress.ProgressReporter) error
+	UpdateCustomVolume(ctx context.Context, projectName string, volName string, newDesc string, newConfig map[string]string, progressReporter ioprogress.ProgressReporter) error
+	RenameCustomVolume(ctx context.Context, projectName string, volName string, newVolName string, progressReporter ioprogress.ProgressReporter) error
+	DeleteCustomVolume(ctx context.Context, projectName string, volName string, progressReporter ioprogress.ProgressReporter) error
 	GetCustomVolumeUsage(projectName string, volName string) (*VolumeUsage, error)
-	MountCustomVolume(projectName string, volName string, op *operations.Operation) (*MountInfo, error)
-	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
-	ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error)
-	RefreshCustomVolume(projectName string, srcProjectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error
-	UpdateCustomVolumeBackupFiles(projectName string, volName string, snapshots bool, instances []instance.Instance, op *operations.Operation) error
-	GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error)
-	CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error
-	CreateCustomVolumeFromTarball(projectName string, volName string, srcData *os.File, op *operations.Operation) error
+	MountCustomVolume(projectName string, volName string, progressReporter ioprogress.ProgressReporter) (*MountInfo, error)
+	UnmountCustomVolume(projectName string, volName string, progressReporter ioprogress.ProgressReporter) (bool, error)
+	ImportCustomVolume(projectName string, poolVol *backupConfig.Config, progressReporter ioprogress.ProgressReporter) (revert.Hook, error)
+	RefreshCustomVolume(ctx context.Context, projectName, srcProjectName, volName, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, progressReporter ioprogress.ProgressReporter) error
+	UpdateCustomVolumeBackupFiles(projectName string, volName string, snapshots bool, instances []instance.Instance, progressReporter ioprogress.ProgressReporter) error
+	GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, progressReporter ioprogress.ProgressReporter) (*backupConfig.Config, error)
+	CreateCustomVolumeFromISO(ctx context.Context, projectName string, volName string, srcData io.ReadSeeker, size int64, progressReporter ioprogress.ProgressReporter) error
+	CreateCustomVolumeFromTarball(ctx context.Context, projectName string, volName string, srcData *os.File, progressReporter ioprogress.ProgressReporter) error
 
 	// Custom volume snapshots.
-	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, newExpiryDate *time.Time, op *operations.Operation) (*uuid.UUID, error)
-	RenameCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, op *operations.Operation) error
-	DeleteCustomVolumeSnapshot(projectName string, volName string, op *operations.Operation) error
-	UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, newExpiryDate time.Time, op *operations.Operation) error
-	RestoreCustomVolume(projectName string, volName string, snapshotName string, op *operations.Operation) error
+	CreateCustomVolumeSnapshot(ctx context.Context, projectName string, volName string, newSnapshotName string, newDescription string, newExpiryDate *time.Time, progressReporter ioprogress.ProgressReporter) (*uuid.UUID, error)
+	RenameCustomVolumeSnapshot(ctx context.Context, projectName string, volName string, newSnapshotName string, progressReporter ioprogress.ProgressReporter) error
+	DeleteCustomVolumeSnapshot(ctx context.Context, projectName string, volName string, progressReporter ioprogress.ProgressReporter) error
+	UpdateCustomVolumeSnapshot(ctx context.Context, projectName string, volName string, newDesc string, newConfig map[string]string, newExpiryDate time.Time, progressReporter ioprogress.ProgressReporter) error
+	RestoreCustomVolume(ctx context.Context, projectName string, volName string, snapshotName string, progressReporter ioprogress.ProgressReporter) error
 
 	// Custom volume migration.
 	MigrationTypes(contentType drivers.ContentType, refresh bool, copySnapshots bool) []migration.Type
-	CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
-	MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
+	CreateCustomVolumeFromMigration(ctx context.Context, projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, progressReporter ioprogress.ProgressReporter) error
+	MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error
 
 	// Custom volume backups.
-	BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error
-	CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error
+	BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, progressReporter ioprogress.ProgressReporter) error
+	CreateCustomVolumeFromBackup(ctx context.Context, srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) error
 
 	// Storage volume recovery.
-	ListUnknownVolumes(op *operations.Operation) (map[string][]*backupConfig.Config, error)
+	ListUnknownVolumes(progressReporter ioprogress.ProgressReporter) (map[string][]*backupConfig.Config, error)
 }

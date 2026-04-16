@@ -205,7 +205,7 @@ func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if state == api.Ready {
-		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceReady.Event(inst, nil))
+		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceReady.Event(r.Context(), inst, nil))
 	}
 
 	return response.DevLXDResponse(http.StatusOK, "", "raw")

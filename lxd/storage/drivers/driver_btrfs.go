@@ -13,10 +13,10 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
@@ -277,7 +277,7 @@ func (d *btrfs) Create() error {
 }
 
 // Delete removes the storage pool from the storage device.
-func (d *btrfs) Delete(op *operations.Operation) error {
+func (d *btrfs) Delete(progressReporter ioprogress.ProgressReporter) error {
 	// If the user completely destroyed it, call it done.
 	if !shared.PathExists(GetPoolMountPath(d.name)) {
 		return nil
