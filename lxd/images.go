@@ -1314,6 +1314,12 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
+	if !imageUpload && req.Source.Type == "image" && req.Source.ImageRegistry != "" {
+		if !projectutils.RegistryAllowed(projectConfig, req.Source.ImageRegistry) {
+			return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Image registry not found"))
+		}
+	}
+
 	if req.CompressionAlgorithm != "" {
 		err = validate.IsCompressionAlgorithm(req.CompressionAlgorithm)
 		if err != nil {
