@@ -4729,6 +4729,17 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 			qemuDev["netdev"] = qemuNetDevID
 			qemuDev["mac"] = devHwaddr
 
+			if mtu != "" {
+				mtuUint, err := strconv.ParseUint(mtu, 10, 32)
+				if err != nil {
+					return fmt.Errorf("Failed parsing MTU %q: %w", mtu, err)
+				}
+
+				if mtuUint > 0 {
+					qemuDev["host_mtu"] = mtuUint
+				}
+			}
+
 			err = m.AddNIC(qemuNetDev, qemuDev)
 			if err != nil {
 				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
