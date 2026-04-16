@@ -263,44 +263,9 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 		},
 	}
 
-	// Set the MTU on both ends.
-	// The host side should always line up with the bridge to avoid accidentally lowering the bridge MTU.
-	// The instance side should use the configured MTU (if any), if not, it should match the host side.
-	var instanceMTU uint32
-	var parentMTU uint32
-
-	if m["parent"] != "" {
-		mtu, err := network.GetDevMTU(m["parent"])
-		if err != nil {
-			return "", 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
-		}
-
-		parentMTU = uint32(mtu)
-	}
-
-	if m["mtu"] != "" {
-		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
-		if err != nil {
-			return "", 0, fmt.Errorf("Invalid MTU specified: %w", err)
-		}
-
-		instanceMTU = uint32(mtu)
-	}
-
-	if instanceMTU == 0 && parentMTU > 0 {
-		instanceMTU = parentMTU
-	}
-
-	if parentMTU == 0 && instanceMTU > 0 {
-		parentMTU = instanceMTU
-	}
-
-	if instanceMTU > 0 {
-		veth.Peer.MTU = instanceMTU
-	}
-
-	if parentMTU > 0 {
-		veth.MTU = parentMTU
+	veth.MTU, veth.Peer.MTU, err = networkCalculatePairMTU(m)
+	if err != nil {
+		return "", 0, err
 	}
 
 	// Set the MAC address on peer.
