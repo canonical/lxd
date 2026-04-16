@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'snapcraft/**'
+      - 'snapcraft.yaml'
+      - '.github/actions/lp-snap-build/lxd-snapcraft/**'
 
 permissions:
   contents: read
@@ -27,9 +29,7 @@ jobs:
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
-
-      - name: Require GHA pinning
-        uses: canonical/lxd/.github/actions/require-gha-pinning@main
+          persist-credentials: false
 
       - id: ShellCheck
         name: Differential ShellCheck
@@ -44,3 +44,11 @@ jobs:
           name: Differential ShellCheck SARIF
           path: ${{ steps.ShellCheck.outputs.sarif }}
         if: github.event_name == 'pull_request'
+
+      - name: Run lxd-snapcraft unit tests
+        working-directory: .github/actions/lp-snap-build/lxd-snapcraft
+        run: go test -v ./...
+
+      - name: Verify snap source-commits
+        working-directory: .github/actions/lp-snap-build/lxd-snapcraft
+        run: go run . -file ../../../../snapcraft.yaml -verify-source-commits
