@@ -1949,6 +1949,132 @@ test_clustering_join_api() {
   kill_lxd "${LXD_ONE_DIR}"
 }
 
+test_clustering_join_certificate_conflict() {
+  local cert_json node2_cert_b64
+
+  # Sub-test 1: Pre-staged cert is identical to what join would create → join succeeds.
+  sub_test "Join succeeds when matching server cert already trusted"
+
+  spawn_lxd_and_bootstrap_cluster
+
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  # shellcheck disable=SC2154
+  ns2="${prefix}2"
+  LXD_NETNS="${ns2}" spawn_lxd "${LXD_TWO_DIR}" false
+
+  cert_json="$(cert_to_json "${LXD_ONE_DIR}/cluster.crt")"
+
+  # Extract node2's server cert in DER base64 format, matching GenerateTrustCertificate's output.
+  node2_cert_b64="$(openssl x509 -in "${LXD_TWO_DIR}/server.crt" -outform DER | base64 | tr -d '\n')"
+
+  # Pre-stage node2's certificate on node1 as a server cert with the correct name.
+  curl --silent --unix-socket "${LXD_ONE_DIR}/unix.socket" \
+    --fail-with-body -H 'Content-Type: application/json' -X POST "lxd/1.0/certificates" \
+    -d '{"type":"server","name":"node2","certificate":"'"${node2_cert_b64}"'"}'
+
+  # Join should succeed because the pre-staged cert is identical to what SetupTrust would create.
+  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node2 --quiet)"
+  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" \
+    --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" \
+    -d '{"server_name":"node2","enabled":true,"member_config":[{"entity":"storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":'"${cert_json}"',"cluster_token":"'"${token}"'"}' \
+    | jq --exit-status --raw-output '.operation')"
+  curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body "lxd${op}/wait"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F 'message: Fully operational'
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+
+  # Sub-test 2: Pre-staged cert has wrong type → join fails.
+  sub_test "Join fails when pre-staged cert has wrong type"
+
+  spawn_lxd_and_bootstrap_cluster
+
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  LXD_NETNS="${ns2}" spawn_lxd "${LXD_TWO_DIR}" false
+
+  cert_json="$(cert_to_json "${LXD_ONE_DIR}/cluster.crt")"
+  node2_cert_b64="$(openssl x509 -in "${LXD_TWO_DIR}/server.crt" -outform DER | base64 | tr -d '\n')"
+
+  # Pre-stage node2's cert as a client cert instead of a server cert.
+  curl --silent --unix-socket "${LXD_ONE_DIR}/unix.socket" \
+    --fail-with-body -H 'Content-Type: application/json' -X POST "lxd/1.0/certificates" \
+    -d '{"type":"client","name":"node2","certificate":"'"${node2_cert_b64}"'"}'
+
+  # Join should fail because the pre-staged cert type does not match the required server type.
+  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node2 --quiet)"
+  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" \
+    --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" \
+    -d '{"server_name":"node2","enabled":true,"member_config":[{"entity":"storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":'"${cert_json}"',"cluster_token":"'"${token}"'"}' \
+    | jq --exit-status --raw-output '.operation')"
+  curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait" | jq --exit-status '.error_code != 0'
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+
+  # Sub-test 3: Different cert, same name → name collision → join fails.
+  sub_test "Join fails when a different cert is pre-staged with the same name"
+
+  spawn_lxd_and_bootstrap_cluster
+
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  LXD_NETNS="${ns2}" spawn_lxd "${LXD_TWO_DIR}" false
+
+  cert_json="$(cert_to_json "${LXD_ONE_DIR}/cluster.crt")"
+
+  # Generate a throwaway cert with a different fingerprint.
+  gen_cert_and_key "node2-different"
+  different_cert_b64="$(openssl x509 -in "${LXD_CONF}/node2-different.crt" -outform DER | base64 | tr -d '\n')"
+
+  # Pre-stage the different cert under the name "node2" on node1.
+  curl --silent --unix-socket "${LXD_ONE_DIR}/unix.socket" \
+    --fail-with-body -H 'Content-Type: application/json' -X POST "lxd/1.0/certificates" \
+    -d '{"type":"server","name":"node2","certificate":"'"${different_cert_b64}"'"}'
+
+  # Join should fail because there is a name collision with a cert of a different fingerprint.
+  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node2 --quiet)"
+  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" \
+    --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" \
+    -d '{"server_name":"node2","enabled":true,"member_config":[{"entity":"storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":'"${cert_json}"',"cluster_token":"'"${token}"'"}' \
+    | jq --exit-status --raw-output '.operation')"
+  curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait" | jq --exit-status '.error_code != 0'
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
+
 test_clustering_shutdown_nodes() {
   spawn_lxd_and_bootstrap_cluster
 
