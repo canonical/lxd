@@ -1513,6 +1513,32 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
+	if !imageUpload && req.Source.Type == "image" && req.Source.ImageRegistry != "" {
+		var registryBuiltin bool
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			dbImageRegistry, err := dbCluster.GetImageRegistry(ctx, tx.Tx(), req.Source.ImageRegistry)
+			if err != nil {
+				return err
+			}
+
+			registryBuiltin = dbImageRegistry.Builtin
+			return nil
+		})
+		if err != nil {
+			if response.IsNotFoundError(err) {
+				return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Image registry not found"))
+			}
+
+			return response.SmartError(err)
+		}
+
+		// TODO: centralize this restricted.registries enforcement inside ImageDownload so that
+		// every image download path is covered by a single check.
+		if !projectutils.RegistryAllowed(projectConfig, req.Source.ImageRegistry, registryBuiltin) {
+			return response.SmartError(api.StatusErrorf(http.StatusForbidden, "Image registry %q is not allowed in this project", req.Source.ImageRegistry))
+		}
+	}
+
 	if req.CompressionAlgorithm != "" {
 		err = validate.IsCompressionAlgorithm(req.CompressionAlgorithm)
 		if err != nil {
