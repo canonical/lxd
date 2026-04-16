@@ -207,6 +207,45 @@ func networkRestorePhysicalNIC(hostName string, volatile map[string]string) erro
 	return nil
 }
 
+// networkCalculatePairMTU calculates the MTU to use on both ends of the VETH/TAP pair.
+// This returns the hostMTU set to the larger of m's mtu (if specified) or m's "parent" (if specified) MTU.
+// The hostMTU will never be smaller than m's "parent" (if specified) MTU to avoid lowering the parent bridge.
+func networkCalculatePairMTU(m deviceConfig.Device) (hostMTU uint32, instanceMTU uint32, err error) {
+	if m["parent"] != "" {
+		mtu, err := network.GetDevMTU(m["parent"])
+		if err != nil {
+			return 0, 0, fmt.Errorf("Failed getting the parent MTU from %q: %w", m["parent"], err)
+		}
+
+		hostMTU = uint32(mtu)
+	}
+
+	if m["mtu"] != "" {
+		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Invalid MTU specified %q: %w", m["mtu"], err)
+		}
+
+		instanceMTU = uint32(mtu)
+	}
+
+	// If instance MTU is not specified, but host MTU is, then use the host MTU for the instance side to avoid
+	// accidentally lowering the MTU of the parent bridge.
+	if instanceMTU == 0 && hostMTU > 0 {
+		instanceMTU = hostMTU
+	}
+
+	// If host MTU is less than instance MTU then the parent bridge is likely to drop packets from the instance,
+	// so use the instance MTU for the host side to avoid this. This should increase the parent bridge MTU
+	// if needed (for the duration that the instance is connected to the bridge) and if the bridge has not got
+	// an MTU explicitly set.
+	if hostMTU < instanceMTU {
+		hostMTU = instanceMTU
+	}
+
+	return hostMTU, instanceMTU, nil
+}
+
 // networkCreateVethPair creates and configures a veth pair. It will set the hwaddr and mtu settings
 // in the supplied config to the newly created peer interface. If mtu is not specified, but parent
 // is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
