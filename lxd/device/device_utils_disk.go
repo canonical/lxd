@@ -174,26 +174,34 @@ again:
 
 // diskCephfsOptions returns the mntSrcPath and fsOptions to use for mounting a cephfs share.
 func diskCephfsOptions(clusterName string, userName string, fsName string, fsPath string) (string, []string, error) {
+	ctx := context.TODO()
+
+	// Get the FSID.
+	fsid, err := storageDrivers.CephFSID(ctx, clusterName)
+	if err != nil {
+		return "", nil, err
+	}
+
 	// Get the monitor list.
-	monAddresses, err := storageDrivers.CephMonitors(clusterName)
+	monitors, err := storageDrivers.CephMonitors(ctx, clusterName)
 	if err != nil {
 		return "", nil, err
 	}
 
 	// Get the keyring entry.
-	secret, err := storageDrivers.CephKeyring(clusterName, userName)
+	secret, err := storageDrivers.CephKeyring(ctx, clusterName, userName)
 	if err != nil {
 		return "", nil, err
 	}
 
-	// Prepare mount entry.
-	fsOptions := []string{
-		"name=" + userName,
-		"secret=" + secret,
-		"mds_namespace=" + fsName,
+	// Get the messenger mode.
+	msMode, err := storageDrivers.CephMSMode(ctx, clusterName)
+	if err != nil {
+		return "", nil, err
 	}
 
-	srcPath := strings.Join(monAddresses, ",") + ":/" + fsPath
+	srcPath, fsOptions := storageDrivers.CephBuildMount(userName, secret, fsid, monitors, fsName, fsPath, msMode)
+
 	return srcPath, fsOptions, nil
 }
 

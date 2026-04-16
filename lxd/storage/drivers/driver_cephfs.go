@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -143,12 +144,8 @@ func (d *cephfs) Create() error {
 	defer revert.Fail()
 
 	// Parse the namespace / path.
-	fields := strings.SplitN(d.config["cephfs.path"], "/", 2)
-	fsName := fields[0]
-	fsPath := "/"
-	if len(fields) > 1 {
-		fsPath = fields[1]
-	}
+	fsName, fsPath, _ := strings.Cut(d.config["cephfs.path"], "/")
+	fsPath = "/" + fsPath
 
 	// If the filesystem already exists, disallow keys associated to creating the filesystem.
 	fsExists, err := d.fsExists(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], fsName)
@@ -296,15 +293,41 @@ func (d *cephfs) Create() error {
 		return fmt.Errorf("Failed creating directory %q: %w", mountPoint, err)
 	}
 
-	// Get the credentials and host.
-	monAddresses, userSecret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"])
+	// Collect Ceph information.
+	clusterName := d.config["cephfs.cluster_name"]
+	userName := d.config["cephfs.user.name"]
+
+	ctx := context.TODO()
+
+	fsid, err := CephFSID(ctx, clusterName)
 	if err != nil {
 		return err
 	}
 
+	monitors, err := CephMonitors(ctx, clusterName)
+	if err != nil {
+		return err
+	}
+
+	key, err := CephKeyring(ctx, clusterName, userName)
+	if err != nil {
+		return err
+	}
+
+	if key == "" {
+		d.logger.Warn("No Ceph keyring found, cephx may be disabled", logger.Ctx{"cluster": clusterName, "user": userName})
+	}
+
+	msMode, err := CephMSMode(ctx, clusterName)
+	if err != nil {
+		return err
+	}
+
+	srcPath, options := CephBuildMount(userName, key, fsid, monitors, fsName, "/", msMode)
+	options = append(options, "mount_timeout=10")
+
 	// Mount the pool.
-	srcPath := strings.Join(monAddresses, ",") + ":/"
-	err = TryMount(context.TODO(), srcPath, mountPoint, "ceph", 0, d.getMountOptions(d.config["cephfs.user.name"], userSecret, fsName))
+	err = TryMount(ctx, srcPath, mountPoint, "ceph", 0, strings.Join(options, ","))
 	if err != nil {
 		return err
 	}
@@ -331,12 +354,8 @@ func (d *cephfs) Create() error {
 // Delete clears any local and remote data related to this driver instance.
 func (d *cephfs) Delete(op *operations.Operation) error {
 	// Parse the namespace / path.
-	fields := strings.SplitN(d.config["cephfs.path"], "/", 2)
-	fsName := fields[0]
-	fsPath := "/"
-	if len(fields) > 1 {
-		fsPath = fields[1]
-	}
+	fsName, fsPath, _ := strings.Cut(d.config["cephfs.path"], "/")
+	fsPath = "/" + fsPath
 
 	// Create a temporary mountpoint.
 	mountPath, err := os.MkdirTemp("", "lxd_cephfs_")
@@ -357,15 +376,41 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 		return fmt.Errorf("Failed creating directory %q: %w", mountPoint, err)
 	}
 
-	// Get the credentials and host.
-	monAddresses, userSecret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"])
+	// Collect Ceph information.
+	clusterName := d.config["cephfs.cluster_name"]
+	userName := d.config["cephfs.user.name"]
+
+	ctx := context.TODO()
+
+	fsid, err := CephFSID(ctx, clusterName)
 	if err != nil {
 		return err
 	}
 
+	monitors, err := CephMonitors(ctx, clusterName)
+	if err != nil {
+		return err
+	}
+
+	key, err := CephKeyring(ctx, clusterName, userName)
+	if err != nil {
+		return err
+	}
+
+	if key == "" {
+		d.logger.Warn("No Ceph keyring found, cephx may be disabled", logger.Ctx{"cluster": clusterName, "user": userName})
+	}
+
+	msMode, err := CephMSMode(ctx, clusterName)
+	if err != nil {
+		return err
+	}
+
+	srcPath, options := CephBuildMount(userName, key, fsid, monitors, fsName, "/", msMode)
+	options = append(options, "mount_timeout=10")
+
 	// Mount the pool.
-	srcPath := strings.Join(monAddresses, ",") + ":/"
-	err = TryMount(context.TODO(), srcPath, mountPoint, "ceph", 0, d.getMountOptions(d.config["cephfs.user.name"], userSecret, fsName))
+	err = TryMount(ctx, srcPath, mountPoint, "ceph", 0, strings.Join(options, ","))
 	if err != nil {
 		return err
 	}
@@ -525,28 +570,47 @@ func (d *cephfs) Mount() (bool, error) {
 	}
 
 	// Parse the namespace / path.
-	fields := strings.SplitN(d.config["cephfs.path"], "/", 2)
-	fsName := fields[0]
-	fsPath := ""
-	if len(fields) > 1 {
-		fsPath = fields[1]
-	}
+	fsName, fsPath, _ := strings.Cut(d.config["cephfs.path"], "/")
 
-	// Get the credentials and host.
-	monAddresses, userSecret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"])
+	// Collect Ceph information.
+	clusterName := d.config["cephfs.cluster_name"]
+	userName := d.config["cephfs.user.name"]
+
+	ctx := context.TODO()
+
+	fsid, err := CephFSID(ctx, clusterName)
 	if err != nil {
 		return false, err
 	}
 
-	// Mount options.
-	options := d.getMountOptions(d.config["cephfs.user.name"], userSecret, fsName)
+	monitors, err := CephMonitors(ctx, clusterName)
+	if err != nil {
+		return false, err
+	}
+
+	key, err := CephKeyring(ctx, clusterName, userName)
+	if err != nil {
+		return false, err
+	}
+
+	if key == "" {
+		d.logger.Warn("No Ceph keyring found, cephx may be disabled", logger.Ctx{"cluster": clusterName, "user": userName})
+	}
+
+	msMode, err := CephMSMode(ctx, clusterName)
+	if err != nil {
+		return false, err
+	}
+
+	srcPath, options := CephBuildMount(userName, key, fsid, monitors, fsName, fsPath, msMode)
+	options = append(options, "mount_timeout=10")
+
 	if shared.IsTrue(d.config["cephfs.fscache"]) {
-		options += ",fsc"
+		options = append(options, "fsc")
 	}
 
 	// Mount the pool.
-	srcPath := strings.Join(monAddresses, ",") + ":/" + fsPath
-	err = TryMount(context.TODO(), srcPath, GetPoolMountPath(d.name), "ceph", 0, options)
+	err = TryMount(ctx, srcPath, GetPoolMountPath(d.name), "ceph", 0, strings.Join(options, ","))
 	if err != nil {
 		return false, err
 	}
