@@ -2,13 +2,16 @@ name: Commits
 on:
   - pull_request
 
-permissions:
-  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
   commits:
     name: Branch target
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     steps:
     - name: Check branch target
       env:
