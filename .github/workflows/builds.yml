@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - latest-edge
+      - latest-candidate
+      - '[0-9]*-edge'
+      - '[0-9]*-candidate'
 
 permissions:
   contents: read
