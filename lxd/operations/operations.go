@@ -1051,7 +1051,7 @@ func validateMetadata(metadata map[string]any) (map[string]any, error) {
 	return metadata, nil
 }
 
-// ProgressHandler implements [ioprogress.ProgressHandlerFactory]. This is used by instance and storage drivers to
+// ProgressHandler implements [ioprogress.ProgressReporter]. This is used by instance and storage drivers to
 // report I/O progress as they perform different actions (migration, download, image unpack, etc.).
 func (op *Operation) ProgressHandler(action string) ioprogress.ProgressHandler {
 	return func(data ioprogress.ProgressData) {
