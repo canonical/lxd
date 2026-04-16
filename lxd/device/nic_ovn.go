@@ -564,6 +564,10 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 			reverter.Add(cleanup)
 		default:
+			// Specify the OVN integration bridge as parent so that the veth/tap pair setup can take
+			// its MTU into account to avoid lowering it.
+			d.config["parent"] = d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+
 			// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
 			if d.inst.Type() == instancetype.Container {
 				if saveData["host_name"] == "" {
