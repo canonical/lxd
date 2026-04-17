@@ -64,6 +64,7 @@ test_clustering_move() {
   # Perform default move tests falling back to the built in logic of choosing the node
   # with the least number of instances when targeting a cluster group.
   lxc move cluster:c1 --target node2
+  [ "$(! "${_LXC}" move cluster:c1 --target node2 2>&1 1>/dev/null)" = "Error: Migration API failure: Target must be different than instance's current location" ]
 
   # c1 can be moved to a new target project.
   lxc move cluster:c1 --target-project test-project
