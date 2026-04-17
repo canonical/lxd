@@ -154,10 +154,10 @@ make update-metadata
 
 Several pieces of software are needed in order to build and test LXD. Here is an easy way to create a virtual-machine to use as a development environment. LXD itself is needed to power that virtual-machine so install it first: {ref}`installing`.
 
-Once LXD is installed and {ref}`initialized <initialize>`, a special profile (`lxd-test`) needs to be loaded. The profile requires includes a `lxd-git` device (see {ref}`devices-disk-types` for details) that will share LXD's git repository with the virtual-machine. Since this path is specific to your environment you need to adjust it when loading the profile:
+Once LXD is installed and {ref}`initialized <initialize>`, a special profile (`lxd-test`) needs to be loaded. The profile includes a `lxd-git` device (see {ref}`devices-disk-types` for details) that will share LXD's git repository with the virtual-machine. Since this path is specific to your environment you need to adjust it when loading the profile:
 
 ```sh
-# this needs to be run from inside the git repostory
+# this needs to be run from inside the git repository
 GIT_ROOT="$(git rev-parse --show-toplevel)"
 # create or edit the profile based on the provided template
 lxc profile list | grep -qwF lxd-test || lxc profile create lxd-test
