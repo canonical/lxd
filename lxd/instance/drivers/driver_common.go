@@ -1113,7 +1113,7 @@ func updateProgress(progressReporter ioprogress.ProgressReporter, progress strin
 		return
 	}
 
-	handler := progressReporter.ProgressHandler("container")
+	handler := progressReporter.ProgressHandler("instance")
 	handler(ioprogress.ProgressData{
 		Text: progress,
 	})
