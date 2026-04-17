@@ -16,76 +16,78 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ---
 
-```{rst-class} hclass2
-```
+## In this documentation
 
-```{rubric} In this documentation
-```
+### Start here
 
-````{grid} 1 1 2 2
+Follow the tutorial for a guided introduction to LXD, including installing it using its snap.
 
-```{grid-item-card} [Tutorial](tutorial/first_steps)
+- **Tutorial**: {ref}`Requirements <tutorial-requirements>` • {ref}`Install LXD using the snap <tutorial-install>` • {ref}`Create <tutorial-create-instances>` and {ref}`configure <tutorial-configure>` test instances • Learn how to {ref}`open an interactive shell <tutorial-shell>` into an instance • Learn how to {ref}`back up and restore instances <tutorial-snapshots>`
 
-**Start here**: a hands-on introduction to LXD for new users, guiding you through your first steps using the CLI or the UI
-- {ref}`first-steps`
-```
+### Server and client
 
-```{grid-item-card} [How-to guides](howto/index)
+These guides help you manage a standalone LXD server or a cluster of servers, including how to access and communicate with servers.
 
-**Step-by-step guides** covering key operations and common tasks
-- {ref}`howtos-getstarted`
-- {ref}`howtos-work`
-- {ref}`howtos-production`
-```
+- **Server**: {ref}`Server configuration options <server>` • {ref}`Expose the server to the network <server-expose>`  • {ref}`Supported server architectures <architectures>`
+- **Clusters**: {ref}`About clusters <exp-clusters>` • {ref}`Form a cluster <cluster-form>` • {ref}`Use placement groups for instance distribution across a cluster <cluster-placement-groups>` • {ref}`Recover a cluster <cluster-recover>` • {ref}`Set up a highly available virtual IP <howto-cluster-vip>`
+- **Access**: {ref}`Access the graphical UI <access-ui>` • {ref}`Authentication <authentication>` and {ref}`authorization <authorization>` • {ref}`Use single sign-on with OIDC <howto-oidc>` • {ref}`Use bearer tokens <howto-auth-bearer>` • {ref}`Permissions reference <permissions-reference>` • {ref}`Add remote servers <remotes>` • {ref}`Instances grouping with projects <exp-projects>`
+- **Client-server communication**: {ref}`REST API reference <reference-api>` • {ref}`lxc CLI man pages <reference-manpages>` • About the {ref}`lxd-lxc` CLIs
 
-````
+### Workload management
 
-````{grid} 1 1 2 2
-:reverse:
+An LXD server runs workloads on containers or virtual machines, which are created using images and can be grouped using projects.
 
-```{grid-item-card} [Reference](reference/index)
+- **Instances**: {ref}`System containers and virtual machines <containers-and-vms>` • {ref}`Guest OS compatibility matrix <guest-os-compatibility>` • {ref}`Create <instances-create>`, {ref}`configure <instances-configure>`, and {ref}`manage <instances-manage>` instances • {ref}`Configuration options <instance-options>` • {ref}`Store configuration options in profiles <profiles>` • {ref}`Automate configuration with cloud-init <cloud-init>` • {ref}`Back up <instances-backup>`, {ref}`migrate <howto-instances-migrate>`, and {ref}`import <import-machines-to-instances>` instances • {ref}`Live migration <live-migration>`
+- **Images**: {ref}`About local and remote images <about-images>` • {ref}`List of remote image servers <remote-image-servers>` •  {ref}`Manage images <images-manage>`
+- **Projects**: {ref}`Create and configure projects <projects-create>` • {ref}`Confine users to projects <projects-confine>` • {ref}`About grouping instances <exp-projects>`
 
-**Technical information**
-- {ref}`reference-general`
-- {ref}`reference-config`
-- {ref}`ref-releases-snap`
-- {ref}`reference-production`
-- {ref}`reference-api`
-- {ref}`reference-manpages`
-- {ref}`reference-internal`
-```
+### Storage and networks
 
-```{grid-item-card} [Explanation](explanation/index)
+Each LXD server is configured with storage and network options. These guides will help you understand and work with these resources.
 
-**Discussion and clarification** of key topics
-- {ref}`explanation-concepts`
-- {ref}`explanation-entities`
-- {ref}`explanation-iam`
-- {ref}`explanation-production` (including {ref}`Security <security>`)
-```
+- **Storage**: {ref}`Storage concepts <exp-storage>` • {ref}`Driver types and configuration options <storage-drivers>` • Manage {ref}`pools <howto-storage-pools>`, {ref}`volumes <howto-storage-volumes>`, and {ref}`buckets <howto-storage-buckets>` • {ref}`Back up volumes <howto-storage-backup-volume>` • {ref}`Move or copy volumes <howto-storage-move-volume>`
+- **Networks**: {ref}`Networking setups <networks>` • {ref}`Network types and configuration options <network-types>` • {ref}`Create <network-create>` and {ref}`configure <network-configure>` networks • Configure {ref}`ACLs <network-acls>`, {ref}`forwards <network-forwards>`, and {ref}`load balancers <network-load-balancers>` • {ref}`Configure a firewall <network-bridge-firewall>`
 
-````
+### Lifecycle and administration
 
----
+These guides cover lifecycle and ongoing administration concerns, such as installation (including non-snap options), production deployment setup, and security.
 
-```{rst-class} hclass2
-```
+- **Lifecycle**: {ref}`Installation <installing>` • {ref}`Initialization <initialize>` • {ref}`Releases and snap reference <ref-releases-snap>`  • {ref}`Snap updates and upgrades <howto-snap-updates-upgrades>` • {ref}`ref-release-notes`
+- **Production setup**: {ref}`Production server settings <reference-production>` • {ref}`Back up a server <backups>` • {ref}`Benchmark performance <benchmark-performance>` • {ref}`Monitor metrics <metrics>` • {ref}`Perform disaster recovery <disaster-recovery>` •{ref}`Performance tuning <performance-tuning>`
+- **Security**: {ref}`Overview <security>` • {ref}`Harden security <howto-security-harden>` • {ref}`Instance security policies <instance-options-security>`
 
-```{rubric} Project and community
-```
+## How this documentation is organized
 
-LXD is free software and released under [AGPL-3.0-only](https://www.gnu.org/licenses/agpl-3.0.en.html) (it may contain some contributions that are licensed under the Apache-2.0 license, see [License and copyright](contributing)).
-It’s an open source project that warmly welcomes community projects, contributions, suggestions, fixes and constructive feedback.
+This documentation uses the Diátaxis documentation structure.
 
-The LXD project is sponsored by [Canonical Ltd](https://canonical.com/).
+- The {ref}`Tutorial <first-steps>` takes you step-by-step through installing and initializing LXD, and learning how to use basic features such as launching instances.
+- The {ref}`howtos` assume you have basic familiarity with LXD. They walk you through specific tasks, such as creating storage pools and managing clusters.
+- The {ref}`reference` guides include configuration options, API references, and other technical details.
+- The {ref}`explanation` section includes topic overviews and detailed explanations of key concepts, such as the difference between system containers and virtual machines.
 
-- [Ubuntu Code of Conduct](https://ubuntu.com/community/docs/ethos/code-of-conduct)
-- [Contribute to the project](contributing.md)
-- [Release announcements](https://discourse.ubuntu.com/tags/c/project/lxd/news/143/release)
+## Project and community
+
+LXD is a member of the [Canonical](https://canonical.com) family. It’s an open source project that warmly welcomes community contributions, suggestions, fixes, and constructive feedback.
+
+### Get involved
+
+- {ref}`Support <support>`
+- [Discussion forum](https://discourse.ubuntu.com/c/project/lxd/126)
+- {ref}`Contribute <howto-contribute>`
+- [YouTube channel](https://www.youtube.com/c/LXDvideos)
+
+### Releases
+
+- {ref}`ref-release-notes`
 - [Release tarballs](https://github.com/canonical/lxd/releases/)
-- [Get support](support.md)
-- [Watch tutorials and announcements on YouTube](https://www.youtube.com/c/LXDvideos)
-- [Ask and answer questions on the forum](https://discourse.ubuntu.com/c/project/lxd/126)
+
+### Governance and policies
+
+- [Code of conduct](https://ubuntu.com/community/docs/ethos/code-of-conduct)
+
+### Commercial support
+
+Thinking about using LXD for your next project? [Get in touch](https://canonical.com/contact-us)!
 
 ```{toctree}
 :hidden:

@@ -2,6 +2,7 @@
 relatedlinks: "[LXD's&#32;development&#32;process&#32;-&#32;YouTube](https://www.youtube.com/watch?v=pqV0Z1qwbkg)"
 ---
 
+(howto-contribute)=
 # How to contribute to LXD
 
 % Include content from [../CONTRIBUTING.md](../CONTRIBUTING.md)

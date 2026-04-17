@@ -51,6 +51,7 @@ checksum
 checksums
 Chocolatey
 CIDR
+CLIs
 COPR
 CPUs
 CRIU
