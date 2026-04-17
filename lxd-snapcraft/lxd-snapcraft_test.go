@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-const repoSnapcraftYaml = "../../../../snapcraft.yaml"
+const repoSnapcraftYaml = "../snapcraft.yaml"
 
 func TestLoadSnapcraftYaml(t *testing.T) {
 	f, err := os.Open(repoSnapcraftYaml)
