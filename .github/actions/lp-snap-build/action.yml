@@ -35,9 +35,13 @@ runs:
       run: |
         # Depends on Go being available which is the case in the GitHub Actions environment
         set -eux
-        cd "${{ github.action_path }}/lxd-snapcraft"
-        go build -o /tmp/lxd-snapcraft .
-        sudo mv /tmp/lxd-snapcraft /usr/local/bin/
+        if [ -d "${GITHUB_WORKSPACE}/lxd-snapcraft" ]; then
+          # Install from the checked-out repository when running in lxd-pkg-snap
+          go -C "${GITHUB_WORKSPACE}/lxd-snapcraft" install .
+        else
+          # Install from the same ref the action was pinned to by the caller
+          go install "github.com/canonical/lxd-pkg-snap/lxd-snapcraft@${GITHUB_ACTION_REF}"
+        fi
 
     - name: Seed Launchpad SSH host key
       shell: bash
