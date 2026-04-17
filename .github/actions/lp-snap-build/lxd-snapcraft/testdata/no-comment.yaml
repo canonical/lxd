@@ -1,0 +1,9 @@
+name: test-snap
+version: "1.0"
+parts:
+  mypart:
+    source: https://github.com/canonical/lxd
+    source-commit: 761d134ceabd306f57acfb0ca51f59b03751a5b0
+    source-depth: 1
+    source-type: git
+    plugin: go
