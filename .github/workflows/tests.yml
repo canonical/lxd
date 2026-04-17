@@ -4,7 +4,7 @@ on:
     paths:
       - 'snapcraft/**'
       - 'snapcraft.yaml'
-      - '.github/actions/lp-snap-build/lxd-snapcraft/**'
+      - 'lxd-snapcraft/**'
 
 permissions:
   contents: read
@@ -46,9 +46,9 @@ jobs:
         if: github.event_name == 'pull_request'
 
       - name: Run lxd-snapcraft unit tests
-        working-directory: .github/actions/lp-snap-build/lxd-snapcraft
+        working-directory: lxd-snapcraft
         run: go test -v ./...
 
       - name: Verify snap source-commits
-        working-directory: .github/actions/lp-snap-build/lxd-snapcraft
-        run: go run . -file ../../../../snapcraft.yaml -verify-source-commits
+        working-directory: lxd-snapcraft
+        run: go run . -file ../snapcraft.yaml -verify-source-commits
