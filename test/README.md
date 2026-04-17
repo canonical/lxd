@@ -126,3 +126,46 @@ However, note that in the above example, if the `!` is moved outside of the `[]`
 ````
 
 For error message assertions, prefer single-quoted strings so error text with `"` does not require escaping and the comparisons stay readable.
+
+### `jq` usage
+
+Always use `jq --exit-status` (or the shorthand `-e`) when checking for the presence of fields or specific values. This makes test failures explicit:
+
+Bad:
+```sh
+jq '.field' output.json > /dev/null  # Silent fail if field missing
+```
+
+Good:
+```sh
+jq -e '.field' output.json          # Explicit exit code if field missing
+jq -e '.field == "expected"' output.json
+```
+
+### Avoid `grep -c` for presence or absence checks
+
+Avoid using `grep -c` to test for presence or absence — it makes tests brittle and harder to read.
+`grep -c` for actual counting (where the count matters) is fine.
+
+Bad:
+```sh
+# Using -c when you only care about presence, not count
+[ "$(lxc list | grep -c c1)" = "1" ]
+```
+
+Good:
+```sh
+# Just check presence
+lxc list | grep -wF c1
+```
+
+Best:
+```sh
+# Filter output directly and compare exactly
+[ "$(lxc list -f csv -c n)" = "c1" ]
+```
+
+OK (counting genuinely matters):
+```sh
+[ "$(grep -c "pattern" logfile)" = "3" ]
+```
