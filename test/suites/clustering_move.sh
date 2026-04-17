@@ -58,6 +58,7 @@ test_clustering_move() {
   echo "==> Move tests"
   echo "c1 can be moved to a new target location."
   lxc move cluster:c1 --target node2
+  [ "$(! "${_LXC}" move cluster:c1 --target node2 2>&1 1>/dev/null)" = "Error: Migration API failure: Target must be different than instance's current location" ]
 
   echo "c1 can be moved to a new target project."
   lxc move cluster:c1 --target-project test-project
