@@ -283,7 +283,7 @@ func lsRemoteTag(remote, tag string) (string, error) {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("git ls-remote failed for tag %s: %w", tag, err)
+		return "", fmt.Errorf("git ls-remote failed for tag %s at %s: %w", tag, remote, err)
 	}
 
 	var direct, deref string
