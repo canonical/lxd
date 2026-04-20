@@ -35,7 +35,7 @@ echo ""
 
 echo "# Detailed snap information"
 echo '```'
-nsenter -t 1 -m snap list --all lxd core20 core22 core24 snapd
+nsenter -t 1 -m snap list --all lxd core20 core22 core24 core26 snapd
 echo '```'
 echo ""
 
