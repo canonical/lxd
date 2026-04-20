@@ -382,6 +382,10 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			needsLocalCopy = targetProjectName != inst.Project().Name
 		}
 
+		if targetMemberInfo != nil && !needsClusterMove {
+			return response.BadRequest(errors.New("Target must be different than instance's current location"))
+		}
+
 		// Validate offline source member constraints.
 		if needsClusterMove && sourceNodeOffline {
 			srcPool, err := storagePools.LoadByInstance(s, inst)
