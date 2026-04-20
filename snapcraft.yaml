@@ -1402,18 +1402,12 @@ parts:
       - spice-server
       - edk2
       - nftables
-    source: https://git.launchpad.net/ubuntu/+source/python-uefivars
-    source-commit: f5390dfa5df2c99da84a471fe5b322020d78cb15 # import/1.2-0ubuntu1
-    source-depth: 1
-    source-type: git
-    plugin: python
-    build-packages:
-      - quilt
+    plugin: nil
     stage-packages:
       - to amd64:
-        - python3-crc32c
+        - python3-uefivars
       - to arm64:
-        - python3-crc32c
+        - python3-uefivars
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -1425,13 +1419,8 @@ parts:
       craftctl default
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-
-      # Apply patches from Ubuntu sources.
-      QUILT_PATCHES=debian/patches quilt push -a
-
       craftctl default
     organize:
-      lib/python3.12/site-packages/: lib/python3/dist-packages/
       bin/uefivars: bin/uefivars.py
     prime:
       - bin/uefivars.py  # LXD expects the .py extension
