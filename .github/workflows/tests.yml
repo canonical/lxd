@@ -109,7 +109,7 @@ jobs:
         if: github.event_name == 'pull_request'
 
       - name: Upload artifact with ShellCheck defects in SARIF format
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: Differential ShellCheck SARIF
           path: ${{ steps.ShellCheck.outputs.sarif }}
@@ -230,7 +230,7 @@ jobs:
           git diff --exit-code
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-unit
           path: ${{env.GOCOVERDIR}}
@@ -250,7 +250,7 @@ jobs:
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       - name: Upload system test dependencies
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: system-test-deps
           path: |
@@ -496,7 +496,7 @@ jobs:
 
       - name: Upload crash dumps
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: crash-dumps-${{ steps.sanitize.outputs.artifact_name }}
           path: |
@@ -505,7 +505,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-${{ steps.sanitize.outputs.artifact_name }}
           path: ${{ env.GOCOVERDIR }}
@@ -666,7 +666,7 @@ jobs:
 
       # for simplicity, just use one cache directory
       # and make it valid for one day
-      - uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: cache-restore
         if: ${{ matrix.test == 'qemu-external-vm' }}
         with:
@@ -782,7 +782,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STEPS_GET_DATE_OUTPUTS_DATE: ${{ steps.get-date.outputs.date }}
 
-      - uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         if: ${{ matrix.test == 'qemu-external-vm' }}
         with:
           path: /home/runner/work/cache
@@ -790,7 +790,7 @@ jobs:
 
       - name: Upload ${{ matrix.test }} test reports
         if: ${{ always() && startsWith(matrix.test, 'ui ') }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-report-${{ matrix.test }}-lxd-${{ env.SNAP_TRACK }}-${{ env.SNAP_RISK }}-os-${{ matrix.os }}
           path: lxd-ui/test-results
@@ -798,7 +798,7 @@ jobs:
 
       - name: Upload crash dumps
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: crash-dumps-${{ steps.sanitize.outputs.artifact_name }}
           path: |
@@ -807,7 +807,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-${{ steps.sanitize.outputs.artifact_name }}
           path: ${{ env.GOCOVERDIR }}
@@ -912,7 +912,7 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        uses: tiobe/tics-github-action@a53037a6bb9f71b6a97cdeb0ac41632266804b9e # v3.8.0
+        uses: tiobe/tics-github-action@7901970b6e31982ab7c88b61ee28cac29b750395 # v3.9.0
         with:
           mode: qserver
           project: LXD
@@ -1027,7 +1027,7 @@ jobs:
           go test -mod=readonly -v ./shared/... ${COVER}
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-clients-${{ runner.os }}
           path: ${{env.GOCOVERDIR}}
@@ -1035,7 +1035,7 @@ jobs:
         if: env.GOCOVERDIR != ''
 
       - name: Upload lxc client artifacts
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ github.event_name == 'push' }}
         continue-on-error: true
         with:
@@ -1223,7 +1223,7 @@ jobs:
           npx playwright test --project "chromium:lxd-${TARGET:-latest-edge}:unclustered"
 
       - name: Upload lxd-ui test artifacts
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: lxd-ui-test-report
@@ -1237,7 +1237,7 @@ jobs:
           sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH $(go env GOPATH)/bin/lxd shutdown
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-ui-e2e-tests
           path: ${{env.GOCOVERDIR}}
@@ -1294,7 +1294,7 @@ jobs:
 
       - name: Upload documentation artifacts
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: documentation
           path: doc/_build
