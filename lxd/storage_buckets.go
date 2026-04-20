@@ -672,7 +672,7 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 		location = request.QueryParam(r, "target")
 	}
 
-	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName)
+	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName).Project(effectiveProjectName)
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		err := details.pool.UpdateBucket(effectiveProjectName, details.bucketName, req)
@@ -754,7 +754,7 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 		location = request.QueryParam(r, "target")
 	}
 
-	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName)
+	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName).Project(effectiveProjectName)
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		err := doStorageBucketDelete(details.pool, effectiveProjectName, details.bucketName)
@@ -1015,7 +1015,7 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 		location = request.QueryParam(r, "target")
 	}
 
-	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName)
+	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName).Project(effectiveProjectName)
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		key, err := details.pool.CreateBucketKey(effectiveProjectName, details.bucketName, req)
@@ -1107,7 +1107,7 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 		location = request.QueryParam(r, "target")
 	}
 
-	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName)
+	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName).Project(effectiveProjectName)
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		err := details.pool.DeleteBucketKey(effectiveProjectName, details.bucketName, keyName)
@@ -1303,7 +1303,7 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		location = request.QueryParam(r, "target")
 	}
 
-	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName)
+	entityURL := entity.StorageBucketURL(effectiveProjectName, location, details.pool.Name(), details.bucketName).Project(effectiveProjectName)
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		err := details.pool.UpdateBucketKey(effectiveProjectName, details.bucketName, keyName, req)

@@ -1312,10 +1312,10 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		if shared.IsSnapshot(req.Source.Name) {
 			opType = operationtype.VolumeSnapshotCopy
 			vName, sName, _ := api.GetParentAndSnapshotName(req.Source.Name)
-			entityURL = entity.StorageVolumeSnapshotURL(srcProjectName, location, req.Source.Pool, req.Type, vName, sName)
+			entityURL = entity.StorageVolumeSnapshotURL(srcProjectName, location, req.Source.Pool, req.Type, vName, sName).Project(projectName)
 		} else {
 			opType = operationtype.VolumeCopy
-			entityURL = entity.StorageVolumeURL(srcProjectName, location, req.Source.Pool, req.Type, req.Source.Name)
+			entityURL = entity.StorageVolumeURL(srcProjectName, location, req.Source.Pool, req.Type, req.Source.Name).Project(projectName)
 		}
 
 		run = func(ctx context.Context, op *operations.Operation) error {
@@ -1881,10 +1881,10 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(volumeName)
 	if srcIsSnapshot {
 		opType = operationtype.VolumeSnapshotTransfer
-		entityURL = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", srcVolParentName, "snapshots", srcVolSnapName)
+		entityURL = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", srcVolParentName, "snapshots", srcVolSnapName).Project(projectName)
 	} else {
 		opType = operationtype.VolumeMigrate
-		entityURL = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", volumeName)
+		entityURL = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", volumeName).Project(projectName)
 	}
 
 	// We're migrating volume on this node.
