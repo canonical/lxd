@@ -4238,6 +4238,22 @@ This value is the maximum value for the sum of the individual {config:option}`in
 ```
 
 <!-- config group project-limits end -->
+<!-- config group project-replica start -->
+```{config:option} replica.cluster project-replica
+:shortdesc: "Cluster link used for replication (source or target)."
+:type: "string"
+
+```
+
+```{config:option} replica.mode project-replica
+:shortdesc: "Replica project mode."
+:type: "string"
+The replica project mode. When set, the project acts as a replica project. Possible values are `standby` and `leader`.
+In `standby` mode, instances cannot be created in the project; existing instances may still be managed until the project is promoted to `leader` during a failover.
+In `leader` mode, the project is writable and is the source of replication.
+```
+
+<!-- config group project-replica end -->
 <!-- config group project-restricted start -->
 ```{config:option} restricted project-restricted
 :defaultdesc: "`false`"
@@ -4506,6 +4522,37 @@ Specify the number of days after which the unused cached image expires.
 ```
 
 <!-- config group project-specific end -->
+<!-- config group replicator-conf start -->
+```{config:option} cluster replicator-conf
+:scope: "global"
+:shortdesc: "Target cluster link name."
+:type: "string"
+Required when creating a replicator. When updating, this key can be omitted to keep the existing cluster link.
+```
+
+```{config:option} schedule replicator-conf
+:scope: "global"
+:shortdesc: "Cron expression for the replication schedule."
+:type: "string"
+Specify a cron expression for the replication schedule. For example, `@daily` or `0 6 * * *`.
+```
+
+```{config:option} snapshot replicator-conf
+:scope: "global"
+:shortdesc: "Whether to snapshot instances before replication."
+:type: "bool"
+
+```
+
+<!-- config group replicator-conf end -->
+<!-- config group replicator-miscellaneous start -->
+```{config:option} user.* replicator-miscellaneous
+:shortdesc: "Free form user key/value storage"
+:type: "string"
+User keys can be used in search.
+```
+
+<!-- config group replicator-miscellaneous end -->
 <!-- config group server-acme start -->
 ```{config:option} acme.agree_tos server-acme
 :defaultdesc: "`false`"
@@ -7250,6 +7297,21 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 `can_delete_placement_groups`
 : Grants permission to delete placement groups.
 
+`replicator_manager`
+: Grants permission to create, view, edit, and delete all replicators belonging to the project.
+
+`can_create_replicators`
+: Grants permission to create replicators.
+
+`can_view_replicators`
+: Grants permission to view replicators.
+
+`can_edit_replicators`
+: Grants permission to edit replicators.
+
+`can_delete_replicators`
+: Grants permission to delete replicators.
+
 `can_view_operations`
 : Grants permission to view operations relating to the project.
 
@@ -7261,6 +7323,18 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 
 
 <!-- entity group project end -->
+<!-- entity group replicator start -->
+`can_edit`
+: Grants permission to edit the replicator.
+
+`can_delete`
+: Grants permission to delete the replicator.
+
+`can_view`
+: Grants permission to view the replicator.
+
+
+<!-- entity group replicator end -->
 <!-- entity group server start -->
 `admin`
 : Grants full access to LXD as if via Unix socket.

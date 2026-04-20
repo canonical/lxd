@@ -4767,6 +4767,24 @@
 					}
 				]
 			},
+			"replica": {
+				"keys": [
+					{
+						"replica.cluster": {
+							"longdesc": "",
+							"shortdesc": "Cluster link used for replication (source or target).",
+							"type": "string"
+						}
+					},
+					{
+						"replica.mode": {
+							"longdesc": "The replica project mode. When set, the project acts as a replica project. Possible values are `standby` and `leader`.\nIn `standby` mode, instances cannot be created in the project; existing instances may still be managed until the project is promoted to `leader` during a failover.\nIn `leader` mode, the project is writable and is the source of replication.",
+							"shortdesc": "Replica project mode.",
+							"type": "string"
+						}
+					}
+				]
+			},
 			"restricted": {
 				"keys": [
 					{
@@ -5030,6 +5048,47 @@
 						"user.*": {
 							"longdesc": "",
 							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"replicator": {
+			"conf": {
+				"keys": [
+					{
+						"cluster": {
+							"longdesc": "Required when creating a replicator. When updating, this key can be omitted to keep the existing cluster link.",
+							"scope": "global",
+							"shortdesc": "Target cluster link name.",
+							"type": "string"
+						}
+					},
+					{
+						"schedule": {
+							"longdesc": "Specify a cron expression for the replication schedule. For example, `@daily` or `0 6 * * *`.",
+							"scope": "global",
+							"shortdesc": "Cron expression for the replication schedule.",
+							"type": "string"
+						}
+					},
+					{
+						"snapshot": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "Whether to snapshot instances before replication.",
+							"type": "bool"
+						}
+					}
+				]
+			},
+			"miscellaneous": {
+				"keys": [
+					{
+						"user.*": {
+							"longdesc": "User keys can be used in search.",
+							"shortdesc": "Free form user key/value storage",
 							"type": "string"
 						}
 					}
@@ -8066,6 +8125,26 @@
 					"description": "Grants permission to delete placement groups."
 				},
 				{
+					"name": "replicator_manager",
+					"description": "Grants permission to create, view, edit, and delete all replicators belonging to the project."
+				},
+				{
+					"name": "can_create_replicators",
+					"description": "Grants permission to create replicators."
+				},
+				{
+					"name": "can_view_replicators",
+					"description": "Grants permission to view replicators."
+				},
+				{
+					"name": "can_edit_replicators",
+					"description": "Grants permission to edit replicators."
+				},
+				{
+					"name": "can_delete_replicators",
+					"description": "Grants permission to delete replicators."
+				},
+				{
 					"name": "can_view_operations",
 					"description": "Grants permission to view operations relating to the project."
 				},
@@ -8076,6 +8155,23 @@
 				{
 					"name": "can_view_metrics",
 					"description": "Grants permission to view project level metrics."
+				}
+			]
+		},
+		"replicator": {
+			"project_specific": true,
+			"entitlements": [
+				{
+					"name": "can_edit",
+					"description": "Grants permission to edit the replicator."
+				},
+				{
+					"name": "can_delete",
+					"description": "Grants permission to delete the replicator."
+				},
+				{
+					"name": "can_view",
+					"description": "Grants permission to view the replicator."
 				}
 			]
 		},
