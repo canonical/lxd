@@ -237,6 +237,12 @@ func verifySourceCommits(r io.Reader, snapcraftConfig map[string]any) error {
 			continue
 		}
 
+		// A comment starting with "pre " marks a pre-release commit that is not
+		// yet associated with a tag; skip verification silently.
+		if strings.HasPrefix(tag, "pre ") {
+			continue
+		}
+
 		source, _ := partCfg["source"].(string)
 
 		wg.Add(1)
