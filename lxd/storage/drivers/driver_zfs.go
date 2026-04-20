@@ -82,6 +82,18 @@ func (d *zfs) load() error {
 		_, err := exec.LookPath(tool)
 		if err != nil {
 			if shared.InSnap() {
+				// Check if the snap bundles ZFS tools for the loaded module version.
+				// The snap ships versioned directories like zfs-2.2, zfs-2.3, etc.
+				ver, verErr := version.Parse(zfsVersion)
+				if verErr == nil {
+					snapZFSDir := filepath.Join(os.Getenv("SNAP"), fmt.Sprintf("zfs-%d.%d", ver.Major, ver.Minor))
+					if shared.PathExists(snapZFSDir) {
+						// The snap has the right tools but the daemon PATH does not include them yet,
+						// likely because the ZFS kernel module was installed after the snap was started.
+						return fmt.Errorf("Required tool %q is missing. The ZFS kernel module was installed after the LXD snap was started; run 'systemctl reload snap.lxd.daemon.service' to pick up the updated PATH", tool)
+					}
+				}
+
 				return fmt.Errorf("Required tool %q is missing. The snap does not contain ZFS tools matching the module version (%q). Consider installing ZFS tools in the host and use 'snap set lxd zfs.external=true'", tool, zfsVersion)
 			}
 
