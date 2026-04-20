@@ -153,6 +153,48 @@ Several HTTP hardening improvements have been applied to the daemon:
 - Applied HTTP timeouts to the pprof, Loki, and endpoint listeners.
 - TCP keep alive and TCP user timeout configured on incoming API connections for faster stale connection detection.
 
+## UI updates
+
+This release introduces cluster links, improves instance configuration visibility, and enhances responsiveness across the UI, alongside a range of user-driven fixes and refinements.
+
+### Cluster management
+
+- The UI now supports cluster links for connecting multiple clusters.
+- The UI now supports full create, edit, and delete management for cluster member roles.
+
+### Instance experience
+
+- The YAML editor now provides an expanded view that surfaces inherited configuration values (such as from profiles) alongside instance-level settings.
+- More responsive instance creation with live progress updates via events.
+- Ubuntu-themed terminal for instances.
+
+### Forms and input enhancements
+
+- Introduced prefixed inputs for IP address assignments for clearer networking configuration.
+- Added output fields to forms where applicable.
+
+### Asynchronous operations
+
+- Improved handling of long-running operations with asynchronous support for:
+    - Networks
+    - Network peerings
+    - Network ACLs
+    - Storage pools
+    - Storage buckets and bucket keys
+
+### User-driven improvements
+
+- Instances uploaded from file now appear immediately in the instance list while processing.
+- Improved visibility of available storage pool size.
+- Enhanced storage driver selection with more details.
+- Added icons for full-screen mode and ISO usage in the instance terminal.
+- Removed expiry field from instance export (system defaults are now applied).
+
+### Bug fixes
+
+- Fixed issue where the admin group was incorrectly immutable.
+- Fixed terminal behavior to display content when a connection closes or errors occur.
+
 (ref-release-notes-6.8-bugfixes)=
 ## Bug fixes
 
