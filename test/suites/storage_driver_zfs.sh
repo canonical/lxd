@@ -15,6 +15,7 @@ test_storage_driver_zfs() {
   do_zfs_delegate
   do_zfs_rebase
   do_recursive_copy_snapshot_cleanup
+  do_zfs_bucket_dataset_cleanup
 }
 
 do_zfs_delegate() {
@@ -462,4 +463,41 @@ do_recursive_copy_snapshot_cleanup() {
 
   echo "Verify no snapshots remain in deleted pool."
   [ "$(zfs list -rt snapshot "${storage_pool}/deleted/containers" 2>&1)" = "no datasets available" ]
+}
+
+do_zfs_bucket_dataset_cleanup() {
+  local storage_pool
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  sub_test "Verify startup patch removes legacy bucket datasets"
+
+  lxc storage create "${storage_pool}-buckets-patch-test" zfs
+
+  local zfs_pool
+  zfs_pool="$(lxc storage get "${storage_pool}-buckets-patch-test" zfs.pool_name)"
+
+  # Inject the orphaned datasets again to simulate an existing pool that predates the patch that removes them on startup.
+  zfs create "${zfs_pool}/buckets"
+  zfs create "${zfs_pool}/deleted/buckets"
+
+  # Restart LXD to trigger the storage_zfs_remove_local_bucket_datasets patch.
+  # The patch is idempotent but won't re-run on subsequent starts; the datasets
+  # were injected directly bypassing LXD, so clear the patch record from the
+  # local DB to force re-execution on the next startup.
+  lxd sql local "DELETE FROM patches WHERE name = 'storage_zfs_remove_local_bucket_datasets'"
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
+
+  # Both datasets must be gone after LXD applies the startup patch.
+  if zfs list -H -o name "${zfs_pool}/buckets" > /dev/null 2>&1; then
+    echo "ERROR: ${zfs_pool}/buckets still exists after startup patch, aborting" >&2
+    exit 1
+  fi
+
+  if zfs list -H -o name "${zfs_pool}/deleted/buckets" > /dev/null 2>&1; then
+    echo "ERROR: ${zfs_pool}/deleted/buckets still exists after startup patch, aborting" >&2
+    exit 1
+  fi
+
+  lxc storage delete "${storage_pool}-buckets-patch-test"
 }
