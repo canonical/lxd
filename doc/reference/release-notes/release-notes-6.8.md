@@ -307,6 +307,7 @@ If you are building LXD from source instead of using a package manager, the mini
 ## Snap packaging changes
 
 - Minimum required `snapd` raised to `2.64`.
+- Dqlite bumped to `v1.18.6`.
 - QEMU bumped to `10.2.1+ds-1ubuntu3`.
 - EDK2 rebased to `2025.11-3ubuntu7`.
 - NVIDIA container toolkit updated to `1.19.0`.
