@@ -221,6 +221,7 @@ OverlayFS
 OVMF
 OVN
 OVS
+pprof
 Pbit
 PCI
 PCIe
