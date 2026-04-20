@@ -28,7 +28,7 @@ snapcraft remote-build --launchpad-accept-public-upload --build-for amd64,arm64
 
 The `.github/actions/lp-snap-build` composite action sets up SSH access to Launchpad and clones the snap packaging repository in preparation for pushing a build trigger commit.
 
-It also builds and installs the `lxd-snapcraft` helper tool (from `.github/actions/lp-snap-build/lxd-snapcraft/`) which can read and update `version` and `source-commit` fields in `snapcraft.yaml`.
+It also installs the `lxd-snapcraft` helper tool, which can read and update `version` and `source-commit` fields in `snapcraft.yaml`.
 
 #### Inputs
 

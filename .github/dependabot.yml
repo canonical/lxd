@@ -15,7 +15,7 @@ updates:
           - "*"
 
   - package-ecosystem: "gomod"
-    directory: "/.github/actions/lp-snap-build/lxd-snapcraft"
+    directory: "/lxd-snapcraft"
     labels: []
     schedule:
       interval: "weekly"
