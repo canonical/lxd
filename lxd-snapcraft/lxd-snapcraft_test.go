@@ -253,3 +253,22 @@ func TestVerifySourceCommits_Mismatch(t *testing.T) {
 		t.Errorf("expected mismatch error message, got: %v", err)
 	}
 }
+
+func TestVerifySourceCommits_PreComment(t *testing.T) {
+	buf, err := os.ReadFile("testdata/pre-comment.yaml")
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+
+	config, err := loadSnapcraftYaml(bytes.NewReader(buf))
+	if err != nil {
+		t.Fatalf("loadSnapcraftYaml failed: %v", err)
+	}
+
+	// A "pre <tag>" comment means the commit is not yet tagged; verification
+	// should be skipped silently without error or warning.
+	err = verifySourceCommits(bytes.NewReader(buf), config)
+	if err != nil {
+		t.Fatalf("expected no error for pre-release comment, got: %v", err)
+	}
+}

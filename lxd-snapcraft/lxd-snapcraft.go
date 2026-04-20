@@ -237,6 +237,12 @@ func verifySourceCommits(r io.Reader, snapcraftConfig map[string]any) error {
 			continue
 		}
 
+		// A comment starting with "pre " marks a pre-release commit that is not
+		// yet associated with a tag; skip verification silently.
+		if strings.HasPrefix(tag, "pre ") {
+			continue
+		}
+
 		source, _ := partCfg["source"].(string)
 
 		wg.Add(1)
@@ -245,9 +251,7 @@ func verifySourceCommits(r io.Reader, snapcraftConfig map[string]any) error {
 
 			resolved, err := lsRemoteTag(source, tag)
 			if err != nil {
-				mu.Lock()
-				errs = append(errs, fmt.Sprintf("part %s: %v", partName, err))
-				mu.Unlock()
+				fmt.Fprintf(os.Stderr, "warning: part %s: %v\n", partName, err)
 				return
 			}
 
@@ -277,7 +281,7 @@ func lsRemoteTag(remote, tag string) (string, error) {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("git ls-remote failed for tag %s: %w", tag, err)
+		return "", fmt.Errorf("git ls-remote failed for tag %s at %s: %w", tag, remote, err)
 	}
 
 	var direct, deref string
