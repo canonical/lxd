@@ -1,7 +1,8 @@
 name: lxd
-base: core24
+base: core26
+build-base: devel  # XXX required until snapcraft 9.0 lands in latest/stable
 assumes:
-  - snapd2.64
+  - snapd2.75
 version: git
 grade: devel
 summary: LXD - container and VM manager
