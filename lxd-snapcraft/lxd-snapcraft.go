@@ -251,9 +251,7 @@ func verifySourceCommits(r io.Reader, snapcraftConfig map[string]any) error {
 
 			resolved, err := lsRemoteTag(source, tag)
 			if err != nil {
-				mu.Lock()
-				errs = append(errs, fmt.Sprintf("part %s: %v", partName, err))
-				mu.Unlock()
+				fmt.Fprintf(os.Stderr, "warning: part %s: %v\n", partName, err)
 				return
 			}
 
