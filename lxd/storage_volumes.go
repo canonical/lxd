@@ -103,7 +103,7 @@ func storagePoolVolumeTypeAccessHandler(entityType entity.Type, entitlement auth
 	}
 }
 
-// handleStoragePoolVolumeTypeAccess checks the given entitlement on a storage volume.
+// checkStoragePoolVolumeTypeAccess checks the given entitlement on a storage volume.
 // If the check is successful, returns nil, otherwise returns an error.
 func checkStoragePoolVolumeTypeAccess(s *state.State, r *http.Request, entityType entity.Type, entitlement auth.Entitlement) error {
 	err := addStoragePoolVolumeDetailsToRequestContext(s, r)
@@ -704,7 +704,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// The project name used for custom volumes varies based on whether the
-			// project has the featues.storage.volumes feature enabled.
+			// project has the features.storage.volumes feature enabled.
 			customVolProjectName = project.StorageVolumeProjectFromRecord(p, cluster.StoragePoolVolumeTypeCustom)
 
 			projectImages, err = tx.GetImagesFingerprints(ctx, requestProjectName, false)
