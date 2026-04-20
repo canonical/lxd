@@ -11,11 +11,31 @@ _server_config_password() {
   lxc config set core.trust_password 123456
 
   config=$(lxc config show)
-  echo "${config}" | grep -q "trust_password"
-  echo "${config}" | grep -q -v "123456"
+  echo "${config}" | grep -F "trust_password"
+  ! echo "${config}" | grep -F "123456" || false
 
   lxc config unset core.trust_password
-  lxc config show | grep -Fv "trust_password"
+  ! lxc config show | grep -F "trust_password" || false
+
+  # Verify that setting core.trust_password to the obfuscated display value is rejected
+  # The config show output displays hidden keys as "true", which a user might
+  # try to copy back as an lxc config set argument. Verify this is rejected to
+  # prevent accidentally storing a weak password.
+  ! lxc config set core.trust_password true || false
+  ! lxc config set core.trust_password false || false
+
+  # Verify that setting loki.auth.password to the obfuscated display value is rejected
+  lxc config set loki.auth.password secret123
+
+  config=$(lxc config show)
+  echo "${config}" | grep -F "loki.auth.password"
+  ! echo "${config}" | grep -F "secret123" || false
+
+  lxc config unset loki.auth.password
+  ! lxc config show | grep -F "loki.auth.password" || false
+
+  ! lxc config set loki.auth.password true || false
+  ! lxc config set loki.auth.password false || false
 
   # PATCH
   my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'"}}' | jq -e '.status == "Success" and .status_code == 200'

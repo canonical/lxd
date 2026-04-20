@@ -55,6 +55,21 @@ func (m *Map) Change(changes map[string]any) (map[string]string, error) {
 			change = m.GetRaw(name)
 		}
 
+		// Reject the strings "true" and "false" as values for hidden keys.
+		// Hidden keys display as "true" when set; passing these strings back
+		// as a value would result in a weak secret being stored rather than
+		// the user's intent of keeping the existing value.
+		if ok && key.Hidden {
+			changeStr, isStr := change.(string)
+			if isStr {
+				switch strings.ToLower(changeStr) {
+				case "true", "false":
+					errors.add(name, changeStr, `hidden config keys display as "true" when set; provide the actual secret value`)
+					continue
+				}
+			}
+		}
+
 		// A nil object means the empty string.
 		if change == nil {
 			change = ""
