@@ -220,7 +220,7 @@ lxc launch testimage c1
 
 At this point you might want to learn more on {doc}`debugging`.
 
-#### Updating Copilot instruction file
+#### Copilot instructions file updates
 
 The LXD repository includes a [Copilot instructions file](https://github.com/canonical/lxd/blob/main/.github/copilot-instructions.md) to improve Copilot Code Review responses. When updating this file, include concise context about LXD's architecture, coding standards, and best practices. Clear guidance helps Copilot produce accurate, relevant suggestions. For details and tips, see the documentation on [GitHub Copilot repository custom instructions](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions).
 
