@@ -53,7 +53,7 @@ Each LXD server is configured with storage and network options. These guides wil
 These guides cover lifecycle and ongoing administration concerns, such as installation (including non-snap options), production deployment setup, and security.
 
 - **Lifecycle**: {ref}`Installation <installing>` • {ref}`Initialization <initialize>` • {ref}`Releases and snap reference <ref-releases-snap>`  • {ref}`Snap updates and upgrades <howto-snap-updates-upgrades>` • {ref}`ref-release-notes`
-- **Production setup**: {ref}`Production server settings <reference-production>` • {ref}`Back up a server <backups>` • {ref}`Benchmark performance <benchmark-performance>` • {ref}`Monitor metrics <metrics>` • {ref}`Perform disaster recovery <disaster-recovery>` •{ref}`Performance tuning <performance-tuning>`
+- **Production setup**: {ref}`Production server settings <reference-production>` • {ref}`Back up a server <backups>` • {ref}`Benchmark performance <benchmark-performance>` • {ref}`Monitor metrics <metrics>` • {ref}`Perform disaster recovery <disaster-recovery>` • {ref}`Performance tuning <performance-tuning>`
 - **Security**: {ref}`Overview <security>` • {ref}`Harden security <howto-security-harden>` • {ref}`Instance security policies <instance-options-security>`
 
 ## How this documentation is organized

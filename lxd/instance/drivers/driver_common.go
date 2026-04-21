@@ -123,7 +123,7 @@ func (d *common) Description() string {
 	return d.description
 }
 
-// IsEphemeral returns whether the instanc is ephemeral or not.
+// IsEphemeral returns whether the instance is ephemeral or not.
 func (d *common) IsEphemeral() bool {
 	return d.ephemeral
 }
@@ -927,7 +927,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map
 
 // snapshotCommon handles the common part of a snapshot.
 // It creates the DB record and snapshots the instance, derives expiry from
-// inst's "snapshots.expiry"" if expiry is nil, mounts the instance to update
+// inst's "snapshots.expiry" if expiry is nil, mounts the instance to update
 // backup.yaml, and reverts on error. The snapshot is marked stateful when
 // stateful is true. When diskVolumesMode is set to [api.DiskVolumesModeAllExclusive],
 // the instance's attached exclusive volumes are included in a crash-consistent
@@ -1338,7 +1338,7 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 
 // insertConfigkey function attempts to insert the instance config key into the database. If the insert fails
 // then the database is queried to check whether another query inserted the same key. If the key is still
-// unpopulated then the insert querty is retried until it succeeds or a retry limit is reached.
+// unpopulated then the insert query is retried until it succeeds or a retry limit is reached.
 // If the insert succeeds or the key is found to have been populated then the value of the key is returned.
 func (d *common) insertConfigkey(key string, value string) (string, error) {
 	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1769,7 +1769,7 @@ func (d *common) deviceLoad(inst instance.Instance, deviceName string, rawConfig
 			return nil, err
 		}
 	} else {
-		// Othewise copy the config so it cannot be modified by device.
+		// Otherwise copy the config so it cannot be modified by device.
 		configCopy = rawConfig.Clone()
 	}
 
