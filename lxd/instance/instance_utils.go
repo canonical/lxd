@@ -481,11 +481,19 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.InstanceBac
 // ResolveImage takes an instance source and returns a hash suitable for instance creation or download.
 func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, source api.InstanceSource) (string, error) {
 	if source.Fingerprint != "" {
+		if source.ImageRegistry == "" {
+			// Check if the fingerprint is actually an alias.
+			_, alias, err := tx.GetImageAlias(ctx, projectName, source.Fingerprint, true)
+			if err == nil {
+				return alias.Target, nil
+			}
+		}
+
 		return source.Fingerprint, nil
 	}
 
 	if source.Alias != "" {
-		if source.Server != "" {
+		if source.ImageRegistry != "" {
 			return source.Alias, nil
 		}
 
@@ -498,7 +506,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 	}
 
 	if source.Properties != nil {
-		if source.Server != "" {
+		if source.ImageRegistry != "" {
 			return "", errors.New("Property match is only supported for local images")
 		}
 
