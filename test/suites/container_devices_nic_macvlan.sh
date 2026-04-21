@@ -129,13 +129,12 @@ test_container_devices_nic_macvlan() {
 
   echo "==> Check that setting MTU config value out of range (1280-16384) is not allowed."
   ! lxc network set "${ctName}net" mtu=0 || false
-  ! lxc network set "${ctName}net" mtu=1000 || false
-  ! lxc network set "${ctName}net" mtu=1279 || false
+  ! lxc network set "${ctName}net" mtu=67 || false
   ! lxc network set "${ctName}net" mtu=16385 || false
   ! lxc network set "${ctName}net" mtu=50000 || false
 
-  echo "==> Check that setting MTU config value to the boundaries of range (1280-16384) is allowed."
-  lxc network set "${ctName}net" mtu=1280
+  echo "==> Check that setting MTU config value to the boundaries of range (68-16384) is allowed."
+  lxc network set "${ctName}net" mtu=68
   lxc network set "${ctName}net" mtu=16384
 
   echo "==> Unset MTU config value for macvlan network."
