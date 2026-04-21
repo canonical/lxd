@@ -1065,9 +1065,9 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	}
 
 	// In restore mode, all local instances must be stopped before proceeding.
-	// The restore operation deletes and recreates each existing local instance using the
-	// remote leader as the source of truth; a running instance cannot be deleted.
-	// Fail fast here to avoid a partial restore where some instances are recreated and
+	// The restore operation refreshes each existing local instance from the remote leader
+	// and creates any that only exist on the leader; a running instance cannot be refreshed.
+	// Fail fast here to avoid a partial restore where some instances are updated and
 	// others are not.
 	if restore {
 		for _, inst := range localInsts {
@@ -1078,7 +1078,8 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	}
 
 	// In restore mode the remote leader is the source of truth: use its instance list so
-	// that instances created on the leader after failover are included.
+	// that instances created on the leader after failover are included. Restore is additive
+	// only: local instances that do not exist on the leader are left in place and not deleted.
 	var iterNames []string
 	if restore {
 		remoteInsts, err := targetClient.GetInstances(lxd.GetInstancesArgs{InstanceType: api.InstanceTypeAny})
