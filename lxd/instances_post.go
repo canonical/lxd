@@ -32,6 +32,7 @@ import (
 	"github.com/canonical/lxd/lxd/placement"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
+	"github.com/canonical/lxd/lxd/registry"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -1330,6 +1331,32 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var targetMemberInfo *db.NodeInfo
 	var targetGroupName string
 	var placementGroupName string
+	var imageRegistry *api.ImageRegistry
+	var remoteServer lxd.ImageServer
+
+	// If an image registry is specified, we connect to it here before starting the main transaction.
+	// This is to avoid a nested transaction when calling ConnectImageRegistry.
+	// A connected image registry is needed to determined suitable architectures for instance creation.
+	if req.Source.ImageRegistry != "" {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			dbImageRegistry, err := dbCluster.GetImageRegistry(ctx, tx.Tx(), req.Source.ImageRegistry)
+			if err != nil {
+				return fmt.Errorf("Failed fetching image registry %q: %w", req.Source.ImageRegistry, err)
+			}
+
+			imageRegistry, err = dbImageRegistry.ToAPI(ctx, tx.Tx())
+			return err
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Connect to the image registry.
+		remoteServer, err = registry.ConnectImageRegistry(r.Context(), s, *imageRegistry)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	// Set to true once we find that the request is currently handled on a member which isn't hosting the source instance.
 	sourceInstOnDifferentMember := false
@@ -1550,7 +1577,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
-			architectures, err := instance.SuitableArchitectures(ctx, s, tx, targetProjectName, sourceInst, sourceImageRef, req)
+			// Determine which cluster members are suitable for this instance based on its image architecture.
+			// We pass the pre-connected remoteServer (if any) to resolve architectures for registry-based images.
+			architectures, err := instance.SuitableArchitectures(ctx, s, tx, targetProjectName, sourceInst, sourceImageRef, req, remoteServer)
 			if err != nil {
 				return err
 			}
