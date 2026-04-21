@@ -2,27 +2,118 @@ package drivers
 
 import (
 	"io"
+	"strconv"
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // commonVolumeRules returns validation rules which are common for pool and volume.
 func (d *powerstore) commonVolumeRules() map[string]func(value string) error {
-	return nil
+	return map[string]func(value string) error{
+		// lxdmeta:generate(entities=storage-powerstore; group=volume-conf; key=block.filesystem)
+		// Valid options are: `btrfs`, `ext4`, `xfs`
+		// If not set, `ext4` is assumed.
+		// ---
+		//  type: string
+		//  condition: block-based volume with content type `filesystem`
+		//  defaultdesc: same as `volume.block.filesystem`
+		//  shortdesc: File system of the storage volume
+		//  scope: global
+		"block.filesystem": validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
+		// lxdmeta:generate(entities=storage-powerstore; group=volume-conf; key=block.mount_options)
+		//
+		// ---
+		//  type: string
+		//  condition: block-based volume with content type `filesystem`
+		//  defaultdesc: same as `volume.block.mount_options`
+		//  shortdesc: Mount options for block-backed file system volumes
+		//  scope: global
+		"block.mount_options": validate.IsAny,
+		// lxdmeta:generate(entities=storage-powerstore; group=volume-conf; key=size)
+		// The size must be in multiples of 1 MiB. The minimum size is 1 MiB and maximum is 256 TiB.
+		// ---
+		//  type: string
+		//  defaultdesc: same as `volume.size`
+		//  shortdesc: Size/quota of the storage volume
+		//  scope: global
+		"size": validate.Optional(validate.IsMultipleOfUnit("1MiB")),
+	}
 }
 
 // FillVolumeConfig populate volume with default config.
 func (d *powerstore) FillVolumeConfig(vol Volume) error {
+	// Copy volume.* configuration options from pool.
+	// Exclude 'block.filesystem' and 'block.mount_options'
+	// as these ones are handled below in this function and depend on the volume's type.
+	err := d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options")
+	if err != nil {
+		return err
+	}
+
+	// Only validate filesystem config keys for filesystem volumes or VM block
+	// volumes (which have an associated filesystem volume).
+	if vol.ContentType() == ContentTypeFS || vol.IsVMBlock() {
+		// VM volumes will always use the default filesystem.
+		if vol.IsVMBlock() {
+			vol.config["block.filesystem"] = DefaultFilesystem
+		} else {
+			// Inherit filesystem from pool if not set.
+			if vol.config["block.filesystem"] == "" {
+				vol.config["block.filesystem"] = d.config["volume.block.filesystem"]
+			}
+
+			// Default filesystem if neither volume nor pool specify an override.
+			if vol.config["block.filesystem"] == "" {
+				// Unchangeable volume property: Set unconditionally.
+				vol.config["block.filesystem"] = DefaultFilesystem
+			}
+		}
+
+		// Inherit filesystem mount options from pool if not set.
+		if vol.config["block.mount_options"] == "" {
+			vol.config["block.mount_options"] = d.config["volume.block.mount_options"]
+		}
+
+		// Default filesystem mount options if neither volume nor pool specify an override.
+		if vol.config["block.mount_options"] == "" {
+			// Unchangeable volume property: Set unconditionally.
+			vol.config["block.mount_options"] = "discard"
+		}
+	}
+
 	return nil
 }
 
 // ValidateVolume validates the supplied volume config.
 func (d *powerstore) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	return nil
+	if vol.ContentType() == ContentTypeISO {
+		sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
+		if err != nil {
+			return err
+		}
+
+		sizeBytes = d.roundVolumeBlockSizeBytes(vol, sizeBytes)
+		vol.SetConfigSize(strconv.FormatInt(sizeBytes, 10))
+	}
+
+	commonRules := d.commonVolumeRules()
+
+	// Disallow block.* settings for regular custom block volumes. These settings only make
+	// sense when using custom filesystem volumes. LXD will create the filesystem for these
+	// volumes, and use the mount options. When attaching a regular block volume to a VM,
+	// these are not mounted by LXD and therefore don't need these config keys.
+	if vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock {
+		delete(commonRules, "block.filesystem")
+		delete(commonRules, "block.mount_options")
+	}
+
+	return d.validateVolume(vol, commonRules, removeUnknownKeys)
 }
 
 // GetVolumeDiskPath returns the location of a root disk block device.
