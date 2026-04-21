@@ -922,6 +922,22 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			if err != nil {
 				return fmt.Errorf("Failed updating OVN port: %w", err)
 			}
+
+			// If an address has changed and if the instance is running, we should bounce the host-side
+			// veth interface to give the instance a chance to detect the change and re-apply for an
+			// updated lease with new IP address.
+			if (ipv4Changed || ipv6Changed) && d.config["host_name"] != "" && network.InterfaceExists(d.config["host_name"]) {
+				link := &ip.Link{Name: d.config["host_name"]}
+				err := link.SetDown()
+				if err != nil {
+					return err
+				}
+
+				err = link.SetUp()
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		// Clean up unused ACL port groups.
