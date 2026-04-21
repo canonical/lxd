@@ -1,6 +1,9 @@
 package lifecycle
 
 import (
+	"context"
+
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -18,13 +21,13 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a replicator.
-func (a ReplicatorAction) Event(name string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
+func (a ReplicatorAction) Event(ctx context.Context, name string, projectName string, eventCtx map[string]any) api.EventLifecycle {
 	u := api.NewURL().Path(version.APIVersion, "replicators", name).Project(projectName)
 
 	return api.EventLifecycle{
 		Action:    string(a),
 		Source:    u.String(),
-		Context:   ctx,
-		Requestor: requestor,
+		Context:   eventCtx,
+		Requestor: request.CreateRequestor(ctx),
 	}
 }

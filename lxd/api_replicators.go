@@ -487,8 +487,7 @@ func replicatorsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorCreated.Event(req.Name, projectName, requestor, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorCreated.Event(r.Context(), req.Name, projectName, nil))
 
 	return response.EmptySyncResponse
 }
@@ -556,8 +555,7 @@ func replicatorPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRenamed.Event(req.Name, projectName, requestor, logger.Ctx{"old_name": name}))
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRenamed.Event(r.Context(), req.Name, projectName, logger.Ctx{"old_name": name}))
 
 	return response.EmptySyncResponse
 }
@@ -678,8 +676,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(name, projectName, requestor, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(r.Context(), name, projectName, nil))
 
 	return operations.OperationResponse(op)
 }
@@ -761,8 +758,7 @@ func updateReplicator(d *Daemon, r *http.Request, isPatch bool) response.Respons
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorUpdated.Event(name, projectName, requestor, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorUpdated.Event(r.Context(), name, projectName, nil))
 
 	return response.EmptySyncResponse
 }
@@ -887,8 +883,7 @@ func replicatorDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting replicator %q: %w", name, err))
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorDeleted.Event(name, projectName, requestor, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorDeleted.Event(r.Context(), name, projectName, nil))
 
 	return response.EmptySyncResponse
 }
