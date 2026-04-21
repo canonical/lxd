@@ -777,6 +777,75 @@ func (c *PowerStoreClient) DeleteVolume(volumeID string) error {
 	return nil
 }
 
+// GetVolumeSnapshots retrieves list of snapshots associated with the provided volume.
+func (c *PowerStoreClient) GetVolumeSnapshots(volumeID string) ([]PowerStoreVolume, error) {
+	filter := map[string]string{
+		"type":                        "eq.Snapshot",
+		"protection_data->>parent_id": "eq." + volumeID,
+	}
+
+	snapshots, err := c.getVolumes(filter)
+	if err != nil {
+		return nil, fmt.Errorf("Failed retrieving PowerStore snapshots: %w", err)
+	}
+
+	return snapshots, nil
+}
+
+// GetVolumeSnapshotID retrieves ID of a volume snapshot with a given name .
+func (c *PowerStoreClient) GetVolumeSnapshotID(volumeID string, snapshotName string) (string, error) {
+	var resp powerStoreResourceID
+
+	url := api.NewURL().Path("api", "rest", "volume", "name:"+snapshotName)
+	url = url.WithQuery("protection_data->>parent_id", "eq."+volumeID)
+	url = url.WithQuery("type", "eq.Snapshot")
+	url = url.WithQuery("select", resp.selector())
+
+	err := c.requestAuthenticated(http.MethodGet, url.URL, nil, &resp, nil)
+	if err != nil {
+		if isPowerStoreError(err, http.StatusNotFound) {
+			return "", api.StatusErrorf(http.StatusNotFound, "Volume snapshot with name %q not found", snapshotName)
+		}
+
+		return "", fmt.Errorf("Failed retrieving PowerStore volume snapshot: %w", err)
+	}
+
+	return resp.ID, nil
+}
+
+// CreateVolumeSnapshot creates a new snapshot of a volume.
+func (c *PowerStoreClient) CreateVolumeSnapshot(volumeID string, snapshotName string) (string, error) {
+	req := map[string]any{
+		"name":        snapshotName,
+		"description": "LXD Volume Snapshot of " + snapshotName,
+	}
+
+	var resp powerStoreResourceID
+
+	url := api.NewURL().Path("api", "rest", "volume", volumeID, "snapshot")
+	err := c.requestAuthenticated(http.MethodPost, url.URL, req, &resp, nil)
+	if err != nil {
+		return "", fmt.Errorf("Failed creating PowerStore volume snapshot: %w", err)
+	}
+
+	return resp.ID, nil
+}
+
+// DeleteVolumeSnapshot deletes a snapshot of a volume.
+func (c *PowerStoreClient) DeleteVolumeSnapshot(snapshotID string) error {
+	req := map[string]any{
+		"immediate": true, // Do not move the snapshot to the "recycle bin".
+	}
+
+	url := api.NewURL().Path("api", "rest", "volume", snapshotID)
+	err := c.requestAuthenticated(http.MethodDelete, url.URL, req, nil, nil)
+	if err != nil {
+		return fmt.Errorf("Failed deleting PowerStore volume snapshot: %w", err)
+	}
+
+	return nil
+}
+
 // powerStoreConnectorToPortType converts connector type to PowerStore port type used in initiators.
 func powerStoreConnectorToPortType(connectorType string) (string, error) {
 	switch connectorType {
