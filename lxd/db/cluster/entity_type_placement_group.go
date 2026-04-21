@@ -35,13 +35,7 @@ func (e entityTypePlacementGroup) urlsByProjectQuery() string {
 }
 
 func (e entityTypePlacementGroup) idFromURLQuery() string {
-	return `
-SELECT ?, placement_groups.id 
-FROM placement_groups
-JOIN projects ON placement_groups.project_id = projects.id 
-WHERE projects.name = ? 
-	AND '' = ? 
-	AND placement_groups.name = ?`
+	return projectEntityIDFromURLQuery("placement_groups")
 }
 
 func (e entityTypePlacementGroup) onDeleteTriggerSQL() (name string, sql string) {

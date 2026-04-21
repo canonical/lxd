@@ -35,17 +35,5 @@ WHERE projects.name = ?
 }
 
 func (e entityTypeProject) onDeleteTriggerSQL() (name string, sql string) {
-	name = "on_project_delete"
-	return name, fmt.Sprintf(`
-CREATE TRIGGER %s
-	AFTER DELETE ON projects
-	BEGIN
-	DELETE FROM auth_groups_permissions 
-		WHERE entity_type = %d 
-		AND entity_id = OLD.id;
-	DELETE FROM warnings
-		WHERE entity_type_code = %d
-		AND entity_id = OLD.id;
-	END
-`, name, e.code(), e.code())
+	return standardOnDeleteTriggerSQL("on_project_delete", "projects", e.code())
 }

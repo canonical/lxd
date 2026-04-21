@@ -29,27 +29,9 @@ func (e entityTypeReplicator) urlByIDQuery() string {
 }
 
 func (e entityTypeReplicator) idFromURLQuery() string {
-	return `
-SELECT ?, replicators.id
-FROM replicators
-JOIN projects ON replicators.project_id = projects.id
-WHERE projects.name = ?
-	AND '' = ?
-	AND replicators.name = ?`
+	return projectEntityIDFromURLQuery("replicators")
 }
 
 func (e entityTypeReplicator) onDeleteTriggerSQL() (name string, sql string) {
-	name = "on_replicator_delete"
-	return name, fmt.Sprintf(`
-CREATE TRIGGER %s
-	AFTER DELETE ON replicators
-	BEGIN
-	DELETE FROM auth_groups_permissions
-		WHERE entity_type = %d
-		AND entity_id = OLD.id;
-	DELETE FROM warnings
-		WHERE entity_type_code = %d
-		AND entity_id = OLD.id;
-	END
-`, name, e.code(), e.code())
+	return standardOnDeleteTriggerSQL("on_replicator_delete", "replicators", e.code())
 }
