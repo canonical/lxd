@@ -71,6 +71,20 @@ func (PowerStoreHost) selector() string {
 	return "id,name,os_type,initiators(id,port_name,port_type),mapped_hosts(id,host_id,volume_id)"
 }
 
+// PowerStoreVolume represents a PowerStore volume.
+type PowerStoreVolume struct {
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Type        string `json:"type,omitempty"`
+	Size        int64  `json:"size,omitempty"`
+	LogicalUsed int64  `json:"logical_used,omitempty"`
+	WWN         string `json:"wwn,omitempty"`
+}
+
+func (PowerStoreVolume) selector() string {
+	return "id,name,type,size,logical_used,wwn"
+}
+
 type powerStoreErrorMessage struct {
 	Message string `json:"message_l10n"`
 }
@@ -633,6 +647,131 @@ func (c *PowerStoreClient) DeleteHost(hostID string) error {
 		}
 
 		return fmt.Errorf("Failed deleting PowerStore host: %w", err)
+	}
+
+	return nil
+}
+
+func (c *PowerStoreClient) getVolumes(queryFilter map[string]string) ([]PowerStoreVolume, error) {
+	url := api.NewURL().Path("api", "rest", "volume")
+	url = url.WithQuery("select", PowerStoreVolume{}.selector())
+
+	for k, v := range queryFilter {
+		url = url.WithQuery(k, v)
+	}
+
+	var offset uint64
+	var volumes []PowerStoreVolume
+
+	for {
+		respBody := []PowerStoreVolume{}
+		respHeaders := make(http.Header)
+
+		pageURL := withPaginationQuery(url.URL, offset, powerStoreQueryResponseLimit)
+		err := c.requestAuthenticated(http.MethodGet, pageURL, nil, &respBody, respHeaders)
+		if err != nil {
+			return nil, err
+		}
+
+		nextOffset, hasMoreItems, err := parsePaginationOffset(respHeaders)
+		if err != nil {
+			return nil, err
+		}
+
+		volumes = append(volumes, respBody...)
+		offset = nextOffset
+
+		if !hasMoreItems {
+			break
+		}
+	}
+
+	return volumes, nil
+}
+
+// GetVolumes retrieves list of volume associated with the storage pool.
+func (c *PowerStoreClient) GetVolumes() ([]PowerStoreVolume, error) {
+	filter := map[string]string{
+		"name": "ilike." + c.resourceNamePrefix + "*",
+		"or":   "(type.eq.Primary,type.eq.Clone)",
+	}
+
+	vols, err := c.getVolumes(filter)
+	if err != nil {
+		return nil, fmt.Errorf("Failed retrieving PowerStore volumes: %w", err)
+	}
+
+	return vols, nil
+}
+
+// GetVolumeID retrieves ID of a volume with a given name.
+func (c *PowerStoreClient) GetVolumeID(volumeName string) (string, error) {
+	var resp powerStoreResourceID
+
+	url := api.NewURL().Path("api", "rest", "volume", "name:"+volumeName)
+	url = url.WithQuery("or", "(type.eq.Primary,type.eq.Clone)")
+	url = url.WithQuery("select", "id")
+
+	err := c.requestAuthenticated(http.MethodGet, url.URL, nil, &resp, nil)
+	if err != nil {
+		if isPowerStoreError(err, http.StatusNotFound) {
+			return "", api.StatusErrorf(http.StatusNotFound, "Volume with name %q not found", volumeName)
+		}
+
+		return "", fmt.Errorf("Failed retrieving PowerStore volume with name %q: %w", volumeName, err)
+	}
+
+	return resp.ID, nil
+}
+
+// GetVolume retrieves volume using its name.
+func (c *PowerStoreClient) GetVolume(volumeID string) (*PowerStoreVolume, error) {
+	var resp PowerStoreVolume
+
+	url := api.NewURL().Path("api", "rest", "volume", volumeID)
+	url = url.WithQuery("or", "(type.eq.Primary,type.eq.Clone)")
+	url = url.WithQuery("select", resp.selector())
+
+	err := c.requestAuthenticated(http.MethodGet, url.URL, nil, &resp, nil)
+	if err != nil {
+		if isPowerStoreError(err, http.StatusNotFound) {
+			return nil, api.StatusErrorf(http.StatusNotFound, "Volume with ID %q not found", volumeID)
+		}
+
+		return nil, fmt.Errorf("Failed retrieving PowerStore volume: %w", err)
+	}
+
+	return &resp, nil
+}
+
+// CreateVolume creates a new volume.
+func (c *PowerStoreClient) CreateVolume(volumeName string, sizeBytes int64) (volumeID string, err error) {
+	req := map[string]any{
+		"name": volumeName,
+		"size": sizeBytes,
+	}
+
+	var resp powerStoreResourceID
+
+	url := api.NewURL().Path("api", "rest", "volume")
+	err = c.requestAuthenticated(http.MethodPost, url.URL, req, &resp, nil)
+	if err != nil {
+		return "", fmt.Errorf("Failed creating PowerStore volume: %w", err)
+	}
+
+	return resp.ID, nil
+}
+
+// DeleteVolume deletes volume using its ID.
+func (c *PowerStoreClient) DeleteVolume(volumeID string) error {
+	req := map[string]any{
+		"immediate": true, // Do not move the volume to the "recycle bin".
+	}
+
+	url := api.NewURL().Path("api", "rest", "volume", volumeID)
+	err := c.requestAuthenticated(http.MethodDelete, url.URL, req, nil, nil)
+	if err != nil && !isPowerStoreError(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed deleting PowerStore volume: %w", err)
 	}
 
 	return nil
