@@ -3323,7 +3323,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 				migrate = true
 				live = true
 			default:
-				return fmt.Errorf("Invalid mode: %q", opts.mode)
+				return fmt.Errorf("Invalid evacuation mode: %q", opts.mode)
 			}
 		}
 
