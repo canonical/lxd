@@ -1506,46 +1506,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		// Load profiles.
 		if len(req.Profiles) > 0 {
-			profileFilters := make([]dbCluster.ProfileFilter, 0, len(req.Profiles))
-			for _, profileName := range req.Profiles {
-				profileFilters = append(profileFilters, dbCluster.ProfileFilter{
-					Project: &profileProject,
-					Name:    &profileName,
-				})
-			}
-
-			dbProfiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), profileFilters...)
+			profiles, err = instanceProfilesFromNames(ctx, tx, profileProject, req.Profiles)
 			if err != nil {
 				return err
-			}
-
-			dbProfileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
-			if err != nil {
-				return err
-			}
-
-			dbProfileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
-			if err != nil {
-				return err
-			}
-
-			profilesByName := make(map[string]dbCluster.Profile, len(dbProfiles))
-			for _, dbProfile := range dbProfiles {
-				profilesByName[dbProfile.Name] = dbProfile
-			}
-
-			for _, profileName := range req.Profiles {
-				profile, found := profilesByName[profileName]
-				if !found {
-					return fmt.Errorf("Requested profile %q does not exist", profileName)
-				}
-
-				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
-				if err != nil {
-					return err
-				}
-
-				profiles = append(profiles, *apiProfile)
 			}
 		}
 
