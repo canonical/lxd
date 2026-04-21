@@ -124,6 +124,7 @@ var patches = []patch{
 	{name: "config_remove_maas_keys", stage: patchPreLoadClusterConfig, run: patchRemoveMAASConfigKeys},
 	{name: "storage_unset_ceph_source_setting", stage: patchPostDaemonStorage, run: patchUnsetCephSourceSetting},
 	{name: "clustering_event_hub_role_to_control_plane", stage: patchPreLoadClusterConfig, run: patchClusteringEventHubRoleToControlPlane},
+	{name: "storage_zfs_remove_local_bucket_datasets", stage: patchPostDaemonStorage, run: patchGenericStorage},
 }
 
 type patch struct {

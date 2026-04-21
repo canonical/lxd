@@ -54,6 +54,7 @@ func (d *zfs) load() error {
 		"storage_delete_old_snapshot_records":                nil,
 		"storage_zfs_drop_block_volume_filesystem_extension": d.patchDropBlockVolumeFilesystemExtension,
 		"storage_prefix_bucket_names_with_project":           nil,
+		"storage_zfs_remove_local_bucket_datasets":           d.patchRemoveLocalBucketDatasets,
 	}
 
 	// Done if previously loaded.
@@ -780,6 +781,31 @@ func (d *zfs) patchDropBlockVolumeFilesystemExtension() error {
 		_, err = shared.RunCommand(context.TODO(), "zfs", "rename", volume, newName)
 		if err != nil {
 			return fmt.Errorf("Failed renaming zfs dataset: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// patchRemoveLocalBucketDatasets removes orphaned ZFS datasets left over from before local storage bucket support was
+// dropped. Affected datasets are "<pool>/buckets" and "<pool>/deleted/buckets".
+func (d *zfs) patchRemoveLocalBucketDatasets() error {
+	poolName, ok := d.config["zfs.pool_name"]
+	if !ok {
+		poolName = d.name
+	}
+
+	// Remove deepest-first to avoid dependency conflicts.
+	for _, dataset := range []string{poolName + "/deleted/buckets", poolName + "/buckets"} {
+		_, err := shared.RunCommand(d.state.ShutdownCtx, "zfs", "list", "-H", "-o", "name", dataset)
+		if err != nil {
+			// Dataset does not exist; nothing to do.
+			continue
+		}
+
+		_, err = shared.RunCommand(d.state.ShutdownCtx, "zfs", "destroy", "-r", dataset)
+		if err != nil {
+			return fmt.Errorf("Failed removing ZFS bucket dataset %q: %w", dataset, err)
 		}
 	}
 
