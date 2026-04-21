@@ -115,7 +115,7 @@ func createFromImage(r *http.Request, s *state.State, p api.Project, profiles []
 			Profiles:    profiles,
 		}
 
-		if req.Source.Server != "" {
+		if req.Source.ImageRegistry != "" {
 			img, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, p, imgAlias, req.Source, string(req.Type))
 			if err != nil {
 				return err
