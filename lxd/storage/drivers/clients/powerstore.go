@@ -846,6 +846,26 @@ func (c *PowerStoreClient) DeleteVolumeSnapshot(snapshotID string) error {
 	return nil
 }
 
+// ResizeVolume resizes an existing volume.
+func (c *PowerStoreClient) ResizeVolume(volumeID string, newSize int64) error {
+	vol, err := c.GetVolume(volumeID)
+	if err != nil {
+		return err
+	}
+
+	req := map[string]any{
+		"size": newSize,
+	}
+
+	url := api.NewURL().Path("api", "rest", "volume", vol.ID)
+	err = c.requestAuthenticated(http.MethodPatch, url.URL, req, nil, nil)
+	if err != nil {
+		return fmt.Errorf("Failed resizing PowerStore volume: %w", err)
+	}
+
+	return nil
+}
+
 // powerStoreConnectorToPortType converts connector type to PowerStore port type used in initiators.
 func powerStoreConnectorToPortType(connectorType string) (string, error) {
 	switch connectorType {
