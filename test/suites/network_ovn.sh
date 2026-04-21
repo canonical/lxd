@@ -6,6 +6,10 @@ test_network_ovn() {
 
   ensure_import_testimage
 
+  if [ "${LXD_VM_TESTS}" != "0" ]; then
+    ensure_import_ubuntu_vm_image
+  fi
+
   # Create an associative array holding table names and the expected number of rows for that table.
   declare -A tables
 
@@ -76,8 +80,15 @@ test_network_ovn() {
   echo "Set IP routes that include OVN ranges."
   lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24 ipv6.routes=2001:db8:1:2::/64
 
+  # Check invalid bridge.mtu values
+  [ "$(! "${_LXC}" network create "${ovn_network}" --type ovn network="${uplink_network}" bridge.mtu=67 2>&1 1>/dev/null)" = 'Error: Invalid value for network "'"${ovn_network}"'" option "bridge.mtu": Out of MTU range (68-16384) "67"' ]
+  [ "$(! "${_LXC}" network create "${ovn_network}" --type ovn network="${uplink_network}" bridge.mtu=16385 2>&1 1>/dev/null)" = 'Error: Invalid value for network "'"${ovn_network}"'" option "bridge.mtu": Out of MTU range (68-16384) "16385"' ]
+
   echo "Create an OVN network."
   lxc network create "${ovn_network}" --type ovn network="${uplink_network}"
+  lxc network create "${ovn_network}_jumbo" --type ovn network="${uplink_network}" bridge.mtu=8942
+  [ "$(lxc network get "${ovn_network}" bridge.mtu || echo fail)" = "1442" ] # check auto mtu calculation works.
+  [ "$(lxc network get "${ovn_network}_jumbo" bridge.mtu || echo fail)" = "8942" ]
 
   echo "Check that no forward can be created with a listen address that is not in the uplink's routes."
   ! lxc network forward create "${ovn_network}" 192.0.3.1 || false
@@ -131,8 +142,36 @@ test_network_ovn() {
   echo "Check that instance NIC passthrough with ipv6.routes.external allows using IPs outside of OVN ranges but on the same network."
   lxc launch testimage c2 -n "${ovn_network}" -d eth0,ipv6.routes.external=2001:db8:1:2::10/128
 
+  echo "Check that c1 eth0 MTU is set to bridge.mtu value in container matches br-int on host side to avoid lowering."
+  c1Eth0Hostname="$(lxc config get c1 volatile.eth0.host_name)"
+  [ "$(< "/sys/class/net/${c1Eth0Hostname}/mtu")" = "1500" ]
+  [ "$(lxc exec c1 -- cat /sys/class/net/eth0/mtu)" = "1442" ]
+
+  lxc launch testimage c3 -n "${ovn_network}_jumbo"
+  c3Eth0Hostname="$(lxc config get c3 volatile.eth0.host_name)"
+  [ "$(< "/sys/class/net/${c3Eth0Hostname}/mtu")" = "8942" ]
+  [ "$(lxc exec c3 -- cat /sys/class/net/eth0/mtu)" = "8942" ]
+
+  if [ "${LXD_VM_TESTS}" != "0" ]; then
+    lxc launch ubuntu-vm v1 --vm --config limits.memory=384MiB --device "${SMALL_VM_ROOT_DISK}" -n "${ovn_network}"
+    v1Eth0Hostname="$(lxc config get v1 volatile.eth0.host_name)"
+    [ "$(< "/sys/class/net/${v1Eth0Hostname}/mtu")" = "1500" ]
+    waitInstanceReady v1
+    [ "$(lxc exec v1 -- cat /sys/class/net/enp5s0/mtu)" = "1442" ]
+    lxc delete --force v1
+
+    lxc launch ubuntu-vm v2 --vm --config limits.memory=384MiB --device "${SMALL_VM_ROOT_DISK}" -n "${ovn_network}_jumbo"
+    v2Eth0Hostname="$(lxc config get v2 volatile.eth0.host_name)"
+    [ "$(< "/sys/class/net/${v2Eth0Hostname}/mtu")" = "8942" ]
+    waitInstanceReady v2
+    [ "$(lxc exec v2 -- cat /sys/class/net/enp5s0/mtu)" = "8942" ]
+    lxc delete --force v2
+  fi
+
   echo "Clean up instances."
-  lxc delete --force c1 c2
+  lxc delete --force c1 c2 c3
+
+  lxc network delete "${ovn_network}_jumbo"
 
   echo "Check that removing IP routes on uplink works when there are no dependent OVN forwards."
   lxc network set "${uplink_network}" ipv4.routes= ipv6.routes=
