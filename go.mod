@@ -10,7 +10,7 @@ require (
 	github.com/dustinkirkland/golang-petname v0.0.0-20260215035315-f0c533e9ce9b
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/fvbommel/sortorder v1.1.0
-	github.com/go-acme/lego/v4 v4.33.0
+	github.com/go-acme/lego/v4 v4.34.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -50,7 +50,7 @@ require (
 	go.uber.org/zap v1.27.1
 	go.yaml.in/yaml/v2 v2.4.4
 	golang.org/x/crypto v0.50.0
-	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90
+	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.43.0
@@ -99,7 +99,7 @@ require (
 	github.com/k-sone/critbitgo v1.4.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.21 // indirect
 	github.com/mattn/go-runewidth v0.0.21 // indirect
 	github.com/mdlayher/socket v0.6.0 // indirect
 	github.com/muhlemmer/gu v0.3.1 // indirect
