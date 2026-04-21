@@ -11,7 +11,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 )
 
 // PlacementGroupsRow represents a single row of the placement_groups table.
@@ -92,32 +91,7 @@ func GetPlacementGroupsAndURLs(ctx context.Context, tx *sql.Tx, projectName *str
 
 // CreatePlacementGroupConfig creates config for a new placement group with the given ID.
 func CreatePlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64, config map[string]string) error {
-	q := `INSERT INTO placement_groups_config (placement_group_id, key, value) VALUES(?, ?, ?)`
-
-	stmt, err := tx.Prepare(q)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		err := stmt.Close()
-		if err != nil {
-			logger.Warn("Failed closing statement", logger.Ctx{"query": q, "err": err})
-		}
-	}()
-
-	for k, v := range config {
-		if v == "" {
-			continue
-		}
-
-		_, err = stmt.Exec(placementGroupID, k, v)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return CreateEntityConfig(ctx, tx, "placement_groups_config", "placement_group_id", placementGroupID, config)
 }
 
 // UpdatePlacementGroupConfig updates the placement group config with the given ID.
