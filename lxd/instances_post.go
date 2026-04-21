@@ -1339,6 +1339,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	// A connected image registry is needed to determined suitable architectures for instance creation.
 	if req.Source.ImageRegistry != "" {
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			projectConfig, err := dbCluster.GetProjectConfig(ctx, tx.Tx(), targetProjectName)
+			if err != nil {
+				return fmt.Errorf("Failed loading config for project %q: %w", targetProjectName, err)
+			}
+
+			if !project.RegistryAllowed(projectConfig, req.Source.ImageRegistry) {
+				return api.StatusErrorf(http.StatusNotFound, "Image registry not found")
+			}
+
 			dbImageRegistry, err := dbCluster.GetImageRegistry(ctx, tx.Tx(), req.Source.ImageRegistry)
 			if err != nil {
 				return fmt.Errorf("Failed fetching image registry %q: %w", req.Source.ImageRegistry, err)
