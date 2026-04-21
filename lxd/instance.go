@@ -810,9 +810,9 @@ func getSourceImageFromInstanceSource(ctx context.Context, s *state.State, tx *d
 	// If a remote server is being used, check whether we have a cached image for the alias.
 	// If so then use the cached image fingerprint for loading the cache image profiles.
 	// As its possible for a remote cached image to have its profiles modified after download.
-	if source.Server != "" {
+	if source.ImageRegistry != "" {
 		for _, architecture := range s.OS.Architectures {
-			cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, source.Server, source.Protocol, *imageRef, instType, architecture)
+			cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, source.ImageRegistry, *imageRef, instType, architecture)
 			if err == nil && cachedFingerprint != sourceImageHash {
 				sourceImageHash = cachedFingerprint
 				break
