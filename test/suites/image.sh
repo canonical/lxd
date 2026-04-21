@@ -229,20 +229,19 @@ test_image_refresh() {
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
 
-  ensure_import_testimage
-
   token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
   lxc_remote remote add l2 "${LXD2_ADDR}" --token "${token}"
+
+  lxc_remote image registry create img --protocol=lxd url="https://${LXD2_ADDR}" public=true source_project=default
 
   poolDriver="$(storage_backend "${LXD2_DIR}")"
 
   # Publish image
-  lxc image copy testimage l2: --alias testimage --public
+  LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public
   fp="$(lxc image info l2:testimage | awk '/Fingerprint: / {print $2}')"
-  lxc image rm testimage
 
   # Create container from published image
-  lxc init l2:testimage c1
+  lxc init img:testimage c1
 
   # Create an alias for the received image
   lxc image alias create testimage "${fp}"
@@ -280,6 +279,7 @@ test_image_refresh() {
   # Cleanup
   lxc rm l2:c1
   lxc rm c1
+  lxc image registry rm img
   lxc remote rm l2
   kill_lxd "${LXD2_DIR}"
 }
