@@ -24,6 +24,10 @@ const (
 
 	// powerStoreCSRFHeaderName is the name of the header which contains PowerStore CSRF token.
 	powerStoreCSRFHeaderName = "dell-emc-token"
+
+	// powerStoreQueryResponseLimit defines maximum number of items PowerStore can return in
+	// a single query response.
+	powerStoreQueryResponseLimit = 2000
 )
 
 type powerStoreErrorMessage struct {
@@ -373,4 +377,64 @@ func (c *PowerStoreClient) requestAuthenticated(method string, url url.URL, reqB
 
 		return nil
 	}
+}
+
+// withPaginationQuery adds pagination parameters to the provided URL query.
+func withPaginationQuery(url url.URL, offset uint64, limit int) url.URL {
+	if limit <= 0 || limit > powerStoreQueryResponseLimit {
+		limit = powerStoreQueryResponseLimit
+	}
+
+	q := url.Query()
+	q.Set("offset", strconv.FormatUint(offset, 10))
+	q.Set("limit", strconv.Itoa(limit))
+	url.RawQuery = q.Encode()
+	return url
+}
+
+// parsePaginationOffset determines whether the response headers indicate there are more items
+// available to be retrieved and the offset to be used for the next query.
+func parsePaginationOffset(headers http.Header) (newOffset uint64, hasMore bool, err error) {
+	if headers == nil {
+		return 0, false, nil
+	}
+
+	// valid Content-Range HTTP headers returned by PowerStore have a form:
+	// - firstOffset '-' lastOffset '/' totalItems
+	// - '*' '/' totalItems
+	header := headers.Get("Content-Range")
+	if header == "" {
+		return 0, false, nil
+	}
+
+	errInvalidHeader := func() (uint64, bool, error) {
+		return 0, false, fmt.Errorf("Invalid format of Content-Range header: %q", header)
+	}
+
+	rangeStr, totalItemsStr, ok := strings.Cut(header, "/")
+	if !ok {
+		return errInvalidHeader()
+	}
+
+	if rangeStr == "*" {
+		return 0, false, nil
+	}
+
+	_, lastOffsetStr, ok := strings.Cut(rangeStr, "-")
+	if !ok {
+		return errInvalidHeader()
+	}
+
+	lastOffset, err := strconv.ParseUint(lastOffsetStr, 10, 64)
+	if err != nil {
+		return errInvalidHeader()
+	}
+
+	totalItems, err := strconv.ParseUint(totalItemsStr, 10, 64)
+	if err != nil {
+		return errInvalidHeader()
+	}
+
+	newOffset = lastOffset + 1
+	return newOffset, totalItems > newOffset, nil
 }
