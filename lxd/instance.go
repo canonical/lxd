@@ -764,7 +764,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshots(ctx context.Context, s *state.St
 func resolveSourceImageFromCache(r *http.Request, s *state.State, tx *db.ClusterTx, targetProjectName string, source api.InstanceSource, imageRef *string, instType string) (*api.Image, error) {
 	// Resolve the project used for local cache lookup to find the image.
 	localLookupProject := targetProjectName
-	if source.Server == "" && source.Project != "" {
+	if source.ImageRegistry == "" && source.Project != "" {
 		// For local images, if a source project is explicitly provided, use it to locate the image.
 		localLookupProject = source.Project
 	}
