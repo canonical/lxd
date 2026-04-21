@@ -189,11 +189,32 @@ func (d *powerstore) Validate(config map[string]string) error {
 
 // SourceIdentifier returns a combined string consisting of the gateway address and pool name.
 func (d *powerstore) SourceIdentifier() (string, error) {
-	return "", nil
+	gateway := d.config["powerstore.gateway"]
+	if gateway == "" {
+		return "", errors.New("Cannot derive identifier from empty gateway address")
+	}
+
+	if d.name == "" {
+		return "", errors.New("Cannot derive identifier from empty pool name")
+	}
+
+	return gateway + "-" + d.name, nil
 }
 
 // ValidateSource checks whether the required config keys are set to access the remote source.
 func (d *powerstore) ValidateSource() error {
+	if d.config["powerstore.gateway"] == "" {
+		return errors.New("The powerstore.gateway cannot be empty")
+	}
+
+	if d.config["powerstore.user.name"] == "" {
+		return errors.New("The powerstore.user.name cannot be empty")
+	}
+
+	if d.config["powerstore.user.password"] == "" {
+		return errors.New("The powerstore.user.password cannot be empty")
+	}
+
 	return nil
 }
 
