@@ -139,6 +139,8 @@ const (
 	NetworkZoneRecordCreate
 	NetworkZoneRecordUpdate
 	NetworkZoneRecordDelete
+	ReplicatorRun
+	ReplicatorRunInstance
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -378,6 +380,10 @@ func (t Type) Description() string {
 		return "Updating network zone record"
 	case NetworkZoneRecordDelete:
 		return "Deleting network zone record"
+	case ReplicatorRun:
+		return "Running replicator"
+	case ReplicatorRunInstance:
+		return "Replicating instance"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -404,7 +410,7 @@ func (t Type) EntityType() entity.Type {
 	// (the entity being created is not yet referenceable).
 	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore,
 		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, NetworkCreate, NetworkACLCreate, StorageBucketCreate,
-		NetworkZoneCreate:
+		NetworkZoneCreate, ReplicatorRunInstance:
 		return entity.TypeProject
 
 	// Storage bucket operations.
@@ -473,6 +479,9 @@ func (t Type) EntityType() entity.Type {
 	// Network zone operations.
 	case NetworkZoneUpdate, NetworkZoneDelete, NetworkZoneRecordCreate, NetworkZoneRecordUpdate, NetworkZoneRecordDelete:
 		return entity.TypeNetworkZone
+	// Replicator operations.
+	case ReplicatorRun:
+		return entity.TypeReplicator
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -498,6 +507,8 @@ func (t Type) ConflictAction() ConflictAction {
 		return ConflictActionFail
 	case ClusterMemberEvacuate:
 		return ConflictActionFail // Enforces cluster-wide evacuation exclusivity when used with a shared ConflictReference; this prevents evacuation race conditions.
+	case ReplicatorRun:
+		return ConflictActionFail // Prevents concurrent runs of the same replicator; the replicator URL is used as the per-replicator conflict reference.
 	}
 
 	return ConflictActionNone

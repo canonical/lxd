@@ -55,6 +55,15 @@ Create cluster links </howto/cluster_links_create>
 Manage cluster links </howto/cluster_links_manage>
 ```
 
+How to work with replicators:
+
+```{toctree}
+:titlesonly:
+
+Set up replicators </howto/replicators_create>
+Manage replicators </howto/replicators_manage>
+```
+
 ## Related topics
 
 {{clustering_exp}}

@@ -5087,6 +5087,125 @@ definitions:
                 x-go-name: StoragePool
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    Replicator:
+        properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
+            config:
+                additionalProperties:
+                    type: string
+                description: Replicator configuration map (refer to doc/reference/replicator_config.md).
+                example:
+                    schedule: '@daily'
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the replicator.
+                example: Backup LXD cluster
+                type: string
+                x-go-name: Description
+            last_run_at:
+                description: Timestamp when the replicator job was last run.
+                example: "2021-03-23T17:38:37.753398689-04:00"
+                format: date-time
+                type: string
+                x-go-name: LastRunAt
+            last_run_status:
+                description: Status of the last replicator run (Pending, Completed, or Failed).
+                example: Completed
+                type: string
+                x-go-name: LastRunStatus
+            name:
+                description: Name of the replicator.
+                example: lxd02
+                type: string
+                x-go-name: Name
+            project:
+                description: Source project for replication.
+                example: default
+                type: string
+                x-go-name: Project
+        title: Replicator represents high-level information about a replicator.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ReplicatorPost:
+        properties:
+            name:
+                description: New name of the replicator.
+                example: my-replicator-renamed
+                type: string
+                x-go-name: Name
+        title: ReplicatorPost represents the fields for renaming a replicator.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ReplicatorPut:
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Replicator configuration map (refer to doc/reference/replicator_config.md).
+                example:
+                    schedule: '@daily'
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the replicator.
+                example: Backup cluster.
+                type: string
+                x-go-name: Description
+        title: ReplicatorPut represents the modifiable fields of a replicator.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ReplicatorState:
+        properties:
+            status:
+                description: Status of the replicator job.
+                example: Pending
+                type: string
+                x-go-name: Status
+        title: ReplicatorState represents the state of a replicator job.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ReplicatorStatePut:
+        properties:
+            action:
+                description: Action to perform on the replicator (start, restore).
+                example: start
+                type: string
+                x-go-name: Action
+        title: ReplicatorStatePut represents the fields available to change the state of a replicator.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ReplicatorsPost:
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Replicator configuration map (refer to doc/reference/replicator_config.md).
+                example:
+                    schedule: '@daily'
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the replicator.
+                example: Backup cluster.
+                type: string
+                x-go-name: Description
+            name:
+                description: Name of the replicator.
+                example: backup-lxd02
+                type: string
+                x-go-name: Name
+        title: ReplicatorsPost represents the fields available for a new replicator.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     Resources:
         description: Resources represents the system resources available for LXD
         properties:
@@ -16499,6 +16618,380 @@ paths:
             summary: Get the projects
             tags:
                 - projects
+    /1.0/replicators:
+        get:
+            description: Returns a list of replicators (URLs).
+            operationId: replicators_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve replicators from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/replicators/foo?project=default",
+                                      "/1.0/replicators/bar?project=default"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the replicators
+            tags:
+                - replicators
+        post:
+            consumes:
+                - application/json
+            description: Creates a new replicator.
+            operationId: replicators_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Replicator
+                  in: body
+                  name: replicator
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ReplicatorsPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add a replicator
+            tags:
+                - replicators
+    /1.0/replicators/{name}:
+        delete:
+            description: Deletes the replicator.
+            operationId: replicator_delete
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete the replicator
+            tags:
+                - replicators
+        get:
+            description: Gets a specific replicator.
+            operationId: replicator_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Replicator
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/Replicator'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the replicator
+            tags:
+                - replicators
+        patch:
+            consumes:
+                - application/json
+            description: Updates a subset of the replicator configuration.
+            operationId: replicator_patch
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Replicator configuration
+                  in: body
+                  name: replicator
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ReplicatorPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Partially update the replicator
+            tags:
+                - replicators
+        post:
+            consumes:
+                - application/json
+            description: Renames the replicator.
+            operationId: replicator_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Replicator rename options
+                  in: body
+                  name: replicator
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ReplicatorPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Rename the replicator
+            tags:
+                - replicators
+        put:
+            consumes:
+                - application/json
+            description: Updates the replicator configuration.
+            operationId: replicator_put
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Replicator configuration
+                  in: body
+                  name: replicator
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ReplicatorPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the replicator
+            tags:
+                - replicators
+    /1.0/replicators/{name}/state:
+        get:
+            description: Gets the current state of the replicator.
+            operationId: replicator_state_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Replicator state
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ReplicatorState'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the replicator state
+            tags:
+                - replicators
+        put:
+            consumes:
+                - application/json
+            description: |-
+                Triggers a replicator run using the specified action.
+                The "restore" action requires all local project instances to be stopped;
+                it returns 400 if any instance is running to prevent partial restores.
+            operationId: replicator_state_put
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Replicator state
+                  in: body
+                  name: state
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ReplicatorStatePut'
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the replicator state
+            tags:
+                - replicators
+    /1.0/replicators?recursion=1:
+        get:
+            description: Returns a list of replicators (structs).
+            operationId: replicators_get_recursion1
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve replicators from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of replicators
+                                items:
+                                    $ref: '#/definitions/Replicator'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the replicators
+            tags:
+                - replicators
     /1.0/resources:
         get:
             description: Gets the hardware information profile of the LXD server.

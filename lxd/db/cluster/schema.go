@@ -581,6 +581,24 @@ CREATE TABLE "projects_config" (
     FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE,
     UNIQUE (project_id, key)
 );
+CREATE TABLE replicators (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	project_id INTEGER NOT NULL,
+	description TEXT NOT NULL,
+	last_run_date DATETIME,
+	last_run_status TEXT NOT NULL,
+	UNIQUE(project_id, name),
+	FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+CREATE TABLE replicators_config (
+	replicator_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (replicator_id) REFERENCES replicators (id) ON DELETE CASCADE,
+	PRIMARY KEY (replicator_id,
+    key)
+) WITHOUT ROWID;
 CREATE TABLE secrets (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     entity_type INTEGER NOT NULL,
@@ -777,5 +795,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (83, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (84, strftime("%s"))
 `

@@ -383,6 +383,17 @@ type InstanceServer interface {
 	RenameClusterLink(name string, clusterLink api.ClusterLinkPost) (err error)
 	DeleteClusterLink(name string) (err error)
 
+	// Replicator functions
+	GetReplicators(project string) (replicators []api.Replicator, err error)
+	GetReplicatorNames() (replicatorNames []string, err error)
+	GetReplicator(project string, name string) (replicator *api.Replicator, ETag string, err error)
+	GetReplicatorState(project string, name string) (replicatorState *api.ReplicatorState, err error)
+	CreateReplicator(project string, replicator api.ReplicatorsPost) (err error)
+	UpdateReplicator(project string, name string, replicator api.ReplicatorPut, ETag string) (err error)
+	DeleteReplicator(project string, name string) (err error)
+	RunReplicator(project string, name string, req api.ReplicatorStatePut) (op Operation, err error)
+	RenameReplicator(project string, name string, replicator api.ReplicatorPost) (err error)
+
 	// Warning functions
 	GetWarningUUIDs() (uuids []string, err error)
 	GetWarnings() (warnings []api.Warning, err error)

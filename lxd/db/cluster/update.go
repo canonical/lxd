@@ -127,6 +127,35 @@ var updates = map[int]schema.Update{
 	81: updateFromV80,
 	82: updateFromV81,
 	83: updateFromV82,
+	84: updateFromV83,
+}
+
+func updateFromV83(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE replicators (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	project_id INTEGER NOT NULL,
+	description TEXT NOT NULL,
+	last_run_date DATETIME,
+	last_run_status TEXT NOT NULL,
+	UNIQUE(project_id, name),
+	FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE replicators_config (
+	replicator_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (replicator_id) REFERENCES replicators (id) ON DELETE CASCADE,
+	PRIMARY KEY (replicator_id, key)
+) WITHOUT ROWID;
+`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func updateFromV82(ctx context.Context, tx *sql.Tx) error {

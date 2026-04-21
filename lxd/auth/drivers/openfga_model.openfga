@@ -358,6 +358,21 @@ type project
     # Grants permission to delete placement groups.
     define can_delete_placement_groups: [identity, service_account, group#member] or operator or placement_group_manager or can_edit_projects from server
 
+    # Grants permission to create, view, edit, and delete all replicators belonging to the project.
+    define replicator_manager: [identity, service_account, group#member]
+
+    # Grants permission to create replicators.
+    define can_create_replicators: [identity, service_account, group#member] or operator or replicator_manager or can_edit_projects from server
+
+    # Grants permission to view replicators.
+    define can_view_replicators: [identity, service_account, group#member] or operator or viewer or replicator_manager or can_view_projects from server
+
+    # Grants permission to edit replicators.
+    define can_edit_replicators: [identity, service_account, group#member] or operator or replicator_manager or can_edit_projects from server
+
+    # Grants permission to delete replicators.
+    define can_delete_replicators: [identity, service_account, group#member] or operator or replicator_manager or can_edit_projects from server
+
     # Grants permission to view operations relating to the project.
     define can_view_operations: [identity, service_account, group#member] or operator or viewer or can_view_projects from server
 
@@ -550,3 +565,16 @@ type placement_group
 
     # Grants permission to view the placement group.
     define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_placement_groups from project
+
+type replicator
+  relations
+    define project: [project]
+
+    # Grants permission to edit the replicator.
+    define can_edit: [identity, service_account, group#member] or can_edit_replicators from project
+
+    # Grants permission to delete the replicator.
+    define can_delete: [identity, service_account, group#member] or can_delete_replicators from project
+
+    # Grants permission to view the replicator.
+    define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_replicators from project

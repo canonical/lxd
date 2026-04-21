@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -113,6 +114,47 @@ func GetClusterLinkConnectionArgs(clusterCert *shared.CertInfo, targetCert *x509
 	}
 }
 
+// LoadClusterLinkAndCert loads a cluster link by name and returns its database ID, API representation, and the parsed TLS certificate associated with its identity.
+func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id int64, clusterLink *api.ClusterLink, cert *x509.Certificate, err error) {
+	dbLink, err := dbCluster.GetClusterLink(ctx, tx, name)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("Failed loading cluster link %q: %w", name, err)
+	}
+
+	config, err := dbCluster.GetClusterLinkConfig(ctx, tx, &dbLink.ID)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("Failed loading cluster link config: %w", err)
+	}
+
+	clusterLink = dbLink.ToAPI(config)
+
+	identity, err := dbCluster.GetIdentityByID(ctx, tx, dbLink.IdentityID)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("Failed loading cluster link identity: %w", err)
+	}
+
+	certs, err := dbCluster.GetIdentitiesPEMCertificates(ctx, tx, &identity.ID)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("Failed loading cluster link certificate: %w", err)
+	}
+
+	if len(certs[identity.ID]) == 0 {
+		return 0, nil, nil, fmt.Errorf("No certificate found for cluster link identity %q", identity.Name)
+	}
+
+	certBlock, _ := pem.Decode([]byte(certs[identity.ID][0]))
+	if certBlock == nil {
+		return 0, nil, nil, fmt.Errorf("Failed decoding certificate for cluster link identity %q", identity.Name)
+	}
+
+	cert, err = x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("Failed extracting certificate from cluster link identity: %w", err)
+	}
+
+	return dbLink.ID, clusterLink, cert, nil
+}
+
 // ConnectCluster connects to a linked cluster using the provided connection args, trying each address until one succeeds.
 func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
 	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
@@ -140,45 +182,9 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 	var clusterLinkID int64
 	var targetCert *x509.Certificate
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		dbLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link: %w", err)
-		}
-
-		clusterLinkID = dbLink.ID
-
-		config, err := dbCluster.GetClusterLinkConfig(ctx, tx.Tx(), &dbLink.ID)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link config: %w", err)
-		}
-
-		clusterLink = dbLink.ToAPI(config)
-
-		identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), dbLink.IdentityID)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link identity: %w", err)
-		}
-
-		certs, err := dbCluster.GetIdentitiesPEMCertificates(ctx, tx.Tx(), &identity.ID)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link certificate: %w", err)
-		}
-
-		if len(certs[identity.ID]) == 0 {
-			return fmt.Errorf("No certificate found for cluster link identity %q", identity.Name)
-		}
-
-		certBlock, _ := pem.Decode([]byte(certs[identity.ID][0]))
-		if certBlock == nil {
-			return fmt.Errorf("Failed decoding certificate for cluster link identity %q", identity.Name)
-		}
-
-		targetCert, err = x509.ParseCertificate(certBlock.Bytes)
-		if err != nil {
-			return fmt.Errorf("Failed extracting certificate from cluster link identity: %w", err)
-		}
-
-		return nil
+		var err error
+		clusterLinkID, clusterLink, targetCert, err = LoadClusterLinkAndCert(ctx, tx.Tx(), name)
+		return err
 	})
 	if err != nil {
 		return err

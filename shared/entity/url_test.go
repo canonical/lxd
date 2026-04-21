@@ -201,6 +201,15 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
+			Name:        "Replicator",
+			URL:         "/1.0/replicators/my-replicator?project=foo",
+			WantType:    TypeReplicator,
+			WantProject: "foo",
+			WantArgs: map[string]string{
+				"name": "my-replicator",
+			},
+		},
+		{
 			Name:     "Server",
 			URL:      "/1.0",
 			WantType: TypeServer,

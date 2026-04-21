@@ -240,6 +240,10 @@ For help with any of those, simply call them with --help.`)
 	projectCmd := cmdProject{global: &globalCmd}
 	app.AddCommand(projectCmd.command())
 
+	// replicator sub-command
+	replicatorCmd := cmdReplicator{global: &globalCmd}
+	app.AddCommand(replicatorCmd.command())
+
 	// query sub-command
 	queryCmd := cmdQuery{global: &globalCmd}
 	app.AddCommand(queryCmd.command())

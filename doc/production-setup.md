@@ -29,6 +29,7 @@ How to back up your server and recover from failure:
 Back up a server </backup>
 Recover instances </howto/disaster_recovery>
 Disaster recovery with storage replication </howto/disaster_recovery_replication>
+Disaster recovery with replicators </howto/replicators_dr>
 ```
 
 ## Related topics

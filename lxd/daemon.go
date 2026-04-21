@@ -1972,6 +1972,9 @@ func (d *Daemon) init() error {
 
 		// Remove expired tokens (hourly)
 		d.tasks.Add(autoRemoveExpiredTokensTask(d.State))
+
+		// Run scheduled replicators (minutely check of configurable cron expression)
+		d.tasks.Add(runScheduledReplicatorsTask(d.State))
 	}
 
 	// Load Ubuntu Pro configuration before starting any instances.

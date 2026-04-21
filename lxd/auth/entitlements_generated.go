@@ -10,13 +10,13 @@ import (
 type Entitlement string
 
 const (
-	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStorageVolume.
+	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeReplicator, entity.TypeStorageBucket, entity.TypeStorageVolume.
 	EntitlementCanView Entitlement = "can_view"
 
-	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeReplicator, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
 	EntitlementCanEdit Entitlement = "can_edit"
 
-	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeReplicator, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
 	EntitlementCanDelete Entitlement = "can_delete"
 
 	// EntitlementAdmin is the "admin" entitlement. It applies to the following entities: entity.TypeServer.
@@ -283,6 +283,21 @@ const (
 	// EntitlementCanDeletePlacementGroups is the "can_delete_placement_groups" entitlement. It applies to the following entities: entity.TypeProject.
 	EntitlementCanDeletePlacementGroups Entitlement = "can_delete_placement_groups"
 
+	// EntitlementReplicatorManager is the "replicator_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	EntitlementReplicatorManager Entitlement = "replicator_manager"
+
+	// EntitlementCanCreateReplicators is the "can_create_replicators" entitlement. It applies to the following entities: entity.TypeProject.
+	EntitlementCanCreateReplicators Entitlement = "can_create_replicators"
+
+	// EntitlementCanViewReplicators is the "can_view_replicators" entitlement. It applies to the following entities: entity.TypeProject.
+	EntitlementCanViewReplicators Entitlement = "can_view_replicators"
+
+	// EntitlementCanEditReplicators is the "can_edit_replicators" entitlement. It applies to the following entities: entity.TypeProject.
+	EntitlementCanEditReplicators Entitlement = "can_edit_replicators"
+
+	// EntitlementCanDeleteReplicators is the "can_delete_replicators" entitlement. It applies to the following entities: entity.TypeProject.
+	EntitlementCanDeleteReplicators Entitlement = "can_delete_replicators"
+
 	// EntitlementUser is the "user" entitlement. It applies to the following entities: entity.TypeInstance.
 	EntitlementUser Entitlement = "user"
 
@@ -544,12 +559,30 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanEditPlacementGroups,
 		// Grants permission to delete placement groups.
 		EntitlementCanDeletePlacementGroups,
+		// Grants permission to create, view, edit, and delete all replicators belonging to the project.
+		EntitlementReplicatorManager,
+		// Grants permission to create replicators.
+		EntitlementCanCreateReplicators,
+		// Grants permission to view replicators.
+		EntitlementCanViewReplicators,
+		// Grants permission to edit replicators.
+		EntitlementCanEditReplicators,
+		// Grants permission to delete replicators.
+		EntitlementCanDeleteReplicators,
 		// Grants permission to view operations relating to the project.
 		EntitlementCanViewOperations,
 		// Grants permission to view life cycle events relating to the project.
 		EntitlementCanViewEvents,
 		// Grants permission to view project level metrics.
 		EntitlementCanViewMetrics,
+	},
+	entity.TypeReplicator: {
+		// Grants permission to edit the replicator.
+		EntitlementCanEdit,
+		// Grants permission to delete the replicator.
+		EntitlementCanDelete,
+		// Grants permission to view the replicator.
+		EntitlementCanView,
 	},
 	entity.TypeServer: {
 		// Grants full access to LXD as if via Unix socket.

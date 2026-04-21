@@ -11,6 +11,7 @@ The following options are available:
 - {ref}`project-limits`
 - {ref}`project-restrictions`
 - {ref}`project-specific-config`
+- {ref}`project-replica-config`
 
 (project-features)=
 ## Project features
@@ -97,6 +98,17 @@ In addition, you can add user metadata for a project.
 ```{include} ../metadata.txt
     :start-after: <!-- config group project-specific start -->
     :end-before: <!-- config group project-specific end -->
+```
+
+(project-replica-config)=
+## Replica configuration
+
+The following options configure a project for use as a replication source or target with a {ref}`replicator <howto-replicators-setup>`.
+
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
+    :start-after: <!-- config group project-replica start -->
+    :end-before: <!-- config group project-replica end -->
 ```
 
 ## Related topics

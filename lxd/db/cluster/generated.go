@@ -353,3 +353,97 @@ func (p PlacementGroupsRow) CreateStmt() string {
 func (p PlacementGroupsRow) UpdateStmt() string {
 	return "UPDATE placement_groups SET name = ?, description = ?, project_id = ? "
 }
+
+// TableName returns the table name for [Replicator] entities.
+func (r Replicator) TableName() string {
+	return "replicators"
+}
+
+// APIName implements [query.APINamer] for API friendly error messages.
+func (r Replicator) APIName() string {
+	return r.Row.APIName()
+}
+
+// SelectColumns returns a slice of column names for [Replicator] entities.
+func (r Replicator) SelectColumns() []string {
+	return []string{
+		"replicators.id",
+		"replicators.name",
+		"replicators.project_id",
+		"replicators.description",
+		"replicators.last_run_date",
+		"replicators.last_run_status",
+		"projects.name",
+	}
+}
+
+// Joins returns a slice of join expressions for [Replicator].
+func (r Replicator) Joins() []string {
+	return []string{
+		"JOIN projects ON replicators.project_id = projects.id",
+	}
+}
+
+// ScanArgs implements [query.ScanArger] for [Replicator].
+// This returns references to struct fields in definition order.
+func (r *Replicator) ScanArgs() []any {
+	return []any{&r.Row.ID, &r.Row.Name, &r.Row.ProjectID, &r.Row.Description, &r.Row.LastRunDate, &r.Row.LastRunStatus, &r.ProjectName}
+}
+
+// TableName returns the table name for [ReplicatorRow] entities.
+func (r ReplicatorRow) TableName() string {
+	return "replicators"
+}
+
+// SelectColumns returns a slice of column names for [ReplicatorRow] entities.
+func (r ReplicatorRow) SelectColumns() []string {
+	return []string{
+		"replicators.id",
+		"replicators.name",
+		"replicators.project_id",
+		"replicators.description",
+		"replicators.last_run_date",
+		"replicators.last_run_status",
+	}
+}
+
+// Joins returns a slice of join expressions for [ReplicatorRow].
+func (r ReplicatorRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [ReplicatorRow].
+// This returns references to struct fields in definition order.
+func (r *ReplicatorRow) ScanArgs() []any {
+	return []any{&r.ID, &r.Name, &r.ProjectID, &r.Description, &r.LastRunDate, &r.LastRunStatus}
+}
+
+// CreateValues returns a list of values from [ReplicatorRow] entities matching the bind arguments in [CreateStmt].
+func (r ReplicatorRow) CreateValues() []any {
+	return []any{r.Name, r.ProjectID, r.Description, r.LastRunDate, r.LastRunStatus}
+}
+
+// UpdateValues returns a list of values from [ReplicatorRow] entities matching the columns in [UpdateStmt].
+func (r ReplicatorRow) UpdateValues() []any {
+	return []any{r.Name, r.ProjectID, r.Description, r.LastRunDate, r.LastRunStatus}
+}
+
+// PKColumn returns the column name for the primary key of a [ReplicatorRow] entity used during an update.
+func (r ReplicatorRow) PKColumn() string {
+	return "id"
+}
+
+// PKValue returns the value for the primary key of a [ReplicatorRow] entity used during an update.
+func (r ReplicatorRow) PKValue() any {
+	return r.ID
+}
+
+// CreateStmt returns a query that creates a [ReplicatorRow] entity.
+func (r ReplicatorRow) CreateStmt() string {
+	return "INSERT INTO replicators (name, project_id, description, last_run_date, last_run_status) VALUES (?, ?, ?, ?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [ReplicatorRow] by primary key.
+func (r ReplicatorRow) UpdateStmt() string {
+	return "UPDATE replicators SET name = ?, project_id = ?, description = ?, last_run_date = ?, last_run_status = ? "
+}

@@ -3065,3 +3065,19 @@ This includes the following new endpoints (see {ref}`rest-api` for details):
 * [`POST /1.0/cluster/links`](swagger:/cluster-links/cluster_links_post)
 * [`POST /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_post)
 * [`DELETE /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_delete)
+
+(extension-replicators)=
+## replicators
+
+This introduces the replicators API. Replicators are used to replicate project instances across clusters.
+
+This includes the following new endpoints (see {ref}`rest-api` for details):
+
+* [`GET /1.0/replicators`](swagger:/replicators/replicators_get)
+* [`GET /1.0/replicators/<name>`](swagger:/replicators/replicator_get)
+* [`POST /1.0/replicators`](swagger:/replicators/replicators_post)
+* [`PUT /1.0/replicators/<name>`](swagger:/replicators/replicator_put)
+* [`PATCH /1.0/replicators/<name>`](swagger:/replicators/replicator_patch)
+* [`POST /1.0/replicators/<name>`](swagger:/replicators/replicator_post)
+* [`DELETE /1.0/replicators/<name>`](swagger:/replicators/replicator_delete)
+* [`GET /1.0/replicators/<name>/state`](swagger:/replicators/replicator_state_get)

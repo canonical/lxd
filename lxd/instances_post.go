@@ -1267,6 +1267,29 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		// Only replicator runs from the configured cluster link can create instances in a standby replica project.
+		if targetProject.Config["replica.mode"] == "standby" {
+			expectedCluster := targetProject.Config["replica.cluster"]
+
+			// Verify the request comes from the configured cluster link identity.
+			clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), expectedCluster)
+			if err != nil {
+				if api.StatusErrorCheck(err, http.StatusNotFound) {
+					return api.StatusErrorf(http.StatusForbidden, "Cannot create instances in a standby replica project")
+				}
+
+				return fmt.Errorf("Failed loading cluster link %q: %w", expectedCluster, err)
+			}
+
+			// CallerIdentityID is zero for admin protocols (PKI, cluster, unix). Cluster link
+			// connections always authenticate via a named TLS identity in the DB, so they have a
+			// non-zero ID. A zero ID here means the caller is not a named identity (e.g. a PKI
+			// admin cert), which must not be allowed to write to a standby project.
+			if requestor.CallerIdentityID() == 0 || requestor.CallerIdentityID() != clusterLink.IdentityID {
+				return api.StatusErrorf(http.StatusForbidden, "Cannot create instances in a standby replica project")
+			}
+		}
+
 		var allMembers []db.NodeInfo
 
 		if s.ServerClustered && !clusterNotification {
