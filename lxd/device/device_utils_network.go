@@ -207,6 +207,45 @@ func networkRestorePhysicalNIC(hostName string, volatile map[string]string) erro
 	return nil
 }
 
+// networkCalculatePairMTU calculates the MTU to use on both ends of the VETH/TAP pair.
+// This returns the hostMTU set to the larger of m's mtu (if specified) or m's "parent" (if specified) MTU.
+// The hostMTU will never be smaller than m's "parent" (if specified) MTU to avoid lowering the parent bridge.
+func networkCalculatePairMTU(m deviceConfig.Device) (hostMTU uint32, instanceMTU uint32, err error) {
+	if m["parent"] != "" {
+		mtu, err := network.GetDevMTU(m["parent"])
+		if err != nil {
+			return 0, 0, fmt.Errorf("Failed getting the parent MTU from %q: %w", m["parent"], err)
+		}
+
+		hostMTU = uint32(mtu)
+	}
+
+	if m["mtu"] != "" {
+		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Invalid MTU specified %q: %w", m["mtu"], err)
+		}
+
+		instanceMTU = uint32(mtu)
+	}
+
+	// If instance MTU is not specified, but host MTU is, then use the host MTU for the instance side to avoid
+	// accidentally lowering the MTU of the parent bridge.
+	if instanceMTU == 0 && hostMTU > 0 {
+		instanceMTU = hostMTU
+	}
+
+	// If host MTU is less than instance MTU then the parent bridge is likely to drop packets from the instance,
+	// so use the instance MTU for the host side to avoid this. This should increase the parent bridge MTU
+	// if needed (for the duration that the instance is connected to the bridge) and if the bridge has not got
+	// an MTU explicitly set.
+	if hostMTU < instanceMTU {
+		hostMTU = instanceMTU
+	}
+
+	return hostMTU, instanceMTU, nil
+}
+
 // networkCreateVethPair creates and configures a veth pair. It will set the hwaddr and mtu settings
 // in the supplied config to the newly created peer interface. If mtu is not specified, but parent
 // is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
@@ -224,44 +263,9 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 		},
 	}
 
-	// Set the MTU on both ends.
-	// The host side should always line up with the bridge to avoid accidentally lowering the bridge MTU.
-	// The instance side should use the configured MTU (if any), if not, it should match the host side.
-	var instanceMTU uint32
-	var parentMTU uint32
-
-	if m["parent"] != "" {
-		mtu, err := network.GetDevMTU(m["parent"])
-		if err != nil {
-			return "", 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
-		}
-
-		parentMTU = uint32(mtu)
-	}
-
-	if m["mtu"] != "" {
-		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
-		if err != nil {
-			return "", 0, fmt.Errorf("Invalid MTU specified: %w", err)
-		}
-
-		instanceMTU = uint32(mtu)
-	}
-
-	if instanceMTU == 0 && parentMTU > 0 {
-		instanceMTU = parentMTU
-	}
-
-	if parentMTU == 0 && instanceMTU > 0 {
-		parentMTU = instanceMTU
-	}
-
-	if instanceMTU > 0 {
-		veth.Peer.MTU = instanceMTU
-	}
-
-	if parentMTU > 0 {
-		veth.MTU = parentMTU
+	veth.MTU, veth.Peer.MTU, err = networkCalculatePairMTU(m)
+	if err != nil {
+		return "", 0, err
 	}
 
 	// Set the MAC address on peer.
@@ -304,13 +308,18 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 // networkCreateTap creates and configures a TAP device.
 // Returns the MTU used.
 func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
+	hostMTU, instanceMTU, err := networkCalculatePairMTU(m)
+	if err != nil {
+		return 0, err
+	}
+
 	tuntap := &ip.Tuntap{
 		Name:       hostName,
 		Mode:       "tap",
 		MultiQueue: true,
 	}
 
-	err := tuntap.Add()
+	err = tuntap.Add()
 	if err != nil {
 		return 0, fmt.Errorf("Failed to create the tap interfaces %q: %w", hostName, err)
 	}
@@ -326,32 +335,10 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 
 	revert.Add(func() { _ = network.InterfaceRemove(hostName) })
 
-	// Set the MTU on both ends.
-	// The host side should always line up with the bridge to avoid accidentally lowering the bridge MTU.
-	// The instance side should use the configured MTU (if any), if not, it should match the host side.
-	var mtu uint32
-	if m["mtu"] != "" {
-		nicMTU, err := strconv.ParseUint(m["mtu"], 10, 32)
+	if hostMTU > 0 {
+		err = NetworkSetDevMTU(hostName, hostMTU)
 		if err != nil {
-			return 0, fmt.Errorf("Invalid MTU specified: %w", err)
-		}
-
-		mtu = uint32(nicMTU)
-	}
-
-	if m["parent"] != "" {
-		parentMTU, err := network.GetDevMTU(m["parent"])
-		if err != nil {
-			return 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
-		}
-
-		err = NetworkSetDevMTU(hostName, parentMTU)
-		if err != nil {
-			return 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
-		}
-
-		if mtu == 0 {
-			mtu = parentMTU
+			return 0, fmt.Errorf("Failed setting the MTU %d: %w", hostMTU, err)
 		}
 	}
 
@@ -379,7 +366,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	}
 
 	revert.Success()
-	return mtu, nil
+	return instanceMTU, nil
 }
 
 // networkVethFillFromVolatile fills veth host_name and hwaddr fields from volatile if not set in device config.
