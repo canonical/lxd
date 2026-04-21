@@ -1653,9 +1653,24 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	// A connected image registry is needed to determined suitable architectures for instance creation.
 	if req.Source.ImageRegistry != "" {
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			projectConfig, err := dbCluster.GetProjectConfig(ctx, tx.Tx(), targetProjectName)
+			if err != nil {
+				return fmt.Errorf("Failed loading config for project %q: %w", targetProjectName, err)
+			}
+
 			dbImageRegistry, err := dbCluster.GetImageRegistry(ctx, tx.Tx(), req.Source.ImageRegistry)
 			if err != nil {
+				if response.IsNotFoundError(err) {
+					return api.StatusErrorf(http.StatusNotFound, "Image registry not found")
+				}
+
 				return fmt.Errorf("Failed fetching image registry %q: %w", req.Source.ImageRegistry, err)
+			}
+
+			// TODO: centralize this restricted.registries enforcement inside ImageDownload so that
+			// every image download path is covered by a single check.
+			if !project.RegistryAllowed(projectConfig, req.Source.ImageRegistry, dbImageRegistry.Builtin) {
+				return api.StatusErrorf(http.StatusForbidden, "Image registry %q is not allowed in this project", req.Source.ImageRegistry)
 			}
 
 			config, err := dbCluster.GetImageRegistryConfig(ctx, tx.Tx(), &dbImageRegistry.ID)
