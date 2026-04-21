@@ -11,10 +11,12 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -437,4 +439,49 @@ func parsePaginationOffset(headers http.Header) (newOffset uint64, hasMore bool,
 
 	newOffset = lastOffset + 1
 	return newOffset, totalItems > newOffset, nil
+}
+
+// DiscoveryAddresses retrieves list of discovery addresses used to discover storage targets for
+// the provided connector type.
+func (c *PowerStoreClient) DiscoveryAddresses(connectorType string) ([]string, error) {
+	var resp = []struct {
+		Address  string   `json:"address,omitempty"`
+		Purposes []string `json:"purposes,omitempty"`
+	}{}
+
+	url := api.NewURL().Path("api", "rest", "ip_pool_address")
+	url = url.WithQuery("select", "address,purposes")
+
+	err := c.requestAuthenticated(http.MethodGet, url.URL, nil, &resp, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed retrieving configured PowerStore IP addresses: %w", err)
+	}
+
+	// Filter IP addresses based on their purpose, which should match the connector type.
+	var purpose string
+	switch connectorType {
+	case connectors.TypeISCSI:
+		purpose = "Storage_Iscsi_Target"
+	case connectors.TypeNVME:
+		purpose = "Storage_NVMe_TCP_Port"
+	default:
+		return nil, fmt.Errorf("Unsupported connector type: %q", connectorType)
+	}
+
+	// Additionally, PowerStore might have floating IP address that can be used for
+	// NVMe/iSCSI discovery.
+	genericIPPurpose := "Storage_Cluster_Floating"
+
+	var addresses []string
+	for _, ip := range resp {
+		if slices.Contains(addresses, ip.Address) {
+			continue
+		}
+
+		if slices.Contains(ip.Purposes, purpose) || slices.Contains(ip.Purposes, genericIPPurpose) {
+			addresses = append(addresses, ip.Address)
+		}
+	}
+
+	return addresses, nil
 }
