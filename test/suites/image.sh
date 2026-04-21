@@ -511,7 +511,7 @@ test_image_cached() {
     lxc image delete testimage
   fi
 
-  # Set up a local LXD server as an image remote.
+  # Set up a local LXD server as an image registry.
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
@@ -519,8 +519,7 @@ test_image_cached() {
 
   LXD_DIR="${LXD2_DIR}" deps/import-busybox --alias testimage --public
 
-  token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
-  lxc remote add l2 "${LXD2_ADDR}" --token "${token}"
+  lxc image registry create l2 --protocol=lxd url="https://${LXD2_ADDR}" public=true source_project=default
 
   echo "==> Verify that image caching works correctly for the default project."
 
@@ -609,6 +608,6 @@ test_image_cached() {
   lxc image delete "${fingerprint}" --project p1
   lxc image delete "${fingerprint}"
   lxc project delete p1
-  lxc remote remove l2
+  lxc image registry delete l2
   kill_lxd "${LXD2_DIR}"
 }
