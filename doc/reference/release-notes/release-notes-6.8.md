@@ -224,6 +224,8 @@ The following bug fixes are included in this release.
 - [{spellexception}`Fix inverted TLS verification logic in Alletra client`](https://github.com/canonical/lxd/pull/18087)
 - [{spellexception}`Mark images as cached consistently`](https://github.com/canonical/lxd/pull/16686)
 - [{spellexception}`Fix deadlock by only taking storage pool and network creation lock for external API requests`](https://github.com/canonical/lxd/pull/18115)
+- [{spellexception}`Network: Set veth/vtap host interface MTU to the larger of parent bridge or instance MTU`](https://github.com/canonical/lxd/pull/18127)
+- [{spellexception}`Cluster: Fix cluster healing functionality`](https://github.com/canonical/lxd/pull/18151)
 
 (ref-release-notes-6.8-incompatible)=
 ## Backwards-incompatible changes
