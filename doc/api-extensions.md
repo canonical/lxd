@@ -3081,3 +3081,17 @@ This includes the following new endpoints (see {ref}`rest-api` for details):
 * [`POST /1.0/replicators/<name>`](swagger:/replicators/replicator_post)
 * [`DELETE /1.0/replicators/<name>`](swagger:/replicators/replicator_delete)
 * [`GET /1.0/replicators/<name>/state`](swagger:/replicators/replicator_state_get)
+
+(extension-cluster_links_unidirectional)=
+## cluster_links_unidirectional
+
+This extends the cluster links API with support for unidirectional cluster links.
+
+Two new link types are introduced:
+
+- `unidirectional`: The local cluster consumes a trust token issued by the remote to establish the link and pin the remote's certificate. The remote cluster creates a dedicated identity for the local cluster and can authenticate its incoming requests, but holds no addresses for the local cluster and cannot initiate requests to it.
+- `unidirectional-unauthenticated`: The local cluster can reach the remote cluster without presenting a client certificate. The remote cluster has no knowledge of the link.
+
+This includes the following new endpoint (see {ref}`rest-api` for details):
+
+* [`GET /1.0/cluster/links/certificate`](swagger:/cluster-links/cluster_links_certificate_get)
