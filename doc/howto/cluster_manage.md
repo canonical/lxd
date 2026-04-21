@@ -123,7 +123,7 @@ To enable cluster healing, set the {config:option}`server-cluster:cluster.healin
 Syntax:
 
 ```bash
-lxc cluster set cluster.healing_threshold <value in seconds>
+lxc config set cluster.healing_threshold <value in seconds>
 ```
 
 When the healed cluster member is available again, you must manually {ref}`restore <cluster-restore>` it to remove its "evacuated" state and return instances to it.
