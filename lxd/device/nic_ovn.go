@@ -68,7 +68,7 @@ func (d *nicOVN) UpdatableFields(oldDevice Type) []string {
 		return []string{}
 	}
 
-	return []string{"security.acls"}
+	return []string{"security.acls", "ipv4.address", "ipv6.address"}
 }
 
 // validateConfig checks the supplied config for correctness.
