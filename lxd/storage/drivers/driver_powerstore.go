@@ -1,10 +1,14 @@
 package drivers
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/lxd/storage/drivers/clients"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // powerStoreLoaded indicates whether load() function was already called for the PowerStore driver.
@@ -12,6 +16,14 @@ var powerStoreLoaded bool
 
 // powerStoreVersion holds the version of the PowerStore system.
 var powerStoreVersion string
+
+// powerStoreSupportedConnectors represents a list of storage connectors that can be used with PowerStore.
+var powerStoreSupportedConnectors = []string{
+	connectors.TypeISCSI,
+}
+
+// powerStoreDefaultUser represents the default PowerStore user name.
+const powerStoreDefaultUser = "admin"
 
 type powerstore struct {
 	common
@@ -75,11 +87,103 @@ func (d *powerstore) Info() Info {
 
 // FillConfig populates the storage pool's configuration file with the default values.
 func (d *powerstore) FillConfig() error {
+	if d.config["powerstore.user.name"] == "" {
+		d.config["powerstore.user.name"] = powerStoreDefaultUser
+	}
+
 	return nil
 }
 
 // Validate checks that all provided keys are supported and that no conflicting or missing configuration is present.
 func (d *powerstore) Validate(config map[string]string) error {
+	rules := map[string]func(value string) error{
+		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.user.name)
+		// Name of the PowerStore user with an admin role that gives LXD full control over managed storage pools.
+		// ---
+		//  type: string
+		//  defaultdesc: `admin`
+		//  shortdesc: User for PowerStore Gateway authentication
+		//  scope: global
+		"powerstore.user.name": validate.IsAny,
+		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.user.password)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Password for PowerStore Gateway authentication
+		//  scope: global
+		"powerstore.user.password": validate.IsAny,
+		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.gateway)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Address of the PowerStore Gateway
+		//  scope: global
+		"powerstore.gateway": validate.Optional(validate.IsRequestURL),
+		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.gateway.verify)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to verify the PowerStore Gateway's certificate
+		//  scope: global
+		"powerstore.gateway.verify": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.mode)
+		// The mode to use to map PowerStore volumes to the local server.
+		// Supported value is `iscsi`.
+		// ---
+		//  type: string
+		//  defaultdesc: the discovered mode
+		//  shortdesc: How volumes are mapped to the local server
+		//  scope: global
+		"powerstore.mode": validate.Optional(validate.IsOneOf(powerStoreSupportedConnectors...)),
+		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.target)
+		// A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
+		// ---
+		//  type: string
+		//  defaultdesc: target addresses
+		//  shortdesc: List of target addresses the LXD connects to.
+		"powerstore.target": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
+		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=volume.size)
+		// The size must be in multiples of 1 MiB. The minimum size is 1 MiB and maximum is 256 TiB.
+		// ---
+		//  type: string
+		//  defaultdesc: `10GiB`
+		//  shortdesc: Size/quota of the storage volume
+		//  scope: global
+		"volume.size": validate.Optional(validate.IsMultipleOfUnit("1MiB")),
+	}
+
+	err := d.validatePool(config, rules, d.commonVolumeRules())
+	if err != nil {
+		return err
+	}
+
+	newMode := config["powerstore.mode"]
+	oldMode := d.config["powerstore.mode"]
+
+	// Ensure powerstore.mode cannot be changed to avoid leaving volume mappings
+	// and prevent disturbing running instances.
+	if oldMode != "" && oldMode != newMode {
+		return errors.New("PowerStore mode cannot be changed")
+	}
+
+	// Check if the selected PowerStore mode is supported on this node.
+	// Also when forming the storage pool on a LXD cluster, the mode that got discovered on this
+	// host needs to be validated on the other cluster members as well. This can be done here
+	// since Validate gets executed on every cluster member when receiving the cluster
+	// notification to finally create the pool.
+	if newMode != "" {
+		connector, err := connectors.NewConnector(newMode, "")
+		if err != nil {
+			return fmt.Errorf("PowerStore mode %q is not supported: %w", newMode, err)
+		}
+
+		err = connector.LoadModules()
+		if err != nil {
+			return fmt.Errorf("PowerStore mode %q is not supported due to missing kernel modules: %w", newMode, err)
+		}
+	}
+
 	return nil
 }
 
