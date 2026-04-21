@@ -1013,11 +1013,6 @@ parts:
           sed -i '1 a set -- "$@" --enable-tcg' configure
       fi
 
-      # Extract efi-virtio.rom from ipxe-qemu.
-      # This doesn't work in the organize section below.
-      mkdir -p "${CRAFT_PART_INSTALL}"/share/qemu
-      mv "${CRAFT_PART_INSTALL}"/usr/lib/ipxe/qemu/efi-virtio.rom "${CRAFT_PART_INSTALL}"/share/qemu/
-
       set +ex
       craftctl default
 
@@ -1028,6 +1023,7 @@ parts:
       usr/local/lib/: lib/
       usr/local/libexec/: bin/
       usr/local/share/: share/
+      usr/share/qemu/efi-virtio.rom: share/qemu/
       usr/share/qemu/opensbi*: share/qemu/
       usr/share/qemu/s390-ccw.img: share/qemu/
       usr/share/qemu/slof.bin: share/qemu/
