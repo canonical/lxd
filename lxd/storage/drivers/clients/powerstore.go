@@ -884,6 +884,26 @@ func (c *PowerStoreClient) CloneVolume(srcVolumeOrSnapshotID string, dstVolumeNa
 	return resp.ID, nil
 }
 
+// RefreshVolume refreshes a volume from another volume or volume snapshot.
+//
+// NOTE: The source volume or snapshot must be within the same family, which
+// means the destination volume has previously been cloned from that volume or
+// snapshot from the same parent volume.
+func (c *PowerStoreClient) RefreshVolume(srcVolumeOrSnapshotID string, dstVolumeID string) error {
+	req := map[string]any{
+		"from_object_id":     srcVolumeOrSnapshotID,
+		"create_backup_snap": false,
+	}
+
+	url := api.NewURL().Path("api", "rest", "volume", dstVolumeID, "refresh")
+	err := c.requestAuthenticated(http.MethodPost, url.URL, req, nil, nil)
+	if err != nil {
+		return fmt.Errorf("Failed refreshing PowerStore volume: %w", err)
+	}
+
+	return nil
+}
+
 // powerStoreConnectorToPortType converts connector type to PowerStore port type used in initiators.
 func powerStoreConnectorToPortType(connectorType string) (string, error) {
 	switch connectorType {
