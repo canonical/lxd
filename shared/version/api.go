@@ -488,6 +488,7 @@ var APIExtensions = []string{
 	"image_extended_metadata",
 	"cluster_links",
 	"replicators",
+	"storage_driver_powerstore",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
