@@ -525,6 +525,56 @@ func (c *PowerStoreClient) DiscoveryAddresses(connectorType string) ([]string, e
 	return addresses, nil
 }
 
+// GetCurrentHost retrieves the PowerStore host linked to the current LXD host.
+// The PowerStore host is considered a match if it includes the fully qualified
+// name of the LXD host that is determined by the configured mode.
+func (c *PowerStoreClient) GetCurrentHost(connectorType string, qn string) (*PowerStoreHost, error) {
+	portType, err := powerStoreConnectorToPortType(connectorType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find initiator with the provided port type (connector type) and name (qualified name),
+	// and retrieve the ID of the host it belongs to.
+	var initiator PowerStoreHostInitiator
+
+	url := api.NewURL().Path("api", "rest", "initiator")
+	url = url.WithQuery("select", initiator.selector())
+	url = url.WithQuery("port_type", "eq."+string(portType))
+	url = url.WithQuery("port_name", "eq."+qn)
+
+	var initiators []PowerStoreHostInitiator
+	err = c.requestAuthenticated(http.MethodGet, url.URL, nil, &initiators, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed retrieving PowerStore host initiator: %w", err)
+	}
+
+	switch len(initiators) {
+	case 0:
+		return nil, api.StatusErrorf(http.StatusNotFound, "Host initiator with port name %q and type %q not found", qn, portType)
+	case 1:
+		initiator = initiators[0]
+	default:
+		return nil, fmt.Errorf("Multiple host initiators found with port name %q and type %q", qn, portType)
+	}
+
+	// Retrieve the actual host.
+	var host PowerStoreHost
+	url = api.NewURL().Path("api", "rest", "host", initiator.HostID)
+	url = url.WithQuery("select", host.selector())
+
+	err = c.requestAuthenticated(http.MethodGet, url.URL, nil, &host, nil)
+	if err != nil {
+		if isPowerStoreError(err, http.StatusNotFound) {
+			return nil, api.StatusErrorf(http.StatusNotFound, "Host with initiator port name %q and type %q not found", qn, portType)
+		}
+
+		return nil, fmt.Errorf("Failed retrieving PowerStore host: %w", err)
+	}
+
+	return &host, nil
+}
+
 // GetHost retrieves host using its ID.
 func (c *PowerStoreClient) GetHost(hostID string) (*PowerStoreHost, error) {
 	var host PowerStoreHost
