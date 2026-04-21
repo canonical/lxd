@@ -21,7 +21,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -35,8 +34,6 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/osarch"
-	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -1160,150 +1157,52 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 
 				remoteOpURL := "https://" + remoteAddresses[0] + "/1.0/operations/" + remoteOpInfo.ID
 
-				dialer, err := setupWebsocketDialer(targetCertPEM)
-				if err != nil {
-					return fmt.Errorf("Failed setting up websocket dialer for restore of instance %q: %w", instName, err)
-				}
-
-				if inst != nil {
-					// Instance already exists locally: refresh it from the remote leader.
-					localInst, err := instance.LoadByProjectAndName(s, projectName, instName)
-					if err != nil {
-						return fmt.Errorf("Failed loading local instance %q: %w", instName, err)
-					}
-
-					instOp, err := localInst.LockExclusive()
-					if err != nil {
-						return fmt.Errorf("Failed locking instance %q for restore: %w", instName, err)
-					}
-
-					sink, err := newMigrationSink(&migrationSinkArgs{
-						url:      remoteOpURL,
-						dialer:   dialer,
-						instance: localInst,
-						secrets:  remoteSecrets,
-						refresh:  true,
-					})
-					if err != nil {
-						instOp.Done(err)
-						return fmt.Errorf("Failed setting up migration sink for instance %q: %w", instName, err)
-					}
-
-					err = sink.Do(ctx, instOp, op)
-					if err != nil {
-						instOp.Done(err)
-						return fmt.Errorf("Restore of instance %q failed: %w", instName, err)
-					}
-
-					instOp.Done(nil)
-					return remoteMigrateOp.Wait()
-				}
-
-				// Instance only exists on the remote leader: create it locally from scratch.
-				architecture, err := osarch.ArchitectureId(freshInst.Architecture)
-				if err != nil {
-					return fmt.Errorf("Failed parsing architecture for instance %q: %w", instName, err)
-				}
-
-				dbType, err := instancetype.New(string(freshInst.Type))
-				if err != nil {
-					return fmt.Errorf("Failed parsing instance type for instance %q: %w", instName, err)
-				}
-
+				// Load profiles for the instance to pass to the migration sink.
 				var profiles []api.Profile
 				err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-					profileFilters := make([]dbCluster.ProfileFilter, 0, len(freshInst.Profiles))
-					for _, profileName := range freshInst.Profiles {
-						pName := profileName
-						profileFilters = append(profileFilters, dbCluster.ProfileFilter{
-							Project: &projectName,
-							Name:    &pName,
-						})
-					}
-
-					dbProfiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), profileFilters...)
-					if err != nil {
-						return err
-					}
-
-					dbProfileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
-					if err != nil {
-						return err
-					}
-
-					dbProfileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
-					if err != nil {
-						return err
-					}
-
-					profilesByName := make(map[string]dbCluster.Profile, len(dbProfiles))
-					for _, dbProfile := range dbProfiles {
-						profilesByName[dbProfile.Name] = dbProfile
-					}
-
-					for _, profileName := range freshInst.Profiles {
-						profile, found := profilesByName[profileName]
-						if !found {
-							return fmt.Errorf("Profile %q not found locally for instance %q", profileName, instName)
-						}
-
-						apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
-						if err != nil {
-							return err
-						}
-
-						profiles = append(profiles, *apiProfile)
-					}
-
-					return nil
+					profiles, err = instanceProfilesFromNames(ctx, tx, projectName, freshInst.Profiles)
+					return err
 				})
 				if err != nil {
 					return fmt.Errorf("Failed loading profiles for instance %q: %w", instName, err)
 				}
 
-				instArgs := db.InstanceArgs{
-					Project:      projectName,
-					Name:         instName,
-					Type:         dbType,
-					Architecture: architecture,
-					Config:       freshInst.Config,
-					Devices:      deviceConfig.NewDevices(freshInst.Devices),
-					Description:  freshInst.Description,
-					Ephemeral:    freshInst.Ephemeral,
-					Profiles:     profiles,
-					Stateful:     freshInst.Stateful,
+				// Build a migration request that the shared migration-sink core understands.
+				migrateReq := &api.InstancesPost{
+					InstancePut: api.InstancePut{
+						Architecture: freshInst.Architecture,
+						Config:       freshInst.Config,
+						Devices:      freshInst.Devices,
+						Description:  freshInst.Description,
+						Ephemeral:    freshInst.Ephemeral,
+						Profiles:     freshInst.Profiles,
+						Stateful:     freshInst.Stateful,
+					},
+					Name: instName,
+					Type: api.InstanceType(freshInst.Type),
+					Source: api.InstanceSource{
+						Type:        api.SourceTypeMigration,
+						Mode:        "pull",
+						Operation:   remoteOpURL,
+						Websockets:  remoteSecrets,
+						Certificate: targetCertPEM,
+						Refresh:     inst != nil,
+					},
 				}
 
-				rev := revert.New()
-				defer rev.Fail()
-
-				localInst, instOp, cleanup, err := instance.CreateInternal(ctx, s, instArgs, true)
+				result, err := prepareInstanceMigrationSink(ctx, s, projectName, profiles, migrateReq, "")
 				if err != nil {
-					return fmt.Errorf("Failed creating local instance record for %q: %w", instName, err)
+					return fmt.Errorf("Failed preparing migration sink for instance %q: %w", instName, err)
 				}
 
-				rev.Add(cleanup)
+				defer result.revert.Fail()
 
-				sink, err := newMigrationSink(&migrationSinkArgs{
-					url:      remoteOpURL,
-					dialer:   dialer,
-					instance: localInst,
-					secrets:  remoteSecrets,
-					refresh:  false,
-				})
+				err = result.run(ctx, op)
 				if err != nil {
-					instOp.Done(err)
-					return fmt.Errorf("Failed setting up migration sink for new instance %q: %w", instName, err)
+					return fmt.Errorf("Restore of instance %q failed: %w", instName, err)
 				}
 
-				err = sink.Do(ctx, instOp, op)
-				if err != nil {
-					instOp.Done(err)
-					return fmt.Errorf("Restore of new instance %q failed: %w", instName, err)
-				}
-
-				instOp.Done(nil)
-				rev.Success()
+				result.revert.Success()
 				return remoteMigrateOp.Wait()
 			}
 
