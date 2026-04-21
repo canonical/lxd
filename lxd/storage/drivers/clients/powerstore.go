@@ -866,6 +866,24 @@ func (c *PowerStoreClient) ResizeVolume(volumeID string, newSize int64) error {
 	return nil
 }
 
+// CloneVolume clones the volume or volume snapshot into a new volume.
+func (c *PowerStoreClient) CloneVolume(srcVolumeOrSnapshotID string, dstVolumeName string) (string, error) {
+	req := map[string]any{
+		"name":        dstVolumeName,
+		"description": `Cloned from volume with PowerStore ID "` + srcVolumeOrSnapshotID + `"`,
+	}
+
+	var resp powerStoreResourceID
+
+	url := api.NewURL().Path("api", "rest", "volume", srcVolumeOrSnapshotID, "clone")
+	err := c.requestAuthenticated(http.MethodPost, url.URL, req, &resp, nil)
+	if err != nil {
+		return "", fmt.Errorf("Failed cloning PowerStore volume: %w", err)
+	}
+
+	return resp.ID, nil
+}
+
 // powerStoreConnectorToPortType converts connector type to PowerStore port type used in initiators.
 func powerStoreConnectorToPortType(connectorType string) (string, error) {
 	switch connectorType {
