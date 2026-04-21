@@ -32,6 +32,45 @@ const (
 	powerStoreQueryResponseLimit = 2000
 )
 
+// powerStoreResourceID represents a PowerStore resource ID.
+type powerStoreResourceID struct {
+	ID string `json:"id"`
+}
+
+func (powerStoreResourceID) selector() string {
+	return "id"
+}
+
+// PowerStoreHostInitiator represents a PowerStore host initiator.
+type PowerStoreHostInitiator struct {
+	HostID   string `json:"host_id,omitempty"`
+	PortName string `json:"port_name,omitempty"`
+	PortType string `json:"port_type,omitempty"`
+}
+
+func (PowerStoreHostInitiator) selector() string {
+	return "host_id,port_name,port_type"
+}
+
+// PowerStoreHostVolumeMapping represents a mapping between PowerStore host and volume.
+type PowerStoreHostVolumeMapping struct {
+	HostID   string `json:"host_id,omitempty"`
+	VolumeID string `json:"volume_id,omitempty"`
+}
+
+// PowerStoreHost represents a PowerStore host.
+type PowerStoreHost struct {
+	ID            string                         `json:"id,omitempty"`
+	Name          string                         `json:"name,omitempty"`
+	OsType        string                         `json:"os_type,omitempty"`
+	Initiators    []*PowerStoreHostInitiator     `json:"initiators,omitempty"`
+	MappedVolumes []*PowerStoreHostVolumeMapping `json:"mapped_hosts,omitempty"`
+}
+
+func (PowerStoreHost) selector() string {
+	return "id,name,os_type,initiators(id,port_name,port_type),mapped_hosts(id,host_id,volume_id)"
+}
+
 type powerStoreErrorMessage struct {
 	Message string `json:"message_l10n"`
 }
@@ -484,4 +523,79 @@ func (c *PowerStoreClient) DiscoveryAddresses(connectorType string) ([]string, e
 	}
 
 	return addresses, nil
+}
+
+// GetHost retrieves host using its ID.
+func (c *PowerStoreClient) GetHost(hostID string) (*PowerStoreHost, error) {
+	var host PowerStoreHost
+
+	url := api.NewURL().Path("api", "rest", "host", hostID)
+	url = url.WithQuery("select", host.selector())
+
+	err := c.requestAuthenticated(http.MethodGet, url.URL, nil, &host, nil)
+	if err != nil {
+		if isPowerStoreError(err, http.StatusNotFound) {
+			return nil, api.StatusErrorf(http.StatusNotFound, "Host with ID %q not found", hostID)
+		}
+
+		return nil, fmt.Errorf("Failed retrieving PowerStore host: %w", err)
+	}
+
+	return &host, nil
+}
+
+// CreateHost creates new host and returns its ID.
+func (c *PowerStoreClient) CreateHost(hostName string, connectorType string, qn string) (string, error) {
+	portType, err := powerStoreConnectorToPortType(connectorType)
+	if err != nil {
+		return "", err
+	}
+
+	req := map[string]any{
+		"name":    hostName,
+		"os_type": "Linux", // Required by PowerStore API.
+		"initiators": []map[string]any{
+			{
+				"port_name": qn,
+				"port_type": portType,
+			},
+		},
+	}
+
+	var resp powerStoreResourceID
+
+	url := api.NewURL().Path("api", "rest", "host")
+	err = c.requestAuthenticated(http.MethodPost, url.URL, req, &resp, nil)
+	if err != nil {
+		return "", fmt.Errorf("Failed creating PowerStore host: %w", err)
+	}
+
+	return resp.ID, nil
+}
+
+// DeleteHost deletes host using its ID.
+func (c *PowerStoreClient) DeleteHost(hostID string) error {
+	url := api.NewURL().Path("api", "rest", "host", hostID)
+	err := c.requestAuthenticated(http.MethodDelete, url.URL, nil, nil, nil)
+	if err != nil {
+		if isPowerStoreError(err, http.StatusNotFound) {
+			return api.StatusErrorf(http.StatusNotFound, "Host with ID %q not found", hostID)
+		}
+
+		return fmt.Errorf("Failed deleting PowerStore host: %w", err)
+	}
+
+	return nil
+}
+
+// powerStoreConnectorToPortType converts connector type to PowerStore port type used in initiators.
+func powerStoreConnectorToPortType(connectorType string) (string, error) {
+	switch connectorType {
+	case connectors.TypeISCSI:
+		return "iSCSI", nil
+	case connectors.TypeNVME:
+		return "NVMe", nil
+	default:
+		return "", fmt.Errorf("Unsupported connector type: %q", connectorType)
+	}
 }
