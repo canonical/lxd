@@ -1148,13 +1148,9 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				}
 
 				remoteOpInfo := remoteMigrateOp.Get()
-
-				remoteSecrets := make(map[string]string, len(remoteOpInfo.Metadata))
-				for k, v := range remoteOpInfo.Metadata {
-					secretVal, ok := v.(string)
-					if ok {
-						remoteSecrets[k] = secretVal
-					}
+				remoteSecrets, err := remoteOpInfo.WebsocketSecrets()
+				if err != nil {
+					return fmt.Errorf("Failed getting websocket secrets for instance %q migration: %w", instName, err)
 				}
 
 				remoteAddresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
