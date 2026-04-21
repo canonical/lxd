@@ -866,22 +866,6 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		}
 	}
 
-	// If an IPv6 address has changed, if the instance is running we should bounce the host-side
-	// veth interface to give the instance a chance to detect the change and re-apply for an
-	// updated lease with new IP address.
-	if d.config["ipv6.address"] != oldConfig["ipv6.address"] && d.config["host_name"] != "" && network.InterfaceExists(d.config["host_name"]) {
-		link := &ip.Link{Name: d.config["host_name"]}
-		err := link.SetDown()
-		if err != nil {
-			return err
-		}
-
-		err = link.SetUp()
-		if err != nil {
-			return err
-		}
-	}
-
 	// If IP addresses or ACLs changed, update the OVN logical switch port.
 	if ipv4Changed || ipv6Changed || aclsChanged {
 		newACLs := shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
