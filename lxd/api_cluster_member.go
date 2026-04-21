@@ -1628,6 +1628,8 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		// Apply overrides.
 		if opts.mode != "" {
 			switch opts.mode {
+			case api.ClusterEvacuateModeHeal:
+				live = false // The source member is offline when healing.
 			case api.ClusterEvacuateModeStop:
 				migrate = false
 				live = false
@@ -1638,7 +1640,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 				migrate = true
 				live = true
 			default:
-				return fmt.Errorf("Invalid mode: %q", opts.mode)
+				return fmt.Errorf("Invalid evacuation mode: %q", opts.mode)
 			}
 		}
 
