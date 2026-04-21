@@ -37,7 +37,6 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
-	"github.com/canonical/lxd/shared/version"
 )
 
 // ValidDevices is linked from instance/drivers.validDevices to validate device config.
@@ -555,7 +554,9 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 //
 // An empty list indicates that the request may be handled by any architecture.
 // A nil list indicates that we can't tell at this stage, typically for private images.
-func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx, projectName string, sourceInst *cluster.Instance, sourceImageRef string, req api.InstancesPost) ([]int, error) {
+//
+// If a remote ImageServer is provided, it will be used to query architecture information from an image registry.
+func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx, projectName string, sourceInst *cluster.Instance, sourceImageRef string, req api.InstancesPost, remote lxd.ImageServer) ([]int, error) {
 	// Handle cases where the architecture is already provided.
 	if slices.Contains([]api.SourceType{api.SourceTypeConversion, api.SourceTypeMigration, api.SourceTypeNone}, req.Source.Type) && req.Architecture != "" {
 		id, err := osarch.ArchitectureId(req.Architecture)
@@ -583,11 +584,48 @@ func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx
 
 	// For image, things get a bit more complicated.
 	if req.Source.Type == api.SourceTypeImage {
-		// Handle local images.
-		if req.Source.Server == "" {
-			_, img, err := tx.GetImageByFingerprintPrefix(ctx, sourceImageRef, cluster.ImageFilter{Project: &projectName})
-			if err != nil {
-				return nil, err
+		// Handle remote image registries.
+		// If an image registry is specified, we rely on the pre-connected remote server
+		// provided by the caller to query the image's architecture.
+		if req.Source.ImageRegistry != "" {
+			if remote == nil {
+				// We can't query the registry if a connection wasn't provided.
+				// Returning nil/nil allows placement to proceed without specific architecture constraints.
+				return nil, nil
+			}
+
+			var img *api.Image
+			var err error
+			if req.Source.Secret != "" {
+				// For private images, we must fetch the full image information using the provided secret
+				// to determine the architecture.
+				img, _, err = remote.GetPrivateImage(sourceImageRef, req.Source.Secret)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				// For public images, first attempt to resolve architectures via aliases.
+				// This is faster as it avoids fetching the full image metadata if we only need the arch.
+				entries, err := remote.GetImageAliasArchitectures(string(req.Type), sourceImageRef)
+				if err == nil {
+					architectures := []int{}
+					for arch := range entries {
+						id, err := osarch.ArchitectureId(arch)
+						if err != nil {
+							return nil, err
+						}
+
+						architectures = append(architectures, id)
+					}
+
+					return architectures, nil
+				}
+
+				// Fallback to fetching full image info if alias resolution fails or isn't applicable.
+				img, _, err = remote.GetImage(sourceImageRef)
+				if err != nil {
+					return nil, err
+				}
 			}
 
 			id, err := osarch.ArchitectureId(img.Architecture)
@@ -598,71 +636,38 @@ func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx
 			return []int{id}, nil
 		}
 
-		// Handle remote images.
-		if req.Source.Server != "" {
-			if req.Source.Secret != "" {
-				// We can't retrieve a private image, defer to later processing.
-				return nil, nil
+		// Handle local images.
+		// We perform a multi-project search to resolve the architecture, which is necessary
+		// for cross-project image copies where the image isn't yet present in the target project.
+		if req.Source.ImageRegistry == "" {
+			// Check the target project.
+			_, img, err := tx.GetImageByFingerprintPrefix(ctx, sourceImageRef, cluster.ImageFilter{Project: &projectName})
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return nil, err
 			}
 
-			var err error
-			var remote lxd.ImageServer
-			if slices.Contains([]string{"", "lxd"}, req.Source.Protocol) {
-				// Remote LXD image server.
-				remote, err = lxd.ConnectPublicLXD(req.Source.Server, &lxd.ConnectionArgs{
-					TLSServerCert: req.Source.Certificate,
-					UserAgent:     version.UserAgent,
-					Proxy:         s.Proxy,
-					CachePath:     s.OS.CacheDir,
-					CacheExpiry:   time.Hour,
-				})
+			// Check the source project if specified and different from target.
+			if img == nil && req.Source.Project != "" && req.Source.Project != projectName {
+				_, img, err = tx.GetImageByFingerprintPrefix(ctx, sourceImageRef, cluster.ImageFilter{Project: &req.Source.Project})
+				if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+					return nil, err
+				}
+			}
+
+			// Check any other project for a matching image.
+			if img == nil {
+				_, img, err = tx.GetImageFromAnyProject(ctx, sourceImageRef)
 				if err != nil {
 					return nil, err
 				}
-			} else if req.Source.Protocol == "simplestreams" {
-				// Remote simplestreams image server.
-				remote, err = lxd.ConnectSimpleStreams(req.Source.Server, &lxd.ConnectionArgs{
-					TLSServerCert: req.Source.Certificate,
-					UserAgent:     version.UserAgent,
-					Proxy:         s.Proxy,
-					CachePath:     s.OS.CacheDir,
-					CacheExpiry:   time.Hour,
-				})
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				return nil, api.StatusErrorf(http.StatusBadRequest, "Unsupported remote image server protocol %q", req.Source.Protocol)
 			}
 
-			// Look for a matching alias.
-			entries, err := remote.GetImageAliasArchitectures(string(req.Type), sourceImageRef)
+			id, err := osarch.ArchitectureId(img.Architecture)
 			if err != nil {
-				// Look for a matching image by fingerprint.
-				img, _, err := remote.GetImage(sourceImageRef)
-				if err != nil {
-					return nil, err
-				}
-
-				id, err := osarch.ArchitectureId(img.Architecture)
-				if err != nil {
-					return nil, err
-				}
-
-				return []int{id}, nil
+				return nil, err
 			}
 
-			architectures := []int{}
-			for arch := range entries {
-				id, err := osarch.ArchitectureId(arch)
-				if err != nil {
-					return nil, err
-				}
-
-				architectures = append(architectures, id)
-			}
-
-			return architectures, nil
+			return []int{id}, nil
 		}
 	}
 
