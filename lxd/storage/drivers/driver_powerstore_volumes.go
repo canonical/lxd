@@ -3,6 +3,7 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -402,6 +404,60 @@ func (d *powerstore) getVolumeID(vol Volume) (string, error) {
 	}
 
 	return volID, nil
+}
+
+// ensureHost returns ID of the host configured with the given qualified name.
+// If no such host exists, it creates a new host using the server name with the
+// mode appended as the host name.
+func (d *powerstore) ensureHost() (hostID string, cleanup revert.Hook, err error) {
+	client := d.client()
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	connector, err := d.connector()
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Get the qualified name of the host.
+	qn, err := connector.QualifiedName()
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Fetch an existing host entry on a storage array.
+	host, err := client.GetCurrentHost(connector.Type(), qn)
+	if err != nil {
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return "", nil, err
+		}
+
+		// The storage host entry with a qualified name of the current LXD host does not exist.
+		// Therefore, create a new one and name it after the server name.
+		serverName, err := ResolveServerName(d.state.ServerName)
+		if err != nil {
+			return "", nil, err
+		}
+
+		// Append the mode to the server name because storage array does not allow mixing
+		// NQNs, IQNs, and WWNs for a single host.
+		hostname := serverName + "-" + connector.Type()
+
+		hostID, err = client.CreateHost(hostname, connector.Type(), qn)
+		if err != nil {
+			return "", nil, fmt.Errorf("Failed creating host %q: %w", hostname, err)
+		}
+
+		revert.Add(func() { _ = client.DeleteHost(hostID) })
+	} else {
+		// Hostname already exists with the given qualified name.
+		hostID = host.ID
+	}
+
+	cleanup = revert.Clone().Fail
+	revert.Success()
+	return hostID, cleanup, nil
 }
 
 // roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
