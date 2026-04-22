@@ -158,7 +158,7 @@ func GetClusterLinkConfig(ctx context.Context, tx *sql.Tx, clusterLinkID *int64)
 
 // CreateClusterLinkConfig creates config for a new cluster link with the given ID.
 func CreateClusterLinkConfig(ctx context.Context, tx *sql.Tx, clusterLinkID int64, config map[string]string) error {
-	return CreateEntityConfig(ctx, tx, "cluster_links_config", "cluster_link_id", clusterLinkID, config)
+	return createEntityConfig(ctx, tx, "cluster_links_config", "cluster_link_id", clusterLinkID, config)
 }
 
 // UpdateClusterLinkConfig updates the cluster link with the given ID, setting its config.

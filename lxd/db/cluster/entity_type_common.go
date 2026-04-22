@@ -44,7 +44,7 @@ func (e entityTypeCommon) onUpdateTriggerSQL() (name string, sql string) {
 
 // standardOnDeleteTriggerSQL generates the standard AFTER DELETE trigger that cleans up
 // auth_groups_permissions and warnings rows when an entity is deleted.
-func standardOnDeleteTriggerSQL(triggerName string, tableName string, code int64) (name string, sql string) {
+func standardOnDeleteTriggerSQL(triggerName string, tableName string, entityTypeCode int64) (name string, sql string) {
 	return triggerName, fmt.Sprintf(`
 CREATE TRIGGER %s
 	AFTER DELETE ON %s
@@ -56,7 +56,7 @@ CREATE TRIGGER %s
 		WHERE entity_type_code = %d
 		AND entity_id = OLD.id;
 	END
-`, triggerName, tableName, code, code)
+`, triggerName, tableName, entityTypeCode, entityTypeCode)
 }
 
 // projectEntityIDFromURLQuery generates the standard idFromURLQuery SQL for entities that
