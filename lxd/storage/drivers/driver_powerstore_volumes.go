@@ -630,7 +630,24 @@ func (d *powerstore) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string
 
 // VolumeSnapshots returns a list of volume snapshot names for the given volume.
 func (d *powerstore) VolumeSnapshots(vol Volume) ([]string, error) {
-	return nil, ErrNotSupported
+	client := d.client()
+
+	volID, err := d.getVolumeID(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshots, err := client.GetVolumeSnapshots(volID)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshotNames := make([]string, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		snapshotNames = append(snapshotNames, snapshot.Name)
+	}
+
+	return snapshotNames, nil
 }
 
 // newMountableSnapshotVolume returns a non-snapshot [Volume] representing the temporary clone
