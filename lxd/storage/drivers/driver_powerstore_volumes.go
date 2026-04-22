@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
@@ -182,7 +183,28 @@ func (d *powerstore) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // GetVolumeUsage returns the disk space used by the volume.
 func (d *powerstore) GetVolumeUsage(vol Volume) (int64, error) {
-	return -1, ErrNotSupported
+	// If mounted, use the filesystem stats for pretty accurate usage information.
+	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(vol.MountPath()) {
+		var stat unix.Statfs_t
+		err := unix.Statfs(vol.MountPath(), &stat)
+		if err != nil {
+			return -1, err
+		}
+
+		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
+	}
+
+	volID, err := d.getVolumeID(vol)
+	if err != nil {
+		return -1, err
+	}
+
+	psVol, err := d.client().GetVolume(volID)
+	if err != nil {
+		return -1, err
+	}
+
+	return psVol.LogicalUsed, nil
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
