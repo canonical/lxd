@@ -1,17 +1,20 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/revert"
@@ -458,6 +461,230 @@ func (d *powerstore) ensureHost() (hostID string, cleanup revert.Hook, err error
 	cleanup = revert.Clone().Fail
 	revert.Success()
 	return hostID, cleanup, nil
+}
+
+// getMappedDevicePath returns the local device path for the given volume.
+// Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
+func (d *powerstore) getMappedDevicePath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	connector, err := d.connector()
+	if err != nil {
+		return "", nil, err
+	}
+
+	if mapVolume {
+		cleanup, err := d.mapVolume(vol)
+		if err != nil {
+			return "", nil, err
+		}
+
+		revert.Add(cleanup)
+	}
+
+	volID, err := d.getVolumeID(vol)
+	if err != nil {
+		return "", nil, err
+	}
+
+	psVol, err := d.client().GetVolume(volID)
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed retrieving volume %q: %w", vol.name, err)
+	}
+
+	_, wwn, ok := strings.Cut(psVol.WWN, ".")
+	if !ok {
+		return "", nil, fmt.Errorf("Failed parsing WWN for volume %q: Invalid format %q", vol.name, psVol.WWN)
+	}
+
+	// Filters devices by matching the device path with the WWN.
+	devicePathFilter := func(path string) bool {
+		return strings.Contains(path, wwn)
+	}
+
+	var devicePath string
+	if mapVolume {
+		// Wait until the disk device is mapped to the host.
+		devicePath, err = connector.WaitDiskDevicePath(d.state.ShutdownCtx, devicePathFilter)
+	} else {
+		// Expect device to be already mapped.
+		devicePath, err = connector.GetDiskDevicePath(devicePathFilter)
+	}
+
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed locating device for volume %q: %w", vol.name, err)
+	}
+
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return devicePath, cleanup, nil
+}
+
+// mapVolume maps the given volume onto this host.
+func (d *powerstore) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
+	client := d.client()
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	connector, err := d.connector()
+	if err != nil {
+		return nil, err
+	}
+
+	volID, err := d.getVolumeID(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	if err != nil {
+		return nil, err
+	}
+
+	defer unlock()
+
+	// Ensure the host exists and is configured with the correct QN.
+	hostID, cleanup, err := d.ensureHost()
+	if err != nil {
+		return nil, err
+	}
+
+	reverter.Add(cleanup)
+
+	// Ensure the volume is connected to the host.
+	connCreated, err := client.AttachVolumeToHost(volID, hostID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed attaching volume %q to host: %w", vol.name, err)
+	}
+
+	if connCreated {
+		reverter.Add(func() { _ = client.DetachVolumeFromHost(volID, hostID) })
+	}
+
+	// Find the array's qualified name for the configured mode.
+	targets, err := d.targets()
+	if err != nil {
+		return nil, err
+	}
+
+	outerReverter := revert.New()
+	hasUnmapReverter := false
+
+	// Connect to the array.
+	for qualifiedName, addresses := range targets {
+		connReverter, err := connector.Connect(d.state.ShutdownCtx, qualifiedName, addresses...)
+		if err != nil {
+			return nil, err
+		}
+
+		// If connect succeeded it means we have at least one established connection.
+		// However, it's reverter does not cleanup the established connections or a newly
+		// created session. Therefore, if we created a mapping, add unmapVolume to the
+		// returned (outer) reverter. Unmap ensures the target is disconnected only when
+		// no other device is using it.
+		if connCreated && !hasUnmapReverter {
+			outerReverter.Add(func() { _ = d.unmapVolume(vol) })
+			hasUnmapReverter = true
+		}
+
+		// Add connReverter to the outer reverter, as it will immediately stop
+		// any ongoing connection attempts. Note that it must be added after
+		// unmapVolume to ensure it is called first.
+		outerReverter.Add(connReverter)
+		reverter.Add(connReverter)
+	}
+
+	reverter.Success()
+	return outerReverter.Fail, nil
+}
+
+// unmapVolume unmaps the given volume from this host.
+func (d *powerstore) unmapVolume(vol Volume) error {
+	client := d.client()
+
+	connector, err := d.connector()
+	if err != nil {
+		return err
+	}
+
+	qn, err := connector.QualifiedName()
+	if err != nil {
+		return err
+	}
+
+	volID, err := d.getVolumeID(vol)
+	if err != nil {
+		return err
+	}
+
+	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	host, err := client.GetCurrentHost(connector.Type(), qn)
+	if err != nil {
+		return err
+	}
+
+	// Get a path of a block device we want to unmap.
+	volumePath, _, _ := d.getMappedDevicePath(vol, false)
+
+	// Remove disk device.
+	if volumePath != "" {
+		err = connector.RemoveDiskDevice(d.state.ShutdownCtx, volumePath)
+		if err != nil {
+			return fmt.Errorf("Failed unmapping PowerStore volume %q: %w", vol.name, err)
+		}
+	}
+
+	// Disconnect the volume from the host and ignore error if connection does not exist.
+	err = client.DetachVolumeFromHost(volID, host.ID)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed detaching volume %q from host %q: %w", vol.name, host.Name, err)
+	}
+
+	// Wait until the volume has disappeared.
+	ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+	defer cancel()
+
+	if volumePath != "" && !block.WaitDiskDeviceGone(ctx, volumePath) {
+		return fmt.Errorf("Timeout exceeded waiting for PowerStore volume %q to disappear on path %q", vol.name, volumePath)
+	}
+
+	// If this was the last volume being unmapped from this system, disconnect the active session
+	// and remove the host from PowerStore.
+	if len(host.MappedVolumes) <= 1 {
+		targets, err := d.targets()
+		if err != nil {
+			return err
+		}
+
+		var disconnectErr error
+		for qualifiedName := range targets {
+			// Disconnect from the target.
+			err = connector.Disconnect(qualifiedName)
+			if err != nil {
+				disconnectErr = err
+			}
+		}
+
+		if disconnectErr != nil {
+			return fmt.Errorf("Failed disconnecting from targets after unmapping the last volume %q: %w", vol.name, disconnectErr)
+		}
+
+		// Remove the host from PowerStore.
+		err = d.client().DeleteHost(host.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
