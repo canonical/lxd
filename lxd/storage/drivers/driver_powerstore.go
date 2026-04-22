@@ -3,6 +3,9 @@ package drivers
 import (
 	"errors"
 	"fmt"
+	"strings"
+
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/lxd/storage/drivers/clients"
@@ -24,6 +27,9 @@ var powerStoreSupportedConnectors = []string{
 
 // powerStoreDefaultUser represents the default PowerStore user name.
 const powerStoreDefaultUser = "admin"
+
+// Common prefix for resource names in PowerStore.
+const powerStoreResourcePrefix = "lxd-"
 
 type powerstore struct {
 	common
@@ -248,4 +254,13 @@ func (d *powerstore) Delete(progressReporter ioprogress.ProgressReporter) error 
 func (d *powerstore) GetResources() (*api.ResourcesStoragePool, error) {
 	res := &api.ResourcesStoragePool{}
 	return res, nil
+}
+
+// storagePoolScopePrefix returns the prefix used to scope PowerStore resource
+// names to an LXD storage pool. This prevents conflicts in PowerStore with
+// resources created for other LXD storage pools or at the root level.
+func (d *powerstore) storagePoolScopePrefix(poolName string) string {
+	poolID := uuid.NewSHA1(uuid.NameSpaceURL, []byte(poolName))
+	prefix := strings.ReplaceAll(poolID.String(), "-", "")
+	return powerStoreResourcePrefix + prefix + "-"
 }
