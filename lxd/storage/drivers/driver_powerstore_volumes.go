@@ -13,6 +13,11 @@ import (
 	"github.com/canonical/lxd/shared/validate"
 )
 
+const (
+	powerStoreVolMinSize int64 = 1024 * 1024                     // 1 MiB in bytes.
+	powerStoreVolMaxSize int64 = 256 * 1024 * 1024 * 1024 * 1024 // 256 TiB in bytes.
+)
+
 // commonVolumeRules returns validation rules which are common for pool and volume.
 func (d *powerstore) commonVolumeRules() map[string]func(value string) error {
 	return map[string]func(value string) error{
@@ -246,4 +251,14 @@ func (d *powerstore) MountVolumeSnapshot(snapVol Volume, progressReporter ioprog
 // UnmountVolumeSnapshot unmounts the volume snapshot.
 func (d *powerstore) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	return false, ErrNotSupported
+}
+
+// roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
+// multiple of 1 MiB, which is the minimum volume size on PowerStore.
+func (d *powerstore) roundVolumeBlockSizeBytes(_ Volume, sizeBytes int64) int64 {
+	if sizeBytes < powerStoreVolMinSize {
+		return powerStoreVolMinSize
+	}
+
+	return roundAbove(powerStoreVolMinSize, sizeBytes)
 }
