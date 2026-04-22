@@ -248,13 +248,16 @@ func identityAccessHandler(authenticationMethod string, entitlement auth.Entitle
 			return response.SmartError(err)
 		}
 
-		if identityType.IsFineGrained() {
-			err = s.Authorizer.CheckPermission(r.Context(), entity.IdentityURL(authenticationMethod, id.Identifier), entitlement)
+		// If the identity type is a legacy certificate, use a certificate URL for the check.
+		// Otherwise, use an identity URL.
+		_, err = identityType.LegacyCertificateType()
+		if err == nil {
+			err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(id.Identifier), entitlement)
 			if err != nil {
 				return response.SmartError(err)
 			}
 		} else {
-			err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(id.Identifier), entitlement)
+			err = s.Authorizer.CheckPermission(r.Context(), entity.IdentityURL(authenticationMethod, id.Identifier), entitlement)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -1250,11 +1253,14 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 				return false
 			}
 
-			if identityType.IsFineGrained() {
-				return canViewIdentity(entity.IdentityURL(string(id.AuthMethod), id.Identifier))
+			// If the identity type is a legacy certificate, use a certificate URL for the check.
+			// Otherwise, use an identity URL.
+			_, err = identityType.LegacyCertificateType()
+			if err == nil {
+				return canViewCertificate(entity.CertificateURL(id.Identifier))
 			}
 
-			return canViewCertificate(entity.CertificateURL(id.Identifier))
+			return canViewIdentity(entity.IdentityURL(string(id.AuthMethod), id.Identifier))
 		}
 
 		canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
