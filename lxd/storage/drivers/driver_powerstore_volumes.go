@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/storage/block"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
@@ -612,9 +613,78 @@ func (d *powerstore) UnmountVolume(vol Volume, keepBlockDev bool, progressReport
 	return unmountVolume(d, vol, keepBlockDev, d.getMappedDevicePath, d.unmapVolume, progressReporter)
 }
 
+// createVolumeSnapshot creates a snapshot of a volume. If snapshotVMfilesystem is false, a VM's filesystem volume
+// is not copied.
+func (d *powerstore) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool, progressReporter ioprogress.ProgressReporter) error {
+	client := d.client()
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
+	sourcePath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
+
+	if filesystem.IsMountPoint(sourcePath) {
+		// Attempt to sync and freeze filesystem, but do not error if not able to freeze (as filesystem
+		// could still be busy), as we do not guarantee the consistency of a snapshot. This is costly but
+		// try to ensure that all cached data has been committed to disk. If we don't then the snapshot
+		// of the underlying filesystem can be inconsistent or, in the worst case, empty.
+		unfreezeFS, err := d.filesystemFreeze(sourcePath)
+		if err == nil {
+			defer func() { _ = unfreezeFS() }()
+		}
+	}
+
+	// Create the parent directory.
+	err := createParentSnapshotDirIfMissing(d.name, snapVol.volType, parentName)
+	if err != nil {
+		return err
+	}
+
+	err = snapVol.EnsureMountPath()
+	if err != nil {
+		return err
+	}
+
+	volID, err := d.getVolumeID(snapVol.GetParent())
+	if err != nil {
+		return err
+	}
+
+	snapVolName, err := d.encodeVolumeName(snapVol)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.CreateVolumeSnapshot(volID, snapVolName)
+	if err != nil {
+		return fmt.Errorf("Failed creating snapshot %q for volume %q: %w", snapVol.name, snapVol.GetParent().name, err)
+	}
+
+	revert.Add(func() { _ = d.DeleteVolumeSnapshot(snapVol, progressReporter) })
+
+	// For VMs, create a snapshot of the filesystem volume too.
+	// Skip if snapshotVMfilesystem is false to prevent overwriting separately copied volumes.
+	if snapVol.IsVMBlock() && snapshotVMfilesystem {
+		// Get FS volume and set parent volume UUID.
+		fsVol := snapVol.NewVMBlockFilesystemVolume()
+		fsVol.SetParentUUID(snapVol.parentUUID)
+
+		err := d.CreateVolumeSnapshot(fsVol, progressReporter)
+		if err != nil {
+			return fmt.Errorf("Failed creating snapshot %q for volume %q: %w", fsVol.name, fsVol.GetParent().name, err)
+		}
+
+		revert.Add(func() { _ = d.DeleteVolumeSnapshot(fsVol, progressReporter) })
+	}
+
+	revert.Success()
+	return nil
+}
+
 // CreateVolumeSnapshot creates a snapshot of a volume.
 func (d *powerstore) CreateVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	return d.createVolumeSnapshot(snapVol, true, progressReporter)
 }
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device.
