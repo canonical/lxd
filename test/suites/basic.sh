@@ -294,25 +294,24 @@ test_basic_usage() {
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
 
-  lxc project create bar
-  lxc image copy testimage local: --alias testimage --target-project bar
+  LXD_DIR="${LXD2_DIR}" ensure_import_testimage
+  LXD_DIR="${LXD2_DIR}" lxc project create bar
+  LXD_DIR="${LXD2_DIR}" lxc image copy testimage local: --alias testimage --target-project bar
 
   LXD_DIR="${LXD2_DIR}" lxc project create foo
   LXD_DIR="${LXD2_DIR}" lxc profile show default | LXD_DIR="${LXD2_DIR}" lxc profile edit default --project foo
-  LXD_DIR="${LXD2_DIR}" lxc init localhost:testimage c1 --project bar --target-project foo
-  LXD_DIR="${LXD2_DIR}" lxc launch localhost:testimage c2 --project bar --target-project foo
+  LXD_DIR="${LXD2_DIR}" lxc init testimage c1 --project bar --target-project foo
+  LXD_DIR="${LXD2_DIR}" lxc launch testimage c2 --project bar --target-project foo
   LXD_DIR="${LXD2_DIR}" lxc file push --quiet "$(command -v devlxd-client)" c2/bin/ --project foo
   LXD_DIR="${LXD2_DIR}" setup_instance_gocoverage c2 foo
   LXD_DIR="${LXD2_DIR}" lxc exec c2 --project foo -- devlxd-client get-state
   LXD_DIR="${LXD2_DIR}" lxc stop c2 --project foo --force
-  LXD_DIR="${LXD2_DIR}" lxc rebuild localhost:testimage c2 --project bar --target-project foo
+  LXD_DIR="${LXD2_DIR}" lxc rebuild testimage c2 --project bar --target-project foo
   LXD_DIR="${LXD2_DIR}" lxc start c2 --project foo
   ! LXD_DIR="${LXD2_DIR}" lxc exec c2 --project foo -- devlxd-client get-state || false
 
   shutdown_lxd "${LXD2_DIR}"
   rm -rf "${LXD2_DIR}"
-
-  lxc project delete bar --force
 
   # Test invalid instance names
   ! lxc init testimage -abc || false
