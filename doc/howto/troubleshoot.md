@@ -1,23 +1,34 @@
+---
+myst:
+  html_meta:
+    description: An index of how-to guides for troubleshooting common LXD issues, including firewall configuration, instance errors, and Dqlite problems.
+---
+
 (troubleshoot)=
 # Troubleshooting
 
-If you run into problems when using LXD, check the following how-to guides to see if they help resolve your issue:
+## Fix common issues
+
+Commonly encountered issues include firewall conflicts (such as with Docker), instance errors, and Dqlite database problems.
 
 ```{toctree}
 :titlesonly:
 
 Configure your firewall </howto/network_bridge_firewalld>
-Troubleshoot instances </howto/instances_troubleshoot.md>
-Troubleshoot Dqlite </howto/dqlite_troubleshoot.md>
+Troubleshoot instances </howto/instances_troubleshoot>
+Troubleshoot networks </howto/network_ipam>
+Troubleshoot Dqlite </howto/dqlite_troubleshoot>
+Frequently asked </faq>
 ```
 
-Additional instructions are available in the following guides:
+## Dig deeper
+
+LXD provides multiple debugging methods, including CLI tools and core dump files.
 
 ```{toctree}
 :titlesonly:
 
 Debug LXD </debugging>
-Frequently asked </faq>
 ```
 
-If you cannot resolve the issue on your own, see {ref}`support` for information about where to get help.
+If the issue cannot be resolved, see {ref}`support` for information about where to get help.

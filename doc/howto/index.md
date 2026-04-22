@@ -1,13 +1,17 @@
+---
+myst:
+  html_meta:
+    description: An index of how-to guides for installing, configuring, and managing LXD, including instances, storage, networks, clustering, and production deployments.
+---
+
 (howtos)=
 # How-to guides
 
 These how-to guides cover key operations and processes in LXD.
 
-(howtos-getstarted)=
-## Get started
+## Set up the LXD server and initial access
 
-To get started with LXD, install and initialize it.
-Then do some basic configuration of the server and the command-line client.
+LXD can be installed and initialized in multiple ways. Afterward, the server can be configured for network access through the CLI or UI client.
 
 ```{toctree}
 :titlesonly:
@@ -17,11 +21,9 @@ Then do some basic configuration of the server and the command-line client.
 /operation
 ```
 
-(howtos-work)=
 ## Work with LXD
 
-After the initial setup, you can start working with LXD by creating instances.
-You'll also need to set up and configure other entities.
+Instances are created from images and can be either {ref}`system containers or virtual machines <containers-and-vms>`. Projects are useful for grouping related instances and managing user access.
 
 ```{toctree}
 :titlesonly:
@@ -34,11 +36,9 @@ You'll also need to set up and configure other entities.
 /networks
 ```
 
-(howtos-production)=
 ## Get ready for production
 
-Once you are ready for production, consider setting up a LXD cluster to support the required load.
-You should also monitor your server or servers and configure them for the expected load.
+For production deployments, clusters of LXD servers help support higher loads. The production setup guides also cover performance, monitoring, backup, and disaster recovery.
 
 ```{toctree}
 :titlesonly:
@@ -48,8 +48,7 @@ You should also monitor your server or servers and configure them for the expect
 /production-setup
 ```
 
-(howtos-misc)=
-## Miscellaneous
+## Perform server administration
 
 ```{toctree}
 :titlesonly:
@@ -57,8 +56,26 @@ You should also monitor your server or servers and configure them for the expect
 Manage the snap </howto/snap>
 Harden security </howto/security_harden>
 /howto/troubleshoot
+```
+
+## Authenticate to the APIs
+
+Bearer tokens can be used to authenticate to the LXD API; refer to {ref}`authentication` for other methods. The DevLXD API is used for communication between instances and their host.
+
+```{toctree}
+:titlesonly:
+:maxdepth: 1
+
+Authenticate to the LXD API using bearer tokens </howto/auth_bearer>
+Authenticate to the DevLXD API </howto/devlxd_authenticate>
+```
+
+## Engage with us
+
+```{toctree}
+:titlesonly:
+:maxdepth: 1
+
 Get support </support>
 Contribute to LXD </contributing>
-/howto/auth_bearer
-/howto/devlxd_authenticate
 ```
