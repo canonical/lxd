@@ -479,7 +479,47 @@ func (d *powerstore) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volS
 
 // RestoreVolume restores a volume from a snapshot.
 func (d *powerstore) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	client := d.client()
+
+	ourUnmount, err := d.UnmountVolume(vol, false, progressReporter)
+	if err != nil {
+		return err
+	}
+
+	if ourUnmount {
+		defer func() { _ = d.MountVolume(vol, progressReporter) }()
+	}
+
+	volID, err := d.getVolumeID(vol)
+	if err != nil {
+		return err
+	}
+
+	snapVolID, err := d.getVolumeID(snapVol)
+	if err != nil {
+		return err
+	}
+
+	// Overwrite existing volume by copying the given snapshot content into it.
+	err = client.RestoreVolume(volID, snapVolID)
+	if err != nil {
+		return err
+	}
+
+	// For VMs, also restore the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		snapFSVol := snapVol.NewVMBlockFilesystemVolume()
+		snapFSVol.SetParentUUID(snapVol.parentUUID)
+
+		err := d.RestoreVolume(fsVol, snapFSVol, progressReporter)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
