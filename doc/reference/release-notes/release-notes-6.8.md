@@ -43,6 +43,16 @@ Matching `lxc cluster link ...` subcommands have also been added.
 - Documentation: {ref}`exp-cluster-links`
 - API extension: {ref}`extension-cluster-links`
 
+### Replicators
+
+Replicators enable active-passive project level instance refresh for disaster recovery using the new bi-directional cluster links functionality.
+
+Replicators support scheduled and manual execution for replicating instances between linked clusters.
+The daemon gains a background task for running scheduled replicators, and matching `lxc replicator` subcommands have been added to the CLI.
+
+- Documentation: {ref}`howto-replicators-setup`
+- API extension: {ref}`extension-replicators`
+
 ### GPU CDI hotplug support for containers
 
 Building on the AMD CDI container support added in LXD 6.7, GPU CDI devices can now be hotplugged into running containers.
