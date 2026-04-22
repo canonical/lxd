@@ -619,7 +619,48 @@ func (d *powerstore) CreateVolumeSnapshot(snapVol Volume, progressReporter iopro
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device.
 func (d *powerstore) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	client := d.client()
+
+	snapVolID, err := d.getVolumeID(snapVol)
+	if err != nil {
+		return err
+	}
+
+	err = client.DeleteVolumeSnapshot(snapVolID)
+	if err != nil {
+		return err
+	}
+
+	mountPath := snapVol.MountPath()
+	if snapVol.contentType == ContentTypeFS && shared.PathExists(mountPath) {
+		poolMountPath := GetPoolMountPath(d.name)
+		if !strings.HasPrefix(mountPath, poolMountPath+"/") {
+			return fmt.Errorf("Snapshot mount path %q is outside of the pool directory %q", mountPath, poolMountPath)
+		}
+
+		err = wipeDirectory(mountPath)
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(mountPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed removing %q: %w", mountPath, err)
+		}
+	}
+
+	// For VM images, delete the filesystem volume too.
+	if snapVol.IsVMBlock() {
+		fsVol := snapVol.NewVMBlockFilesystemVolume()
+		fsVol.SetParentUUID(snapVol.parentUUID)
+
+		err := d.DeleteVolumeSnapshot(fsVol, progressReporter)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // RenameVolumeSnapshot is a no-op as renaming a volume snapshot does not change the name of
