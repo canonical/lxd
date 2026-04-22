@@ -68,6 +68,7 @@ jobs:
       - name: Trigger Launchpad snap build
         run: |
           localRev="$(git rev-parse HEAD)"
+          export PATH="/home/runner/go/bin:$PATH"
           ver=($(lxd-snapcraft -package "${PACKAGE}" -get-version -file ~/"${PACKAGE}-pkg-snap-lp/snapcraft.yaml"))
           rsync -a --exclude .git --delete . ~/"${PACKAGE}-pkg-snap-lp"/
           cd ~/"${PACKAGE}-pkg-snap-lp"
