@@ -91,7 +91,7 @@ func GetPlacementGroupsAndURLs(ctx context.Context, tx *sql.Tx, projectName *str
 
 // CreatePlacementGroupConfig creates config for a new placement group with the given ID.
 func CreatePlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64, config map[string]string) error {
-	return CreateEntityConfig(ctx, tx, "placement_groups_config", "placement_group_id", placementGroupID, config)
+	return createEntityConfig(ctx, tx, "placement_groups_config", "placement_group_id", placementGroupID, config)
 }
 
 // UpdatePlacementGroupConfig updates the placement group config with the given ID.

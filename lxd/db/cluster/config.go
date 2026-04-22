@@ -38,9 +38,9 @@ type ConfigFilter struct {
 	Value *string
 }
 
-// CreateEntityConfig inserts config rows for an entity. The table must have columns
+// createEntityConfig inserts config rows for an entity. The table must have columns
 // (<idColumn>, key, value). Empty values are skipped.
-func CreateEntityConfig(ctx context.Context, tx *sql.Tx, table string, idColumn string, entityID int64, config map[string]string) error {
+func createEntityConfig(ctx context.Context, tx *sql.Tx, table string, idColumn string, entityID int64, config map[string]string) error {
 	stmt, err := tx.Prepare(fmt.Sprintf("INSERT INTO %s (%s, key, value) VALUES(?, ?, ?)", table, idColumn))
 	if err != nil {
 		return err
