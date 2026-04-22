@@ -9,6 +9,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/lxd/storage/drivers/clients"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/validate"
@@ -62,6 +63,16 @@ func (d *powerstore) connector() (connectors.Connector, error) {
 
 // client returns the PowerStore API client.
 func (d *powerstore) client() *clients.PowerStoreClient {
+	if d.httpClient == nil {
+		d.httpClient = clients.NewPowerStoreClient(
+			d.config["powerstore.gateway"],
+			d.config["powerstore.user.name"],
+			d.config["powerstore.user.password"],
+			shared.IsFalse(d.config["powerstore.gateway.verify"]),
+			d.storagePoolScopePrefix(d.name),
+		)
+	}
+
 	return d.httpClient
 }
 
