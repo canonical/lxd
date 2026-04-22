@@ -275,14 +275,171 @@ func (d *powerstore) VolumeSnapshots(vol Volume) ([]string, error) {
 	return nil, ErrNotSupported
 }
 
+// newMountableSnapshotVolume returns a non-snapshot [Volume] representing the temporary clone
+// of snapVol which is used when snapshot needs to be mounted (mounting snapshot directly is not
+// supported by PowerStore).
+//
+// The clone reuses the snapshot's own UUID. Its name is made unique by adding prefix
+// [powerStoreMountableSnapshotPrefix] that [powerstore.encodeVolumeName] prepends to
+// the volume type prefix.
+func (d *powerstore) newMountableSnapshotVolume(snapVol Volume) (Volume, error) {
+	snapUUID := snapVol.config["volatile.uuid"]
+	_, err := uuid.Parse(snapUUID)
+	if err != nil {
+		return Volume{}, fmt.Errorf(`Failed parsing "volatile.uuid" from snapshot %q: %w`, snapVol.name, err)
+	}
+
+	// Prefix snapshot clone with to allow distinguishing it from regular volumes.
+	cloneName := powerStoreMountableSnapshotPrefix + snapUUID
+
+	return NewVolume(d, d.name, snapVol.volType, snapVol.contentType, cloneName, snapVol.config, d.config), nil
+}
+
 // MountVolumeSnapshot mounts a volume snapshot.
+// Since PowerStore does not support mounting snapshots directly, this function creates a
+// temporary clone of the snapshot and mounts the clone instead.
 func (d *powerstore) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	revert := revert.New()
+	defer revert.Fail()
+
+	client := d.client()
+
+	snapVolID, err := d.getVolumeID(snapVol)
+	if err != nil {
+		return err
+	}
+
+	cloneVol, err := d.newMountableSnapshotVolume(snapVol)
+	if err != nil {
+		return err
+	}
+
+	cloneVolID, err := d.getVolumeID(cloneVol)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed checking for existing clone of snapshot %q: %w", snapVol.name, err)
+	}
+
+	if cloneVolID != "" {
+		// Clone volume already exists, likely from a previous mount operation
+		// did not get cleaned up properly.
+		_ = client.DeleteVolume(cloneVolID)
+	}
+
+	cloneVolName, err := d.encodeVolumeName(cloneVol)
+	if err != nil {
+		return err
+	}
+
+	cloneVolID, err = client.CloneVolume(snapVolID, cloneVolName)
+	if err != nil {
+		return fmt.Errorf("Failed creating temporary clone for snapshot %q: %w", snapVol.name, err)
+	}
+
+	revert.Add(func() { _ = client.DeleteVolume(cloneVolID) })
+
+	// For VMs, also clone the filesystem snapshot.
+	if snapVol.IsVMBlock() {
+		snapFsVol := snapVol.NewVMBlockFilesystemVolume()
+		snapFsVol.SetParentUUID(snapVol.parentUUID)
+
+		fsSnapVolClone, err := d.newMountableSnapshotVolume(snapFsVol)
+		if err != nil {
+			return err
+		}
+
+		// Clean up any stale filesystem clone.
+		fsSnapVolCloneID, err := d.getVolumeID(fsSnapVolClone)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed checking for existing FS clone of snapshot %q: %w", snapVol.name, err)
+		}
+
+		if fsSnapVolCloneID != "" {
+			_ = client.DeleteVolume(fsSnapVolCloneID)
+		}
+
+		fsSnapVolID, err := d.getVolumeID(snapFsVol)
+		if err != nil {
+			return err
+		}
+
+		fsSnapVolCloneName, err := d.encodeVolumeName(fsSnapVolClone)
+		if err != nil {
+			return err
+		}
+
+		fsSnapVolCloneID, err = client.CloneVolume(fsSnapVolID, fsSnapVolCloneName)
+		if err != nil {
+			return fmt.Errorf("Failed creating temporary FS clone for snapshot %q: %w", snapVol.name, err)
+		}
+
+		revert.Add(func() { _ = client.DeleteVolume(fsSnapVolCloneID) })
+	}
+
+	err = d.MountVolume(cloneVol, progressReporter)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
 }
 
 // UnmountVolumeSnapshot unmounts the volume snapshot.
+// Since PowerStore does not support mounting snapshots directly, this function unmounts a
+// temporary clone of the snapshot and deletes the clone.
 func (d *powerstore) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) (bool, error) {
-	return false, ErrNotSupported
+	client := d.client()
+
+	cloneVol, err := d.newMountableSnapshotVolume(snapVol)
+	if err != nil {
+		return false, err
+	}
+
+	ourUnmount, err := d.UnmountVolume(cloneVol, false, progressReporter)
+	if err != nil {
+		return false, err
+	}
+
+	if !ourUnmount {
+		return false, nil
+	}
+
+	cloneID, err := d.getVolumeID(cloneVol)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return true, fmt.Errorf("Failed finding temporary clone for snapshot %q: %w", snapVol.name, err)
+	}
+
+	if err == nil {
+		err = client.DeleteVolume(cloneID)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return true, fmt.Errorf("Failed deleting temporary clone for snapshot %q: %w", snapVol.name, err)
+		}
+	}
+
+	// For VMs, also delete the filesystem clone.
+	if snapVol.IsVMBlock() {
+		snapFsVol := snapVol.NewVMBlockFilesystemVolume()
+		snapFsVol.SetParentUUID(snapVol.parentUUID)
+
+		fsSnapVolClone, err := d.newMountableSnapshotVolume(snapFsVol)
+		if err != nil {
+			return true, err
+		}
+
+		fsSnapVolCloneID, err := d.getVolumeID(fsSnapVolClone)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return true, fmt.Errorf("Failed finding temporary FS clone for snapshot %q: %w", snapVol.name, err)
+		}
+
+		if err == nil {
+			err = client.DeleteVolume(fsSnapVolCloneID)
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return true, fmt.Errorf("Failed deleting temporary FS clone for snapshot %q: %w", snapVol.name, err)
+			}
+		}
+	}
+
+	return ourUnmount, nil
 }
 
 // encodeVolumeName derives the name of a volume resource in PowerStore from the provided volume.
