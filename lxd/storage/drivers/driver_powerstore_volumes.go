@@ -237,7 +237,119 @@ func (d *powerstore) ListVolumes() ([]Volume, error) {
 // CreateVolume creates an empty volume and can optionally fill it by executing
 // the supplied filler function.
 func (d *powerstore) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	client := d.client()
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
+	if err != nil {
+		return err
+	}
+
+	sizeBytes = d.roundVolumeBlockSizeBytes(vol, sizeBytes)
+
+	volName, err := d.encodeVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	volID, err := client.CreateVolume(volName, sizeBytes)
+	if err != nil {
+		return fmt.Errorf("Failed creating volume %q: %w", vol.name, err)
+	}
+
+	revert.Add(func() { _ = client.DeleteVolume(volID) })
+
+	if vol.contentType == ContentTypeFS {
+		devPath, cleanup, err := d.getMappedDevicePath(vol, true)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(cleanup)
+
+		volumeFilesystem := vol.ConfigBlockFilesystem()
+		_, err = makeFSType(devPath, volumeFilesystem, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	// For VMs, also create the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := d.CreateVolume(fsVol, nil, progressReporter)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { _ = d.DeleteVolume(fsVol, progressReporter) })
+	}
+
+	mountTask := func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
+		// Run the volume filler function if supplied.
+		if filler != nil && filler.Fill != nil {
+			var err error
+			var devPath string
+
+			if IsContentBlock(vol.contentType) {
+				// Get the device path.
+				devPath, err = d.GetVolumeDiskPath(vol)
+				if err != nil {
+					return err
+				}
+			}
+
+			allowUnsafeResize := false
+			if vol.volType == VolumeTypeImage {
+				// Allow filler to resize initial image volume as needed.
+				// Some storage drivers don't normally allow image volumes to be resized due to
+				// them having read-only snapshots that cannot be resized. However when creating
+				// the initial image volume and filling it before the snapshot is taken resizing
+				// can be allowed and is required in order to support unpacking images larger than
+				// the default volume size. The filler function is still expected to obey any
+				// volume size restrictions configured on the pool.
+				// Unsafe resize is also needed to disable filesystem resize safety checks.
+				// This is safe because if for some reason an error occurs the volume will be
+				// discarded rather than leaving a corrupt filesystem.
+				allowUnsafeResize = true
+			}
+
+			// Run the filler.
+			err = d.runFiller(vol, devPath, filler, allowUnsafeResize)
+			if err != nil {
+				return err
+			}
+
+			// Move the GPT alt header to end of disk if needed.
+			if vol.IsVMBlock() {
+				err = d.moveGPTAltHeader(devPath)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		if vol.contentType == ContentTypeFS {
+			// Run EnsureMountPath again after mounting and filling to ensure the mount
+			// directory has the correct permissions set.
+			err = vol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	err = vol.MountTask(mountTask, progressReporter)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
