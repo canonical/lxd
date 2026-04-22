@@ -527,7 +527,26 @@ func (d *powerstore) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, all
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *powerstore) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	// When performing a cluster member move prepare the volumes on the target side.
+	if volTargetArgs.ClusterMoveSourceName != "" {
+		err := vol.EnsureMountPath()
+		if err != nil {
+			return err
+		}
+
+		if vol.IsVMBlock() {
+			fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
+			err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, progressReporter)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, progressReporter)
+	return err
 }
 
 // UpdateVolume applies config changes to the volume.
