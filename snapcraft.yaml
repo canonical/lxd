@@ -1343,6 +1343,9 @@ parts:
     source: https://github.com/lxc/lxcfs
     source-depth: 1
     source-type: git
+    # XXX: needed for snapcraft 8.x only
+    build-environment:
+      - PATH: "/usr/bin:${PATH}" # ensure python3 is found in PATH
     build-packages:
       - libfuse3-dev
       - pkg-config
