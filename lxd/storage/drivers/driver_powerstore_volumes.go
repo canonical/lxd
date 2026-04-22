@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/storage/block"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
@@ -265,7 +267,72 @@ func (d *powerstore) UpdateVolume(vol Volume, changedConfig map[string]string) e
 
 // DeleteVolume deletes a volume of the storage device.
 func (d *powerstore) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	client := d.client()
+
+	connector, err := d.connector()
+	if err != nil {
+		return err
+	}
+
+	qn, err := connector.QualifiedName()
+	if err != nil {
+		return err
+	}
+
+	volID, err := d.getVolumeID(vol)
+	if err != nil {
+		return err
+	}
+
+	host, err := client.GetCurrentHost(connector.Type(), qn)
+	if err != nil {
+		// If the host doesn't exist, continue with the deletion of the volume and
+		// do not try to delete the volume mapping as it cannot exist.
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed retrieving current host for volume %q: %w", vol.name, err)
+		}
+	} else {
+		// If the host exists, attempt to delete the volume mapping for the deleted
+		// volume. If the mapping doesn't exist, continue with the deletion as the
+		// volume is already deleted.
+		err = client.DetachVolumeFromHost(volID, host.ID)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed detaching volume %q from host %q: %w", vol.name, host.Name, err)
+		}
+	}
+
+	err = client.DeleteVolume(volID)
+	if err != nil {
+		return fmt.Errorf("Failed deleting volume %q: %w", vol.name, err)
+	}
+
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := d.DeleteVolume(fsVol, progressReporter)
+		if err != nil {
+			return err
+		}
+	}
+
+	mountPath := vol.MountPath()
+	if vol.contentType == ContentTypeFS && shared.PathExists(mountPath) {
+		poolMountPath := GetPoolMountPath(d.name)
+		if !strings.HasPrefix(mountPath, poolMountPath+"/") {
+			return fmt.Errorf("Volume mount path %q is outside of the pool directory %q", mountPath, poolMountPath)
+		}
+
+		err := wipeDirectory(mountPath)
+		if err != nil {
+			return err
+		}
+
+		err = os.RemoveAll(mountPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed removing directory %q: %w", mountPath, err)
+		}
+	}
+
+	return nil
 }
 
 // RenameVolume is a no-op as renaming a volume does not change the name of the associated volume
