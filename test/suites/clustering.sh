@@ -3105,10 +3105,16 @@ test_clustering_image_refresh() {
 
   LXD_DIR="${LXD_REMOTE_DIR}" lxc config set core.https_address "100.64.1.104:8443"
 
-  # Add remotes
-  lxc remote add public "https://100.64.1.104:8443" --accept-certificate --public
-  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
-  lxc remote add cluster "https://100.64.1.101:8443" --token "${token}"
+  # Add image registries
+  LXD_DIR="${LXD_ONE_DIR}" lxc image registry create public --protocol=lxd url="https://100.64.1.104:8443" public=true source_project=default
+
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc auth group create img-group
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc auth group permission add img-group project default can_view
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc auth group permission add img-group project default can_view_images
+  token="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc cluster link create lxd_one --quiet --auth-group img-group)"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --token "${token}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc image registry create cluster --protocol=lxd url="https://100.64.1.101:8443" public=false cluster=lxd_two source_project=default
 
   LXD_DIR="${LXD_REMOTE_DIR}" lxc init testimage c1
 
@@ -3275,6 +3281,9 @@ test_clustering_image_refresh() {
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
 
+  LXD_DIR="${LXD_ONE_DIR}" lxc image registry delete public
+  LXD_DIR="${LXD_ONE_DIR}" lxc image registry delete cluster
+
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
@@ -3292,8 +3301,6 @@ test_clustering_image_refresh() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_REMOTE_DIR}"
-
-  lxc remote rm cluster
 
   # shellcheck disable=SC2034
   LXD_NETNS=
