@@ -3,6 +3,8 @@ package drivers
 import (
 	"errors"
 	"fmt"
+	"net"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -42,6 +44,10 @@ type powerstore struct {
 	// Holds the low level connector for the PowerStore driver.
 	// Use [powerstore.connector] to retrieve the initialized connector.
 	storageConnector connectors.Connector
+
+	// Holds the list of low level connector targets used for connecting to PowerStore.
+	// Use [powerstore.targets] to retrieve the initialized list of targets.
+	storageConnectorTargets map[string][]string
 }
 
 // load initializes the PowerStore driver.
@@ -274,6 +280,107 @@ func (d *powerstore) Delete(progressReporter ioprogress.ProgressReporter) error 
 func (d *powerstore) GetResources() (*api.ResourcesStoragePool, error) {
 	res := &api.ResourcesStoragePool{}
 	return res, nil
+}
+
+// targets return PowerStore targets as a map of qualified names and their associated addresses.
+func (d *powerstore) targets() (map[string][]string, error) {
+	if len(d.storageConnectorTargets) > 0 {
+		return d.storageConnectorTargets, nil
+	}
+
+	connector, err := d.connector()
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch discovery addresses from PowerStore for the selected connector type.
+	discoveryAddresses, err := d.client().DiscoveryAddresses(connector.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch discovery log records for each discovery address.
+	// The records contain the information about available targets.
+	var discoveryLogRecords []any
+	for _, addr := range discoveryAddresses {
+		discovered, err := connector.Discover(d.state.ShutdownCtx, addr)
+		if err != nil {
+			// Underlying connector already logs a warning.
+			continue
+		}
+
+		discoveryLogRecords = append(discoveryLogRecords, discovered...)
+	}
+
+	if len(discoveryLogRecords) == 0 {
+		return nil, errors.New("Failed fetching discovery log records for all PowerStore target addresses")
+	}
+
+	// Parse user-specified list of addresses to connect to.
+	// If not specified, all discovered addresses will be used.
+	filterAddresses := shared.SplitNTrimSpace(d.config["powerstore.target"], ",", -1, true)
+	if len(filterAddresses) > 0 {
+		// Make sure target addresses have port configured.
+		var defaultPort string
+
+		mode := connector.Type()
+		switch mode {
+		case connectors.TypeISCSI:
+			defaultPort = connectors.ISCSIDefaultPort
+		case connectors.TypeNVME:
+			defaultPort = connectors.NVMeDefaultDiscoveryPort
+		default:
+			return nil, fmt.Errorf("Unsupported PowerStore mode %q", mode)
+		}
+
+		for i := range filterAddresses {
+			filterAddresses[i] = shared.EnsurePort(filterAddresses[i], defaultPort)
+		}
+	}
+
+	// Helper function to extract address and qualified name from a discovery log record,
+	// which differs based on the connector type.
+	parseLogEntry := func(record any) (address string, qn string, err error) {
+		switch r := record.(type) {
+		case connectors.ISCSIDiscoveryLogRecord:
+			address = r.Address
+			qn = r.IQN
+		case connectors.NVMeDiscoveryLogRecord:
+			address = net.JoinHostPort(r.TransportAddress, r.TransportServiceIdentifier)
+			qn = r.SubNQN
+		default:
+			return "", "", fmt.Errorf("Unknown discovery log record entry type %T", record)
+		}
+
+		return address, qn, nil
+	}
+
+	// Parse discovered targets and filter them by user-specified addresses if needed.
+	targets := make(map[string][]string)
+	for _, record := range discoveryLogRecords {
+		address, qn, err := parseLogEntry(record)
+		if err != nil {
+			return nil, err
+		}
+
+		if slices.Contains(targets[qn], address) {
+			continue
+		}
+
+		if len(filterAddresses) > 0 && !slices.Contains(filterAddresses, address) {
+			continue
+		}
+
+		targets[qn] = append(targets[qn], address)
+	}
+
+	if len(targets) == 0 {
+		return nil, errors.New("Failed retrieving any target from the discovery addresses")
+	}
+
+	// Cache unique discovered targets for future use and return them.
+	d.storageConnectorTargets = targets
+	return d.storageConnectorTargets, nil
 }
 
 // storagePoolScopePrefix returns the prefix used to scope PowerStore resource
