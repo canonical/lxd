@@ -155,6 +155,23 @@ func (d *powerstore) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *powerstore) GetVolumeDiskPath(vol Volume) (string, error) {
+	if vol.IsSnapshot() {
+		// Snapshots cannot be attached directly. The [powerstore.MountVolumeSnapshot]
+		// maps a temporary clone, therefore, search for the device path of a snapshot
+		// clone.
+		cloneVol, err := d.newMountableSnapshotVolume(vol)
+		if err != nil {
+			return "", err
+		}
+
+		vol = cloneVol
+	}
+
+	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && IsContentBlock(vol.contentType)) {
+		devPath, _, err := d.getMappedDevicePath(vol, false)
+		return devPath, err
+	}
+
 	return "", ErrNotSupported
 }
 
