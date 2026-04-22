@@ -39,6 +39,7 @@ jobs:
       - name: Trigger Launchpad snap build
         run: |
           set -eux
+          export PATH="/home/runner/go/bin:$PATH"
           localRev="$(git rev-parse HEAD)"
           # XXX: `ver` contains an array with the 2 versions
           ver=($(lxd-snapcraft -package "${PACKAGE}" -get-version -file ~/"${PACKAGE}-pkg-snap-lp/snapcraft.yaml"))
