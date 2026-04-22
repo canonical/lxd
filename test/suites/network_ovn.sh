@@ -6,10 +6,6 @@ test_network_ovn() {
 
   ensure_import_testimage
 
-  if [ "${LXD_VM_TESTS}" != "0" ]; then
-    ensure_import_ubuntu_vm_image
-  fi
-
   # Create an associative array holding table names and the expected number of rows for that table.
   declare -A tables
 
@@ -153,19 +149,35 @@ test_network_ovn() {
   [ "$(lxc exec c3 -- cat /sys/class/net/eth0/mtu)" = "8942" ]
 
   if [ "${LXD_VM_TESTS}" != "0" ]; then
+    ensure_import_ubuntu_vm_image
+
+    local pool orig_volume_size
+    pool="lxdtest-$(basename "${LXD_DIR}")"
+    orig_volume_size="$(lxc storage get "${pool}" volume.size)"
+    if [ -n "${orig_volume_size:-}" ]; then
+      echo "==> Override the volume.size to accommodate a large VM"
+      lxc storage set "${pool}" volume.size "${SMALLEST_VM_ROOT_DISK}"
+    fi
+
     lxc launch ubuntu-vm v1 --vm --config limits.memory=384MiB --device "${SMALL_VM_ROOT_DISK}" -n "${ovn_network}"
     v1Eth0Hostname="$(lxc config get v1 volatile.eth0.host_name)"
     [ "$(< "/sys/class/net/${v1Eth0Hostname}/mtu")" = "1500" ]
     waitInstanceReady v1
     [ "$(lxc exec v1 -- cat /sys/class/net/enp5s0/mtu)" = "1442" ]
+    lxc stop --force v1
+
+    lxc config device set v1 eth0 network "${ovn_network}_jumbo"
+    lxc start v1
+    v1Eth0Hostname="$(lxc config get v1 volatile.eth0.host_name)"
+    [ "$(< "/sys/class/net/${v1Eth0Hostname}/mtu")" = "8942" ]
+    waitInstanceReady v1
+    [ "$(lxc exec v1 -- cat /sys/class/net/enp5s0/mtu)" = "8942" ]
     lxc delete --force v1
 
-    lxc launch ubuntu-vm v2 --vm --config limits.memory=384MiB --device "${SMALL_VM_ROOT_DISK}" -n "${ovn_network}_jumbo"
-    v2Eth0Hostname="$(lxc config get v2 volatile.eth0.host_name)"
-    [ "$(< "/sys/class/net/${v2Eth0Hostname}/mtu")" = "8942" ]
-    waitInstanceReady v2
-    [ "$(lxc exec v2 -- cat /sys/class/net/enp5s0/mtu)" = "8942" ]
-    lxc delete --force v2
+    if [ -n "${orig_volume_size:-}" ]; then
+      echo "==> Restore the volume.size"
+      lxc storage set "${pool}" volume.size "${orig_volume_size}"
+    fi
   fi
 
   echo "Clean up instances."
