@@ -1,8 +1,12 @@
 package drivers
 
 import (
+	"fmt"
 	"io"
 	"strconv"
+	"strings"
+
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
@@ -17,6 +21,29 @@ const (
 	powerStoreVolMinSize int64 = 1024 * 1024                     // 1 MiB in bytes.
 	powerStoreVolMaxSize int64 = 256 * 1024 * 1024 * 1024 * 1024 // 256 TiB in bytes.
 )
+
+const (
+	powerStoreVolPrefixSep            = "_" // Volume name prefix separator.
+	powerStoreVolSuffixSep            = "." // Volume name suffix separator.
+	powerStoreMountableSnapshotPrefix = "s" // Volume type prefix for mountable (temporary) snapshot clones.
+)
+
+// powerStoreVolTypePrefixes maps volume type to storage volume name prefix.
+var powerStoreVolTypePrefixes = map[VolumeType]string{
+	VolumeTypeContainer: "c",
+	VolumeTypeVM:        "v",
+	VolumeTypeImage:     "i",
+	VolumeTypeCustom:    "u",
+}
+
+// powerStoreVolContentTypeSuffixes maps volume's content type to storage volume name suffix.
+var powerStoreVolContentTypeSuffixes = map[ContentType]string{
+	// Suffix used for block content type volumes.
+	ContentTypeBlock: "b",
+
+	// Suffix used for ISO content type volumes.
+	ContentTypeISO: "i",
+}
 
 // commonVolumeRules returns validation rules which are common for pool and volume.
 func (d *powerstore) commonVolumeRules() map[string]func(value string) error {
@@ -251,6 +278,92 @@ func (d *powerstore) MountVolumeSnapshot(snapVol Volume, progressReporter ioprog
 // UnmountVolumeSnapshot unmounts the volume snapshot.
 func (d *powerstore) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) (bool, error) {
 	return false, ErrNotSupported
+}
+
+// encodeVolumeName derives the name of a volume resource in PowerStore from the provided volume.
+func (d *powerstore) encodeVolumeName(vol Volume) (string, error) {
+	volUUID, err := uuid.Parse(vol.config["volatile.uuid"])
+	if err != nil {
+		return "", fmt.Errorf(`Failed parsing "volatile.uuid" from volume %q: %w`, vol.name, err)
+	}
+
+	volName := volUUID.String()
+
+	// Search for the volume type prefix, and if found, prepend it to the volume name.
+	prefix := powerStoreVolTypePrefixes[vol.volType]
+	if prefix != "" {
+		// Mountable (temporary) snapshot clones have a distinct prefix. The clone
+		// name is always exactly the mountable snapshot prefix followed by the
+		// snapshot UUID. Retain prefix as it allows to distinguishing mountable
+		// snapshot clones from regular volumes.
+		if vol.name == powerStoreMountableSnapshotPrefix+volUUID.String() {
+			prefix = powerStoreMountableSnapshotPrefix + prefix
+		}
+
+		volName = prefix + powerStoreVolPrefixSep + volName
+	}
+
+	// Search for the content type suffix, and if found, append it to the volume name.
+	suffix := powerStoreVolContentTypeSuffixes[vol.contentType]
+	if suffix != "" {
+		volName = volName + powerStoreVolSuffixSep + suffix
+	}
+
+	return d.storagePoolScopePrefix(vol.pool) + volName, nil
+}
+
+// decodeVolumeName decodes the PowerStore volume resource name and extracts the stored data.
+func (d *powerstore) decodeVolumeName(name string) (volType VolumeType, volUUID uuid.UUID, volContentType ContentType, isMountableSnapshot bool, err error) {
+	// Remove common resource prefix.
+	poolAndVolName, ok := strings.CutPrefix(name, powerStoreResourcePrefix)
+	if !ok {
+		return "", uuid.Nil, "", false, fmt.Errorf("Failed decoding volume name %q: Missing LXD prefix", name)
+	}
+
+	// Remove storage pool prefix.
+	poolName, volName, ok := strings.Cut(poolAndVolName, "-")
+	if !ok || poolName == "" || volName == "" {
+		return "", uuid.Nil, "", false, fmt.Errorf("Failed decoding volume name %q: Invalid name format", name)
+	}
+
+	// Volume prefix represents volume type.
+	volPrefix, volNameWithoutPrefix, ok := strings.Cut(volName, powerStoreVolPrefixSep)
+	if ok {
+		volName = volNameWithoutPrefix
+
+		// Mountable (temporary) snapshot clones have an additional prefix which must
+		// be stripped before lookup.
+		volPrefix, ok := strings.CutPrefix(volPrefix, powerStoreMountableSnapshotPrefix)
+		if ok {
+			isMountableSnapshot = true
+		}
+
+		for k, v := range powerStoreVolTypePrefixes {
+			if v == volPrefix {
+				volType = k
+				break
+			}
+		}
+	}
+
+	// Volume suffix represents content type.
+	volName, volSuffix, ok := strings.Cut(volName, powerStoreVolSuffixSep)
+	if ok {
+		for k, v := range powerStoreVolContentTypeSuffixes {
+			if v == volSuffix {
+				volContentType = k
+				break
+			}
+		}
+	}
+
+	// The remaining string should be the UUID.
+	volUUID, err = uuid.Parse(volName)
+	if err != nil {
+		return "", uuid.Nil, "", false, fmt.Errorf("Failed decoding volume name %q: %w", name, err)
+	}
+
+	return volType, volUUID, volContentType, isMountableSnapshot, nil
 }
 
 // roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
