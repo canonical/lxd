@@ -375,7 +375,15 @@ func (d *powerstore) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWrite
 
 // UpdateVolume applies config changes to the volume.
 func (d *powerstore) UpdateVolume(vol Volume, changedConfig map[string]string) error {
-	return ErrNotSupported
+	newSize, sizeChanged := changedConfig["size"]
+	if sizeChanged {
+		err := d.SetVolumeQuota(vol, newSize, false, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // DeleteVolume deletes a volume of the storage device.
