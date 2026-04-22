@@ -464,7 +464,7 @@ func (d *powerstore) RenameVolume(vol Volume, newVolName string, progressReporte
 
 // BackupVolume creates an exported version of a volume.
 func (d *powerstore) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, progressReporter)
 }
 
 // MigrateVolume sends a volume for migration.
