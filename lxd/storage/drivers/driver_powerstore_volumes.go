@@ -243,7 +243,7 @@ func (d *powerstore) SetVolumeQuota(vol Volume, size string, allowUnsafeResize b
 
 // MountVolume mounts a volume and increments ref counter.
 func (d *powerstore) MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	return mountVolume(d, vol, d.getMappedDevicePath, progressReporter)
 }
 
 // UnmountVolume simulates unmounting a volume.
@@ -251,7 +251,7 @@ func (d *powerstore) MountVolume(vol Volume, progressReporter ioprogress.Progres
 // keepBlockDev indicates whether the backing block device should be kept mapped to the
 // host if the volume is unmounted.
 func (d *powerstore) UnmountVolume(vol Volume, keepBlockDev bool, progressReporter ioprogress.ProgressReporter) (bool, error) {
-	return false, ErrNotSupported
+	return unmountVolume(d, vol, keepBlockDev, d.getMappedDevicePath, d.unmapVolume, progressReporter)
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
