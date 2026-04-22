@@ -1352,7 +1352,7 @@ func (d *disk) postStart() error {
 	return nil
 }
 
-// Update applies configuration changes to a started device.
+// Update applies configuration changes to a device.
 func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	if filters.IsRootDisk(d.config) {
 		// Make sure we have a valid root disk device (and only one).

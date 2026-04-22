@@ -166,7 +166,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// Update applies configuration changes to a started device.
+// Update applies configuration changes to a device.
 func (d *nicP2P) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	if !isRunning {
 		return nil

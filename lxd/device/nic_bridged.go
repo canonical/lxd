@@ -695,7 +695,7 @@ func (d *nicBridged) postStart() error {
 	return nil
 }
 
-// Update applies configuration changes to a started device.
+// Update applies configuration changes to a device.
 func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	oldConfig := oldDevices[d.name]
 	v := d.volatileGet()

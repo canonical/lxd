@@ -846,7 +846,7 @@ func (d *nicOVN) postStart() error {
 	return nil
 }
 
-// Update applies configuration changes to a started device.
+// Update applies configuration changes to a device.
 // The underlying switch port gets removed and re-added.
 func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	oldConfig := oldDevices[d.name]
