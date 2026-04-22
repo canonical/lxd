@@ -366,6 +366,44 @@ func (d *powerstore) decodeVolumeName(name string) (volType VolumeType, volUUID 
 	return volType, volUUID, volContentType, isMountableSnapshot, nil
 }
 
+// getVolumeID returns the PowerStore ID for the given LXD volume or snapshot.
+// For snapshots, it resolves the parent volume first and then fetches the snapshot by name.
+func (d *powerstore) getVolumeID(vol Volume) (string, error) {
+	client := d.client()
+
+	volName, err := d.encodeVolumeName(vol)
+	if err != nil {
+		return "", err
+	}
+
+	if vol.IsSnapshot() {
+		parentVol := vol.GetParent()
+		parentVolName, err := d.encodeVolumeName(parentVol)
+		if err != nil {
+			return "", err
+		}
+
+		parentVolID, err := client.GetVolumeID(parentVolName)
+		if err != nil {
+			return "", fmt.Errorf("Failed resolving ID for snapshot parent volume %q: %w", parentVol.name, err)
+		}
+
+		snapshotID, err := client.GetVolumeSnapshotID(parentVolID, volName)
+		if err != nil {
+			return "", fmt.Errorf("Failed resolving ID for snapshot %q: %w", vol.name, err)
+		}
+
+		return snapshotID, nil
+	}
+
+	volID, err := client.GetVolumeID(volName)
+	if err != nil {
+		return "", fmt.Errorf("Failed resolving ID for volume %q: %w", vol.name, err)
+	}
+
+	return volID, nil
+}
+
 // roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
 // multiple of 1 MiB, which is the minimum volume size on PowerStore.
 func (d *powerstore) roundVolumeBlockSizeBytes(_ Volume, sizeBytes int64) int64 {
