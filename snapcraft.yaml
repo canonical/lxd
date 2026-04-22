@@ -881,6 +881,8 @@ parts:
     source-type: git
     plugin: autotools
     autotools-configure-parameters:
+      # XXX: needed for snapcraft 8.x only
+      - --python=/usr/bin/python3  # Force the use of the build host's Python
       - --disable-auth-pam
       - --disable-bochs
       - --disable-brlapi
