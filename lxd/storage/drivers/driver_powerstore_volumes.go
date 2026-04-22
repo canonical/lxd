@@ -361,7 +361,7 @@ func (d *powerstore) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Inf
 
 // CreateVolumeFromImage creates a new volume from an image, unpacking it directly.
 func (d *powerstore) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	return createVolumeFromImage(vol, imgVol, filler, progressReporter)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
