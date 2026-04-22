@@ -23,7 +23,7 @@ export LXD_DIR="${LXD_DIR:-"${SNAP_COMMON}/lxd/"}"
 
 # Set up ZFS userspace tools matching the loaded kernel module
 # shellcheck source=snapcraft/commands/setup-zfs
-. "${SNAP}/commands/setup-zfs" >/dev/null
+. "${SNAP}/commands/setup-zfs" >/dev/null 2>&1
 
 LXD="lxd"
 if [ -x "${SNAP_COMMON}/lxd.debug" ]; then
