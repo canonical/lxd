@@ -166,3 +166,8 @@ lxc auth identity show tls/<cluster-link-name>
 ```
 
 The output shows the identity of your cluster link, with the type `Cluster link certificate`.
+
+## Next steps
+
+- {ref}`howto-replicators-setup` — set up replicators to sync instances across this link for active-passive disaster recovery.
+- {ref}`howto-cluster-links-manage` — view, configure, and delete existing cluster links.
