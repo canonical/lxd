@@ -904,6 +904,22 @@ func (c *PowerStoreClient) RefreshVolume(srcVolumeOrSnapshotID string, dstVolume
 	return nil
 }
 
+// RestoreVolume restores the volume from its snapshot.
+func (c *PowerStoreClient) RestoreVolume(volumeID string, snapshotID string) error {
+	req := map[string]any{
+		"from_snap_id":       snapshotID,
+		"create_backup_snap": false,
+	}
+
+	url := api.NewURL().Path("api", "rest", "volume", volumeID, "restore")
+	err := c.requestAuthenticated(http.MethodPost, url.URL, req, nil, nil)
+	if err != nil {
+		return fmt.Errorf("Failed restoring PowerStore volume: %w", err)
+	}
+
+	return nil
+}
+
 // powerStoreConnectorToPortType converts connector type to PowerStore port type used in initiators.
 func powerStoreConnectorToPortType(connectorType string) (string, error) {
 	switch connectorType {
