@@ -1,9 +1,17 @@
+---
+myst:
+  html_meta:
+    description: An index of how-to guides for LXD images, including using remote images, managing local images, and copying, importing, or creating images.
+---
+
 (images)=
 # Images
 
-The following how-to guides cover common operations related to images.
+These how-to guides cover common operations related to LXD images.
 
-How to work with existing images:
+## Work with existing images
+
+Images are used to create instances. Pre-configured images can be downloaded from remote servers and managed locally, including configuring profiles to use specific images.
 
 ```{toctree}
 :titlesonly:
@@ -13,7 +21,9 @@ Manage images </howto/images_manage>
 Associate profiles </howto/images_profiles>
 ```
 
-How to import and create images:
+## Import and create images
+
+Images can be copied or imported from other servers or files. They can also be created from scratch, or from existing instances or snapshots.
 
 ```{toctree}
 :titlesonly:

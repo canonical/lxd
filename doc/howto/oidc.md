@@ -1,9 +1,13 @@
+---
+myst:
+  html_meta:
+    description: An index of how-to guides for LXD single sign-on (SSO) with OpenID Connect (OIDC), including Auth0, Ory Hydra, Keycloak, Entra ID, and Pocket ID.
+---
+
 (howto-oidc)=
-# How to configure single sign-on with OIDC
+# Configure single sign-on with OIDC
 
-[OpenID Connect (OIDC)](https://openid.net/developers/how-connect-works/) is an interoperable authentication protocol based on the OAuth 2.0 framework. It allows applications to verify user identities and obtain basic user profile information from an external, trusted identity provider.
-
-LXD uses OIDC to authenticate users to the web UI and the CLI without needing to store a local password. In both cases, LXD redirects the user to the configured identity provider's login page via the browser. Upon successful authentication, the UI or CLI client receives a secure token from the identity provider that validates the session. For more information, see: {ref}`authentication-openid`.
+LXD uses [OpenID Connect (OIDC)](https://openid.net/developers/how-connect-works/) to authenticate users to the web UI and the CLI without storing local passwords. Instead, users are redirected to an external identity provider's login page. For details about this process, refer to {ref}`authentication-openid`.
 
 The following how-to guides provide detailed instructions for the SSO-based identity providers supported by LXD:
 
@@ -11,11 +15,11 @@ The following how-to guides provide detailed instructions for the SSO-based iden
 :titlesonly:
 :maxdepth: 1
 
-How to configure Auth0 </howto/oidc_auth0>
-How to configure Ory Hydra </howto/oidc_ory>
-How to configure Keycloak </howto/oidc_keycloak>
-How to configure Entra ID </howto/oidc_entra_id>
-How to configure Pocket ID </howto/oidc_pocket_id>
+Configure Auth0 </howto/oidc_auth0>
+Configure Ory Hydra </howto/oidc_ory>
+Configure Keycloak </howto/oidc_keycloak>
+Configure Entra ID </howto/oidc_entra_id>
+Configure Pocket ID </howto/oidc_pocket_id>
 ```
 
 ## Related topics

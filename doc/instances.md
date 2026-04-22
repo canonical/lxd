@@ -1,13 +1,18 @@
 ---
 relatedlinks: "[How&#32;to&#32;install&#32;a&#32;Windows&#32;11&#32;VM&#32;using&#32;LXD](https://ubuntu.com/tutorials/how-to-install-a-windows-11-vm-using-lxd)"
+myst:
+  html_meta:
+    description: An index of how-to guides for LXD instances, including creating, configuring, and managing instances, backup, migration, and GPU passthrough.
 ---
 
 (instances)=
 # Instances
 
-The following how-to guides cover common operations related to instances.
+These how-to guides cover common operations related to LXD instances.
 
-How to create and manage instances:
+## Create and manage instances
+
+LXD supports both system containers and virtual machines, configured using direct settings or reusable profiles.
 
 ```{toctree}
 :titlesonly:
@@ -17,10 +22,21 @@ Configure instances </howto/instances_configure.md>
 Manage instances </howto/instances_manage.md>
 Use profiles </profiles.md>
 Troubleshoot errors </howto/instances_troubleshoot.md>
+```
+
+## Attach instances to Ubuntu Pro
+
+An LXD server can automatically attach guest instances to its Ubuntu Pro subscription.
+
+```{toctree}
+:titlesonly:
+
 Auto attach Ubuntu Pro </howto/instances_ubuntu_pro_attach.md>
 ```
 
-How to work with instances:
+## Work with instances
+
+Instance files can be accessed from the host, and the instance console can be attached to for log output and debugging. Commands can also be run inside instances through the `lxc` CLI or by opening a shell.
 
 ```{toctree}
 :titlesonly:
@@ -32,24 +48,21 @@ Use cloud-init </cloud-init>
 Add a routed NIC to a VM </howto/instances_routed_nic_vm.md>
 ```
 
-How to export and move instances:
+## Back up, import, and migrate instances
+
+Instances can be backed up using snapshots, export files, or copies. Physical machines, as well as virtual machines and containers created using a different technology, can be imported as LXD instances. Instances can also be migrated between LXD servers, including live migration for VMs.
 
 ```{toctree}
 :titlesonly:
 
 Back up instances </howto/instances_backup.md>
+Import existing machines </howto/import_machines_to_instances>
 Migrate instances </howto/instances_migrate>
 ```
 
-How to import instances:
+## Pass through an NVIDIA GPU
 
-```{toctree}
-:titlesonly:
-
-Import existing machines </howto/import_machines_to_instances>
-```
-
-How to pass an NVIDIA GPU to a container with a Docker workload:
+An NVIDIA GPU can be passed through to a container running a Docker workload.
 
 ```{toctree}
 :titlesonly:

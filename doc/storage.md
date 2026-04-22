@@ -1,13 +1,18 @@
 ---
 discourse: lxc:[Share&#32;folders&#32;and&#32;volumes&#32;between&#32;host&#32;and&#32;containers](7735)
+myst:
+  html_meta:
+    description: An index of how-to guides for LXD storage operations, including managing pools, volumes, and buckets, and using storage with Kubernetes.
 ---
 
 (storage)=
 # Storage
 
-The following how-to guides cover common operations related to storage.
+These how-to guides cover common operations related to storage in LXD.
 
-How to create, manage, and use storage:
+## Create and manage storage
+
+LXD storage pools contain instance volumes and custom volumes, as well as buckets accessible via the S3 protocol.
 
 ```{toctree}
 :titlesonly:
@@ -15,23 +20,25 @@ How to create, manage, and use storage:
 Manage pools </howto/storage_pools>
 Manage volumes </howto/storage_volumes>
 Manage buckets </howto/storage_buckets>
-Create an instance in a pool </howto/storage_create_instance>
 ```
 
-How to export and move custom storage volumes:
+## Extend storage use
+
+Instance volumes can be created directly in a specific storage pool. Custom volumes can also be moved, copied, and backed up.
 
 ```{toctree}
 :titlesonly:
-
-Back up a volume </howto/storage_backup_volume>
-Move or copy a volume </howto/storage_move_volume>
+Create or move an instance in a pool </howto/storage_create_instance>
+Back up a custom volume </howto/storage_backup_volume>
+Move or copy a custom volume </howto/storage_move_volume>
 ```
 
-How to integrate LXD storage backends with Kubernetes:
+## Use storage with Kubernetes
+
+The LXD CSI driver integrates LXD storage backends with Kubernetes.
 
 ```{toctree}
 :titlesonly:
-
 Use the LXD CSI driver with Kubernetes </howto/storage_csi>
 ```
 

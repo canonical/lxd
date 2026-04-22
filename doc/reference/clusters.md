@@ -1,17 +1,17 @@
 ---
 myst:
   html_meta:
-    description: Reference for LXD cluster configuration, including members and cluster links.
+    description: An index of reference information for LXD clusters, covering cluster member and cluster link configuration options.
 ---
 
 (ref-clusters)=
 # Clusters
 
-Cluster configuration includes multiple categories:
+These reference guides cover LXD configuration settings for cluster members and cluster links. For server-level cluster configuration options, refer to {ref}`server`.
 
 ## Cluster member configuration
 
-Each cluster member has its own configuration.
+Member configuration includes custom user keys and instance scheduler information.
 
 ```{toctree}
 :titlesonly:
@@ -20,16 +20,12 @@ cluster_member_config
 
 ## Cluster link configuration
 
-Each cluster link has its own configuration.
+Link configuration includes custom user keys and cluster link member addresses.
 
 ```{toctree}
 :titlesonly:
 cluster_link_config
 ```
-
-## Additional information
-
-Server configuration: The server configuration is shared by all cluster members. See {ref}`server` for available server configuration options, including the {ref}`server-level cluster configuration options <server-options-cluster>`.
 
 ## Related topics
 

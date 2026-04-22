@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: An index of reference guides for LXD, including configuration settings, REST API documentation, production setup, permissions, and internal details.
+---
+
 (reference)=
 # Reference
 
@@ -6,32 +12,51 @@ The reference material in this section provides technical descriptions of LXD.
 (reference-general)=
 ## General information
 
-Before you start using LXD, you should check the system requirements.
-You should also be aware of the supported architectures, its release types and snap information, the available image servers, the format for images, and the environment used for containers.
+These guides include compatibility information for operating systems running in instances, and man pages for the `lxc` CLI.
 
 ```{toctree}
 :titlesonly:
-:maxdepth: 2
+:maxdepth: 1
 
 /requirements
 /architectures
-/reference/release-notes/index
-/reference/releases-snap
-/reference/remote_image_servers
-/reference/image_format
 /guest-os-compatibility
 Container environment </container-environment>
+/reference/manpages
+```
+
+## Releases
+
+Release notes and details about the LXD release cadence and its snap.
+
+```{toctree}
+:titlesonly:
+:maxdepth: 1
+
+/reference/release-notes/index
+/reference/releases-snap
+```
+
+## Images
+
+Reference information for remote image servers and the LXD image format.
+
+```{toctree}
+:titlesonly:
+:maxdepth: 1
+
+/reference/remote_image_servers
+/reference/image_format
 ```
 
 (reference-config)=
 ## Configuration options
 
-LXD is highly configurable.
-Check the available configuration options for the LXD server and the different entities used in LXD.
+LXD is highly configurable, with options available for major entities as well as permissions for access control.
 
 ```{toctree}
 :titlesonly:
-:maxdepth: 2
+:maxdepth: 1
 :includehidden:
 
 Configuration option index </config-options>
@@ -44,80 +69,43 @@ Configuration option index </config-options>
 /reference/placement_groups
 /reference/clusters
 /reference/replicator_config
+/reference/permissions
 ```
 
 (reference-production)=
 ## Production setup
 
-Once you are ready for production, make sure your LXD server is configured to support the required load.
-You should also regularly {ref}`monitor the server metrics <metrics>`.
+The LXD server can be optimized for production workloads and can monitor server metrics.
 
 ```{toctree}
 :titlesonly:
-:maxdepth: 2
+:maxdepth: 1
 
 Production server settings </reference/server_settings>
 /reference/provided_metrics
 ```
 
-## Fine-grained permissions
+(reference-api)=
+## API and integrations
 
-If you are managing user access via {ref}`fine-grained-authorization`, check which {ref}`permissions <permissions>` can be assigned to groups.
+LXD exposes a REST API for managing all resources. The LXD CSI driver integrates LXD storage backends with Kubernetes.
 
 ```{toctree}
 :titlesonly:
 :maxdepth: 1
-
-/reference/permissions
-```
-
-(reference-api)=
-## REST API
-
-All communication between LXD and its clients happens using a RESTful API over HTTP.
-Check the list of API extensions to see if a feature is available in your version of the API.
-
-```{toctree}
-:titlesonly:
-:maxdepth: 2
 
 /restapi_landing
-```
-
-(reference-csi)=
-## The LXD CSI driver reference
-
-Find reference information about the LXD Container Storage Interface (CSI) driver, used to integrate LXD storage backends with Kubernetes.
-
-```{toctree}
-:titlesonly:
-:maxdepth: 1
-
 /reference/driver_csi
 ```
 
-(reference-manpages)=
-## Man pages
-
-`lxc` is the command line client for LXD.
-Its usage is documented in the help pages for the `lxc` commands and subcommands.
-
-```{toctree}
-:titlesonly:
-:maxdepth: 2
-
-/reference/manpages
-```
-
 (reference-internal)=
-## Implementation details
+## Internal implementation details
 
-You don't need to be aware of the internal implementation details to use LXD.
-However, advanced users might be interested in knowing what happens internally.
+These guides are primarily of interest to advanced users, contributors, and developers.
 
 ```{toctree}
 :titlesonly:
-:maxdepth: 2
+:maxdepth: 1
 
 /internals
 ```

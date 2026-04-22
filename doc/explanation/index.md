@@ -1,12 +1,18 @@
+---
+myst:
+  html_meta:
+    description: An index of explanatory guides for LXD, covering instance types, storage, networking, access management, clustering, and production setup.
+---
+
 (explanation)=
 # Explanation
 
-The explanatory guides in this section introduce you to the concepts used in LXD and help you understand how things fit together.
+The explanatory guides in this section discuss the concepts used in LXD and help you understand how things fit together.
 
 (explanation-concepts)=
 ## Important concepts
 
-Before you start working with LXD, you need to be familiar with some important concepts about LXD and the instance types it provides.
+LXD's core concepts include its relationship with LXC and the instance types it supports: system containers and virtual machines.
 
 ```{toctree}
 :titlesonly:
@@ -18,8 +24,7 @@ Before you start working with LXD, you need to be familiar with some important c
 (explanation-entities)=
 ## Entities in LXD
 
-When working with LXD, you should have a basic understanding of the different entities that are used in LXD.
-See the {ref}`howtos` for instructions on how to work with these entities, and the following guides to understand the concepts behind them.
+LXD uses several distinct entity types, including images, storage pools, networks, and projects. To learn how to use them, refer to the {ref}`howtos`.
 
 ```{toctree}
 :titlesonly:
@@ -34,9 +39,7 @@ See the {ref}`howtos` for instructions on how to work with these entities, and t
 (explanation-iam)=
 ## Access management
 
-In LXD, access to the API is controlled through TLS or OpenID Connect authentication.
-When using OpenID Connect, you can grant permissions to access specific entities to different clients.
-You can also restrict access to LXD entities by confining them to specific projects.
+LXD supports multiple methods for authenticating remote API clients and provides fine-grained authorization controls. Projects can also be used to scope and restrict access.
 
 ```{toctree}
 :titlesonly:
@@ -49,7 +52,7 @@ You can also restrict access to LXD entities by confining them to specific proje
 (explanation-production)=
 ## Production setup
 
-When you're ready to move your LXD setup to production, you should read up on the concepts that are important for providing a scalable, reliable, and secure environment.
+For scalable, reliable, and secure LXD deployments, these guides help you understand the key concepts around clustering, performance tuning, and security.
 
 ```{toctree}
 :titlesonly:
