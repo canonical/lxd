@@ -58,6 +58,15 @@ func (d *powerstore) load() error {
 // connector retrieves an initialized storage connector based on the configured
 // PowerStore mode. The connector is cached in the driver struct.
 func (d *powerstore) connector() (connectors.Connector, error) {
+	if d.storageConnector == nil {
+		connector, err := connectors.NewConnector(d.config["powerstore.mode"], d.state.OS.ServerUUID)
+		if err != nil {
+			return nil, err
+		}
+
+		d.storageConnector = connector
+	}
+
 	return d.storageConnector, nil
 }
 
