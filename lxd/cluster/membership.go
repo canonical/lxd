@@ -935,13 +935,19 @@ func rolesAdjust(roles *app.RolesChanges, leaderID uint64, nodes []db.RaftNode, 
 			candidates = filterPromotionCandidates(candidates, memberRoles)
 		}
 
-		if len(candidates) == 0 {
+		if len(candidates) > 0 {
+			domains := roles.FailureDomains(onlineStandBys)
+			roles.SortCandidates(candidates, domains)
+			return client.StandBy, candidates, false
+		}
+
+		if !controlPlaneActive {
 			return -1, nil, false
 		}
 
-		domains := roles.FailureDomains(onlineStandBys)
-		roles.SortCandidates(candidates, domains)
-		return client.StandBy, candidates, false
+		// When control-plane is active and no eligible control-plane spares exist,
+		// fall through to Phase 2, which demotes non-control-plane standbys that
+		// should not hold database roles.
 	}
 
 	// Demote extra online standbys.
