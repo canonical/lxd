@@ -469,7 +469,12 @@ func (d *powerstore) BackupVolume(vol VolumeCopy, projectName string, tarWriter 
 
 // MigrateVolume sends a volume for migration.
 func (d *powerstore) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	// When performing a cluster member move don't do anything on the source member.
+	if volSrcArgs.ClusterMove {
+		return nil
+	}
+
+	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, progressReporter)
 }
 
 // RestoreVolume restores a volume from a snapshot.
