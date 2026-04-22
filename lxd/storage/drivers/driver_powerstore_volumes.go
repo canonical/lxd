@@ -182,7 +182,17 @@ func (d *powerstore) GetVolumeUsage(vol Volume) (int64, error) {
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
 func (d *powerstore) HasVolume(vol Volume) (bool, error) {
-	return false, nil
+	// Retrieve ID of the remote volume. If it succeeds, the volume exists.
+	_, err := d.getVolumeID(vol)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
 }
 
 // ListVolumes returns a list of LXD volumes in storage pool.
