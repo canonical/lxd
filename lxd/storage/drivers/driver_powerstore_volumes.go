@@ -366,7 +366,163 @@ func (d *powerstore) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *V
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
 func (d *powerstore) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error {
-	return ErrNotSupported
+	client := d.client()
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Function to run once the volume is created, which will ensure appropriate permissions
+	// on the mount path inside the volume, and resize the volume to specified size.
+	postCreateTasks := func(v Volume) error {
+		if vol.contentType == ContentTypeFS {
+			// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
+			mountTask := func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
+				return v.EnsureMountPath()
+			}
+
+			err := v.MountTask(mountTask, progressReporter)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Resize volume to the size specified.
+		err := d.SetVolumeQuota(v, vol.config["size"], false, progressReporter)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// For VMs, also copy the filesystem volume.
+	if vol.IsVMBlock() {
+		// Ensure that the volume's snapshots are also replaced with their filesystem counterpart.
+		fsVolSnapshots := make([]Volume, 0, len(vol.Snapshots))
+		for _, snapshot := range vol.Snapshots {
+			fsVolSnapshots = append(fsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
+		}
+
+		srcFsVolSnapshots := make([]Volume, 0, len(srcVol.Snapshots))
+		for _, snapshot := range srcVol.Snapshots {
+			srcFsVolSnapshots = append(srcFsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
+		}
+
+		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
+		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcFsVolSnapshots...)
+
+		// Ensure parent UUID is retained for the filesystem volumes.
+		fsVol.SetParentUUID(vol.parentUUID)
+		srcFSVol.SetParentUUID(srcVol.parentUUID)
+
+		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, progressReporter)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { _ = d.DeleteVolume(fsVol.Volume, progressReporter) })
+	}
+
+	volID := ""
+	volName, err := d.encodeVolumeName(vol.Volume)
+	if err != nil {
+		return err
+	}
+
+	srcVolID, err := d.getVolumeID(srcVol.Volume)
+	if err != nil {
+		return err
+	}
+
+	// Since snapshots are first copied into destination volume from which a new snapshot is created,
+	// we need to also remove the destination volume if an error occurs during copying of snapshots.
+	deleteVolCopy := true
+
+	// Copy volume snapshots.
+	// PowerStore does copy snapshots along with the volume. Therefore, we copy the snapshots
+	// sequentially once the volume was copied. Each snapshot is first copied into destination
+	// volume from which a new snapshot is created. The process is repeated until all snapshots
+	// are copied.
+	if !srcVol.IsSnapshot() {
+		for _, snapshot := range vol.Snapshots {
+			_, snapshotShortName, _ := api.GetParentAndSnapshotName(snapshot.name)
+
+			// Find the corresponding source snapshot.
+			var srcSnapshot *Volume
+			for _, srcSnap := range srcVol.Snapshots {
+				_, srcSnapshotShortName, _ := api.GetParentAndSnapshotName(srcSnap.name)
+				if snapshotShortName == srcSnapshotShortName {
+					srcSnapshot = &srcSnap
+					break
+				}
+			}
+
+			if srcSnapshot == nil {
+				return fmt.Errorf("Failed copying snapshot %q: Source snapshot does not exist", snapshotShortName)
+			}
+
+			srcSnapshotID, err := d.getVolumeID(*srcSnapshot)
+			if err != nil {
+				return err
+			}
+
+			// Copy the snapshot.
+			if volID == "" {
+				// If this is a first snapshot, we need to clone it as the
+				// destination volume does not exist yet.
+				volID, err = client.CloneVolume(srcSnapshotID, volName)
+
+				// Volume is created, make sure to remove it in case the operation
+				// fails.
+				revert.Add(func() { _ = d.DeleteVolume(vol.Volume, progressReporter) })
+				deleteVolCopy = false
+			} else {
+				// Otherwise, overwrite the destination volume.
+				err = client.RefreshVolume(srcSnapshotID, volID)
+			}
+
+			if err != nil {
+				return fmt.Errorf("Failed copying snapshot %q into volume %q: %w", snapshot.name, vol.name, err)
+			}
+
+			// Set snapshot's parent UUID and retain source snapshot UUID.
+			snapshot.SetParentUUID(vol.config["volatile.uuid"])
+
+			// Create snapshot from a new volume (that was created from the source snapshot).
+			// However, do not create VM's filesystem volume snapshot, as filesystem volume is
+			// copied before block volume.
+			err = d.createVolumeSnapshot(snapshot, false, progressReporter)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Finally, copy the source volume (or snapshot) into destination volume snapshots.
+	if srcVol.IsSnapshot() || volID == "" {
+		// Copy the source volume/snapshot into destination volume.
+		_, err = client.CloneVolume(srcVolID, volName)
+	} else {
+		// Destination volume already exists, so refresh it.
+		err = client.RefreshVolume(srcVolID, volID)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// Add reverted to delete destination volume, if not already added.
+	if deleteVolCopy {
+		revert.Add(func() { _ = d.DeleteVolume(vol.Volume, progressReporter) })
+	}
+
+	err = postCreateTasks(vol.Volume)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
