@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
@@ -198,7 +199,37 @@ func (d *powerstore) HasVolume(vol Volume) (bool, error) {
 // ListVolumes returns a list of LXD volumes in storage pool.
 // It returns all volumes and sets the volume's volatile.uuid extracted from the name.
 func (d *powerstore) ListVolumes() ([]Volume, error) {
-	return nil, ErrNotSupported
+	psVols, err := d.client().GetVolumes()
+	if err != nil {
+		return nil, err
+	}
+
+	vols := make([]Volume, 0, len(psVols))
+	for _, psVol := range psVols {
+		volType, volUUID, volContentType, isMountableSnapshot, err := d.decodeVolumeName(psVol.Name)
+		if err != nil {
+			d.logger.Debug("Unrecognized volume in PowerStore", logger.Ctx{"name": psVol.Name, "err": err.Error()})
+			continue
+		}
+
+		// Skip transient mountable snapshots clones that do not represent an actual volume.
+		if isMountableSnapshot {
+			continue
+		}
+
+		volConfig := map[string]string{
+			"volatile.uuid": volUUID.String(),
+		}
+
+		vol := NewVolume(d, d.name, volType, volContentType, "", volConfig, d.config)
+		if volContentType == ContentTypeFS {
+			vol.SetMountFilesystemProbe(true)
+		}
+
+		vols = append(vols, vol)
+	}
+
+	return vols, nil
 }
 
 // CreateVolume creates an empty volume and can optionally fill it by executing
