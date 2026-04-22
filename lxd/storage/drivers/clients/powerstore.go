@@ -85,6 +85,20 @@ func (PowerStoreVolume) selector() string {
 	return "id,name,type,size,logical_used,wwn"
 }
 
+// PowerStoreApplianceMetrics represents metrics collected from a PowerStore appliance.
+type PowerStoreApplianceMetrics struct {
+	ID                     string `json:"id,omitempty"`
+	Name                   string `json:"name,omitempty"`
+	LastLogicalTotalSpace  int64  `json:"last_logical_total_space,omitempty"`
+	LastLogicalUsedSpace   int64  `json:"last_logical_used_space,omitempty"`
+	LastPhysicalTotalSpace int64  `json:"last_physical_total_space,omitempty"`
+	LastPhysicalUsedSpace  int64  `json:"last_physical_used_space,omitempty"`
+}
+
+func (PowerStoreApplianceMetrics) selector() string {
+	return "id,name,last_logical_total_space,last_logical_used_space,last_physical_total_space,last_physical_used_space"
+}
+
 type powerStoreErrorMessage struct {
 	Message string `json:"message_l10n"`
 }
@@ -967,6 +981,40 @@ func (c *PowerStoreClient) DetachVolumeFromHost(volumeID string, hostID string) 
 	}
 
 	return nil
+}
+
+// GetApplianceMetrics retrieves appliance metrics.
+func (c *PowerStoreClient) GetApplianceMetrics() ([]PowerStoreApplianceMetrics, error) {
+	url := api.NewURL().Path("api", "rest", "appliance_list_cma_view")
+	url = url.WithQuery("select", PowerStoreApplianceMetrics{}.selector())
+
+	var offset uint64
+	var metrics []PowerStoreApplianceMetrics
+
+	for {
+		respBody := []PowerStoreApplianceMetrics{}
+		respHeaders := make(http.Header)
+
+		pageURL := withPaginationQuery(url.URL, offset, -1)
+		err := c.requestAuthenticated(http.MethodGet, pageURL, nil, &respBody, respHeaders)
+		if err != nil {
+			return nil, fmt.Errorf("Failed retrieving metrics of PowerStore appliances: %w", err)
+		}
+
+		nextOffset, hasMoreItems, err := parsePaginationOffset(respHeaders)
+		if err != nil {
+			return nil, fmt.Errorf("Failed retrieving metrics of PowerStore appliances: %w", err)
+		}
+
+		metrics = append(metrics, respBody...)
+		offset = nextOffset
+
+		if !hasMoreItems {
+			break
+		}
+	}
+
+	return metrics, nil
 }
 
 // powerStoreConnectorToPortType converts connector type to PowerStore port type used in initiators.
