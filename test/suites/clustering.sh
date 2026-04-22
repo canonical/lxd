@@ -5691,6 +5691,17 @@ test_clustering_replicator_basic() {
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
 
+  sub_test "Verify replicator succeeds when standby project has restricted=true"
+
+  # restricted=true blocks pull-mode migrations (the standby would be initiating a
+  # connection back to the source, which restricted projects disallow).
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project restricted=true
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc project unset replicator-project restricted
+
   sub_test "Verify concurrent replicator runs are rejected"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3 --project replicator-project
