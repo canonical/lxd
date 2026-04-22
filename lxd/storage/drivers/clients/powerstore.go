@@ -920,6 +920,55 @@ func (c *PowerStoreClient) RestoreVolume(volumeID string, snapshotID string) err
 	return nil
 }
 
+// AttachVolumeToHost attaches (maps) volume to host, returning true if the volume was freshly
+// attached to the host, and false if the volume was already attached to the host.
+func (c *PowerStoreClient) AttachVolumeToHost(volumeID string, hostID string) (bool, error) {
+	// Check if the volume is already attached to the host.
+	host, err := c.GetHost(hostID)
+	if err != nil {
+		return false, err
+	}
+
+	for _, mapping := range host.MappedVolumes {
+		if mapping.VolumeID == volumeID {
+			// The volume is already attached to the host.
+			return false, nil
+		}
+	}
+
+	// Attach the volume to the host.
+	req := map[string]any{
+		"host_id": hostID,
+	}
+
+	url := api.NewURL().Path("api", "rest", "volume", volumeID, "attach")
+	err = c.requestAuthenticated(http.MethodPost, url.URL, req, nil, nil)
+	if err != nil {
+		return false, fmt.Errorf("Failed attaching PowerStore volume to the host: %w", err)
+	}
+
+	return true, nil
+}
+
+// DetachVolumeFromHost detaches (unmaps) volume from host.
+func (c *PowerStoreClient) DetachVolumeFromHost(volumeID string, hostID string) error {
+	req := map[string]any{
+		"host_id": hostID,
+	}
+
+	url := api.NewURL().Path("api", "rest", "volume", volumeID, "detach")
+	err := c.requestAuthenticated(http.MethodPost, url.URL, req, nil, nil)
+	if err != nil {
+		if isPowerStoreError(err, http.StatusUnprocessableEntity, "Could not find any host volume mappings") {
+			return api.StatusErrorf(http.StatusNotFound, "Connection between host %q and volume %q not found", hostID, volumeID)
+		}
+
+		return fmt.Errorf("Failed detaching PowerStore volume from the host: %w", err)
+	}
+
+	return nil
+}
+
 // powerStoreConnectorToPortType converts connector type to PowerStore port type used in initiators.
 func powerStoreConnectorToPortType(connectorType string) (string, error) {
 	switch connectorType {
