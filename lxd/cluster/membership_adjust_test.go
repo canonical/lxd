@@ -160,6 +160,46 @@ func TestAdjustRoles_ActiveDemotesNonControlPlaneStandby(t *testing.T) {
 	assert.Equal(t, []uint64{4}, testNodeIDs(candidates))
 }
 
+// TestAdjustRoles_ActiveDemotesNonControlPlaneStandbyBelowTarget verifies that
+// when control-plane mode is active, a non-control-plane standby is demoted even
+// when the standby count is below the configured target and no control-plane spare
+// is available to fill the gap.
+func TestAdjustRoles_ActiveDemotesNonControlPlaneStandbyBelowTarget(t *testing.T) {
+	nodes := []db.RaftNode{
+		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
+		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
+		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
+		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftStandBy}},
+		{NodeInfo: client.NodeInfo{ID: 5, Address: "10.0.0.5:8443", Role: db.RaftSpare}},
+		{NodeInfo: client.NodeInfo{ID: 6, Address: "10.0.0.6:8443", Role: db.RaftSpare}},
+	}
+
+	connectivity := map[string]bool{
+		"10.0.0.1:8443": true,
+		"10.0.0.2:8443": true,
+		"10.0.0.3:8443": true,
+		"10.0.0.4:8443": true,
+		"10.0.0.5:8443": true,
+		"10.0.0.6:8443": true,
+	}
+
+	// All control-plane members are already voters; no control-plane spare exists.
+	// Member 4 is a non-control-plane standby, members 5 and 6 are non-control-plane spares.
+	memberRoles := map[string][]db.ClusterRole{
+		"10.0.0.1:8443": {db.ClusterRoleControlPlane},
+		"10.0.0.2:8443": {db.ClusterRoleControlPlane},
+		"10.0.0.3:8443": {db.ClusterRoleControlPlane},
+	}
+
+	// Target is 2 standbys but only 1 exists (non-control-plane). Because no eligible
+	// control-plane spare can fill the gap, the non-control-plane standby must still be demoted.
+	roles := testRolesChanges(nodes, connectivity, 3, 2)
+	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles)
+
+	assert.Equal(t, db.RaftSpare, role)
+	assert.Equal(t, []uint64{4}, testNodeIDs(candidates))
+}
+
 // TestAdjustRoles_ActiveInterleavesDemotionsAndPromotions verifies the
 // activation transition used by integration tests: non-control-plane voters are
 // demoted, then control-plane spares are promoted before the next demotion.
