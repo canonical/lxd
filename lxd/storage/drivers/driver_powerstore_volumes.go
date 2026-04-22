@@ -356,7 +356,7 @@ func (d *powerstore) CreateVolume(vol Volume, filler *VolumeFiller, progressRepo
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
 func (d *powerstore) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (VolumePostHook, revert.Hook, error) {
-	return nil, nil, ErrNotSupported
+	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, progressReporter)
 }
 
 // CreateVolumeFromImage creates a new volume from an image, unpacking it directly.
