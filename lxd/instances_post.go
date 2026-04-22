@@ -225,60 +225,60 @@ func createFromNone(r *http.Request, s *state.State, projectName string, profile
 	return operations.OperationResponse(op)
 }
 
-func createFromMigration(r *http.Request, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, isClusterNotification bool) response.Response {
-	requestor, err := request.GetRequestor(r.Context())
-	if err == nil {
-		if requestor.CallerProtocol() == "" {
-			return response.SmartError(errors.New("Failed checking request origin: Protocol not set in request context"))
-		}
+// instanceMigrationSinkResult holds the outputs of prepareInstanceMigrationSink needed by
+// callers to construct operations or run the migration directly.
+type instanceMigrationSinkResult struct {
+	// run performs the actual migration transfer. It must be called exactly once.
+	run func(ctx context.Context, op *operations.Operation) error
+	// push indicates whether the migration source will push data to us.
+	push bool
+	// sink provides Metadata() and Connect() for push-mode operation args.
+	sink *migrationSink
+	// revert must be disarmed by the caller (via Success) once the run function
+	// is guaranteed to be invoked. If the caller fails before that point,
+	// deferring revert.Fail() ensures proper cleanup.
+	revert *revert.Reverter
+}
 
-		// If the protocol is not [request.ProtocolCluster] (e.g. not an internal request) and the node has been
-		// evacuated, reject the request.
-		if s.DB.Cluster.LocalNodeIsEvacuated() && requestor.CallerProtocol() != request.ProtocolCluster {
-			return response.Forbidden(errors.New("Cluster member is evacuated"))
-		}
-	}
-
+// prepareInstanceMigrationSink sets up a migration sink for receiving an instance via pull or
+// push migration. It handles both new-instance creation and refresh of an existing instance.
+// The returned result contains a run hook, a reverter, and (for push mode) the sink.
+//
+// The caller must arrange for result.revert.Fail() on error and result.revert.Success() once
+// the run hook is guaranteed to be invoked (e.g. after scheduling the operation).
+func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, clusterMoveSourceName string) (result *instanceMigrationSinkResult, err error) {
 	// Validate migration mode.
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
-		return response.NotImplemented(fmt.Errorf("Mode %q not implemented", req.Source.Mode))
+		return nil, fmt.Errorf("Mode %q not implemented", req.Source.Mode)
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
-		return response.BadRequest(err)
+		return nil, err
 	}
 
 	if dbType != instancetype.Container && dbType != instancetype.VM {
-		return response.BadRequest(fmt.Errorf("Instance type not supported %q", req.Type))
+		return nil, fmt.Errorf("Instance type not supported %q", req.Type)
 	}
 
-	storagePool, args, resp := setupInstanceArgs(s, dbType, projectName, profiles, req)
-	if resp != nil {
-		return resp
+	storagePool, args, err := setupInstanceArgs(s, dbType, projectName, profiles, req)
+	if err != nil {
+		return nil, fmt.Errorf("Failed setting up instance args: %w", err)
 	}
 
 	var inst instance.Instance
 	var instOp *operationlock.InstanceOperation
-	var cleanup revert.Hook
-
-	// Decide if this is an internal cluster move request.
-	var clusterMoveSourceName string
-	if isClusterNotification && req.Source.Source != "" {
-		clusterMoveSourceName = req.Source.Source
-	}
 
 	// Early check for refresh and cluster same name move to check instance exists.
 	if req.Source.Refresh || (clusterMoveSourceName != "" && clusterMoveSourceName == req.Name) {
 		inst, err = instance.LoadByProjectAndName(s, projectName, req.Name)
 		if err != nil {
 			if !response.IsNotFoundError(err) {
-				return response.SmartError(err)
+				return nil, err
 			}
 
 			if clusterMoveSourceName != "" {
-				// Cluster move doesn't allow renaming as part of migration so fail here.
-				return response.SmartError(errors.New("Cluster move does not allow renaming"))
+				return nil, errors.New("Cluster move does not allow renaming")
 			}
 
 			req.Source.Refresh = false
@@ -287,19 +287,23 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 
 	// Reject any attempts to refresh a running instance.
 	if req.Source.Refresh && inst != nil && inst.IsRunning() {
-		return response.BadRequest(fmt.Errorf("Cannot refresh running instance %q", req.Name))
+		return nil, fmt.Errorf("Cannot refresh running instance %q", req.Name)
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
+	rev := revert.New()
+	defer func() {
+		if err != nil {
+			rev.Fail()
+		}
+	}()
 
 	// We keep the ContainerOnly for backward compatibility.
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
 
 	if inst == nil {
-		_, err := storagePools.LoadByName(s, storagePool)
+		_, err = storagePools.LoadByName(s, storagePool)
 		if err != nil {
-			return response.InternalError(err)
+			return nil, fmt.Errorf("Failed loading storage pool: %w", err)
 		}
 
 		api.InstanceCreateConfigKeyPolicy.Apply(args.Config, nil)
@@ -308,29 +312,30 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 		// Note: At this stage we do not yet know if snapshots are going to be received and so we cannot
 		// create their DB records. This will be done if needed in the migrationSink.Do() function called
 		// as part of the operation below.
-		inst, instOp, cleanup, err = instance.CreateInternal(r.Context(), s, *args, true)
+		var cleanup revert.Hook
+		inst, instOp, cleanup, err = instance.CreateInternal(ctx, s, *args, true)
 		if err != nil {
-			return response.InternalError(fmt.Errorf("Failed creating instance record: %w", err))
+			return nil, fmt.Errorf("Failed creating instance record: %w", err)
 		}
 
-		revert.Add(cleanup)
+		rev.Add(cleanup)
 	} else {
 		// For refresh requests, validate and apply target config before migration transfer starts.
 		// Skip this during internal cluster move requests, where config update semantics differ.
 		if req.Source.Refresh && clusterMoveSourceName == "" {
-			err = inst.Update(r.Context(), *args, instance.UpdateActionUserRefresh)
+			err = inst.Update(ctx, *args, instance.UpdateActionUserRefresh)
 			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed applying refresh target instance config: %w", err))
+				return nil, fmt.Errorf("Failed applying refresh target instance config: %w", err)
 			}
 		}
 
 		instOp, err = inst.LockExclusive()
 		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed getting exclusive access to instance: %w", err))
+			return nil, fmt.Errorf("Failed getting exclusive access to instance: %w", err)
 		}
 	}
 
-	revert.Add(func() { instOp.Done(err) })
+	rev.Add(func() { instOp.Done(err) })
 
 	push := false
 	var dialer *websocket.Dialer
@@ -340,7 +345,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 	} else {
 		dialer, err = setupWebsocketDialer(req.Source.Certificate)
 		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed setting up websocket dialer for migration sink connections: %w", err))
+			return nil, fmt.Errorf("Failed setting up websocket dialer for migration sink connections: %w", err)
 		}
 	}
 
@@ -358,11 +363,11 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 
 	sink, err := newMigrationSink(&migrationArgs)
 	if err != nil {
-		return response.InternalError(err)
+		return nil, fmt.Errorf("Failed creating migration sink: %w", err)
 	}
 
 	// Copy reverter so far so we can use it inside run after this function has finished.
-	runRevert := revert.Clone()
+	runRevert := rev.Clone()
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		defer runRevert.Fail()
@@ -390,20 +395,55 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 		return nil
 	}
 
+	return &instanceMigrationSinkResult{
+		run:    run,
+		push:   push,
+		sink:   sink,
+		revert: rev,
+	}, nil
+}
+
+func createFromMigration(r *http.Request, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, isClusterNotification bool) response.Response {
+	requestor, err := request.GetRequestor(r.Context())
+	if err == nil {
+		if requestor.CallerProtocol() == "" {
+			return response.SmartError(errors.New("Failed checking request origin: Protocol not set in request context"))
+		}
+
+		// If the protocol is not [request.ProtocolCluster] (e.g. not an internal request) and the node has been
+		// evacuated, reject the request.
+		if s.DB.Cluster.LocalNodeIsEvacuated() && requestor.CallerProtocol() != request.ProtocolCluster {
+			return response.Forbidden(errors.New("Cluster member is evacuated"))
+		}
+	}
+
+	// Decide if this is an internal cluster move request.
+	var clusterMoveSourceName string
+	if isClusterNotification && req.Source.Source != "" {
+		clusterMoveSourceName = req.Source.Source
+	}
+
+	result, err := prepareInstanceMigrationSink(r.Context(), s, projectName, profiles, req, clusterMoveSourceName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	defer result.revert.Fail()
+
 	opArgs := operations.OperationArgs{
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
-		RunHook:     run,
+		RunHook:     result.run,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
 		},
 	}
 
-	if push {
+	if result.push {
 		opArgs.Class = operations.OperationClassWebsocket
-		opArgs.Metadata = sink.Metadata()
-		opArgs.ConnectHook = sink.Connect
+		opArgs.Metadata = result.sink.Metadata()
+		opArgs.ConnectHook = result.sink.Connect
 	} else {
 		opArgs.Class = operations.OperationClassTask
 	}
@@ -413,7 +453,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 		return response.InternalError(err)
 	}
 
-	revert.Success()
+	result.revert.Success()
 	return operations.OperationResponse(op)
 }
 
@@ -446,9 +486,9 @@ func createFromConversion(r *http.Request, s *state.State, projectName string, p
 		}
 	}
 
-	storagePool, args, resp := setupInstanceArgs(s, dbType, projectName, profiles, req)
-	if resp != nil {
-		return resp
+	storagePool, args, err := setupInstanceArgs(s, dbType, projectName, profiles, req)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	revert := revert.New()
@@ -556,9 +596,9 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 			_, rootDevice, _ := api.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
 			sourcePoolName := rootDevice["pool"]
 
-			destPoolName, _, _, _, resp := instanceFindStoragePool(s, targetProject, req)
-			if resp != nil {
-				return resp
+			destPoolName, _, _, _, err := instanceFindStoragePool(s, targetProject, req)
+			if err != nil {
+				return response.SmartError(err)
 			}
 
 			if sourcePoolName != destPoolName {
@@ -1014,12 +1054,66 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	return operations.OperationResponse(op)
 }
 
+// instanceProfilesFromNames loads the named profiles from the database and returns them as API
+// structs in the same order as the input names. It is intended to be called inside a cluster
+// transaction.
+func instanceProfilesFromNames(ctx context.Context, tx *db.ClusterTx, projectName string, names []string) ([]api.Profile, error) {
+	if len(names) == 0 {
+		return []api.Profile{}, nil
+	}
+
+	profileFilters := make([]dbCluster.ProfileFilter, 0, len(names))
+	for _, name := range names {
+		profileFilters = append(profileFilters, dbCluster.ProfileFilter{
+			Project: &projectName,
+			Name:    &name,
+		})
+	}
+
+	dbProfiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), profileFilters...)
+	if err != nil {
+		return nil, err
+	}
+
+	dbProfileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+	if err != nil {
+		return nil, err
+	}
+
+	dbProfileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+	if err != nil {
+		return nil, err
+	}
+
+	profilesByName := make(map[string]dbCluster.Profile, len(dbProfiles))
+	for _, p := range dbProfiles {
+		profilesByName[p.Name] = p
+	}
+
+	profiles := make([]api.Profile, 0, len(names))
+	for _, name := range names {
+		profile, found := profilesByName[name]
+		if !found {
+			return nil, fmt.Errorf("Profile %q not found in project %q", name, projectName)
+		}
+
+		apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
+		if err != nil {
+			return nil, err
+		}
+
+		profiles = append(profiles, *apiProfile)
+	}
+
+	return profiles, nil
+}
+
 // setupInstanceArgs sets the database instance arguments and determines the storage pool to use.
-func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName string, profiles []api.Profile, req *api.InstancesPost) (storagePool string, instArgs *db.InstanceArgs, resp response.Response) {
+func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName string, profiles []api.Profile, req *api.InstancesPost) (storagePool string, instArgs *db.InstanceArgs, err error) {
 	// Parse the architecture name
 	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
-		return "", nil, response.BadRequest(err)
+		return "", nil, api.StatusErrorf(http.StatusBadRequest, "%w", err)
 	}
 
 	// Prepare the instance creation request.
@@ -1037,13 +1131,13 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 		Stateful:     req.Stateful,
 	}
 
-	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, resp := instanceFindStoragePool(s, projectName, req)
-	if resp != nil {
-		return "", nil, resp
+	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, err := instanceFindStoragePool(s, projectName, req)
+	if err != nil {
+		return "", nil, err
 	}
 
 	if storagePool == "" {
-		return "", nil, response.BadRequest(errors.New("Cannot find a storage pool for the instance to use"))
+		return "", nil, api.StatusErrorf(http.StatusBadRequest, "Cannot find a storage pool for the instance to use")
 	}
 
 	if localRootDiskDeviceKey == "" && storagePoolProfile == "" {
@@ -1412,46 +1506,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		// Load profiles.
 		if len(req.Profiles) > 0 {
-			profileFilters := make([]dbCluster.ProfileFilter, 0, len(req.Profiles))
-			for _, profileName := range req.Profiles {
-				profileFilters = append(profileFilters, dbCluster.ProfileFilter{
-					Project: &profileProject,
-					Name:    &profileName,
-				})
-			}
-
-			dbProfiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), profileFilters...)
+			profiles, err = instanceProfilesFromNames(ctx, tx, profileProject, req.Profiles)
 			if err != nil {
 				return err
-			}
-
-			dbProfileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
-			if err != nil {
-				return err
-			}
-
-			dbProfileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
-			if err != nil {
-				return err
-			}
-
-			profilesByName := make(map[string]dbCluster.Profile, len(dbProfiles))
-			for _, dbProfile := range dbProfiles {
-				profilesByName[dbProfile.Name] = dbProfile
-			}
-
-			for _, profileName := range req.Profiles {
-				profile, found := profilesByName[profileName]
-				if !found {
-					return fmt.Errorf("Requested profile %q does not exist", profileName)
-				}
-
-				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileConfigs, dbProfileDevices)
-				if err != nil {
-					return err
-				}
-
-				profiles = append(profiles, *apiProfile)
 			}
 		}
 
@@ -1672,7 +1729,7 @@ func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, pla
 	return tx.GetNodeWithLeastInstances(ctx, filteredCandidates)
 }
 
-func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (storagePool string, storagePoolProfile string, localRootDiskDeviceKey string, localRootDiskDevice map[string]string, resp response.Response) {
+func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (storagePool string, storagePoolProfile string, localRootDiskDeviceKey string, localRootDiskDevice map[string]string, err error) {
 	// Grab the container's root device if one is specified
 	localRootDiskDeviceKey, localRootDiskDevice, _ = api.GetRootDiskDevice(req.Devices)
 	if localRootDiskDeviceKey != "" {
@@ -1714,7 +1771,7 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 			return nil
 		})
 		if err != nil {
-			return "", "", "", nil, response.SmartError(err)
+			return "", "", "", nil, err
 		}
 	}
 
@@ -1733,10 +1790,10 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 		})
 		if err != nil {
 			if response.IsNotFoundError(err) {
-				return "", "", "", nil, response.BadRequest(errors.New("This LXD instance does not have any storage pools configured"))
+				return "", "", "", nil, api.StatusErrorf(http.StatusBadRequest, "This LXD instance does not have any storage pools configured")
 			}
 
-			return "", "", "", nil, response.SmartError(err)
+			return "", "", "", nil, err
 		}
 
 		if len(pools) == 1 {

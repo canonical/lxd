@@ -134,26 +134,7 @@ func GetReplicatorsAndURLs(ctx context.Context, tx *sql.Tx, projectName *string,
 
 // CreateReplicatorConfig creates config for a new replicator with the given ID.
 func CreateReplicatorConfig(ctx context.Context, tx *sql.Tx, replicatorID int64, config map[string]string) error {
-	str := "INSERT INTO replicators_config (replicator_id, key, value) VALUES(?, ?, ?)"
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
-	for k, v := range config {
-		if v == "" {
-			continue
-		}
-
-		_, err = stmt.ExecContext(ctx, replicatorID, k, v)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return CreateEntityConfig(ctx, tx, "replicators_config", "replicator_id", replicatorID, config)
 }
 
 // UpdateReplicatorConfig updates the replicator with the given ID, setting its config.

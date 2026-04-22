@@ -542,6 +542,9 @@ func (op *Operation) start() {
 				var childFailed bool
 				var childCancelled bool
 				for _, childOp := range op.children {
+					// Use context.Background() so that the parent waits for every child
+					// to finish even if the parent's context has been cancelled. The
+					// parent must collect all child outcomes before reporting its own result.
 					childErr := childOp.Wait(context.Background())
 					if childErr != nil {
 						if errors.Is(childErr, context.Canceled) {

@@ -29,27 +29,9 @@ func (e entityTypeInstance) urlByIDQuery() string {
 }
 
 func (e entityTypeInstance) idFromURLQuery() string {
-	return `
-SELECT ?, instances.id 
-FROM instances 
-JOIN projects ON instances.project_id = projects.id 
-WHERE projects.name = ? 
-	AND '' = ? 
-	AND instances.name = ?`
+	return projectEntityIDFromURLQuery("instances")
 }
 
 func (e entityTypeInstance) onDeleteTriggerSQL() (name string, sql string) {
-	name = "on_instance_delete"
-	return name, fmt.Sprintf(`
-CREATE TRIGGER %s
-	AFTER DELETE ON instances
-	BEGIN
-	DELETE FROM auth_groups_permissions 
-		WHERE entity_type = %d 
-		AND entity_id = OLD.id;
-	DELETE FROM warnings
-		WHERE entity_type_code = %d
-		AND entity_id = OLD.id;
-	END
-`, name, e.code(), e.code())
+	return standardOnDeleteTriggerSQL("on_instance_delete", "instances", e.code())
 }

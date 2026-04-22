@@ -158,26 +158,7 @@ func GetClusterLinkConfig(ctx context.Context, tx *sql.Tx, clusterLinkID *int64)
 
 // CreateClusterLinkConfig creates config for a new cluster link with the given ID.
 func CreateClusterLinkConfig(ctx context.Context, tx *sql.Tx, clusterLinkID int64, config map[string]string) error {
-	str := "INSERT INTO cluster_links_config (cluster_link_id, key, value) VALUES(?, ?, ?)"
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
-	for k, v := range config {
-		if v == "" {
-			continue
-		}
-
-		_, err = stmt.ExecContext(ctx, clusterLinkID, k, v)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return CreateEntityConfig(ctx, tx, "cluster_links_config", "cluster_link_id", clusterLinkID, config)
 }
 
 // UpdateClusterLinkConfig updates the cluster link with the given ID, setting its config.

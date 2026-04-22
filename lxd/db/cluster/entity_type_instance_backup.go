@@ -47,17 +47,5 @@ WHERE projects.name = ?
 }
 
 func (e entityTypeInstanceBackup) onDeleteTriggerSQL() (name string, sql string) {
-	name = "on_instance_backup_delete"
-	return name, fmt.Sprintf(`
-CREATE TRIGGER %s
-	AFTER DELETE ON instances_backups
-	BEGIN
-	DELETE FROM auth_groups_permissions 
-		WHERE entity_type = %d 
-		AND entity_id = OLD.id;
-	DELETE FROM warnings
-		WHERE entity_type_code = %d
-		AND entity_id = OLD.id;
-	END
-`, name, e.code(), e.code())
+	return standardOnDeleteTriggerSQL("on_instance_backup_delete", "instances_backups", e.code())
 }
