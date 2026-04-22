@@ -894,35 +894,35 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			}
 		}
 
+		// Load uplink network config.
+		uplinkNetworkName := d.network.Config()["network"]
+
+		var uplink *api.Network
+
+		err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+
+			_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
+
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("Failed loading uplink network %q: %w", uplinkNetworkName, err)
+		}
+
+		// Update OVN logical switch port for instance.
+		_, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+			InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+			DNSName:      d.inst.Name(),
+			DeviceName:   d.name,
+			DeviceConfig: d.config,
+			UplinkConfig: uplink.Config,
+		}, removedACLs)
+		if err != nil {
+			return fmt.Errorf("Failed updating OVN port: %w", err)
+		}
+
 		if isRunning {
-			// Load uplink network config.
-			uplinkNetworkName := d.network.Config()["network"]
-
-			var uplink *api.Network
-
-			err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				var err error
-
-				_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
-
-				return err
-			})
-			if err != nil {
-				return fmt.Errorf("Failed loading uplink network %q: %w", uplinkNetworkName, err)
-			}
-
-			// Update OVN logical switch port for instance.
-			_, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
-				InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
-				DNSName:      d.inst.Name(),
-				DeviceName:   d.name,
-				DeviceConfig: d.config,
-				UplinkConfig: uplink.Config,
-			}, removedACLs)
-			if err != nil {
-				return fmt.Errorf("Failed updating OVN port: %w", err)
-			}
-
 			// If an address has changed and if the instance is running, we should bounce the host-side
 			// veth interface to give the instance a chance to detect the change and re-apply for an
 			// updated lease with new IP address.
