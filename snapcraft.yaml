@@ -1539,7 +1539,8 @@ parts:
       # Not worth the effort for now.
       if [ "$(uname -m)" != "armv7l" ] && [ "$(uname -m)" != "riscv64" ]; then
         # Build the static website
-        make doc
+        # XXX: needed for snapcraft 8.x only
+        PATH="/usr/bin:${PATH}" make doc # ensure python3 is found in PATH
 
         # Remove unneeded bits
         rm doc/_build/objects.inv    # only objects.inv.txt is used
