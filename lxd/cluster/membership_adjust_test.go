@@ -273,7 +273,7 @@ func TestAdjustRoles_InactiveAllowsNonControlPlanePromotion(t *testing.T) {
 }
 
 // testRolesChanges creates a RolesChanges test fixture using raft nodes and connectivity.
-func testRolesChanges(nodes []db.RaftNode, connectivity map[string]bool, voters int, standBys int) *app.RolesChanges {
+func testRolesChanges(nodes []db.RaftNode, connectivity map[string]bool, voters int, standbys int) *app.RolesChanges {
 	state := make(map[client.NodeInfo]*client.NodeMetadata, len(nodes))
 	for i, node := range nodes {
 		if connectivity[node.Address] {
@@ -291,7 +291,7 @@ func testRolesChanges(nodes []db.RaftNode, connectivity map[string]bool, voters 
 	return &app.RolesChanges{
 		Config: app.RolesConfig{
 			Voters:   voters,
-			StandBys: standBys,
+			StandBys: standbys,
 		},
 		State: state,
 	}
