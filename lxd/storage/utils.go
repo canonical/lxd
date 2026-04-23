@@ -488,7 +488,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		// ---
 		//  type: bool
 		//  condition: custom volume
-		//  defaultdesc: same as `volume.security.unmappped` or `false`
+		//  defaultdesc: same as `volume.security.unmapped` or `false`
 		//  shortdesc: Disable ID mapping for the volume
 		//  scope: global
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
