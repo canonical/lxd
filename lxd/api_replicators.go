@@ -995,7 +995,6 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	var clusterLink *api.ClusterLink
 	var targetCert *x509.Certificate
 	var sourceProject *api.Project
-	var localAddr string
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		_, clusterLink, targetCert, err = lxdCluster.LoadClusterLinkAndCert(ctx, tx.Tx(), clusterLinkName)
@@ -1009,11 +1008,6 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		}
 
 		sourceProject, err = dbProject.ToAPI(ctx, tx.Tx())
-		if err != nil {
-			return err
-		}
-
-		localAddr, err = tx.GetLocalNodeAddress(ctx)
 		return err
 	})
 	if err != nil {
@@ -1223,19 +1217,62 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return fmt.Errorf("Unexpected result from source instance render for %q", instName)
 			}
 
-			srcMigration, err := newMigrationSource(inst, false, false, false, "", nil)
+			// Set up a push-mode migration sink on the destination. In push mode the
+			// leader (source) connects outward to the destination, so the destination
+			// does not need to reach back into the leader. This is required when the
+			// destination project is restricted, which disallows pull-mode migrations.
+			destOp, err := dstClient.CreateInstance(api.InstancesPost{
+				Name:        instName,
+				InstancePut: srcInstInfo.Writable(),
+				Type:        api.InstanceType(srcInstInfo.Type),
+				Source: api.InstanceSource{
+					Type:    api.SourceTypeMigration,
+					Mode:    "push",
+					Refresh: true,
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("Failed requesting instance create on destination: %w", err)
+			}
+
+			// Guard against leaving the destination sink operation running if we fail
+			// before starting the source; disarmed once the source op is scheduled.
+			destOpCancelled := false
+			defer func() {
+				if !destOpCancelled {
+					_ = destOp.Cancel()
+				}
+			}()
+
+			destOpAPI := destOp.Get()
+			destSecrets, err := destOpAPI.WebsocketSecrets()
+			if err != nil {
+				return fmt.Errorf("Failed getting websocket secrets from destination for instance %q: %w", instName, err)
+			}
+
+			// ConnectCluster tries each configured address in order; GetConnectionInfo
+			// returns the one that succeeded, which is what the push target must use.
+			dstConnInfo, err := dstClient.GetConnectionInfo()
+			if err != nil {
+				return fmt.Errorf("Failed getting connection info for destination: %w", err)
+			}
+
+			pushTarget := &api.InstancePostTarget{
+				Operation:   dstConnInfo.URL + "/1.0/operations/" + destOpAPI.ID,
+				Websockets:  destSecrets,
+				Certificate: targetCertPEM,
+			}
+
+			srcMigration, err := newMigrationSource(inst, false, false, false, "", pushTarget)
 			if err != nil {
 				return fmt.Errorf("Failed setting up migration source for instance %q: %w", instName, err)
 			}
-
-			networkCert := s.Endpoints.NetworkCert()
 
 			migrArgs := operations.OperationArgs{
 				ProjectName: projectName,
 				EntityURL:   entity.InstanceURL(projectName, instName),
 				Type:        operationtype.InstanceMigrate,
-				Class:       operations.OperationClassWebsocket,
-				Metadata:    srcMigration.Metadata(),
+				Class:       operations.OperationClassTask,
 				RunHook: func(ctx context.Context, innerOp *operations.Operation) error {
 					done := make(chan struct{})
 					defer close(done)
@@ -1249,7 +1286,6 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 
 					return srcMigration.Do(ctx, s, innerOp)
 				},
-				ConnectHook: srcMigration.Connect,
 			}
 
 			srcOp, err := func() (*operations.Operation, error) {
@@ -1263,27 +1299,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return err
 			}
 
-			sourceSecrets := make(map[string]string, len(srcMigration.conns))
-			for connName, conn := range srcMigration.conns {
-				sourceSecrets[connName] = conn.Secret()
-			}
-
-			destOp, err := dstClient.CreateInstance(api.InstancesPost{
-				Name:        instName,
-				InstancePut: srcInstInfo.Writable(),
-				Type:        api.InstanceType(srcInstInfo.Type),
-				Source: api.InstanceSource{
-					Type:        api.SourceTypeMigration,
-					Mode:        "pull",
-					Operation:   "https://" + localAddr + srcOp.URL(),
-					Websockets:  sourceSecrets,
-					Certificate: string(networkCert.PublicKey()),
-					Refresh:     true,
-				},
-			})
-			if err != nil {
-				return fmt.Errorf("Failed requesting instance create on destination: %w", err)
-			}
+			destOpCancelled = true // source is now connected via websockets; cancel would interrupt an in-flight transfer
 
 			err = srcOp.Wait(context.Background())
 			if err != nil {
