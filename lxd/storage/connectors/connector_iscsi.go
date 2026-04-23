@@ -298,7 +298,7 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 	result := make([]any, 0)
 	for _, targetAddr := range targetAddresses {
 		targetAddr = shared.EnsurePort(targetAddr, ISCSIDefaultPort)
-		stdout, err := shared.RunCommand(ctx, "iscsiadm", "--mode", "discovery", "--type", "sendtargets", "--portal", targetAddr)
+		stdout, err := shared.RunCommand(ctx, "iscsiadm", "--mode", "discovery", "--type", "sendtargets", "--portal", targetAddr, "--op", "nonpersistent")
 		if err != nil {
 			logger.Warn("Failed connecting to discovery target", logger.Ctx{"target_address": targetAddr, "err": err})
 			continue
