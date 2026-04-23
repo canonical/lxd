@@ -5811,7 +5811,7 @@
 					{
 						"security.unmapped": {
 							"condition": "custom volume",
-							"defaultdesc": "same as `volume.security.unmappped` or `false`",
+							"defaultdesc": "same as `volume.security.unmapped` or `false`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
@@ -5967,7 +5967,7 @@
 					{
 						"security.unmapped": {
 							"condition": "custom volume",
-							"defaultdesc": "same as `volume.security.unmappped` or `false`",
+							"defaultdesc": "same as `volume.security.unmapped` or `false`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
@@ -6198,7 +6198,7 @@
 					{
 						"security.unmapped": {
 							"condition": "custom volume",
-							"defaultdesc": "same as `volume.security.unmappped` or `false`",
+							"defaultdesc": "same as `volume.security.unmapped` or `false`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
@@ -6388,7 +6388,7 @@
 					{
 						"security.unmapped": {
 							"condition": "custom volume",
-							"defaultdesc": "same as `volume.security.unmappped` or `false`",
+							"defaultdesc": "same as `volume.security.unmapped` or `false`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
@@ -6605,7 +6605,7 @@
 					{
 						"security.unmapped": {
 							"condition": "custom volume",
-							"defaultdesc": "same as `volume.security.unmappped` or `false`",
+							"defaultdesc": "same as `volume.security.unmapped` or `false`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
@@ -6855,7 +6855,7 @@
 					{
 						"security.unmapped": {
 							"condition": "custom volume",
-							"defaultdesc": "same as `volume.security.unmappped` or `false`",
+							"defaultdesc": "same as `volume.security.unmapped` or `false`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
@@ -7101,7 +7101,7 @@
 					{
 						"security.unmapped": {
 							"condition": "custom volume",
-							"defaultdesc": "same as `volume.security.unmappped` or `false`",
+							"defaultdesc": "same as `volume.security.unmapped` or `false`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
@@ -7296,7 +7296,7 @@
 					{
 						"security.unmapped": {
 							"condition": "custom volume",
-							"defaultdesc": "same as `volume.security.unmappped` or `false`",
+							"defaultdesc": "same as `volume.security.unmapped` or `false`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
@@ -7490,7 +7490,7 @@
 					{
 						"security.unmapped": {
 							"condition": "custom volume",
-							"defaultdesc": "same as `volume.security.unmappped` or `false`",
+							"defaultdesc": "same as `volume.security.unmapped` or `false`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Disable ID mapping for the volume",
