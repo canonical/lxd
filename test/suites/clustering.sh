@@ -6143,6 +6143,20 @@ test_clustering_link_unidirectional() {
   # B must not store A's listen addresses for unidirectional links; this preserves the one-way property.
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster link get lxd_one volatile.addresses || echo fail)" = "" ]
 
+  sub_test "Check standalone bidirectional link state reports ACTIVE"
+
+  # In standalone mode there is no cluster.crt; the server uses server.crt.
+  # The state endpoint must use the correct network cert so links show ACTIVE, not UNAUTHENTICATED.
+  BIDIR_TOKEN="$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one_bidir --quiet)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two_bidir --token "${BIDIR_TOKEN}"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link info lxd_two_bidir | grep -F 'ACTIVE'
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link info lxd_one_bidir | grep -F 'ACTIVE'
+
+  # Clean up the bidirectional link.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_two_bidir
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link delete lxd_one_bidir
+
   sub_test "Check authenticated unidirectional link deletion"
 
   # Delete from A; only A's link row is removed; B retains its identity and link row.
