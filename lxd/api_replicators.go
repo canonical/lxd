@@ -1292,13 +1292,13 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				},
 			}
 
-			srcOp, err := func() (*operations.Operation, error) {
-				if op.Requestor() != nil {
-					return operations.ScheduleUserOperationFromOperation(s, op, migrArgs)
-				}
+			var srcOp *operations.Operation
+			if op.Requestor() != nil {
+				srcOp, err = operations.ScheduleUserOperationFromOperation(s, op, migrArgs)
+			} else {
+				srcOp, err = operations.ScheduleServerOperation(s, migrArgs)
+			}
 
-				return operations.ScheduleServerOperation(s, migrArgs)
-			}()
 			if err != nil {
 				return err
 			}
