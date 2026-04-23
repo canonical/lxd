@@ -580,7 +580,6 @@ parts:
       - lvm2
       - thin-provisioning-tools
     organize:
-      sbin/: bin/
       usr/lib/: lib/
       usr/sbin/: bin/
     override-build: |-
