@@ -345,7 +345,7 @@ func replicatorValidateConfig(ctx context.Context, s *state.State, config map[st
 		//  type: string
 		//  shortdesc: Target cluster link name.
 		//  scope: global
-		"cluster": validate.Optional(func(value string) error {
+		"cluster": validate.Required(func(value string) error {
 			err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				_, err := dbCluster.GetClusterLink(ctx, tx.Tx(), value)
 				if err != nil {
@@ -403,6 +403,8 @@ func replicatorValidateConfig(ctx context.Context, s *state.State, config map[st
 		}
 	}
 
+	// The validator loop only runs for keys present in config, so a missing "cluster" key
+	// must be caught separately.
 	if config["cluster"] == "" {
 		return fmt.Errorf("Replicator configuration key %q is required", "cluster")
 	}
