@@ -245,7 +245,8 @@ parts:
     stage-packages:
       - btrfs-progs
     organize:
-      sbin/: bin/
+      usr/bin/: bin/
+      usr/sbin/: bin/
     prime:
       - bin/btrfs
       - bin/btrfstune
