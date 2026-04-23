@@ -229,12 +229,7 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 	if clusterLink.Type == api.ClusterLinkTypeUnidirectionalUnauthenticated {
 		args = GetUnauthenticatedClusterLinkConnectionArgs(targetCert)
 	} else {
-		clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
-		if err != nil {
-			return err
-		}
-
-		args = GetClusterLinkConnectionArgs(clusterCert, targetCert)
+		args = GetClusterLinkConnectionArgs(s.Endpoints.NetworkCert(), targetCert)
 	}
 
 	targetClient, err := ConnectCluster(ctx, *clusterLink, args)
