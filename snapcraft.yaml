@@ -386,17 +386,25 @@ parts:
         - shim-signed
         - uuid-dev
         - xorriso
+      - to riscv64:
+        - acpica-tools
+        - g++
+        - lsb-release
+        - nasm
+        - quilt
+        - rsync
+        - uuid-dev
     override-stage: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "riscv64" ]  && exit 0
       craftctl default
     override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "riscv64" ]  && exit 0
       craftctl default
     override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "riscv64" ]  && exit 0
       craftctl default
     override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "riscv64" ]  && exit 0
       set -eux
 
       # Ensure staged libraries are found (needed for qemu to generate secure boot vars)
@@ -450,6 +458,15 @@ parts:
           SRC_CODE="AAVMF_CODE.secboot.fd"
           SRC_VARS="AAVMF_VARS.fd"
           SRC_VARS_MS="AAVMF_VARS.ms.fd"
+          # See note in `x86_64` section for DEBUG_VERBOSE explanation
+          SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
+      elif [ "$(uname -m)" = "riscv64" ]; then
+          DSC="OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc"
+          BUILD_TARGET="install-qemu-efi-riscv64"
+          SRC_DIR="debian/tmp/usr/share/qemu-efi-riscv64"
+          SRC_CODE="RISCV_VIRT_CODE.fd"
+          SRC_VARS="RISCV_VIRT_VARS.fd"
+          SRC_VARS_MS="RISCV_VIRT_VARS.fd"
           # See note in `x86_64` section for DEBUG_VERBOSE explanation
           SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
       fi
