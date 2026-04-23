@@ -5209,7 +5209,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} security.unmapped storage-alletra-volume-conf
 :condition: "custom volume"
-:defaultdesc: "same as `volume.security.unmappped` or `false`"
+:defaultdesc: "same as `volume.security.unmapped` or `false`"
 :scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
@@ -5360,7 +5360,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} security.unmapped storage-btrfs-volume-conf
 :condition: "custom volume"
-:defaultdesc: "same as `volume.security.unmappped` or `false`"
+:defaultdesc: "same as `volume.security.unmapped` or `false`"
 :scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
@@ -5576,7 +5576,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} security.unmapped storage-ceph-volume-conf
 :condition: "custom volume"
-:defaultdesc: "same as `volume.security.unmappped` or `false`"
+:defaultdesc: "same as `volume.security.unmapped` or `false`"
 :scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
@@ -5757,7 +5757,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} security.unmapped storage-cephfs-volume-conf
 :condition: "custom volume"
-:defaultdesc: "same as `volume.security.unmappped` or `false`"
+:defaultdesc: "same as `volume.security.unmapped` or `false`"
 :scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
@@ -5953,7 +5953,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} security.unmapped storage-dir-volume-conf
 :condition: "custom volume"
-:defaultdesc: "same as `volume.security.unmappped` or `false`"
+:defaultdesc: "same as `volume.security.unmapped` or `false`"
 :scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
@@ -6190,7 +6190,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} security.unmapped storage-lvm-volume-conf
 :condition: "custom volume"
-:defaultdesc: "same as `volume.security.unmappped` or `false`"
+:defaultdesc: "same as `volume.security.unmapped` or `false`"
 :scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
@@ -6421,7 +6421,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} security.unmapped storage-powerflex-volume-conf
 :condition: "custom volume"
-:defaultdesc: "same as `volume.security.unmappped` or `false`"
+:defaultdesc: "same as `volume.security.unmapped` or `false`"
 :scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
@@ -6605,7 +6605,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} security.unmapped storage-pure-volume-conf
 :condition: "custom volume"
-:defaultdesc: "same as `volume.security.unmappped` or `false`"
+:defaultdesc: "same as `volume.security.unmapped` or `false`"
 :scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
@@ -6793,7 +6793,7 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} security.unmapped storage-zfs-volume-conf
 :condition: "custom volume"
-:defaultdesc: "same as `volume.security.unmappped` or `false`"
+:defaultdesc: "same as `volume.security.unmapped` or `false`"
 :scope: "global"
 :shortdesc: "Disable ID mapping for the volume"
 :type: "bool"
