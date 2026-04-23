@@ -765,7 +765,6 @@ parts:
       [ "$(uname -m)" = "armv7l" ] && exit 0
       craftctl default
     organize:
-      sbin/: bin/
       usr/bin/: bin/
       usr/lib/: lib/
       usr/share/: share/
