@@ -1320,6 +1320,7 @@ parts:
       - --datadir=/snap/lxd/current/
       - --localstatedir=/var/snap/lxd/common/var/
       - -Ddocs=false
+      - -Dinit-script=   # Disables generation of systemd/sysvinit scripts
       - -Dtests=false
     organize:
       lib/*/lxcfs/liblxcfs.so: lib/
