@@ -340,7 +340,7 @@ func replicatorGet(d *Daemon, r *http.Request) response.Response {
 func replicatorValidateConfig(ctx context.Context, s *state.State, config map[string]string) error {
 	replicatorConfigKeys := map[string]func(value string) error{
 		// lxdmeta:generate(entities=replicator; group=conf; key=cluster)
-		// Required when creating a replicator. When updating, this key can be omitted to keep the existing cluster link.
+		// Required when creating a replicator.
 		// ---
 		//  type: string
 		//  shortdesc: Target cluster link name.
@@ -732,10 +732,12 @@ func updateReplicator(d *Daemon, r *http.Request, isPatch bool) response.Respons
 		req.Config = map[string]string{}
 	}
 
-	for k, v := range apiReplicator.Config {
-		_, ok := req.Config[k]
-		if !ok {
-			req.Config[k] = v
+	if isPatch {
+		for k, v := range apiReplicator.Config {
+			_, ok := req.Config[k]
+			if !ok {
+				req.Config[k] = v
+			}
 		}
 	}
 
