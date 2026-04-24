@@ -1629,7 +1629,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	// This is a migration request so send back requested secrets.
 	if req.Migration {
-		return storagePoolVolumeTypePostMigration(s, r, requestProjectName, effectiveProjectName, details.pool.Name(), details.pool.Driver().Info().Remote, details.volumeName, req)
+		return storagePoolVolumeTypePostMigration(s, r, requestProjectName, effectiveProjectName, details, req)
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
@@ -1718,11 +1718,11 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	// Detect a rename request.
 	if (req.Pool == "" || req.Pool == details.pool.Name()) && (effectiveProjectName == targetProjectName) {
-		return storagePoolVolumeTypePostRename(s, r, details.pool.Name(), effectiveProjectName, &dbVolume.StorageVolume, req)
+		return storagePoolVolumeTypePostRename(s, r, details, effectiveProjectName, &dbVolume.StorageVolume, req)
 	}
 
 	// Otherwise this is a move request.
-	return storagePoolVolumeTypePostMove(s, r, details.pool.Name(), effectiveProjectName, targetProjectName, &dbVolume.StorageVolume, req)
+	return storagePoolVolumeTypePostMove(s, r, details, effectiveProjectName, targetProjectName, &dbVolume.StorageVolume, req)
 }
 
 func migrateStorageVolume(ctx context.Context, s *state.State, sourceVolumeName string, sourcePoolName string, targetNode string, projectName string, req api.StorageVolumePost, op *operations.Operation) error {
