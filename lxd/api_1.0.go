@@ -783,59 +783,62 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	}
 
-	revert.Add(func() {
-		for key := range req.Config {
-			val, ok := oldClusterConfig[key]
-			if !ok {
-				req.Config[key] = nil
-			} else {
-				req.Config[key] = val
+	if len(clusterChanged) > 0 {
+		revert.Add(func() {
+			for key := range req.Config {
+				val, ok := oldClusterConfig[key]
+				if !ok {
+					req.Config[key] = nil
+				} else {
+					req.Config[key] = val
+				}
 			}
-		}
 
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			newClusterConfig, err = clusterConfig.Load(ctx, tx)
+			// Use context.Background for revert in case client disconnects after changes made and an error occurs.
+			err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+				newClusterConfig, err = clusterConfig.Load(ctx, tx)
+				if err != nil {
+					return fmt.Errorf("Failed loading cluster config: %w", err)
+				}
+
+				_, err = newClusterConfig.Replace(tx, req.Config)
+				if err != nil {
+					return fmt.Errorf("Failed updating cluster config: %w", err)
+				}
+
+				return nil
+			})
+
 			if err != nil {
-				return fmt.Errorf("Failed to load cluster config: %w", err)
+				logger.Warn("Failed reverting cluster config", logger.Ctx{"err": err})
 			}
-
-			_, err = newClusterConfig.Replace(tx, req.Config)
-			if err != nil {
-				return fmt.Errorf("Failed updating cluster config: %w", err)
-			}
-
-			return nil
 		})
 
+		// Notify the other nodes about cluster config changes
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
 		if err != nil {
-			logger.Warn("Failed reverting cluster config", logger.Ctx{"err": err})
+			return response.SmartError(err)
 		}
-	})
 
-	// Notify the other nodes about changes
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-	if err != nil {
-		return response.SmartError(err)
-	}
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			server, etag, err := client.GetServer()
+			if err != nil {
+				return err
+			}
 
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		server, etag, err := client.GetServer()
+			serverPut := server.Writable()
+			serverPut.Config = make(map[string]any)
+			// Only propagated cluster-wide changes
+			for key, value := range clusterChanged {
+				serverPut.Config[key] = value
+			}
+
+			return client.UpdateServer(serverPut, etag)
+		})
 		if err != nil {
-			return err
+			logger.Error("Failed notifying other members about config change", logger.Ctx{"err": err})
+			return response.SmartError(err)
 		}
-
-		serverPut := server.Writable()
-		serverPut.Config = make(map[string]any)
-		// Only propagated cluster-wide changes
-		for key, value := range clusterChanged {
-			serverPut.Config[key] = value
-		}
-
-		return client.UpdateServer(serverPut, etag)
-	})
-	if err != nil {
-		logger.Error("Failed to notify other members about config change", logger.Ctx{"err": err})
-		return response.SmartError(err)
 	}
 
 	// Update the daemon config.
