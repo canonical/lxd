@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -849,7 +848,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	nodeChanged := map[string]string{}
 	var newNodeConfig *node.Config
-	oldNodeConfig := make(map[string]string)
+	var oldNodeConfig map[string]string
 
 	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
@@ -859,7 +858,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 
 		// Keep old config around in case something goes wrong. In that case the config will be reverted.
-		maps.Copy(oldNodeConfig, newNodeConfig.Dump())
+		oldNodeConfig = newNodeConfig.Dump()
 
 		// We currently don't allow changing the cluster.https_address once it's set.
 		if s.ServerClustered {
