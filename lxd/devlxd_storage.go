@@ -297,6 +297,10 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 		resp := storagePoolVolumeGet(d, req)
 		_, err = response.NewResponseCapture(req).RenderToStruct(resp, &sourceVol)
 		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return response.DevLXDErrorResponse(api.NewStatusError(http.StatusNotFound, "Source volume not found"))
+			}
+
 			return response.DevLXDErrorResponse(err)
 		}
 
