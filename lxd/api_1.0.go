@@ -560,8 +560,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 
 		// Copy the old config so that the update triggers have access to it.
 		// In this case it will not be used as we are not changing any node values.
-		oldNodeConfig := make(map[string]string)
-		maps.Copy(oldNodeConfig, s.LocalConfig.Dump())
+		oldNodeConfig := s.LocalConfig.Dump()
 
 		// Run any update triggers.
 		err = doAPI10UpdateTriggers(d, nil, changed, oldNodeConfig, s.LocalConfig, config)
