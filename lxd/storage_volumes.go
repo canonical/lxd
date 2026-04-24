@@ -1228,15 +1228,27 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 		return nil
 	}
 
+	// Get the source pool to determine the full URL of the volume.
+	srcPool, err := storagePools.LoadByName(s, req.Source.Pool)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed loading source pool: %w", err))
+	}
+
+	// Set volume location in URL if clustered and on local storage.
+	location := ""
+	if s.ServerClustered && !srcPool.Driver().Info().Remote {
+		location = req.Source.Location
+	}
+
 	var opType operationtype.Type
 	var volumeURL *api.URL
 	if shared.IsSnapshot(req.Source.Name) {
 		opType = operationtype.VolumeSnapshotCopy
 		vName, sName, _ := api.GetParentAndSnapshotName(req.Source.Name)
-		volumeURL = api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Type, vName, "snapshots", sName).Project(srcProjectName)
+		volumeURL = api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Type, vName, "snapshots", sName).Project(srcProjectName).Target(location)
 	} else {
 		opType = operationtype.VolumeCopy
-		volumeURL = api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Type, req.Source.Name).Project(srcProjectName)
+		volumeURL = api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", req.Type, req.Source.Name).Project(srcProjectName).Target(location)
 	}
 
 	args := operations.OperationArgs{
