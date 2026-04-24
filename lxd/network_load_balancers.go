@@ -698,7 +698,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 	clientType := requestor.ClientType()
 
 	run := func(ctx context.Context, op *operations.Operation) error {
-		err := n.LoadBalancerUpdate(listenAddress, req, clientType)
+		err := n.LoadBalancerUpdate(listenAddress, req, clientType, false)
 		if err != nil {
 			return fmt.Errorf("Failed updating load balancer: %w", err)
 		}
