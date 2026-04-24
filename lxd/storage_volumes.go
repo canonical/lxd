@@ -2582,6 +2582,9 @@ func doStoragePoolVolumeDelete(ctx context.Context, opScheduler operations.Opera
 	// We're deleting the volume on this node.
 	// When looking up the entity for the operation, we look for the volumes located on the nodes based on the target parameter.
 	// If the server is clustered, we need to set the target.
+	// Note that in this case "storageVolumeDetails" might not be set in the context, because this function is also called
+	// when force deleting a project (this means that we can't use `details.location` directly for the target parameter
+	// and instead need to do this check).
 	if s.ServerClustered && !pool.Driver().Info().Remote {
 		volumeURL = volumeURL.Target(s.ServerName)
 	}
