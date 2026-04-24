@@ -547,23 +547,16 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return details.pool.RenameCustomVolumeSnapshot(ctx, effectiveProjectName, details.fullName, req.Name, op)
 	}
 
-	originalEntityURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(requestProjectName)
-
-	// In a clustered environment with a non-remote pool, volumes are pinned to a specific node.
-	// Include the target so that the entity lookup can match by node name.
-	if s.ServerClustered && !details.pool.Driver().Info().Remote {
-		originalEntityURL = originalEntityURL.Target(s.ServerName)
-	}
-
+	originalEntityURLWithoutProject := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", details.snapshotName).Target(details.location)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
-		EntityURL:   originalEntityURL,
+		EntityURL:   originalEntityURLWithoutProject.Project(effectiveProjectName),
 		Type:        operationtype.VolumeSnapshotRename,
 		Class:       operations.OperationClassTask,
 		RunHook:     snapshotRename,
 		Metadata: map[string]any{
-			api.MetadataOriginalEntityURL: originalEntityURL.String(),
-			api.MetadataEntityURL:         api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", req.Name).Project(requestProjectName).String(),
+			api.MetadataOriginalEntityURL: originalEntityURLWithoutProject.Project(requestProjectName).String(),
+			api.MetadataEntityURL:         api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", req.Name).Project(requestProjectName).Target(details.location).String(),
 		},
 	}
 
