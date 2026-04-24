@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -539,7 +538,12 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		logger.Debug("Handling config changed notification")
 		changed := make(map[string]string)
 		for key, value := range req.Config {
-			changed[key], _ = value.(string)
+			stringValue, ok := value.(string)
+			if !ok {
+				return response.BadRequest(fmt.Errorf("Invalid config value type for %q: expected string", key))
+			}
+
+			changed[key] = stringValue
 		}
 
 		// Get the current (updated) config.
@@ -560,8 +564,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 
 		// Copy the old config so that the update triggers have access to it.
 		// In this case it will not be used as we are not changing any node values.
-		oldNodeConfig := make(map[string]string)
-		maps.Copy(oldNodeConfig, s.LocalConfig.Dump())
+		oldNodeConfig := s.LocalConfig.Dump()
 
 		// Run any update triggers.
 		err = doAPI10UpdateTriggers(d, nil, changed, oldNodeConfig, s.LocalConfig, config)
@@ -848,25 +851,25 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	}
 
-	nodeChanged := map[string]string{}
+	var nodeChanged map[string]string
 	var newNodeConfig *node.Config
-	oldNodeConfig := make(map[string]string)
+	var oldNodeConfig map[string]string
 
 	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed loading node config: %w", err)
+			return fmt.Errorf("Failed loading local config: %w", err)
 		}
 
 		// Keep old config around in case something goes wrong. In that case the config will be reverted.
-		maps.Copy(oldNodeConfig, newNodeConfig.Dump())
+		oldNodeConfig = newNodeConfig.Dump()
 
 		// We currently don't allow changing the cluster.https_address once it's set.
 		if s.ServerClustered {
 			curConfig, err := tx.Config(ctx)
 			if err != nil {
-				return fmt.Errorf("Cannot fetch node config from database: %w", err)
+				return fmt.Errorf("Cannot fetch local config from database: %w", err)
 			}
 
 			newClusterHTTPSAddress := ""
@@ -878,7 +881,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			}
 
 			if curConfig["cluster.https_address"] != newClusterHTTPSAddress {
-				return errors.New("Changing cluster.https_address is currently not supported")
+				return api.StatusErrorf(http.StatusBadRequest, "Changing cluster.https_address is currently not supported")
 			}
 		}
 
@@ -908,34 +911,28 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	revert := revert.New()
 	defer revert.Fail()
 
-	revert.Add(func() {
-		for key := range nodeValues {
-			val, ok := oldNodeConfig[key]
-			if !ok {
-				nodeValues[key] = ""
-			} else {
-				nodeValues[key] = val
-			}
-		}
+	if len(nodeChanged) > 0 {
+		revert.Add(func() {
+			// Use context.Background for revert in case client disconnects after changes made and an error occurs.
+			err := s.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
+				newNodeConfig, err := node.ConfigLoad(ctx, tx)
+				if err != nil {
+					return fmt.Errorf("Failed loading local config: %w", err)
+				}
 
-		err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
-			newNodeConfig, err := node.ConfigLoad(ctx, tx)
+				_, err = newNodeConfig.Replace(oldNodeConfig)
+				if err != nil {
+					return fmt.Errorf("Failed updating local config: %w", err)
+				}
+
+				return nil
+			})
+
 			if err != nil {
-				return fmt.Errorf("Failed loading node config: %w", err)
+				logger.Warn("Failed reverting local config", logger.Ctx{"err": err})
 			}
-
-			_, err = newNodeConfig.Replace(nodeValues)
-			if err != nil {
-				return fmt.Errorf("Failed updating node config: %w", err)
-			}
-
-			return nil
 		})
-
-		if err != nil {
-			logger.Warn("Failed reverting node config", logger.Ctx{"err": err})
-		}
-	})
+	}
 
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
@@ -969,59 +966,53 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	}
 
-	revert.Add(func() {
-		for key := range stringReqConfig {
-			val, ok := oldClusterConfig[key]
-			if !ok {
-				stringReqConfig[key] = ""
-			} else {
-				stringReqConfig[key] = val
-			}
-		}
+	if len(clusterChanged) > 0 {
+		revert.Add(func() {
+			// Use context.Background for revert in case client disconnects after changes made and an error occurs.
+			err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+				newClusterConfig, err := clusterConfig.Load(ctx, tx)
+				if err != nil {
+					return fmt.Errorf("Failed loading cluster config: %w", err)
+				}
 
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			newClusterConfig, err = clusterConfig.Load(ctx, tx)
+				_, err = newClusterConfig.Replace(tx, oldClusterConfig)
+				if err != nil {
+					return fmt.Errorf("Failed updating cluster config: %w", err)
+				}
+
+				return nil
+			})
+
 			if err != nil {
-				return fmt.Errorf("Failed loading cluster config: %w", err)
+				logger.Warn("Failed reverting cluster config", logger.Ctx{"err": err})
 			}
-
-			_, err = newClusterConfig.Replace(tx, stringReqConfig)
-			if err != nil {
-				return fmt.Errorf("Failed updating cluster config: %w", err)
-			}
-
-			return nil
 		})
 
+		// Notify the other nodes about cluster config changes
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
 		if err != nil {
-			logger.Warn("Failed reverting cluster config", logger.Ctx{"err": err})
+			return response.SmartError(err)
 		}
-	})
 
-	// Notify the other nodes about changes
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-	if err != nil {
-		return response.SmartError(err)
-	}
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			server, etag, err := client.GetServer()
+			if err != nil {
+				return err
+			}
 
-	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		server, etag, err := client.GetServer()
+			serverPut := server.Writable()
+			serverPut.Config = make(map[string]any)
+			// Only propagate cluster-wide changes.
+			for key, value := range clusterChanged {
+				serverPut.Config[key] = value
+			}
+
+			return client.UpdateServer(serverPut, etag)
+		})
 		if err != nil {
-			return err
+			logger.Error("Failed notifying other members about config change", logger.Ctx{"err": err})
+			return response.SmartError(err)
 		}
-
-		serverPut := server.Writable()
-		serverPut.Config = make(map[string]any)
-		// Only propagated cluster-wide changes
-		for key, value := range clusterChanged {
-			serverPut.Config[key] = value
-		}
-
-		return client.UpdateServer(serverPut, etag)
-	})
-	if err != nil {
-		logger.Error("Failed notifying other members about config change", logger.Ctx{"err": err})
-		return response.SmartError(err)
 	}
 
 	// Update the daemon config.
@@ -1144,9 +1135,13 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	// correlated with others, and need to be processed first (for example
 	// core.https_address need to be processed before
 	// cluster.https_address).
-
 	value, ok := nodeChanged["core.https_address"]
+	coreHTTPSAddressUnset := false
 	if ok {
+		if value == "" {
+			coreHTTPSAddressUnset = true
+		}
+
 		err := s.Endpoints.NetworkUpdateAddress(value)
 		if err != nil {
 			return err
@@ -1155,9 +1150,11 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		s.Endpoints.NetworkUpdateTrustedProxy(newClusterConfig.HTTPSTrustedProxy())
 	}
 
-	value, ok = nodeChanged["cluster.https_address"]
-	if ok {
-		err := s.Endpoints.ClusterUpdateAddress(value)
+	// If the cluster.https_address is changed, or if the core.https_address is unset then we need to ensure
+	// that, if set, the cluster's HTTPS address is re-activated.
+	_, ok = nodeChanged["cluster.https_address"]
+	if ok || (coreHTTPSAddressUnset && newNodeConfig.ClusterAddress() != "") {
+		err := s.Endpoints.ClusterUpdateAddress(newNodeConfig.ClusterAddress())
 		if err != nil {
 			return err
 		}
@@ -1204,7 +1201,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		_, storageType := config.ParseDaemonStorageConfigKey(projectVolumeConfigKey)
 		err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfigKey], storageType)
 		if err != nil {
-			return fmt.Errorf("Failed setting node config %q: %w", projectVolumeConfigKey, err)
+			return fmt.Errorf("Failed setting local config %q: %w", projectVolumeConfigKey, err)
 		}
 	}
 

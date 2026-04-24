@@ -2158,6 +2158,14 @@ test_clustering_address() {
   # the port is the same as cluster.https_address.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set "core.https_address" "0.0.0.0:8444"
 
+  sub_test "Verify cluster member is reachable via cluster.https_address when core.https_address is unset"
+  # When core.https_address is unset, the member should still serve the REST API
+  # on its cluster.https_address.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config unset "core.https_address"
+  url="https://100.64.1.101:8444"
+  lxc remote set-url cluster "${url}"
+  lxc storage list cluster: | grep -wF data
+
   LXD_DIR="${LXD_TWO_DIR}" lxc delete c1
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown

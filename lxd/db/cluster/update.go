@@ -237,8 +237,8 @@ CREATE TABLE identities_certificates (
 ) WITHOUT ROWID;
 -- We can't cascade deletion from the identities tables to the certificates table.
 -- This trigger ensures that certificates are deleted when an identity is deleted via foreign key cascade deletion
--- in the association table. 
-CREATE TRIGGER identities_certificates_after_delete 
+-- in the association table.
+CREATE TRIGGER identities_certificates_after_delete
     AFTER DELETE ON identities_certificates
 	BEGIN
 	DELETE FROM certificates
@@ -3368,7 +3368,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 SELECT ?, ?, 'lvm.vg_name', name FROM storage_pools WHERE id=?
 `, poolID, nodeID, poolID)
 			if err != nil {
-				return fmt.Errorf("Failed creating lvm.vg_name node config: %w", err)
+				return fmt.Errorf("Failed creating lvm.vg_name local config: %w", err)
 			}
 		}
 	}
@@ -3410,7 +3410,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 SELECT ?, ?, 'zfs.pool_name', name FROM storage_pools WHERE id=?
 `, poolID, nodeID, poolID)
 			if err != nil {
-				return fmt.Errorf("Failed creating zfs.pool_name node config: %w", err)
+				return fmt.Errorf("Failed creating zfs.pool_name local config: %w", err)
 			}
 		}
 	}
@@ -4667,7 +4667,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
   VALUES(?, ?, 'zfs.pool_name', ?)
 `, poolID, nodeID, poolName)
 			if err != nil {
-				return fmt.Errorf("failed creating zfs.pool_name node config: %w", err)
+				return fmt.Errorf("failed creating zfs.pool_name local config: %w", err)
 			}
 		}
 	}

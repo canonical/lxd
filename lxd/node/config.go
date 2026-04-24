@@ -25,12 +25,12 @@ func ConfigLoad(ctx context.Context, tx *db.NodeTx) (*Config, error) {
 	// Load current raw values from the database, any error is fatal.
 	values, err := tx.Config(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot fetch node config from database: %w", err)
+		return nil, fmt.Errorf("Cannot fetch local config from database: %w", err)
 	}
 
 	m, err := config.SafeLoad(&ConfigSchema, values)
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading node config: %w", err)
+		return nil, fmt.Errorf("Failed loading local config: %w", err)
 	}
 
 	return &Config{tx: tx, m: m}, nil

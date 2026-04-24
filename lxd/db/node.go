@@ -628,7 +628,7 @@ func (c *ClusterTx) BootstrapNode(name string, address string) error {
 func (c *ClusterTx) UpdateNodeConfig(ctx context.Context, id int64, config map[string]string) error {
 	err := cluster.UpdateConfig(ctx, c.Tx(), "node", int(id), config)
 	if err != nil {
-		return fmt.Errorf("Cannot update node config: %w", err)
+		return fmt.Errorf("Cannot update local config: %w", err)
 	}
 
 	return nil

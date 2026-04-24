@@ -74,7 +74,7 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 
 			err := unmountDaemonStorageVolume(s, value)
 			if err != nil {
-				return fmt.Errorf("Failed unmounting project storage volume %q set under node config key %q: %w", value, key, err)
+				return fmt.Errorf("Failed unmounting project storage volume %q set under local config key %q: %w", value, key, err)
 			}
 		}
 	}
@@ -130,7 +130,7 @@ func daemonStorageMount(s *state.State) error {
 
 		err := mountDaemonStorageVolume(s, value)
 		if err != nil {
-			return fmt.Errorf("Failed mounting project storage volume %q set under node config key %q: %w", value, key, err)
+			return fmt.Errorf("Failed mounting project storage volume %q set under local config key %q: %w", value, key, err)
 		}
 	}
 
