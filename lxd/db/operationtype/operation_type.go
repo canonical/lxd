@@ -126,6 +126,7 @@ const (
 	NetworkLoadBalancerCreate
 	NetworkLoadBalancerUpdate
 	NetworkLoadBalancerDelete
+	NetworkLoadBalancerPoolUpdate
 	NetworkForwardCreate
 	NetworkForwardUpdate
 	NetworkForwardDelete
@@ -354,6 +355,8 @@ func (t Type) Description() string {
 		return "Updating network load balancer"
 	case NetworkLoadBalancerDelete:
 		return "Deleting network load balancer"
+	case NetworkLoadBalancerPoolUpdate:
+		return "Updating network load balancer pool"
 	case NetworkForwardCreate:
 		return "Creating network forward"
 	case NetworkForwardUpdate:
@@ -465,7 +468,7 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeNetworkACL
 
 	// Network load balancer operations.
-	case NetworkLoadBalancerCreate, NetworkLoadBalancerUpdate, NetworkLoadBalancerDelete:
+	case NetworkLoadBalancerCreate, NetworkLoadBalancerUpdate, NetworkLoadBalancerDelete, NetworkLoadBalancerPoolUpdate:
 		return entity.TypeNetwork
 
 	// Network forward operations.
