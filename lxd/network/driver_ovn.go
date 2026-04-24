@@ -7163,6 +7163,132 @@ func (n *ovn) getLoadBalancerPool(ctx context.Context, tx *sql.Tx, poolName stri
 	return poolDB.ToAPI(allConfigs, allInstances)
 }
 
+// LoadBalancerPoolState returns the state of a network load balancer pool.
+func (n *ovn) LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPoolState, error) {
+	var pool *api.NetworkLoadBalancerPool
+	var loadBalancers map[int64]*api.NetworkLoadBalancer
+
+	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		pool, err = n.getLoadBalancerPool(ctx, tx.Tx(), poolName)
+		if err != nil {
+			return err
+		}
+
+		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build a map of load balancer listen addresses using the pool together with their listen ports.
+	poolListenAddresses := make(map[string][]string)
+	for _, lb := range loadBalancers {
+		for _, port := range lb.Ports {
+			if port.TargetPool == poolName {
+				if poolListenAddresses[lb.ListenAddress] == nil {
+					poolListenAddresses[lb.ListenAddress] = []string{}
+				}
+
+				poolListenAddresses[lb.ListenAddress] = append(poolListenAddresses[lb.ListenAddress], port.ListenPort)
+			}
+		}
+	}
+
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting OVN client: %w", err)
+	}
+
+	poolState := &api.NetworkLoadBalancerPoolState{
+		// For the initialize size assume each instance has at least one device in the network.
+		Targets: make([]api.NetworkLoadBalancerPoolTarget, 0, len(pool.Instances)),
+	}
+
+	// Populate the pool's instances service monitor target state.
+	for _, poolInstance := range pool.Instances {
+		// Load the instance from the DB by name.
+		dbInst, err := instance.LoadByProjectAndName(n.state, n.project, poolInstance.Name)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading instance %q: %w", poolInstance.Name, err)
+		}
+
+		instanceUUID := dbInst.LocalConfig()["volatile.uuid"]
+
+		// Find NICs connected to this network.
+		for devName, devConfig := range dbInst.ExpandedDevices() {
+			if devConfig["type"] != "nic" || !NICUsesNetwork(devConfig, &api.Network{Name: n.name}) {
+				continue
+			}
+
+			targetPort := pool.Config["target_port"]
+			if poolInstance.TargetPort != "" {
+				targetPort = poolInstance.TargetPort
+			}
+
+			// Load the service monitor's status for the given instance device.
+			monitors, err := client.ServiceMonitorStatusGet(n.getInstanceDevicePortName(instanceUUID, devName), targetPort)
+			if err != nil {
+				return nil, err
+			}
+
+			// Add state of started instances for which a service monitor exists.
+			for _, monitor := range monitors {
+				for listenAddr, listenPorts := range poolListenAddresses {
+					listenIP := net.ParseIP(listenAddr)
+					if listenIP == nil {
+						continue
+					}
+
+					// Match IPv4 target to IPv4 load balancer, IPv6 to IPv6.
+					if (monitor.Address.To4() != nil) != (listenIP.To4() != nil) {
+						continue
+					}
+
+					// Until OVN performed the first health check, the status is empty.
+					// Return it as pending.
+					if monitor.Status == "" {
+						monitor.Status = "pending"
+					}
+
+					for _, port := range listenPorts {
+						poolState.Targets = append(poolState.Targets, api.NetworkLoadBalancerPoolTarget{
+							ListenAddress: listenAddr,
+							ListenPort:    port,
+							Name:          poolInstance.Name,
+							Address:       monitor.Address.String(),
+							Port:          targetPort,
+							Device:        devName,
+							Status:        monitor.Status,
+						})
+					}
+				}
+			}
+
+			// Add state for stopped instance which don't have a service monitor configured.
+			if len(monitors) == 0 {
+				for listenAddr, listenPorts := range poolListenAddresses {
+					for _, port := range listenPorts {
+						poolState.Targets = append(poolState.Targets, api.NetworkLoadBalancerPoolTarget{
+							ListenAddress: listenAddr,
+							ListenPort:    port,
+							Name:          poolInstance.Name,
+							Device:        devName,
+							// A status of "unknown" is used to indicate that the instance is not running and there is no service monitor configured.
+							// In addition if health checks are disabled on the pool, the status of all targets is returned as "unknown" as well.
+							Status: "unknown",
+						})
+					}
+				}
+			}
+		}
+	}
+
+	return poolState, nil
+}
+
 // getLoadBalancerInstanceNICs returns a list of active instance NICs which are referenced by load balancers on this network.
 // The operation is performed with the records from the database.
 // Another approach would be to query all the active service monitors using ovn-sbctl.
