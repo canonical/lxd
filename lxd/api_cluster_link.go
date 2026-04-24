@@ -522,6 +522,16 @@ func clusterLinkPost(d *Daemon, r *http.Request) response.Response {
 
 	// Get the existing cluster link.
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Prevent rename if the cluster link is referenced by any entity.
+		usedBy, err := dbCluster.GetClusterLinkUsedBy(ctx, tx.Tx(), name, true)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
+			return api.StatusErrorf(http.StatusBadRequest, "Cluster link is currently in use")
+		}
+
 		clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
 		if err != nil {
 			return fmt.Errorf("Failed loading cluster link: %w", err)
@@ -600,6 +610,16 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 	// Update DB entry.
 	var identity *dbCluster.IdentitiesRow
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Prevent deletion if the cluster link is referenced by any entity.
+		usedBy, err := dbCluster.GetClusterLinkUsedBy(ctx, tx.Tx(), name, true)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
+			return api.StatusErrorf(http.StatusBadRequest, "Cluster link is currently in use")
+		}
+
 		// Get cluster link.
 		clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
 		if err != nil {
