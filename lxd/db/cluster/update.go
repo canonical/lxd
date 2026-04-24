@@ -155,7 +155,7 @@ CREATE TABLE networks_load_balancer_pools_instances (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 	network_load_balancer_pool_id INTEGER NOT NULL,
 	instance_id INTEGER NOT NULL,
-	target_port TEXT,
+	target_port INTEGER NOT NULL,
 	UNIQUE (network_load_balancer_pool_id, instance_id),
 	FOREIGN KEY (network_load_balancer_pool_id) REFERENCES networks_load_balancer_pools (id) ON DELETE CASCADE,
 	FOREIGN KEY (instance_id) REFERENCES instances (id) ON DELETE CASCADE
