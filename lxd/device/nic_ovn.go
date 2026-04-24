@@ -1120,6 +1120,13 @@ func (d *nicOVN) postStop() error {
 	return nil
 }
 
+// PreRemoveCheck indicates if the device is available for removal.
+func (d *nicOVN) PreRemoveCheck() error {
+	// Check if this device is referenced by any load balancer pool on this network.
+	// Reject removal if so, as the instance must be removed from the pool first.
+	return d.network.InstanceDevicePortValidateUseByLoadBalancer(d.inst)
+}
+
 // Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicOVN) Remove() error {
 	// Check for port groups that will become unused (and need deleting) as this NIC is deleted.

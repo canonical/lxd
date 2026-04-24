@@ -63,6 +63,10 @@ type Device interface {
 	// Returns run-time configuration needed for detaching the device from the instance.
 	Stop() (*deviceConfig.RunConfig, error)
 
+	// PreRemoveCheck indicates if the device is available for removal.
+	// Performing this check before calling Remove() is necessary as the device gets stopped beforehand.
+	PreRemoveCheck() error
+
 	// Remove performs any host-side cleanup when a device is removed from an instance.
 	Remove() error
 
