@@ -6,12 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
@@ -515,12 +512,6 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return response.SmartError(err)
 	}
 
-	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Check that the storage volume type is valid.
 	if details.volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
@@ -542,9 +533,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return resp
 	}
 
-	fullName := details.volumeName + shared.SnapshotDelimiter + backupName
-
-	backup, err := storagePoolVolumeBackupLoadByName(r.Context(), s, effectiveProjectName, details.pool.Name(), fullName)
+	backup, err := storagePoolVolumeBackupLoadByName(r.Context(), s, effectiveProjectName, details.pool.Name(), details.fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -597,12 +586,6 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return response.SmartError(err)
 	}
 
-	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Check that the storage volume type is valid.
 	if details.volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
@@ -637,9 +620,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return response.BadRequest(err)
 	}
 
-	oldName := details.volumeName + shared.SnapshotDelimiter + backupName
-
-	backup, err := storagePoolVolumeBackupLoadByName(r.Context(), s, effectiveProjectName, details.pool.Name(), oldName)
+	backup, err := storagePoolVolumeBackupLoadByName(r.Context(), s, effectiveProjectName, details.pool.Name(), details.fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -652,12 +633,12 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 			return err
 		}
 
-		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRenamed.Event(details.pool.Name(), details.volumeTypeName, newName, effectiveProjectName, op.EventLifecycleRequestor(), logger.Ctx{"old_name": oldName}))
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRenamed.Event(details.pool.Name(), details.volumeTypeName, newName, effectiveProjectName, op.EventLifecycleRequestor(), logger.Ctx{"old_name": details.fullName}))
 
 		return nil
 	}
 
-	originalEntityURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName)
+	originalEntityURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", details.backupName).Project(requestProjectName)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		EntityURL:   originalEntityURL,
@@ -717,12 +698,6 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return response.SmartError(err)
 	}
 
-	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Check that the storage volume type is valid.
 	if details.volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
@@ -745,9 +720,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return resp
 	}
 
-	fullName := details.volumeName + shared.SnapshotDelimiter + backupName
-
-	backup, err := storagePoolVolumeBackupLoadByName(r.Context(), s, effectiveProjectName, details.pool.Name(), fullName)
+	backup, err := storagePoolVolumeBackupLoadByName(r.Context(), s, effectiveProjectName, details.pool.Name(), details.fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -758,12 +731,12 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 			return err
 		}
 
-		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupDeleted.Event(details.pool.Name(), details.volumeTypeName, fullName, effectiveProjectName, op.EventLifecycleRequestor(), nil))
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupDeleted.Event(details.pool.Name(), details.volumeTypeName, details.fullName, effectiveProjectName, op.EventLifecycleRequestor(), nil))
 
 		return nil
 	}
 
-	backupURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(effectiveProjectName)
+	backupURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", details.backupName).Project(effectiveProjectName).Target(details.location)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		EntityURL:   backupURL,
@@ -815,12 +788,6 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		return response.SmartError(err)
 	}
 
-	// Get backup name.
-	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Check that the storage volume type is valid.
 	if details.volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
@@ -842,19 +809,17 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		return resp
 	}
 
-	fullName := details.volumeName + shared.SnapshotDelimiter + backupName
-
 	// Ensure the volume exists
-	_, err = storagePoolVolumeBackupLoadByName(r.Context(), s, effectiveProjectName, details.pool.Name(), fullName)
+	_, err = storagePoolVolumeBackupLoadByName(r.Context(), s, effectiveProjectName, details.pool.Name(), details.fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	ent := response.FileResponseEntry{
-		Path: filepath.Join(s.BackupsStoragePath(effectiveProjectName), "custom", details.pool.Name(), project.StorageVolume(effectiveProjectName, fullName)),
+		Path: filepath.Join(s.BackupsStoragePath(effectiveProjectName), "custom", details.pool.Name(), project.StorageVolume(effectiveProjectName, details.fullName)),
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRetrieved.Event(details.pool.Name(), details.volumeTypeName, fullName, effectiveProjectName, request.CreateRequestor(r.Context()), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRetrieved.Event(details.pool.Name(), details.volumeTypeName, details.fullName, effectiveProjectName, request.CreateRequestor(r.Context()), nil))
 
 	return response.FileResponse([]response.FileResponseEntry{ent}, nil)
 }
