@@ -1951,18 +1951,18 @@ func (o *OVN) loadBalancerVIPs(loadBalancerName OVNLoadBalancer, protocol string
 	return vips, nil
 }
 
+// ipToString wraps IPv6 addresses in square brackets.
+func (o *OVN) ipToString(ip net.IP) string {
+	if ip.To4() == nil {
+		return "[" + ip.String() + "]"
+	}
+
+	return ip.String()
+}
+
 // LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
 // Providing an empty set of vips will delete the load balancer.
 func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, switches []OVNSwitch, vips ...OVNLoadBalancerVIP) error {
-	// ipToString wraps IPv6 addresses in square brackets.
-	ipToString := func(ip net.IP) string {
-		if ip.To4() == nil {
-			return "[" + ip.String() + "]"
-		}
-
-		return ip.String()
-	}
-
 	// deleteLBArgs returns the args for load balancer deletion.
 	deleteLBArgs := func(args []string, lbUUID string) []string {
 		if len(args) > 0 {
@@ -2019,6 +2019,13 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			return errors.New("Missing VIP target(s)")
 		}
 
+		// In case no protocol is set, default to TCP as OVN does.
+		if vip.Protocol == "" {
+			vip.Protocol = "tcp"
+		}
+
+		lbName := string(loadBalancerName) + "-" + vip.Protocol
+
 		targetArgs := make([]string, 0, len(vip.Targets))
 
 		// Generate a list of load balancer targets.
@@ -2027,10 +2034,12 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 				return errors.New("The listen and target ports must be specified together")
 			}
 
+			ipStr := o.ipToString(target.Address)
+
 			if vip.ListenPort > 0 {
-				targetArgs = append(targetArgs, ipToString(target.Address)+":"+strconv.FormatUint(target.Port, 10))
+				targetArgs = append(targetArgs, ipStr+":"+strconv.FormatUint(target.Port, 10))
 			} else {
-				targetArgs = append(targetArgs, ipToString(target.Address))
+				targetArgs = append(targetArgs, ipStr)
 			}
 		}
 
@@ -2038,20 +2047,14 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			args = append(args, "--")
 		}
 
-		// In case no protocol is set, default to TCP as OVN does.
-		if vip.Protocol == "" {
-			vip.Protocol = "tcp"
-		}
-
 		// Append all requested targets to the load balancer VIP.
-		lbName := string(loadBalancerName) + "-" + vip.Protocol
 		args = append(args, "--may-exist", "lb-add", lbName)
 
-		vipStr := ipToString(vip.ListenAddress)
+		vipStr := o.ipToString(vip.ListenAddress)
 		joinedTargets := strings.Join(targetArgs, ",")
 
 		if vip.ListenPort > 0 {
-			vipStr = ipToString(vip.ListenAddress) + ":" + strconv.FormatUint(vip.ListenPort, 10)
+			vipStr = o.ipToString(vip.ListenAddress) + ":" + strconv.FormatUint(vip.ListenPort, 10)
 			args = append(args, vipStr, joinedTargets, vip.Protocol)
 		} else {
 			args = append(args, vipStr, joinedTargets)
