@@ -1418,10 +1418,44 @@ func (n *common) loadBalancerValidate(listenAddress net.IP, forward api.NetworkL
 			return nil, fmt.Errorf("Invalid port protocol in port specification %d, protocol must be one of: %s", portSpecID, strings.Join(validPortProcols, ", "))
 		}
 
+		if len(portSpec.TargetBackend) == 0 && portSpec.TargetPool == "" {
+			return nil, fmt.Errorf("Missing target_backend or target_pool in port specification %d", portSpecID)
+		}
+
+		if portSpec.TargetPool != "" {
+			if len(portSpec.TargetBackend) > 0 {
+				return nil, fmt.Errorf("Cannot specify both target_backend and target_pool in port specification %d", portSpecID)
+			}
+
+			listenPort, rangeSize, err := ParsePortRange(portSpec.ListenPort)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid listen port in port specification %d: %w", portSpecID, err)
+			}
+
+			_, found := listenPorts[portSpec.Protocol][listenPort]
+			if found {
+				return nil, fmt.Errorf("Duplicate listen port %d for protocol %q in port specification %d", listenPort, portSpec.Protocol, portSpecID)
+			}
+
+			if rangeSize > 1 {
+				return nil, fmt.Errorf("Port ranges cannot be used with pool in port specification %d", portSpecID)
+			}
+
+			// Record listen port as used.
+			listenPorts[portSpec.Protocol][listenPort] = struct{}{}
+
+			// Done validating the port when in pool mode.
+			continue
+		}
+
 		// Check valid listen port(s) supplied.
 		listenPortRanges := shared.SplitNTrimSpace(portSpec.ListenPort, ",", -1, true)
 		if len(listenPortRanges) <= 0 {
 			return nil, fmt.Errorf("Missing listen port in port specification %d", portSpecID)
+		}
+
+		if len(listenPortRanges) > 1 && portSpec.TargetPool != "" {
+			return nil, fmt.Errorf("Cannot use port ranges with pool in port specification %d", portSpecID)
 		}
 
 		portMap := loadBalancerPortMap{
