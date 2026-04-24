@@ -1343,6 +1343,9 @@ func (c *cmdNetworkLoadBalancerPool) command() *cobra.Command {
 	// Pool Get.
 	cmd.AddCommand(c.commandGet())
 
+	// Pool Info.
+	cmd.AddCommand(c.commandInfo())
+
 	// Pool Instance.
 	networkLoadBalancerPoolInstanceCmd := cmdNetworkLoadBalancerPoolInstance{global: c.global, networkLoadBalancerPool: c}
 	cmd.AddCommand(networkLoadBalancerPoolInstanceCmd.command())
@@ -1456,12 +1459,14 @@ func (c *cmdNetworkLoadBalancerPool) helpTemplate() string {
 	return `### This is a YAML representation of the network load balancer pool.
 ### Any line starting with a '#' will be ignored.
 ###
-### A network load balancer pool consists of a set of instances (each with an optional port).
+### A network load balancer pool consists of a set of instances (each with an optional port) and healthcheck configuration.
 ###
 ### An example would look like:
 ### name: pool1
 ### description: ""
 ### config:
+###  healthcheck.interval: "10"
+###  healthcheck.timeout: "10"
 ###  protocol: tcp
 ###  target_port: "443"
 ### instances:
@@ -2097,6 +2102,108 @@ func (c *cmdNetworkLoadBalancerPool) runGet(cmd *cobra.Command, args []string) e
 		}
 	}
 
+	return nil
+}
+
+func (c *cmdNetworkLoadBalancerPool) commandInfo() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("info", "[<remote>:]<network> <pool_name>")
+	cmd.Short = "Show load balancer pool state information"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runInfo
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpNetworkLoadBalancerPools(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) runInfo(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	if args[1] == "" {
+		return errors.New("Missing pool name")
+	}
+
+	// Get the current config.
+	loadBalancerPool, _, err := client.GetNetworkLoadBalancerPool(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	// Get the current state.
+	loadBalancerState, err := client.GetNetworkLoadBalancerPoolState(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	loadBalancerStateTargets := map[string][]map[string]string{}
+
+	// Build up the map of load balancer targets.
+	for _, target := range loadBalancerState.Targets {
+		vip := net.JoinHostPort(target.ListenAddress, target.ListenPort)
+
+		if loadBalancerStateTargets[vip] == nil {
+			// Initialize the slice with size 1 as we don't know if there are additional targets.
+			loadBalancerStateTargets[vip] = []map[string]string{}
+		}
+
+		targetConfig := map[string]string{
+			"instance": target.Name,
+			"device":   target.Device,
+			"status":   target.Status,
+		}
+
+		if target.Address != "" && target.Port != "" {
+			targetConfig["address"] = net.JoinHostPort(target.Address, target.Port)
+		}
+
+		loadBalancerStateTargets[vip] = append(loadBalancerStateTargets[vip], targetConfig)
+	}
+
+	// Declare the poolinfo map of maps in order to build up the yaml.
+	poolInfo := make(map[string]any)
+	poolInfo["info"] = map[string]string{
+		"description": loadBalancerPool.Description,
+		"name":        loadBalancerPool.Name,
+		"protocol":    loadBalancerPool.Config["protocol"],
+	}
+
+	poolInfo["load-balancers"] = loadBalancerStateTargets
+
+	// Convert pool info to YAML and print.
+	data, err := yaml.Marshal(poolInfo)
+	if err != nil {
+		return err
+	}
+
+	fmt.Print(string(data))
 	return nil
 }
 
