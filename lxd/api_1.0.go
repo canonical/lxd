@@ -721,15 +721,6 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	if len(nodeChanged) > 0 {
 		revert.Add(func() {
-			for key := range nodeValues {
-				val, ok := oldNodeConfig[key]
-				if !ok {
-					nodeValues[key] = ""
-				} else {
-					nodeValues[key] = val
-				}
-			}
-
 			// Use context.Background for revert in case client disconnects after changes made and an error occurs.
 			err = s.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 				newNodeConfig, err := node.ConfigLoad(ctx, tx)
@@ -737,7 +728,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 					return fmt.Errorf("Failed loading node config: %w", err)
 				}
 
-				_, err = newNodeConfig.Replace(nodeValues)
+				_, err = newNodeConfig.Replace(oldNodeConfig)
 				if err != nil {
 					return fmt.Errorf("Failed updating node config: %w", err)
 				}
@@ -785,15 +776,6 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	if len(clusterChanged) > 0 {
 		revert.Add(func() {
-			for key := range req.Config {
-				val, ok := oldClusterConfig[key]
-				if !ok {
-					req.Config[key] = nil
-				} else {
-					req.Config[key] = val
-				}
-			}
-
 			// Use context.Background for revert in case client disconnects after changes made and an error occurs.
 			err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 				newClusterConfig, err = clusterConfig.Load(ctx, tx)
@@ -801,7 +783,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 					return fmt.Errorf("Failed loading cluster config: %w", err)
 				}
 
-				_, err = newClusterConfig.Replace(tx, req.Config)
+				_, err = newClusterConfig.Replace(tx, oldClusterConfig)
 				if err != nil {
 					return fmt.Errorf("Failed updating cluster config: %w", err)
 				}
