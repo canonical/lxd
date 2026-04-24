@@ -42,24 +42,24 @@ var devLXDStoragePoolVolumesTypeEndpoint = APIEndpoint{
 var devLXDStoragePoolVolumeTypeEndpoint = APIEndpoint{
 	MetricsType: entity.TypeStoragePool,
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}",
-	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
-	Put:         APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
-	Patch:       APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
-	Delete:      APIEndpointAction{Handler: devLXDStoragePoolVolumeDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanDelete)},
+	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
+	Put:         APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
+	Patch:       APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
+	Delete:      APIEndpointAction{Handler: devLXDStoragePoolVolumeDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
 }
 
 var devLXDStoragePoolVolumeSnapshotsEndpoint = APIEndpoint{
 	MetricsType: entity.TypeStoragePool,
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
-	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotsGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
-	Post:        APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotsPostHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots)},
+	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotsGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
+	Post:        APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotsPostHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(auth.EntitlementCanManageSnapshots)},
 }
 
 var devLXDStoragePoolVolumeSnapshotEndpoint = APIEndpoint{
 	MetricsType: entity.TypeStoragePool,
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
-	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanView)},
-	Delete:      APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanDelete)},
+	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
+	Delete:      APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
 }
 
 // devLXDStoragePoolGetHandler retrieves information about the specified storage pool.
@@ -787,7 +787,7 @@ func isDevLXDVolumeOwner(volConfig map[string]string, identityID string) bool {
 
 // devLXDStoragePoolVolumeTypeAccessHandler returns an access handler which checks the given entitlement
 // on a storage volume and ensures cross-project access is not allowed.
-func devLXDStoragePoolVolumeTypeAccessHandler(entityType entity.Type, entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+func devLXDStoragePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
 
@@ -797,7 +797,7 @@ func devLXDStoragePoolVolumeTypeAccessHandler(entityType entity.Type, entitlemen
 			return response.DevLXDErrorResponse(err)
 		}
 
-		err = checkStoragePoolVolumeTypeAccess(s, r, entityType, entitlement)
+		err = checkStoragePoolVolumeTypeAccess(s, r, entitlement)
 		if err != nil {
 			return response.DevLXDErrorResponse(err)
 		}

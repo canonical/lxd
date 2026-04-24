@@ -39,23 +39,23 @@ var storagePoolVolumeTypeCustomBackupsCmd = APIEndpoint{
 	MetricsType: entity.TypeStoragePool,
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsGet, AccessHandler: allowProjectResourceList(false)},
-	Post: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsPost, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanManageBackups)},
+	Post: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsPost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageBackups)},
 }
 
 var storagePoolVolumeTypeCustomBackupCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}",
 	MetricsType: entity.TypeStoragePool,
 
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupGet, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeBackup, auth.EntitlementCanView)},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupPost, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeBackup, auth.EntitlementCanEdit)},
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeBackup, auth.EntitlementCanDelete)},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupPost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
 }
 
 var storagePoolVolumeTypeCustomBackupExportCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}/export",
 	MetricsType: entity.TypeStoragePool,
 
-	Get: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupExportGet, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeBackup, auth.EntitlementCanView)},
+	Get: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupExportGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 }
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups storage storage_pool_volumes_type_backups_get

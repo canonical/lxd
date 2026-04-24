@@ -82,19 +82,19 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}",
 	MetricsType: entity.TypeStoragePool,
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanDelete)},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
-	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
-	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: storagePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
+	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
 }
 
 // storagePoolVolumeTypeAccessHandler returns an access handler which checks the given entitlement on a storage volume.
-func storagePoolVolumeTypeAccessHandler(entityType entity.Type, entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+func storagePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
 
-		err := checkStoragePoolVolumeTypeAccess(s, r, entityType, entitlement)
+		err := checkStoragePoolVolumeTypeAccess(s, r, entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -103,9 +103,9 @@ func storagePoolVolumeTypeAccessHandler(entityType entity.Type, entitlement auth
 	}
 }
 
-// checkStoragePoolVolumeTypeAccess checks the given entitlement on a storage volume.
+// checkStoragePoolVolumeTypeAccess checks the given entitlement on a storage volume, snapshot, or backup.
 // If the check is successful, returns nil, otherwise returns an error.
-func checkStoragePoolVolumeTypeAccess(s *state.State, r *http.Request, entityType entity.Type, entitlement auth.Entitlement) error {
+func checkStoragePoolVolumeTypeAccess(s *state.State, r *http.Request, entitlement auth.Entitlement) error {
 	err := addStoragePoolVolumeDetailsToRequestContext(s, r)
 	if err != nil {
 		return err
@@ -117,25 +117,13 @@ func checkStoragePoolVolumeTypeAccess(s *state.State, r *http.Request, entityTyp
 	}
 
 	var u *api.URL
-	switch entityType {
-	case entity.TypeStorageVolume:
-		u = entity.StorageVolumeURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName)
-	case entity.TypeStorageVolumeBackup:
-		backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
-		if err != nil {
-			return err
-		}
-
-		u = entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName)
-	case entity.TypeStorageVolumeSnapshot:
-		snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
-		if err != nil {
-			return err
-		}
-
-		u = entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, snapshotName)
+	switch {
+	case details.snapshotName != "":
+		u = entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, details.snapshotName)
+	case details.backupName != "":
+		u = entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, details.backupName)
 	default:
-		return fmt.Errorf("Cannot use storage volume access handler with entities of type %q", entityType)
+		u = entity.StorageVolumeURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName)
 	}
 
 	err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
