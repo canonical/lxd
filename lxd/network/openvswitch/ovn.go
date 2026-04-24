@@ -1192,6 +1192,18 @@ func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, 
 	return "", nil
 }
 
+// LogicalSwitchPortIsUp returns whether the logical switch port is bound to a chassis and up.
+func (o *OVN) LogicalSwitchPortIsUp(portName OVNSwitchPort) (bool, error) {
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=up",
+		"find", "logical_switch_port",
+		"name="+string(portName))
+	if err != nil {
+		return false, fmt.Errorf("Failed getting switch port up status for %q: %w", portName, err)
+	}
+
+	return strings.TrimSpace(output) == "true", nil
+}
+
 // LogicalSwitchPortAdd adds a named logical switch port to a logical switch, and sets options if provided.
 // If mayExist is true, then an existing resource of the same name is not treated as an error.
 func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort, opts *OVNSwitchPortOpts, mayExist bool) error {
