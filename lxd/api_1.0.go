@@ -856,7 +856,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed loading node config: %w", err)
+			return fmt.Errorf("Failed loading local config: %w", err)
 		}
 
 		// Keep old config around in case something goes wrong. In that case the config will be reverted.
@@ -866,7 +866,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		if s.ServerClustered {
 			curConfig, err := tx.Config(ctx)
 			if err != nil {
-				return fmt.Errorf("Cannot fetch node config from database: %w", err)
+				return fmt.Errorf("Cannot fetch local config from database: %w", err)
 			}
 
 			newClusterHTTPSAddress := ""
@@ -921,19 +921,19 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 			newNodeConfig, err := node.ConfigLoad(ctx, tx)
 			if err != nil {
-				return fmt.Errorf("Failed loading node config: %w", err)
+				return fmt.Errorf("Failed loading local config: %w", err)
 			}
 
 			_, err = newNodeConfig.Replace(nodeValues)
 			if err != nil {
-				return fmt.Errorf("Failed updating node config: %w", err)
+				return fmt.Errorf("Failed updating local config: %w", err)
 			}
 
 			return nil
 		})
 
 		if err != nil {
-			logger.Warn("Failed reverting node config", logger.Ctx{"err": err})
+			logger.Warn("Failed reverting local config", logger.Ctx{"err": err})
 		}
 	})
 
@@ -1204,7 +1204,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		_, storageType := config.ParseDaemonStorageConfigKey(projectVolumeConfigKey)
 		err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfigKey], storageType)
 		if err != nil {
-			return fmt.Errorf("Failed setting node config %q: %w", projectVolumeConfigKey, err)
+			return fmt.Errorf("Failed setting local config %q: %w", projectVolumeConfigKey, err)
 		}
 	}
 
