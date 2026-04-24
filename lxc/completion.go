@@ -1021,6 +1021,84 @@ func (g *cmdGlobal) cmpNetworkForwardPortTargetAddresses(networkName string, lis
 	return results, cmpDirectives
 }
 
+// cmpNetworkLoadBalancerPools provides shell completion for network load balancer pool names.
+// It takes a network name and returns a list of network load balancer pool names along with a shell completion directive.
+func (g *cmdGlobal) cmpNetworkLoadBalancerPools(networkName string) ([]string, cobra.ShellCompDirective) {
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	resources, _ := g.ParseServers(networkName)
+
+	if len(resources) <= 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+
+	pools, err := resource.server.GetNetworkLoadBalancerPools(resource.name)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	results := make([]string, 0, len(pools))
+	for _, pool := range pools {
+		results = append(results, pool.Name)
+	}
+
+	return results, cmpDirectives
+}
+
+// cmpNetworkLoadBalancerPoolConfigs provides shell completion for network load balancer pool config keys.
+// It takes a network name and pool name and returns a list of config keys along with a shell completion directive.
+func (g *cmdGlobal) cmpNetworkLoadBalancerPoolConfigs(networkName string, poolName string) ([]string, cobra.ShellCompDirective) {
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	resources, _ := g.ParseServers(networkName)
+
+	if len(resources) <= 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+
+	pool, _, err := resource.server.GetNetworkLoadBalancerPool(resource.name, poolName)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	results := make([]string, 0, len(pool.Config))
+	for k := range pool.Config {
+		results = append(results, k)
+	}
+
+	return results, cmpDirectives
+}
+
+// cmpNetworkLoadBalancerPoolInstances provides shell completion for instance names within a network load balancer pool.
+// It takes a network name and pool name and returns a list of instance names along with a shell completion directive.
+func (g *cmdGlobal) cmpNetworkLoadBalancerPoolInstances(networkName string, poolName string) ([]string, cobra.ShellCompDirective) {
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	resources, _ := g.ParseServers(networkName)
+
+	if len(resources) <= 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+
+	pool, _, err := resource.server.GetNetworkLoadBalancerPool(resource.name, poolName)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	results := make([]string, 0, len(pool.Instances))
+	for _, instance := range pool.Instances {
+		results = append(results, instance.Name)
+	}
+
+	return results, cmpDirectives
+}
+
 // cmpNetworkLoadBalancers provides shell completion for network load balancers.
 // It takes a network name and returns a list of network load balancers along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkLoadBalancers(networkName string) ([]string, cobra.ShellCompDirective) {
