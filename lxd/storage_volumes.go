@@ -1934,32 +1934,27 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 }
 
 // storagePoolVolumeTypePostRename handles volume rename type POST requests.
-func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName string, projectName string, vol *api.StorageVolume, req api.StorageVolumePost) response.Response {
+func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, details storageVolumeDetails, projectName string, vol *api.StorageVolume, req api.StorageVolumePost) response.Response {
 	newVol := *vol
 	newVol.Name = req.Name
-
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		revert := revert.New()
 		defer revert.Fail()
 
-		err = pool.RenameCustomVolume(ctx, projectName, vol.Name, req.Name, op)
+		err := details.pool.RenameCustomVolume(ctx, projectName, vol.Name, req.Name, op)
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			_ = pool.RenameCustomVolume(ctx, projectName, req.Name, vol.Name, op)
+			_ = details.pool.RenameCustomVolume(ctx, projectName, req.Name, vol.Name, op)
 		})
 
 		// Update devices using the volume in instances and profiles.
 		// Perform this operation after the actual rename of the volume.
 		// This ensures the database entries are up to date.
-		_, err := storagePoolVolumeUpdateUsers(ctx, s, projectName, pool.Name(), vol, pool.Name(), &newVol)
+		_, err = storagePoolVolumeUpdateUsers(ctx, s, projectName, details.pool.Name(), vol, details.pool.Name(), &newVol)
 		if err != nil {
 			return err
 		}
@@ -1968,15 +1963,7 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 		return nil
 	}
 
-	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, vol.Name).Project(projectName)
-
-	// We're renaming volume on this node.
-	// When looking up the entity for the operation, we look for the volumes located on the nodes based on the target parameter.
-	// If the server is clustered, we need to set the target.
-	if s.ServerClustered && !pool.Driver().Info().Remote {
-		volumeURL = volumeURL.Target(s.ServerName)
-	}
-
+	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, vol.Name).Project(projectName).Target(details.location)
 	args := operations.OperationArgs{
 		ProjectName: request.ProjectParam(r),
 		Type:        operationtype.VolumeMove,
