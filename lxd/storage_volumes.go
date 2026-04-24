@@ -1303,9 +1303,14 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 	} else {
 		// We're copying a volume from this node.
 		// When looking up the entity for the operation, we look for the volumes located on the nodes based on the target parameter.
-		// If the server is clustered, we need to set the target.
+		// If the server is clustered and the source pool is local, we need to set the target.
+		srcPool, err := storagePools.LoadByName(s, req.Source.Pool)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed loading source pool: %w", err))
+		}
+
 		location := ""
-		if s.ServerClustered && !pool.Driver().Info().Remote {
+		if s.ServerClustered && !srcPool.Driver().Info().Remote {
 			location = req.Source.Location
 		}
 
