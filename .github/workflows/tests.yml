@@ -752,6 +752,11 @@ jobs:
           if [ "${TEST_SCRIPT}" = "cluster" ]; then
             dst_track="${SNAP_TRACK}/${SNAP_RISK}"
             src_track="${SNAP_TRACK}/stable"
+            # `*/stable` are not all working on 6.17 due to dqlite bug
+            # use `*/candidate` which has the fixed dqlite.
+            if [[ "$(uname -r)" =~ ^6\.17\.0 ]]; then
+              src_track="$(echo "${dst_track}" | cut -d/ -f1)/candidate"
+            fi
             EXTRA_ARGS="${EXTRA_ARGS:-3} ${src_track} ${dst_track}"
           elif [ "${TEST_SCRIPT}" = "network-ovn" ]; then
             if [ -n "${EXTRA_ARGS}" ]; then
