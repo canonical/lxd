@@ -41,6 +41,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
+	"github.com/canonical/lxd/shared/version"
 )
 
 const ovnChassisPriorityMax = 32767
@@ -5332,6 +5333,29 @@ func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBala
 				vip.Targets = append(vip.Targets, loadBalancerTarget)
 			}
 
+			if portMap.healthCheck != nil {
+				healthCheck := openvswitch.OVNLoadBalancerHealthCheck{
+					Interval:     portMap.healthCheck.interval,
+					Timeout:      portMap.healthCheck.timeout,
+					SuccessCount: portMap.healthCheck.successCount,
+					FailureCount: portMap.healthCheck.failureCount,
+				}
+
+				var err error
+
+				if listenAddress.To4() != nil {
+					healthCheck.SourceAddress, _, err = n.parseRouterIntPortIPv4Net()
+				} else {
+					healthCheck.SourceAddress, _, err = n.parseRouterIntPortIPv6Net()
+				}
+
+				if err != nil {
+					return nil, err
+				}
+
+				vip.HealthCheck = &healthCheck
+			}
+
 			vips = append(vips, vip)
 		}
 	}
@@ -5339,10 +5363,83 @@ func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBala
 	return vips, nil
 }
 
+// checkPoolHealthCheck checks the pool's health check settings and returns a health check struct if valid.
+func (n *ovn) checkPoolHealthCheck(pool *api.NetworkLoadBalancerPool) (*loadBalancerHealthCheck, error) {
+	// If health checks are disabled, return early.
+	if shared.IsFalse(pool.Config["healthcheck"]) {
+		return nil, nil
+	}
+
+	var err error
+
+	// Use defaults if none are provided in the pool's config.
+	// These are the values defined by OVN in https://github.com/ovn-org/ovn/blob/main/controller/pinctrl.c.
+	healthCheckConfig := map[string]uint64{
+		"healthcheck.interval":      5,
+		"healthcheck.timeout":       3,
+		"healthcheck.success_count": 1,
+		"healthcheck.failure_count": 1,
+	}
+
+	for k := range healthCheckConfig {
+		strVal, ok := pool.Config[k]
+		if !ok {
+			continue
+		}
+
+		bitSize := 64
+		if k == "healthcheck.interval" || k == "healthcheck.timeout" {
+			bitSize = 63
+		}
+
+		// We accept uint64 values for health check settings as OVN allows setting such high values.
+		// However it's unlikely those are ever used in practice, so we accept converting using a slightly smaller bitSize
+		// so some of the settings fit into an int64 when converted to time.Duration.
+		healthCheckConfig[k], err = strconv.ParseUint(strVal, 10, bitSize)
+		if err != nil {
+			return nil, fmt.Errorf("Failed converting %q: %w", k, err)
+		}
+	}
+
+	return &loadBalancerHealthCheck{
+		interval:     time.Second * time.Duration(healthCheckConfig["healthcheck.interval"]),
+		timeout:      time.Second * time.Duration(healthCheckConfig["healthcheck.timeout"]),
+		successCount: healthCheckConfig["healthcheck.success_count"],
+		failureCount: healthCheckConfig["healthcheck.failure_count"],
+	}, nil
+}
+
+// poolHealthCheckSupported checks if the current OVN version supports our demands for configuring health checks.
+func (n *ovn) poolHealthCheckSupported() error {
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	if err != nil {
+		return fmt.Errorf("Failed getting OVN client: %w", err)
+	}
+
+	nbVersion, err := client.GetNorthdVersion()
+	if err != nil {
+		return fmt.Errorf("Failed getting OVN northd version: %w", err)
+	}
+
+	// 25.09.90 is the first version that was shipped with support for using the network's router IP as source for health checks.
+	// See patch https://mail.openvswitch.org/pipermail/ovs-dev/2026-February/429961.html.
+	minVersion, err := version.NewDottedVersion("25.09.90")
+	if err != nil {
+		return fmt.Errorf("Failed parsing minimum OVN version: %w", err)
+	}
+
+	if nbVersion.Compare(minVersion) < 0 {
+		return fmt.Errorf("Cannot use OVN version %q (< 25.09.90) to configure health checks", nbVersion)
+	}
+
+	return nil
+}
+
 // checkLoadBalancerPoolInstances check if any of the load balancer ports reference a pool of instances.
 // It checks the instances in the pool and returns port maps for the respective parent load balancer.
 // Instances which are stopped are filtered out and not included in the port maps.
 func (n *ovn) checkLoadBalancerPoolInstances(listenAddress net.IP, forward api.NetworkLoadBalancerPut) ([]*loadBalancerPortMap, error) {
+	healthCheckSupportedErr := n.poolHealthCheckSupported()
 	var portMaps []*loadBalancerPortMap
 
 	activeNICs, err := n.getLoadBalancerInstanceNICs()
@@ -5488,6 +5585,16 @@ func (n *ovn) checkLoadBalancerPoolInstances(listenAddress net.IP, forward api.N
 			// If the pool doesn't have any instances, don't bother creating a port map.
 			if len(portMap.targets) == 0 {
 				continue
+			}
+
+			// Check and configure the health check.
+			portMap.healthCheck, err = n.checkPoolHealthCheck(pool)
+			if err != nil {
+				return nil, fmt.Errorf("Failed configuring load balancer health check for pool %q: %w", pool.Name, err)
+			}
+
+			if portMap.healthCheck != nil && healthCheckSupportedErr != nil {
+				return nil, healthCheckSupportedErr
 			}
 
 			portMaps = append(portMaps, &portMap)
