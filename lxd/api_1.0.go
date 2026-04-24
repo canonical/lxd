@@ -997,7 +997,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 			serverPut := server.Writable()
 			serverPut.Config = make(map[string]any)
-			// Only propagated cluster-wide changes
+			// Only propagate cluster-wide changes.
 			for key, value := range clusterChanged {
 				serverPut.Config[key] = value
 			}
