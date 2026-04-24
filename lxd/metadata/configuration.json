@@ -5059,7 +5059,7 @@
 				"keys": [
 					{
 						"cluster": {
-							"longdesc": "Required when creating a replicator. When updating, this key can be omitted to keep the existing cluster link.",
+							"longdesc": "Required when creating a replicator.",
 							"scope": "global",
 							"shortdesc": "Target cluster link name.",
 							"type": "string"

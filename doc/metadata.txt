@@ -4527,7 +4527,7 @@ Specify the number of days after which the unused cached image expires.
 :scope: "global"
 :shortdesc: "Target cluster link name."
 :type: "string"
-Required when creating a replicator. When updating, this key can be omitted to keep the existing cluster link.
+Required when creating a replicator.
 ```
 
 ```{config:option} schedule replicator-conf
