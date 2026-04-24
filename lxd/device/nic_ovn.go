@@ -844,6 +844,14 @@ func (d *nicOVN) postStart() error {
 		return err
 	}
 
+	// Update load balancers that reference this instance's IPs via pools.
+	// It adds all instances as load balancer targets which were previously skipped due to being stopped.
+	// OVN requires the logical switch port to be up (attached to a chassis) to not confuse the health check.
+	err = networkLoadBalancerUpdate(d)
+	if err != nil {
+		return fmt.Errorf("Failed updating load balancers: %w", err)
+	}
+
 	return nil
 }
 
@@ -951,6 +959,14 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			err = acl.OVNPortGroupDeleteIfUnused(context.TODO(), d.state, d.logger, client, d.network.Project(), d.inst, d.name, newACLs...)
 			if err != nil {
 				return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
+			}
+		}
+
+		if ipv4Changed || ipv6Changed {
+			// Update load balancers that reference this instance's IPs via pools.
+			err = networkLoadBalancerUpdate(d)
+			if err != nil {
+				return fmt.Errorf("Failed updating load balancers: %w", err)
 			}
 		}
 	}
@@ -1143,7 +1159,20 @@ func (d *nicOVN) Remove() error {
 		}
 	}
 
-	return d.network.InstanceDevicePortRemove(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+	// Update load balancers that reference this instance's IPs via pools.
+	// Remove any targets referencing this device.
+	err := networkLoadBalancerUpdate(d)
+	if err != nil {
+		return fmt.Errorf("Failed updating load balancers: %w", err)
+	}
+
+	// Last remove the actual port.
+	err = d.network.InstanceDevicePortRemove(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+	if err != nil {
+		return fmt.Errorf("Failed removing instance device port: %w", err)
+	}
+
+	return nil
 }
 
 // State gets the state of an OVN NIC by querying the OVN Northbound logical switch port record.
