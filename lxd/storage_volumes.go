@@ -1317,10 +1317,10 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		if shared.IsSnapshot(req.Source.Name) {
 			opType = operationtype.VolumeSnapshotCopy
 			vName, sName, _ := api.GetParentAndSnapshotName(req.Source.Name)
-			entityURL = entity.StorageVolumeSnapshotURL(srcProjectName, location, req.Source.Pool, req.Type, vName, sName).Project(projectName)
+			entityURL = entity.StorageVolumeSnapshotURL(srcProjectName, location, req.Source.Pool, req.Type, vName, sName)
 		} else {
 			opType = operationtype.VolumeCopy
-			entityURL = entity.StorageVolumeURL(srcProjectName, location, req.Source.Pool, req.Type, req.Source.Name).Project(projectName)
+			entityURL = entity.StorageVolumeURL(srcProjectName, location, req.Source.Pool, req.Type, req.Source.Name)
 		}
 
 		run = func(ctx context.Context, op *operations.Operation) error {
