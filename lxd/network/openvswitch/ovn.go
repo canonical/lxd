@@ -147,12 +147,28 @@ type OVNLoadBalancerTarget struct {
 	Port       uint64
 }
 
+// OVNLoadBalancerHealthCheck represents a OVN load balancer health check.
+type OVNLoadBalancerHealthCheck struct {
+	Interval      time.Duration
+	Timeout       time.Duration
+	SuccessCount  uint64
+	FailureCount  uint64
+	SourceAddress net.IP
+}
+
 // OVNLoadBalancerVIP represents a OVN load balancer Virtual IP entry.
 type OVNLoadBalancerVIP struct {
 	Protocol      string // Either "tcp" or "udp". But only applies to port based VIPs.
 	ListenAddress net.IP
 	ListenPort    uint64
 	Targets       []OVNLoadBalancerTarget
+	HealthCheck   *OVNLoadBalancerHealthCheck
+}
+
+// OVNServiceMonitorStatus represents the status of an OVN load balancer target as reported by OVN's service monitor.
+type OVNServiceMonitorStatus struct {
+	Address net.IP
+	Status  string
 }
 
 // OVNRouterRoute represents a static route added to a logical router.
