@@ -237,8 +237,8 @@ CREATE TABLE identities_certificates (
 ) WITHOUT ROWID;
 -- We can't cascade deletion from the identities tables to the certificates table.
 -- This trigger ensures that certificates are deleted when an identity is deleted via foreign key cascade deletion
--- in the association table. 
-CREATE TRIGGER identities_certificates_after_delete 
+-- in the association table.
+CREATE TRIGGER identities_certificates_after_delete
     AFTER DELETE ON identities_certificates
 	BEGIN
 	DELETE FROM certificates
