@@ -3562,6 +3562,46 @@ See {ref}`network-load-balancers-port-specifications`.
 
 <!-- config group network-load-balancer-load-balancer-properties end -->
 <!-- config group network-load-balancer-pool-properties start -->
+```{config:option} healthcheck network-load-balancer-pool-properties
+:defaultdesc: "`true`"
+:required: "no"
+:shortdesc: "Whether to enable or disable health checks"
+:type: "bool"
+
+```
+
+```{config:option} healthcheck.failure_count network-load-balancer-pool-properties
+:defaultdesc: "`1`"
+:required: "no"
+:shortdesc: "Number of failed probe attempts after which an instance is considered unhealthy."
+:type: "integer"
+
+```
+
+```{config:option} healthcheck.interval network-load-balancer-pool-properties
+:defaultdesc: "`5`"
+:required: "no"
+:shortdesc: "Interval in seconds between probes of the pool's instances."
+:type: "integer"
+
+```
+
+```{config:option} healthcheck.success_count network-load-balancer-pool-properties
+:defaultdesc: "`1`"
+:required: "no"
+:shortdesc: "Number of successful probe attempts after which an instance is considered healthy."
+:type: "integer"
+
+```
+
+```{config:option} healthcheck.timeout network-load-balancer-pool-properties
+:defaultdesc: "`3`"
+:required: "no"
+:shortdesc: "Timeout in seconds after a probe appears to be faulty."
+:type: "integer"
+
+```
+
 ```{config:option} protocol network-load-balancer-pool-properties
 :defaultdesc: "`tcp`"
 :required: "no"
