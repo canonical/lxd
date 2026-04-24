@@ -7,7 +7,8 @@ type identity
     # Grants permission to view the identity.
     define can_view: [identity, service_account, group#member] or can_view_identities from server
 
-    # Grants permission to edit the identity.
+    # Grants permission to edit the identity. To edit an identity, it is additionally required that the caller is
+    # able to view all groups that the identity is a member of.
     define can_edit: [identity, service_account, group#member] or can_edit_identities from server
 
     # Grants permission to delete the identity.
@@ -46,7 +47,9 @@ type server
     # Grants access to view all resources in the LXD server.
     define viewer: [identity, service_account, group#member]
 
-    # Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to update cluster member certificates, and to edit or delete warnings.
+    # Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a
+    # cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to update
+    # cluster member certificates, and to edit or delete warnings.
     define can_edit: [identity, service_account, group#member] or admin
 
     # Grants permission to view permissions, to create, edit, and delete identities, to view, create, edit, and delete
@@ -63,7 +66,7 @@ type server
     # Grants permission to view identities.
     define can_view_identities: [identity, service_account, group#member] or permission_manager or admin or viewer
 
-    # Grants permission to edit identities.
+    # Grants permission to edit identities. Note that clients with this permission are able to elevate their own privileges.
     define can_edit_identities: [identity, service_account, group#member] or permission_manager or admin
 
     # Grants permission to delete identities.
@@ -75,7 +78,8 @@ type server
     # Grants permission to view authorization groups.
     define can_view_groups: [identity, service_account, group#member] or permission_manager or admin or viewer
 
-    # Grants permission to edit authorization groups.
+    # Grants permission to edit authorization groups. Note that clients with this permission are able to elevate their
+    # own privileges.
     define can_edit_groups: [identity, service_account, group#member] or permission_manager or admin
 
     # Grants permission to delete authorization groups.
@@ -87,7 +91,8 @@ type server
     # Grants permission to view identity provider groups.
     define can_view_identity_provider_groups: [identity, service_account, group#member] or permission_manager or admin or viewer
 
-    # Grants permission to edit identity provider groups.
+    # Grants permission to edit identity provider groups. Note that clients with this permission are able to elevate
+    # their own privileges.
     define can_edit_identity_provider_groups: [identity, service_account, group#member] or permission_manager or admin
 
     # Grants permission to delete identity provider groups.
