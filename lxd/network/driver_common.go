@@ -1774,3 +1774,23 @@ func (n *common) setAvailable() {
 	delete(unavailableNetworks, pn)
 	unavailableNetworksMu.Unlock()
 }
+
+// LoadBalancerPoolCreate returns ErrNotImplemented for drivers that do not support load balancer pools.
+func (n *common) LoadBalancerPoolCreate(loadBalancer api.NetworkLoadBalancerPoolsPost) error {
+	return ErrNotImplemented
+}
+
+// LoadBalancerPoolUpdate returns ErrNotImplemented for drivers that do not support load balancer pools.
+func (n *common) LoadBalancerPoolUpdate(poolName string, loadBalancerPool api.NetworkLoadBalancerPoolPut) error {
+	return ErrNotImplemented
+}
+
+// LoadBalancerPoolDelete returns ErrNotImplemented for drivers that do not support load balancer pools.
+func (n *common) LoadBalancerPoolDelete(poolName string) error {
+	return ErrNotImplemented
+}
+
+// LoadBalancerPoolState returns ErrNotImplemented for drivers that do not support load balancer pool state.
+func (n *common) LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPoolState, error) {
+	return nil, ErrNotImplemented
+}
