@@ -1103,9 +1103,11 @@ func (c *cmdNetworkLoadBalancerPort) command() *cobra.Command {
 
 func (c *cmdNetworkLoadBalancerPort) commandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", "[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> <backend_name>[,<backend_name>...]")
+	cmd.Use = usage("add", "[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> <key>=<value>")
 	cmd.Short = "Add ports to a load balancer"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc network load-balancer port add n1 127.0.0.1 tcp 443 target_backend=b1,b2
+	Add a network load balancer port forwarding to backends b1 and b2`)
 	cmd.RunE = c.runAdd
 
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
@@ -1155,16 +1157,27 @@ func (c *cmdNetworkLoadBalancerPort) runAdd(cmd *cobra.Command, args []string) e
 		client = client.UseTarget(c.networkLoadBalancer.flagTarget)
 	}
 
-	// Get the network load balancer.
-	loadBalancer, etag, err := client.GetNetworkLoadBalancer(resource.name, args[1])
+	port := api.NetworkLoadBalancerPort{
+		Protocol:   args[2],
+		ListenPort: args[3],
+	}
+
+	targetConfig, err := getConfig(args[4])
 	if err != nil {
 		return err
 	}
 
-	port := api.NetworkLoadBalancerPort{
-		Protocol:      args[2],
-		ListenPort:    args[3],
-		TargetBackend: shared.SplitNTrimSpace(args[4], ",", -1, false),
+	targetBackends, ok := targetConfig["target_backend"]
+	if !ok {
+		return errors.New("Missing target_backend key in port config")
+	}
+
+	port.TargetBackend = shared.SplitNTrimSpace(targetBackends, ",", -1, false)
+
+	// Get the network load balancer.
+	loadBalancer, etag, err := client.GetNetworkLoadBalancer(resource.name, args[1])
+	if err != nil {
+		return err
 	}
 
 	loadBalancer.Ports = append(loadBalancer.Ports, port)
