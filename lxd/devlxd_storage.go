@@ -398,12 +398,12 @@ func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) response.Resp
 
 	projectName := inst.Project().Name
 
-	poolName, volType, volName, err := extractVolumeParams(r)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
-	vol, etag, err := devLXDStoragePoolVolumeGet(r.Context(), d, r.URL.Query().Get("target"), projectName, poolName, volName, volType)
+	vol, etag, err := devLXDStoragePoolVolumeGet(r.Context(), d, r.URL.Query().Get("target"), projectName, details.pool.Name(), details.volumeName, details.volumeTypeName)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
@@ -422,13 +422,14 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Resp
 	projectName := inst.Project().Name
 	target := r.URL.Query().Get("target")
 
-	poolName, volType, volName, err := extractVolumeParams(r)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
 	// Retrieve the volume first to ensure the caller owns it.
-	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, inst.Project().Name, poolName, volName, volType)
+	poolName := details.pool.Name()
+	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, inst.Project().Name, poolName, details.volumeName, details.volumeTypeName)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
@@ -467,7 +468,7 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Resp
 
 	etag := r.Header.Get("If-Match")
 
-	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", "custom", volName).Project(projectName)
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", "custom", details.volumeName).Project(projectName)
 	if target != "" {
 		url = url.WithQuery("target", target)
 	}
@@ -503,19 +504,20 @@ func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) response.R
 	projectName := inst.Project().Name
 	target := r.URL.Query().Get("target")
 
-	poolName, volType, volName, err := extractVolumeParams(r)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
 	// Retrieve the volume first to ensure the caller owns it.
-	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, inst.Project().Name, poolName, volName, volType)
+	poolName := details.pool.Name()
+	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, inst.Project().Name, poolName, details.volumeName, details.volumeTypeName)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
 	// Delete storage volume.
-	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", "custom", volName).Project(projectName)
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", "custom", details.volumeName).Project(projectName)
 	if target != "" {
 		url = url.WithQuery("target", target)
 	}
@@ -542,7 +544,7 @@ func devLXDStoragePoolVolumeSnapshotsGetHandler(d *Daemon, r *http.Request) resp
 		return response.DevLXDErrorResponse(err)
 	}
 
-	poolName, volType, volName, err := extractVolumeParams(r)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
@@ -551,7 +553,7 @@ func devLXDStoragePoolVolumeSnapshotsGetHandler(d *Daemon, r *http.Request) resp
 	target := r.URL.Query().Get("target")
 
 	// Restrict access to custom volumes.
-	if volType != "custom" {
+	if details.volumeTypeName != "custom" {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Only snapshots from custom storage volumes can be retrieved"))
 	}
 
@@ -562,13 +564,14 @@ func devLXDStoragePoolVolumeSnapshotsGetHandler(d *Daemon, r *http.Request) resp
 	}
 
 	// Retrieve the parent volume first to ensure the caller owns it.
-	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, projectName, poolName, volName, volType)
+	poolName := details.pool.Name()
+	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, projectName, poolName, details.volumeName, details.volumeTypeName)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
 	// Get storage volume snapshots.
-	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", volType, volName, "snapshots").Project(projectName).WithQuery("recursion", "1")
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", details.volumeTypeName, details.volumeName, "snapshots").Project(projectName).WithQuery("recursion", "1")
 	if target != "" {
 		url = url.WithQuery("target", target)
 	}
@@ -608,7 +611,7 @@ func devLXDStoragePoolVolumeSnapshotsPostHandler(d *Daemon, r *http.Request) res
 		return response.DevLXDErrorResponse(err)
 	}
 
-	poolName, volType, volName, err := extractVolumeParams(r)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
@@ -617,12 +620,13 @@ func devLXDStoragePoolVolumeSnapshotsPostHandler(d *Daemon, r *http.Request) res
 	target := r.URL.Query().Get("target")
 
 	// Restrict access to custom volumes.
-	if volType != "custom" {
+	if details.volumeTypeName != "custom" {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Only snapshots for custom storage volumes can be created"))
 	}
 
 	// Retrieve the parent volume first to ensure the caller owns it.
-	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, projectName, poolName, volName, volType)
+	poolName := details.pool.Name()
+	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, projectName, poolName, details.volumeName, details.volumeTypeName)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
@@ -640,7 +644,7 @@ func devLXDStoragePoolVolumeSnapshotsPostHandler(d *Daemon, r *http.Request) res
 	}
 
 	// Create storage volume snapshot.
-	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", volType, volName, "snapshots").Project(projectName)
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", details.volumeTypeName, details.volumeName, "snapshots").Project(projectName)
 	if target != "" {
 		url = url.WithQuery("target", target)
 	}
@@ -667,7 +671,7 @@ func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) respo
 		return response.DevLXDErrorResponse(err)
 	}
 
-	poolName, volType, volName, err := extractVolumeParams(r)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
@@ -681,18 +685,19 @@ func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) respo
 	target := r.URL.Query().Get("target")
 
 	// Restrict access to custom volumes.
-	if volType != "custom" {
+	if details.volumeTypeName != "custom" {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Only snapshots from custom storage volumes can be retrieved"))
 	}
 
 	// Retrieve the parent volume first to ensure the caller owns it.
-	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, projectName, poolName, volName, volType)
+	poolName := details.pool.Name()
+	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, projectName, poolName, details.volumeName, details.volumeTypeName)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
 	// Get storage volume snapshot.
-	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", volType, volName, "snapshots", snapName).Project(projectName)
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapName).Project(projectName)
 	if target != "" {
 		url = url.WithQuery("target", target)
 	}
@@ -729,7 +734,7 @@ func devLXDStoragePoolVolumeSnapshotDeleteHandler(d *Daemon, r *http.Request) re
 		return response.DevLXDErrorResponse(err)
 	}
 
-	poolName, volType, volName, err := extractVolumeParams(r)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
@@ -743,18 +748,19 @@ func devLXDStoragePoolVolumeSnapshotDeleteHandler(d *Daemon, r *http.Request) re
 	target := r.URL.Query().Get("target")
 
 	// Restrict access to custom volumes.
-	if volType != "custom" {
+	if details.volumeTypeName != "custom" {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Only snapshots from custom storage volumes can be deleted"))
 	}
 
 	// Retrieve the parent volume first to ensure the caller owns it.
-	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, projectName, poolName, volName, volType)
+	poolName := details.pool.Name()
+	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, projectName, poolName, details.volumeName, details.volumeTypeName)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
 	// Delete storage volume snapshot.
-	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", volType, volName, "snapshots", snapName).Project(projectName)
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapName).Project(projectName)
 	if target != "" {
 		url = url.WithQuery("target", target)
 	}
@@ -804,26 +810,4 @@ func devLXDStoragePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func
 
 		return response.EmptySyncResponse
 	}
-}
-
-// extractVolumeParams extracts the pool name, volume type and volume name from the request URL.
-func extractVolumeParams(r *http.Request) (poolName string, volType string, volName string, err error) {
-	pathVars := mux.Vars(r)
-
-	poolName, err = url.PathUnescape(pathVars["poolName"])
-	if err != nil {
-		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
-	}
-
-	volType, err = url.PathUnescape(pathVars["type"])
-	if err != nil {
-		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
-	}
-
-	volName, err = url.PathUnescape(pathVars["volumeName"])
-	if err != nil {
-		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
-	}
-
-	return poolName, volType, volName, nil
 }
