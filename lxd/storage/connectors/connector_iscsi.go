@@ -379,7 +379,7 @@ func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter 
 	}
 
 	// Filter that makes sure the found device resolves to a multipath device.
-	multipathDeviceFiler := func(devicePath string) bool {
+	multipathDeviceFilter := func(devicePath string) bool {
 		if !diskPathFilter(devicePath) {
 			return false
 		}
@@ -394,7 +394,7 @@ func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter 
 
 	// The multipath command is synchronous, but udev updates the /dev/disk/by-id
 	// symlinks asynchronously. Wait for the multipath-backed device path to appear.
-	return block.WaitDiskDevicePath(ctx, iscsiDiskDevicePrefix, multipathDeviceFiler)
+	return block.WaitDiskDevicePath(ctx, iscsiDiskDevicePrefix, multipathDeviceFilter)
 }
 
 // GetDiskDevicePath returns the path of the mapped iSCSI device.
