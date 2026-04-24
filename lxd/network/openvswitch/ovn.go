@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/dnsutil"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
@@ -1999,6 +2001,189 @@ func (o *OVN) ipToString(ip net.IP) string {
 	return ip.String()
 }
 
+// LoadBalancerHealthCheckGet returns the UUID of the health check for the given VIP.
+func (o *OVN) LoadBalancerHealthCheckGet(vip string) (string, error) {
+	// Check if a health check already exists for this VIP.
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid",
+		"find", "load_balancer_health_check", `vip="`+vip+`"`)
+	if err != nil {
+		return "", err
+	}
+
+	hcUUID := strings.TrimSpace(output)
+	if hcUUID != "" {
+		// Health check for this VIP already exists.
+		return hcUUID, nil
+	}
+
+	return "", api.StatusErrorf(http.StatusNotFound, "Failed finding health check for vip %q", vip)
+}
+
+// LoadBalancerHealthCheckAdd adds a health check for the given VIP and the necessary port mappings for all targets.
+// If it already exists it ensures the health check options are up to date.
+func (o *OVN) LoadBalancerHealthCheckAdd(loadBalancerName OVNLoadBalancer, loadBalancerVIP OVNLoadBalancerVIP) error {
+	if loadBalancerVIP.HealthCheck == nil {
+		return errors.New("Health check configuration is missing")
+	}
+
+	for _, target := range loadBalancerVIP.Targets {
+		err := o.LoadBalancerHealthCheckMappingAdd(loadBalancerName, loadBalancerVIP.Protocol, loadBalancerVIP.HealthCheck.SourceAddress, target)
+		if err != nil {
+			return fmt.Errorf("Failed adding health check mapping between vip %q and target %q: %w", loadBalancerVIP.HealthCheck.SourceAddress.String(), target.Address.String(), err)
+		}
+	}
+
+	vipStr := o.ipToString(loadBalancerVIP.ListenAddress) + ":" + strconv.FormatUint(loadBalancerVIP.ListenPort, 10)
+	hcUUID, err := o.LoadBalancerHealthCheckGet(vipStr)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed checking if health check exists for vip %q: %w", vipStr, err)
+	}
+
+	args := []string{}
+
+	// When formatting ignore the floating point returned from Seconds() as this cannot be represented in OVN anyway.
+	interval := strconv.FormatUint(uint64(loadBalancerVIP.HealthCheck.Interval.Seconds()), 10)
+	timeout := strconv.FormatUint(uint64(loadBalancerVIP.HealthCheck.Timeout.Seconds()), 10)
+	successCount := strconv.FormatUint(uint64(loadBalancerVIP.HealthCheck.SuccessCount), 10)
+	failureCount := strconv.FormatUint(uint64(loadBalancerVIP.HealthCheck.FailureCount), 10)
+
+	if hcUUID == "" {
+		// Create a new health check.
+		args = append(args,
+			"--id=@id",
+			"create",
+			"load_balancer_health_check",
+			`vip="`+vipStr+`"`,
+			"options:interval="+interval,
+			"options:timeout="+timeout,
+			"options:success_count="+successCount,
+			"options:failure_count="+failureCount,
+		)
+
+		loadBalancerProtocolName := string(loadBalancerName) + "-" + loadBalancerVIP.Protocol
+		args = append(args,
+			"--",
+			"add",
+			"load_balancer",
+			loadBalancerProtocolName,
+			"health_check",
+			"@id",
+		)
+	} else {
+		// Update existing health check.
+		args = append(args,
+			"set",
+			"load_balancer_health_check",
+			hcUUID,
+			"options:interval="+interval,
+			"options:timeout="+timeout,
+			"options:success_count="+successCount,
+			"options:failure_count="+failureCount,
+		)
+	}
+
+	// Add the load balancer health check.
+	_, err = o.nbctl(args...)
+	if err != nil {
+		return fmt.Errorf("Failed adding health check for vip %q: %w", vipStr, err)
+	}
+
+	return nil
+}
+
+// LoadBalancerHealthCheckDelete removes the health check for the given VIP from the load balancer.
+// If it doesn't exist its a noop.
+func (o *OVN) LoadBalancerHealthCheckDelete(loadBalancerProtocolName string, vip string) error {
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid",
+		"find", "load_balancer_health_check", `vip="`+vip+`"`)
+	if err != nil {
+		return fmt.Errorf("Failed finding health check for vip %q: %w", vip, err)
+	}
+
+	hcUUID := strings.TrimSpace(output)
+	if hcUUID != "" {
+		// Remove the health check from the load balancer. This also
+		// destroys the now-unreferenced health check row.
+		_, err = o.nbctl("remove", "load_balancer", loadBalancerProtocolName, "health_check", hcUUID)
+		if err != nil {
+			return fmt.Errorf("Failed deleting health check for vip %q on load balancer %q: %w", vip, loadBalancerProtocolName, err)
+		}
+	}
+
+	return nil
+}
+
+// LoadBalancerHealthCheckMappingAdd adds a port mapping for the given target.
+// If it already exists, it is a no-op.
+func (o *OVN) LoadBalancerHealthCheckMappingAdd(loadBalancerName OVNLoadBalancer, loadBalancerProtocol string, sourceAddress net.IP, target OVNLoadBalancerTarget) error {
+	args := make([]string, 0, 5)
+
+	loadBalancerProtocolName := string(loadBalancerName) + "-" + loadBalancerProtocol
+
+	args = append(args,
+		"add",
+		"load_balancer",
+		loadBalancerProtocolName,
+		"ip_port_mappings",
+		`"`+o.ipToString(target.Address)+`"="`+string(target.SwitchPort)+":"+o.ipToString(sourceAddress)+`"`,
+	)
+
+	// Add the load balancer health check mappings.
+	_, err := o.nbctl(args...)
+	return err
+}
+
+// LoadBalancerHealthCheckMappingDelete removes the port mapping for the given target.
+// If it doesn't exist its a noop.
+func (o *OVN) LoadBalancerHealthCheckMappingDelete(loadBalancerProtocolName string, targetAddress string) error {
+	args := make([]string, 0, 5)
+
+	args = append(args,
+		"remove",
+		"load_balancer",
+		loadBalancerProtocolName,
+		"ip_port_mappings",
+		`"`+targetAddress+`"`,
+	)
+	_, err := o.nbctl(args...)
+	return err
+}
+
+// ServiceMonitorStatusGet returns the service monitor's status for the given switch port.
+// The targetPort is used to filter the results in case the switchPort is used by multiple VIPs with different target ports.
+// A status is returned for each address configured on the port.
+func (o *OVN) ServiceMonitorStatusGet(switchPort OVNSwitchPort, targetPort string) ([]OVNServiceMonitorStatus, error) {
+	output, err := o.sbctl("--format=csv", "--no-headings", "--data=bare", "--columns=ip,status", "find", "Service_Monitor",
+		"logical_port="+string(switchPort), "port="+targetPort,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting service monitor status for switch port %q: %w", switchPort, err)
+	}
+
+	lines := shared.SplitNTrimSpace(output, "\n", -1, true)
+	addressToStatus := make([]OVNServiceMonitorStatus, 0, len(lines))
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		// 10.135.198.3,online
+		// fd42:b0f:7376:f557:216:3eff:fe32:2d63,offline
+		ip, status, found := strings.Cut(line, ",")
+		if !found {
+			return nil, fmt.Errorf("Invalid service monitor status response line: %q", line)
+		}
+
+		addressToStatus = append(addressToStatus, OVNServiceMonitorStatus{
+			Address: net.ParseIP(ip),
+			Status:  status,
+		})
+	}
+
+	return addressToStatus, nil
+}
+
 // LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
 // Providing an empty set of vips will delete the load balancer.
 func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, switches []OVNSwitch, vips ...OVNLoadBalancerVIP) error {
@@ -2012,6 +2197,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 	}
 
 	allVIPsForProtocol := map[string][]string{}
+	allMappingsForLB := map[string][]string{}
 
 	// Get a view of all load balancers matching the given name.
 	lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
@@ -2080,6 +2266,15 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			} else {
 				targetArgs = append(targetArgs, ipStr)
 			}
+
+			// Record the mapping only if health check is configured.
+			if vip.HealthCheck != nil {
+				if allMappingsForLB[lbName] == nil {
+					allMappingsForLB[lbName] = []string{}
+				}
+
+				allMappingsForLB[lbName] = append(allMappingsForLB[lbName], ipStr)
+			}
 		}
 
 		if len(args) > 0 {
@@ -2118,7 +2313,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 
 		lbName := string(loadBalancerName) + "-" + protocol
 
-		currentVIPs, err := o.loadBalancerVIPs(loadBalancerName, protocol)
+		currentVIPs, currentMappings, err := o.loadBalancerConfig(loadBalancerName, protocol)
 		if err == nil {
 			for _, currentVIP := range currentVIPs {
 				if !slices.Contains(allVIPsForProtocol[protocol], currentVIP) {
@@ -2127,6 +2322,22 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 					}
 
 					args = append(args, "--if-exists", "lb-del", lbName, currentVIP)
+
+					// Remove the obsolete health check if exists.
+					err = o.LoadBalancerHealthCheckDelete(lbName, currentVIP)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			for _, currentMapping := range currentMappings {
+				if !slices.Contains(allMappingsForLB[lbName], currentMapping) {
+					// Remove the obsolete mapping if exists.
+					err = o.LoadBalancerHealthCheckMappingDelete(lbName, currentMapping)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -2153,6 +2364,24 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		_, err := o.nbctl(args...)
 		if err != nil {
 			return err
+		}
+	}
+
+	// Apply the load balancer health check changes.
+	// Unset health checks for VIPs that don't require it anymore.
+	for _, vip := range vips {
+		vipStr := o.ipToString(vip.ListenAddress) + ":" + strconv.FormatUint(vip.ListenPort, 10)
+
+		if vip.HealthCheck != nil {
+			err = o.LoadBalancerHealthCheckAdd(loadBalancerName, vip)
+			if err != nil {
+				return fmt.Errorf("Failed setting up health check for vip %q on port %d using protocol %q: %w", vipStr, vip.ListenPort, vip.Protocol, err)
+			}
+		} else {
+			err = o.LoadBalancerHealthCheckDelete(string(loadBalancerName)+"-"+vip.Protocol, vipStr)
+			if err != nil {
+				return fmt.Errorf("Failed removing health check for vip %q on port %d using protocol %q: %w", vipStr, vip.ListenPort, vip.Protocol, err)
+			}
 		}
 	}
 
