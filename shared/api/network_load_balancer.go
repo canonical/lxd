@@ -120,9 +120,9 @@ type NetworkLoadBalancerPort struct {
 	// ---
 	//  type: backend list
 	//  required: yes
-	//  shortdesc: Backend name or names to forward to
+	//  shortdesc: Backend name(s) to forward to
 
-	// TargetBackend backend names to load balance ListenPorts to
+	// TargetBackend specifies backend names to load balance ListenPorts to
 	// Example: ["c1-http","c2-http"]
 	TargetBackend []string `json:"target_backend" yaml:"target_backend"`
 }
