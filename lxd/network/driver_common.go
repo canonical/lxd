@@ -40,10 +40,17 @@ type Info struct {
 	Peering            bool // Indicates if the driver supports network peering.
 }
 
+type forwardTargetInstance struct {
+	name       string
+	uuid       string
+	deviceName string
+}
+
 // forwardTarget represents a single port forward target.
 type forwardTarget struct {
-	address net.IP
-	ports   []uint64
+	address  net.IP
+	instance *forwardTargetInstance
+	ports    []uint64
 }
 
 // forwardPortMap represents a mapping of listen port(s) to target port(s) for a protocol/target address pair.
@@ -53,10 +60,18 @@ type forwardPortMap struct {
 	target      forwardTarget
 }
 
+type loadBalancerHealthCheck struct {
+	interval     uint64
+	timeout      uint64
+	successCount uint64
+	failureCount uint64
+}
+
 type loadBalancerPortMap struct {
 	listenPorts []uint64
 	protocol    string
 	targets     []forwardTarget
+	healthCheck *loadBalancerHealthCheck
 }
 
 // subnetUsageType indicates the type of use for a subnet.
