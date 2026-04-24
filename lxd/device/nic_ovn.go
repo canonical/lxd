@@ -917,7 +917,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 
 		// Remove the port only when IP addresses have changed.
 		if ipv4Changed || ipv6Changed {
-			err = d.network.InstanceDevicePortRemove(d.inst.LocalConfig()["volatile.uuid"], d.name, oldConfig)
+			err = d.network.InstanceDevicePortRemove(nicSetupOpts)
 			if err != nil {
 				return fmt.Errorf("Failed removing old instance device port config: %w", err)
 			}
@@ -1155,7 +1155,20 @@ func (d *nicOVN) Remove() error {
 		}
 	}
 
-	return d.network.InstanceDevicePortRemove(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+	// Last remove the actual port.
+	nicSetupOpts := &network.OVNInstanceNICSetupOpts{
+		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+		DeviceName:   d.name,
+		DeviceConfig: d.config,
+		DNSName:      d.inst.Name(),
+	}
+
+	err := d.network.InstanceDevicePortRemove(nicSetupOpts)
+	if err != nil {
+		return fmt.Errorf("Failed removing instance device port: %w", err)
+	}
+
+	return nil
 }
 
 // State gets the state of an OVN NIC by querying the OVN Northbound logical switch port record.
