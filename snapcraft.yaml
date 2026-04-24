@@ -1227,19 +1227,8 @@ parts:
       - bin/pzstd
       - bin/zstd
 
-  apparmor:
-    plugin: nil
-    stage-packages:
-      - apparmor
-    organize:
-      sbin/: bin/
-    prime:
-      - bin/apparmor_parser
-
   # Core components
   lxc:
-    after:
-      - apparmor
     source: https://github.com/lxc/lxc
     source-depth: 1
     source-type: git
