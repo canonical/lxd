@@ -3586,3 +3586,17 @@ Adds a `replica_mode` field to projects and a new `PUT /1.0/projects/<name>/stat
 ## `cluster_links_used_by`
 
 Adds a `used_by` field to `ClusterLink` resources, returned by `GET /1.0/cluster/links` (with `recursion=1`) and `GET /1.0/cluster/links/{name}`. The field lists URLs of entities that reference the cluster link, filtered by the caller's view permissions.
+
+(extension-network-load-balancer-pool)=
+## `network_load_balancer_pool`
+
+This introduces the load balancer pools for OVN networks.
+Pools are used to group instances to which a load balancer forwards traffic.
+
+This includes the following new endpoints (see {ref}`rest-api` for details):
+
+* [`GET /1.0/networks/{networkName}/load-balancer-pools`](swagger:/network-load-balancer-pools/network_load_balancer_pools_get)
+* [`POST /1.0/networks/{networkName}/load-balancer-pools`](swagger:/network-load-balancer-pools/network_load_balancer_pools_post)
+* [`GET /1.0/networks/{networkName}/load-balancer-pools/{poolName}`](swagger:/network-load-balancer-pools/network_load_balancer_pool_get)
+* [`PUT /1.0/networks/{networkName}/load-balancer-pools/{poolName}`](swagger:/network-load-balancer-pools/network_load_balancer_pool_put)
+* [`DELETE /1.0/networks/{networkName}/load-balancer-pools/{poolName}`](swagger:/network-load-balancer-pools/network_load_balancer_pool_delete)
