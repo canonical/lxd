@@ -69,7 +69,7 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 
 	clusterAddress := e.clusterAddress()
 
-	logger.Info("Update network address")
+	logger.Info("Update network address", logger.Ctx{"address": address, "oldAddress": oldAddress})
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
