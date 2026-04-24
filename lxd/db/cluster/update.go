@@ -130,6 +130,41 @@ var updates = map[int]schema.Update{
 	84: updateFromV83,
 	85: updateFromV84,
 	86: updateFromV85,
+	87: updateFromV86,
+}
+
+func updateFromV86(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE networks_load_balancer_pools (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+	UNIQUE (network_id, name),
+    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE
+);
+
+CREATE TABLE networks_load_balancer_pools_config (
+	network_load_balancer_pool_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT,
+	UNIQUE (network_load_balancer_pool_id, key),
+	FOREIGN KEY (network_load_balancer_pool_id) REFERENCES networks_load_balancer_pools (id) ON DELETE CASCADE,
+	PRIMARY KEY (network_load_balancer_pool_id, key)
+) WITHOUT ROWID;
+
+CREATE TABLE networks_load_balancer_pools_instances (
+	network_load_balancer_pool_id INTEGER NOT NULL,
+	instance_id INTEGER NOT NULL,
+	target_port INTEGER NOT NULL,
+	UNIQUE (network_load_balancer_pool_id, instance_id),
+	FOREIGN KEY (network_load_balancer_pool_id) REFERENCES networks_load_balancer_pools (id) ON DELETE CASCADE,
+	FOREIGN KEY (instance_id) REFERENCES instances (id) ON DELETE CASCADE,
+	PRIMARY KEY (network_load_balancer_pool_id, instance_id)
+) WITHOUT ROWID;
+`)
+
+	return err
 }
 
 func updateFromV85(ctx context.Context, tx *sql.Tx) error {
