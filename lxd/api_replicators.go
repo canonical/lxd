@@ -1018,10 +1018,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		return operations.OperationArgs{}, fmt.Errorf("Failed loading replicator run state: %w", err)
 	}
 
-	clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
-	if err != nil {
-		return operations.OperationArgs{}, fmt.Errorf("Failed loading cluster certificate: %w", err)
-	}
+	clusterCert := s.Endpoints.NetworkCert()
 
 	connArgs := lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
 	targetClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, connArgs)

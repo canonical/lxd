@@ -1379,10 +1379,7 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 	l := logger.AddContext(logger.Ctx{"clusterLinkName": name})
 
 	var clusterLink *api.ClusterLink
-	clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
-	if err != nil {
-		return response.InternalError(err)
-	}
+	clusterCert := s.Endpoints.NetworkCert()
 
 	var targetCert *x509.Certificate
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
