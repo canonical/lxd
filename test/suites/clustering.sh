@@ -5732,6 +5732,10 @@ test_clustering_replicator_basic() {
   # Unset schedule so it does not interfere with the rest of the test.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator unset my-replicator schedule --project replicator-project
 
+  sub_test "Verify cluster link cannot be deleted while referenced by a replicator"
+
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_two 2>&1)" = 'Error: Error deleting "lxd_two" from database: Cluster link is currently in use' ]
+
   # Cleanup
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
