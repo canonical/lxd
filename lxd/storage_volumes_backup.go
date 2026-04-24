@@ -439,7 +439,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return nil
 	}
 
-	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(requestProjectName)
+	volumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName).Project(effectiveProjectName).Target(details.location)
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		EntityURL:   volumeURL,
@@ -447,7 +447,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		Class:       operations.OperationClassTask,
 		RunHook:     backup,
 		Metadata: map[string]any{
-			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName).String(),
+			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName).Target(details.location).String(),
 		},
 	}
 
