@@ -40,10 +40,21 @@ type Info struct {
 	Peering            bool // Indicates if the driver supports network peering.
 }
 
+// forwardTargetInstance represents a single instance used to forward traffic.
+type forwardTargetInstance struct {
+	// name of the instance.
+	name string
+	// UUID of the instance.
+	uuid string
+	// name of the instance device that traffic is forwarded to.
+	deviceName string
+}
+
 // forwardTarget represents a single port forward target.
 type forwardTarget struct {
-	address net.IP
-	ports   []uint64
+	address  net.IP
+	instance *forwardTargetInstance
+	ports    []uint64
 }
 
 // forwardPortMap represents a mapping of listen port(s) to target port(s) for a protocol/target address pair.
