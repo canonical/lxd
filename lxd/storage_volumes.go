@@ -1981,14 +1981,9 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, details st
 }
 
 // storagePoolVolumeTypePostMove handles volume move type POST requests.
-func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName string, requestProjectName string, projectName string, vol *api.StorageVolume, req api.StorageVolumePost) response.Response {
+func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, details storageVolumeDetails, effectiveProjectName string, targetProjectName string, vol *api.StorageVolume, req api.StorageVolumePost) response.Response {
 	newVol := *vol
 	newVol.Name = req.Name
-
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	newPool, err := storagePools.LoadByName(s, req.Pool)
 	if err != nil {
@@ -2000,7 +1995,7 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 		defer revert.Fail()
 
 		// Update devices using the volume in instances and profiles.
-		cleanup, err := storagePoolVolumeUpdateUsers(ctx, s, requestProjectName, pool.Name(), vol, newPool.Name(), &newVol)
+		cleanup, err := storagePoolVolumeUpdateUsers(ctx, s, effectiveProjectName, details.pool.Name(), vol, newPool.Name(), &newVol)
 		if err != nil {
 			return err
 		}
@@ -2009,12 +2004,12 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 
 		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
 		// from source volume.
-		err = newPool.CreateCustomVolumeFromCopy(ctx, projectName, requestProjectName, newVol.Name, "", nil, pool.Name(), vol.Name, true, op)
+		err = newPool.CreateCustomVolumeFromCopy(ctx, targetProjectName, effectiveProjectName, newVol.Name, "", nil, details.pool.Name(), vol.Name, true, op)
 		if err != nil {
 			return err
 		}
 
-		err = pool.DeleteCustomVolume(ctx, requestProjectName, vol.Name, op)
+		err = details.pool.DeleteCustomVolume(ctx, effectiveProjectName, vol.Name, op)
 		if err != nil {
 			return err
 		}
@@ -2023,9 +2018,9 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 		return nil
 	}
 
-	volumeURL := entity.StorageVolumeURL(requestProjectName, vol.Location, vol.Pool, vol.Type, vol.Name)
+	volumeURL := entity.StorageVolumeURL(effectiveProjectName, vol.Location, vol.Pool, vol.Type, vol.Name)
 	args := operations.OperationArgs{
-		ProjectName: requestProjectName,
+		ProjectName: request.ProjectParam(r), // Request project may differ from effective project.
 		EntityURL:   volumeURL,
 		Type:        operationtype.VolumeMove,
 		Class:       operations.OperationClassTask,
