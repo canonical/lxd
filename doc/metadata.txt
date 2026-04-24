@@ -3499,10 +3499,17 @@ Possible values are `tcp` and `udp`.
 ```
 
 ```{config:option} target_backend network-load-balancer-load-balancer-port-properties
-:required: "yes"
-:shortdesc: "Backend name or names to forward to"
+:required: "no"
+:shortdesc: "Backend name(s) to forward to"
 :type: "backend list"
+If you do not provide a list of backends, then you must provide a pool to `target_pool`.
+```
 
+```{config:option} target_pool network-load-balancer-load-balancer-port-properties
+:required: "no"
+:shortdesc: "Pool of instances to forward to"
+:type: "string"
+If you do not provide a pool, then you must provide a list of backends to `target_backend`.
 ```
 
 <!-- config group network-load-balancer-load-balancer-port-properties end -->
@@ -3543,6 +3550,23 @@ See {ref}`network-load-balancers-port-specifications`.
 ```
 
 <!-- config group network-load-balancer-load-balancer-properties end -->
+<!-- config group network-load-balancer-pool-properties start -->
+```{config:option} protocol network-load-balancer-pool-properties
+:defaultdesc: "`tcp`"
+:required: "no"
+:shortdesc: "Protocol used for ingress pool traffic."
+:type: "string"
+Can be either `tcp` or `udp`.
+```
+
+```{config:option} target_port network-load-balancer-pool-properties
+:required: "yes"
+:shortdesc: "Port used on instances for ingress pool traffic"
+:type: "string"
+
+```
+
+<!-- config group network-load-balancer-pool-properties end -->
 <!-- config group network-macvlan-network-conf start -->
 ```{config:option} gvrp network-macvlan-network-conf
 :defaultdesc: "`false`"
