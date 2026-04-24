@@ -106,6 +106,7 @@ var api10 = []APIEndpoint{
 	networkLoadBalancerCmd,
 	networkLoadBalancersCmd,
 	networkLoadBalancerPoolCmd,
+	networkLoadBalancerPoolStateCmd,
 	networkLoadBalancerPoolsCmd,
 	networkPeerCmd,
 	networkPeersCmd,
