@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/dnsutil"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // OVNRouter OVN router name.
@@ -2581,4 +2582,26 @@ func (o *OVN) GetLogicalRouterPortActiveChassisHostname(ovnRouterPort OVNRouterP
 	}
 
 	return strings.TrimSpace(hostname), err
+}
+
+// GetNorthdVersion gets the northd internal version from the NB_Global table.
+func (o *OVN) GetNorthdVersion() (*version.DottedVersion, error) {
+	output, err := o.nbctl("get", "NB_Global", ".", "options:northd_internal_version")
+	if err != nil {
+		return nil, err
+	}
+
+	output, err = unquote(strings.TrimSpace(output))
+	if err != nil {
+		return nil, fmt.Errorf("Failed unquoting northd_internal_version %q: %w", output, err)
+	}
+
+	// MicroOVN uses the format "25.09.90-21.7.0-82.12".
+	// Upstream OVN just uses the format "25.09.90".
+	ovnVersion, _, found := strings.Cut(output, "-")
+	if !found {
+		return nil, fmt.Errorf("Failed splitting northd_internal_version %q", output)
+	}
+
+	return version.NewDottedVersion(ovnVersion)
 }
