@@ -5247,7 +5247,7 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 }
 
 // loadBalancerFlattenVIPs flattens port maps into format compatible with OVN load balancers.
-func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBalancerPortMap) []openvswitch.OVNLoadBalancerVIP {
+func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBalancerPortMap) ([]openvswitch.OVNLoadBalancerVIP, error) {
 	totalVIPs := 0
 	for _, portMap := range portMaps {
 		totalVIPs += len(portMap.listenPorts)
@@ -5275,17 +5275,182 @@ func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBala
 					targetPort = target.ports[i]
 				}
 
-				vip.Targets = append(vip.Targets, openvswitch.OVNLoadBalancerTarget{
+				loadBalancerTarget := openvswitch.OVNLoadBalancerTarget{
 					Address: target.address,
 					Port:    targetPort,
-				})
+				}
+
+				// Populate the instance's switch port if present.
+				if target.instance != nil {
+					loadBalancerTarget.SwitchPort = n.getInstanceDevicePortName(target.instance.uuid, target.instance.deviceName)
+				}
+
+				vip.Targets = append(vip.Targets, loadBalancerTarget)
 			}
 
 			vips = append(vips, vip)
 		}
 	}
 
-	return vips
+	return vips, nil
+}
+
+// checkLoadBalancerPoolInstances check if any of the load balancer ports reference a pool of instances.
+// It checks the instances in the pool and returns port maps for the respective parent load balancer.
+// Instances which are stopped are filtered out and not included in the port maps.
+func (n *ovn) checkLoadBalancerPoolInstances(listenAddress net.IP, forward api.NetworkLoadBalancerPut) ([]*loadBalancerPortMap, error) {
+	var portMaps []*loadBalancerPortMap
+
+	activeNICs, err := n.getLoadBalancerInstanceNICs()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a single OVN client to be used for probing port status.
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting OVN client: %w", err)
+	}
+
+	for _, portSpec := range forward.Ports {
+		if portSpec.TargetPool != "" {
+			var pool *api.NetworkLoadBalancerPool
+
+			err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				var err error
+
+				pool, err = n.getLoadBalancerPool(ctx, tx.Tx(), portSpec.TargetPool)
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			// If the pool protocol is unset, assume a default of "tcp".
+			poolProtocol := pool.Config["protocol"]
+			if poolProtocol == "" {
+				poolProtocol = "tcp"
+			}
+
+			if poolProtocol != portSpec.Protocol {
+				return nil, fmt.Errorf("Cannot use pool protocol %q with port protocol %q", poolProtocol, portSpec.Protocol)
+			}
+
+			listenPort, err := strconv.Atoi(portSpec.ListenPort)
+			if err != nil {
+				return nil, fmt.Errorf("Failed converting listen port %q to int: %w", portSpec.ListenPort, err)
+			}
+
+			portMap := loadBalancerPortMap{
+				listenPorts: []uint64{uint64(listenPort)},
+				protocol:    portSpec.Protocol,
+				targets:     make([]forwardTarget, 0, len(pool.Instances)),
+			}
+
+			for _, poolInstance := range pool.Instances {
+				// Load the instance from the DB by name.
+				dbInst, err := instance.LoadByProjectAndName(n.state, n.project, poolInstance.Name)
+				if err != nil {
+					return nil, fmt.Errorf("Failed loading instance %q: %w", poolInstance.Name, err)
+				}
+
+				instanceUUID := dbInst.LocalConfig()["volatile.uuid"]
+				instanceHasNICInNetwork := false
+
+				// Find NICs connected to this network.
+				for devName, devConfig := range dbInst.ExpandedDevices() {
+					if devConfig["type"] != "nic" || !NICUsesNetwork(devConfig, &api.Network{Name: n.name}) {
+						continue
+					}
+
+					instanceHasNICInNetwork = true
+
+					// Check if the port is up.
+					// We cannot add it as target to the load balancer as it might collide with an enabled health check.
+					// When OVN sets up the health check's service monitor, it sets its initial status to "[]".
+					// But only targets with a status of "offline" won't be considered as load balancer targets.
+					// Therefore we skip down ports of offline instances to not cause the load balancer redirecting traffic to them.
+					portUp, err := n.InstanceDevicePortIsUp(client, instanceUUID, devName)
+					if err != nil {
+						logger.Warn("Skipping load balancer pool instance as failed checking if its port is up", logger.Ctx{"instance": poolInstance.Name, "pool": pool.Name, "network": n.name, "err": err})
+						continue
+					}
+
+					if !portUp {
+						logger.Warn("Skipping load balancer pool instance as its port is not up", logger.Ctx{"instance": poolInstance.Name, "pool": pool.Name, "network": n.name})
+						continue
+					}
+
+					devIPs, err := n.InstanceDevicePortIPs(instanceUUID, devName)
+					if err != nil || len(devIPs) == 0 {
+						logger.Warn("Skipping load balancer pool instance as it's missing an IP in network", logger.Ctx{"instance": poolInstance.Name, "pool": pool.Name, "network": n.name})
+						continue
+					}
+
+					targetPort := pool.Config["target_port"]
+
+					// An instance might use its own port.
+					if poolInstance.TargetPort != "" {
+						targetPort = poolInstance.TargetPort
+					}
+
+					// A specific target port on a pool's instance can only ever be referenced by a single load balancer pool.
+					// This is because OVN doesn't support having the same instance port as a target in multiple load balancer pools.
+					// The reason for this is because OVN would not create separate health checks for the target port.
+					// But this is required as different pools could have different health check configuration (if any).
+					// Different address families used for the same target port are allowed.
+					for _, activeNIC := range activeNICs {
+						vipIP := net.ParseIP(activeNIC.ListenAddress)
+
+						// Same family if both are IPv4 or both are IPv6.
+						sameAddressFamily := (vipIP.To4() != nil) == (listenAddress.To4() != nil)
+
+						if activeNIC.InstanceName == poolInstance.Name && activeNIC.EffectiveTargetPort == targetPort && activeNIC.PoolName != pool.Name && activeNIC.Protocol == poolProtocol && sameAddressFamily {
+							vipStr := net.JoinHostPort(activeNIC.ListenAddress, activeNIC.ListenPort)
+							return nil, api.StatusErrorf(http.StatusBadRequest, "Instance %q with port %q and protocol %q is already in use by load balancer %q and pool %q", poolInstance.Name, activeNIC.EffectiveTargetPort, activeNIC.Protocol, vipStr, activeNIC.PoolName)
+						}
+					}
+
+					targetPortInt, err := strconv.Atoi(targetPort)
+					if err != nil {
+						return nil, fmt.Errorf("Failed converting pool target port %q: %w", targetPort, err)
+					}
+
+					for _, ip := range devIPs {
+						// Skip IPs that don't match the listen address family.
+						if listenAddress.To4() != nil && ip.To4() == nil {
+							continue
+						} else if listenAddress.To4() == nil && ip.To4() != nil {
+							continue
+						}
+
+						portMap.targets = append(portMap.targets, forwardTarget{
+							address: ip,
+							instance: &forwardTargetInstance{
+								name:       dbInst.Name(),
+								uuid:       instanceUUID,
+								deviceName: devName,
+							},
+							ports: []uint64{uint64(targetPortInt)},
+						})
+					}
+				}
+
+				if !instanceHasNICInNetwork {
+					return nil, fmt.Errorf("Instance %q does not have a device in network %q", poolInstance.Name, n.name)
+				}
+			}
+
+			// If the pool doesn't have any instances, don't bother creating a port map.
+			if len(portMap.targets) == 0 {
+				continue
+			}
+
+			portMaps = append(portMaps, &portMap)
+		}
+	}
+
+	return portMaps, nil
 }
 
 // loadBalancerValidate validates the load balancer request.
@@ -5295,7 +5460,18 @@ func (n *ovn) loadBalancerValidate(listenAddress net.IP, forward api.NetworkLoad
 		return nil, err
 	}
 
-	return n.common.loadBalancerValidate(listenAddress, forward)
+	portMaps, err := n.common.loadBalancerValidate(listenAddress, forward)
+	if err != nil {
+		return nil, err
+	}
+
+	portMapsPools, err := n.checkLoadBalancerPoolInstances(listenAddress, forward)
+	if err != nil {
+		return nil, err
+	}
+
+	portMaps = append(portMaps, portMapsPools...)
+	return portMaps, nil
 }
 
 // LoadBalancerCreate creates a network load balancer.
