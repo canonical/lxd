@@ -3839,6 +3839,124 @@ definitions:
                 x-go-name: TargetPort
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    NetworkLoadBalancerPool:
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Load balancer pool configuration map (refer to doc/howto/network_load_balancers.md)
+                example:
+                    protocol: tcp
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the load balancer pool.
+                example: My HTTPS load balancer pool.
+                type: string
+                x-go-name: Description
+            instances:
+                description: Instances included in the pool.
+                example:
+                    - name: i1
+                    - name: i2
+                      target_port: "8443"
+                items:
+                    $ref: '#/definitions/NetworkLoadBalancerPoolInstance'
+                type: array
+                x-go-name: Instances
+            name:
+                description: The name of the load balancer pool.
+                example: https
+                type: string
+                x-go-name: Name
+            used_by:
+                description: UsedBy is a list of LXD entity URLs that reference this load balancer pool.
+                example:
+                    - /1.0/networks/default/load-balancers/192.0.2.1
+                items:
+                    type: string
+                type: array
+                x-go-name: UsedBy
+        title: NetworkLoadBalancerPool used for displaying a network load balancer pool.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    NetworkLoadBalancerPoolInstance:
+        description: An instance can have multiple targets depending on how many addresses it has in the pool's network.
+        properties:
+            name:
+                description: The name of the instance in the pool.
+                example: i1
+                type: string
+                x-go-name: Name
+            target_port:
+                description: Optional target port to override the pool's default target port.
+                example: '"8443"'
+                type: string
+                x-go-name: TargetPort
+        title: NetworkLoadBalancerPoolInstance represents an instance in a load balancer pool.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    NetworkLoadBalancerPoolPut:
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Load balancer pool configuration map (refer to doc/howto/network_load_balancers.md)
+                example:
+                    protocol: tcp
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the load balancer pool.
+                example: My HTTPS load balancer pool.
+                type: string
+                x-go-name: Description
+            instances:
+                description: List of instances in the pool.
+                example:
+                    - name: c1
+                    - name: c2
+                      target_port: "8443"
+                items:
+                    $ref: '#/definitions/NetworkLoadBalancerPoolInstance'
+                type: array
+                x-go-name: Instances
+        title: NetworkLoadBalancerPoolPut represents the modifiable fields of a LXD network load balancer pool.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    NetworkLoadBalancerPoolsPost:
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Load balancer pool configuration map (refer to doc/howto/network_load_balancers.md)
+                example:
+                    protocol: tcp
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the load balancer pool.
+                example: My HTTPS load balancer pool.
+                type: string
+                x-go-name: Description
+            instances:
+                description: List of instances in the pool.
+                example:
+                    - name: c1
+                    - name: c2
+                      target_port: "8443"
+                items:
+                    $ref: '#/definitions/NetworkLoadBalancerPoolInstance'
+                type: array
+                x-go-name: Instances
+            name:
+                description: The name of the load balancer pool.
+                example: https
+                type: string
+                x-go-name: Name
+        title: NetworkLoadBalancerPoolsPost represents the fields of a new LXD network load balancer pool.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkLoadBalancerPort:
         description: NetworkLoadBalancerPort represents a port specification in a network load balancer
         properties:
@@ -3858,7 +3976,7 @@ definitions:
                 type: string
                 x-go-name: Protocol
             target_backend:
-                description: TargetBackend backend names to load balance ListenPorts to
+                description: TargetBackend specifies backend names to load balance ListenPorts to
                 example:
                     - c1-http
                     - c2-http
@@ -3866,6 +3984,11 @@ definitions:
                     type: string
                 type: array
                 x-go-name: TargetBackend
+            target_pool:
+                description: TargetPool specifies a pool to load balance ListenPorts to
+                example: http-pool
+                type: string
+                x-go-name: TargetPool
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     NetworkLoadBalancerPut:
@@ -14938,6 +15061,145 @@ paths:
             summary: Get the network address forwards
             tags:
                 - network-forwards
+    /1.0/networks/{networkName}/load-balancer-pools:
+        get:
+            consumes:
+                - application/json
+            description: Retrieves a list of network load balancer pools.
+            operationId: network_load_balancer_pools_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: List network load balancer pools
+            tags:
+                - network-load-balancer-pools
+        post:
+            consumes:
+                - application/json
+            description: Creates a new network load balancer pool.
+            operationId: network_load_balancer_pools_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Load balancer pool
+                  in: body
+                  name: load-balancer-pool
+                  required: true
+                  schema:
+                    $ref: '#/definitions/NetworkLoadBalancerPoolsPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add a network load balancer pool
+            tags:
+                - network-load-balancer-pools
+    /1.0/networks/{networkName}/load-balancer-pools/{poolName}:
+        delete:
+            consumes:
+                - application/json
+            description: Removes a specific network load balancer pool.
+            operationId: network_load_balancer_pool_delete
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete a network load balancer pool
+            tags:
+                - network-load-balancer-pools
+        get:
+            consumes:
+                - application/json
+            description: Retrieves a specific network load balancer pool.
+            operationId: network_load_balancer_pool_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get a network load balancer pool
+            tags:
+                - network-load-balancer-pools
+        put:
+            consumes:
+                - application/json
+            description: Updates the configuration of a specific network load balancer pool.
+            operationId: network_load_balancer_pool_put
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Address load balancer pool configuration
+                  in: body
+                  name: load-balancer-pool
+                  required: true
+                  schema:
+                    $ref: '#/definitions/NetworkLoadBalancerPoolPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update a network load balancer pool
+            tags:
+                - network-load-balancer-pools
     /1.0/networks/{networkName}/load-balancers:
         get:
             description: Returns a list of network address load balancers (URLs).
