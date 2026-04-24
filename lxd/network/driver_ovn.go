@@ -7006,3 +7006,39 @@ func (n *ovn) getLoadBalancerInstanceNICs() ([]OVNLoadBalancerInstanceNIC, error
 
 	return activePorts, nil
 }
+
+// InstanceDevicePortValidateUseByLoadBalancer checks whether the given instance is referenced by any load balancer pool on this network.
+// Returns an error if it is, indicating the instance must be removed from the pool first.
+func (n *ovn) InstanceDevicePortValidateUseByLoadBalancer(deviceInstance instance.Instance) error {
+	var loadBalancers map[int64]*api.NetworkLoadBalancer
+	var err error
+
+	return n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
+		if err != nil {
+			return err
+		}
+
+		for _, lb := range loadBalancers {
+			for _, port := range lb.Ports {
+				if port.TargetPool == "" {
+					continue
+				}
+
+				// Load the pool and check its instances.
+				pool, err := n.getLoadBalancerPool(ctx, tx.Tx(), port.TargetPool)
+				if err != nil {
+					return fmt.Errorf("Failed getting load balancer pool %q: %w", port.TargetPool, err)
+				}
+
+				for _, poolInst := range pool.Instances {
+					if poolInst.Name == deviceInstance.Name() {
+						return api.StatusErrorf(http.StatusBadRequest, "Instance %q is referenced by load balancer pool %q and listen address %q", deviceInstance.Name(), port.TargetPool, lb.ListenAddress)
+					}
+				}
+			}
+		}
+
+		return nil
+	})
+}

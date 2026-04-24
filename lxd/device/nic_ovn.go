@@ -38,6 +38,7 @@ type ovnNet interface {
 	network.Network
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
+	InstanceDevicePortValidateUseByLoadBalancer(deviceInstance instance.Instance) error
 	InstanceDevicePortAdd(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error)
 	InstanceDevicePortStart(deviceInstance instance.Instance) error
 	InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
