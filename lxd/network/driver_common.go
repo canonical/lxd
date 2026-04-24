@@ -1528,7 +1528,7 @@ func (n *common) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, c
 }
 
 // LoadBalancerUpdate returns ErrNotImplemented for drivers that do not support load balancers..
-func (n *common) LoadBalancerUpdate(listenAddress string, newLoadBalancer api.NetworkLoadBalancerPut, clientType request.ClientType) error {
+func (n *common) LoadBalancerUpdate(listenAddress string, newLoadBalancer api.NetworkLoadBalancerPut, clientType request.ClientType, force bool) error {
 	return ErrNotImplemented
 }
 

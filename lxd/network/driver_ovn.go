@@ -5675,7 +5675,9 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 }
 
 // LoadBalancerUpdate updates a network load balancer.
-func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType) error {
+// The update can be forced in case any of the referenced entities (like pools) got updated
+// which require also an update of the parent load balancer.
+func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType, force bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5717,7 +5719,8 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			return err
 		}
 
-		if curForwardEtagHash == newLoadBalancerEtagHash {
+		// In case a force update was requested, ignore the etag.
+		if curForwardEtagHash == newLoadBalancerEtagHash && !force {
 			return nil // Nothing has changed.
 		}
 
