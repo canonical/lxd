@@ -1934,32 +1934,53 @@ func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) (map[string][]
 	return lbUUIDs, nil
 }
 
-// loadBalancerVIPs returns a slice of VIPs currently configured on the given load balancer.
-func (o *OVN) loadBalancerVIPs(loadBalancerName OVNLoadBalancer, protocol string) ([]string, error) {
+// loadBalancerConfig returns slices of the load balancer's current VIPs and ip_port_mappings targets.
+func (o *OVN) loadBalancerConfig(loadBalancerName OVNLoadBalancer, protocol string) (vips []string, targets []string, err error) {
 	lbName := string(loadBalancerName) + "-" + protocol
-	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=vips", "list", "load_balancer", lbName)
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=vips,ip_port_mappings", "list", "load_balancer", lbName)
 	if err != nil {
-		return nil, fmt.Errorf("Failed listing the VIPs of load balancer %q: %w", lbName, err)
+		return nil, nil, fmt.Errorf("Failed listing the config of load balancer %q: %w", lbName, err)
 	}
 
-	output, err = unquote(strings.TrimSpace(output))
+	// Use a CSV reader to properly handle any potential quoting.
+	// Simply splitting the output by command does not work as the "vips" value itself also use a comma as a separator.
+	r := csv.NewReader(strings.NewReader(output))
+	record, err := r.Read()
 	if err != nil {
-		return nil, fmt.Errorf("Failed unquoting VIPs output %q of load balancer %q: %w", output, lbName, err)
+		return nil, nil, fmt.Errorf("Failed parsing config of load balancer %q: %w", lbName, err)
 	}
 
-	vipTargets := strings.Fields(output)
-	vips := make([]string, 0, len(vipTargets))
+	if len(record) != 2 {
+		return nil, nil, fmt.Errorf("Unexpected column count %d in output of load balancer %q", len(record), lbName)
+	}
 
+	vipTargets := strings.Fields(record[0])
+	vips = make([]string, 0, len(vipTargets))
+
+	// Record all VIPs.
 	for _, vipTarget := range vipTargets {
 		before, _, found := strings.Cut(vipTarget, "=")
 		if !found {
-			return nil, fmt.Errorf("Invalid line %q in VIPs output of load balancer %q", vipTarget, lbName)
+			return nil, nil, fmt.Errorf("Invalid line %q in VIPs output of load balancer %q", vipTarget, lbName)
 		}
 
 		vips = append(vips, before)
 	}
 
-	return vips, nil
+	ipPortMappings := strings.Fields(record[1])
+	targets = make([]string, 0, len(ipPortMappings))
+
+	// Record all targets.
+	for _, ipPortMapping := range ipPortMappings {
+		kv := strings.SplitN(ipPortMapping, "=", 2)
+		if len(kv) != 2 {
+			return nil, nil, fmt.Errorf("Invalid line %q in ip_port_mappings output of load balancer %q", ipPortMapping, lbName)
+		}
+
+		targets = append(targets, kv[0])
+	}
+
+	return vips, targets, nil
 }
 
 // LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
