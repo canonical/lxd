@@ -58,6 +58,13 @@ var networkLoadBalancerPoolCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: networkLoadBalancerPoolPut, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 }
 
+var networkLoadBalancerPoolStateCmd = APIEndpoint{
+	Path:        "networks/{networkName}/load-balancer-pools/{poolName}/state",
+	MetricsType: entity.TypeNetwork,
+
+	Get: APIEndpointAction{Handler: networkLoadBalancerPoolStateGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
+}
+
 // API endpoints
 
 // swagger:operation GET /1.0/networks/{networkName}/load-balancers network-load-balancers network_load_balancers_get
@@ -1023,6 +1030,83 @@ func networkLoadBalancerPoolGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.SyncResponseETag(true, loadBalancerPool, loadBalancerPool.Etag())
+}
+
+// swagger:operation GET /1.0/networks/{networkName}/load-balancer-pools/{poolName}/state network-load-balancer-pools network_load_balancer_pool_state_get
+//
+//	Get the state of a network load balancer pool
+//
+//	Retrieves the state of a specific network load balancer pool.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/NetworkLoadBalancerPoolState"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func networkLoadBalancerPoolStateGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	resp := networkLoadBalancerPoolCheckAccess(n, details)
+	if resp != nil {
+		return resp
+	}
+
+	poolName := r.PathValue("poolName")
+
+	poolState, err := n.LoadBalancerPoolState(poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, poolState)
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/load-balancer-pools/{poolName} network-load-balancer-pools network_load_balancer_pool_delete
