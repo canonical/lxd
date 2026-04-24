@@ -142,8 +142,9 @@ type OVNACLRule struct {
 
 // OVNLoadBalancerTarget represents an OVN load balancer Virtual IP target.
 type OVNLoadBalancerTarget struct {
-	Address net.IP
-	Port    uint64
+	Address    net.IP
+	SwitchPort OVNSwitchPort
+	Port       uint64
 }
 
 // OVNLoadBalancerVIP represents a OVN load balancer Virtual IP entry.
