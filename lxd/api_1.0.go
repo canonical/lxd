@@ -909,7 +909,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	if len(nodeChanged) > 0 {
 		revert.Add(func() {
 			// Use context.Background for revert in case client disconnects after changes made and an error occurs.
-			err = s.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
+			err := s.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 				newNodeConfig, err := node.ConfigLoad(ctx, tx)
 				if err != nil {
 					return fmt.Errorf("Failed loading local config: %w", err)
@@ -964,8 +964,8 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	if len(clusterChanged) > 0 {
 		revert.Add(func() {
 			// Use context.Background for revert in case client disconnects after changes made and an error occurs.
-			err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-				newClusterConfig, err = clusterConfig.Load(ctx, tx)
+			err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+				newClusterConfig, err := clusterConfig.Load(ctx, tx)
 				if err != nil {
 					return fmt.Errorf("Failed loading cluster config: %w", err)
 				}
