@@ -219,6 +219,25 @@ func (r *ProtocolLXD) GetNetworkLoadBalancerPool(networkName string, poolName st
 	return &loadBalancerPool, etag, nil
 }
 
+// GetNetworkLoadBalancerPoolState returns the state of a network load balancer pool by name in the provided network.
+func (r *ProtocolLXD) GetNetworkLoadBalancerPoolState(networkName string, poolName string) (*api.NetworkLoadBalancerPoolState, error) {
+	err := r.CheckExtension("network_load_balancer_pool")
+	if err != nil {
+		return nil, err
+	}
+
+	var loadBalancerPoolState api.NetworkLoadBalancerPoolState
+
+	// Send the request.
+	u := api.NewURL().Path("networks", networkName, "load-balancer-pools", poolName, "state")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &loadBalancerPoolState)
+	if err != nil {
+		return nil, err
+	}
+
+	return &loadBalancerPoolState, nil
+}
+
 // DeleteNetworkLoadBalancerPool deletes an existing network load balancer pool.
 func (r *ProtocolLXD) DeleteNetworkLoadBalancerPool(networkName string, poolName string) (Operation, error) {
 	err := r.CheckExtension("network_load_balancer_pool")
