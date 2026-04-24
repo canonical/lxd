@@ -11,6 +11,7 @@ import (
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
@@ -82,6 +83,78 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 			})
 			if err != nil {
 				return err
+			}
+		}
+	}
+
+	// Check if there are any instances of this profile attached to network load balancer pools.
+	// The profile update cannot remove the mandatory nic device.
+	for _, inst := range insts {
+		var networkNames []string
+
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			// Check if this instance is a member of any load balancer pool.
+			poolInstRows, err := cluster.GetNetworksLoadBalancerPoolInstanceRowsByID(ctx, tx.Tx(), int64(inst.ID))
+			if err != nil {
+				return err
+			}
+
+			// Exit early if instance is not a member of any pool.
+			if len(poolInstRows) == 0 {
+				return nil
+			}
+
+			for _, poolInstRow := range poolInstRows {
+				// Get the pool to find its network.
+				pool, err := cluster.GetNetworksLoadBalancerPoolRowByID(ctx, tx.Tx(), poolInstRow.PoolID)
+				if err != nil {
+					return err
+				}
+
+				// Get the network name from the pool's network ID.
+				networkName, _, err := tx.GetNetworkNameAndProjectWithID(ctx, int(pool.NetworkID))
+				if err != nil {
+					return err
+				}
+
+				networkNames = append(networkNames, networkName)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Build the new expanded devices with the updated profile.
+		newProfiles := make([]api.Profile, len(inst.Profiles))
+		copy(newProfiles, inst.Profiles)
+		for i, prof := range newProfiles {
+			// Find the profile being updated and update its devices.
+			if prof.Name == profileName {
+				newProfiles[i].Devices = req.Devices
+				break
+			}
+		}
+
+		newExpandedDevices := instancetype.ExpandInstanceDevices(inst.Devices.Clone(), newProfiles)
+
+		for _, networkName := range networkNames {
+			// Check if the new expanded devices still have a NIC connected to this network.
+			hasNIC := false
+			for _, devConfig := range newExpandedDevices {
+				if devConfig["type"] != "nic" {
+					continue
+				}
+
+				if network.NICUsesNetwork(devConfig, &api.Network{Name: networkName}) {
+					hasNIC = true
+					break
+				}
+			}
+
+			if !hasNIC {
+				return errors.New("At least one instance relies on this profile's nic device for network load balancer pool membership")
 			}
 		}
 	}
