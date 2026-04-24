@@ -1130,9 +1130,13 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	// correlated with others, and need to be processed first (for example
 	// core.https_address need to be processed before
 	// cluster.https_address).
-
 	value, ok := nodeChanged["core.https_address"]
+	coreHTTPSAddressUnset := false
 	if ok {
+		if value == "" {
+			coreHTTPSAddressUnset = true
+		}
+
 		err := s.Endpoints.NetworkUpdateAddress(value)
 		if err != nil {
 			return err
@@ -1141,9 +1145,11 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		s.Endpoints.NetworkUpdateTrustedProxy(newClusterConfig.HTTPSTrustedProxy())
 	}
 
-	value, ok = nodeChanged["cluster.https_address"]
-	if ok {
-		err := s.Endpoints.ClusterUpdateAddress(value)
+	// If the cluster.https_address is changed, or if the core.https_address is unset then we need to ensure
+	// that, if set, the cluster's HTTPS address is re-activated.
+	_, ok = nodeChanged["cluster.https_address"]
+	if ok || (coreHTTPSAddressUnset && newNodeConfig.ClusterAddress() != "") {
+		err := s.Endpoints.ClusterUpdateAddress(newNodeConfig.ClusterAddress())
 		if err != nil {
 			return err
 		}
