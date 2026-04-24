@@ -3073,6 +3073,11 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 // the name and address of the remote member. If there is more than one cluster member with a matching volume name, an
 // error is returned.
 func getRemoteVolumeNodeInfo(ctx context.Context, s *state.State, poolName string, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType) (*db.NodeInfo, error) {
+	// If we're not clustered, then the volume must exist locally.
+	if !s.ServerClustered {
+		return nil, nil
+	}
+
 	localNodeID := s.DB.Cluster.GetNodeID()
 	var err error
 	var nodes []db.NodeInfo
