@@ -846,7 +846,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	}
 
-	nodeChanged := map[string]string{}
+	var nodeChanged map[string]string
 	var newNodeConfig *node.Config
 	var oldNodeConfig map[string]string
 
