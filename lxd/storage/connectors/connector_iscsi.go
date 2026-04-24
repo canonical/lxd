@@ -423,7 +423,7 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 	removeDevice := func(devName string) error {
 		path := "/sys/block/" + devName + "/device/delete"
 
-		err := os.WriteFile(path, []byte("1"), 0400)
+		err := os.WriteFile(path, []byte("1"), 0200)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
