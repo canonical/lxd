@@ -1875,7 +1875,7 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 }
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
-func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, poolIsRemote bool, volumeName string, req api.StorageVolumePost) response.Response {
+func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, requestProjectName string, effectiveProjectName string, details storageVolumeDetails, req api.StorageVolumePost) response.Response {
 	ws, err := newStorageMigrationSource(req.VolumeOnly, req.Target)
 	if err != nil {
 		return response.InternalError(err)
@@ -1883,24 +1883,17 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 
 	var entityURL *api.URL
 	var opType operationtype.Type
-	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(volumeName)
+	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(details.fullName)
 	if srcIsSnapshot {
 		opType = operationtype.VolumeSnapshotTransfer
-		entityURL = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", srcVolParentName, "snapshots", srcVolSnapName).Project(projectName)
+		entityURL = api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", "custom", srcVolParentName, "snapshots", srcVolSnapName).Project(effectiveProjectName).Target(details.location)
 	} else {
 		opType = operationtype.VolumeMigrate
-		entityURL = api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", volumeName).Project(projectName)
-	}
-
-	// We're migrating volume on this node.
-	// When looking up the entity for the operation, we look for the volumes located on the nodes based on the target parameter.
-	// If the server is clustered, we need to set the target.
-	if state.ServerClustered && !poolIsRemote {
-		entityURL = entityURL.Target(state.ServerName)
+		entityURL = api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", "custom", details.volumeName).Project(effectiveProjectName).Target(details.location)
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
-		return ws.DoStorage(state, projectName, poolName, volumeName, op)
+		return ws.DoStorage(state, effectiveProjectName, details.pool.Name(), details.fullName, op)
 	}
 
 	if req.Target != nil {
