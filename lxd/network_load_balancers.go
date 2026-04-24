@@ -11,6 +11,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
@@ -40,6 +41,30 @@ var networkLoadBalancerCmd = APIEndpoint{
 	Get:    APIEndpointAction{Handler: networkLoadBalancerGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 	Put:    APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 	Patch:  APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
+}
+
+var networkLoadBalancerPoolsCmd = APIEndpoint{
+	Path:        "networks/{networkName}/load-balancer-pools",
+	MetricsType: entity.TypeNetwork,
+
+	Post: APIEndpointAction{Handler: networkLoadBalancerPoolsPost, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
+	Get:  APIEndpointAction{Handler: networkLoadBalancerPoolsGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
+}
+
+var networkLoadBalancerPoolCmd = APIEndpoint{
+	Path:        "networks/{networkName}/load-balancer-pools/{poolName}",
+	MetricsType: entity.TypeNetwork,
+
+	Get:    APIEndpointAction{Handler: networkLoadBalancerPoolGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
+	Delete: APIEndpointAction{Handler: networkLoadBalancerPoolDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: networkLoadBalancerPoolPut, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
+}
+
+var networkLoadBalancerPoolStateCmd = APIEndpoint{
+	Path:        "networks/{networkName}/load-balancer-pools/{poolName}/state",
+	MetricsType: entity.TypeNetwork,
+
+	Get: APIEndpointAction{Handler: networkLoadBalancerPoolStateGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 }
 
 // API endpoints
@@ -724,6 +749,510 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkLoadBalancerUpdate,
+		Class:       operations.OperationClassTask,
+		RunHook:     run,
+		EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
+}
+
+// swagger:operation POST /1.0/networks/{networkName}/load-balancer-pools network-load-balancer-pools network_load_balancer_pools_post
+//
+//	Add a network load balancer pool
+//
+//	Creates a new network load balancer pool.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: load-balancer-pool
+//	    description: Load balancer pool
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/NetworkLoadBalancerPoolsPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func networkLoadBalancerPoolsPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Parse the request into a record.
+	req := api.NetworkLoadBalancerPoolsPost{}
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	req.Normalise() // So we handle the request in normalised/canonical form.
+
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
+	}
+
+	if !n.Info().LoadBalancers {
+		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
+	}
+
+	err = n.LoadBalancerPoolCreate(req)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed creating load balancer pool: %w", err))
+	}
+
+	return response.SyncResponse(true, nil)
+}
+
+// networkLoadBalancerPoolUsedBy returns a list of URLs of load balancers using the pool.
+func networkLoadBalancerPoolUsedBy(projectName string, networkName string, loadBalancers []string) []string {
+	usedBy := make([]string, 0, len(loadBalancers))
+	for _, listenAddress := range loadBalancers {
+		usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "networks", networkName, "load-balancers", listenAddress).Project(projectName).String())
+	}
+
+	return usedBy
+}
+
+// swagger:operation GET /1.0/networks/{networkName}/load-balancer-pools network-load-balancer-pools network_load_balancer_pools_get
+//
+//	List network load balancer pools
+//
+//	Retrieves a list of network load balancer pools.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func networkLoadBalancerPoolsGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
+	}
+
+	if !n.Info().LoadBalancers {
+		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
+	}
+
+	var pools []*api.NetworkLoadBalancerPool
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		poolsDB, err := dbCluster.GetNetworksLoadBalancerPools(ctx, tx.Tx(), n.ID(), nil)
+		if err != nil {
+			return err
+		}
+
+		allConfigs, err := dbCluster.GetNetworksLoadBalancerPoolConfig(ctx, tx.Tx(), nil)
+		if err != nil {
+			return err
+		}
+
+		allInstances, err := dbCluster.GetNetworksLoadBalancerPoolInstances(ctx, tx.Tx(), nil)
+		if err != nil {
+			return err
+		}
+
+		allLoadBalancers, err := dbCluster.GetNetworksLoadBalancers(ctx, tx.Tx(), n.ID(), nil)
+		if err != nil {
+			return fmt.Errorf("Failed getting load balancers for network %q: %w", n.Name(), err)
+		}
+
+		pools = make([]*api.NetworkLoadBalancerPool, 0, len(poolsDB))
+
+		for _, poolDB := range poolsDB {
+			pool, err := poolDB.ToAPI(allConfigs, allInstances)
+			if err != nil {
+				return err
+			}
+
+			pool.UsedBy = networkLoadBalancerPoolUsedBy(poolDB.ProjectName, poolDB.NetworkName, allLoadBalancers[poolDB.Row.Name])
+			pools = append(pools, pool)
+		}
+
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, pools)
+}
+
+// swagger:operation GET /1.0/networks/{networkName}/load-balancer-pools/{poolName} network-load-balancer-pools network_load_balancer_pool_get
+//
+//	Get a network load balancer pool
+//
+//	Retrieves a specific network load balancer pool.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func networkLoadBalancerPoolGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
+	}
+
+	if !n.Info().LoadBalancers {
+		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
+	}
+
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	var loadBalancerPool *api.NetworkLoadBalancerPool
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		poolDB, err := dbCluster.GetNetworksLoadBalancerPool(ctx, tx.Tx(), n.ID(), poolName)
+		if err != nil {
+			return err
+		}
+
+		allConfigs, err := dbCluster.GetNetworksLoadBalancerPoolConfig(ctx, tx.Tx(), &poolDB.Row.ID)
+		if err != nil {
+			return err
+		}
+
+		allInstances, err := dbCluster.GetNetworksLoadBalancerPoolInstances(ctx, tx.Tx(), &poolDB.Row.ID)
+		if err != nil {
+			return err
+		}
+
+		loadBalancerPool, err = poolDB.ToAPI(allConfigs, allInstances)
+		if err != nil {
+			return err
+		}
+
+		allLoadBalancers, err := dbCluster.GetNetworksLoadBalancers(ctx, tx.Tx(), n.ID(), &poolName)
+		if err != nil {
+			return fmt.Errorf("Failed getting load balancers for network %q: %w", n.Name(), err)
+		}
+
+		loadBalancerPool.UsedBy = networkLoadBalancerPoolUsedBy(poolDB.ProjectName, poolDB.NetworkName, allLoadBalancers[poolDB.Row.Name])
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponseETag(true, loadBalancerPool, loadBalancerPool.Etag())
+}
+
+// swagger:operation GET /1.0/networks/{networkName}/load-balancer-pools/{poolName}/state network-load-balancer-pools network_load_balancer_pool_state_get
+//
+//	Get the state of a network load balancer pool
+//
+//	Retrieves the state of a specific network load balancer pool.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func networkLoadBalancerPoolStateGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
+	}
+
+	if !n.Info().LoadBalancers {
+		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
+	}
+
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	poolState, err := n.LoadBalancerPoolState(poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, poolState)
+}
+
+// swagger:operation DELETE /1.0/networks/{networkName}/load-balancer-pools/{poolName} network-load-balancer-pools network_load_balancer_pool_delete
+//
+//	Delete a network load balancer pool
+//
+//	Removes a specific network load balancer pool.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func networkLoadBalancerPoolDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
+	}
+
+	if !n.Info().LoadBalancers {
+		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
+	}
+
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = n.LoadBalancerPoolDelete(poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, nil)
+}
+
+// swagger:operation PUT /1.0/networks/{networkName}/load-balancer-pools/{poolName} network-load-balancer-pools network_load_balancer_pool_put
+//
+//	Update a network load balancer pool
+//
+//	Updates the configuration of a specific network load balancer pool.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: load-balancer-pool
+//	    description: Address load balancer pool configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/NetworkLoadBalancerPoolPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func networkLoadBalancerPoolPut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
+	}
+
+	if !n.Info().LoadBalancers {
+		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
+	}
+
+	// Parse the request into a record.
+	req := api.NetworkLoadBalancerPoolPut{}
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	req.Normalise()
+
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		return n.LoadBalancerPoolUpdate(poolName, req)
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: details.requestProject.Name,
+		Type:        operationtype.NetworkLoadBalancerPoolUpdate,
 		Class:       operations.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
