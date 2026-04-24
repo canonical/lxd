@@ -2922,14 +2922,18 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 // context in addStoragePoolVolumeDetailsToRequestContext.
 const ctxStorageVolumeDetails request.CtxKey = "storage-volume-details"
 
-// storageVolumeDetails contains details common to all storage volume requests. A value of this type is added to the
-// request context when addStoragePoolVolumeDetailsToRequestContext is called. We do this to avoid repeated logic when
-// parsing the request details and/or making database calls to get the storage pool or effective project. These fields
-// are required for the storage volume access check, and are subsequently available in the storage volume handlers.
+// storageVolumeDetails contains details common to all storage volume, snapshot, and backup requests. A value of this
+// type is added to the request context when addStoragePoolVolumeDetailsToRequestContext is called (it is called by
+// storagePoolVolumeTypeAccessHandler). We do this to avoid repeated logic when parsing the request details and/or
+// making database calls to get the storage pool or effective project. These fields are required for storage volume,
+// snapshot, and backup access checks, and are subsequently available in the storage volume (snapshot/backup) handlers.
 type storageVolumeDetails struct {
 	volumeName         string
 	volumeTypeName     string
 	volumeType         cluster.StoragePoolVolumeType
+	snapshotName       string
+	backupName         string
+	fullName           string
 	location           string
 	pool               storagePools.Pool
 	forwardingNodeInfo *db.NodeInfo
@@ -2960,10 +2964,16 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 			details.location = location
 		}
 
+		// Set the full name to the volume name if not already set by snapshot or backup.
+		if details.fullName == "" {
+			details.fullName = details.volumeName
+		}
+
 		request.SetContextValue(r, ctxStorageVolumeDetails, details)
 	}()
 
-	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
+	muxVars := mux.Vars(r)
+	volumeName, err := url.PathUnescape(muxVars["volumeName"])
 	if err != nil {
 		return err
 	}
@@ -2974,7 +2984,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 		return api.StatusErrorf(http.StatusBadRequest, "Invalid storage volume %q", volumeName)
 	}
 
-	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	volumeTypeName, err := url.PathUnescape(muxVars["type"])
 	if err != nil {
 		return err
 	}
@@ -2988,6 +2998,28 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	}
 
 	details.volumeType = volumeType
+
+	// Get snapshot name if present
+	_, ok := muxVars["snapshotName"]
+	if ok {
+		details.snapshotName, err = url.PathUnescape(muxVars["snapshotName"])
+		if err != nil {
+			return err
+		}
+
+		details.fullName = volumeName + shared.SnapshotDelimiter + details.snapshotName
+	}
+
+	// Get backup name if present
+	_, ok = muxVars["backupName"]
+	if ok {
+		details.backupName, err = url.PathUnescape(muxVars["backupName"])
+		if err != nil {
+			return err
+		}
+
+		details.fullName = volumeName + shared.SnapshotDelimiter + details.backupName
+	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
