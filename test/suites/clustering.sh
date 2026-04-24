@@ -5570,10 +5570,10 @@ test_clustering_link_info() {
 test_clustering_replicator_basic() {
   # Create two standalone clustered LXD daemons to simulate two separate clusters.
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_ONE_DIR}" false
+  spawn_lxd "${LXD_ONE_DIR}" true
 
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_TWO_DIR}" false
+  spawn_lxd "${LXD_TWO_DIR}" true
 
   # Enable clustering on LXD_ONE.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
@@ -5619,10 +5619,11 @@ test_clustering_replicator_basic() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=leader
 
   # Setup storage on both clusters.
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 dir --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="pool1" --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="pool1" --project replicator-project
+  local pool_one pool_two
+  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
+  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
 
   # Create replicator on LXD_ONE.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
@@ -5741,10 +5742,10 @@ test_clustering_replicator_basic() {
 test_clustering_replicator_scheduled() {
   # Create two standalone clustered LXD daemons to simulate two separate clusters.
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_ONE_DIR}" false
+  spawn_lxd "${LXD_ONE_DIR}" true
 
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_TWO_DIR}" false
+  spawn_lxd "${LXD_TWO_DIR}" true
 
   # Enable clustering on both.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
@@ -5771,10 +5772,11 @@ test_clustering_replicator_scheduled() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_two replica.mode=leader
 
   # Setup storage on both clusters.
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 dir --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="pool1" --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="pool1" --project replicator-project
+  local pool_one pool_two
+  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
+  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
 
   # Create the replicator.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
@@ -5840,10 +5842,10 @@ test_clustering_replicator_scheduled() {
 test_clustering_replicator_dr() {
   # Create two standalone clustered LXD daemons to simulate two separate clusters.
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_ONE_DIR}" false
+  spawn_lxd "${LXD_ONE_DIR}" true
 
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_TWO_DIR}" false
+  spawn_lxd "${LXD_TWO_DIR}" true
 
   # Enable clustering on both.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
@@ -5870,10 +5872,11 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_two replica.mode=leader
 
   # Setup storage on both clusters.
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 dir --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="pool1" --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="pool1" --project replicator-project
+  local pool_one pool_two
+  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
+  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
 
   # Create the replicator.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
@@ -5995,10 +5998,10 @@ test_clustering_replicator_dr() {
 test_clustering_replicator_snapshot() {
   # Create two standalone clustered LXD daemons to simulate two separate clusters.
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_ONE_DIR}" false
+  spawn_lxd "${LXD_ONE_DIR}" true
 
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_TWO_DIR}" false
+  spawn_lxd "${LXD_TWO_DIR}" true
 
   # Enable clustering on both.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
@@ -6024,10 +6027,11 @@ test_clustering_replicator_snapshot() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_two replica.mode=leader
 
   # Setup storage on both clusters.
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 dir --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="pool1" --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="pool1" --project replicator-project
+  local pool_one pool_two
+  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
+  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
 
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
 
