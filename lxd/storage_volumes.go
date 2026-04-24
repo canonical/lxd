@@ -3061,7 +3061,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	details.forwardingNodeInfo = remoteNodeInfo
 	if remoteNodeInfo != nil {
 		location = remoteNodeInfo.Name
-	} else {
+	} else if s.ServerClustered {
 		location = s.ServerName
 	}
 
