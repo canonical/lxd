@@ -5635,7 +5635,10 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			_ = n.loadBalancerBGPSetupPrefixes()
 		})
 
-		vips := n.loadBalancerFlattenVIPs(net.ParseIP(loadBalancer.ListenAddress), portMaps)
+		vips, err := n.loadBalancerFlattenVIPs(net.ParseIP(loadBalancer.ListenAddress), portMaps)
+		if err != nil {
+			return nil, fmt.Errorf("Failed flattening load balancer VIPs: %w", err)
+		}
 
 		err = client.LoadBalancerApply(n.getLoadBalancerName(loadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 		if err != nil {
@@ -5723,7 +5726,10 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			return fmt.Errorf("Failed getting OVN client: %w", err)
 		}
 
-		vips := n.loadBalancerFlattenVIPs(net.ParseIP(newLoadBalancer.ListenAddress), portMaps)
+		vips, err := n.loadBalancerFlattenVIPs(net.ParseIP(newLoadBalancer.ListenAddress), portMaps)
+		if err != nil {
+			return fmt.Errorf("Failed flattening load balancer VIPs: %w", err)
+		}
 
 		err = client.LoadBalancerApply(n.getLoadBalancerName(newLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 		if err != nil {
@@ -5734,7 +5740,14 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			// Apply old settings to OVN on failure.
 			portMaps, err := n.loadBalancerValidate(net.ParseIP(curLoadBalancer.ListenAddress), curLoadBalancer.Writable())
 			if err == nil {
-				vips := n.loadBalancerFlattenVIPs(net.ParseIP(curLoadBalancer.ListenAddress), portMaps)
+				vips, err := n.loadBalancerFlattenVIPs(net.ParseIP(curLoadBalancer.ListenAddress), portMaps)
+				if err != nil {
+					logger.Error("Failed flattening load balancer VIPs", logger.Ctx{"listen_address": curLoadBalancer.ListenAddress, "err": err})
+
+					// Return early because passing an empty list of vips to LoadBalancerApply deletes the load balancer.
+					return
+				}
+
 				_ = client.LoadBalancerApply(n.getLoadBalancerName(curLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 				_ = n.forwardBGPSetupPrefixes()
 			}
