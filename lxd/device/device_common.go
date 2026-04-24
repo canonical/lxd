@@ -95,6 +95,11 @@ func (d *deviceCommon) Update(oldDevices deviceConfig.Devices, isRunning bool) e
 	return ErrCannotUpdate
 }
 
+// PreRemoveCheck indicates if the device is available for removal.
+func (d *deviceCommon) PreRemoveCheck() error {
+	return nil
+}
+
 // Remove returns nil error as majority of devices don't need to do any host-side cleanup on delete.
 func (d *deviceCommon) Remove() error {
 	return nil
