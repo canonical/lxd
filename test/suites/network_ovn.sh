@@ -496,10 +496,10 @@ test_network_ovn() {
   lxc network load-balancer backend add "${ovn_network}" "${volatile_ip6}" c1-backend "${c1_ipv6_address}" 162
 
   echo "Configure ports for the load balancers."
-  lxc network load-balancer port add "${ovn_network}" 192.0.2.1 tcp 80 c1-backend
-  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 c1-backend
-  lxc network load-balancer port add "${ovn_network}" "${volatile_ip4}" udp 162 c1-backend
-  lxc network load-balancer port add "${ovn_network}" "${volatile_ip6}" udp 162 c1-backend
+  lxc network load-balancer port add "${ovn_network}" 192.0.2.1 tcp 80 target_backend=c1-backend
+  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 target_backend=c1-backend
+  lxc network load-balancer port add "${ovn_network}" "${volatile_ip4}" udp 162 target_backend=c1-backend
+  lxc network load-balancer port add "${ovn_network}" "${volatile_ip6}" udp 162 target_backend=c1-backend
 
   echo "Check that load balancers are associated with the internal OVN switch."
   [ "$(ovn-nbctl get logical_switch "${internal_switch_name}" load_balancer | tr -d '[]' | awk -F, '{print NF}')" = "4" ]
@@ -576,8 +576,8 @@ test_network_ovn() {
   lxc network load-balancer backend add "${ovn_network}" fd42:bd85:5f89:5293::20 c1-backend "${c1_ipv6_address}" 80
 
   echo "Configure ports for internal load balancers."
-  lxc network load-balancer port add "${ovn_network}" 10.24.140.20 tcp 80 c1-backend
-  lxc network load-balancer port add "${ovn_network}" fd42:bd85:5f89:5293::20 tcp 80 c1-backend
+  lxc network load-balancer port add "${ovn_network}" 10.24.140.20 tcp 80 target_backend=c1-backend
+  lxc network load-balancer port add "${ovn_network}" fd42:bd85:5f89:5293::20 tcp 80 target_backend=c1-backend
 
   echo "Clean up internal load balancers."
   lxc network load-balancer delete "${ovn_network}" 10.24.140.20
@@ -634,7 +634,7 @@ test_network_ovn() {
   # 2. Create a dummy backend.
   lxc network load-balancer backend add "${ovn_network}" 2001:db8:1:2::1 c1 fd42:bd85:5f89:5293::10
   # 3. Setup a port pointing to the backend.
-  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 c1
+  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 target_backend=c1
   # 4. Get the load balancer's internal UUID.
   load_balancer_name="${chassis_group_name}-lb-2001:db8:1:2::1-tcp"
   load_balancer_uuid="$(ovn-nbctl get load_balancer "${load_balancer_name}" _uuid)"
