@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/canonical/lxd/client"
@@ -64,10 +65,25 @@ type forwardPortMap struct {
 	target      forwardTarget
 }
 
+// loadBalancerHealthCheck represents the health check configuration for a load balancer pool.
+type loadBalancerHealthCheck struct {
+	// The interval between health checks.
+	interval time.Duration
+	// The timeout after which a health check is considered failed.
+	timeout time.Duration
+	// The number of consecutive successful health checks required before considering a target healthy.
+	successCount uint64
+	// The number of consecutive failed health checks required before considering a target unhealthy.
+	failureCount uint64
+}
+
+// loadBalancerPortMap represents a mapping of listen port(s) to target port(s).
+// An optional health check configuration can be set for the target(s).
 type loadBalancerPortMap struct {
 	listenPorts []uint64
 	protocol    string
 	targets     []forwardTarget
+	healthCheck *loadBalancerHealthCheck
 }
 
 // subnetUsageType indicates the type of use for a subnet.
