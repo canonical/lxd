@@ -2078,15 +2078,12 @@ func patchIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Ident
 			return err
 		}
 
-		for _, groupName := range identityPut.Groups {
-			if !slices.Contains(apiIdentity.Groups, groupName) {
-				apiIdentity.Groups = append(apiIdentity.Groups, groupName)
+		// Set groups if provided.
+		if len(identityPut.Groups) > 0 {
+			err = dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id.ID, identityPut.Groups)
+			if err != nil {
+				return err
 			}
-		}
-
-		err = dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id.ID, identityPut.Groups)
-		if err != nil {
-			return err
 		}
 
 		// Only update the certificate if it is given. Additionally, we don't need to update it if it's the same as the
