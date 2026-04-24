@@ -512,7 +512,12 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		logger.Debug("Handling config changed notification")
 		changed := make(map[string]string)
 		for key, value := range req.Config {
-			changed[key], _ = value.(string)
+			stringValue, ok := value.(string)
+			if !ok {
+				return response.BadRequest(fmt.Errorf("Invalid config value type for %q: expected string", key))
+			}
+
+			changed[key] = stringValue
 		}
 
 		// Get the current (updated) config.
