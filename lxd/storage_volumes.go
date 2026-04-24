@@ -1599,8 +1599,8 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		args := operations.OperationArgs{
-			ProjectName: effectiveProjectName,
-			EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", "custom", details.volumeName).Project(requestProjectName),
+			ProjectName: requestProjectName, // Request project may differ from effective project.
+			EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", "custom", details.volumeName).Project(effectiveProjectName).Target(details.location),
 			Type:        operationtype.VolumeMigrate,
 			Class:       operations.OperationClassTask,
 			RunHook:     run,
