@@ -153,7 +153,7 @@ func updateLocalAddress(database *db.Node, address string) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed updating node configuration: %w", err)
+		return fmt.Errorf("Failed updating local configuration: %w", err)
 	}
 
 	return nil

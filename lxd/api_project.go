@@ -891,7 +891,7 @@ func projectNodeConfigRename(d *Daemon, ctx context.Context, oldName string, new
 
 		localConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed loading local node config: %w", err)
+			return fmt.Errorf("Failed loading local config: %w", err)
 		}
 
 		_, err = localConfig.Patch(map[string]string{
@@ -903,7 +903,7 @@ func projectNodeConfigRename(d *Daemon, ctx context.Context, oldName string, new
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed updating project-specific config keys in the local node config: %w", err)
+		return fmt.Errorf("Failed updating project-specific config keys in the local config: %w", err)
 	}
 
 	// Update local config cache.
@@ -1083,7 +1083,7 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 
 		config, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed loading local node config: %w", err)
+			return fmt.Errorf("Failed loading local config: %w", err)
 		}
 
 		// Unmount the project-specific storage volumes.
@@ -1107,7 +1107,7 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed clearing project-specific config keys from the local node config: %w", err)
+		return fmt.Errorf("Failed clearing project-specific config keys from the local config: %w", err)
 	}
 
 	// Update local config cache.
@@ -1381,7 +1381,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		// Clear the project-specific config keys from the local node config.
 		err = projectNodeConfigDelete(d, s, name)
 		if err != nil {
-			return fmt.Errorf("Failed deleting project specific information from local node configuration: %w", err)
+			return fmt.Errorf("Failed deleting project specific information from local configuration: %w", err)
 		}
 
 		// Send notification to all cluster members to update the node schema and handle forced project deletion (if requested).

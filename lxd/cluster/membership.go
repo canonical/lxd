@@ -57,7 +57,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		// Fetch current network address and raft nodes
 		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed fetching node configuration: %w", err)
+			return fmt.Errorf("Failed fetching local configuration: %w", err)
 		}
 
 		localClusterAddress = config.ClusterAddress()
@@ -374,7 +374,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		// Fetch current network address and raft nodes
 		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed fetching node configuration: %w", err)
+			return fmt.Errorf("Failed fetching local configuration: %w", err)
 		}
 
 		localClusterAddress = config.ClusterAddress()

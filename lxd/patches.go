@@ -601,7 +601,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
   VALUES(?, ?, 'lvm.thinpool_name', ?)
 `, poolID, nodeID, value)
 			if err != nil {
-				return fmt.Errorf("Failed creating lvm.thinpool_name node config: %w", err)
+				return fmt.Errorf("Failed creating lvm.thinpool_name local config: %w", err)
 			}
 		}
 	}
@@ -2297,7 +2297,7 @@ func patchRemoveMAASConfigKeys(_ string, d *Daemon) error {
 		})
 	})
 	if err != nil {
-		return fmt.Errorf("Failed removing maas.machine from local node config: %w", err)
+		return fmt.Errorf("Failed removing maas.machine from local config: %w", err)
 	}
 
 	// Remove all MAAS keys from the cluster database.
