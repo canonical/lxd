@@ -668,7 +668,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			}
 
 			if curConfig["cluster.https_address"] != newClusterHTTPSAddress {
-				return errors.New("Changing cluster.https_address is currently not supported")
+				return api.StatusErrorf(http.StatusBadRequest, "Changing cluster.https_address is currently not supported")
 			}
 		}
 
