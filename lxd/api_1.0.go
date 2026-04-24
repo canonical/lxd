@@ -719,34 +719,37 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	revert := revert.New()
 	defer revert.Fail()
 
-	revert.Add(func() {
-		for key := range nodeValues {
-			val, ok := oldNodeConfig[key]
-			if !ok {
-				nodeValues[key] = nil
-			} else {
-				nodeValues[key] = val
+	if len(nodeChanged) > 0 {
+		revert.Add(func() {
+			for key := range nodeValues {
+				val, ok := oldNodeConfig[key]
+				if !ok {
+					nodeValues[key] = ""
+				} else {
+					nodeValues[key] = val
+				}
 			}
-		}
 
-		err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
-			newNodeConfig, err := node.ConfigLoad(ctx, tx)
+			// Use context.Background for revert in case client disconnects after changes made and an error occurs.
+			err = s.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
+				newNodeConfig, err := node.ConfigLoad(ctx, tx)
+				if err != nil {
+					return fmt.Errorf("Failed loading node config: %w", err)
+				}
+
+				_, err = newNodeConfig.Replace(nodeValues)
+				if err != nil {
+					return fmt.Errorf("Failed updating node config: %w", err)
+				}
+
+				return nil
+			})
+
 			if err != nil {
-				return fmt.Errorf("Failed to load node config: %w", err)
+				logger.Warn("Failed reverting node config", logger.Ctx{"err": err})
 			}
-
-			_, err = newNodeConfig.Replace(nodeValues)
-			if err != nil {
-				return fmt.Errorf("Failed updating node config: %w", err)
-			}
-
-			return nil
 		})
-
-		if err != nil {
-			logger.Warn("Failed reverting node config", logger.Ctx{"err": err})
-		}
-	})
+	}
 
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
