@@ -1825,11 +1825,18 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 			return nil
 		}
 
+		// Add the target parameter if the source pool is not remote and the server is clustered.
+		// This is required to uniquely reference a storage volume since names are not unique within a project or pool.
+		sourceVolumeURL := api.NewURL().Path(version.APIVersion, "storage-pools", srcPool.Name(), "volumes", "custom", srcVolumeName).Project(srcProjectName)
+		if s.ServerClustered && !srcPool.Driver().Info().Remote {
+			sourceVolumeURL.Target(srcMember.Name)
+		}
+
 		args := operations.OperationArgs{
 			ProjectName: srcProjectName,
 			Type:        operationtype.VolumeMigrate,
 			Class:       operations.OperationClassWebsocket,
-			EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", srcPool.Name(), "volumes", "custom", srcVolumeName).Project(srcProjectName),
+			EntityURL:   sourceVolumeURL,
 			Metadata:    srcMigration.Metadata(),
 			RunHook:     run,
 			ConnectHook: srcMigration.Connect,
