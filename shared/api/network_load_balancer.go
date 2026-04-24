@@ -116,15 +116,26 @@ type NetworkLoadBalancerPort struct {
 	ListenPort string `json:"listen_port" yaml:"listen_port"`
 
 	// lxdmeta:generate(entities=network-load-balancer; group=load-balancer-port-properties; key=target_backend)
-	//
+	// Either a list of backends or a instance pool is required.
 	// ---
 	//  type: backend list
-	//  required: yes
+	//  required: no
 	//  shortdesc: Backend name or names to forward to
 
-	// TargetBackend backend names to load balance ListenPorts to
+	// TargetBackend specifies backend names to load balance ListenPorts to
 	// Example: ["c1-http","c2-http"]
-	TargetBackend []string `json:"target_backend" yaml:"target_backend"`
+	TargetBackend []string `json:"target_backend,omitempty" yaml:"target_backend,omitempty"`
+
+	// lxdmeta:generate(entities=network-load-balancer; group=load-balancer-port-properties; key=target_pool)
+	// Either a list of backends or a instance pool is required.
+	// ---
+	//  type: string
+	//  required: no
+	//  shortdesc: Pool of instances to forward to
+
+	// TargetPool specifies a pool to load balance ListenPorts to
+	// Example: http-pool
+	TargetPool string `json:"target_pool,omitempty" yaml:"target_pool,omitempty"`
 }
 
 // Normalise normalises the fields in the load balancer port so that they are comparable with ones stored.
