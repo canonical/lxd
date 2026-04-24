@@ -6,12 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
 	"sync"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -499,12 +496,6 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return response.SmartError(err)
 	}
 
-	// Get the name of the storage volume.
-	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Check that the storage volume type is valid.
 	if details.volumeType != dbCluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
@@ -527,8 +518,6 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	if resp != nil {
 		return resp
 	}
-
-	fullSnapshotName := fmt.Sprintf("%s/%s", details.volumeName, snapshotName)
 
 	// Parse the request.
 	req := api.StorageVolumeSnapshotPost{}
@@ -555,7 +544,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 
 	// Rename the snapshot.
 	snapshotRename := func(ctx context.Context, op *operations.Operation) error {
-		return details.pool.RenameCustomVolumeSnapshot(ctx, effectiveProjectName, fullSnapshotName, req.Name, op)
+		return details.pool.RenameCustomVolumeSnapshot(ctx, effectiveProjectName, details.fullName, req.Name, op)
 	}
 
 	originalEntityURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(requestProjectName)
@@ -639,12 +628,6 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	// Get the name of the storage volume.
-	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
@@ -662,13 +645,11 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return resp
 	}
 
-	fullSnapshotName := fmt.Sprintf("%s/%s", details.volumeName, snapshotName)
-
 	var dbVolume *db.StorageVolume
 	var expiry time.Time
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, details.volumeType, fullSnapshotName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, details.volumeType, details.fullName, true)
 		if err != nil {
 			return err
 		}
@@ -687,7 +668,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshot := &api.StorageVolumeSnapshot{}
 	snapshot.Config = dbVolume.Config
 	snapshot.Description = dbVolume.Description
-	snapshot.Name = snapshotName
+	snapshot.Name = details.snapshotName
 	snapshot.ExpiresAt = &expiry
 	snapshot.ContentType = dbVolume.ContentType
 	snapshot.CreatedAt = dbVolume.CreatedAt
@@ -743,12 +724,6 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	// Get the name of the storage volume.
-	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	requestProjectName := request.ProjectParam(r)
 	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
@@ -767,13 +742,11 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return resp
 	}
 
-	fullSnapshotName := fmt.Sprintf("%s/%s", details.volumeName, snapshotName)
-
 	var dbVolume *db.StorageVolume
 	var expiry time.Time
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, details.volumeType, fullSnapshotName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, details.volumeType, details.fullName, true)
 		if err != nil {
 			return err
 		}
@@ -878,12 +851,6 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
-	// Get the name of the storage volume.
-	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	requestProjectName := request.ProjectParam(r)
 	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
@@ -902,13 +869,11 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 		return resp
 	}
 
-	fullSnapshotName := fmt.Sprintf("%s/%s", details.volumeName, snapshotName)
-
 	var dbVolume *db.StorageVolume
 	var expiry time.Time
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, details.volumeType, fullSnapshotName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, details.volumeType, details.fullName, true)
 		if err != nil {
 			return err
 		}
@@ -1035,12 +1000,6 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return response.SmartError(err)
 	}
 
-	// Get the name of the storage volume.
-	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Check that the storage volume type is valid.
 	if details.volumeType != dbCluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
@@ -1064,13 +1023,11 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return resp
 	}
 
-	fullSnapshotName := fmt.Sprintf("%s/%s", details.volumeName, snapshotName)
-
 	snapshotDelete := func(ctx context.Context, op *operations.Operation) error {
-		return details.pool.DeleteCustomVolumeSnapshot(ctx, effectiveProjectName, fullSnapshotName, op)
+		return details.pool.DeleteCustomVolumeSnapshot(ctx, effectiveProjectName, details.fullName, op)
 	}
 
-	snapshotURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName).Project(effectiveProjectName)
+	snapshotURL := api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", details.snapshotName).Project(effectiveProjectName)
 
 	// In a clustered environment with a non-remote pool, volumes are pinned to a specific node.
 	// Include the target so that the entity lookup can match by node name.
