@@ -94,7 +94,7 @@ func (c *Config) MetricsAddress() string {
 }
 
 // daemonStorageVolume returns the volume configured as images or backups storage for target project.
-// If project is not specified, or if project has no specifid storage volume configured, the daemon
+// If project is not specified, or if project has no specified storage volume configured, the daemon
 // storage volume is returned.
 func (c *Config) daemonStorageVolume(projectName string, storageType config.DaemonStorageType) string {
 	// If project is not specified, return daemon storage.

@@ -194,7 +194,7 @@ func (c *connectorISCSI) Disconnect(targetQN string) error {
 // findSession returns an active iSCSI session that matches the given targetQN.
 // If the session is not found, nil session is returned.
 //
-// This function first searches for checks for an existing session matching the
+// This function first searches for an existing session matching the
 // provided target IQN in "/sys/class/iscsi_session". If the session is found,
 // it retrieves the addresses of the active connections from
 // "/sys/class/iscsi_connection".

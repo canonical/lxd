@@ -96,7 +96,7 @@ CREATE TABLE identities_certificates (
     PRIMARY KEY (identity_id,
     certificate_id)
 ) WITHOUT ROWID;
-CREATE TRIGGER identities_certificates_after_delete 
+CREATE TRIGGER identities_certificates_after_delete
     AFTER DELETE ON identities_certificates
 	BEGIN
 	DELETE FROM certificates
