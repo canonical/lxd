@@ -6088,13 +6088,25 @@ test_clustering_link_unidirectional() {
   LXD_DIR="${LXD_A_DIR}" lxc cluster enable nodeA
   LXD_DIR="${LXD_B_DIR}" lxc cluster enable nodeB
 
+  LXD_B_ADDR="$(LXD_DIR="${LXD_B_DIR}" lxc config get core.https_address)"
+
   sub_test "Check CLI validation for unidirectional flags"
+
+  # --unidirectional and --unauthenticated are mutually exclusive.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_A_DIR}" lxc cluster link create foo --unidirectional --unauthenticated 2>&1)" = 'Error: --unidirectional and --unauthenticated cannot be used together' ]
 
   # --unidirectional without --token must fail.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_A_DIR}" lxc cluster link create foo --unidirectional 2>&1)" = 'Error: --unidirectional requires --token' ]
 
-  # --auth-group cannot be used with unidirectional links.
+  # --unauthenticated without --remote-address must fail.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_A_DIR}" lxc cluster link create foo --unauthenticated 2>&1)" = 'Error: --unauthenticated requires --remote-address' ]
+
+  # --remote-address without --unauthenticated must fail.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_A_DIR}" lxc cluster link create foo --remote-address "${LXD_B_ADDR}" 2>&1)" = 'Error: --remote-address requires --unauthenticated' ]
+
+  # --auth-group cannot be used with unidirectional or unauthenticated links.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_A_DIR}" lxc cluster link create foo --unidirectional --token fake --auth-group mygroup 2>&1)" = 'Error: --auth-group cannot be used with unidirectional cluster links' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_A_DIR}" lxc cluster link create foo --unauthenticated --remote-address "${LXD_B_ADDR}" --auth-group mygroup 2>&1)" = 'Error: --auth-group cannot be used with unidirectional cluster links' ]
 
   sub_test "Check unidirectional link creation"
 
@@ -6148,6 +6160,75 @@ test_clustering_link_unidirectional() {
 
   if LXD_DIR="${LXD_B_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
     echo "ERROR: cluster link certificate unexpectedly found on B after deletion" >&2
+    exit 1
+  fi
+
+  sub_test "Check pending creation rejected for unauthenticated type"
+
+  # Directly calling the API with type=unauthenticated and a name but no
+  # remote_address must be rejected; pending creation is not valid for this type.
+  resp="$(LXD_DIR="${LXD_A_DIR}" lxc query --request POST /1.0/cluster/links --data '{"name":"bad-link","type":"unauthenticated"}' 2>&1)" || true
+  echo "${resp}" | grep -wqF 'Unauthenticated cluster links require remote_address and cluster_certificate'
+
+  # Ensure no link was created.
+  if LXD_DIR="${LXD_A_DIR}" lxc cluster link list --format csv | grep -wF 'bad-link'; then
+    echo "ERROR: cluster link 'bad-link' unexpectedly created for pending unauthenticated request" >&2
+    exit 1
+  fi
+
+  sub_test "Check certificate endpoint returns fingerprint and certificate"
+
+  cert_resp="$(LXD_DIR="${LXD_A_DIR}" lxc query "/1.0/cluster/links/certificate?address=${LXD_B_ADDR}")"
+  echo "${cert_resp}" | jq --exit-status '.fingerprint != null and .fingerprint != ""' > /dev/null
+  echo "${cert_resp}" | jq --exit-status '.certificate != null and .certificate != ""' > /dev/null
+
+  sub_test "Check unauthenticated link: certificate rejection"
+
+  # Responding 'n' to the fingerprint prompt must abort link creation.
+  # Use 2>&1 >/dev/null to capture only stderr (the error message), discarding the interactive prompt on stdout.
+  [ "$(printf 'n\n' | CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_A_DIR}" lxc cluster link create lxd_b --unauthenticated --remote-address "${LXD_B_ADDR}" 2>&1 >/dev/null)" = 'Error: Remote cluster certificate NACKed by user' ]
+  if LXD_DIR="${LXD_A_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'; then
+    echo "ERROR: cluster link 'lxd_b' unexpectedly found on A after certificate rejection" >&2
+    exit 1
+  fi
+
+  sub_test "Check unauthenticated link creation"
+
+  # Responding 'y' to the fingerprint prompt creates the link on A only.
+  printf 'y\n' | LXD_DIR="${LXD_A_DIR}" lxc cluster link create lxd_b --unauthenticated --remote-address "${LXD_B_ADDR}"
+
+  LXD_DIR="${LXD_A_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'
+  LXD_DIR="${LXD_A_DIR}" lxc cluster link show lxd_b | grep -xF 'type: unauthenticated'
+
+  # B must have no knowledge of this link.
+  if LXD_DIR="${LXD_B_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_a'; then
+    echo "ERROR: cluster link 'lxd_a' unexpectedly found on B" >&2
+    exit 1
+  fi
+
+  if LXD_DIR="${LXD_B_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
+    echo "ERROR: cluster link certificate unexpectedly found on B" >&2
+    exit 1
+  fi
+
+  # No identity should exist on A either.
+  if LXD_DIR="${LXD_A_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
+    echo "ERROR: cluster link certificate unexpectedly found on A" >&2
+    exit 1
+  fi
+
+  sub_test "Check unauthenticated link: link state reachable"
+
+  # Unauthenticated links present no client certificate, so the remote sees an untrusted connection.
+  # The expected state is UNAUTHENTICATED (reachable but not trusted), not ACTIVE.
+  LXD_DIR="${LXD_A_DIR}" lxc cluster link info lxd_b | grep -wF 'UNAUTHENTICATED'
+
+  sub_test "Check unauthenticated link deletion"
+
+  # Deleting the link on A should succeed without any identity cleanup.
+  LXD_DIR="${LXD_A_DIR}" lxc cluster link delete lxd_b
+  if LXD_DIR="${LXD_A_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'; then
+    echo "ERROR: cluster link 'lxd_b' unexpectedly found on A after deletion" >&2
     exit 1
   fi
 
