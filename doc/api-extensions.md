@@ -3099,3 +3099,8 @@ The following pool level configuration keys have been added:
 1. {config:option}`storage-powerstore-pool-conf:powerstore.user.password`
 1. {config:option}`storage-powerstore-pool-conf:powerstore.mode`
 1. {config:option}`storage-powerstore-pool-conf:powerstore.target`
+
+(extension-cluster_links_unidirectional)=
+## cluster_links_unidirectional
+
+This extends the {ref}`cluster links <exp-cluster-links>` API with support for unidirectional cluster links. The local cluster consumes a trust token issued by the remote cluster to establish the link and pin the remote's certificate. The remote cluster creates a dedicated identity for the local cluster and can authenticate its incoming requests, but does not store addresses for the local cluster and cannot initiate outbound requests to it.
