@@ -1422,8 +1422,11 @@ parts:
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
     organize:
-      bin/uefivars: bin/uefivars.py
+      usr/bin/uefivars: bin/uefivars.py
+      usr/lib/: lib/
     prime:
+      # The deepdiff dependency is only used in tests, so we don't need to include it in the prime step.
+      # https://github.com/awslabs/python-uefivars/pull/18
       - bin/uefivars.py  # LXD expects the .py extension
       - lib/python3/dist-packages/crc32c*
       - lib/python3/dist-packages/pyuefivars*
