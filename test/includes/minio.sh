@@ -1,1 +1,0 @@
-../../.github/actions/download-minio/minio.sh
