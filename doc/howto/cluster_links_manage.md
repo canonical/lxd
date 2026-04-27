@@ -170,10 +170,12 @@ See [`DELETE /1.0/cluster/links/{name}`](swagger:/cluster-links/{name}/cluster_l
 ```
 ````
 
-```{admonition} To fully disconnect the cluster link on both sides
+```{admonition} Deletion behavior depends on link type
 :class: note
 
-To fully disconnect the clusters, run the command on both clusters.
+The effect of deleting a cluster link varies by type:
 
-Deleting a cluster link removes the established trust and deletes the associated identity on the local cluster. If you only run the command on one cluster, the other cluster still has the cluster link identity and trust established (still allowing requests from the linked cluster).
+- **Bidirectional**: Deleting on one cluster removes the trust and identity only on that cluster. The other cluster retains its identity and trust until you also delete the link there. To fully disconnect, run the command on both clusters.
+- **Unidirectional**: Deleting on Cluster A removes only A's link row.
+  Cluster B retains its identity and link row until B explicitly deletes its link.
 ```
