@@ -14,6 +14,11 @@ const (
 	//
 	// API extension: cluster_links_unidirectional.
 	ClusterLinkTypeUnidirectional = "unidirectional"
+
+	// ClusterLinkTypePublic indicates that only the local cluster can use the link and no client certificate is presented.
+	//
+	// API extension: cluster_links_public.
+	ClusterLinkTypePublic = "public"
 )
 
 // Cluster represents high-level information about a LXD cluster.
