@@ -437,6 +437,25 @@ func (r *ProtocolLXD) CreateIdentityClusterLinkToken(clusterLink api.ClusterLink
 	return &token, nil
 }
 
+// GetClusterLinkCertificate fetches the TLS certificate from the given address via the server.
+// It returns the certificate fingerprint and PEM-encoded certificate for user verification.
+func (r *ProtocolLXD) GetClusterLinkCertificate(address string) (fingerprint string, certificate string, err error) {
+	err = r.CheckExtension("cluster_links_unidirectional")
+	if err != nil {
+		return "", "", err
+	}
+
+	var resp api.ClusterLinkCertificate
+	_, err = r.queryStruct(http.MethodGet,
+		api.NewURL().Path("cluster", "links", "certificate").WithQuery("address", address).String(),
+		nil, "", &resp)
+	if err != nil {
+		return "", "", err
+	}
+
+	return resp.Fingerprint, resp.Certificate, nil
+}
+
 // UpdateClusterLink updates a cluster link.
 func (r *ProtocolLXD) UpdateClusterLink(name string, clusterLink api.ClusterLinkPut, ETag string) error {
 	err := r.CheckExtension("cluster_links")
