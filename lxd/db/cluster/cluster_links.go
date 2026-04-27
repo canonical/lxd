@@ -181,6 +181,7 @@ type clusterConfigRef struct {
 	configTable string // e.g. "replicators_config"
 	idColumn    string // Foreign key column in configTable, e.g. "replicator_id"
 	entityTable string // e.g. "replicators"
+	hasProject  bool   // Whether the entity is project-scoped or global.
 }
 
 // clusterConfigRefs lists every entity type whose config may contain a 'cluster' key referencing a cluster link.
@@ -190,6 +191,7 @@ var clusterConfigRefs = []clusterConfigRef{
 		configTable: "replicators_config",
 		idColumn:    "replicator_id",
 		entityTable: "replicators",
+		hasProject:  true,
 	},
 }
 
@@ -204,10 +206,17 @@ func GetClusterLinkUsedBy(ctx context.Context, tx *sql.Tx, clusterLinkName strin
 			b.WriteString("\nUNION ")
 		}
 
-		b.WriteString(`SELECT ` + strconv.FormatInt(ref.typeCode, 10) + `, ` + ref.entityTable + `.name, projects.name FROM ` + ref.entityTable + `
+		if ref.hasProject {
+			b.WriteString(`SELECT ` + strconv.FormatInt(ref.typeCode, 10) + `, ` + ref.entityTable + `.name, projects.name FROM ` + ref.entityTable + `
 JOIN ` + ref.configTable + ` ON ` + ref.entityTable + `.id = ` + ref.configTable + `.` + ref.idColumn + `
 JOIN projects ON ` + ref.entityTable + `.project_id = projects.id
 WHERE ` + ref.configTable + `.key = 'cluster' AND ` + ref.configTable + `.value = ?`)
+		} else {
+			b.WriteString(`SELECT ` + strconv.FormatInt(ref.typeCode, 10) + `, ` + ref.entityTable + `.name, '' FROM ` + ref.entityTable + `
+JOIN ` + ref.configTable + ` ON ` + ref.entityTable + `.id = ` + ref.configTable + `.` + ref.idColumn + `
+WHERE ` + ref.configTable + `.key = 'cluster' AND ` + ref.configTable + `.value = ?`)
+		}
+
 		args = append(args, clusterLinkName)
 	}
 
