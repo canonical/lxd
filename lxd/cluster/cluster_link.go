@@ -114,8 +114,20 @@ func GetClusterLinkConnectionArgs(clusterCert *shared.CertInfo, targetCert *x509
 	}
 }
 
+// GetPublicClusterLinkConnectionArgs builds connection args for public cluster links.
+// No client certificate is presented; only the server certificate is pinned.
+func GetPublicClusterLinkConnectionArgs(targetCert *x509.Certificate) *lxd.ConnectionArgs {
+	targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
+
+	return &lxd.ConnectionArgs{
+		TLSServerCert: targetCertStr,
+		UserAgent:     version.UserAgent,
+	}
+}
+
 // LoadClusterLinkAndCert loads a cluster link by name and returns its database ID, API representation, and the parsed TLS certificate.
-// For bidirectional links the certificate is loaded via the associated identity; for unidirectional links it is loaded from cluster_links_certificates.
+// For bidirectional links the certificate is loaded via the associated identity; for links with no associated identity
+// (unidirectional and public) it is loaded from cluster_links_certificates.
 func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id int64, clusterLink *api.ClusterLink, cert *x509.Certificate, err error) {
 	dbLink, err := dbCluster.GetClusterLink(ctx, tx, name)
 	if err != nil {
@@ -148,7 +160,7 @@ func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id in
 
 		pemCert = certs[identity.ID][0]
 	} else {
-		// Unidirectional: cert is stored directly in cluster_links_certificates.
+		// No associated identity (unidirectional or public): cert is stored directly in cluster_links_certificates.
 		pemCert, err = dbCluster.GetClusterLinkPEMCertificate(ctx, tx, dbLink.ID)
 		if err != nil {
 			return 0, nil, nil, fmt.Errorf("Failed loading cluster link certificate: %w", err)
@@ -205,9 +217,15 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 		return nil
 	}
 
-	clusterCert := s.Endpoints.NetworkCert()
+	var args *lxd.ConnectionArgs
+	if clusterLink.Type == api.ClusterLinkTypePublic {
+		args = GetPublicClusterLinkConnectionArgs(targetCert)
+	} else {
+		clusterCert := s.Endpoints.NetworkCert()
+		args = GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	}
 
-	targetClient, err := ConnectCluster(ctx, *clusterLink, GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	targetClient, err := ConnectCluster(ctx, *clusterLink, args)
 	if err != nil {
 		return fmt.Errorf("Failed connecting to target cluster link: %w", err)
 	}
