@@ -351,7 +351,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 	entity.TypeIdentity: {
 		// Grants permission to view the identity.
 		EntitlementCanView,
-		// Grants permission to edit the identity.
+		// Grants permission to edit the identity. To edit an identity, it is additionally required that the caller is able to view all groups that the identity is a member of.
 		EntitlementCanEdit,
 		// Grants permission to delete the identity.
 		EntitlementCanDelete,
@@ -599,7 +599,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateIdentities,
 		// Grants permission to view identities.
 		EntitlementCanViewIdentities,
-		// Grants permission to edit identities.
+		// Grants permission to edit identities. Note that clients with this permission are able to elevate their own privileges.
 		EntitlementCanEditIdentities,
 		// Grants permission to delete identities.
 		EntitlementCanDeleteIdentities,
@@ -607,7 +607,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateGroups,
 		// Grants permission to view authorization groups.
 		EntitlementCanViewGroups,
-		// Grants permission to edit authorization groups.
+		// Grants permission to edit authorization groups. Note that clients with this permission are able to elevate their own privileges.
 		EntitlementCanEditGroups,
 		// Grants permission to delete authorization groups.
 		EntitlementCanDeleteGroups,
@@ -615,7 +615,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateIdentityProviderGroups,
 		// Grants permission to view identity provider groups.
 		EntitlementCanViewIdentityProviderGroups,
-		// Grants permission to edit identity provider groups.
+		// Grants permission to edit identity provider groups. Note that clients with this permission are able to elevate their own privileges.
 		EntitlementCanEditIdentityProviderGroups,
 		// Grants permission to delete identity provider groups.
 		EntitlementCanDeleteIdentityProviderGroups,
