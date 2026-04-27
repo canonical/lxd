@@ -86,9 +86,10 @@ type cmdClusterLinkCreate struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
 
-	flagToken       string
-	flagAuthGroups  []string
-	flagDescription string
+	flagToken          string
+	flagAuthGroups     []string
+	flagDescription    string
+	flagUnidirectional bool
 }
 
 func (c *cmdClusterLinkCreate) command() *cobra.Command {
@@ -97,19 +98,20 @@ func (c *cmdClusterLinkCreate) command() *cobra.Command {
 	cmd.Short = "Create cluster links"
 	cmd.Long = cli.FormatSection("Description", `Create cluster links
 
-When run with the --token flag, creates an active cluster link.
-When run without a token, creates a pending cluster link that must be activated by creating a cluster link on the remote cluster.`)
+Bidirectional (default): run without --token on cluster A to get a token, then run with --token on cluster B.
+Unidirectional: run "lxc auth identity create cluster-link/<name>" on B to get a token, then run with --token --unidirectional on A.`)
 	cmd.Example = cli.FormatSection("", `lxc cluster link create backup-cluster --auth-group backups
-    Create a pending cluster link reachable at "192.0.2.1:8443" and "192.0.2.2:8443" called "backup-cluster", belonging to the authentication group "backups".
+    Create a pending bidirectional cluster link called "backup-cluster".
 
-lxc cluster link create main-cluster --token <token from backup-cluster> --auth-group backups
-    Create a cluster link with "backup-cluster" called "main-cluster", belonging to the auth group "backups".
+lxc cluster link create main-cluster --token <token> --auth-group backups
+    Create an active bidirectional cluster link called "main-cluster" using a token from "backup-cluster".
 
-lxc cluster link create backup-cluster < config.yaml
-    Create a pending cluster link with the configuration from "config.yaml" called "backup-cluster".`)
+lxc cluster link create image-host --token <token> --unidirectional
+    Create a unidirectional cluster link called "image-host" using a token issued by the remote cluster.`)
 	cmd.Flags().StringVarP(&c.flagToken, "token", "t", "", cli.FormatStringFlagLabel("Trust token to use when creating cluster link"))
 	cmd.Flags().StringSliceVarP(&c.flagAuthGroups, "auth-group", "g", []string{}, cli.FormatStringFlagLabel("Authentication groups to add the newly created cluster link identity to"))
 	cmd.Flags().StringVarP(&c.flagDescription, "description", "d", "", cli.FormatStringFlagLabel("Cluster link description"))
+	cmd.Flags().BoolVar(&c.flagUnidirectional, "unidirectional", false, cli.FormatStringFlagLabel("Create a unidirectional cluster link (requires --token)"))
 
 	cmd.RunE = c.run
 
@@ -158,11 +160,18 @@ func (c *cmdClusterLinkCreate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.flagUnidirectional && c.flagToken == "" {
+		return errors.New("--unidirectional requires --token")
+	}
+
+	if c.flagUnidirectional && len(c.flagAuthGroups) > 0 {
+		return errors.New("--auth-group cannot be used with unidirectional cluster links")
+	}
+
 	clusterLink := api.ClusterLinksPost{
 		Name:           clusterLinkName,
 		ClusterLinkPut: stdinData,
-		// Bidirectional is the only supported cluster link type for now.
-		Type: api.ClusterLinkTypeBidirectional,
+		Type:           api.ClusterLinkTypeBidirectional,
 	}
 
 	if c.flagDescription != "" {
@@ -187,6 +196,23 @@ func (c *cmdClusterLinkCreate) run(cmd *cobra.Command, args []string) error {
 		clusterLink.AuthGroups = c.flagAuthGroups
 	}
 
+	// Unidirectional: consume B's token, pin B's cert on A, activate B's identity.
+	if c.flagUnidirectional {
+		clusterLink.Type = api.ClusterLinkTypeUnidirectional
+		clusterLink.TrustToken = c.flagToken
+		err = client.CreateClusterLink(clusterLink)
+		if err != nil {
+			return err
+		}
+
+		if !c.global.flagQuiet {
+			fmt.Printf("Cluster link %s created\n", clusterLinkName)
+		}
+
+		return nil
+	}
+
+	// Bidirectional pending: no token; create pending identity and return token.
 	if c.flagToken == "" {
 		token, err := client.CreateIdentityClusterLinkToken(clusterLink)
 		if err != nil {
@@ -219,21 +245,23 @@ func (c *cmdClusterLinkCreate) run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("Received invalid pending identity UUID %q: %w", pendingIdentityUUIDStr, err)
 			}
 
-			fmt.Printf("Cluster link %q (%s) pending identity token:"+"\n", clusterLinkName, pendingIdentityUUID.String())
+			fmt.Printf("Cluster link %q (%s) pending identity token:\n", clusterLinkName, pendingIdentityUUID.String())
 		}
 
 		// Print the base64 encoded token.
 		fmt.Println(base64.StdEncoding.EncodeToString(tokenJSON))
-	} else {
-		clusterLink.TrustToken = c.flagToken
-		err = client.CreateClusterLink(clusterLink)
-		if err != nil {
-			return err
-		}
+		return nil
+	}
 
-		if !c.global.flagQuiet {
-			fmt.Printf("Cluster link %s created"+"\n", clusterLinkName)
-		}
+	// Bidirectional active: token provided; create active cluster link.
+	clusterLink.TrustToken = c.flagToken
+	err = client.CreateClusterLink(clusterLink)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Cluster link %s created\n", clusterLinkName)
 	}
 
 	return nil
