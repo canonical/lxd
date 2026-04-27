@@ -193,6 +193,13 @@ var clusterConfigRefs = []clusterConfigRef{
 		entityTable: "replicators",
 		hasProject:  true,
 	},
+	{
+		typeCode:    entityTypeCodeImageRegistry,
+		configTable: "image_registries_config",
+		idColumn:    "image_registry_id",
+		entityTable: "image_registries",
+		hasProject:  false,
+	},
 }
 
 // GetClusterLinkUsedBy returns a list of URLs of all entities that reference the cluster link with the given name via the 'cluster' config key.
@@ -237,6 +244,8 @@ WHERE ` + ref.configTable + `.key = 'cluster' AND ` + ref.configTable + `.value 
 		switch entity.Type(eType) {
 		case entity.TypeReplicator:
 			urls = append(urls, entity.ReplicatorURL(pName, eName).String())
+		case entity.TypeImageRegistry:
+			urls = append(urls, entity.ImageRegistryURL(eName).String())
 		default:
 			return errors.New("Unexpected entity type in cluster link usage query")
 		}
