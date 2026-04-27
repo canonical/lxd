@@ -164,13 +164,16 @@ Cluster links are the foundation for {ref}`replicators <exp-replicators>`, which
 
 ### Link types
 
-There are two link types, each suited to different trust and access requirements:
+There are three link types, each suited to different trust and access requirements:
 
 `bidirectional`
 : Either cluster can initiate requests to the other cluster. The clusters authenticate each other using mutual TLS, and both clusters create an identity for the other side. This is the default type.
 
 `unidirectional`
 : Requests can only be sent in one direction: from Cluster A to Cluster B. Cluster A pins B's certificate and uses a token to activate a pending identity that B created for A. B stores only a TLS identity for A (no cluster link record) and can authenticate incoming requests from A, but holds no address for A and cannot initiate requests to it.
+
+`public`
+: Only the initiating cluster (A) stores a link to B. A connects to B without presenting a client certificate, relying solely on certificate pinning for server authentication. B is completely unaware of the link and no identity is created on either side. Use this type when B exposes resources publicly or when you want read-only, anonymous-style access to B.
 
 ### Connection process
 
@@ -188,6 +191,12 @@ All link types rely on TLS certificate pinning: Cluster A fetches and pins Clust
 1. **Cluster B** issues a pending identity token using [`lxc auth identity create`](lxc_auth_identity_create.md) `cluster-link/<name>`.
 1. **Cluster A** consumes the token with [`lxc cluster link create`](lxc_cluster_link_create.md) `<name> --token <token> --unidirectional`, pins Cluster B's certificate, and calls back to B to activate the pending identity.
 1. Cluster A has an active cluster link to Cluster B with no associated identity. Cluster B has an active TLS identity for Cluster A but no cluster link record.
+
+#### Public connection process
+
+1. **Cluster A** runs `lxc cluster link create <name> --public --remote-address <addr>`.
+1. Cluster A's LXD server fetches B's certificate, confirms B is serving the LXD API, and creates a pending link holding that certificate and the verified address. Neither is pinned yet, so the link is inert. The CLI displays the fingerprint for the user to confirm.
+1. If confirmed, the CLI resubmits the certificate; A checks it against the one it fetched, then pins it and activates the link using the address it verified. If rejected, the CLI deletes the pending link. B is not contacted beyond the initial certificate fetch and remains unaware of the link.
 
 For more information, see: {ref}`howto-cluster-links-create`.
 
