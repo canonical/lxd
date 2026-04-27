@@ -395,6 +395,22 @@ parts:
       # Apply patches from Ubuntu sources.
       QUILT_PATCHES=debian/patches quilt push -a
 
+      # Secboot firmware (SECURE_BOOT_ENABLE=TRUE) enforces strict W^X memory (NX protection)
+      # protection via EFI_MEMORY_ATTRIBUTE_PROTOCOL (new in EDK2 2025.11+).
+      # Older bootloaders might be unusable:
+      # * https://bugs.launchpad.net/ubuntu/+source/edk2/+bug/2149400 (Synchronous Exception)
+      # * https://github.com/canonical/lxd/issues/18187 (Exception Type - 0E(#PF - Page-Fault))
+      # Workaround: add $(NO_STRICTNX_COMMON_FLAGS) (i.e. --pcd PcdUninstallMemAttrProtocol=TRUE)
+      # to OVMF_4M_SECBOOT_FLAGS and AAVMF_SECBOOT_FLAGS so the protocol is
+      # uninstalled before the bootloader runs.
+      # Secure Boot signature verification (SECURE_BOOT_ENABLE=TRUE) remains active; only
+      # the W^X enforcement is disabled as if
+      # lxc config set <inst> raw.qemu="-fw_cfg name=opt/org.tianocore/UninstallMemAttrProtocol,string=y"
+      # had been used.
+      # The longer term plan is to stop disabling this protection and instead document that older guests
+      # require `boot.mode=uefi-nosecureboot`.
+      sed -i 's/^\(\(AAVMF\|OVMF_4M\)_SECBOOT_FLAGS = .*\)$/\1 $(NO_STRICTNX_COMMON_FLAGS)/' debian/rules
+
       # Apply patches
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
       cp "${CRAFT_PROJECT_DIR}/patches/edk2-0002-logo.bmp" MdeModulePkg/Logo/Logo.bmp
