@@ -92,6 +92,14 @@ Entitlements that are granted at the `project` level might cascade to project sp
     :end-before: <!-- entity group image_alias end -->
 ```
 
+## Image registry
+> Entity type name: `image_registry`
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group image_registry start -->
+    :end-before: <!-- entity group image_registry end -->
+```
+
 ## Network
 > Entity type name: `network`
 
