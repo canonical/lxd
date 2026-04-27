@@ -229,3 +229,41 @@ test_image_registries_basic() {
     exit 1
   fi
 }
+
+test_image_registries_list_images_compression() {
+  local url="https://images.lxd.canonical.com/"
+  if ! curl --head --silent "${url}" > /dev/null; then
+    export TEST_UNMET_REQUIREMENT="No connectivity to ${url}"
+    return
+  fi
+
+  registryName="images"
+
+  sub_test "List images from a built-in registry via CLI"
+  # The "images" registry points at the public SimpleStreams server.
+  # Verify the command succeeds and returns at least one image.
+  image_list="$(lxc image list --registry "${registryName}" --format csv)"
+  [ -n "${image_list}" ]
+
+  sub_test "Verify API endpoint gzip compression reduces response size"
+  # Fetch both responses, saving the body and recording the download size.
+  uncompressed_file="$(mktemp -p "${TEST_DIR}" XXX)"
+  compressed_file="$(mktemp -p "${TEST_DIR}" XXX)"
+  uncompressed_size="$(curl --silent --unix-socket "${LXD_DIR}/unix.socket" -o "${uncompressed_file}" -w '%{size_download}' "lxd/1.0/image-registries/${registryName}/images")"
+  compressed_size="$(curl --silent --unix-socket "${LXD_DIR}/unix.socket" -H 'Accept-Encoding: gzip' -o "${compressed_file}" -w '%{size_download}' "lxd/1.0/image-registries/${registryName}/images")"
+
+  # Both responses must be non-empty.
+  [ "${uncompressed_size}" -gt 0 ]
+  [ "${compressed_size}" -gt 0 ]
+
+  # The compressed response must be smaller than the uncompressed one.
+  [ "${compressed_size}" -lt "${uncompressed_size}" ]
+
+  sub_test "Verify compressed and uncompressed responses return the same data"
+  # Verify the uncompressed file contains valid non-empty JSON.
+  jq -e '.metadata | length > 0' < "${uncompressed_file}"
+
+  # Parse and sort both responses, verifying valid JSON, then compare.
+  diff -u <(jq -e -S . "${uncompressed_file}") <(zcat "${compressed_file}" | jq -e -S .)
+  rm "${uncompressed_file}" "${compressed_file}"
+}
