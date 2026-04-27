@@ -3091,3 +3091,14 @@ Security events are accessible via `GET /1.0/events?type=security` and can be ro
 ## cluster_links_unidirectional
 
 This extends the {ref}`cluster links <exp-cluster-links>` API with support for unidirectional cluster links. The local cluster consumes a trust token issued by the remote to establish the link and pin the remote's certificate. The remote cluster creates a dedicated identity for the local cluster and can authenticate its incoming requests, but does not store addresses for the local cluster and cannot initiate outbound requests to it.
+
+(extension-cluster_links_unauthenticated)=
+## cluster_links_unauthenticated
+
+This extends the cluster links API with support for unauthenticated cluster links.
+The local cluster can reach the remote cluster without presenting a client certificate.
+The remote cluster has no knowledge of the link.
+
+This includes the following new endpoint (see {ref}`rest-api` for details):
+
+* [`GET /1.0/cluster/links/certificate`](swagger:/cluster-links/cluster_links_certificate_get)
