@@ -6862,7 +6862,12 @@ test_clustering_link_unidirectional() {
   cert="$(cert_to_yaml "${LXD_THREE_DIR}/cluster.crt")"
   spawn_lxd_and_join_cluster "${cert}" 4 3 "${LXD_THREE_DIR}"
 
+  LXD_B_ADDR="$(LXD_DIR="${LXD_THREE_DIR}" lxc config get core.https_address)"
+
   sub_test "Check CLI validation for unidirectional flags"
+
+  # --unidirectional and --public are mutually exclusive.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --unidirectional --public 2>&1)" = 'Error: --unidirectional and --public cannot be used together' ]
 
   # --unidirectional without --token must fail.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --unidirectional 2>&1)" = 'Error: --unidirectional requires --token' ]
@@ -6922,6 +6927,86 @@ test_clustering_link_unidirectional() {
   LXD_DIR="${LXD_THREE_DIR}" lxc auth identity delete cluster-link/lxd_one
   if LXD_DIR="${LXD_THREE_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
     echo "ERROR: cluster link certificate unexpectedly found on Cluster B after deletion" >&2
+    exit 1
+  fi
+
+  sub_test "Check pending creation rejected for public type without remote_address"
+
+  # Directly calling the API with type=public and a name but no
+  # remote_address must be rejected.
+  resp="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data '{"name":"bad-link","type":"public"}' 2>&1)" || true
+  echo "${resp}" | grep -wqF 'Public cluster links require remote_address'
+
+  # Ensure no link was created.
+  if LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'bad-link'; then
+    echo "ERROR: cluster link 'bad-link' unexpectedly created for pending public request" >&2
+    exit 1
+  fi
+
+  sub_test "Check confirming a public link with no matching pending link is rejected"
+
+  # cluster_certificate must be a validly-parseable PEM cert so the request reaches the
+  # pending-link lookup rather than failing certificate parsing first; its content is
+  # otherwise irrelevant since no link named "no-such-link" exists.
+  cert_json="$(cert_to_json "${LXD_THREE_DIR}/server.crt")"
+  resp="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"no-such-link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"cluster_certificate\":${cert_json}}" 2>&1)" || true
+  echo "${resp}" | grep -wqF 'Failed loading pending cluster link "no-such-link"'
+
+  sub_test "Check public link: certificate rejection"
+
+  # Responding 'n' to the fingerprint prompt must abort link creation.
+  # Use 2>&1 >/dev/null to capture only stderr (the error message), discarding the interactive prompt on stdout.
+  [ "$(printf 'n\n' | CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_b --public --remote-address "${LXD_B_ADDR}" 2>&1 >/dev/null)" = 'Error: Remote cluster certificate NACKed by user' ]
+  if LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'; then
+    echo "ERROR: cluster link 'lxd_b' unexpectedly found on A after certificate rejection" >&2
+    exit 1
+  fi
+
+  sub_test "Check public link creation"
+
+  # Responding 'y' to the fingerprint prompt creates the link on A only.
+  printf 'y\n' | LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_b --public --remote-address "${LXD_B_ADDR}"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link show lxd_b | grep -xF 'type: public'
+
+  # B must have no knowledge of this link.
+  if LXD_DIR="${LXD_THREE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_a'; then
+    echo "ERROR: cluster link 'lxd_a' unexpectedly found on B" >&2
+    exit 1
+  fi
+
+  if LXD_DIR="${LXD_THREE_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
+    echo "ERROR: cluster link certificate unexpectedly found on B" >&2
+    exit 1
+  fi
+
+  # No identity should exist on A either.
+  if LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
+    echo "ERROR: cluster link certificate unexpectedly found on A" >&2
+    exit 1
+  fi
+
+  sub_test "Check confirming an already-confirmed public link is rejected"
+
+  # lxd_b is already confirmed above; resubmitting a confirm request must fail with a conflict
+  # rather than silently re-pinning a (possibly different) certificate.
+  cert_json="$(cert_to_json "${LXD_THREE_DIR}/server.crt")"
+  resp="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"lxd_b\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"cluster_certificate\":${cert_json}}" 2>&1)" || true
+  echo "${resp}" | grep -wqF 'Cluster link "lxd_b" has already been confirmed'
+
+  sub_test "Check public link: link state reachable"
+
+  # Public links present no client certificate, so the remote sees an untrusted connection.
+  # The expected state is UNAUTHENTICATED (reachable but not trusted), not ACTIVE.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link info lxd_b | grep -wF 'UNAUTHENTICATED'
+
+  sub_test "Check public link deletion"
+
+  # Deleting the link on A should succeed without any identity cleanup.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_b
+  if LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'; then
+    echo "ERROR: cluster link 'lxd_b' unexpectedly found on A after deletion" >&2
     exit 1
   fi
 
