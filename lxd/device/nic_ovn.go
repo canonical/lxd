@@ -68,7 +68,7 @@ func (d *nicOVN) UpdatableFields(oldDevice Type) []string {
 		return []string{}
 	}
 
-	return []string{"security.acls"}
+	return []string{"security.acls", "ipv4.address", "ipv6.address"}
 }
 
 // validateConfig checks the supplied config for correctness.
@@ -846,72 +846,101 @@ func (d *nicOVN) postStart() error {
 	return nil
 }
 
-// Update applies configuration changes to a started device.
+// Update applies configuration changes to a device.
+// The underlying switch port gets removed and re-added.
 func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	oldConfig := oldDevices[d.name]
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, d.volatileGet())
 
-	// If an IPv6 address has changed, if the instance is running we should bounce the host-side
-	// veth interface to give the instance a chance to detect the change and re-apply for an
-	// updated lease with new IP address.
-	if d.config["ipv6.address"] != oldConfig["ipv6.address"] && d.config["host_name"] != "" && network.InterfaceExists(d.config["host_name"]) {
-		link := &ip.Link{Name: d.config["host_name"]}
-		err := link.SetDown()
-		if err != nil {
-			return err
-		}
+	ipv4Changed := d.config["ipv4.address"] != oldConfig["ipv4.address"]
+	ipv6Changed := d.config["ipv6.address"] != oldConfig["ipv6.address"]
+	aclsChanged := d.config["security.acls"] != oldConfig["security.acls"]
 
-		err = link.SetUp()
+	// If an IP address has changed, re-check for address conflicts.
+	if ipv4Changed || ipv6Changed {
+		err := d.checkAddressConflict()
 		if err != nil {
 			return err
 		}
 	}
 
-	// Apply any changes needed when assigned ACLs change.
-	if d.config["security.acls"] != oldConfig["security.acls"] {
-		// Work out which ACLs have been removed and remove logical port from those groups.
-		oldACLs := shared.SplitNTrimSpace(oldConfig["security.acls"], ",", -1, true)
+	// If IP addresses or ACLs changed, update the OVN logical switch port.
+	if ipv4Changed || ipv6Changed || aclsChanged {
 		newACLs := shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
-		removedACLs := []string{}
-		for _, oldACL := range oldACLs {
-			if !slices.Contains(newACLs, oldACL) {
-				removedACLs = append(removedACLs, oldACL)
+
+		// Work out which ACLs have been removed.
+		var removedACLs []string
+		if aclsChanged {
+			oldACLs := shared.SplitNTrimSpace(oldConfig["security.acls"], ",", -1, true)
+			for _, oldACL := range oldACLs {
+				if !slices.Contains(newACLs, oldACL) {
+					removedACLs = append(removedACLs, oldACL)
+				}
 			}
 		}
 
-		// Setup the logical port with new ACLs if running.
+		// Remove old DHCP reservations and DNS records before re-adding with new IPs.
+		if ipv4Changed || ipv6Changed {
+			err := d.network.InstanceDevicePortRemove(d.inst.LocalConfig()["volatile.uuid"], d.name, oldConfig)
+			if err != nil {
+				return fmt.Errorf("Failed removing old instance device port config: %w", err)
+			}
+
+			err = d.network.InstanceDevicePortAdd(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+			if err != nil {
+				return fmt.Errorf("Failed adding updated instance device port config: %w", err)
+			}
+		}
+
+		// Load uplink network config.
+		uplinkNetworkName := d.network.Config()["network"]
+
+		var uplink *api.Network
+
+		err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+
+			_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
+
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("Failed loading uplink network %q: %w", uplinkNetworkName, err)
+		}
+
+		// Update OVN logical switch port for instance.
+		_, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+			InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+			DNSName:      d.inst.Name(),
+			DeviceName:   d.name,
+			DeviceConfig: d.config,
+			UplinkConfig: uplink.Config,
+		}, removedACLs)
+		if err != nil {
+			return fmt.Errorf("Failed updating OVN port: %w", err)
+		}
+
 		if isRunning {
-			// Load uplink network config.
-			uplinkNetworkName := d.network.Config()["network"]
+			// If an address has changed and if the instance is running, we should bounce the host-side
+			// veth interface to give the instance a chance to detect the change and re-apply for an
+			// updated lease with new IP address.
+			if (ipv4Changed || ipv6Changed) && d.config["host_name"] != "" && network.InterfaceExists(d.config["host_name"]) {
+				link := &ip.Link{Name: d.config["host_name"]}
+				err := link.SetDown()
+				if err != nil {
+					return err
+				}
 
-			var uplink *api.Network
-
-			err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				var err error
-
-				_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
-
-				return err
-			})
-			if err != nil {
-				return fmt.Errorf("Failed loading uplink network %q: %w", uplinkNetworkName, err)
-			}
-
-			// Update OVN logical switch port for instance.
-			_, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
-				InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
-				DNSName:      d.inst.Name(),
-				DeviceName:   d.name,
-				DeviceConfig: d.config,
-				UplinkConfig: uplink.Config,
-			}, removedACLs)
-			if err != nil {
-				return fmt.Errorf("Failed updating OVN port: %w", err)
+				err = link.SetUp()
+				if err != nil {
+					return err
+				}
 			}
 		}
 
+		// Clean up unused ACL port groups.
 		if len(removedACLs) > 0 {
 			client, err := openvswitch.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 			if err != nil {
