@@ -6864,6 +6864,9 @@ test_clustering_link_unidirectional() {
 
   sub_test "Check CLI validation for unidirectional flags"
 
+  # --unidirectional and --public are mutually exclusive.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --unidirectional --public --remote-address 1.2.3.4:8443 2>&1)" = 'Error: if any flags in the group [unidirectional public] are set none of the others can be; [public unidirectional] were all set' ]
+
   # --unidirectional without --token must fail.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --unidirectional 2>&1)" = 'Error: --unidirectional requires --token' ]
 
@@ -6922,6 +6925,228 @@ test_clustering_link_unidirectional() {
   LXD_DIR="${LXD_THREE_DIR}" lxc auth identity delete cluster-link/lxd_one
   if LXD_DIR="${LXD_THREE_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
     echo "ERROR: cluster link certificate unexpectedly found on Cluster B after deletion" >&2
+    exit 1
+  fi
+
+  # Cleanup.
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
+
+test_clustering_link_public() {
+  # Cluster A = LXD_ONE + LXD_TWO, Cluster B = LXD_THREE + LXD_FOUR.
+  # Public links are created on A alone; B is never contacted beyond the initial certificate fetch.
+
+  # Create first 2-node cluster (node1, node2).
+  spawn_lxd_and_bootstrap_cluster
+
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+
+  # Create second 2-node cluster (node3, node4).
+  spawn_lxd_and_bootstrap_cluster "dir" "" 3
+
+  cert="$(cert_to_yaml "${LXD_THREE_DIR}/cluster.crt")"
+  spawn_lxd_and_join_cluster "${cert}" 4 3 "${LXD_THREE_DIR}"
+
+  LXD_B_ADDR="$(LXD_DIR="${LXD_THREE_DIR}" lxc config get core.https_address)"
+  # Same address without the port, for the canonicalization check below.
+  LXD_B_HOST="${LXD_B_ADDR%:*}"
+
+  sub_test "Check CLI validation for public flags"
+
+  # --public requires --remote-address, and vice versa. Both directions are enforced by cobra.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --public 2>&1)" = 'Error: if any flags in the group [public remote-address] are set they must all be set; missing [remote-address]' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --remote-address "${LXD_B_ADDR}" 2>&1)" = 'Error: if any flags in the group [public remote-address] are set they must all be set; missing [public]' ]
+
+  # Public links create no identity, so auth groups are meaningless for them.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --public --remote-address "${LXD_B_ADDR}" --auth-group mygroup 2>&1)" = 'Error: if any flags in the group [public auth-group] are set none of the others can be; [auth-group public] were all set' ]
+
+  # Public links use no token; accepting one would silently ignore it.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --public --remote-address "${LXD_B_ADDR}" --token fake 2>&1)" = 'Error: if any flags in the group [public token] are set none of the others can be; [public token] were all set' ]
+
+  sub_test "Check pending creation rejected for public type without remote_address"
+
+  # Directly calling the API with type=public and a name but no
+  # remote_address must be rejected.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data '{"name":"bad-link","type":"public"}' 2>&1)" = 'Error: Public cluster links require remote_address' ]
+
+  # Ensure no link was created.
+  if LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'bad-link'; then
+    echo "ERROR: cluster link 'bad-link' unexpectedly created for pending public request" >&2
+    exit 1
+  fi
+
+  sub_test "Check confirming a public link with no matching pending link is rejected"
+
+  # cluster_certificate must be a validly-parseable PEM cert so the request reaches the
+  # pending-link lookup rather than failing certificate parsing first; its content is
+  # otherwise irrelevant since no link named "no-such-link" exists.
+  cert_json="$(cert_to_json "${LXD_THREE_DIR}/server.crt")"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"no-such-link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"cluster_certificate\":${cert_json}}" 2>&1)" = 'Error: Failed loading pending cluster link "no-such-link": Failed loading cluster link: Cluster link not found' ]
+
+  sub_test "Check public link: certificate rejection"
+
+  # Responding 'n' to the fingerprint prompt must abort link creation.
+  # Use 2>&1 >/dev/null to capture only stderr (the error message), discarding the interactive prompt on stdout.
+  [ "$(printf 'n\n' | CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_b --public --remote-address "${LXD_B_ADDR}" 2>&1 >/dev/null)" = 'Error: Remote cluster certificate NACKed by user' ]
+  if LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'; then
+    echo "ERROR: cluster link 'lxd_b' unexpectedly found on A after certificate rejection" >&2
+    exit 1
+  fi
+
+  # A wrong fingerprint of the right length must fail immediately rather than re-prompting, so
+  # scripts feeding a stale fingerprint cannot hang.
+  wrong_fingerprint="$(printf 'a%.0s' $(seq 64))"
+  [ "$(printf '%s\n' "${wrong_fingerprint}" | CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_b --public --remote-address "${LXD_B_ADDR}" 2>&1 >/dev/null)" = 'Error: The provided fingerprint does not match the remote cluster certificate fingerprint' ]
+  if LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'; then
+    echo "ERROR: cluster link 'lxd_b' unexpectedly found on A after fingerprint mismatch" >&2
+    exit 1
+  fi
+
+  # Losing stdin entirely must also clean up the pending link rather than orphaning it.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_b --public --remote-address "${LXD_B_ADDR}" < /dev/null || false
+  if LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'; then
+    echo "ERROR: cluster link 'lxd_b' unexpectedly left pending on A after stdin EOF" >&2
+    exit 1
+  fi
+
+  sub_test "Check caller-supplied volatile keys are ignored when creating a pending link"
+
+  # A caller-set volatile.addresses would otherwise make the pending link look already confirmed,
+  # leaving it impossible to confirm and only deletable.
+  pending="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"volatile_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"config\":{\"volatile.addresses\":\"1.2.3.4:8443\"}}")"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get volatile_link volatile.addresses || echo fail)" = "" ]
+
+  # The link is still confirmable, proving the injected key did not brick it. Feed back the
+  # certificate the server actually fetched rather than assuming which one the remote presents.
+  cert_json="$(echo "${pending}" | jq --exit-status '.certificate')"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"volatile_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"cluster_certificate\":${cert_json}}" > /dev/null
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get volatile_link volatile.addresses)" = "${LXD_B_ADDR}" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete volatile_link
+
+  sub_test "Check re-running the pending phase refreshes an unconfirmed link"
+
+  # A caller interrupted at the confirmation prompt must be able to simply retry rather than
+  # hitting a unique name conflict on a link they cannot see a way to clean up.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"retry_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\"}" > /dev/null
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"retry_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\"}" > /dev/null
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete retry_link
+
+  sub_test "Check confirming a public link with a mismatched certificate is rejected"
+
+  # Create a pending public link directly via the API (bypassing the CLI) so we can attempt
+  # confirming with a certificate that does not match what was actually fetched.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"mismatch_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\"}" > /dev/null
+
+  # Attempt to confirm with an unrelated (but validly-parseable) certificate.
+  cert_json="$(cert_to_json "${LXD_ONE_DIR}/server.crt")"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"mismatch_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"cluster_certificate\":${cert_json}}" 2>&1)" = 'Error: Certificate does not match the certificate returned when the pending cluster link was created' ]
+
+  # The link must remain pending: no volatile.addresses set, so it's still inert.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get mismatch_link volatile.addresses || echo fail)" = "" ]
+
+  # Clean up the still-pending link.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete mismatch_link
+
+  sub_test "Check confirm pins the verified address, not the one resubmitted"
+
+  # The confirm request carries a remote_address, but the server must ignore it and pin the
+  # address it actually fetched and verified during the pending phase.
+  pending="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"address_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\"}")"
+  cert_json="$(echo "${pending}" | jq --exit-status '.certificate')"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"address_link\",\"type\":\"public\",\"remote_address\":\"192.0.2.1:8443\",\"cluster_certificate\":${cert_json}}" > /dev/null
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get address_link volatile.addresses)" = "${LXD_B_ADDR}" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete address_link
+
+  sub_test "Check a port-less remote address is canonicalized before being pinned"
+
+  # cluster.ConnectCluster does not default the port, so an address pinned without one would
+  # silently connect to :443 and never reach the remote cluster.
+  printf 'y\n' | LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create noport_link --public --remote-address "${LXD_B_HOST}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get noport_link volatile.addresses)" = "${LXD_B_HOST}:8443" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete noport_link
+
+  sub_test "Check public link creation"
+
+  # Responding 'y' to the fingerprint prompt creates the link on A only.
+  printf 'y\n' | LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_b --public --remote-address "${LXD_B_ADDR}"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link show lxd_b | grep -xF 'type: public'
+
+  # Both pending keys are cleared once confirmed; only volatile.addresses remains.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get lxd_b volatile.pending_certificate || echo fail)" = "" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get lxd_b volatile.pending_address || echo fail)" = "" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get lxd_b volatile.addresses)" = "${LXD_B_ADDR}" ]
+
+  # B must have no knowledge of this link. No name is ever sent to B (it is contacted only for the
+  # TLS handshake), so assert its link list is empty rather than probing for a particular name.
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster link list --format csv || echo fail)" = "" ]
+
+  if LXD_DIR="${LXD_THREE_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
+    echo "ERROR: cluster link certificate unexpectedly found on B" >&2
+    exit 1
+  fi
+
+  # No identity should exist on A either.
+  if LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
+    echo "ERROR: cluster link certificate unexpectedly found on A" >&2
+    exit 1
+  fi
+
+  sub_test "Check confirming an already-confirmed public link is rejected"
+
+  # lxd_b is already confirmed above; resubmitting a confirm request must fail with a conflict
+  # rather than silently re-pinning a (possibly different) certificate.
+  cert_json="$(cert_to_json "${LXD_THREE_DIR}/server.crt")"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"lxd_b\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"cluster_certificate\":${cert_json}}" 2>&1)" = 'Error: Cluster link "lxd_b" has already been confirmed' ]
+
+  # Re-running the pending phase against a confirmed link must conflict too, rather than
+  # resetting it to pending.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"lxd_b\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\"}" 2>&1)" = 'Error: Cluster link "lxd_b" has already been confirmed' ]
+
+  sub_test "Check public link: link state reachable"
+
+  # This is a real request over the link: 'cluster link info' dials each member address using the
+  # public connection args. Public links present no client certificate, so the remote sees an
+  # untrusted connection and the expected state is UNAUTHENTICATED (reachable but not trusted),
+  # not ACTIVE.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link info lxd_b | grep -wF 'UNAUTHENTICATED'
+
+  sub_test "Check public links are rejected by replicators and project replication"
+
+  # Public links present no client certificate, so B cannot authenticate the connection.
+  # Replication needs authenticated access and must reject the link up front.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create replica-public-project
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_b --project replica-public-project 2>&1)" = 'Error: Invalid value for replicator configuration key "cluster": Cluster link "lxd_b" is a public cluster link, which cannot be used by a replicator' ]
+
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project set replica-public-project replica.cluster=lxd_b 2>&1)" = 'Error: Invalid project configuration key "replica.cluster" value: Cluster link "lxd_b" is a public cluster link, which cannot be used for project replication' ]
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete replica-public-project
+
+  sub_test "Check public link deletion"
+
+  # Deleting the link on A should succeed without any identity cleanup.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_b
+  if LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'; then
+    echo "ERROR: cluster link 'lxd_b' unexpectedly found on A after deletion" >&2
     exit 1
   fi
 
