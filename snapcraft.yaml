@@ -205,6 +205,23 @@ hooks:
 
 parts:
   # Dependencies
+  python-runtime:
+    plugin: nil
+    stage-packages:
+      - python3.14-minimal
+      - libpython3.14-stdlib
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+    prime:
+      - bin/python3.14
+      - lib/python3.14
+      # Exclude unused bits
+      - -lib/python3.14/lib-dynload/_remote_debugging.*.so
+      - -lib/python3.14/lib-dynload/_test*.so
+      - -lib/python3.14/test/
+      - -lib/python3.14/unittest/
+
   amd-ctk:
     source: https://github.com/ROCm/container-toolkit
     source-commit: 3ab0394f71220e693ae016fa6581fbd04a51ed44 # v1.2.0
