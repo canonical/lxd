@@ -7,7 +7,8 @@ myst:
 (howto-cluster-links-create)=
 # How to create cluster links
 
-{ref}`Cluster links <exp-cluster-links>` connect separate LXD clusters. There are two link types — bidirectional and unidirectional — each with a different creation flow.
+{ref}`Cluster links <exp-cluster-links>` connect separate LXD clusters.
+There are three link types (bidirectional, unidirectional, and public), each with a different creation flow.
 
 (howto-cluster-links-auth)=
 ## Prepare authentication
@@ -151,6 +152,32 @@ Follow these steps:
    ```
 
 After these steps, Cluster A has a link with `type: unidirectional` and no associated identity. Cluster B has an active `Cluster link certificate` identity for Cluster A but no cluster link record.
+
+(howto-cluster-links-create-public)=
+## Create a public cluster link
+
+A public link lets Cluster A connect to Cluster B without any token exchange. A fetches and pins B's TLS certificate, but B is completely unaware of the link; no identity is created on either side. Use this type when B exposes resources publicly or when you want anonymous-style read access.
+
+No authentication groups are required for public links.
+
+On Cluster A (the initiator), create the cluster link:
+
+```bash
+lxc cluster link create <name-for-cluster-b> --public --remote-address <cluster-b-address>
+```
+
+This command:
+- Fetches Cluster B's TLS certificate through the LXD server.
+- Displays the certificate fingerprint for you to confirm.
+- Stores the link locally on A with B's pinned certificate.
+
+Example:
+
+```bash
+lxc cluster link create cluster_b --public --remote-address 10.0.0.2:8443
+```
+
+After these steps, Cluster A has a link with `type: public` and no associated identity. Cluster B has no link or identity for A.
 
 (howto-cluster-links-identities)=
 ## View the underlying identities
