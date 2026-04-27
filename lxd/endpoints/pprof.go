@@ -48,12 +48,12 @@ func (e *Endpoints) PprofUpdateAddress(address string) error {
 		address = util.CanonicalNetworkAddress(address, shared.HTTPDefaultPort)
 	}
 
-	oldAddress := e.NetworkAddress()
+	oldAddress := e.PprofAddress()
 	if address == oldAddress {
 		return nil
 	}
 
-	logger.Info("Update pprof address")
+	logger.Info("Update pprof address", logger.Ctx{"address": address, "oldAddress": oldAddress})
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
