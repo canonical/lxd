@@ -114,6 +114,9 @@ type OS struct {
 	KernelVersion   version.DottedVersion
 	AppArmorVersion *version.DottedVersion // AppArmorVersion is nil if AppArmorAvailable is false.
 
+	// Storage capabilities
+	CephModernMountSyntax bool
+
 	// LXD server UUID
 	ServerUUID string
 }
@@ -218,6 +221,10 @@ func (s *OS) Init() ([]cluster.Warning, error) {
 	if err == nil {
 		s.KernelVersion = *kernelVersion
 	}
+
+	// Check if the kernel supports the modern CephFS mount syntax (>= 5.17.0).
+	minCephMountVer, _ := version.NewDottedVersion("5.17.0")
+	s.CephModernMountSyntax = s.KernelVersion.Compare(minCephMountVer) >= 0
 
 	// Fill in the boot time.
 	out, err := os.ReadFile("/proc/stat")
