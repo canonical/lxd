@@ -32,28 +32,35 @@ const (
 	// SECUREBOOT is a UEFI Secure Boot enabled firmware.
 	SECUREBOOT
 
-	// CSM is a firmware with the UEFI Compatibility Support Module enabled to boot BIOS-only operating systems.
+	// CSM is a SeaBIOS firmware used for booting legacy BIOS-only operating systems.
 	CSM
 )
 
-// OVMFDebugFirmware is the debug version of the "preferred" firmware.
-const OVMFDebugFirmware = "OVMF_CODE.4MB.debug.fd"
+// legacyFirmwareVarsCandidates lists firmware vars file names that were previously used but have since been
+// deprecated. They are still returned by GetAchitectureFirmwareVarsCandidates to allow cleanup of any
+// orphaned files left over on existing VM instances.
+// These are OVMF EDK2-based CSM firmware vars files, which were replaced by SeaBIOS for BIOS mode.
+var legacyFirmwareVarsCandidates = []string{
+	"OVMF_VARS.4MB.CSM.fd",
+	"OVMF_VARS.2MB.CSM.fd",
+	"OVMF_VARS.CSM.fd",
+}
 
 var architectureInstallations = map[int][]Installation{
 	osarch.ARCH_64BIT_INTEL_X86: {{
 		Paths: GetenvEdk2Paths("/usr/share/OVMF"),
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
-				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.fd"},
 				{Code: "OVMF_CODE_4M.fd", Vars: "OVMF_VARS_4M.fd"},
+				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.fd"},
 				{Code: "OVMF_CODE.4m.fd", Vars: "OVMF_VARS.4m.fd"},
 				{Code: "OVMF_CODE.2MB.fd", Vars: "OVMF_VARS.2MB.fd"},
 				{Code: "OVMF_CODE.fd", Vars: "OVMF_VARS.fd"},
 				{Code: "OVMF_CODE.fd", Vars: "qemu.nvram"},
 			},
 			SECUREBOOT: {
-				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.ms.fd"},
 				{Code: "OVMF_CODE_4M.ms.fd", Vars: "OVMF_VARS_4M.ms.fd"},
+				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.ms.fd"},
 				{Code: "OVMF_CODE_4M.secboot.fd", Vars: "OVMF_VARS_4M.secboot.fd"},
 				{Code: "OVMF_CODE.secboot.4m.fd", Vars: "OVMF_VARS.4m.fd"},
 				{Code: "OVMF_CODE.secboot.fd", Vars: "OVMF_VARS.secboot.fd"},
@@ -63,12 +70,8 @@ var architectureInstallations = map[int][]Installation{
 				{Code: "OVMF_CODE.fd", Vars: "qemu.nvram"},
 			},
 			CSM: {
+				{Code: "bios-256k.bin", Vars: "bios-256k.bin"},
 				{Code: "seabios.bin", Vars: "seabios.bin"},
-				{Code: "OVMF_CODE.4MB.CSM.fd", Vars: "OVMF_VARS.4MB.CSM.fd"},
-				{Code: "OVMF_CODE.csm.4m.fd", Vars: "OVMF_VARS.4m.fd"},
-				{Code: "OVMF_CODE.2MB.CSM.fd", Vars: "OVMF_VARS.2MB.CSM.fd"},
-				{Code: "OVMF_CODE.CSM.fd", Vars: "OVMF_VARS.CSM.fd"},
-				{Code: "OVMF_CODE.csm.fd", Vars: "OVMF_VARS.fd"},
 			},
 		},
 	}, {
@@ -83,6 +86,7 @@ var architectureInstallations = map[int][]Installation{
 				{Code: "ovmf-x86_64-ms-code.bin", Vars: "ovmf-x86_64-ms-vars.bin"},
 			},
 			CSM: {
+				{Code: "bios-256k.bin", Vars: "bios-256k.bin"},
 				{Code: "seabios.bin", Vars: "seabios.bin"},
 			},
 		},
@@ -105,10 +109,6 @@ var architectureInstallations = map[int][]Installation{
 				{Code: "OVMF_CODE.4m.fd", Vars: "OVMF_VARS.4m.fd"},
 				{Code: "OVMF_CODE.fd", Vars: "OVMF_VARS.fd"},
 			},
-			CSM: {
-				{Code: "OVMF_CODE.csm.4m.fd", Vars: "OVMF_VARS.4m.fd"},
-				{Code: "OVMF_CODE.csm.fd", Vars: "OVMF_VARS.fd"},
-			},
 			SECUREBOOT: {
 				{Code: "OVMF_CODE.secboot.4m.fd", Vars: "OVMF_VARS.4m.fd"},
 				{Code: "OVMF_CODE.secboot.fd", Vars: "OVMF_VARS.fd"},
@@ -119,6 +119,7 @@ var architectureInstallations = map[int][]Installation{
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			CSM: {
 				{Code: "bios-256k.bin", Vars: "bios-256k.bin"},
+				{Code: "seabios.bin", Vars: "seabios.bin"},
 			},
 		},
 	}},
@@ -127,8 +128,8 @@ var architectureInstallations = map[int][]Installation{
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
 				{Code: "AAVMF_CODE.fd", Vars: "AAVMF_VARS.fd"},
-				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.fd"},
 				{Code: "OVMF_CODE_4M.fd", Vars: "OVMF_VARS_4M.fd"},
+				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.fd"},
 				{Code: "OVMF_CODE.4m.fd", Vars: "OVMF_VARS.4m.fd"},
 				{Code: "OVMF_CODE.2MB.fd", Vars: "OVMF_VARS.2MB.fd"},
 				{Code: "OVMF_CODE.fd", Vars: "OVMF_VARS.fd"},
@@ -136,8 +137,8 @@ var architectureInstallations = map[int][]Installation{
 			},
 			SECUREBOOT: {
 				{Code: "AAVMF_CODE.ms.fd", Vars: "AAVMF_VARS.ms.fd"},
-				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.ms.fd"},
 				{Code: "OVMF_CODE_4M.ms.fd", Vars: "OVMF_VARS_4M.ms.fd"},
+				{Code: "OVMF_CODE.4MB.fd", Vars: "OVMF_VARS.4MB.ms.fd"},
 				{Code: "OVMF_CODE_4M.secboot.fd", Vars: "OVMF_VARS_4M.secboot.fd"},
 				{Code: "OVMF_CODE.secboot.4m.fd", Vars: "OVMF_VARS.4m.fd"},
 				{Code: "OVMF_CODE.secboot.fd", Vars: "OVMF_VARS.secboot.fd"},
@@ -153,6 +154,7 @@ var architectureInstallations = map[int][]Installation{
 // GetAchitectureFirmwareVarsCandidates returns a unique list of candidate vars names for hostArch for all usages.
 // It does not check whether the associated firmware files are present on the host now.
 // This can be used to check for the existence of previously used firmware vars files in an existing VM instance.
+// Legacy (deprecated) vars file names are also included to allow cleanup of orphaned files.
 func GetAchitectureFirmwareVarsCandidates(hostArch int) (varsNames []string) {
 	for _, installation := range architectureInstallations[hostArch] {
 		for _, usage := range installation.Usage {
@@ -160,6 +162,15 @@ func GetAchitectureFirmwareVarsCandidates(hostArch int) (varsNames []string) {
 				if !slices.Contains(varsNames, fwPair.Vars) {
 					varsNames = append(varsNames, fwPair.Vars)
 				}
+			}
+		}
+	}
+
+	// The legacy OVMF and CSM vars files were only ever created on x86-64.
+	if hostArch == osarch.ARCH_64BIT_INTEL_X86 {
+		for _, legacyVars := range legacyFirmwareVarsCandidates {
+			if !slices.Contains(varsNames, legacyVars) {
+				varsNames = append(varsNames, legacyVars)
 			}
 		}
 	}
@@ -198,18 +209,14 @@ func GetArchitectureFirmwarePairsForUsage(hostArch int, usage FirmwareUsage) []F
 }
 
 // GetenvEdk2Paths returns a list of paths to search for VM firmwares.
-// If LXD_QEMU_FW_PATH or LXD_OVMF_PATH env vars are set then these values are split on ":" and prefixed to the
-// returned slice of paths.
+// If LXD_QEMU_FW_PATH env variable is set then its value is split on ":" and
+// prefixed to the returned slice of paths.
 // The defaultPath argument is returned as the last element in the slice.
 func GetenvEdk2Paths(defaultPath string) []string {
 	var qemuFwPaths []string
 
-	for _, v := range []string{"LXD_QEMU_FW_PATH", "LXD_OVMF_PATH"} {
-		searchPaths := os.Getenv(v)
-		if searchPaths == "" {
-			continue
-		}
-
+	searchPaths := os.Getenv("LXD_QEMU_FW_PATH")
+	if searchPaths != "" {
 		qemuFwPaths = append(qemuFwPaths, strings.Split(searchPaths, ":")...)
 	}
 
