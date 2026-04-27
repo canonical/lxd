@@ -173,7 +173,7 @@ again:
 }
 
 // diskCephfsOptions returns the mntSrcPath and fsOptions to use for mounting a cephfs share.
-func diskCephfsOptions(clusterName string, userName string, fsName string, fsPath string) (string, []string, error) {
+func diskCephfsOptions(clusterName string, userName string, fsName string, fsPath string, modernMountSyntax bool) (string, []string, error) {
 	ctx := context.TODO()
 
 	// Get the FSID.
@@ -200,7 +200,7 @@ func diskCephfsOptions(clusterName string, userName string, fsName string, fsPat
 		return "", nil, err
 	}
 
-	srcPath, fsOptions := storageDrivers.CephBuildMount(userName, secret, fsid, monitors, fsName, fsPath, msMode)
+	srcPath, fsOptions := storageDrivers.CephBuildMount(userName, secret, fsid, monitors, fsName, fsPath, msMode, modernMountSyntax)
 
 	return srcPath, fsOptions, nil
 }
