@@ -124,6 +124,7 @@ readonly test_group_image=(
     "image_with_templates_symlink"
     "image_with_exec_output_symlink"
     "images_public"
+    "image_registries_basic"
     "projects_images"
     "projects_images_default"
     "projects_instance_creation"
