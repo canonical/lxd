@@ -183,4 +183,4 @@ The effect of deleting a cluster link varies by type:
 
 - **Bidirectional**: Deleting on one cluster removes the trust and identity only on that cluster. The other cluster retains its identity and trust until you also delete the link there. To fully disconnect, run the command on both clusters.
 - **Unidirectional**: Deleting on Cluster A removes only A's link row. Cluster B retains its identity for A until B explicitly revokes it with `lxc auth identity delete cluster-link/<name-for-cluster-a>`.
-```
+- **Unauthenticated**: Deleting on Cluster A removes A's link row. Since B has no knowledge of the link, no further cleanup is required.
