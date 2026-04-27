@@ -66,6 +66,13 @@ var clusterLinkStateCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: clusterLinkStateGet, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanView, "name")},
 }
 
+var clusterLinksCertificateCmd = APIEndpoint{
+	Path:        "cluster/links/certificate",
+	MetricsType: entity.TypeClusterLink,
+
+	Get: APIEndpointAction{Handler: clusterLinkCertificateGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateClusterLinks)},
+}
+
 // swagger:operation GET /1.0/cluster/links cluster-links cluster_links_get
 //
 //		Get the cluster links
@@ -727,7 +734,24 @@ func clusterLinksPost(d *Daemon, r *http.Request) response.Response {
 	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
 	requestor := request.CreateRequestor(r.Context())
 
+	// Unauthenticated: name + remote_address, no token or identity-related settings.
+	if req.Name != "" && req.RemoteAddress != "" && clusterLinkType == dbCluster.ClusterLinkType(api.ClusterLinkTypeUnauthenticated) {
+		if req.TrustToken != "" {
+			return response.BadRequest(errors.New("Trust token cannot be set for unauthenticated cluster links"))
+		}
+
+		if len(req.AuthGroups) > 0 {
+			return response.BadRequest(errors.New("Auth groups cannot be set for unauthenticated cluster links"))
+		}
+
+		return clusterLinkCreateUnauthenticated(s, r, req, requestor)
+	}
+
 	if req.Name != "" && req.TrustToken == "" {
+		if clusterLinkType == dbCluster.ClusterLinkType(api.ClusterLinkTypeUnauthenticated) {
+			return response.BadRequest(errors.New("Unauthenticated cluster links require remote_address and cluster_certificate"))
+		}
+
 		return clusterLinkCreatePending(s, r, req, clusterLinkType, notify, requestor)
 	}
 
@@ -1471,7 +1495,7 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 			// Unidirectional: cert is stored directly in cluster_links_certificates.
 			pemCert, err = dbCluster.GetClusterLinkPEMCertificate(ctx, tx.Tx(), dbClusterLink.ID)
 			if err != nil {
-				return fmt.Errorf("Failed loading cluster link certificate: %w", err)
+				return fmt.Errorf("Failed loading cluster link certificate for %q: %w", dbClusterLink.Name, err)
 			}
 		}
 
@@ -1487,7 +1511,13 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed loading cluster link %q: %w", name, err))
 	}
 
-	args := cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	var args *lxd.ConnectionArgs
+	if clusterLink.Type == api.ClusterLinkTypeUnauthenticated {
+		args = cluster.GetUnauthenticatedClusterLinkConnectionArgs(targetCert)
+	} else {
+		args = cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	}
+
 	args.SkipGetServer = true
 
 	// Determine cluster link member status by establishing a connection to each member's address.
@@ -1681,4 +1711,135 @@ func clusterLinkCreateUnidirectional(s *state.State, r *http.Request, req api.Cl
 	}
 
 	return response.SmartError(api.StatusErrorf(http.StatusBadGateway, "Failed activating unidirectional cluster link %q: %s", req.Name, strings.Join(errStrings, "; ")))
+}
+
+// swagger:operation GET /1.0/cluster/links/certificate cluster-links cluster_links_certificate_get
+//
+//	Get the remote cluster certificate
+//
+//	Fetches the TLS certificate from the given remote address for user verification.
+//	This is used as the first step of the unauthenticated cluster link creation flow.
+//
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: address
+//	    description: Address of the remote cluster
+//	    type: string
+//	    example: 10.0.0.1:8443
+//	responses:
+//	  "200":
+//	    description: Remote cluster certificate
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterLinkCertificate"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinkCertificateGet(d *Daemon, r *http.Request) response.Response {
+	address := r.URL.Query().Get("address")
+	if address == "" {
+		return response.BadRequest(errors.New("Address query parameter is required"))
+	}
+
+	canonicalAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
+	cert, err := shared.GetRemoteCertificate(r.Context(), "https://"+canonicalAddress, version.UserAgent)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed retrieving certificate from %q: %w", address, err))
+	}
+
+	pemCert := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+	return response.SyncResponse(true, api.ClusterLinkCertificate{
+		Fingerprint: shared.CertFingerprint(cert),
+		Certificate: pemCert,
+	})
+}
+
+// clusterLinkCreateUnauthenticated handles creation of an unauthenticated cluster link.
+// A (image client) downloads and pins B's certificate using only the remote address. No identity is created on either side.
+// The ClusterCertificate field must contain the PEM certificate for B, already confirmed by the caller.
+func clusterLinkCreateUnauthenticated(s *state.State, r *http.Request, req api.ClusterLinksPost, requestor *api.EventLifecycleRequestor) response.Response {
+	// Check if the caller has permission to create cluster links.
+	err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateClusterLinks)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if req.ClusterCertificate == "" {
+		return response.BadRequest(errors.New("Cluster certificate required"))
+	}
+
+	block, _ := pem.Decode([]byte(req.ClusterCertificate))
+	if block == nil {
+		return response.BadRequest(errors.New("Failed decoding cluster certificate"))
+	}
+
+	remoteCert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Failed parsing cluster certificate: %w", err))
+	}
+
+	fingerprint := shared.CertFingerprint(remoteCert)
+
+	// Verify the remote address presents the expected certificate.
+	_, _, err = cluster.CheckClusterLinkCertificate(r.Context(), []string{req.RemoteAddress}, fingerprint, version.UserAgent)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Failed validating cluster certificate: %w", err))
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		clusterLinkID, err := dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLinkRow{
+			IdentityID:  nil,
+			Name:        req.Name,
+			Description: req.Description,
+			Type:        dbCluster.ClusterLinkType(api.ClusterLinkTypeUnauthenticated),
+		})
+		if err != nil {
+			return fmt.Errorf("Failed creating cluster link %q: %w", req.Name, err)
+		}
+
+		if req.Config == nil {
+			req.Config = map[string]string{}
+		}
+
+		err = clusterLinkValidateConfig(req.Config)
+		if err != nil {
+			return err
+		}
+
+		req.Config["volatile.addresses"] = req.RemoteAddress
+		err = dbCluster.CreateClusterLinkConfig(ctx, tx.Tx(), clusterLinkID, req.Config)
+		if err != nil {
+			return err
+		}
+
+		return dbCluster.SetClusterLinkCertificate(ctx, tx.Tx(), clusterLinkID, fingerprint, req.ClusterCertificate)
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
+
+	return response.EmptySyncResponse
 }
