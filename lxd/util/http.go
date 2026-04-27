@@ -43,9 +43,9 @@ func DebugJSON(title string, r *bytes.Buffer, l logger.Logger) {
 	l.Debug(fmt.Sprintf("%s\n\t%s", title, str[0:len(str)-1]))
 }
 
-// WriteJSON encodes the body as JSON and sends it back to the client
+// WriteJSON encodes the body as JSON and writes it to [io.Writer].
 // Accepts optional debugLogger that activates debug logging if non-nil.
-func WriteJSON(w http.ResponseWriter, body any, debugLogger logger.Logger) error {
+func WriteJSON(w io.Writer, body any, debugLogger logger.Logger) error {
 	var output io.Writer
 	var captured *bytes.Buffer
 

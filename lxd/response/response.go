@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/canonical/lxd/client"
@@ -204,6 +205,11 @@ func SyncResponse(success bool, metadata any) Response {
 	return &syncResponse{success: success, metadata: metadata}
 }
 
+// SyncResponseCompressed returns a new syncResponse with gzip compressed JSON output.
+func SyncResponseCompressed(success bool, metadata any) Response {
+	return &syncResponse{success: success, metadata: metadata, compress: true}
+}
+
 // SyncResponseETag returns a new syncResponse with an etag.
 func SyncResponseETag(success bool, metadata any, etag any) Response {
 	return &syncResponse{success: success, metadata: metadata, etag: etag}
@@ -255,25 +261,6 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
-	// Handle plain text headers.
-	if r.plaintext {
-		w.Header().Set("Content-Type", "text/plain")
-	}
-
-	// Handle compression.
-	if r.compress {
-		w.Header().Set("Content-Encoding", "gzip")
-	}
-
-	// Write header and status code.
-	if code == 0 {
-		code = http.StatusOK
-	}
-
-	if w.Header().Get("Connection") != "keep-alive" {
-		w.WriteHeader(code)
-	}
-
 	// Prepare the JSON response
 	status := api.Success
 	if !r.success {
@@ -285,6 +272,29 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		if ok {
 			return SmartError(err).Render(w, req)
 		}
+	}
+
+	// Handle plain text headers.
+	if r.plaintext {
+		w.Header().Set("Content-Type", "text/plain")
+	} else if w.Header().Get("Content-Type") == "" {
+		// If Content-Type is not set, default to "application/json".
+		w.Header().Set("Content-Type", "application/json")
+	}
+
+	// Handle compression.
+	if r.compress {
+		w.Header().Set("Content-Encoding", "gzip")
+		addVaryHeader(w.Header(), "Accept-Encoding")
+	}
+
+	// Write header and status code.
+	if code == 0 {
+		code = http.StatusOK
+	}
+
+	if w.Header().Get("Connection") != "keep-alive" {
+		w.WriteHeader(code)
 	}
 
 	// defer calling the callback function after possibly considering the response a SmartError.
@@ -301,11 +311,11 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 		if r.metadata != nil {
 			if r.compress {
 				comp := gzip.NewWriter(w)
-				defer comp.Close()
+				_, writeErr := comp.Write([]byte(r.metadata.(string)))
+				closeErr := comp.Close()
 
-				_, err := comp.Write([]byte(r.metadata.(string)))
-				if err != nil {
-					return err
+				if writeErr != nil || closeErr != nil {
+					return errors.Join(writeErr, closeErr)
 				}
 			} else {
 				_, err := w.Write([]byte(r.metadata.(string)))
@@ -329,6 +339,19 @@ func (r *syncResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	var debugLogger logger.Logger
 	if debug {
 		debugLogger = logger.AddContext(logger.Ctx{"http_code": code})
+	}
+
+	// Handle JSON compression to gzip if needed.
+	if r.compress {
+		comp := gzip.NewWriter(w)
+		writeErr := util.WriteJSON(comp, resp, debugLogger)
+		closeErr := comp.Close()
+
+		if writeErr != nil || closeErr != nil {
+			return errors.Join(writeErr, closeErr)
+		}
+
+		return nil
 	}
 
 	return util.WriteJSON(w, resp, debugLogger)
@@ -687,4 +710,20 @@ func (r *manualResponse) Render(w http.ResponseWriter, req *http.Request) error 
 
 func (r *manualResponse) String() string {
 	return "unknown"
+}
+
+// addVaryHeader adds a value to the Vary header if it is not already present.
+// It matches existing Vary entries case-insensitively, including comma-separated values.
+func addVaryHeader(header http.Header, value string) {
+	for _, vary := range header.Values("Vary") {
+		values := strings.Split(vary, ",")
+
+		for _, varyValue := range values {
+			if strings.EqualFold(strings.TrimSpace(varyValue), value) {
+				return
+			}
+		}
+	}
+
+	header.Add("Vary", value)
 }
