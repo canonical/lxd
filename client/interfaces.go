@@ -377,6 +377,7 @@ type InstanceServer interface {
 	GetClusterLinkNames() (clusterLinkNames []string, err error)
 	GetClusterLinks() (clusterLinks []api.ClusterLink, err error)
 	GetClusterLinkState(name string) (clusterLinkState *api.ClusterLinkState, ETag string, err error)
+	GetClusterLinkCertificate(address string) (fingerprint string, pemCert string, err error)
 	CreateClusterLink(clusterLink api.ClusterLinksPost) (err error)
 	CreateIdentityClusterLinkToken(clusterLink api.ClusterLinksPost) (certificateAddToken *api.CertificateAddToken, err error)
 	UpdateClusterLink(name string, clusterLink api.ClusterLinkPut, ETag string) (err error)
