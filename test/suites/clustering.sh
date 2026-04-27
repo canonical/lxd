@@ -6076,3 +6076,102 @@ test_clustering_replicator_snapshot() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_ONE_DIR}"
 }
+
+test_clustering_link_unidirectional() {
+  # Cluster A = LXD_ONE + LXD_TWO, Cluster B = LXD_THREE + LXD_FOUR.
+
+  # Create first 2-node cluster (node1, node2).
+  spawn_lxd_and_bootstrap_cluster
+
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+
+  # Create second 2-node cluster (node3, node4).
+  spawn_lxd_and_bootstrap_cluster "dir" "" 3
+
+  cert="$(cert_to_yaml "${LXD_THREE_DIR}/cluster.crt")"
+  spawn_lxd_and_join_cluster "${cert}" 4 3 "${LXD_THREE_DIR}"
+
+  sub_test "Check CLI validation for unidirectional flags"
+
+  # --unidirectional without --token must fail.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --unidirectional 2>&1)" = 'Error: --unidirectional requires --token' ]
+
+  # --auth-group cannot be used with unidirectional links.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --unidirectional --token fake --auth-group mygroup 2>&1)" = 'Error: --auth-group cannot be used with unidirectional cluster links' ]
+
+  sub_test "Check unidirectional link creation"
+
+  # Cluster B issues a pending identity token via auth identity create.
+  UNIDIRECTIONAL_TOKEN="$(LXD_DIR="${LXD_THREE_DIR}" lxc auth identity create cluster-link/lxd_one --quiet)"
+
+  # Cluster A consumes the token and creates a unidirectional link to Cluster B.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_three --token "${UNIDIRECTIONAL_TOKEN}" --unidirectional
+
+  # Cluster A should have the cluster link with no associated identity (unidirectional; A never authenticates to B).
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_three'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link show lxd_three | grep -xF 'type: unidirectional'
+  if LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -wF 'lxd_three'; then
+    echo "ERROR: identity 'lxd_three' unexpectedly found on Cluster A" >&2
+    exit 1
+  fi
+
+  # Cluster B should have an active identity for Cluster A but no cluster link record.
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth identity list --format csv | grep -vF '(pending)' | grep -wF 'Cluster link certificate'
+  if LXD_DIR="${LXD_THREE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_one'; then
+    echo "ERROR: cluster link 'lxd_one' unexpectedly found on Cluster B" >&2
+    exit 1
+  fi
+
+  sub_test "Check unidirectional link: volatile.addresses populated on Cluster A"
+
+  # Cluster A stores Cluster B's addresses in volatile.addresses so it can reach B.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get lxd_three volatile.addresses)" != "" ]
+
+  sub_test "Check unidirectional link: Cluster B has no cluster link record"
+
+  # Cluster B has no cluster link record for A; A's addresses are never persisted on B.
+  if LXD_DIR="${LXD_THREE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_one'; then
+    echo "ERROR: cluster link 'lxd_one' unexpectedly found on Cluster B" >&2
+    exit 1
+  fi
+
+  sub_test "Check unidirectional link deletion"
+
+  # Delete from Cluster A; only A's link row is removed. Cluster B retains its identity for A.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_three
+  if LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_three'; then
+    echo "ERROR: cluster link 'lxd_three' unexpectedly found on Cluster A after deletion" >&2
+    exit 1
+  fi
+
+  # Cluster B retains its identity after Cluster A's side is deleted.
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth identity list --format csv | grep -vF '(pending)' | grep -wF 'Cluster link certificate'
+
+  # Delete B's identity for A to fully revoke access; B has no cluster link row to delete.
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth identity delete cluster-link/lxd_one
+  if LXD_DIR="${LXD_THREE_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
+    echo "ERROR: cluster link certificate unexpectedly found on Cluster B after deletion" >&2
+    exit 1
+  fi
+
+  # Cleanup.
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
