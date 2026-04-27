@@ -7700,7 +7700,7 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the identity."
+					"description": "Grants permission to edit the identity. To edit an identity, it is additionally required that the caller is able to view all groups that the identity is a member of."
 				},
 				{
 					"name": "can_delete",
@@ -8208,7 +8208,7 @@
 				},
 				{
 					"name": "can_edit_identities",
-					"description": "Grants permission to edit identities."
+					"description": "Grants permission to edit identities. Note that clients with this permission are able to elevate their own privileges."
 				},
 				{
 					"name": "can_delete_identities",
@@ -8224,7 +8224,7 @@
 				},
 				{
 					"name": "can_edit_groups",
-					"description": "Grants permission to edit authorization groups."
+					"description": "Grants permission to edit authorization groups. Note that clients with this permission are able to elevate their own privileges."
 				},
 				{
 					"name": "can_delete_groups",
@@ -8240,7 +8240,7 @@
 				},
 				{
 					"name": "can_edit_identity_provider_groups",
-					"description": "Grants permission to edit identity provider groups."
+					"description": "Grants permission to edit identity provider groups. Note that clients with this permission are able to elevate their own privileges."
 				},
 				{
 					"name": "can_delete_identity_provider_groups",

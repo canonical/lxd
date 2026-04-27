@@ -6986,7 +6986,7 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view the identity.
 
 `can_edit`
-: Grants permission to edit the identity.
+: Grants permission to edit the identity. To edit an identity, it is additionally required that the caller is able to view all groups that the identity is a member of.
 
 `can_delete`
 : Grants permission to delete the identity.
@@ -7358,7 +7358,7 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view identities.
 
 `can_edit_identities`
-: Grants permission to edit identities.
+: Grants permission to edit identities. Note that clients with this permission are able to elevate their own privileges.
 
 `can_delete_identities`
 : Grants permission to delete identities.
@@ -7370,7 +7370,7 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view authorization groups.
 
 `can_edit_groups`
-: Grants permission to edit authorization groups.
+: Grants permission to edit authorization groups. Note that clients with this permission are able to elevate their own privileges.
 
 `can_delete_groups`
 : Grants permission to delete authorization groups.
@@ -7382,7 +7382,7 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view identity provider groups.
 
 `can_edit_identity_provider_groups`
-: Grants permission to edit identity provider groups.
+: Grants permission to edit identity provider groups. Note that clients with this permission are able to elevate their own privileges.
 
 `can_delete_identity_provider_groups`
 : Grants permission to delete identity provider groups.

@@ -422,10 +422,11 @@ WHERE identities_auth_groups.identity_id = ?
 
 // GetIdentityAuthGroupNames returns a map of identity ID to slice of (alphabetically sorted) group names that the
 // identity with that ID is a member of. A filter can be passed in, which should return false to omit entries and true
-// to include them. This is useful for filtering out groups that the caller cannot view.
+// to include them. This is useful for filtering out groups that the caller cannot view. If the filter function returns
+// a non-nil error, this function will abort scanning of rows and return the error unmodified.
 // The optional identity ID field can be used to get authorization group names for only one identity, in which case the
 // output map contains only one key.
-func GetIdentityAuthGroupNames(ctx context.Context, tx *sql.Tx, identityID *int64, filter func(AuthGroupsRow) bool) (map[int64][]string, error) {
+func GetIdentityAuthGroupNames(ctx context.Context, tx *sql.Tx, identityID *int64, filter func(AuthGroupsRow) (bool, error)) (map[int64][]string, error) {
 	g := AuthGroupsRow{}
 	var b strings.Builder
 	b.WriteString(`SELECT identities_auth_groups.identity_id, `)
@@ -456,8 +457,13 @@ JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_grou
 			return err
 		}
 
-		if filter != nil && !filter(g) {
-			return nil
+		if filter != nil {
+			keep, err := filter(g)
+			if err != nil {
+				return err
+			} else if !keep {
+				return nil
+			}
 		}
 
 		result[identityID] = append(result[identityID], g.Name)

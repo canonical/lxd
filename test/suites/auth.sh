@@ -370,7 +370,18 @@ fine_grained: true"
   ! lxc_remote auth identity show "oidc:tls/${tls_identity_fingerprint}" || false
   ! lxc_remote auth identity delete "oidc:tls/${tls_identity_fingerprint}" || false
 
-  # But the TLS identity can see and delete itself
+  # The OIDC identity, when added to a group that can edit the TLS identity, cannot change group membership for the
+  # TLS identity unless it is able to see all of the groups that the TLS identity is a member of.
+  lxc auth group create tls-identity-editors
+  lxc auth group permission add tls-identity-editors identity "tls/${tls_identity_fingerprint}" can_view
+  lxc auth group permission add tls-identity-editors identity "tls/${tls_identity_fingerprint}" can_edit
+  lxc auth identity group add oidc/test-user@example.com tls-identity-editors
+  ! lxc_remote auth identity group add "oidc:tls/${tls_identity_fingerprint}" tls-identity-editors || false
+  lxc auth group permission add tls-identity-editors group test-group can_view
+  lxc_remote auth identity group add "oidc:tls/${tls_identity_fingerprint}" tls-identity-editors
+  lxc auth group delete tls-identity-editors
+
+  # The TLS identity can see and delete itself
   LXD_CONF="${LXD_CONF2}" lxc_remote auth identity list tls: --format csv | grep -wF "${tls_identity_fingerprint}"
   LXD_CONF="${LXD_CONF2}" lxc_remote auth identity delete "tls:tls/${tls_identity_fingerprint}"
   ! lxc auth identity list --format csv | grep -F "${tls_identity_fingerprint}" || false

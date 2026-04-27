@@ -1299,8 +1299,8 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 				}
 			}
 
-			groupsByIdentityID, err = dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), identityIDFilter, func(row dbCluster.AuthGroupsRow) bool {
-				return canViewGroup(entity.AuthGroupURL(row.Name))
+			groupsByIdentityID, err = dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), identityIDFilter, func(row dbCluster.AuthGroupsRow) (bool, error) {
+				return canViewGroup(entity.AuthGroupURL(row.Name)), nil
 			})
 			if err != nil {
 				return err
@@ -1470,8 +1470,8 @@ func identityGet(d *Daemon, r *http.Request) response.Response {
 	var certificates map[int64][]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		groups, err = dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, func(row dbCluster.AuthGroupsRow) bool {
-			return canViewGroup(entity.AuthGroupURL(row.Name))
+		groups, err = dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, func(row dbCluster.AuthGroupsRow) (bool, error) {
+			return canViewGroup(entity.AuthGroupURL(row.Name)), nil
 		})
 		if err != nil {
 			return err
@@ -1775,12 +1775,11 @@ func updateSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluste
 		return response.SmartError(err)
 	}
 
-	// We need to perform an ETag check. To do so we need to convert the DB Identity to an API identity and this
-	// requires a permission checker on groups. We know that the caller is updating themselves and they are able to view
-	// all groups that they are a member of, so we can return true for any group here.
-	canViewGroup := func(group dbCluster.AuthGroupsRow) bool { return true }
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		groups, err := dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, canViewGroup)
+		// We need to get the identity certificate and groups for the ETag check.
+		// A filter is not required below because the caller is updating themselves and they are able to view
+		// all groups that they are a member of (this is statically defined in the authorization model).
+		groups, err := dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, nil)
 		if err != nil {
 			return err
 		}
@@ -1841,17 +1840,27 @@ func updateIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Iden
 		}
 	}
 
-	// We need to perform an ETag check. To do so we need to convert the DB Identity to an API identity and this
-	// requires a permission checker on groups.
+	// Get a permission checker for use in the group filtering function below.
 	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// We need to perform an ETag check. To do so we need to convert the DB Identity to an API identity.
+	// The initial API identity used to create the ETag had group names filtered by what the caller is able to view.
+	// However, to update an identity, the caller must be able to see all groups that the identity is a member of
+	// (otherwise they do not have complete knowledge of the identity before making changes). This filter aborts early
+	// with a forbidden error if the caller is not able to view group membership for the identity.
+	groupFilter := func(row dbCluster.AuthGroupsRow) (bool, error) {
+		if !canViewGroup(entity.AuthGroupURL(row.Name)) {
+			return false, api.NewGenericStatusError(http.StatusForbidden)
+		}
+
+		return true, nil
+	}
+
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		groups, err := dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, func(row dbCluster.AuthGroupsRow) bool {
-			return canViewGroup(entity.AuthGroupURL(row.Name))
-		})
+		groups, err := dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, groupFilter)
 		if err != nil {
 			return err
 		}
@@ -2055,17 +2064,27 @@ func patchIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Ident
 		}
 	}
 
-	// We need to perform an ETag check. To do so we need to convert the DB Identity to an API identity and this
-	// requires a permission checker on groups.
+	// Get a permission checker for use in the group filtering function below.
 	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// We need to perform an ETag check. To do so we need to convert the DB Identity to an API identity.
+	// The initial API identity used to create the ETag had group names filtered by what the caller is able to view.
+	// However, to update an identity, the caller must be able to see all groups that the identity is a member of
+	// (otherwise they do not have complete knowledge of the identity before making changes). This filter aborts early
+	// with a forbidden error if the caller is not able to view group membership for the identity.
+	groupFilter := func(row dbCluster.AuthGroupsRow) (bool, error) {
+		if !canViewGroup(entity.AuthGroupURL(row.Name)) {
+			return false, api.NewGenericStatusError(http.StatusForbidden)
+		}
+
+		return true, nil
+	}
+
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		groups, err := dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, func(row dbCluster.AuthGroupsRow) bool {
-			return canViewGroup(entity.AuthGroupURL(row.Name))
-		})
+		groups, err := dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, groupFilter)
 		if err != nil {
 			return err
 		}
@@ -2085,15 +2104,12 @@ func patchIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Ident
 			return err
 		}
 
-		for _, groupName := range identityPut.Groups {
-			if !slices.Contains(apiIdentity.Groups, groupName) {
-				apiIdentity.Groups = append(apiIdentity.Groups, groupName)
+		// Set groups if provided.
+		if len(identityPut.Groups) > 0 {
+			err = dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id.ID, identityPut.Groups)
+			if err != nil {
+				return err
 			}
-		}
-
-		err = dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), id.ID, identityPut.Groups)
-		if err != nil {
-			return err
 		}
 
 		// Only update the certificate if it is given. Additionally, we don't need to update it if it's the same as the
@@ -2142,15 +2158,11 @@ func patchSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluster
 		return response.EmptySyncResponse
 	}
 
-	// We need to perform an ETag check. To do so we need to convert the DB Identity to an API identity and this
-	// requires a permission checker on groups. We know that the caller is updating themselves and they are able to view
-	// all groups that they are a member of, so we can return true for any url here.
-	canViewGroup := func(entityURL *api.URL) bool { return true }
-
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		groups, err := dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, func(row dbCluster.AuthGroupsRow) bool {
-			return canViewGroup(entity.AuthGroupURL(row.Name))
-		})
+		// We need to get the identity certificate and groups for the ETag check.
+		// A filter is not required below because the caller is updating themselves and they are able to view
+		// all groups that they are a member of (this is statically defined in the authorization model).
+		groups, err := dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, nil)
 		if err != nil {
 			return err
 		}
