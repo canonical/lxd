@@ -3625,3 +3625,15 @@ In addition a new endpoint [`GET /1.0/networks/{networkName}/load-balancer-pools
 ## `operation_child_count`
 
 Adds a `child_count` field to the `Operation` struct, indicating the number of child operations. This allows clients to determine whether an operation has children without requiring `recursion=2`.
+
+(extension-cluster-links-public)=
+## `cluster_links_public`
+
+This extends the {ref}`cluster links <exp-cluster-links>` API with support for public cluster links. The initiating cluster (A) connects to the remote cluster (B) without presenting a client certificate, relying solely on TLS certificate pinning for server authentication. B is completely unaware of the link; no identity is created on either side. This is useful when B exposes resources publicly or when anonymous-style read access to B is sufficient.
+
+Creating a public cluster link is a two-phase process:
+
+1. A `POST` request with a name and `remote_address` (no `cluster_certificate`) creates a pending link. A fetches B's TLS certificate and confirms B is serving the LXD API, then returns the certificate's fingerprint and PEM encoding for user verification. The link remains inert until confirmed.
+2. A second `POST` request with the same name and `remote_address`, this time including the `cluster_certificate` returned by the first request, pins the certificate and activates the link.
+
+A new `ClusterLinkCertificate` response type is introduced, containing the certificate fingerprint and PEM-encoded certificate returned by the first request.
