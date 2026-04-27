@@ -11,16 +11,17 @@ import (
 
 func TestCephBuildMount(t *testing.T) {
 	tests := []struct {
-		name        string
-		user        string
-		key         string
-		fsid        string
-		monitors    Monitors
-		fsName      string
-		path        string
-		msMode      string
-		wantSource  string
-		wantOptions []string
+		name              string
+		user              string
+		key               string
+		fsid              string
+		monitors          Monitors
+		fsName            string
+		path              string
+		msMode            string
+		modernMountSyntax bool
+		wantSource        string
+		wantOptions       []string
 	}{
 		{
 			name: "V2 monitors with key",
@@ -31,10 +32,11 @@ func TestCephBuildMount(t *testing.T) {
 				V1: []string{"10.0.0.1:6789"},
 				V2: []string{"10.0.0.1:3300"},
 			},
-			fsName:     "myfs",
-			path:       "/",
-			msMode:     "prefer-secure",
-			wantSource: "admin@abc-def-123.myfs=/",
+			fsName:            "myfs",
+			path:              "/",
+			msMode:            "prefer-secure",
+			modernMountSyntax: true,
+			wantSource:        "admin@abc-def-123.myfs=/",
 			wantOptions: []string{
 				"mon_addr=10.0.0.1:3300",
 				"name=admin",
@@ -50,15 +52,38 @@ func TestCephBuildMount(t *testing.T) {
 			monitors: Monitors{
 				V1: []string{"10.0.0.1:6789", "10.0.0.2:6789"},
 			},
-			fsName:     "myfs",
-			path:       "/subdir",
-			msMode:     "prefer-secure",
-			wantSource: "admin@abc-def-123.myfs=/subdir",
+			fsName:            "myfs",
+			path:              "/subdir",
+			msMode:            "prefer-secure",
+			modernMountSyntax: true,
+			wantSource:        "admin@abc-def-123.myfs=/subdir",
 			wantOptions: []string{
 				"mon_addr=10.0.0.1:6789/10.0.0.2:6789",
 				"name=admin",
 				"secret=AQBxyz==",
 				"ms_mode=prefer-secure",
+			},
+		},
+		{
+			name: "V1 only monitors (legacy mount syntax)",
+			user: "admin",
+			key:  "AQBxyz==",
+			fsid: "abc-def-123",
+			monitors: Monitors{
+				V1: []string{"10.0.0.1:6789", "10.0.0.2:6789"},
+			},
+			fsName:            "myfs",
+			path:              "/subdir",
+			msMode:            "prefer-secure",
+			modernMountSyntax: false,
+			wantSource:        "10.0.0.1:6789,10.0.0.2:6789:/subdir",
+			wantOptions: []string{
+				"mon_addr=10.0.0.1:6789/10.0.0.2:6789",
+				"name=admin",
+				"secret=AQBxyz==",
+				"ms_mode=prefer-secure",
+				"mds_namespace=myfs",
+				"fsid=abc-def-123",
 			},
 		},
 		{
@@ -70,10 +95,11 @@ func TestCephBuildMount(t *testing.T) {
 				V1: []string{"10.0.0.1:6789"},
 				V2: []string{"10.0.0.1:3300", "10.0.0.2:3300", "10.0.0.3:3300"},
 			},
-			fsName:     "cephfs",
-			path:       "/data/pool",
-			msMode:     "prefer-secure",
-			wantSource: "client1@uuid-456.cephfs=/data/pool",
+			fsName:            "cephfs",
+			path:              "/data/pool",
+			msMode:            "prefer-secure",
+			modernMountSyntax: true,
+			wantSource:        "client1@uuid-456.cephfs=/data/pool",
 			wantOptions: []string{
 				"mon_addr=10.0.0.1:3300/10.0.0.2:3300/10.0.0.3:3300",
 				"name=client1",
@@ -89,10 +115,11 @@ func TestCephBuildMount(t *testing.T) {
 			monitors: Monitors{
 				V2: []string{"10.0.0.1:3300"},
 			},
-			fsName:     "myfs",
-			path:       "/",
-			msMode:     "prefer-secure",
-			wantSource: "admin@abc-def-123.myfs=/",
+			fsName:            "myfs",
+			path:              "/",
+			msMode:            "prefer-secure",
+			modernMountSyntax: true,
+			wantSource:        "admin@abc-def-123.myfs=/",
 			wantOptions: []string{
 				"mon_addr=10.0.0.1:3300",
 				"name=admin",
@@ -107,10 +134,11 @@ func TestCephBuildMount(t *testing.T) {
 			monitors: Monitors{
 				V1: []string{"10.0.0.1:6789"},
 			},
-			fsName:     "myfs",
-			path:       "subdir",
-			msMode:     "prefer-secure",
-			wantSource: "admin@abc-def-123.myfs=/subdir",
+			fsName:            "myfs",
+			path:              "subdir",
+			msMode:            "prefer-secure",
+			modernMountSyntax: true,
+			wantSource:        "admin@abc-def-123.myfs=/subdir",
 			wantOptions: []string{
 				"mon_addr=10.0.0.1:6789",
 				"name=admin",
@@ -126,10 +154,11 @@ func TestCephBuildMount(t *testing.T) {
 			monitors: Monitors{
 				V1: []string{"10.0.0.1:6789"},
 			},
-			fsName:     "myfs",
-			path:       "",
-			msMode:     "prefer-secure",
-			wantSource: "admin@abc-def-123.myfs=/",
+			fsName:            "myfs",
+			path:              "",
+			msMode:            "prefer-secure",
+			modernMountSyntax: true,
+			wantSource:        "admin@abc-def-123.myfs=/",
 			wantOptions: []string{
 				"mon_addr=10.0.0.1:6789",
 				"name=admin",
@@ -145,10 +174,11 @@ func TestCephBuildMount(t *testing.T) {
 			monitors: Monitors{
 				V2: []string{"10.0.0.1:3300"},
 			},
-			fsName:     "myfs",
-			path:       "/",
-			msMode:     "secure",
-			wantSource: "admin@abc-def-123.myfs=/",
+			fsName:            "myfs",
+			path:              "/",
+			msMode:            "secure",
+			modernMountSyntax: true,
+			wantSource:        "admin@abc-def-123.myfs=/",
 			wantOptions: []string{
 				"mon_addr=10.0.0.1:3300",
 				"name=admin",
@@ -164,10 +194,11 @@ func TestCephBuildMount(t *testing.T) {
 			monitors: Monitors{
 				V2: []string{"10.0.0.1:3300"},
 			},
-			fsName:     "myfs",
-			path:       "/",
-			msMode:     "prefer-crc",
-			wantSource: "admin@abc-def-123.myfs=/",
+			fsName:            "myfs",
+			path:              "/",
+			msMode:            "prefer-crc",
+			modernMountSyntax: true,
+			wantSource:        "admin@abc-def-123.myfs=/",
 			wantOptions: []string{
 				"mon_addr=10.0.0.1:3300",
 				"name=admin",
@@ -179,7 +210,7 @@ func TestCephBuildMount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			source, options := CephBuildMount(tt.user, tt.key, tt.fsid, tt.monitors, tt.fsName, tt.path, tt.msMode)
+			source, options := CephBuildMount(tt.user, tt.key, tt.fsid, tt.monitors, tt.fsName, tt.path, tt.msMode, tt.modernMountSyntax)
 			assert.Equal(t, tt.wantSource, source)
 			assert.Equal(t, tt.wantOptions, options)
 		})

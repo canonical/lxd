@@ -145,7 +145,7 @@ func CephFSID(ctx context.Context, cluster string) (string, error) {
 }
 
 // CephBuildMount creates a mount string and option list from mount parameters.
-func CephBuildMount(user string, key string, fsid string, monitors Monitors, fsName string, path string, msMode string) (source string, options []string) {
+func CephBuildMount(user string, key string, fsid string, monitors Monitors, fsName string, path string, msMode string, modernMountSyntax bool) (source string, options []string) {
 	// Ceph mount paths must begin with a '/'. If it doesn't (or is empty),
 	// prefix it now.
 	if !strings.HasPrefix(path, "/") {
@@ -158,12 +158,8 @@ func CephBuildMount(user string, key string, fsid string, monitors Monitors, fsN
 		monAddrs = monitors.V2
 	}
 
-	// Build the source path.
-	source = fmt.Sprintf("%s@%s.%s=%s", user, fsid, fsName, path)
-
-	// Build the options list.
+	// Build the base options list.
 	options = []string{
-		"mon_addr=" + strings.Join(monAddrs, "/"),
 		"name=" + user,
 	}
 
@@ -173,6 +169,28 @@ func CephBuildMount(user string, key string, fsid string, monitors Monitors, fsN
 	}
 
 	options = append(options, "ms_mode="+msMode)
+
+	// The modern mount syntax requires 5.17+ kernel.
+	// This behavior aligns with that of `mount.ceph` (not used by LXD) where
+	// the modern syntax is used by default when supported, and legacy syntax is
+	// used as a fallback for older kernels.
+	if modernMountSyntax {
+		// Modern syntax (>= 5.17)
+		source = fmt.Sprintf("%s@%s.%s=%s", user, fsid, fsName, path)
+		options = append(options, "mon_addr="+strings.Join(monAddrs, "/"))
+	} else {
+		// Legacy syntax (< 5.17)
+		// Monitors must be passed entirely in the source string.
+		source = strings.Join(monAddrs, ",") + ":" + path
+
+		if fsName != "" {
+			options = append(options, "mds_namespace="+fsName)
+		}
+
+		if fsid != "" {
+			options = append(options, "fsid="+fsid)
+		}
+	}
 
 	return source, options
 }
