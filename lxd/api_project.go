@@ -1951,10 +1951,7 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 				}
 
 				// Skip the check if the target is unreachable to allow for disaster recovery failover.
-				clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
-				if err != nil {
-					return fmt.Errorf("Failed loading cluster certificate: %w", err)
-				}
+				clusterCert := s.Endpoints.NetworkCert()
 
 				args := cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
 				targetClient, err := cluster.ConnectCluster(ctx, *clusterLink, args)

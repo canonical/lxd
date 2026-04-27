@@ -197,10 +197,7 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 		return nil
 	}
 
-	clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
-	if err != nil {
-		return err
-	}
+	clusterCert := s.Endpoints.NetworkCert()
 
 	targetClient, err := ConnectCluster(ctx, *clusterLink, GetClusterLinkConnectionArgs(clusterCert, targetCert))
 	if err != nil {

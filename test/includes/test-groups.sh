@@ -49,10 +49,6 @@ readonly test_group_cluster=(
     "clustering_project_limits"
     "clustering_link_auth"
     "clustering_link_info"
-    "clustering_replicator_basic"
-    "clustering_replicator_scheduled"
-    "clustering_replicator_dr"
-    "clustering_replicator_snapshot"
 )
 
 readonly test_group_cluster_storage=(
@@ -63,6 +59,10 @@ readonly test_group_cluster_storage=(
     "clustering_recovery"
     "clustering_storage"
     "clustering_storage_single_node"
+    "clustering_replicator_basic"
+    "clustering_replicator_scheduled"
+    "clustering_replicator_dr"
+    "clustering_replicator_snapshot"
 )
 
 readonly test_group_instance=(

@@ -765,6 +765,20 @@ migration() {
 
   lxc_remote delete -f l1:c1 l2:c1
 
+  # On zfs, refreshing a clone (no shared snapshots) via pull mode used to fail because
+  # zfs receive cannot overwrite a clone with a full stream.
+  sub_test "Refresh ZFS clone via pull mode succeeds when no shared snapshots exist"
+  # c1 on l1 is created as a ZFS clone of the image snapshot.
+  lxc_remote init testimage l1:c1
+  # Copy c1 to l2 — l2:c1 is also a ZFS clone.
+  lxc_remote copy l1:c1 l2:c1 --refresh
+  # Pull c1 back from l2 to l1 with refresh. Since c1 on l1 has no snapshots,
+  # there are no shared snapshots with l2:c1, so a full ZFS stream is used.
+  # The existing l1:c1 clone must be deleted first or zfs receive fails.
+  lxc_remote copy l2:c1 l1:c1 --refresh --mode=pull
+  # Cleanup
+  lxc_remote delete l1:c1 l2:c1
+
   # migrate ISO custom volumes
   truncate -s 8MiB foo.iso
   lxc storage volume import l1:"${pool}" ./foo.iso iso1

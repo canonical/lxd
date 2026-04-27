@@ -965,9 +965,15 @@ func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 		}
 
 		// If there are no snapshots on the target, there's no point in doing an optimized
-		// refresh.
+		// refresh. Delete the existing volume if it exists so that zfs receive can create
+		// a fresh dataset (it cannot overwrite a clone with a full stream).
 		if len(snapshots) == 0 {
 			volTargetArgs.Refresh = false
+
+			err = d.DeleteVolume(vol.Volume, progressReporter)
+			if err != nil {
+				return err
+			}
 		}
 
 		var respSnapshots []ZFSDataset

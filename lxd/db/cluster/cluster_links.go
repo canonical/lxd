@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
@@ -169,6 +172,73 @@ func UpdateClusterLinkConfig(ctx context.Context, tx *sql.Tx, clusterLinkID int6
 	}
 
 	return CreateClusterLinkConfig(ctx, tx, clusterLinkID, config)
+}
+
+// clusterConfigRef describes an entity type whose config table may reference a cluster link via the 'cluster' key.
+// To support a new entity type, add an entry here.
+type clusterConfigRef struct {
+	typeCode    int64
+	configTable string // e.g. "replicators_config"
+	idColumn    string // Foreign key column in configTable, e.g. "replicator_id"
+	entityTable string // e.g. "replicators"
+}
+
+// clusterConfigRefs lists every entity type whose config may contain a 'cluster' key referencing a cluster link.
+var clusterConfigRefs = []clusterConfigRef{
+	{
+		typeCode:    entityTypeCodeReplicator,
+		configTable: "replicators_config",
+		idColumn:    "replicator_id",
+		entityTable: "replicators",
+	},
+}
+
+// GetClusterLinkUsedBy returns a list of URLs of all entities that reference the cluster link with the given name via the 'cluster' config key.
+// If firstOnly is true then the search stops after the first match.
+func GetClusterLinkUsedBy(ctx context.Context, tx *sql.Tx, clusterLinkName string, firstOnly bool) ([]string, error) {
+	var b strings.Builder
+	args := make([]any, 0, len(clusterConfigRefs))
+
+	for i, ref := range clusterConfigRefs {
+		if i > 0 {
+			b.WriteString("\nUNION ")
+		}
+
+		b.WriteString(`SELECT ` + strconv.FormatInt(ref.typeCode, 10) + `, ` + ref.entityTable + `.name, projects.name FROM ` + ref.entityTable + `
+JOIN ` + ref.configTable + ` ON ` + ref.entityTable + `.id = ` + ref.configTable + `.` + ref.idColumn + `
+JOIN projects ON ` + ref.entityTable + `.project_id = projects.id
+WHERE ` + ref.configTable + `.key = 'cluster' AND ` + ref.configTable + `.value = ?`)
+		args = append(args, clusterLinkName)
+	}
+
+	if firstOnly {
+		b.WriteString(" LIMIT 1")
+	}
+
+	var urls []string
+	err := query.Scan(ctx, tx, b.String(), func(scan func(dest ...any) error) error {
+		var eType EntityType
+		var eName string
+		var pName string
+		err := scan(&eType, &eName, &pName)
+		if err != nil {
+			return err
+		}
+
+		switch entity.Type(eType) {
+		case entity.TypeReplicator:
+			urls = append(urls, entity.ReplicatorURL(pName, eName).String())
+		default:
+			return errors.New("Unexpected entity type in cluster link usage query")
+		}
+
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed finding references to cluster link: %w", err)
+	}
+
+	return urls, nil
 }
 
 // GetClusterLinksAndURLs returns all cluster links that pass the given filter, along with their entity URLs.

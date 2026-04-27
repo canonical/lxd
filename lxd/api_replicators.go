@@ -340,12 +340,12 @@ func replicatorGet(d *Daemon, r *http.Request) response.Response {
 func replicatorValidateConfig(ctx context.Context, s *state.State, config map[string]string) error {
 	replicatorConfigKeys := map[string]func(value string) error{
 		// lxdmeta:generate(entities=replicator; group=conf; key=cluster)
-		// Required when creating a replicator. When updating, this key can be omitted to keep the existing cluster link.
+		// Required when creating a replicator.
 		// ---
 		//  type: string
 		//  shortdesc: Target cluster link name.
 		//  scope: global
-		"cluster": validate.Optional(func(value string) error {
+		"cluster": validate.Required(func(value string) error {
 			err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				_, err := dbCluster.GetClusterLink(ctx, tx.Tx(), value)
 				if err != nil {
@@ -403,6 +403,8 @@ func replicatorValidateConfig(ctx context.Context, s *state.State, config map[st
 		}
 	}
 
+	// The validator loop only runs for keys present in config, so a missing "cluster" key
+	// must be caught separately.
 	if config["cluster"] == "" {
 		return fmt.Errorf("Replicator configuration key %q is required", "cluster")
 	}
@@ -730,10 +732,12 @@ func updateReplicator(d *Daemon, r *http.Request, isPatch bool) response.Respons
 		req.Config = map[string]string{}
 	}
 
-	for k, v := range apiReplicator.Config {
-		_, ok := req.Config[k]
-		if !ok {
-			req.Config[k] = v
+	if isPatch {
+		for k, v := range apiReplicator.Config {
+			_, ok := req.Config[k]
+			if !ok {
+				req.Config[k] = v
+			}
 		}
 	}
 
@@ -1014,10 +1018,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		return operations.OperationArgs{}, fmt.Errorf("Failed loading replicator run state: %w", err)
 	}
 
-	clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
-	if err != nil {
-		return operations.OperationArgs{}, fmt.Errorf("Failed loading cluster certificate: %w", err)
-	}
+	clusterCert := s.Endpoints.NetworkCert()
 
 	connArgs := lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
 	targetClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, connArgs)
@@ -1288,13 +1289,13 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				},
 			}
 
-			srcOp, err := func() (*operations.Operation, error) {
-				if op.Requestor() != nil {
-					return operations.ScheduleUserOperationFromOperation(s, op, migrArgs)
-				}
+			var srcOp *operations.Operation
+			if op.Requestor() != nil {
+				srcOp, err = operations.ScheduleUserOperationFromOperation(s, op, migrArgs)
+			} else {
+				srcOp, err = operations.ScheduleServerOperation(s, migrArgs)
+			}
 
-				return operations.ScheduleServerOperation(s, migrArgs)
-			}()
 			if err != nil {
 				return err
 			}
