@@ -189,6 +189,13 @@ All link types rely on TLS certificate pinning: Cluster A fetches and pins Clust
 1. **Cluster A** consumes the token with [`lxc cluster link create`](lxc_cluster_link_create.md) `<name> --token <token> --unidirectional`, pins Cluster B's certificate, and calls back to B to activate the pending identity.
 1. Cluster A has an active cluster link to Cluster B with no associated identity. Cluster B has an active TLS identity for Cluster A but no cluster link record.
 
+#### Unidirectional connection process
+
+1. **Cluster B** issues a pending identity token using [`lxc auth identity create`](lxc_auth_identity_create.md) `cluster-link/<name>`.
+1. **Cluster A** consumes the token with [`lxc cluster link create`](lxc_cluster_link_create.md) `<name> --token <token> --unidirectional`, pins Cluster B's certificate, and calls back to B to activate the pending identity.
+1. Cluster A has an active link to Cluster B with no associated identity.
+   Cluster B has an active identity for Cluster A and a corresponding link row.
+
 For more information, see: {ref}`howto-cluster-links-create`.
 
 (exp-clusters-links-identity)=
