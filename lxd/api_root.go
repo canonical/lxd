@@ -140,7 +140,7 @@ const uiUnavailableMessage = `<html><title>The UI is not available</title><body>
 func rootGet(d *Daemon, r *http.Request) response.Response {
 	if isBrowserClient(r) {
 		return response.ManualResponse(func(w http.ResponseWriter) error {
-			err := handleUIAccessLink(w, r, d.globalConfig.ClusterUUID(), d.identityCache)
+			err := handleUIAccessLink(w, r, d.globalConfig.ClusterUUID(), d.identityCache, d.events)
 			if err != nil {
 				http.Redirect(w, r, "/ui/?initial-access-link-invalid", http.StatusFound)
 				return nil

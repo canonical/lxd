@@ -567,7 +567,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		var requestor request.RequestorArgs
 		isBearerRequest, token, subject := bearer.IsDevLXDRequest(r, d.globalConfig.ClusterUUID())
 		if isBearerRequest {
-			bearerRequestor, err := bearer.Authenticate(subject, token, auth.TokenLocationAuthorizationBearer, d.identityCache)
+			bearerRequestor, err := bearer.Authenticate(r.Context(), subject, token, auth.TokenLocationAuthorizationBearer, d.identityCache, d.events.SendSecurity)
 			if err != nil {
 				// Deny access to DevLXD altogether if the provided token is not verifiable.
 				_ = response.DevLXDErrorResponse(fmt.Errorf("Failed verifying bearer token: %w", err)).Render(w, r)

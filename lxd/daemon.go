@@ -634,7 +634,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 			return nil, api.StatusErrorf(http.StatusForbidden, "Token query parameter usage is not allowed for the /1.0 API")
 		}
 
-		bearerRequestor, err := bearer.Authenticate(subject, token, tokenLocation, d.identityCache)
+		bearerRequestor, err := bearer.Authenticate(r.Context(), subject, token, tokenLocation, d.identityCache, d.events.SendSecurity)
 		if err != nil {
 			// Deny access if the provided token is not verifiable.
 			return nil, fmt.Errorf("Failed verifying bearer token: %w", err)
@@ -1662,6 +1662,7 @@ func (d *Daemon) init() error {
 	}
 
 	d.events.SetLocalLocation(d.serverName)
+	d.events.SetClusterIdentifier(d.globalConfig.ClusterUUID())
 
 	// Mount the storage pools.
 	logger.Info("Initializing storage pools")
@@ -1720,6 +1721,7 @@ func (d *Daemon) init() error {
 	}
 
 	d.events.SetLocalLocation(d.serverName)
+	d.events.SetClusterIdentifier(d.globalConfig.ClusterUUID())
 
 	// Get daemon configuration.
 	bgpAddress := d.localConfig.BGPAddress()
