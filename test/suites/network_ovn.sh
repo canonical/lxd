@@ -887,6 +887,344 @@ test_network_ovn() {
 
   # Validate northbound database is now empty.
   reset_row_count
+  # assert_row_count
+
+  ########################################################################################################################
+
+  echo "==> Test OVN load balancer pools."
+
+  echo "Create a bridge for use as an uplink."
+  lxc network create "${uplink_network}" \
+      ipv4.address=10.10.10.1/24 ipv4.nat=true \
+      ipv4.dhcp.ranges=10.10.10.2-10.10.10.199 \
+      ipv4.ovn.ranges=10.10.10.200-10.10.10.254 \
+      ipv6.address=fd42:4242:4242:1010::1/64 ipv6.nat=true \
+      ipv6.ovn.ranges=fd42:4242:4242:1010::200-fd42:4242:4242:1010::254 \
+      ipv4.routes=192.0.2.0/24 ipv6.routes=2001:db8:1:2::/64
+
+  echo "==> Create an OVN network."
+  lxc network create "${ovn_network}" --type ovn network="${uplink_network}" \
+    ipv4.address=10.24.140.1/24 ipv4.nat=true \
+    ipv6.address=fd42:bd85:5f89:5293::1/64 ipv6.nat=true
+
+  echo "==> Create load balancers for both IP families on the OVN network (internal)."
+  lxc network load-balancer create "${ovn_network}" 10.24.140.100
+  lxc network load-balancer create "${ovn_network}" fd42:bd85:5f89:5293::100
+
+  echo "==> Create load balancers for both IP families on the UPLINK network (external)."
+  lxc network load-balancer create "${ovn_network}" 192.0.2.100
+  lxc network load-balancer create "${ovn_network}" 2001:db8:1:2::100
+
+  echo "==> Ensure we can reach into the OVN network for internal load balancer checks."
+  router_ipv4="$(lxc network get "${ovn_network}" volatile.network.ipv4.address)"
+  router_ipv6="$(lxc network get "${ovn_network}" volatile.network.ipv6.address)"
+  ip route add 10.24.140.100 via "${router_ipv4}"
+  ip route add 192.0.2.100 via "${router_ipv4}"
+  ip -6 route add fd42:bd85:5f89:5293::100 via "${router_ipv6}"
+  ip -6 route add 2001:db8:1:2::100 via "${router_ipv6}"
+
+  load_balancer_ips=("10.24.140.100" "fd42:bd85:5f89:5293::100" "192.0.2.100" "2001:db8:1:2::100")
+
+  echo "==> Create a load balancer pool using 80, TCP and a short interval to speed up tests"
+  lxc network load-balancer pool create "${ovn_network}" http target_port=80 healthcheck.interval=1
+
+  echo "==> Check that the load balancer pool shows the right target port"
+  [ "$(lxc network load-balancer pool get "${ovn_network}" http target_port)" = "80" ]
+
+   echo "==> Check that the load balancer pool shows the right interval"
+  [ "$(lxc network load-balancer pool get "${ovn_network}" http healthcheck.interval)" = "1" ]
+
+  echo "==> Check that the load balancer pool shows port tcp if none was provided during creation"
+  [ "$(lxc network load-balancer pool get "${ovn_network}" http protocol)" = "tcp" ]
+
+  echo "==> Check the list of load balancer pool instances is empty."
+  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.instances | length')" = "0" ]
+
+  # Required in setup_instance_ip4_interface.
+  ovn_network_id="$(lxd sql global --format csv "SELECT id FROM networks WHERE name = '${ovn_network}'")"
+  chassis_group_name="lxd-net${ovn_network_id}"
+
+  echo "==> Create targets for the load balancer pool."
+  for i in 1 2 3; do
+    lxc launch testimage "c${i}" -n "${ovn_network}"
+    setup_instance_ip4_interface "c${i}"
+  done
+
+  echo "==> Attach targets to the load balancer pool."
+  for i in 1 2 3; do
+    lxc network load-balancer pool instance add "${ovn_network}" http "c${i}"
+  done
+
+  echo "==> Check that the load balancer pool shows three backends."
+  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.instances | length')" = "3" ]
+
+  echo "==> Check the load balancer pool for both IP families after assigning it to a port."
+  for ip in "${load_balancer_ips[@]}"; do
+    bracketed_ip="$(wrap_ipv6 "${ip}")"
+
+    echo "==> Check that a port range cannot be used to reference a pool."
+    [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer port add "${ovn_network}" "${ip}" tcp 80-81 target_pool=http 2>&1)" = 'Error: Failed updating load balancer: Port ranges cannot be used with pool in port specification 0' ]
+
+    echo "==> Create a load balancer port using the pool."
+    lxc network load-balancer port add "${ovn_network}" "${ip}" tcp 80 target_pool=http
+
+    echo "==> Check the pool cannot be removed when being referenced by a port."
+    [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer pool delete "${ovn_network}" http 2>&1)" = 'Error: Pool "http" is still referenced by load balancer "'"${ip}"'" using port "80"' ]
+
+    echo "==> Setup a fourth instance which doesn't have an interface in the OVN network."
+    lxc init testimage c4
+
+    echo "==> Check the instance without interface cannot be attached to the load balancer pool as it's referenced by a port."
+    [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer pool instance add "${ovn_network}" http c4 2>&1)" = 'Error: Failed updating load balancer "'"${ip}"'": Instance "c4" does not have a device in network "'"${ovn_network}"'"' ]
+
+    lxc rm -f c4
+
+    echo "==> Check we cannot remove instance devices while they are actively used by a load balancer port."
+    [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc config device remove c1 eth0 2>&1)" = 'Error: Failed pre-remove check for device "eth0": Instance "c1" is referenced by load balancer pool "http" and listen address "'"${ip}"'"' ]
+
+    echo "==> Create a profile with a network device in the OVN network."
+    lxc profile show default | lxc profile create foo
+    lxc profile device set foo eth0 network="${ovn_network}"
+
+    echo "==> Setup a fourth instance using the profile."
+    lxc init testimage c4 -p foo
+
+    echo "==> Check the instance can be added to the pool."
+    lxc network load-balancer pool instance add "${ovn_network}" http c4
+
+    echo "==> Check the profile device cannot be removed while the interface is used by a load balancer port."
+    [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc profile device remove foo eth0 2>&1)" = "Error: At least one instance relies on this profile's nic device for network load balancer pool membership" ]
+
+    echo "==> Check the instance status is unknown as it was added to the pool in a stopped state."
+    # "unknown" means it's not added to the load balancer and there is no service monitor which reports a status for it.
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq -r '."load-balancers"."'"${bracketed_ip}"':80".[] | select(.instance == "c4").status')" = "unknown" ]
+
+    echo "==> Check the instance can be removed which also removes its participation in the load balancer pool."
+    lxc rm -f c4
+
+    echo "==> Check the instance is removed from the pool."
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq -r '."load-balancers"."'"${bracketed_ip}"':80".[] | select(.instance == "c4")' || echo fail)" = "" ]
+
+    lxc profile delete foo
+
+    echo "==> Check the load balancer pool shows as being used."
+    [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.used_by | length')" = "1" ]
+
+    echo "==> Check the load balancer pool's state shows a single load balancer."
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers" | length')" = "1" ]
+
+    echo "==> Check the load balancer pool's state shows three targets for port 80."
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."'"${bracketed_ip}"':80" | length')" = "3" ]
+
+    echo "==> Check the target isn't online as there isn't any service running inside the instance."
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."'"${bracketed_ip}"':80" | map(select(.status != "online")) | length')" = "3" ]
+
+    echo "==> Spawn a web server in the first two instances to serve traffic on port 80."
+    for i in 1 2; do
+      # shellcheck disable=SC2016
+      lxc exec "c${i}" -- sh -c 'echo "$(hostname)" > /tmp/index.html && httpd -p 80 -h /tmp'
+    done
+
+    echo "==> Wait for the targets to become healthy."
+    wait_for_pool_status "${ovn_network}" "${bracketed_ip}" http online 2
+
+    echo "==> Check that the first instance target is online."
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."'"${bracketed_ip}"':80" | map(select(.status == "online" and .instance == "c1")) | length')" = "1" ]
+
+    echo "==> Check that the second instance target is online."
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."'"${bracketed_ip}"':80" | map(select(.status == "online" and .instance == "c2")) | length')" = "1" ]
+
+    echo "==> Check that the third instance target is still marked as offline."
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."'"${bracketed_ip}"':80" | map(select(.status != "online" and .instance == "c3")) | length')" = "1" ]
+
+    echo "==> Check that the load balancers accordingly distribute traffic to the first two instances."
+    probe_pool_targets "${bracketed_ip}" c1 c2
+
+    echo "==> Tear down the second server."
+    lxc exec "c2" -- killall httpd
+
+    echo "==> Wait for the second instance target to become unhealthy."
+    for i in $(seq 1 3); do
+      if [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."'"${bracketed_ip}"':80" | map(select(.status == "online" and .instance == "c2")) | length')" = "0" ]; then
+        break
+      fi
+
+      # As the pool has a check interval of 1 second, the target should be marked unhealthy after 3 iterations.
+      if [ "$i" -eq 3 ]; then
+        echo "Target failed to become unhealthy within the expected time"
+        exit 1
+      fi
+
+      sleep 1
+    done
+
+    echo "==> Check that the first instance target is online."
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."'"${bracketed_ip}"':80" | map(select(.status == "online" and .instance == "c1")) | length')" = "1" ]
+
+    echo "==> Check that the second instance target is offline."
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."'"${bracketed_ip}"':80" | map(select(.status == "offline" and .instance == "c2")) | length')" = "1" ]
+
+    echo "==> Check that the third instance target is still marked as offline."
+    [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."'"${bracketed_ip}"':80" | map(select(.status == "offline" and .instance == "c3")) | length')" = "1" ]
+
+    echo "==> Check that the load balancers accordingly distribute traffic only to the first instance"
+    probe_pool_targets "${bracketed_ip}" c1
+
+    echo "==> Start the web server in the third instance."
+    # shellcheck disable=SC2016
+    lxc exec c3 -- sh -c 'echo "$(hostname)" > /tmp/index.html && httpd -p 80 -h /tmp'
+
+    echo "==> Wait for the new target to become healthy."
+    wait_for_pool_status "${ovn_network}" "${bracketed_ip}" http online 2
+
+    echo "==> Check that the load balancers accordingly distribute traffic to the first and third instances."
+    probe_pool_targets "${bracketed_ip}" c1 c3
+
+    echo "==> Stop the first instance."
+    lxc stop -f c1
+
+    echo "==> Check the health check status of the first instances becomes unhealthy."
+    for i in $(seq 1 3); do
+      if [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."'"${bracketed_ip}"':80" | map(select(.status == "offline" and .instance == "c1")) | length')" = "1" ]; then
+        break
+      fi
+
+      # As the pool has a check interval of 1 second, the target should be marked unhealthy after 3 iterations.
+      if [ "$i" -eq 3 ]; then
+        echo "Target failed to become unhealthy within the expected time"
+        exit 1
+      fi
+
+      sleep 1
+    done
+
+    echo "==> Monitor the status yields only offline until the target is online again."
+    # Poll c1's status in the background. It must only be "offline" or "online".
+    # Any other value causes an immediate failure.
+    (
+      timeout=10
+      elapsed=0
+      while true; do
+        status="$(lxc network load-balancer pool info "${ovn_network}" http | yq -r '."load-balancers"."'"${bracketed_ip}"':80".[] | select(.instance == "c1").status')"
+        if [ "${status}" = "online" ]; then
+          exit 0
+        fi
+
+        if [ "${status}" != "offline" ]; then
+          echo "ERROR: Unexpected status '${status}' for c1 target" >&2
+          exit 1
+        fi
+
+        elapsed=$((elapsed + 1))
+        if [ "${elapsed}" -ge "${timeout}" ]; then
+          echo "ERROR: Timed out waiting for c1 target to become online" >&2
+          exit 1
+        fi
+
+        sleep 1
+      done
+    ) &
+
+    monitor_pid="$!"
+
+    echo "==> Start c1 and its web server."
+    lxc start c1
+    setup_instance_ip4_interface c1
+    # shellcheck disable=SC2016
+    lxc exec c1 -- sh -c 'echo "$(hostname)" > /tmp/index.html && httpd -p 80 -h /tmp'
+
+    echo "==> Wait for background monitor to confirm clean offline-to-online transition."
+    wait "${monitor_pid}"
+
+    echo "==> Remove the first instance from the pool."
+    lxc network load-balancer pool instance remove "${ovn_network}" http c1
+
+    echo "==> Monitor the status of the first instance yields online after it is added back to the pool and the target is healthy."
+    (
+      timeout=10
+      elapsed=0
+      while true; do
+        status="$(lxc network load-balancer pool info "${ovn_network}" http | yq -r '."load-balancers"."'"${bracketed_ip}"':80".[] | select(.instance == "c1").status')"
+        if [ "${status}" = "online" ]; then
+          exit 0
+        fi
+
+        # "offline" means that the instance target isn't reachable.
+        #   We don't expect this as the target of the first instance is online.
+        # "unknown" means there is no health check for the instance.
+        #   It's not yet added to the LB, but already in the DB so the state endpoint appends it to the list of targets for which a service monitor exists.
+        # "pending" means OVN hasn't yet probed the instance target.
+        # "" means the instance wasn't yet added to the pool.
+        if [ "${status}" != "unknown" ] && [ "${status}" != "pending" ] && [ "${status}" != "" ]; then
+          # A status like "pending" is what we never want to see here and fail.
+          echo "ERROR: Unexpected status '${status}' for c1 target" >&2
+          exit 1
+        fi
+
+        elapsed=$((elapsed + 1))
+        if [ "${elapsed}" -ge "${timeout}" ]; then
+          echo "ERROR: Timed out waiting for c1 target to become online" >&2
+          exit 1
+        fi
+
+        sleep 1
+      done
+    ) &
+
+    monitor_pid="$!"
+
+    echo "==> Add the first instance back to the pool."
+    lxc network load-balancer pool instance add "${ovn_network}" http c1
+
+    echo "==> Wait for background monitor to confirm clean transition to online status."
+    wait "${monitor_pid}"
+
+    echo "==> Tear down all servers."
+    for i in 1 2 3; do
+      lxc exec "c${i}" -- killall httpd || true
+    done
+
+    echo "==> Cleanup port."
+    lxc network load-balancer port remove "${ovn_network}" "${ip}" tcp 80
+  done
+
+  echo "==> Create a dual-stack load balancer using the same pool."
+  lxc network load-balancer port add "${ovn_network}" 192.0.2.100 tcp 80 target_pool=http
+  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::100 tcp 80 target_pool=http
+
+   echo "==> Check the load balancer pool shows as being used twice."
+  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.used_by | length')" = "2" ]
+
+  echo "==> Check the load balancer pool's state shows two load balancers."
+  [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers" | length')" = "2" ]
+
+  echo "==> Check that disabling the pool health check moves the target status to unknown."
+  lxc network load-balancer pool set "${ovn_network}" http healthcheck=false
+  [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."192.0.2.100:80" | map(select(.status == "unknown")) | length')" = "3" ]
+  [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."[2001:db8:1:2::100]:80" | map(select(.status == "unknown")) | length')" = "3" ]
+
+  echo "==> Check that unsetting the healthcheck configuration re-enables it by default."
+  lxc network load-balancer pool unset "${ovn_network}" http healthcheck
+  [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."192.0.2.100:80" | map(select(.status != "unknown")) | length')" = "3" ]
+  [ "$(lxc network load-balancer pool info "${ovn_network}" http | yq '."load-balancers"."[2001:db8:1:2::100]:80" | map(select(.status != "unknown")) | length')" = "3" ]
+
+  echo "==> Cleanup."
+  for i in 1 2 3; do
+    lxc rm -f "c${i}"
+  done
+  lxc network load-balancer pool delete "${ovn_network}" http
+  for ip in "${load_balancer_ips[@]}"; do
+    lxc network load-balancer delete "${ovn_network}" "${ip}"
+  done
+  ip route del 10.24.140.100
+  ip route del 192.0.2.100
+  ip -6 route del fd42:bd85:5f89:5293::100
+  ip -6 route del 2001:db8:1:2::100
+  lxc network delete "${ovn_network}"
+  lxc network delete "${uplink_network}"
+
+  # Validate northbound database is now empty.
+  reset_row_count
   assert_row_count
 
   unset_ovn_configuration
