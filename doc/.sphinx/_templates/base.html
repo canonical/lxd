@@ -7,3 +7,10 @@
   <meta name="robots" content="noindex">
   {% endif %}
 {% endblock %}
+
+{% block theme_scripts %}
+{{ super() }}
+<script>
+  window.flyoutDefaultVersionLabel = "{{ flyout_default_version_label }}";
+</script>
+{% endblock theme_scripts %}
